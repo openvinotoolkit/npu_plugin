@@ -1,6 +1,9 @@
-# Copyright (C) 2023 Intel Corporation
+#
+# Copyright (C) 2021-2023 Intel Corporation.
 # SPDX-License-Identifier: Apache 2.0
-PROJECT_NAME = "VPUX Plugin for Inference Engine"
+#
+
+PROJECT_NAME = "NPU Plugin for Inference Engine"
 PROJECT_NUMBER = 0.0.0
 
 OUTPUT_DIRECTORY        = @IE_MAIN_VPUX_PLUGIN_SOURCE_DIR@/docs/VPUX_DG/generated

@@ -195,8 +195,8 @@ mlir::LogicalResult FakeQuantizeRewrite::matchAndRewrite(VPU::FakeQuantizeOp ori
     auto outputBuffers = allocateBuffers(_log, origOp->getLoc(), rewriter, *typeConverter, {origOp.output()});
 
     rewriter.replaceOpWithNewOp<VPUIP::FakeQuantizeUPAOp>(
-            origOp, newArgs.input(), outputBuffers[0], origOp.levelsAttr(), inLowConst.contentAttr(),
-            inHighConst.contentAttr(), outLowConst.contentAttr(), outHighConst.contentAttr());
+            origOp, newArgs.input(), outputBuffers[0], origOp.levelsAttr(), inLowConst.getContentAttr(),
+            inHighConst.getContentAttr(), outLowConst.getContentAttr(), outHighConst.getContentAttr());
 
     return mlir::success();
 }
@@ -399,9 +399,8 @@ void ConvertSWLayers2VPUIPUPAPass::safeRunOnFunc() {
     // ViewLike and other non-SW ops are not handled in this pass
     target.addLegalOp<VPU::CopyOp, VPU::ExpandOp, VPU::StridedSliceOp, VPU::AffineReshapeOp, VPU::ReshapeOp,
                       VPU::SqueezeOp, VPU::UnsqueezeOp, VPU::SliceOp, VPU::SplitOp, VPU::ConcatOp, VPU::PermuteCastOp,
-                      VPU::QuantizeCastOp, VPU::DistributedCastOp, VPU::StubOp,
-                      VPU::GroupSparseTensorOp, VPU::StorageElementTableOp, VPU::ShapeCastOp, VPU::LayoutCastOp,
-                      VPU::WorkloadCastOp>();
+                      VPU::QuantizeCastOp, VPU::DistributedCastOp, VPU::StubOp, VPU::GroupSparseTensorOp,
+                      VPU::StorageElementTableOp, VPU::ShapeCastOp, VPU::LayoutCastOp, VPU::WorkloadCastOp>();
 
     target.addLegalOp<VPUIP::SwKernelOp>();
     target.markOpRecursivelyLegal<VPUIP::SwKernelOp>([&](mlir::Operation*) {

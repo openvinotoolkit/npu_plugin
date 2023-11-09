@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -26,11 +26,11 @@ std::unique_ptr<mlir::Pass> createConstantFoldingPass(Logger log = Logger::globa
 //
 
 #define GEN_PASS_CLASSES
-#include <vpux/compiler/dialect/const/generated/passes.hpp.inc>
+#include <vpux/compiler/dialect/const/passes.hpp.inc>
 #undef GEN_PASS_CLASSES
 
 #define GEN_PASS_REGISTRATION
-#include <vpux/compiler/dialect/const/generated/passes.hpp.inc>
+#include <vpux/compiler/dialect/const/passes.hpp.inc>
 #undef GEN_PASS_REGISTRATION
 
 }  // namespace Const

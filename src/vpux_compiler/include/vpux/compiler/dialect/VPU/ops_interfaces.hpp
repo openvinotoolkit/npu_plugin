@@ -35,9 +35,9 @@ bool supportsSparseWeights(mlir::Operation* op);
 //
 
 template <typename ConcreteOp>
-void setLayerMultiClusterStrategyAttr(ConcreteOp mainOp, VPU::MultiClusterStrategy strategy) {
+void setLayerMultiClusterStrategy(ConcreteOp mainOp, VPU::MultiClusterStrategy strategy) {
     const auto multiClusterStrategyAttr = VPU::MultiClusterStrategyAttr::get(mainOp->getContext(), strategy);
-    mainOp.multiClusterStrategyAttr(multiClusterStrategyAttr);
+    mainOp.setMultiClusterStrategyAttr(multiClusterStrategyAttr);
 }
 
 namespace details {
@@ -49,6 +49,12 @@ mlir::Operation* addWorkload(mlir::Region& workloads, mlir::OpBuilder& builder, 
                              ShapeRef sizes, PaddingAttr pad, MPEMode mpeMode, mlir::IntegerAttr clusterId);
 
 }  // namespace details
+
+//
+// LayerOpInterface
+//
+
+mlir::LogicalResult verifyLayer(mlir::Operation* op);
 
 //
 // TilingBuilderOpInterface
@@ -84,7 +90,7 @@ public:
         // Do nothing
     }
 
-    OutputTiling getTilingStrategy(TilingMode tilingMode, Logger log) {
+    mlir::FailureOr<OutputTiling> getTilingStrategy(TilingMode tilingMode, Logger log) {
         return getSWLayerTilingStrategy(this->getOperation(), tilingMode, log);
     }
 };
@@ -100,142 +106,6 @@ mlir::LogicalResult verifyNCEOp(mlir::Operation* op);
 //
 
 bool isPureViewOp(mlir::Operation* op);
-
-//
-// SameInOutDefaultDimsOrder
-//
-
-mlir::LogicalResult verifySameInOutDefaultDimsOrder(mlir::Operation* op);
-void inferLayoutInfoSameInOutDefaultDimsOrder(IE::LayerLayoutInfo& info);
-
-template <typename ConcreteOp>
-class SameInOutDefaultDimsOrder : public mlir::OpTrait::TraitBase<ConcreteOp, SameInOutDefaultDimsOrder> {
-public:
-    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
-        return verifySameInOutDefaultDimsOrder(op);
-    }
-
-    static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
-        inferLayoutInfoSameInOutDefaultDimsOrder(info);
-    }
-};
-
-//
-// SameAnyDimsOrder
-//
-
-mlir::LogicalResult verifySameAnyDimsOrder(mlir::Operation* op);
-void inferLayoutInfoSameAnyDimsOrder(IE::LayerLayoutInfo& info);
-
-template <typename ConcreteOp>
-class SameAnyDimsOrder : public mlir::OpTrait::TraitBase<ConcreteOp, SameAnyDimsOrder> {
-public:
-    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
-        return verifySameAnyDimsOrder(op);
-    }
-    static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
-        inferLayoutInfoSameAnyDimsOrder(info);
-    }
-};
-
-//
-// SameInOutDimsOrder_NCHW_NHWC
-//
-
-mlir::LogicalResult verifySameInOutSpecificDimsOrder(mlir::Operation* op, ArrayRef<DimsOrder> supportedLayouts);
-void inferLayoutInfoSameInOutSpecificDimsOrder(IE::LayerLayoutInfo& info, ArrayRef<DimsOrder> supportedLayouts);
-
-template <typename ConcreteOp>
-class SameInOutDimsOrder_NCHW_NHWC : public mlir::OpTrait::TraitBase<ConcreteOp, SameInOutDimsOrder_NCHW_NHWC> {
-public:
-    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
-        return verifySameInOutSpecificDimsOrder(op, {DimsOrder::NCHW, DimsOrder::NHWC});
-    }
-
-    static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
-        inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NCHW, DimsOrder::NHWC});
-    }
-};
-
-//
-// SameInOutDimsOrder_NCHW
-//
-
-template <typename ConcreteOp>
-class SameInOutDimsOrder_NCHW : public mlir::OpTrait::TraitBase<ConcreteOp, SameInOutDimsOrder_NCHW> {
-public:
-    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
-        return verifySameInOutSpecificDimsOrder(op, {DimsOrder::NCHW});
-    }
-
-    static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
-        inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NCHW});
-    }
-};
-
-//
-// SameInOutDimsOrder_CHW_HWC_NCHW_NHWC
-//
-
-template <typename ConcreteOp>
-class SameInOutDimsOrder_CHW_HWC_NCHW_NHWC :
-        public mlir::OpTrait::TraitBase<ConcreteOp, SameInOutDimsOrder_CHW_HWC_NCHW_NHWC> {
-public:
-    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
-        return verifySameInOutSpecificDimsOrder(op, {DimsOrder::CHW, DimsOrder::HWC, DimsOrder::NCHW, DimsOrder::NHWC});
-    }
-
-    static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
-        inferLayoutInfoSameInOutSpecificDimsOrder(info,
-                                                  {DimsOrder::CHW, DimsOrder::HWC, DimsOrder::NCHW, DimsOrder::NHWC});
-    }
-};
-
-//
-// SameInOutDimsOrder_NCHW_CHW_NC_C
-//
-
-template <typename ConcreteOp>
-class SameInOutDimsOrder_NCHW_CHW_NC_C : public mlir::OpTrait::TraitBase<ConcreteOp, SameInOutDimsOrder_NCHW_CHW_NC_C> {
-public:
-    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
-        return verifySameInOutSpecificDimsOrder(op, {DimsOrder::NCHW, DimsOrder::CHW, DimsOrder::NC, DimsOrder::C});
-    }
-    static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
-        // [Track number: E#25740]
-        inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NCHW, DimsOrder::CHW, DimsOrder::NC, DimsOrder::C});
-    }
-};
-
-//
-// SameInOutDimsOrder_NC_CHW_HWC_NCHW_NHWC
-//
-
-template <typename ConcreteOp>
-class SameInOutDimsOrder_NC_CHW_HWC_NCHW_NHWC :
-        public mlir::OpTrait::TraitBase<ConcreteOp, SameInOutDimsOrder_NC_CHW_HWC_NCHW_NHWC> {
-public:
-    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
-        return verifySameInOutSpecificDimsOrder(
-                op, {DimsOrder::NC, DimsOrder::CHW, DimsOrder::HWC, DimsOrder::NCHW, DimsOrder::NHWC});
-    }
-
-    static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
-        inferLayoutInfoSameInOutSpecificDimsOrder(
-                info, {DimsOrder::NC, DimsOrder::CHW, DimsOrder::HWC, DimsOrder::NCHW, DimsOrder::NHWC});
-    }
-};
-
-//
-// AnyDimsOrder
-//
-
-template <typename ConcreteOp>
-class AnyDimsOrder : public mlir::OpTrait::TraitBase<ConcreteOp, AnyDimsOrder> {
-public:
-    static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo&) {
-    }
-};
 
 //
 // LimitedToArch
@@ -279,4 +149,4 @@ struct LimitedToArch {
 // Generated
 //
 
-#include <vpux/compiler/dialect/VPU/generated/ops_interfaces.hpp.inc>
+#include <vpux/compiler/dialect/VPU/ops_interfaces.hpp.inc>

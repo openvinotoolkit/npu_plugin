@@ -9,7 +9,6 @@
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/PatternMatch.h>
@@ -41,61 +40,58 @@ mlir::Value createReshape(mlir::PatternRewriter& rewriter, mlir::Value tensor, A
     return reshape.output();
 }
 
-mlir::Value reshapeToSeparateClassAndPriors(mlir::PatternRewriter& rewriter, mlir::Value input, int numPriors) {
-    const auto inputShape = getShape(input);
-    const auto batch = inputShape.front();
-    const auto width = inputShape.back();
-
-    VPUX_THROW_WHEN(
-            (width % numPriors) != 0,
-            "DetectionOutput input tensor with shape {0} has width={1}, that must be divisible by numPriors={2}",
-            inputShape, width, numPriors);
-
-    const auto newShape = SmallVector<int64_t>{batch, numPriors, width / numPriors};
-    return createReshape(rewriter, input, newShape);
-}
-
 mlir::Value reshapeLogitsTo4D(mlir::PatternRewriter& rewriter, mlir::Value input, int numPriors) {
-    const auto inputShape = getShape(input);
-    VPUX_THROW_UNLESS(inputShape.size() == 2, "boxLogits shape must be 2D");
+    const auto shape = getShape(input);
+    VPUX_THROW_UNLESS(shape.size() == 2, "BoxLogits shape must be 2D");
 
-    const auto batch = inputShape[Dim(0)];
-    const auto width = inputShape[Dim(1)];
+    const auto batch = shape[Dim(0)];
+    const auto width = shape[Dim(1)];
     const auto boxSize = 4;
 
-    VPUX_THROW_UNLESS((width % (boxSize * numPriors)) == 0,
-                      "DetectionOutput boxLogits tensor with shape {0} has width={1}, that must be divisible by 4 * "
-                      "numPriors={2}",
-                      inputShape, width, boxSize * numPriors);
+    VPUX_THROW_UNLESS((width % (boxSize * numPriors)) == 0, "DetectionOutput BoxLogits tensor shape {0} is incorrect",
+                      shape);
 
     const auto numLocClasses = width / (boxSize * numPriors);
     const auto newShape = SmallVector<int64_t>{batch, numPriors, numLocClasses, boxSize};
     return createReshape(rewriter, input, newShape);
 }
 
-mlir::Value transposeHW(mlir::PatternRewriter& rewriter, mlir::Value tensor) {
-    const auto ctx = rewriter.getContext();
+mlir::Value reshapeClassPredictionsTo4D(mlir::PatternRewriter& rewriter, mlir::Value input, int numPriors) {
+    const auto shape = getShape(input);
+    VPUX_THROW_UNLESS(shape.size() == 2, "ClassPredictions shape must be 2D");
 
-    const auto shape = getShape(tensor);
-    VPUX_THROW_UNLESS(shape.size() >= 2, "Can't transpose 1D tensor");
+    const auto batch = shape[Dim(0)];
+    const auto width = shape[Dim(1)];
 
-    const auto dimsOrder = DimsOrder::fromValue(tensor);
-    const auto orderMap = dimsOrder.toAffineMap(ctx);
-    VPUX_THROW_UNLESS(orderMap.isIdentity(), "Expected identity ordered tensor to be transposed");
+    VPUX_THROW_UNLESS(width % numPriors == 0, "DetectionOutput ClassPredictions tensor shape {0} is incorrect", shape);
 
-    auto memPermutation = dimsOrder.toPermutation();
-    std::swap(*memPermutation.rbegin(), *std::next(memPermutation.rbegin()));
-    const auto permutationMap = DimsOrder::fromPermutation(memPermutation).toAffineMap(ctx);
+    const auto numClasses = width / numPriors;
+    const auto newShape = SmallVector<int64_t>{batch, 1, numPriors, numClasses};
+    return createReshape(rewriter, input, newShape);
+}
 
-    return rewriter.create<VPU::MemPermuteOp>(tensor.getLoc(), tensor, orderMap, permutationMap);
+mlir::Value reshapePriorBoxesTo4D(mlir::PatternRewriter& rewriter, mlir::Value input, int numPriors) {
+    const auto shape = getShape(input);
+    VPUX_THROW_UNLESS(shape.size() == 3, "PriorBoxes shape must be 3D");
+
+    const auto batch = shape[Dim(0)];
+    const auto height = shape[Dim(1)];
+    const auto width = shape[Dim(2)];
+
+    VPUX_THROW_UNLESS(width % numPriors == 0, "DetectionOutput PriorBoxes tensor shape {0} is incorrect", shape);
+    const auto boxSize = width / numPriors;
+
+    const auto newShape = SmallVector<int64_t>{batch, height, numPriors, boxSize};
+
+    return createReshape(rewriter, input, newShape);
 }
 
 mlir::LogicalResult checkSupportedArguments(VPU::DetectionOutputOp origOp) {
     const auto attrs = origOp.attr();
 
     const auto normalized = origOp.attr().getNormalized().getValue();
-    const auto varianceEncodedItTarget = origOp.attr().getVarianceEncodedInTarget().getValue();
-    if (!normalized && !varianceEncodedItTarget) {
+    const auto varianceEncodedInTarget = origOp.attr().getVarianceEncodedInTarget().getValue();
+    if (!normalized && !varianceEncodedInTarget) {
         return errorAt(origOp,
                        "DetectionOutput: undefined case - normalized == false && varianceEncodedItTarget == false");
     }
@@ -123,13 +119,24 @@ mlir::LogicalResult checkSupportedArguments(VPU::DetectionOutputOp origOp) {
     return mlir::success();
 }
 
+mlir::Value transposeClassPredictions(mlir::PatternRewriter& rewriter, mlir::Value tensor) {
+    const auto ctx = rewriter.getContext();
+
+    // keep default 4D order because this is the order that will be used throughout.
+    // pretend that the data was never reordered in the first place.
+    const auto defaultOrder = DimsOrder::NCHW.toAffineMap(ctx);    //              \/--swap--\/
+    const auto permutationMap = DimsOrder::NCWH.toAffineMap(ctx);  // [Batch, 1, Priors, Classes]
+
+    return rewriter.create<VPU::MemPermuteOp>(tensor.getLoc(), tensor, defaultOrder, permutationMap);
+}
+
 mlir::Value transposeBoxes(mlir::PatternRewriter& rewriter, mlir::Value boxes4D) {
     const auto ctx = rewriter.getContext();
 
     // keep default 4D order because this is the order that will be used throughout
     // pretend that the data was never reordered in the first place
-    const auto defaultOrder = DimsOrder::NCHW.toAffineMap(ctx);
-    const auto permutationMap = DimsOrder::NHCW.toAffineMap(ctx);  // swap Priors and Classes
+    const auto defaultOrder = DimsOrder::NCHW.toAffineMap(ctx);    //           \/--swap--\/
+    const auto permutationMap = DimsOrder::NHCW.toAffineMap(ctx);  // [Batch, Priors, Classes, 4 or 5]
 
     return rewriter.create<VPU::MemPermuteOp>(boxes4D.getLoc(), boxes4D, defaultOrder, permutationMap);
 }
@@ -160,31 +167,27 @@ mlir::LogicalResult DetectionOutputDecomposition::matchAndRewrite(VPU::Detection
         return supported;
     }
 
-    auto priors = origOp.in_proposals();
+    const auto numPriors = getNumPriors(origOp);
+    auto priors4D = reshapePriorBoxesTo4D(rewriter, origOp.in_proposals(), numPriors);
+
     const auto normalized = origOp.attr().getNormalized().getValue();
     if (!normalized) {
         const auto inputWidth = origOp.attr().getInputWidth().getInt();
         const auto inputHeight = origOp.attr().getInputHeight().getInt();
-        priors = rewriter.create<VPU::DetectionOutputNormalizeOp>(origOp->getLoc(), priors, inputWidth, inputHeight);
+        priors4D =
+                rewriter.create<VPU::DetectionOutputNormalizeOp>(origOp->getLoc(), priors4D, inputWidth, inputHeight);
     }
 
-    const auto numPriors = getNumPriors(origOp);
     const auto boxLogits = reshapeLogitsTo4D(rewriter, origOp.in_box_logits(), numPriors);
     const auto boxLogitsTransposed = transposeBoxes(rewriter, boxLogits);
-
-    const auto classPredictions = reshapeToSeparateClassAndPriors(rewriter, origOp.in_class_preds(), numPriors);
 
     const auto codeType = origOp.attr().getCodeType().getValue();
     const auto clipBeforeNms = origOp.attr().getClipBeforeNms().getValue();
     auto decodeBoxes = rewriter.create<VPU::DetectionOutputDecodeBoxesOp>(
-            appendLoc(loc, "decodeBoxes"), boxLogitsTransposed, priors, codeType, clipBeforeNms);
+            appendLoc(loc, "decodeBoxes"), boxLogitsTransposed, priors4D, codeType, clipBeforeNms);
 
-    const auto decodeBoxesShape = getShape(decodeBoxes).toValues();
-    const auto newShape = SmallVector<int64_t>{decodeBoxesShape[Dim(0)], decodeBoxesShape[Dim(1)],
-                                               decodeBoxesShape[Dim(2)] * decodeBoxesShape[Dim(3)]};
-    auto decodeBoxes3D = createReshape(rewriter, decodeBoxes, newShape);
-
-    const auto transposedClassPredictions = transposeHW(rewriter, classPredictions);
+    const auto classPredictions = reshapeClassPredictionsTo4D(rewriter, origOp.in_class_preds(), numPriors);
+    const auto transposedClassPredictions = transposeClassPredictions(rewriter, classPredictions);
     const auto confidenceThreshold = origOp.attr().getConfidenceThreshold();
     const auto topK = origOp.attr().getTopK();
     const auto backgroundId = origOp.attr().getBackgroundLabelId();
@@ -192,13 +195,17 @@ mlir::LogicalResult DetectionOutputDecomposition::matchAndRewrite(VPU::Detection
             appendLoc(loc, "sortTopK"), transposedClassPredictions, confidenceThreshold, topK, backgroundId);
 
     auto selectBoxes = rewriter.create<VPU::DetectionOutputSelectBoxesOp>(
-            appendLoc(loc, "selectBoxes"), decodeBoxes3D, sortTopK.out_indices(),  // decodeBoxes.out_decoded_boxes()
-            sortTopK.out_sizes(), topK);
+            appendLoc(loc, "selectBoxes"), decodeBoxes, sortTopK.out_indices(), sortTopK.out_sizes(), topK);
+
+    const auto selectBoxes4DShape = getShape(selectBoxes).toValues();
+    const auto selectBoxes3DShape = SmallVector<int64_t>{selectBoxes4DShape[Dim(0)], selectBoxes4DShape[Dim(1)],
+                                                         selectBoxes4DShape[Dim(2)] * selectBoxes4DShape[Dim(3)]};
+    const auto selectBoxes3D = createReshape(rewriter, selectBoxes, selectBoxes3DShape);
 
     const auto nmsThreshold = origOp.attr().getNmsThreshold();
-    auto nmsCaffe = rewriter.create<VPU::DetectionOutputNmsCaffeOp>(
-            appendLoc(loc, "nmsCaffe"), sortTopK.out_top_k_confidence(), selectBoxes.out_boxes(), sortTopK.out_sizes(),
-            nmsThreshold);
+    auto nmsCaffe =
+            rewriter.create<VPU::DetectionOutputNmsCaffeOp>(appendLoc(loc, "nmsCaffe"), sortTopK.out_top_k_confidence(),
+                                                            selectBoxes3D, sortTopK.out_sizes(), nmsThreshold);
 
     const auto keepTopKValue = origOp.attr().getKeepTopK()[0].cast<mlir::IntegerAttr>().getInt();
     const auto keepTopK = getIntAttr(rewriter.getContext(), keepTopKValue);

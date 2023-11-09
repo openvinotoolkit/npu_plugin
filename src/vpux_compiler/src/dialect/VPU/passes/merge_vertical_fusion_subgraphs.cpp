@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
+#include <vpux/compiler/dialect/VPU/utils/tile_utils.hpp>
 #include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPU/utils/multi_cluster_strategy_utils.hpp"
 #include "vpux/compiler/dialect/VPU/utils/vertical_fusion_utils.hpp"
@@ -43,7 +44,7 @@ private:
     mlir::ArrayAttr getVFTilingInfo(VPU::VerticalFusionOp newBlock, VPU::VerticalFusionOp parentVFOp) const;
     void fuseBlocks(mlir::PatternRewriter& rewriter, VPU::VerticalFusionOp vfOp, VPU::VerticalFusionOp prevOp,
                     mlir::ArrayAttr tilingInfo) const;
-    bool checkTiling(TilingStorage tilingRegions, VPU::VerticalFusionOp currentOp, VPU::VerticalFusionOp prevOp) const;
+    bool checkTiling(TilingStorage& tilingRegions, VPU::VerticalFusionOp currentOp, VPU::VerticalFusionOp prevOp) const;
     bool adjustTiling(SmallVector<int64_t>& tilingInfo, VPU::VerticalFusionOp currentOp,
                       VPU::VerticalFusionOp prevOp) const;
     bool isValidVFInput(mlir::Value operand) const;
@@ -77,7 +78,7 @@ bool MergeVFRegionRewriter::adjustTiling(SmallVector<int64_t>& tilingInfo, VPU::
             continue;
         }
 
-        if (checkTiling(calculatedRegions.getValue(), currentOp, prevOp)) {
+        if (checkTiling(calculatedRegions.value(), currentOp, prevOp)) {
             return true;
         }
 
@@ -87,9 +88,9 @@ bool MergeVFRegionRewriter::adjustTiling(SmallVector<int64_t>& tilingInfo, VPU::
     return false;
 }
 
-bool MergeVFRegionRewriter::checkTiling(TilingStorage tilingRegions, VPU::VerticalFusionOp currentOp,
+bool MergeVFRegionRewriter::checkTiling(TilingStorage& tilingRegions, VPU::VerticalFusionOp currentOp,
                                         VPU::VerticalFusionOp prevOp) const {
-    for (auto op : currentOp.getOperands() | indexed) {
+    for (auto& op : currentOp.getOperands() | indexed) {
         const auto operand = op.value();
         const auto index = op.index();
 
@@ -108,11 +109,24 @@ bool MergeVFRegionRewriter::checkTiling(TilingStorage tilingRegions, VPU::Vertic
     return true;
 }
 
+Byte getRequiredWeightsMemory(ArrayRef<VPU::VerticalFusionOpInterface> ops) {
+    auto weightsMem = Byte(0);
+    for (auto& op : ops) {
+        if (mlir::isa<VPU::NCEOpInterface>(*op)) {
+            auto outputShape = op->getResult(0).getType().cast<vpux::NDTypeInterface>().getShape();
+            weightsMem += getRequiredCMXForWeight(op, TileInfo(outputShape));
+        }
+    }
+
+    return weightsMem;
+}
+
 /*
  Function checks if two blocks suit to be merged in one on following criterias:
  1. Number of operations doesn't exceed the limit
  2. In case there is only one operation in the block, it might be merged as first op in the block
  3. All multicluster strategies are same for both blocks if there are any
+ 4. Required CMX memory by constant weights shouldn't exceed the size of the whole memory
 */
 bool MergeVFRegionRewriter::checkVFCostFunction(VPU::VerticalFusionOp prevOp, VPU::VerticalFusionOp currentOp) const {
     const auto prevBlock = prevOp.getBody();
@@ -136,8 +150,8 @@ bool MergeVFRegionRewriter::checkVFCostFunction(VPU::VerticalFusionOp prevOp, VP
         // with kernel 1x1 and strides 1
         const auto oneKernelNCE = llvm::count_if(newOps, [&](auto op) {
             auto nceOp = llvm::dyn_cast<VPU::NCEOpInterface>(op.getOperation());
-            return nceOp != nullptr && llvm::all_of(nceOp.getKernelSize(), isOne) &&
-                   llvm::all_of(nceOp.getStrides(), isOne);
+            return nceOp != nullptr && llvm::all_of(nceOp.getKernelSizeVal(), isOne) &&
+                   llvm::all_of(nceOp.getStridesVal(), isOne);
         });
 
         // recheck condition excluding operation without additional computations needed
@@ -169,20 +183,30 @@ bool MergeVFRegionRewriter::checkVFCostFunction(VPU::VerticalFusionOp prevOp, VP
 
     if (firstOldClusterOp != oldOps.end() && firstNewClusterOp != newOps.end()) {
         const auto oldBlockStrategy =
-                llvm::dyn_cast<VPU::ClusteredOpInterface>(**firstOldClusterOp).getMultiClusterStrategyAttr();
+                llvm::dyn_cast<VPU::ClusteredOpInterface>(**firstOldClusterOp).getMultiClusterStrategy();
         const auto newBlockStrategy =
-                llvm::dyn_cast<VPU::ClusteredOpInterface>(**firstNewClusterOp).getMultiClusterStrategyAttr();
+                llvm::dyn_cast<VPU::ClusteredOpInterface>(**firstNewClusterOp).getMultiClusterStrategy();
 
         // if only one strategy is defined - blocks don't match
         // in case both strategies are defined, they must be same
-        if (oldBlockStrategy.hasValue() ^ newBlockStrategy.hasValue()) {
+        if (oldBlockStrategy.has_value() ^ newBlockStrategy.has_value()) {
             return false;
         }
 
-        if (oldBlockStrategy.hasValue() && newBlockStrategy.hasValue() &&
-            oldBlockStrategy.getValue() != newBlockStrategy.getValue()) {
+        if (oldBlockStrategy.has_value() && newBlockStrategy.has_value() &&
+            oldBlockStrategy.value() != newBlockStrategy.value()) {
             return false;
         }
+    }
+
+    // the memory required by constant weights should be less than the threshold
+    // otherwise there might be spilling for the weights
+    auto weightsMem = getRequiredWeightsMemory(to_small_vector(oldOps));
+    weightsMem += getRequiredWeightsMemory(to_small_vector(newOps));
+    const auto totalCMXSize = VPU::getTotalCMXSize(prevOp.getOperation()).count() * VF_WEIGHTS_RATIO;
+    if (totalCMXSize <= weightsMem.count()) {
+        _log.trace("Required weights memory exceeds the total memory size");
+        return false;
     }
 
     return true;
@@ -246,7 +270,7 @@ mlir::ArrayAttr MergeVFRegionRewriter::getVFTilingInfo(VPU::VerticalFusionOp pre
             return nullptr;
         }
 
-        tilingRegions = calculatedRegions.getValue();
+        tilingRegions = calculatedRegions.value();
     }
 
     if (!checkTiling(tilingRegions, currentOp, prevOp) && !adjustTiling(tilingArray, currentOp, prevOp)) {
@@ -359,7 +383,8 @@ bool MergeVFRegionRewriter::isValidVFInput(mlir::Value operand) const {
             return operand.isa<mlir::BlockArgument>();
         });
 
-        if (allBlockArguments || mlir::isa<Const::DeclareOp>(operation)) {
+        if (allBlockArguments || mlir::isa<Const::DeclareOp>(operation) ||
+            mlir::isa<VPU::VerticalFusionOp>(operation)) {
             return true;
         }
 
@@ -367,7 +392,6 @@ bool MergeVFRegionRewriter::isValidVFInput(mlir::Value operand) const {
             if (operation->getNumOperands() > 1) {
                 return false;
             }
-
             operation = operation->getOperand(0).getDefiningOp();
             continue;
         }

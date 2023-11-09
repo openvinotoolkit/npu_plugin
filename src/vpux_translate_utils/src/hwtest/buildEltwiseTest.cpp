@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <numeric>
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
@@ -91,18 +89,18 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
     auto barrier1 = funcbuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 1);
 
     // DMAs
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
                                           builder.getUnknownLoc(), funcinput, inputcmx.getOperation()->getResult(0));
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
                                           builder.getUnknownLoc(), funcweights,
                                           weightscmx.getOperation()->getResult(0));
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.getBarrier()), mlir::ValueRange(),
                                           builder.getUnknownLoc(), outputcmx.getOperation()->getResult(0), funcoutput);
 
     // NCE Task
     mlir::IntegerAttr actChannelLength = builder.getI32IntegerAttr(0);
     auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
-            funcbuilder, mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()),
+            funcbuilder, mlir::ValueRange(barrier0.getBarrier()), mlir::ValueRange(barrier1.getBarrier()),
             builder.getUnknownLoc(), outputcmx_type, inputcmx.getOperation()->getResult(0),
             weightscmx.getOperation()->getResult(0), mlir::Value(), /*instruction_table_list=*/nullptr,
             /*activation_window=*/nullptr, parent_inputcmx.getOperation()->getResult(0),
@@ -158,7 +156,7 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
 
     // set runtime resources
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(arch, VPU::CompilationMode::DefaultHW, 1, None, None, log));
+    pm.addPass(VPU::createInitCompilerPass(arch, VPU::CompilationMode::DefaultHW, 1, None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 

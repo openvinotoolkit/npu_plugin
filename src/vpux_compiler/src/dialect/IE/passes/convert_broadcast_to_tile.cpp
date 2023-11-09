@@ -51,7 +51,7 @@ mlir::LogicalResult ConvertBroadcastToTile::matchAndRewrite(IE::BroadcastOp orig
     if (broadcastType == IE::BroadcastType::BIDIRECTIONAL || broadcastType == IE::BroadcastType::NUMPY) {
         broadcastAxes = vpux::IE::getBroadcastAxesNumpyBidirectional(inputShape, outputShape);
     } else if (broadcastType == IE::BroadcastType::EXPLICIT) {
-        auto axesMapping = IE::constInputToData(origOp.getLoc(), origOp.axes_mapping()).getValue();
+        auto axesMapping = IE::constInputToData(origOp.getLoc(), origOp.axes_mapping()).value();
         broadcastAxes = vpux::IE::getBroadcastAxesExplicit(axesMapping, outputShape);
     }
 

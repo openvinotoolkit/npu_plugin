@@ -1,9 +1,10 @@
-// Copyright (C) Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "nce_tasks.hpp"
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 #include <ngraph_functions/builders.hpp>
 
@@ -153,7 +154,7 @@ std::shared_ptr<ov::Node> NCETasksHelpers::buildNCETask(const ov::Output<ov::Nod
 }
 
 std::shared_ptr<ov::Node> NCETasksHelpers::quantize(const ov::Output<ov::Node>& producer,
-                                                    const std::array<float, 4>& fqRange) {
+                                                    const std::array<float, 4>& fqRange, const size_t dataFqLvl) {
     const ngraph::Shape fqShape = {1};
 
     const std::vector<ngraph::float16> dataFqInLoVec = {fqRange.at(0)};
@@ -172,7 +173,6 @@ std::shared_ptr<ov::Node> NCETasksHelpers::quantize(const ov::Output<ov::Node>& 
     const auto dataFqOutHi =
             std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::f16, fqShape, dataFqOutHiVec.data());
 
-    const size_t dataFqLvl = 256;
     const auto dataFq =
             std::make_shared<ngraph::op::FakeQuantize>(producer, dataFqInLo, dataFqInHi, dataFqOutLo, dataFqOutHi,
                                                        dataFqLvl, ngraph::op::AutoBroadcastType::NUMPY);

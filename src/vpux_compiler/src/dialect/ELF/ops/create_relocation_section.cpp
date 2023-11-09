@@ -9,14 +9,14 @@
 
 void vpux::ELF::CreateRelocationSectionOp::serialize(elf::Writer& writer, vpux::ELF::SectionMapType& sectionMap,
                                                      vpux::ELF::SymbolMapType& symbolMap) {
-    const auto name = secName().str();
+    const auto name = getSecName().str();
     auto section = writer.addRelocationSection(name);
 
     // Look up dependent sections
-    auto symTab = llvm::dyn_cast<vpux::ELF::CreateSymbolTableSectionOp>(sourceSymbolTableSection().getDefiningOp());
+    auto symTab = llvm::dyn_cast<vpux::ELF::CreateSymbolTableSectionOp>(getSourceSymbolTableSection().getDefiningOp());
     VPUX_THROW_UNLESS(symTab != nullptr, "Reloc section expected to refer to a symbol table section");
 
-    auto target = llvm::dyn_cast_or_null<vpux::ELF::CreateSectionOp>(targetSection().getDefiningOp());
+    auto target = llvm::dyn_cast_or_null<vpux::ELF::CreateSectionOp>(getTargetSection().getDefiningOp());
     VPUX_THROW_UNLESS(target != nullptr, "Reloc section expected to refer at a valid target section");
 
     auto targetMapEntry = sectionMap.find(target.getOperation());
@@ -25,9 +25,9 @@ void vpux::ELF::CreateRelocationSectionOp::serialize(elf::Writer& writer, vpux::
 
     auto targetSection = targetMapEntry->second;
     section->setSectionToPatch(targetSection);
-    section->maskFlags(static_cast<elf::Elf_Xword>(secFlags()));
+    section->maskFlags(static_cast<elf::Elf_Xword>(getSecFlags()));
 
-    if (symTab.isBuiltin()) {
+    if (symTab.getIsBuiltin()) {
         auto symTab_value = elf::VPU_RT_SYMTAB;
         section->setSpecialSymbolTable(symTab_value);
     } else {
@@ -48,7 +48,7 @@ void vpux::ELF::CreateRelocationSectionOp::serialize(elf::Writer& writer, vpux::
         } else if (auto relocOp = llvm::dyn_cast<vpux::ELF::RelocImmOffsetOp>(op)) {
             relocOp.serialize(relocation, symbolMap);
         } else if (auto placeholder = llvm::dyn_cast<vpux::ELF::PutOpInSectionOp>(op)) {
-            auto actualOp = placeholder.inputArg().getDefiningOp();
+            auto actualOp = placeholder.getInputArg().getDefiningOp();
 
             if (auto relocOp = llvm::dyn_cast<vpux::ELF::RelocOp>(actualOp)) {
                 relocOp.serialize(relocation, symbolMap);

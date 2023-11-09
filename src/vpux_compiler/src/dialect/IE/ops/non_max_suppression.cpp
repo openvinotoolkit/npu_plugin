@@ -20,7 +20,7 @@ int64_t extractMaxOutputBoxesPerClass(IE::NonMaxSuppressionOpAdaptor nms) {
     if (nms.max_output_boxes_per_class() != nullptr) {
         auto maxBoxesConst = nms.max_output_boxes_per_class().getDefiningOp<Const::DeclareOp>();
         if (maxBoxesConst != nullptr) {
-            const auto maxBoxesContent = maxBoxesConst.content();
+            const auto maxBoxesContent = maxBoxesConst.getContent();
             if (maxBoxesContent.isSplat()) {
                 return maxBoxesContent.getSplatValue<int64_t>();
             }
@@ -38,7 +38,7 @@ double extractNMSAttrValue(mlir::Value constName, mlir::FloatAttr attrName) {
     if (constName != nullptr) {
         vpux::Const::DeclareOp attrConst = constName.getDefiningOp<Const::DeclareOp>();
         if (attrConst != nullptr) {
-            vpux::Const::Content attrContent = attrConst.content();
+            vpux::Const::Content attrContent = attrConst.getContent();
             if (attrContent.isSplat()) {
                 attrValue = attrContent.getSplatValue<float>();
             }
@@ -96,8 +96,8 @@ public:
 
 mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::NonMaxSuppressionOp nmsOp,
                                                         mlir::PatternRewriter& rewriter) const {
-    if (nmsOp.max_output_boxes_per_class_value().hasValue() && nmsOp.iou_threshold_value().hasValue() &&
-        nmsOp.score_threshold_value().hasValue() && nmsOp.soft_nms_sigma_value().hasValue()) {
+    if (nmsOp.max_output_boxes_per_class_value().has_value() && nmsOp.iou_threshold_value().has_value() &&
+        nmsOp.score_threshold_value().has_value() && nmsOp.soft_nms_sigma_value().has_value()) {
         return mlir::failure();
     }
 

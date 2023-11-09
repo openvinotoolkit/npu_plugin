@@ -72,7 +72,7 @@ vpux::InputTiling vpux::VPU::GridSampleOp::backInferTileInfo(const vpux::TileInf
 void vpux::VPU::GridSampleOp::adjustAttrs(const TilingInfo& /*inputTiling*/, const TileInfo& /*outputTile*/) {
 }
 
-OutputTiling vpux::VPU::GridSampleOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
+mlir::FailureOr<OutputTiling> vpux::VPU::GridSampleOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
     auto op = this->getOperation();
     auto tilingInfo = mlir::dyn_cast<VPU::TilingInfoOpInterface>(op);
 
@@ -91,7 +91,10 @@ OutputTiling vpux::VPU::GridSampleOp::getTilingStrategy(TilingMode tilingMode, L
     const auto isSupportedTileSize = [op, &tilingInfo, outputShape, log](ShapeRef nTilesOnDim,
                                                                          TilingMode tilingMode) -> bool {
         const auto tiles = fillDividedTiles(op, nTilesOnDim, outputShape);
-        return tilingInfo.isSupportedTiling(tiles, tilingMode, log);
+        if (mlir::failed(tiles)) {
+            return false;
+        }
+        return tilingInfo.isSupportedTiling(tiles.value(), tilingMode, log);
     };
 
     while (!isSupportedTileSize(nTilesOnDimforGridSample, tilingModeToCheck)) {

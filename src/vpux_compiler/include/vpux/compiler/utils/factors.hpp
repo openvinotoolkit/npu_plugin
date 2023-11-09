@@ -1,5 +1,5 @@
 //
-// Copyright © 2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -12,15 +12,16 @@
 namespace vpux {
 
 struct Factors final {
-    int64_t larger = 0;
-    int64_t smaller = 0;
+    int64_t first = 0;
+    int64_t second = 0;
 
     Factors() {
     }
-    Factors(int64_t larger, int64_t smaller): larger(larger), smaller(smaller) {
+    Factors(int64_t first, int64_t second): first(first), second(second) {
     }
 };
 
 SmallVector<Factors> getFactorsList(int64_t n);
 SmallVector<Factors> getFactorsListWithLimitation(int64_t n, int64_t limit);
+SmallVector<int64_t> getPrimeFactors(int64_t n);
 }  // namespace vpux

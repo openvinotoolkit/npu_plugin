@@ -1,13 +1,15 @@
 #
 # Copyright (C) 2022 Intel Corporation.
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: Apache 2.0
 #
 
 if(ENABLE_LTO)
     ie_enable_lto()
 endif()
 
-set(TARGET_NAME "vpuxUnitTests")
+set(TARGET_NAME "npuUnitTests")
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(EXCLUDED_UNIT_TESTS_DIR "")
 set(OPTIONAL_UNIT_TESTS_INCLUDES "")
 set(OPTIONAL_UNIT_TESTS_LIBS "")
@@ -20,8 +22,8 @@ set(MANDATORY_UNIT_TESTS_LIBS
     "common_tests_helpers"
     "${VPUX_PLUGIN_STATIC_TARGET}"
     "kmb_utils"
-    "vpux_al"
-    "vpux_utils"
+    "npu_al"
+    "npu_utils"
 )
 
 if(ENABLE_DRIVER_COMPILER_ADAPTER)
@@ -30,7 +32,7 @@ if(ENABLE_DRIVER_COMPILER_ADAPTER)
     )
 
     list(APPEND OPTIONAL_UNIT_TESTS_LIBS
-            vpux_driver_compiler_adapter_static
+            npu_driver_compiler_adapter_static
         )
 else()
     list(APPEND EXCLUDED_UNIT_TESTS_DIR
@@ -45,25 +47,8 @@ if(NOT ENABLE_MLIR_COMPILER)
     )
 else()
     list(APPEND MANDATORY_UNIT_TESTS_LIBS
-        "vpux_mlir_compiler_static"
-        "vpux_translate_utils_static"
-    )
-endif()
-
-#
-# Add optional tests on HuffmanCodec
-#
-if(ENABLE_HUFFMAN_CODEC)
-    list(APPEND OPTIONAL_UNIT_TESTS_INCLUDES
-        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/compression_codec/huffman_encoding/include"
-    )
-
-    list(APPEND OPTIONAL_UNIT_TESTS_LIBS
-        huffman_codec
-    )
-else()
-    list(APPEND EXCLUDED_UNIT_TESTS_DIR
-        "${CMAKE_CURRENT_SOURCE_DIR}/compression_codec/huffman_encoding"
+        "npu_mlir_compiler_static"
+        "npu_translate_utils_static"
     )
 endif()
 
@@ -78,8 +63,8 @@ addIeTargetTest(
     INCLUDES
         ${OPTIONAL_UNIT_TESTS_INCLUDES}
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
-        ${VPUAL_INCLUDES}
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2"
+        ${CMAKE_CURRENT_SOURCE_DIR}/vpux_compiler
     LINK_LIBRARIES
         ${OPTIONAL_UNIT_TESTS_LIBS}
         ${MANDATORY_UNIT_TESTS_LIBS}
@@ -97,7 +82,7 @@ enable_warnings_as_errors(${TARGET_NAME})
 vpux_enable_clang_format(${TARGET_NAME})
 
 # FIXME: E78489 gtest does not respect this option yet in some parts
-# so we cannot enable it for vpuxUnitTests
+# so we cannot enable it for npuUnitTests
 
 if(NOT MSVC)
     target_compile_options(${TARGET_NAME} PRIVATE -Wno-suggest-override)

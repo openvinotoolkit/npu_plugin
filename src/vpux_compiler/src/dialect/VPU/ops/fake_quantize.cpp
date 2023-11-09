@@ -35,7 +35,7 @@ mlir::LogicalResult vpux::VPU::FakeQuantizeOp::inferReturnTypes(
             autob, loc);
 
     if (mlir::succeeded(outShapeOrResult)) {
-        const auto outType = inputType.changeShape(Shape(outShapeOrResult.getValue()));
+        const auto outType = inputType.changeShape(Shape(outShapeOrResult.value()));
         inferredReturnTypes.push_back(outType);
     }
 
@@ -65,10 +65,10 @@ EMU::BlobWriter::SpecificTask vpux::VPU::FakeQuantizeOp::serialize(EMU::BlobWrit
         VPUX_THROW("Got non constant parameters for FakeQuantize");
     }
 
-    const auto input_low = getVecFP16(inLowConst.contentAttr());
-    const auto input_high = getVecFP16(inHighConst.contentAttr());
-    const auto output_low = getVecFP16(outLowConst.contentAttr());
-    const auto output_high = getVecFP16(outHighConst.contentAttr());
+    const auto input_low = getVecFP16(inLowConst.getContentAttr());
+    const auto input_high = getVecFP16(inHighConst.getContentAttr());
+    const auto output_low = getVecFP16(outLowConst.getContentAttr());
+    const auto output_high = getVecFP16(outHighConst.getContentAttr());
 
     MVCNN::FakeQuantizeParamsBuilder builder(writer);
     builder.add_levels(checked_cast<uint32_t>(levels()));

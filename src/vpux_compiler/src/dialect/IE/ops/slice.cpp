@@ -5,6 +5,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
+#include "vpux/compiler/dialect/IE/utils/propagate_quantize_dequantize_utils.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
@@ -90,30 +91,13 @@ mlir::OpFoldResult vpux::IE::SliceOp::fold(ArrayRef<mlir::Attribute> operands) {
 //
 
 void vpux::IE::SliceOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    const auto inputElemType = info.getInput(0);
-
-    // Do not propagate element type down in per channel case.
-    // E#31030
-    if (inputElemType != nullptr && inputElemType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
-        return;
-    }
-
-    for (size_t outputInd = 0; outputInd < info.getNumOutputs(); ++outputInd) {
-        info.setOutput(outputInd, inputElemType);
-    }
+    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
+    propagateElementTypeDown(info);
 }
 
 void vpux::IE::SliceOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    const auto outputElemType = info.getOutput(0);
-
-    if (outputElemType != nullptr && outputElemType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
-        // E#31029: implement propagate type up for per channel, currently it leads to failures in later passes.
-        return;
-    }
-
-    for (size_t inputInd = 0; inputInd < info.getNumInputs(); ++inputInd) {
-        info.setInput(inputInd, outputElemType);
-    }
+    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
+    propagateElementTypeUp(info);
 }
 
 //

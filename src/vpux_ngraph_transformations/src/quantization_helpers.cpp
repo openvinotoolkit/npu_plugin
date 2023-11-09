@@ -82,8 +82,7 @@ void align_zp(float& min, float& max, const int max_levels) {
 }
 
 bool is_fq_agnostic(const std::shared_ptr<ngraph::Node>& node) {
-    return (std::dynamic_pointer_cast<ngraph::op::v0::Tile>(node) != nullptr ||
-            std::dynamic_pointer_cast<ngraph::op::v1::StridedSlice>(node) != nullptr ||
+    return (std::dynamic_pointer_cast<ngraph::op::v1::StridedSlice>(node) != nullptr ||
             std::dynamic_pointer_cast<ngraph::op::v1::VariadicSplit>(node) != nullptr ||
             (std::dynamic_pointer_cast<ngraph::op::v0::Interpolate>(node) != nullptr &&
              std::dynamic_pointer_cast<ngraph::op::v0::Interpolate>(node)->get_attrs().mode == "nearest") ||
@@ -91,7 +90,6 @@ bool is_fq_agnostic(const std::shared_ptr<ngraph::Node>& node) {
              std::dynamic_pointer_cast<ngraph::op::v4::Interpolate>(node)->get_attrs().mode ==
                      ngraph::op::v4::Interpolate::InterpolateMode::NEAREST) ||
             std::dynamic_pointer_cast<ngraph::op::v1::MaxPool>(node) != nullptr ||
-            std::dynamic_pointer_cast<ngraph::op::v1::ReduceMax>(node) != nullptr ||
             std::dynamic_pointer_cast<ngraph::op::v0::ReorgYolo>(node) != nullptr ||
             // [Track number: E#21478]
             // (std::dynamic_pointer_cast<ngraph::op::v1::Reshape>(node) != nullptr &&
@@ -248,7 +246,7 @@ std::vector<std::shared_ptr<ngraph::Node>> getAnyInputsFQ(std::shared_ptr<ngraph
     return result;
 }
 
-std::vector<std::shared_ptr<ngraph::Node>> getInputsFQ(std::shared_ptr<ngraph::Node> node) {
+std::vector<std::shared_ptr<ngraph::Node>> getInputsFQ(const std::shared_ptr<ngraph::Node>& node) {
     const auto parents = getParents(node);
     std::vector<std::shared_ptr<ngraph::Node>> result;
     std::vector<std::shared_ptr<ngraph::Node>> tmp;

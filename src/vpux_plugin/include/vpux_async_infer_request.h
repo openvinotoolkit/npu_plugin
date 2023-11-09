@@ -18,7 +18,8 @@ public:
                                const InferenceEngine::ITaskExecutor::Ptr& requestExecutor,
                                const InferenceEngine::ITaskExecutor::Ptr& getResultExecutor,
                                const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor);
-
+    AsyncInferRequest(const AsyncInferRequest&) = delete;
+    AsyncInferRequest& operator=(const AsyncInferRequest&) = delete;
     ~AsyncInferRequest();
 
 private:

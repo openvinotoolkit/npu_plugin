@@ -61,7 +61,7 @@ func.func @MultipleUsesInOneRegion(%arg0: memref<1x1x1x10xf16>, %arg1: memref<1x
     %1 = async.await %f1 : !async.value<memref<1x1x1x10xf16>>
 
     %t2, %f2 = async.execute -> !async.value<memref<1x1x1x10xf16>> {
-        %2 = VPUIP.EltwiseUPA { type = "ADD" } inputs(%1 : memref<1x1x1x10xf16>, %1 : memref<1x1x1x10xf16>) outputs(%arg1 : memref<1x1x1x10xf16>) -> memref<1x1x1x10xf16>
+        %2 = VPUIP.EltwiseUPA { task_type = #VPU.eltwise_type<ADD> } inputs(%1 : memref<1x1x1x10xf16>, %1 : memref<1x1x1x10xf16>) outputs(%arg1 : memref<1x1x1x10xf16>) -> memref<1x1x1x10xf16>
         async.yield %2 : memref<1x1x1x10xf16>
     }
     %2 = async.await %f2 : !async.value<memref<1x1x1x10xf16>>
@@ -74,7 +74,7 @@ func.func @MultipleUsesInOneRegion(%arg0: memref<1x1x1x10xf16>, %arg1: memref<1x
     // CHECK:       [[T2:%.+]], [[F2:%.+]] = async.execute
     // CHECK-SAME:          [[T1]]
     // CHECK-SAME:          ([[F1]] as [[VAL1:%.+]]: !async.value<memref<1x1x1x10xf16>>)
-    // CHECK:           VPUIP.EltwiseUPA {type = "ADD"} inputs([[VAL1]] : memref<1x1x1x10xf16>, [[VAL1]] : memref<1x1x1x10xf16>)
+    // CHECK:           VPUIP.EltwiseUPA {task_type = #VPU.eltwise_type<ADD>} inputs([[VAL1]] : memref<1x1x1x10xf16>, [[VAL1]] : memref<1x1x1x10xf16>)
 
     // CHECK:       [[VAL2:%.+]] = async.await [[F2]]
     // CHECK:       return [[VAL2]]
@@ -98,7 +98,7 @@ func.func @UsesFromMultipleWaits(%arg0: memref<1x1x1x10xf16>, %arg1: memref<1x1x
     %2 = async.await %f2 : !async.value<memref<1x1x1x10xf16>>
 
     %t3, %f3 = async.execute -> !async.value<memref<1x1x1x10xf16>> {
-        %3 = VPUIP.EltwiseUPA { type = "ADD" } inputs(%1 : memref<1x1x1x10xf16>, %2 : memref<1x1x1x10xf16>) outputs(%arg1 : memref<1x1x1x10xf16>) -> memref<1x1x1x10xf16>
+        %3 = VPUIP.EltwiseUPA { task_type = #VPU.eltwise_type<ADD> } inputs(%1 : memref<1x1x1x10xf16>, %2 : memref<1x1x1x10xf16>) outputs(%arg1 : memref<1x1x1x10xf16>) -> memref<1x1x1x10xf16>
         async.yield %3 : memref<1x1x1x10xf16>
     }
     %3 = async.await %f3 : !async.value<memref<1x1x1x10xf16>>
@@ -116,7 +116,7 @@ func.func @UsesFromMultipleWaits(%arg0: memref<1x1x1x10xf16>, %arg1: memref<1x1x
     // CHECK-SAME:          [[T2]]
     // CHECK-SAME:          ([[F1]] as [[VAL1:%.+]]: !async.value<memref<1x1x1x10xf16>>,
     // CHECK-SAME:           [[F2]] as [[VAL2:%.+]]: !async.value<memref<1x1x1x10xf16>>)
-    // CHECK:           VPUIP.EltwiseUPA {type = "ADD"} inputs([[VAL1]] : memref<1x1x1x10xf16>, [[VAL2]] : memref<1x1x1x10xf16>)
+    // CHECK:           VPUIP.EltwiseUPA {task_type = #VPU.eltwise_type<ADD>} inputs([[VAL1]] : memref<1x1x1x10xf16>, [[VAL2]] : memref<1x1x1x10xf16>)
 
     // CHECK:       [[VAL3:%.+]] = async.await [[F3]]
     // CHECK:       return [[VAL3]]

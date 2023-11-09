@@ -10,8 +10,10 @@
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 #NWCH = affine_map<(d0, d1, d2, d3) -> (d0, d3, d1, d2)>
 
-module @PermuteQuantize attributes {VPU.arch = "VPUX37XX", VPU.compilationMode = "DefaultHW"} {
-  IE.MemoryResource 1982464 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
+module @PermuteQuantize attributes {VPU.arch = #VPU.arch_kind<VPUX37XX>, VPU.compilationMode = #VPU.compilation_mode<DefaultHW>} {
+    IE.ExecutorResource 2 of @NCE at 1.300000e+03 MHz {
+        IE.MemoryResource 1982464 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
+    }
 
 // CHECK-LABEL: @SparsifyPermuteQuantize
 func.func @SparsifyPermuteQuantize(%arg0: tensor<1x32x3x1568xf16, {order = #NHWC}>) -> tensor<1x32x4x1568x!qElemType, {order = #NWCH}> {
@@ -21,20 +23,15 @@ func.func @SparsifyPermuteQuantize(%arg0: tensor<1x32x3x1568xf16, {order = #NHWC
     %2 = VPU.NCE.PermuteQuantize(%1) {
         dstElemType = !qElemType,
         dstOrder = #NWCH,
-        pad = {
-            bottom = 1 : i64,
-            left = 0 : i64,
-            right = 0 : i64,
-            top = 0 : i64
-        },
-        ppe = {
+        pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 1 : i64>,
+        ppe = #VPU.PPETask<
             clamp_high = 255 : i64,
             clamp_low = 0 : i64,
             fp_prelu_alpha = 29.19257926940918 : f64,
             lrelu_mult = 1 : i64,
             lrelu_shift = 0 : i64,
-            mode = "NOOP"
-        }
+            mode = <NOOP>
+        >
     } -> tensor<1x32x4x1568x!qElemType, {order = #NWCH}>
 
 

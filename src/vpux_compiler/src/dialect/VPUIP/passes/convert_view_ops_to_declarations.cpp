@@ -47,7 +47,7 @@ Byte ViewLikeRewrite::calculateOffset(mlir::Value val) const {
     }
 
     if (auto declareOp = mlir::dyn_cast_or_null<VPURT::DeclareBufferOp>(val.getDefiningOp())) {
-        offset += Byte(declareOp.byteOffset());
+        offset += Byte(declareOp.getByteOffset());
     }
 
     if (auto subViewOp = mlir::dyn_cast_or_null<VPUIP::SubViewOp>(val.getDefiningOp())) {
@@ -64,8 +64,8 @@ Byte ViewLikeRewrite::calculateOffset(mlir::Value val) const {
         if (auto distributedType = subViewOp.source().getType().dyn_cast<VPUIP::DistributedBufferType>()) {
             // Get tiling dim index
             const auto tileIndex = VPUIP::getTilingDimIndex(distributedType);
-            if (tileIndex.hasValue()) {
-                auto tileIndexVal = tileIndex.getValue();
+            if (tileIndex.has_value()) {
+                auto tileIndexVal = tileIndex.value();
                 auto origShape = getShape(subViewOp.source());
                 auto subShape = getShape(subViewOp.result());
                 if (origShape.size() != 4 || origShape.size() != subShape.size()) {
@@ -74,7 +74,7 @@ Byte ViewLikeRewrite::calculateOffset(mlir::Value val) const {
 
                 // Correct offset for tiling dim if different input/output tile index shape
                 if (origShape[Dim(tileIndexVal)] != subShape[Dim(tileIndexVal)]) {
-                    auto numTiles = parseIntArrayAttr<int64_t>(distributedType.getDistribution().num_tiles());
+                    auto numTiles = parseIntArrayAttr<int64_t>(distributedType.getDistribution().getNumTiles());
                     offset -= Byte(strides[Dim(tileIndexVal)] * offsets[tileIndexVal]) / numTiles[tileIndexVal];
                 }
             }
@@ -108,10 +108,10 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
         _log.nest().trace("It aliases internal buffer produced by '{0}'", declareOp->getLoc());
 
         const auto outType = origOp->getResult(0).getType().cast<vpux::NDTypeInterface>();
-        section = VPURT::symbolizeBufferSection(outType.getMemSpace().getLeafName()).getValue();
+        section = VPURT::symbolizeBufferSection(outType.getMemSpace().getLeafName()).value();
         auto memSpaceIndex = outType.getMemSpace().getIndex();
-        if (memSpaceIndex.hasValue()) {
-            sectionIndex = getIntArrayAttr(rewriter, makeArrayRef({memSpaceIndex.getValue()}));
+        if (memSpaceIndex.has_value()) {
+            sectionIndex = getIntArrayAttr(rewriter, makeArrayRef({memSpaceIndex.value()}));
         }
     } else if (auto blockArg = rootVal.dyn_cast<mlir::BlockArgument>()) {
         _log.nest().trace("It aliases Block argument '{0}'", blockArg);
@@ -166,7 +166,7 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
         swizzlingKey = swizzlingScheme.getKey();
     }
 
-    mlir::ArrayAttr sectionIndexAttr = sectionIndex.hasValue() ? sectionIndex.getValue() : nullptr;
+    mlir::ArrayAttr sectionIndexAttr = sectionIndex.has_value() ? sectionIndex.value() : nullptr;
     rewriter.replaceOpWithNewOp<VPURT::DeclareBufferOp>(origOp, outType, section, sectionIndexAttr, offset.count(),
                                                         swizzlingKey);
 
@@ -195,7 +195,7 @@ mlir::LogicalResult RewriteConcatView::matchAndRewrite(VPUIP::ConcatViewOp origO
 
     rewriter.replaceOp(origOp, origOp.output_buff());
     return ::mlir::success();
-};
+}
 
 //
 // ConvertViewOpsToDeclarationsPass

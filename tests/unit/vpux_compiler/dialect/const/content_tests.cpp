@@ -3,16 +3,15 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
-#include "vpux/compiler/init.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/core/numeric.hpp"
 #include "vpux/utils/core/range.hpp"
+
+#include "common/utils.hpp"
 
 #include <mlir/Dialect/Quant/QuantOps.h>
 #include <mlir/Dialect/Quant/QuantTypes.h>
@@ -64,15 +63,12 @@ void checkPaddedBuffer(const Const::Content& actual, const std::vector<T>& expVa
 }
 }  // namespace
 
-class MLIR_ConstContentAttrTest : public testing::Test {
+class MLIR_ConstContentAttrTest : public MLIR_UnitBase {
 public:
     mlir::MLIRContext ctx;
 
 public:
-    void SetUp() override {
-        mlir::DialectRegistry registry;
-        registerDialects(registry);
-
+    MLIR_ConstContentAttrTest(): MLIR_UnitBase() {
         ctx.appendDialectRegistry(registry);
         ctx.loadDialect<Const::ConstDialect>();
     }
@@ -1255,4 +1251,104 @@ TEST_F(MLIR_ConstContentAttrTest, ElideLargeElements) {
     constexpr StringLiteral expectedStr = "#const.OpaqueElements<\"elided_large_const\", \"0xDEADBEEF\">";
 
     EXPECT_TRUE(actualStr.contains(expectedStr));
+}
+
+TEST_F(MLIR_ConstContentAttrTest, ChangeShapeAndElemType) {
+    ctx.loadDialect<mlir::quant::QuantizationDialect>();
+
+    const auto baseType = mlir::RankedTensorType::get({2, 1, 1, 8}, getUInt8Type(&ctx));
+    const auto vals = generateValues<uint8_t>(baseType.getNumElements());
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
+
+    ASSERT_NE(baseContentAttr, nullptr);
+    EXPECT_EQ(baseContentAttr.getType(), baseType);
+
+    const auto quantType = mlir::quant::UniformQuantizedType::get(0, getUInt8Type(&ctx), mlir::Float32Type::get(&ctx),
+                                                                  0.078431372549019607, 128, 0, 255);
+    const auto quantContentAttr = baseContentAttr.changeShapeAndElemType({1, 2, 1, 8}, quantType);
+
+    ASSERT_NE(quantContentAttr, nullptr);
+    EXPECT_NE(quantContentAttr.getType(), quantType);
+
+    const auto content = quantContentAttr.fold();
+    EXPECT_NE(content.getType(), baseType);
+    EXPECT_FALSE(content.isSplat());
+
+    const auto contentVals = content.getValues<uint8_t>();
+    EXPECT_EQ(contentVals.size(), vals.size());
+
+    for (size_t i = 0; i < vals.size(); ++i) {
+        EXPECT_EQ(contentVals[i], vals[i]);
+    }
+}
+
+TEST_F(MLIR_ConstContentAttrTest, ChangeShapeAndElemTypePerAxisQuant) {
+    ctx.loadDialect<mlir::quant::QuantizationDialect>();
+
+    const auto baseType = mlir::RankedTensorType::get({2, 1, 1, 8}, getUInt8Type(&ctx));
+    const auto vals = generateValues<uint8_t>(baseType.getNumElements());
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
+
+    const auto zp = 127;
+    std::vector<double> scales(2, 0.5);
+    std::vector<int64_t> zeroPoints{zp, zp};
+    int32_t quantizedDim1 = 0;
+    const auto quantElemType1 = mlir::quant::UniformQuantizedPerAxisType::get(
+            0, getUInt8Type(&ctx), mlir::Float16Type::get(&ctx), scales, zeroPoints, quantizedDim1, 0, 255);
+    const auto quantContentAttr1 = baseContentAttr.quantCast(quantElemType1);
+
+    int32_t quantizedDim2 = 1;
+    const auto quantElemType2 = mlir::quant::UniformQuantizedPerAxisType::get(
+            0, getUInt8Type(&ctx), mlir::Float16Type::get(&ctx), scales, zeroPoints, quantizedDim2, 0, 255);
+    const auto quantContentAttr2 = quantContentAttr1.changeShapeAndElemType({1, 2, 1, 8}, quantElemType2);
+
+    ASSERT_NE(quantContentAttr1, nullptr);
+    ASSERT_NE(quantContentAttr2, nullptr);
+    EXPECT_NE(quantContentAttr1.getType(), quantContentAttr2.getType());
+
+    const auto content1 = quantContentAttr1.fold();
+    const auto content2 = quantContentAttr2.fold();
+    EXPECT_NE(content1.getType(), baseType);
+    EXPECT_NE(content2.getType(), baseType);
+    EXPECT_NE(content1.getType(), content2.getType());
+    EXPECT_FALSE(content1.isSplat());
+    EXPECT_FALSE(content2.isSplat());
+
+    const auto contentVals1 = content1.getValues<uint8_t>();
+    const auto contentVals2 = content2.getValues<uint8_t>();
+    EXPECT_EQ(contentVals1.size(), vals.size());
+    EXPECT_EQ(contentVals2.size(), vals.size());
+
+    for (size_t i = 0; i < vals.size(); ++i) {
+        EXPECT_EQ(contentVals1[i], vals[i]);
+        EXPECT_EQ(contentVals2[i], vals[i]);
+    }
+}
+
+TEST_F(MLIR_ConstContentAttrTest, ChangeShapeAndElemTypeFloat) {
+    const auto baseType = mlir::RankedTensorType::get({2, 1, 1, 8}, mlir::Float32Type::get(&ctx));
+    const auto vals = generateValues<float>(baseType.getNumElements());
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
+
+    ASSERT_NE(baseContentAttr, nullptr);
+    EXPECT_EQ(baseContentAttr.getType(), baseType);
+
+    const auto newContentAttr = baseContentAttr.changeShapeAndElemType({1, 2, 1, 8}, getSInt32Type(&ctx));
+
+    ASSERT_NE(newContentAttr, nullptr);
+    EXPECT_NE(newContentAttr.getType(), mlir::Float32Type::get(&ctx));
+
+    const auto content = newContentAttr.fold();
+    EXPECT_NE(content.getType(), baseType);
+    EXPECT_FALSE(content.isSplat());
+
+    const auto contentVals = content.getValues<int32_t>();
+    EXPECT_EQ(contentVals.size(), vals.size());
+
+    for (size_t i = 0; i < vals.size(); ++i) {
+        EXPECT_EQ(contentVals[i], vals[i]);
+    }
 }

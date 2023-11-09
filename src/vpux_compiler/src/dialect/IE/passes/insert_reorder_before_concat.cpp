@@ -98,11 +98,11 @@ void InsertReorderBetweenLayerAndConcat::safeRunOnFunc() {
             return true;
         }
 
-        if (op.per_axis().hasValue() && op.per_axisAttr().offset()) {
+        if (op.per_axis().has_value() && op.per_axisAttr().getOffset()) {
             return true;
         }
 
-        if (op.per_axis().hasValue() && op.per_axisAttr().stride()) {
+        if (op.per_axis().has_value() && op.per_axisAttr().getStride()) {
             return true;
         }
 

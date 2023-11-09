@@ -364,7 +364,7 @@ NDTypeInterface VPU::SparseTensorType::changeStrides(StridesRef /*strides*/) con
     VPUX_THROW("Sparse tensors only support compact strides");
 }
 
-NDTypeInterface VPU::SparseTensorType::changeTypeComponents(TypeComponents typeComponents) const {
+NDTypeInterface VPU::SparseTensorType::changeTypeComponents(const TypeComponents& typeComponents) const {
     const auto shape = typeComponents.shape.value_or(Shape(getShape().toValues()));
     const auto dimsOrder = typeComponents.dimsOrder.value_or(getDimsOrder());
     const auto memSpace = typeComponents.memSpace.value_or(getMemSpace());
@@ -374,7 +374,8 @@ NDTypeInterface VPU::SparseTensorType::changeTypeComponents(TypeComponents typeC
     if (auto seAttr = getSeAttr()) {
         newInputDataShape = seAttr.backInferShape(shape);
     }
-    const auto newData = ndData.changeTypeComponents(typeComponents.setShape(newInputDataShape));
+    TypeComponents dataTypeComponents(typeComponents);
+    const auto newData = ndData.changeTypeComponents(dataTypeComponents.setShape(newInputDataShape));
 
     auto sparsityMap = getSparsityMap();
     if (sparsityMap != nullptr) {

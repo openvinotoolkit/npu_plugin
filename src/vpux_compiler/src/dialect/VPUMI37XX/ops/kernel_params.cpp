@@ -5,11 +5,12 @@
 
 #include <mlir/IR/BuiltinTypes.h>
 #include "vpux/compiler/dialect/ELF/utils.hpp"
-#include "vpux/compiler/dialect/VPU37XX/api/vpu_nnrt_api.h"
 #include "vpux/compiler/dialect/VPUMI37XX/ops.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 
 #include <kernels/inc/common_types.h>
+
+#include <vpu_nnrt_api_37xx.h>
 
 using namespace vpux;
 
@@ -20,8 +21,8 @@ using namespace vpux;
 void vpux::VPUMI37XX::KernelParamsOp::serialize(elf::writer::BinaryDataSection<uint8_t>& binDataSection) {
     std::vector<uint8_t> inputDimsVector, outputDimsVector;
     std::vector<uint8_t> inputStridesVector, outputStridesVector;
-    const auto inputMemrefVals = inputs();
-    const auto outputMemrefVals = outputs();
+    const auto inputMemrefVals = getInputs();
+    const auto outputMemrefVals = getOutputs();
 
     auto insertDimsIntoVector = [](std::vector<uint8_t>& dimsVector, mlir::Value val) {
         const auto shape = getShape(val);
@@ -55,7 +56,7 @@ void vpux::VPUMI37XX::KernelParamsOp::serialize(elf::writer::BinaryDataSection<u
         insertStridesIntoVector(outputStridesVector, outputMemrefVal);
     }
 
-    auto params = kernel_params();
+    auto params = getKernelParams();
 
     auto dense_elem_data = params.getValues<uint8_t>();
 
@@ -72,12 +73,12 @@ void vpux::VPUMI37XX::KernelParamsOp::serialize(elf::writer::BinaryDataSection<u
 }
 
 size_t vpux::VPUMI37XX::KernelParamsOp::getBinarySize() {
-    auto params = kernel_params();
+    auto params = getKernelParams();
     auto dense_elem_data = params.getValues<uint8_t>();
     auto data_vector = std::vector<uint8_t>(dense_elem_data.begin(), dense_elem_data.end());
 
-    const auto inputMemrefVals = inputs();
-    const auto outputMemrefVals = outputs();
+    const auto inputMemrefVals = getInputs();
+    const auto outputMemrefVals = getOutputs();
 
     auto inputDimsSize = 0;
     auto inputStridesSize = 0;
@@ -99,7 +100,7 @@ size_t vpux::VPUMI37XX::KernelParamsOp::getBinarySize() {
 }
 
 size_t vpux::VPUMI37XX::KernelParamsOp::getParamsStructSize() {
-    auto params = kernel_params();
+    auto params = getKernelParams();
     auto dense_elem_data = params.getValues<uint8_t>();
     auto data_vector = std::vector<uint8_t>(dense_elem_data.begin(), dense_elem_data.end());
 
@@ -107,15 +108,15 @@ size_t vpux::VPUMI37XX::KernelParamsOp::getParamsStructSize() {
 }
 
 mlir::FailureOr<uint64_t> vpux::VPUMI37XX::KernelParamsOp::getOffsetOfWithinOperation(mlir::Value val) {
-    for (auto inputsIt : inputs() | indexed) {
+    for (auto inputsIt : getInputs() | indexed) {
         if (val == inputsIt.value()) {
             return inputsIt.index() * sizeof(sw_params::MemRefData) + offsetof(sw_params::MemRefData, dataAddr);
         }
     }
 
-    for (auto outputsIt : outputs() | indexed) {
+    for (auto outputsIt : getOutputs() | indexed) {
         if (val == outputsIt.value()) {
-            return (inputs().size() + outputsIt.index()) * sizeof(sw_params::MemRefData) +
+            return (getInputs().size() + outputsIt.index()) * sizeof(sw_params::MemRefData) +
                    offsetof(sw_params::MemRefData, dataAddr);
         }
     }

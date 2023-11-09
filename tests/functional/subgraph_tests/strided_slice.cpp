@@ -1,9 +1,9 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 #include <ngraph_functions/builders.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -26,7 +26,7 @@ struct StridedSliceTestParams {
 };
 
 class VPUXStridedSliceSubGraphTest_VPU3700 :
-        public LayerTestsUtils::KmbLayerTestsCommon,
+        public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<StridedSliceTestParams> {
     void SetUp() override {
         const auto test_params = GetParam();
@@ -69,28 +69,28 @@ TEST_P(VPUXStridedSliceSubGraphTest_VPU3700, HW) {
 INSTANTIATE_TEST_SUITE_P(smoke_StridedSlice, VPUXStridedSliceSubGraphTest_VPU3700,
                          ::testing::Values(
                                  StridedSliceTestParams{
-                                         LayerTestsUtils::testPlatformTargetDevice,  // _device
-                                         {1, 3, 64, 64},                             // in dims
-                                         {0, 0, 0, 0},                               // begin data
-                                         {1, 3, 64, 64},                             // end data
-                                         {1, 1, 2, 2},                               // strides data
-                                         {0, 0, 1, 1},                               // begin mask
-                                         {1, 0, 1, 1},                               // end mask
-                                         {0, 0, 0, 0},                               // new axis mask
-                                         {0, 0, 0, 0},                               // shrink axis mask
-                                         {0, 0, 0, 0},                               // ellipsis mask
+                                         LayerTestsUtils::testPlatformTargetDevice(),  // _device
+                                         {1, 3, 64, 64},                               // in dims
+                                         {0, 0, 0, 0},                                 // begin data
+                                         {1, 3, 64, 64},                               // end data
+                                         {1, 1, 2, 2},                                 // strides data
+                                         {0, 0, 1, 1},                                 // begin mask
+                                         {1, 0, 1, 1},                                 // end mask
+                                         {0, 0, 0, 0},                                 // new axis mask
+                                         {0, 0, 0, 0},                                 // shrink axis mask
+                                         {0, 0, 0, 0},                                 // ellipsis mask
                                  },
                                  StridedSliceTestParams{
-                                         LayerTestsUtils::testPlatformTargetDevice,  // _device
-                                         {1, 3, 64, 64},                             // in dims
-                                         {0, 0, 0, 16},                              // begin data
-                                         {1, 3, 64, 32},                             // end data
-                                         {1, 1, 2, 2},                               // strides data
-                                         {1, 1, 0, 1},                               // begin mask
-                                         {1, 1, 0, 1},                               // end mask
-                                         {0, 0, 0, 0},                               // new axis mask
-                                         {0, 0, 0, 0},                               // shrink axis mask
-                                         {0, 0, 0, 0},                               // ellipsis mask
+                                         LayerTestsUtils::testPlatformTargetDevice(),  // _device
+                                         {1, 3, 64, 64},                               // in dims
+                                         {0, 0, 0, 16},                                // begin data
+                                         {1, 3, 64, 32},                               // end data
+                                         {1, 1, 2, 2},                                 // strides data
+                                         {1, 1, 0, 1},                                 // begin mask
+                                         {1, 1, 0, 1},                                 // end mask
+                                         {0, 0, 0, 0},                                 // new axis mask
+                                         {0, 0, 0, 0},                                 // shrink axis mask
+                                         {0, 0, 0, 0},                                 // ellipsis mask
                                  }));
 
 }  // namespace

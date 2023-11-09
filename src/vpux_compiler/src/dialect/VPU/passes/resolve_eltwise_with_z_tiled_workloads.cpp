@@ -106,11 +106,11 @@ WorkloadSplits getWorkloadSplits(const WorkloadSplits& sortedClusterWorkloads) {
         for (auto wl : clusterWorkloads) {
             const auto offsets = parseIntArrayAttr<int64_t>(wl.outOffsets());
             const auto wlChannelOffset = offsets[Dims4D::Act::C.ind()];
-            if (!channelOffset.hasValue()) {
+            if (!channelOffset.has_value()) {
                 channelOffset = wlChannelOffset;
             }
 
-            if (wlChannelOffset != channelOffset.getValue()) {
+            if (wlChannelOffset != channelOffset.value()) {
                 ++index;
             }
             if (workloadSplits.size() <= index) {
@@ -288,7 +288,7 @@ void getOpValues(mlir::OpBuilder& builder, VPU::NCEEltwiseOp eltwiseOp, mlir::Va
                 spilledInputs = true;
                 const auto ddrMemKindAttr =
                         vpux::IndexedSymbolAttr::get(builder.getContext(), stringifyEnum(VPU::MemoryKind::DDR));
-                auto tensorAttr = IE::getTensorAttr(builder.getContext(), valueType.getDimsOrder(), ddrMemKindAttr);
+                auto tensorAttr = vpux::getTensorAttr(builder.getContext(), valueType.getDimsOrder(), ddrMemKindAttr);
                 auto outputType =
                         mlir::RankedTensorType::get(valueType.getShape().raw(), valueType.getElementType(), tensorAttr)
                                 .cast<vpux::NDTypeInterface>();

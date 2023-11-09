@@ -34,4 +34,4 @@ bool IE::isActShaveKernel(mlir::Operation* operation) {
 //
 
 #define GET_OP_CLASSES
-#include <vpux/compiler/dialect/IE/generated/ops.cpp.inc>
+#include <vpux/compiler/dialect/IE/ops.cpp.inc>

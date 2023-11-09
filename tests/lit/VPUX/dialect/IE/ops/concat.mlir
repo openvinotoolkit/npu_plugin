@@ -10,9 +10,7 @@
 
 // CHECK-LABEL: @ConcatLargeOffsetStride
 func.func @ConcatLargeOffsetStride(%arg0: tensor<1x2x3x4x!qElemType>, %arg1: tensor<1x2x3x4x!qElemType>) -> tensor<2x2x3x4x!qElemType> {
-    %0 = IE.Concat(%arg0, %arg1) {
-        per_axis = {axis = 0, offset = 1, stride = 2}
-    } : tensor<1x2x3x4x!qElemType>, tensor<1x2x3x4x!qElemType> -> tensor<2x2x3x4x!qElemType>
+    %0 = IE.Concat(%arg0, %arg1) {per_axis = #IE.Concat<axis = 0, offset = 1, stride = 2>} : tensor<1x2x3x4x!qElemType>, tensor<1x2x3x4x!qElemType> -> tensor<2x2x3x4x!qElemType>
     return %0 : tensor<2x2x3x4x!qElemType>
 
     // The operation should be parsed and verified successfully
@@ -25,9 +23,7 @@ func.func @ConcatLargeOffsetStride(%arg0: tensor<1x2x3x4x!qElemType>, %arg1: ten
 
 // CHECK-LABEL: @PerTensorQuant
 func.func @PerTensorQuant(%arg0: tensor<1x2x3x4x!qElemType>, %arg1: tensor<1x2x3x4x!qElemType>) -> tensor<1x4x3x4x!qElemType> {
-    %0 = IE.Concat(%arg0, %arg1) {
-        per_axis = {axis = 1}
-    } : tensor<1x2x3x4x!qElemType>, tensor<1x2x3x4x!qElemType> -> tensor<1x4x3x4x!qElemType>
+    %0 = IE.Concat(%arg0, %arg1) {per_axis = #IE.Concat<axis = 1>} : tensor<1x2x3x4x!qElemType>, tensor<1x2x3x4x!qElemType> -> tensor<1x4x3x4x!qElemType>
     return %0 : tensor<1x4x3x4x!qElemType>
 
     // The operation should be parsed and verified successfully
@@ -40,9 +36,7 @@ func.func @PerTensorQuant(%arg0: tensor<1x2x3x4x!qElemType>, %arg1: tensor<1x2x3
 
 // CHECK-LABEL: @PerAxisQuantOtherAxis
 func.func @PerAxisQuantOtherAxis(%arg0: tensor<1x2x3x4x!qElemType>, %arg1: tensor<1x2x3x4x!qElemType>) -> tensor<1x2x6x4x!qElemType> {
-    %0 = IE.Concat(%arg0, %arg1) {
-        per_axis = {axis = 2}
-    } : tensor<1x2x3x4x!qElemType>, tensor<1x2x3x4x!qElemType> -> tensor<1x2x6x4x!qElemType>
+    %0 = IE.Concat(%arg0, %arg1) {per_axis = #IE.Concat<axis = 2>} : tensor<1x2x3x4x!qElemType>, tensor<1x2x3x4x!qElemType> -> tensor<1x2x6x4x!qElemType>
     return %0 : tensor<1x2x6x4x!qElemType>
 
     // The operation should be parsed and verified successfully
@@ -72,9 +66,7 @@ func.func @PerAxisQuantOtherAxisOffsets(%arg0: tensor<1x2x3x4x!qElemType>, %arg1
 
 // CHECK-LABEL: @PerAxisQuantSameAxis
 func.func @PerAxisQuantSameAxis(%arg0: tensor<1x2x3x4x!qElemType0>, %arg1: tensor<1x2x3x4x!qElemType1>) -> tensor<1x4x3x4x!qElemType2> {
-    %0 = IE.Concat(%arg0, %arg1) {
-        per_axis = {axis = 1}
-    } : tensor<1x2x3x4x!qElemType0>, tensor<1x2x3x4x!qElemType1> -> tensor<1x4x3x4x!qElemType2>
+    %0 = IE.Concat(%arg0, %arg1) {per_axis = #IE.Concat<axis = 1>} : tensor<1x2x3x4x!qElemType0>, tensor<1x2x3x4x!qElemType1> -> tensor<1x4x3x4x!qElemType2>
     return %0 : tensor<1x4x3x4x!qElemType2>
 
     // The operation should be parsed and verified successfully
@@ -102,9 +94,7 @@ func.func @PerAxisQuantSameAxisOffsets(%arg0: tensor<1x2x3x4x!qElemType0>, %arg1
 
 // CHECK-LABEL: @ConvertPerAxisToOffsets
 func.func @ConvertPerAxisToOffsets(%arg0: tensor<1x2x3x4xf32>, %arg1: tensor<1x2x3x4xf32>) -> tensor<1x4x3x4xf32> {
-    %0 = IE.Concat(%arg0, %arg1) {
-        per_axis = {axis = 1}
-    } : tensor<1x2x3x4xf32>, tensor<1x2x3x4xf32> -> tensor<1x4x3x4xf32>
+    %0 = IE.Concat(%arg0, %arg1) {per_axis = #IE.Concat<axis = 1>} : tensor<1x2x3x4xf32>, tensor<1x2x3x4xf32> -> tensor<1x4x3x4xf32>
     return %0: tensor<1x4x3x4xf32>
 
     // CHECK:     [[VAL_0:%.*]] = IE.Concat(%arg0, %arg1)
@@ -122,9 +112,7 @@ func.func @FuseConcatWithOffsetsAndOtherOp(%arg0: tensor<1x2x3x4xf32>, %arg1: te
     %0 = IE.Concat(%arg0, %arg1) {
         static_offsets = [[0, 0, 0, 0], [0, 2, 0, 0]]
     } : tensor<1x2x3x4xf32>, tensor<1x2x3x4xf32> -> tensor<1x4x3x4xf32>
-    %1 = IE.Concat(%arg2, %arg3) {
-        per_axis = {axis = 1}
-    } : tensor<1x2x3x4xf32>, tensor<1x2x3x4xf32> -> tensor<1x4x3x4xf32>
+    %1 = IE.Concat(%arg2, %arg3) {per_axis = #IE.Concat<axis = 1>} : tensor<1x2x3x4xf32>, tensor<1x2x3x4xf32> -> tensor<1x4x3x4xf32>
     %2 = IE.Reshape(%arg4) { shape_value = [1, 2, 3, 4] } : tensor<1x2x4x3xf32> -> tensor<1x2x3x4xf32>
     %3 = IE.Concat(%0, %1, %2) {
         static_offsets = [[0, 0, 0, 0], [0, 4, 0, 0], [0, 8, 0, 0]]
@@ -147,13 +135,9 @@ func.func @FuseConcatWithPerAxis(%arg0: tensor<1x2x3x4xf32>, %arg1: tensor<1x2x3
     %0 = IE.Concat(%arg0, %arg1) {
         static_offsets = [[0, 0, 0, 0], [0, 2, 0, 0]]
     } : tensor<1x2x3x4xf32>, tensor<1x2x3x4xf32> -> tensor<1x4x3x4xf32>
-    %1 = IE.Concat(%arg2, %arg3) {
-        per_axis = {axis = 1}
-    } : tensor<1x2x3x4xf32>, tensor<1x2x3x4xf32> -> tensor<1x4x3x4xf32>
+    %1 = IE.Concat(%arg2, %arg3) {per_axis = #IE.Concat<axis = 1>} : tensor<1x2x3x4xf32>, tensor<1x2x3x4xf32> -> tensor<1x4x3x4xf32>
     %2 = IE.Reshape(%arg4) { shape_value = [1, 2, 3, 4] } : tensor<1x2x4x3xf32> -> tensor<1x2x3x4xf32>
-    %3 = IE.Concat(%0, %1, %2) {
-        per_axis = {axis = 1}
-    } : tensor<1x4x3x4xf32>, tensor<1x4x3x4xf32>, tensor<1x2x3x4xf32> -> tensor<1x10x3x4xf32>
+    %3 = IE.Concat(%0, %1, %2) {per_axis = #IE.Concat<axis = 1>} : tensor<1x4x3x4xf32>, tensor<1x4x3x4xf32>, tensor<1x2x3x4xf32> -> tensor<1x10x3x4xf32>
     return %3 : tensor<1x10x3x4xf32>
 
     // CHECK-DAG:     [[RES_0:%.*]] = IE.Reshape(%arg4) {shape_value = [1, 2, 3, 4]} : tensor<1x2x4x3xf32> -> tensor<1x2x3x4xf32>
@@ -167,7 +151,7 @@ func.func @FuseConcatWithPerAxis(%arg0: tensor<1x2x3x4xf32>, %arg1: tensor<1x2x3
 
 // CHECK-LABEL: @OneInputFold
 func.func @OneInputFold(%arg0 : tensor<4x4xf32>) -> tensor<4x4xf32> {
-    %0 = IE.Concat(%arg0) { per_axis = {axis = 1} } : tensor<4x4xf32> -> tensor<4x4xf32>
+    %0 = IE.Concat(%arg0) {per_axis = #IE.Concat<axis = 1>} : tensor<4x4xf32> -> tensor<4x4xf32>
     return %0 : tensor<4x4xf32>
 
     // CHECK-NOT: IE.Concat

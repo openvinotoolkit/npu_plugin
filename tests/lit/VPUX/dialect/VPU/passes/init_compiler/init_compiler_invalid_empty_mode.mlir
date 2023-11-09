@@ -7,5 +7,5 @@
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 // expected-error@+1 {{CompilationMode is already defined, probably you run '--init-compiler' twice}}
-module @arch attributes {VPU.compilationMode = "ReferenceSW"} {
+module @arch attributes {VPU.compilationMode = #VPU.compilation_mode<ReferenceSW>} {
 }

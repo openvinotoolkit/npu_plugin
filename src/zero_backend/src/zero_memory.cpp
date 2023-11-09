@@ -25,7 +25,7 @@ HostMem& HostMem::operator=(HostMem&& other) {
     return *this;
 }
 void HostMem::free() {
-    if (0 != _size) {
+    if (_size != 0) {
         _size = 0;
         zeroUtils::throwOnFail("zeMemFree HostMem", zeMemFree(_context, _data));
         _data = nullptr;
@@ -58,7 +58,7 @@ DeviceMem& DeviceMem::operator=(DeviceMem&& other) {
     return *this;
 }
 void DeviceMem::free() {
-    if (0 != _size) {
+    if (_size != 0) {
         _size = 0;
         zeroUtils::throwOnFail("zeMemFree DeviceMem", zeMemFree(_context, _data));
         _data = nullptr;
@@ -81,7 +81,7 @@ void MemoryManagementUnit::appendArgument(const std::string& name, const ze_grap
 }
 
 void MemoryManagementUnit::allocate(const ze_context_handle_t context, ze_host_mem_alloc_flag_t flag) {
-    if (_host && 0 != _host->size())
+    if (_host && _host->size() != 0)
         IE_THROW() << "Memory already allocated";
     if (0 == _size)
         IE_THROW() << "Can't allocate empty buffer";
@@ -90,9 +90,9 @@ void MemoryManagementUnit::allocate(const ze_context_handle_t context, ze_host_m
 }
 
 void MemoryManagementUnit::allocate(const ze_device_handle_t device_handle, const ze_context_handle_t context) {
-    if (_host && 0 != _host->size())
+    if (_host && _host->size() != 0)
         IE_THROW() << "Memory already allocated";
-    if (0 == _size)
+    if (_size == 0)
         IE_THROW() << "Can't allocate empty buffer";
 
     _host = std::make_unique<HostMem>(context, _size);
@@ -115,17 +115,25 @@ void* MemoryManagementUnit::getDeviceMemRegion() {
 }
 void* MemoryManagementUnit::getHostPtr(const std::string& name) {
     uint8_t* from = static_cast<uint8_t*>(_host ? _host->data() : nullptr);
-    if (nullptr == from)
+    if (from == nullptr) {
         IE_THROW() << "Host memory not allocated yet";
+    }
+    if (!_offsets.count(name)) {
+        IE_THROW() << "Invalid memory offset key: " + name;
+    }
 
-    return zeroUtils::mapArguments(_offsets, name) + from;
+    return _offsets.at(name) + from;
 }
 void* MemoryManagementUnit::getDevicePtr(const std::string& name) {
     uint8_t* from = static_cast<uint8_t*>(_device ? _device->data() : nullptr);
-    if (nullptr == from)
+    if (from == nullptr) {
         IE_THROW() << "Device memory not allocated yet";
+    }
+    if (!_offsets.count(name)) {
+        IE_THROW() << "Invalid memory offset key: " + name;
+    }
 
-    return zeroUtils::mapArguments(_offsets, name) + from;
+    return _offsets.at(name) + from;
 }
 bool MemoryManagementUnit::checkHostPtr(const void* ptr) const {
     const uint8_t* from = static_cast<const uint8_t*>(_host ? _host->data() : nullptr);

@@ -53,16 +53,13 @@ mlir::LogicalResult NCEClusterTilingRewriter::matchAndRewrite(VPU::NCEClusterTil
     auto* typeConverter = getTypeConverter();
     VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
 
-    VPUX_THROW_UNLESS(origOp.results().size() == 1,
-                      "Currently only single output NCEClusterTiling operation is supported, got {0} outputs",
-                      origOp.results().size());
-
     SmallVector<mlir::Value> inputOperands = newArgs.operands();
-    SmallVector<mlir::Value> origOutputBuffers;
-
-    const auto clusterTilingBufferType = typeConverter->convertType(origOp.results()[0].getType());
-
-    auto outputDistType = clusterTilingBufferType.dyn_cast<VPU::DistributedTypeInterface>();
+    SmallVector<VPU::DistributedTypeInterface> outputDistTypes;
+    for (const auto& result : origOp.results()) {
+        const auto clusterTilingBufferType = typeConverter->convertType(result.getType());
+        auto outputDistType = clusterTilingBufferType.dyn_cast<VPU::DistributedTypeInterface>();
+        outputDistTypes.push_back(outputDistType);
+    }
 
     auto& origOpBodyBlock = origOp.body().front();
 
@@ -72,7 +69,8 @@ mlir::LogicalResult NCEClusterTilingRewriter::matchAndRewrite(VPU::NCEClusterTil
     // In case the resulting type of NCEClusterTiling is a distributed type, these allocations
     // should also produce distributed types now that they are outside.
     // This function will ensure the correct buffer type is allocated.
-    const auto createNewAllocOp = [&](mlir::Operation* op, const size_t allocOpIdx) {
+    const auto createNewAllocOp = [&](mlir::Operation* op, VPU::DistributedTypeInterface outputDistType,
+                                      const size_t allocOpIdx) {
         const auto outputType = op->getResult(0).getType();
         if (outputDistType != nullptr && outputDistType.containsDistributedTypes()) {
             auto distTypes = outputDistType.getDistributedTypes();
@@ -126,7 +124,8 @@ mlir::LogicalResult NCEClusterTilingRewriter::matchAndRewrite(VPU::NCEClusterTil
     origOpBodyBlock.walk([&](mlir::Operation* op) {
         if (vpux::isBufAllocOp(op)) {
             _log.nest().trace("Cloning allocation op '{0}' at '{1}", op->getName(), op->getLoc());
-            auto newAllocOp = createNewAllocOp(op, newAllocOps.size());
+            auto outputDistType = outputDistTypes.size() > 1 ? outputDistTypes[newAllocOps.size()] : outputDistTypes[0];
+            auto newAllocOp = createNewAllocOp(op, outputDistType, newAllocOps.size());
             newAllocOps.push_back(newAllocOp);
             innerOuterOpValueMapping[op->getResult(0)] = newAllocOp->getResult(0);
 
@@ -204,6 +203,10 @@ mlir::LogicalResult NCEClusterTilingRewriter::matchAndRewrite(VPU::NCEClusterTil
 
         mlir::Value origOperand = origOpBodyBlock.getArguments()[operandIdx];
         origOperand = skipUserCast(origOperand);
+
+        if (std::distance(origOperand.getUsers().begin(), origOperand.getUsers().end()) == 0) {
+            continue;
+        }
 
         if (llvm::any_of(origOperand.getUsers(), [](mlir::Operation* userOp) {
                 return mlir::isa<VPUIP::UngroupSparseBufferOp>(userOp) ||

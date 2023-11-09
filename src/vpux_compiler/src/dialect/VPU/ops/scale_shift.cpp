@@ -26,16 +26,6 @@ mlir::LogicalResult vpux::VPU::ScaleShiftOp::inferReturnTypes(mlir::MLIRContext*
 }
 
 //
-// ScaleShift
-//
-
-void vpux::VPU::ScaleShiftOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
-    // Investigate performance degradation for NHWC layout
-    // [Track number: E#25601]
-    VPU::inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NCHW, DimsOrder::CHW});
-}
-
-//
 // serialize
 //
 

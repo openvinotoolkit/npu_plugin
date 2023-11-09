@@ -29,23 +29,22 @@ mlir::LogicalResult vpux::VPU::ReduceL2Op::inferReturnTypes(mlir::MLIRContext* c
 
     const auto input = reduceL2.input();
     const auto keepDims = reduceL2.keep_dims();
-    auto axes = IE::constInputToData(loc, reduceL2.axes());
 
-    if (mlir::failed(axes)) {
-        return mlir::failure();
-    }
-
-    auto axesValue = axes.getValue();
+    auto axesValue = parseIntArrayAttr<int64_t>(reduceL2.axes_value());
 
     return VPU::inferReduceReturnTypes(loc, input, keepDims, axesValue, inferredReturnTypes);
 }
 
 //
-// inferLayoutInfo
+// fold
 //
 
-void vpux::VPU::ReduceL2Op::inferLayoutInfo(mlir::Operation* op, vpux::IE::LayerLayoutInfo& info) {
-    vpux::IE::inferReduceLayoutInfo(op, info);
+mlir::OpFoldResult vpux::VPU::ReduceL2Op::fold(ArrayRef<mlir::Attribute>) {
+    if (input().getType() == output().getType()) {
+        return input();
+    }
+
+    return nullptr;
 }
 
 //
@@ -53,13 +52,14 @@ void vpux::VPU::ReduceL2Op::inferLayoutInfo(mlir::Operation* op, vpux::IE::Layer
 //
 
 EMU::BlobWriter::SpecificTask vpux::VPU::ReduceL2Op::serialize(EMU::BlobWriter& writer) {
-    MVCNN::ReduceParamsBuilder builder(writer);
-
     EMU::BlobWriter::String type;
     type = writer.createString("l2");
+    const auto axes = writer.createVector(parseIntArrayAttr<int64_t>(axes_value()));
 
+    MVCNN::ReduceParamsBuilder builder(writer);
     builder.add_keep_dims(checked_cast<bool>(keep_dims()));
     builder.add_operation(type);
+    builder.add_axes_value(axes);
 
     const auto paramsOff = builder.Finish();
 

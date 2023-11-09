@@ -12,7 +12,7 @@ using namespace VPU;
 BaseLayerStrategy::BaseLayerStrategy(mlir::func::FuncOp func, Logger log): _func(func), _log(log) {
     auto module = func->getParentOfType<mlir::ModuleOp>();
     auto nceEngine = IE::getAvailableExecutor(module, ExecutorKind::NCE);
-    auto dpuExec = nceEngine.getSubExecutor(VPU::ExecutorKindAttr::get(module->getContext(), VPU::ExecutorKind::DPU));
+    auto dpuExec = nceEngine.getSubExecutor(VPU::ExecutorKind::DPU);
     _numClusters = nceEngine.count();
     _numDPUs = dpuExec.count();
     _minimumOutputHeightForSOH = _numClusters;
@@ -154,91 +154,7 @@ bool BaseLayerStrategy::isOperationSplitOverKernelCompatible(VPU::ClusteredOpInt
 
 bool BaseLayerStrategy::doesLayerFitIntoCMX(VPU::ClusteredOpInterface clusteredOp, VPU::MultiClusterStrategy strategy,
                                             Byte reservedMem) const {
-    auto layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(clusteredOp->getName());
-    return llvm::TypeSwitch<mlir::Operation*, bool>(clusteredOp.getOperation())
-            .Case<NCEMaxPoolOp>([&](NCEMaxPoolOp origOp) {
-                auto distributedTensorTypes = layerStrategyChecker->getDistributedTensorType(origOp, strategy);
-                VPUX_THROW_UNLESS(distributedTensorTypes.size() == 2,
-                                  "VPU::NCEMaxPoolOp operation should have 2 DistributedTensorType, but got {0}",
-                                  distributedTensorTypes.size());
-                return origOp.fitIntoCMX(distributedTensorTypes[0], distributedTensorTypes[1], reservedMem);
-            })
-            .Case<NCEAveragePoolOp>([&](NCEAveragePoolOp origOp) {
-                auto distributedTensorTypes = layerStrategyChecker->getDistributedTensorType(origOp, strategy);
-                VPUX_THROW_UNLESS(distributedTensorTypes.size() == 2,
-                                  "VPU::NCEAveragePoolOp operation should have 2 DistributedTensorType, but got {0}",
-                                  distributedTensorTypes.size());
-                return origOp.fitIntoCMX(distributedTensorTypes[0], distributedTensorTypes[1], reservedMem);
-            })
-            .Case<NCEEltwiseOp>([&](NCEEltwiseOp origOp) {
-                auto distributedTensorTypes = layerStrategyChecker->getDistributedTensorType(origOp, strategy);
-                VPUX_THROW_UNLESS(distributedTensorTypes.size() == 3,
-                                  "VPU::NCEEltwiseOp operation should have 3 DistributedTensorType, but got {0}",
-                                  distributedTensorTypes.size());
-                return origOp.fitIntoCMX(distributedTensorTypes[0], distributedTensorTypes[1],
-                                         distributedTensorTypes[2], reservedMem);
-            })
-            .Case<NCEConvolutionOp>([&](NCEConvolutionOp origOp) {
-                auto distributedTensorTypes = layerStrategyChecker->getDistributedTensorType(origOp, strategy);
-                VPUX_THROW_UNLESS(distributedTensorTypes.size() == 3,
-                                  "VPU::NCEConvolutionOp operation should have 3 DistributedTensorType, but got {0}",
-                                  distributedTensorTypes.size());
-                return origOp.fitIntoCMX(distributedTensorTypes[0], distributedTensorTypes[1],
-                                         distributedTensorTypes[2], reservedMem);
-            })
-            .Case<NCECompressConvolutionOp>([&](NCECompressConvolutionOp origOp) {
-                auto distributedTensorTypes = layerStrategyChecker->getDistributedTensorType(origOp, strategy);
-                VPUX_THROW_UNLESS(
-                        distributedTensorTypes.size() == 3,
-                        "VPU::NCECompressConvolutionOp operation should have 3 DistributedTensorType, but got {0}",
-                        distributedTensorTypes.size());
-                return origOp.fitIntoCMX(distributedTensorTypes[0], distributedTensorTypes[1],
-                                         distributedTensorTypes[2], reservedMem);
-            })
-            .Case<NCEDepthConvolutionOp>([&](NCEDepthConvolutionOp origOp) {
-                auto distributedTensorTypes = layerStrategyChecker->getDistributedTensorType(origOp, strategy);
-                VPUX_THROW_UNLESS(
-                        distributedTensorTypes.size() == 3,
-                        "VPU::NCEDepthConvolutionOp operation should have 3 DistributedTensorType, but got {0}",
-                        distributedTensorTypes.size());
-                return origOp.fitIntoCMX(distributedTensorTypes[0], distributedTensorTypes[1],
-                                         distributedTensorTypes[2], reservedMem);
-            })
-            .Case<NCEPermuteQuantizeOp>([&](NCEPermuteQuantizeOp origOp) {
-                auto distributedTensorTypes = layerStrategyChecker->getDistributedTensorType(origOp, strategy);
-                VPUX_THROW_UNLESS(
-                        distributedTensorTypes.size() == 2,
-                        "VPU::NCEPermuteQuantizeOp operation should have 2 DistributedTensorType, but got {0}",
-                        distributedTensorTypes.size());
-                return origOp.fitIntoCMX(distributedTensorTypes[0], distributedTensorTypes[1], reservedMem);
-            })
-            .Case<NCEInterpolateOp>([&](NCEInterpolateOp origOp) {
-                auto distributedTensorTypes = layerStrategyChecker->getDistributedTensorType(origOp, strategy);
-                VPUX_THROW_UNLESS(distributedTensorTypes.size() == 3,
-                                  "VPU::NCEInterpolateOp operation should have 3 DistributedTensorType, but got {0}",
-                                  distributedTensorTypes.size());
-                return origOp.fitIntoCMX(distributedTensorTypes[0], distributedTensorTypes[1],
-                                         distributedTensorTypes[2], reservedMem);
-            })
-            .Case<SWOpInterface>([&](SWOpInterface origOp) {
-                auto distributedTensorTypes = layerStrategyChecker->getDistributedTensorType(clusteredOp, strategy);
-                SmallVector<vpux::NDTypeInterface> distributedTensorNDTypes;
-                std::transform(distributedTensorTypes.begin(), distributedTensorTypes.end(),
-                               std::back_inserter(distributedTensorNDTypes), [](const auto distributedTensorType) {
-                                   return distributedTensorType.template cast<vpux::NDTypeInterface>();
-                               });
-                return origOp.fitIntoCMX(distributedTensorNDTypes, reservedMem);
-            })
-            .Case<ConcatOp>([&](ConcatOp origOp) {
-                auto distributedTensorTypes = layerStrategyChecker->getDistributedTensorType(clusteredOp, strategy);
-                // Only need to check output size for CMX concat
-                return origOp.fitIntoCMX(distributedTensorTypes.back());
-            })
-            .Default([&](mlir::Operation* unknownOp) -> bool {
-                _log.trace("Operation '{0}' at '{1}' is not supported by the NCE", unknownOp->getName(),
-                           unknownOp->getLoc());
-                return false;
-            });
+    return VPU::doesLayerFitIntoCMX(clusteredOp, strategy, reservedMem, _log);
 }
 
 bool BaseLayerStrategy::doesLayerChangeOutputAlignmentFitIntoCMX(

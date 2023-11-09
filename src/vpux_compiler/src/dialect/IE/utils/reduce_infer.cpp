@@ -5,7 +5,6 @@
 
 #include "vpux/compiler/dialect/IE/utils/reduce_infer.hpp"
 #include "vpux/compiler/dialect/IE/utils/const_attributes.hpp"
-constexpr vpux::StringLiteral keep_dims = "keep_dims";
 
 mlir::LogicalResult vpux::IE::inferReduceReturnTypeComponents(
         mlir::Location loc, mlir::Value input, bool keepDims, SmallVector<int64_t>& axes,
@@ -55,7 +54,8 @@ mlir::LogicalResult vpux::IE::inferReduceReturnTypeComponents(
 //            remove H 3 -> 142 -> 132 (CWH)
 //            remove W 4 -> 132 -> 132 (CWH)
 //            remove C 2 -> 134 -> 123 (CHW)
-vpux::DimsOrder vpux::IE::calculateReducedOutputLayout(vpux::DimsOrder inputDimOrder, mlir::SmallVector<int64_t> axes) {
+vpux::DimsOrder vpux::IE::calculateReducedOutputLayout(const vpux::DimsOrder& inputDimOrder,
+                                                       const SmallVector<int64_t>& axes) {
     auto inputCodeOrder = inputDimOrder.code();
     vpux::DimsOrder::StorageType outputCodeOrder = 0;
     uint64_t multiply = 0;
@@ -76,27 +76,9 @@ vpux::DimsOrder vpux::IE::calculateReducedOutputLayout(vpux::DimsOrder inputDimO
         }
         inputCodeOrder = inputCodeOrder / (1 << vpux::DimsOrder::BITS_PER_DIM);
     }
+
+    // If axes contains all dimensions of input data, the output tensor has a single dimension
+    outputCodeOrder = outputCodeOrder != 0 ? outputCodeOrder : 0x1;
+
     return vpux::DimsOrder::fromCode(outputCodeOrder);
-}
-
-void vpux::IE::inferReduceLayoutInfo(mlir::Operation* op, IE::LayerLayoutInfo& info) {
-    const bool keepDims = op->hasAttr(keep_dims) ? op->getAttr(keep_dims) != nullptr : false;
-    llvm::SmallVector<int64_t> axesVec;
-    if (op->getNumOperands() > 1) {
-        axesVec = parseIntArrayAttr<int64_t>(vpux::IE::getIntArrayAttrValue(op->getOperand(1)));
-    }
-
-    const auto filter = [](size_t ind) {
-        return ind != 0;
-    };
-
-    IE::fillDefaultLayoutInfo(info, filter, filter);
-
-    const auto mainOrder = info.getInput(0);
-
-    if (!keepDims) {
-        info.setOutput(0, calculateReducedOutputLayout(mainOrder, axesVec));
-    } else {
-        info.setOutput(0, mainOrder);
-    }
 }

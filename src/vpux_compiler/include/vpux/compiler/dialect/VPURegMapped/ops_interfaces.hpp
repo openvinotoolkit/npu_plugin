@@ -3,11 +3,9 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
-#include "vpux/compiler/dialect/VPURegMapped/enums.hpp"
+#include "vpux/compiler/dialect/VPURegMapped/attributes.hpp"
 #include "vpux/compiler/dialect/VPURegMapped/types.hpp"
 
 #include <mlir/IR/BuiltinTypes.h>
@@ -26,4 +24,4 @@
 // Generated
 //
 
-#include <vpux/compiler/dialect/VPURegMapped/generated/ops_interfaces.hpp.inc>
+#include <vpux/compiler/dialect/VPURegMapped/ops_interfaces.hpp.inc>

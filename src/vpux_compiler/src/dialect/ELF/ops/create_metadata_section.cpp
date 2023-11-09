@@ -21,11 +21,11 @@ void vpux::ELF::CreateMetadataSectionOp::serialize(elf::Writer& writer, vpux::EL
                                                    vpux::ELF::SymbolMapType& symbolMap,
                                                    elf::NetworkMetadata& metadata) {
     VPUX_UNUSED(symbolMap);
-    const auto name = secName().str();
+    const auto name = getSecName().str();
     auto section = writer.addBinaryDataSection<uint8_t>(
             name, static_cast<elf::Elf_Word>(vpux::ELF::SectionTypeAttr::VPU_SHT_NETDESC));
-    section->maskFlags(static_cast<elf::Elf_Xword>(secFlags()));
-    section->setAddrAlign(secAddrAlign());
+    section->maskFlags(static_cast<elf::Elf_Xword>(getSecFlags()));
+    section->setAddrAlign(getSecAddrAlign());
 
     bool isMetadataSerialized = false;
     auto block = getBody();

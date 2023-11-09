@@ -1,6 +1,7 @@
 //
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
+//
 
 #include <numeric>
 
@@ -188,13 +189,13 @@ void buildRaceConditionDPUDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc,
                                                 vpux::DimsOrder::NHWC, 0, INPUT_CMX_OFFSET));
 
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(),
-                                          mlir::ValueRange(updateBarrier.barrier()), loc, functionInput,
+                                          mlir::ValueRange(updateBarrier.getBarrier()), loc, functionInput,
                                           inputCMXVec[0].getOperation()->getResult(0));
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
-            functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.barrier()), loc,
+            functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.getBarrier()), loc,
             weightsDDR.getOperation()->getResult(0), weightsCMX.getOperation()->getResult(0));
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
-            functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.barrier()), loc,
+            functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.getBarrier()), loc,
             weightsTableDDR.getOperation()->getResult(0), weightsTableCMX.getOperation()->getResult(0));
 
     waitBarrier = updateBarrier;
@@ -214,10 +215,11 @@ void buildRaceConditionDPUDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc,
         updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, i + 1);
         // DPU task
         auto nceTask_0 = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
-                functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()),
-                loc, inputCMXVec[0].buffer(), weightsCMX.buffer(), weightsTableCMX.buffer(), nullptr, nullptr,
-                inputCMXVec[0].buffer(), outputCMX_0.buffer(), outputCMX_0.buffer(), vpux::VPUIP::NCETaskType::CONV,
-                kernelSize, strides, kernelPaddings, nullptr, nullptr);
+                functionBuilder, mlir::ValueRange(waitBarrier.getBarrier()),
+                mlir::ValueRange(updateBarrier.getBarrier()), loc, inputCMXVec[0].getBuffer(), weightsCMX.getBuffer(),
+                weightsTableCMX.getBuffer(), nullptr, nullptr, inputCMXVec[0].getBuffer(), outputCMX_0.getBuffer(),
+                outputCMX_0.getBuffer(), vpux::VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings, nullptr,
+                nullptr);
 
         const auto start = getIntArrayAttr(ctx, std::vector<std::int64_t>{0, 0, 0});
         const auto outEnd = getIntArrayAttr(
@@ -228,29 +230,32 @@ void buildRaceConditionDPUDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc,
                                              paddings[PAD_NCETASK_TOP], paddings[PAD_NCETASK_BOTTOM]);
         nceTask_0.addDPUTask(functionBuilder, start, outEnd, start, inEnd, pad, conv.cube_mode);
         // DMA
-        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
-                functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()),
-                loc, inputCMXVec[0].getOperation()->getResult(0), outputCMX_1.getOperation()->getResult(0), 0);
+        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.getBarrier()),
+                                              mlir::ValueRange(updateBarrier.getBarrier()), loc,
+                                              inputCMXVec[0].getOperation()->getResult(0),
+                                              outputCMX_1.getOperation()->getResult(0), 0);
         // ActShave
         buildActShaveTask(testDesc, module, functionBuilder, log, makeArrayRef(inputTypes), inputCMXVec, outputCMX_2,
-                          mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()));
+                          mlir::ValueRange(waitBarrier.getBarrier()), mlir::ValueRange(updateBarrier.getBarrier()));
         waitBarrier = updateBarrier;
     }
 
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(),
-                                          loc, outputCMX_0.getOperation()->getResult(0), functionOutput_0);
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(),
-                                          loc, outputCMX_1.getOperation()->getResult(0), functionOutput_1);
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.getBarrier()),
+                                          mlir::ValueRange(), loc, outputCMX_0.getOperation()->getResult(0),
+                                          functionOutput_0);
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.getBarrier()),
+                                          mlir::ValueRange(), loc, outputCMX_1.getOperation()->getResult(0),
+                                          functionOutput_1);
 
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(),
-                                          loc, outputCMX_2.getOperation()->getResult(0), functionOutput_2);
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.getBarrier()),
+                                          mlir::ValueRange(), loc, outputCMX_2.getOperation()->getResult(0),
+                                          functionOutput_2);
 
     functionBuilder.create<mlir::func::ReturnOp>(
             loc, mlir::ValueRange{functionOutput_0, functionOutput_1, functionOutput_2});
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::ReferenceHW, 1, 1, None,
-                                           log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::ReferenceHW, 1, 1, log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsBTCPass(log));
     }

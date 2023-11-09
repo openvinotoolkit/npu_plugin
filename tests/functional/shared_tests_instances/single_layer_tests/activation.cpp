@@ -1,6 +1,6 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "single_layer_tests/activation.hpp"
@@ -9,68 +9,11 @@
 
 #include <common/functions.h>
 #include "common_test_utils/test_constants.hpp"
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
-namespace {
-std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR{
-        ngraph::helpers::Relu,
-        ngraph::helpers::Sigmoid,
-        ngraph::helpers::Sign,
-        ngraph::helpers::Clamp,
-        ngraph::helpers::SoftPlus,
-        ngraph::helpers::Elu,
-        ngraph::helpers::HSwish,
-        ngraph::helpers::Floor,
-        ngraph::helpers::Mish,
-        ngraph::helpers::Erf,
-        ngraph::helpers::Tanh,
-        ngraph::helpers::Sin,
-        ngraph::helpers::Cos,
-        ngraph::helpers::PReLu,
-        ngraph::helpers::LeakyRelu,
-        ngraph::helpers::Swish,
-        ngraph::helpers::Negative,
-        ngraph::helpers::Exp,
-        ngraph::helpers::RoundHalfToEven,
-        ngraph::helpers::RoundHalfAwayFromZero,
-        ngraph::helpers::Sqrt,
-        ngraph::helpers::Sinh,
-        ngraph::helpers::Cosh,
-        ngraph::helpers::Asinh,
-        ngraph::helpers::Acosh,
-        ngraph::helpers::Atanh,
-        ngraph::helpers::Log,
-        ngraph::helpers::Selu,
-        ngraph::helpers::Ceiling,
-        ngraph::helpers::Gelu,
-        ngraph::helpers::Abs,
-        ngraph::helpers::Atan,
-        ngraph::helpers::Asin,
-        ngraph::helpers::Acos,
-        ngraph::helpers::HSigmoid,
-        ngraph::helpers::HardSigmoid,
-        ngraph::helpers::Tan,
-};
 
-}  // namespace
-
-class VPUXActivationLayerTest : public ActivationLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-protected:
-    void SkipBeforeLoad() override {
-        std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationParam;
-        std::tie(activationParam, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore,
-                 std::ignore) = GetParam();
-
-        const auto activationType = activationParam.first;
-
-        if (supportedTypesMLIR.find(activationType) == supportedTypesMLIR.end()) {
-            throw LayerTestsUtils::KmbSkipTestException("Experimental compiler doesn't supports activation type " +
-                                                        LayerTestsDefinitions::activationNames[activationType] +
-                                                        " yet");
-        }
-    }
-};
+class VPUXActivationLayerTest : public ActivationLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
 class VPUXActivationLayerTest_VPU3700 : public VPUXActivationLayerTest {};
 class VPUXActivationLayerTest_VPU3720 : public VPUXActivationLayerTest {};
@@ -174,14 +117,14 @@ const auto basicCases = ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::FP16),
         ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 const auto basicPReluCases = ::testing::Combine(
         ::testing::ValuesIn(CommonTestUtils::combineParams(activationParamTypes)), ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::FP16),
         ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(CommonTestUtils::combineParams(preluBasic)),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 const auto basicNDCases = ::testing::Combine(
         ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypesND)), ::testing::ValuesIn(netPrecisions),
@@ -189,7 +132,7 @@ const auto basicNDCases = ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(CommonTestUtils::combineParams(basicNDCase)),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 // For operations that only support FP16 input values in 'vpuip_2'
 const auto basicFP16OnlyCases = ::testing::Combine(
@@ -197,7 +140,7 @@ const auto basicFP16OnlyCases = ::testing::Combine(
         ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::Precision::FP16),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY), ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 const auto basicCases2D = ::testing::Combine(
         ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes2D)),
@@ -205,7 +148,7 @@ const auto basicCases2D = ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(CommonTestUtils::combineParams(basic2DShape)),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 const auto basicTilingCases = ::testing::Combine(
         ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypesTiling)),
@@ -213,7 +156,7 @@ const auto basicTilingCases = ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(CommonTestUtils::combineParams(basicTiling)),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Activation_Test, VPUXActivationLayerTest_VPU3700, basicCases,
                          ActivationLayerTest::getTestCaseName);

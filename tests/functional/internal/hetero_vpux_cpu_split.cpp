@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "test_model/kmb_test_base.hpp"
 
 #include <hetero/hetero_plugin_config.hpp>
@@ -39,11 +37,11 @@ void insert_noop_reshape_after(std::shared_ptr<ngraph::Node>& node, const std::s
     auto constant = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{shape.size()},
                                                            std::vector<size_t>{0, 1, 2, 3});
     constant->set_friendly_name(opName + "_const");
-    constant->get_rt_info()["affinity"] = "VPUX";
+    constant->get_rt_info()["affinity"] = "NPU";
 
     auto transpose = std::make_shared<ngraph::opset1::Transpose>(node, constant);
     transpose->set_friendly_name(opName);
-    transpose->get_rt_info()["affinity"] = "VPUX";
+    transpose->get_rt_info()["affinity"] = "NPU";
 
     // Reconnect all consumers to new_node
     for (auto input : consumers) {
@@ -65,8 +63,8 @@ void assignAffinities(InferenceEngine::CNNNetwork& network, const Device& firstD
 
     auto deviceName = std::string{firstDevice};
 
-    // with VPUX plugin, also add temporary SW layer at the end of the subnetwork
-    if (deviceName == "VPUX") {
+    // with NPU plugin, also add temporary SW layer at the end of the subnetwork
+    if (deviceName == "NPU") {
         splitName = "last_reshape_layer";
         insert_noop_reshape_after(*lastSubgraphLayer, splitName);
     }
@@ -202,7 +200,7 @@ const auto squeezeNetLayers = std::vector<SplitLayer>{{"pool5"},
                                                       {"fire6/concat"}};
 
 INSTANTIATE_TEST_SUITE_P(squeezeNet, HeteroPluginTest,
-                         ::testing::Combine(::testing::Values(Device("VPUX")), ::testing::Values(Device("CPU")),
+                         ::testing::Combine(::testing::Values(Device("NPU")), ::testing::Values(Device("CPU")),
                                             ::testing::Values(NetworkPath(
                                                     "KMB_models/INT8/public/squeezenet1_1/"
                                                     "squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_from_fp32.xml")),
@@ -219,7 +217,7 @@ const auto resnet101Layers = std::vector<SplitLayer>{
 INSTANTIATE_TEST_SUITE_P(
         resnet101, HeteroPluginTest,
         ::testing::Combine(
-                ::testing::Values(Device("VPUX")), ::testing::Values(Device("CPU")),
+                ::testing::Values(Device("NPU")), ::testing::Values(Device("CPU")),
                 ::testing::Values(NetworkPath(
                         "KMB_models/INT8/public/resnet-101/resnet_101_caffe_dense_int8_IRv10_from_fp32.xml")),
                 ::testing::Values(ImagePath("224x224/cat3.bmp")), ::testing::ValuesIn(resnet101Layers)),
@@ -234,7 +232,7 @@ const auto googleNetv4Layers = std::vector<SplitLayer>{
 INSTANTIATE_TEST_SUITE_P(
         googleNetv4, HeteroPluginTest,
         ::testing::Combine(
-                ::testing::Values(Device("VPUX")), ::testing::Values(Device("CPU")),
+                ::testing::Values(Device("NPU")), ::testing::Values(Device("CPU")),
                 ::testing::Values(NetworkPath(
                         "KMB_models/INT8/public/googlenet-v4/googlenet_v4_tf_dense_int8_IRv10_from_fp32.xml")),
                 ::testing::Values(ImagePath("300x300/dog.bmp")), ::testing::ValuesIn(googleNetv4Layers)),

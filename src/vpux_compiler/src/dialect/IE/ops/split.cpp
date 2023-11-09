@@ -5,6 +5,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
+#include "vpux/compiler/dialect/IE/utils/propagate_quantize_dequantize_utils.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -20,12 +21,12 @@ using namespace vpux;
 namespace {
 
 Dim normalizeAxis(IE::SplitOpAdaptor split) {
-    VPUX_THROW_UNLESS(split.axis_value().hasValue(), "Got non constant axis");
+    VPUX_THROW_UNLESS(split.axis_value().has_value(), "Got non constant axis");
 
     const auto inType = split.input().getType().cast<mlir::ShapedType>();
     const auto inRank = inType.getRank();
 
-    auto axisInd = split.axis_value().getValue();
+    auto axisInd = split.axis_value().value();
 
     // Negative value means counting dimension from the end
     if (axisInd < 0) {
@@ -45,7 +46,7 @@ mlir::FailureOr<Dim> extractAxis(mlir::Location loc, IE::SplitOpAdaptor split) {
             return errorAt(loc, "Only constant input is supported for axis");
         }
 
-        const auto axisContent = axisConst.content();
+        const auto axisContent = axisConst.getContent();
         if (!axisContent.isSplat()) {
             return errorAt(loc, "Axis value must be a scalar");
         }
@@ -64,7 +65,7 @@ mlir::FailureOr<Dim> extractAxis(mlir::Location loc, IE::SplitOpAdaptor split) {
                           inRank);
 
         return Dim(axisInd);
-    } else if (split.axis_value().hasValue()) {
+    } else if (split.axis_value().has_value()) {
         return normalizeAxis(split);
     } else {
         return errorAt(loc, "Axis was not provided");
@@ -100,7 +101,7 @@ mlir::LogicalResult vpux::IE::SplitOp::inferReturnTypeComponents(
     outShape[*axis] /= num_splits;
 
     const auto elemType = inType.getElementType();
-    const auto outDesc = IE::getTensorAttr(inType);
+    const auto outDesc = vpux::getTensorAttr(inType);
 
     for (int i = 0; i < num_splits; ++i) {
         inferredReturnShapes.emplace_back(outShape.raw(), elemType, outDesc);
@@ -124,7 +125,7 @@ public:
 };
 
 mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::SplitOp splitOp, mlir::PatternRewriter& rewriter) const {
-    if (splitOp.axis_value().hasValue()) {
+    if (splitOp.axis_value().has_value()) {
         return mlir::failure();
     }
 
@@ -154,25 +155,11 @@ void vpux::IE::SplitOp::getCanonicalizationPatterns(mlir::RewritePatternSet& pat
 //
 
 void vpux::IE::SplitOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    auto outputElemType = info.getInput(0);
-
-    // Do not propagate element type down in per channel case.
-    if (outputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>() == nullptr) {
-        for (size_t outputInd = 0; outputInd < info.getNumOutputs(); ++outputInd) {
-            info.setOutput(outputInd, outputElemType);
-        }
-    }
+    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
+    propagateElementTypeDown(info);
 }
 
 void vpux::IE::SplitOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    const auto outputElemType = info.getOutput(0);
-
-    if (outputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>() != nullptr) {
-        // E#31029: implement propagate type up for per channel, currently it leads to failures in later passes.
-        return;
-    }
-
-    for (size_t inputInd = 0; inputInd < info.getNumInputs(); ++inputInd) {
-        info.setInput(inputInd, outputElemType);
-    }
+    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
+    propagateElementTypeUp(info);
 }

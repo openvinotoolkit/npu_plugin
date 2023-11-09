@@ -1,11 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) 2018-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "single_layer_tests/lstm_sequence.hpp"
 #include <ngraph/op/util/attr_types.hpp>
 #include <vector>
-#include "shared_tests_instances/kmb_layer_test.hpp"
+#include "shared_tests_instances/vpu_ov1_layer_test.hpp"
 
 #include <memory>
 #include <string>
@@ -20,7 +21,7 @@ namespace LayerTestsDefinitions {
 class VPUXLSTMSequenceLayerTest_VPU3700 :
         public testing::WithParamInterface<LSTMSequenceParams>,
         virtual public LayerTestsUtils::LayerTestsCommon,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {
+        virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<LSTMSequenceParams>& obj) {
         ngraph::helpers::SequenceTestsMode mode;
@@ -108,7 +109,7 @@ protected:
 
 private:
     void SkipBeforeValidate() override {
-        throw LayerTestsUtils::KmbSkipTestException("differs from the reference");
+        throw LayerTestsUtils::VpuSkipTestException("differs from the reference");
     }
 
 private:
@@ -116,7 +117,9 @@ private:
     int64_t m_max_seq_len = 0;
 };
 
-class VPUXLSTMSequenceLayerTest_VPU3720 : public LSTMSequenceTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXLSTMSequenceLayerTest_VPU3720 :
+        public LSTMSequenceTest,
+        virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void SetUp() override {
         inPrc = InferenceEngine::Precision::FP16;
         outPrc = InferenceEngine::Precision::FP16;
@@ -160,7 +163,7 @@ INSTANTIATE_TEST_CASE_P(smoke_LSTMSequenceCommonZeroClip, VPUXLSTMSequenceLayerT
                                            ::testing::ValuesIn(input_size), ::testing::ValuesIn(activations),
                                            ::testing::ValuesIn(clip), ::testing::ValuesIn(direction),
                                            ::testing::ValuesIn(netPrecisions),
-                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                         VPUXLSTMSequenceLayerTest_VPU3700::getTestCaseName);
 
 std::vector<size_t> seq_lengths_zero_clip_vpu3720{3};
@@ -175,7 +178,7 @@ INSTANTIATE_TEST_CASE_P(smoke_precommit_LSTMSequenceCommonZeroClipVPU3720, VPUXL
                                            ::testing::ValuesIn(input_size_vpu3720), ::testing::ValuesIn(activations),
                                            ::testing::ValuesIn(clip), ::testing::ValuesIn(direction),
                                            ::testing::ValuesIn(netPrecisions),
-                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                         VPUXLSTMSequenceLayerTest_VPU3720::getTestCaseName);
 
 }  // namespace

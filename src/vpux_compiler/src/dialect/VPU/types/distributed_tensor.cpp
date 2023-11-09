@@ -1,6 +1,6 @@
 //
-// Copyright (C) 2022 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "vpux/compiler/dialect/VPU/ops.hpp"
@@ -58,35 +58,41 @@ void VPU::DistributedTensorType::print(mlir::AsmPrinter& printer) const {
     printer << ", {";
 
     auto distribution = getDistribution();
-    printer << "mode = \"" << VPU::stringifyDistributionMode(distribution.mode().getValue()) << "\"";
-    if (distribution.num_tiles() != nullptr) {
-        printer << ", num_tiles = " << distribution.num_tiles();
+    printer << "mode = \"" << VPU::stringifyDistributionMode(distribution.getMode().getValue()) << "\"";
+    if (distribution.getNumTiles() != nullptr) {
+        printer << ", num_tiles = " << distribution.getNumTiles();
     }
-    if (distribution.kernel() != nullptr) {
-        printer << ", kernel = " << distribution.kernel();
+    if (distribution.getKernel() != nullptr) {
+        printer << ", kernel = " << distribution.getKernel();
     }
-    if (distribution.pads() != nullptr) {
-        printer << ", pads = " << distribution.pads();
+    if (distribution.getPads() != nullptr) {
+        printer << ", pads = " << distribution.getPads();
     }
-    if (distribution.strides() != nullptr) {
-        printer << ", strides = " << distribution.strides();
+    if (distribution.getStrides() != nullptr) {
+        printer << ", strides = " << distribution.getStrides();
     }
-    if (distribution.num_clusters() != nullptr) {
-        printer << ", num_clusters = " << distribution.num_clusters();
+    if (distribution.getNumClusters() != nullptr) {
+        printer << ", num_clusters = " << distribution.getNumClusters();
     }
-    if (distribution.alignment() != nullptr) {
-        printer << ", alignment = " << distribution.alignment();
+    if (distribution.getAlignment() != nullptr) {
+        printer << ", alignment = " << distribution.getAlignment();
     }
-    if (distribution.uniform_distributed_segments() != nullptr) {
+    if (distribution.getUniformDistributedSegments() != nullptr) {
         printer << ", uniform_distributed_segments";
     }
-    if (distribution.compute_shapes() != nullptr) {
-        printer << ", compute_shapes = " << distribution.compute_shapes();
+    if (distribution.getComputeShapes() != nullptr) {
+        printer << ", compute_shapes = " << distribution.getComputeShapes();
     }
-    if (distribution.compute_offsets() != nullptr) {
-        printer << ", compute_offsets = " << distribution.compute_offsets();
+    if (distribution.getComputeOffsets() != nullptr) {
+        printer << ", compute_offsets = " << distribution.getComputeOffsets();
     }
-    if (distribution.equal_memory_and_compute_view() != nullptr) {
+    if (distribution.getMemoryShapes() != nullptr) {
+        printer << ", memory_shapes = " << distribution.getMemoryShapes();
+    }
+    if (distribution.getMemoryOffsets() != nullptr) {
+        printer << ", memory_offsets = " << distribution.getMemoryOffsets();
+    }
+    if (distribution.getEqualMemoryAndComputeView() != nullptr) {
         printer << ", equal_memory_and_compute_view";
     }
     printer << "}";
@@ -148,10 +154,10 @@ mlir::Type VPU::DistributedTensorType::parse(mlir::AsmParser& parser) {
         return Type();
     }
     const auto distributionMode = VPU::symbolizeDistributionMode(distributionModeStr);
-    if (!distributionMode.hasValue()) {
+    if (!distributionMode.has_value()) {
         return Type();
     }
-    const auto distributionModeAttr = VPU::DistributionModeAttr::get(parser.getContext(), distributionMode.getValue());
+    const auto distributionModeAttr = VPU::DistributionModeAttr::get(parser.getContext(), distributionMode.value());
 
     mlir::ArrayAttr numTiles;
     mlir::ArrayAttr kernel;
@@ -162,6 +168,8 @@ mlir::Type VPU::DistributedTensorType::parse(mlir::AsmParser& parser) {
     mlir::UnitAttr uniformDistributedSegments;
     mlir::ArrayAttr computeShapes;
     mlir::ArrayAttr computeOffsets;
+    mlir::ArrayAttr memoryShapes;
+    mlir::ArrayAttr memoryOffsets;
     mlir::UnitAttr equalComputeAndMemoryView;
 
     while (parser.parseOptionalRBrace()) {
@@ -219,6 +227,14 @@ mlir::Type VPU::DistributedTensorType::parse(mlir::AsmParser& parser) {
             if (parser.parseAttribute(computeOffsets)) {
                 return Type();
             }
+        } else if (attrName == "memory_shapes") {
+            if (parser.parseAttribute(memoryShapes)) {
+                return Type();
+            }
+        } else if (attrName == "memory_offsets") {
+            if (parser.parseAttribute(memoryOffsets)) {
+                return Type();
+            }
         } else {
             return Type();
         }
@@ -227,9 +243,10 @@ mlir::Type VPU::DistributedTensorType::parse(mlir::AsmParser& parser) {
     if (parser.parseGreater()) {
         return Type();
     }
-    auto distributedAttr = VPU::DistributedTensorAttr::get(
-            distributionModeAttr, numTiles, kernel, pads, strides, numClusters, alignment, uniformDistributedSegments,
-            computeShapes, computeOffsets, equalComputeAndMemoryView, parser.getContext());
+    auto distributedAttr =
+            VPU::DistributedTensorAttr::get(parser.getContext(), distributionModeAttr, numTiles, kernel, pads, strides,
+                                            numClusters, alignment, uniformDistributedSegments, computeShapes,
+                                            computeOffsets, memoryShapes, memoryOffsets, equalComputeAndMemoryView);
     return static_cast<mlir::Type>(
             get(parser.getContext(), makeArrayRef(shape), elemType, order, memSpace, distributedAttr));
 }
@@ -251,7 +268,7 @@ mlir::LogicalResult VPU::DistributedTensorType::verify(FuncRef<mlir::InFlightDia
 
 mlir::RankedTensorType VPU::DistributedTensorType::getCompactType() const {
     return mlir::RankedTensorType::get(getShape().raw(), getElementType(),
-                                       IE::TensorAttr::get(getOrder(), getMemSpace(), getContext()));
+                                       vpux::TensorAttr::get(getContext(), getOrder(), getMemSpace()));
 }
 
 //
@@ -273,7 +290,12 @@ mlir::RankedTensorType VPU::DistributedTensorType::getCompactType() const {
 //  will have the following compute distribution across clusters:
 //  [1 64 6 16] [1 64 6 16] [1 64 5 16] [1 64 5 16]
 SmallVector<Shape> VPU::DistributedTensorType::getPerClusterComputeShapes() const {
-    return VPU::getPerClusterComputeShapes(getShape(), getDistribution());
+    auto distribution = getDistribution();
+    if (distribution.getComputeShapes() == nullptr) {
+        return VPU::getPerClusterComputeShapes(getShape(), distribution);
+    }
+
+    return VPU::arrayAttrToVecOfShapes(distribution.getComputeShapes());
 }
 
 // @brief Retrieve the offsets for each compute shape with regards to full tensor shape.
@@ -281,7 +303,12 @@ SmallVector<Shape> VPU::DistributedTensorType::getPerClusterComputeShapes() cons
 // is that modes like SEGMENTED and OVERLAPPED take precedence over
 // DUPLICATED and MULTICASTED.
 SmallVector<Shape> VPU::DistributedTensorType::getPerClusterComputeShapeOffsets() const {
-    return VPU::getPerClusterComputeShapeOffsets(getShape(), getDistribution());
+    auto distribution = getDistribution();
+    if (distribution.getComputeOffsets() == nullptr) {
+        return VPU::getPerClusterComputeShapeOffsets(getShape(), distribution);
+    }
+
+    return VPU::arrayAttrToVecOfShapes(distribution.getComputeOffsets());
 }
 
 // @brief Retrieve the array of memory shapes.
@@ -298,7 +325,12 @@ SmallVector<Shape> VPU::DistributedTensorType::getPerClusterComputeShapeOffsets(
 //  will have the following memory distribution across clusters:
 //  [1 64 7 16] [1 64 8 16] [1 64 7 16] [1 64 6 16]
 SmallVector<Shape> VPU::DistributedTensorType::getPerClusterMemoryShapes() const {
-    return VPU::getPerClusterMemoryShapes(getShape(), getDistribution());
+    auto distribution = getDistribution();
+    if (distribution.getMemoryShapes() == nullptr) {
+        return VPU::getPerClusterMemoryShapes(getShape(), distribution);
+    }
+
+    return VPU::arrayAttrToVecOfShapes(distribution.getMemoryShapes());
 }
 
 // @brief Retrieve the array of memory buffer offsets with regards to the full buffer.
@@ -306,7 +338,12 @@ SmallVector<Shape> VPU::DistributedTensorType::getPerClusterMemoryShapes() const
 //  is that modes like DUPLICATED and MULTICASTED take precedence over
 //  SEGMENTED and OVERLAPPED.
 SmallVector<Shape> VPU::DistributedTensorType::getPerClusterMemoryShapeOffsets() const {
-    return VPU::getPerClusterMemoryShapeOffsets(getShape(), getDistribution());
+    auto distribution = getDistribution();
+    if (distribution.getMemoryOffsets() == nullptr) {
+        return VPU::getPerClusterMemoryShapeOffsets(getShape(), distribution);
+    }
+
+    return VPU::arrayAttrToVecOfShapes(distribution.getMemoryOffsets());
 }
 
 // @brief Get largest compact compute shape
@@ -333,8 +370,8 @@ Shape VPU::DistributedTensorType::getCompactShape(int64_t tileInd) const {
 
 // @brief Retrieve the array of padding for each cluster
 // @warning This function is needed for getting padding in OVERLAPPED mode.
-SmallVector<PadInfo> VPU::DistributedTensorType::getPerClusterPadding() const {
-    return VPU::getPerClusterPadding(getDistribution());
+SmallVector<PadInfo> VPU::DistributedTensorType::getPerClusterPadding(PadInfo kernelPadding) const {
+    return VPU::getPerClusterPadding(getDistribution(), kernelPadding);
 }
 
 // @brief Retrieve the array of strided memory shapes
@@ -344,7 +381,10 @@ SmallVector<PadInfo> VPU::DistributedTensorType::getPerClusterPadding() const {
 SmallVector<StridedShape> VPU::DistributedTensorType::getPerClusterMemoryStridedShapes() const {
     const auto strideInReqs = StrideReqs::compact(getShape().size());
     VPUX_THROW_UNLESS(strideInReqs.checkStrides(*this), "Only compact strides are supported");
-    return VPU::getPerClusterMemoryStridedShapes(getShape(), getStrides(), getDimsOrder(), getDistribution());
+
+    const auto memoryShapes = getPerClusterMemoryShapes();
+    return VPU::getPerClusterMemoryStridedShapes(getShape(), getStrides(), getDimsOrder(), getDistribution().getMode(),
+                                                 memoryShapes);
 }
 
 // @brief Get largest strided memory shape
@@ -373,6 +413,83 @@ StridedShape VPU::DistributedTensorType::getStridedShape(int64_t tileInd) const 
     VPUX_THROW_UNLESS(tileInd < static_cast<int64_t>(stridedShapes.size()),
                       "Requesting tiled shape outside of cluster pool");
     return stridedShapes[tileInd];
+}
+
+// @brief When having explicit per cluster memory/compute shapes/offsets, changing the type's shapes invalidates
+// them. This method creates DistributedType with requested shape and DistributedAttr with
+// memory_shapes/memory_offsets/computes_shapes/compute_offets adjusted for the new shape.
+NDTypeInterface VPU::DistributedTensorType::changeShapeForExplicitDistribution(
+        ShapeRef shape, VPU::DistributedTensorAttr distributedAttr) const {
+    const auto typeComponents = TypeComponents().setShape(shape);
+    return changeTypeComponentsForExplicitDistribution(typeComponents, distributedAttr);
+}
+
+// @brief When having explicit per cluster memory/compute shapes/offsets, changing the type's shapes invalidates
+// them. This method creates DistributedType with requested shape and element type and DistributedAttr with
+// memory_shapes/memory_offsets/computes_shapes/compute_offets adjusted for the new shape.
+NDTypeInterface VPU::DistributedTensorType::changeShapeElemTypeForExplicitDistribution(
+        ShapeRef shape, mlir::Type elemType, VPU::DistributedTensorAttr distributedAttr) const {
+    const auto typeComponents = TypeComponents().setShape(shape).setElementType(elemType);
+    return changeTypeComponentsForExplicitDistribution(typeComponents, distributedAttr);
+}
+
+// @brief When having explicit per cluster memory/compute shapes/offsets, changing the type's shapes invalidates
+// them. This method creates DistributedType with requested type components. If shape is one of the changed
+// components, it will also update the DistributedAttr with memory_shapes/memory_offsets/computes_shapes/compute_offets
+// adjusted for the new shape. Otherwise, it leaves the DistributedAttr untouched.
+NDTypeInterface VPU::DistributedTensorType::changeTypeComponentsForExplicitDistribution(
+        const TypeComponents& typeComponents, VPU::DistributedTensorAttr distributedAttr) const {
+    if (distributedAttr == nullptr) {
+        return changeTypeComponents(typeComponents);
+    }
+
+    const auto shape = typeComponents.shape.value_or(Shape(getShape().toValues()));
+    const auto dimsOrder = typeComponents.dimsOrder.value_or(getDimsOrder());
+    const auto memSpace = typeComponents.memSpace.value_or(getMemSpace());
+
+    VPUX_THROW_UNLESS(dimsOrder.numDims() == shape.size(), "Order '{0}' is incompatible with shape '{1}' ", dimsOrder,
+                      shape);
+
+    auto elementType = getElementType();
+    if (typeComponents.elementType.has_value()) {
+        elementType = typeComponents.elementType.value();
+    } else {
+        if (auto perAxisType = elementType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+            const auto axis = getQuantizedAxis(perAxisType.getQuantizedDimension(), getShape(), shape);
+            if (axis.has_value()) {
+                elementType = changeAxis(perAxisType, axis.value());
+            }
+        }
+    }
+
+    return VPU::DistributedTensorType::get(getContext(), shape.raw(), elementType,
+                                           mlir::AffineMapAttr::get(dimsOrder.toAffineMap(getContext())), memSpace,
+                                           distributedAttr);
+}
+
+// @brief When having explicit per cluster memory/compute shapes/offsets, changing the type's shapes invalidates
+// them. This method creates DistributedType obtained by extracting a dense tile from the original DistributedType.
+// It will also update the DistributedAttr with memory_shapes/memory_offsets/computes_shapes/compute_offets
+// adjusted for the resulting dense tile.
+NDTypeInterface VPU::DistributedTensorType::extractDenseTileForExplicitDistribution(
+        vpux::ShapeRef tileOffsets, vpux::ShapeRef tileShape, VPU::DistributedTensorAttr distributedAttr) const {
+    if (distributedAttr == nullptr) {
+        return extractDenseTile(tileOffsets, tileShape);
+    }
+
+    auto elemType = getElementType();
+    if (const auto perAxisQType = elemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+        elemType = tileScalesAndZP(perAxisQType, tileShape, tileOffsets);
+    }
+
+    return VPU::DistributedTensorType::get(getContext(), tileShape.raw(), elemType, getOrder(), getMemSpace(),
+                                           distributedAttr);
+}
+
+NDTypeInterface VPU::DistributedTensorType::extractViewTileForExplicitDistribution(
+        vpux::ShapeRef /*tileOffsets*/, vpux::ShapeRef /*tileShape*/, vpux::ShapeRef /*tileElemStrides*/,
+        VPU::DistributedTensorAttr /*distributedAttr*/) const {
+    VPUX_THROW("DistributedTensorType only supports compact strides");
 }
 
 //
@@ -406,7 +523,7 @@ VPU::MemoryKind VPU::DistributedTensorType::getMemoryKind() const {
     if (memSpace == nullptr) {
         return VPU::MemoryKind::DDR;
     }
-    return VPU::symbolizeEnum<VPU::MemoryKind>(memSpace.getLeafName()).getValue();
+    return VPU::symbolizeEnum<VPU::MemoryKind>(memSpace.getLeafName()).value();
 }
 
 Strides VPU::DistributedTensorType::getStrides() const {
@@ -454,17 +571,22 @@ Byte VPU::DistributedTensorType::getCompactAllocSize() const {
 }
 
 NDTypeInterface VPU::DistributedTensorType::changeShape(ShapeRef shape) const {
-    VPUX_THROW_UNLESS(getDimsOrder().numDims() == shape.size(), "Order '{0}' is incompatible with the new shape '{1}'",
+    VPUX_THROW_UNLESS(getDimsOrder().numDims() == shape.size(), "Order '{0}' is incompatible with the new shape '{1}' ",
                       getDimsOrder(), shape);
+
+    auto distribution = getDistribution();
+    VPUX_THROW_WHEN(isDistributedAttrWithExplicitShapesAndOffsets(distribution),
+                    "Cannot change shape when having explicit per cluster shapes/offsets");
+
     auto elemType = getElementType();
     if (auto perAxisType = elemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
         const auto axis = getQuantizedAxis(perAxisType.getQuantizedDimension(), getShape(), shape);
-        if (axis.hasValue()) {
-            elemType = changeAxis(perAxisType, axis.getValue());
+        if (axis.has_value()) {
+            elemType = changeAxis(perAxisType, axis.value());
         }
     }
     return VPU::DistributedTensorType::get(getContext(), shape.raw(), elemType, getOrder(), getMemSpace(),
-                                           getDistribution());
+                                           distribution);
 }
 
 NDTypeInterface VPU::DistributedTensorType::changeElemType(mlir::Type elemType) const {
@@ -473,10 +595,15 @@ NDTypeInterface VPU::DistributedTensorType::changeElemType(mlir::Type elemType) 
 }
 
 NDTypeInterface VPU::DistributedTensorType::changeShapeElemType(ShapeRef shape, mlir::Type elemType) const {
-    VPUX_THROW_UNLESS(getDimsOrder().numDims() == shape.size(), "Order '{0}' is incompatible with the new shape '{1}'",
+    VPUX_THROW_UNLESS(getDimsOrder().numDims() == shape.size(), "Order '{0}' is incompatible with the new shape '{1}' ",
                       getDimsOrder(), shape);
+
+    auto distribution = getDistribution();
+    VPUX_THROW_WHEN(isDistributedAttrWithExplicitShapesAndOffsets(distribution),
+                    "Cannot change shape when having explicit per cluster shapes/offsets");
+
     return VPU::DistributedTensorType::get(getContext(), shape.raw(), elemType, getOrder(), getMemSpace(),
-                                           getDistribution());
+                                           distribution);
 }
 
 NDTypeInterface VPU::DistributedTensorType::changeDimsOrder(DimsOrder order) const {
@@ -494,36 +621,49 @@ NDTypeInterface VPU::DistributedTensorType::changeStrides(StridesRef /*strides*/
     VPUX_THROW("DistributedTensorType only supports compact strides");
 }
 
-NDTypeInterface VPU::DistributedTensorType::changeTypeComponents(TypeComponents typeComponents) const {
+NDTypeInterface VPU::DistributedTensorType::changeTypeComponents(const vpux::TypeComponents& typeComponents) const {
     const auto shape = typeComponents.shape.value_or(Shape(getShape().toValues()));
     const auto dimsOrder = typeComponents.dimsOrder.value_or(getDimsOrder());
     const auto memSpace = typeComponents.memSpace.value_or(getMemSpace());
+    auto distribution = getDistribution();
+
+    // If there is a shape change requested
+    if (shape != Shape(getShape().toValues())) {
+        VPUX_THROW_WHEN(isDistributedAttrWithExplicitShapesAndOffsets(distribution),
+                        "Cannot change shape when having explicit per cluster shapes/offsets");
+    }
 
     auto elementType = getElementType();
-    if (typeComponents.elementType.hasValue()) {
-        elementType = typeComponents.elementType.getValue();
+    if (typeComponents.elementType.has_value()) {
+        elementType = typeComponents.elementType.value();
     } else {
         if (auto perAxisType = elementType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
             const auto axis = getQuantizedAxis(perAxisType.getQuantizedDimension(), getShape(), shape);
-            if (axis.hasValue()) {
-                elementType = changeAxis(perAxisType, axis.getValue());
+            if (axis.has_value()) {
+                elementType = changeAxis(perAxisType, axis.value());
             }
         }
     }
 
     return VPU::DistributedTensorType::get(getContext(), shape.raw(), elementType,
                                            mlir::AffineMapAttr::get(dimsOrder.toAffineMap(getContext())), memSpace,
-                                           getDistribution());
+                                           distribution);
 }
 
-NDTypeInterface VPU::DistributedTensorType::extractDenseTile(ShapeRef tileOffsets, ShapeRef tileShape) const {
+NDTypeInterface VPU::DistributedTensorType::extractDenseTile(vpux::ShapeRef tileOffsets,
+                                                             vpux::ShapeRef tileShape) const {
+    auto distribution = getDistribution();
+    VPUX_THROW_WHEN(isDistributedAttrWithExplicitShapesAndOffsets(distribution),
+                    "Cannot get DistributedTensorType with new shape from old one when having explicit per cluster "
+                    "shapes/offsets");
+
     auto elemType = getElementType();
     if (const auto perAxisQType = elemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
         elemType = tileScalesAndZP(perAxisQType, tileShape, tileOffsets);
     }
 
     return VPU::DistributedTensorType::get(getContext(), tileShape.raw(), elemType, getOrder(), getMemSpace(),
-                                           getDistribution());
+                                           distribution);
 }
 
 NDTypeInterface VPU::DistributedTensorType::extractViewTile(vpux::ShapeRef /*tileOffsets*/,

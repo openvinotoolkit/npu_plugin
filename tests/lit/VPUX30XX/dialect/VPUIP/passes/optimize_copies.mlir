@@ -12,11 +12,11 @@ func.func @OptimizeLastCopy(%arg0: memref<1x2x4x4xf16>, %arg1: memref<1x2x4x4xf1
     %1 = memref.alloc() : memref<1x2x4x4xf16>
     %2 = memref.alloc() : memref<1x2x4x4xf16>
 
-    %3 = VPUIP.EltwiseUPA { type = "AND" }
+    %3 = VPUIP.EltwiseUPA { task_type = #VPU.eltwise_type<AND> }
             inputs(%arg0: memref<1x2x4x4xf16>, %arg1: memref<1x2x4x4xf16>)
             outputs(%1 : memref<1x2x4x4xf16>)
             -> memref<1x2x4x4xf16>
-    %4 = VPUIP.EltwiseUPA { type = "AND" }
+    %4 = VPUIP.EltwiseUPA { task_type = #VPU.eltwise_type<AND> }
             inputs(%arg0: memref<1x2x4x4xf16>, %0: memref<1x2x4x4xf16>)
             outputs(%2 : memref<1x2x4x4xf16>)
             -> memref<1x2x4x4xf16>
@@ -31,8 +31,8 @@ func.func @OptimizeLastCopy(%arg0: memref<1x2x4x4xf16>, %arg1: memref<1x2x4x4xf1
     // CHECK-NOT: memref.alloc() : memref<1x2x4x4xf16>
     // CHECK-NOT: memref.alloc() : memref<1x2x4x4xf16>
 
-    // CHECK: [[VAR1:%.*]] = VPUIP.EltwiseUPA {type = "AND"} inputs(%arg0 : memref<1x2x4x4xf16>, %arg1 : memref<1x2x4x4xf16>) outputs(%arg2 : memref<1x2x4x4xf16>) -> memref<1x2x4x4xf16>
-    // CHECK: [[VAR2:%.*]] = VPUIP.EltwiseUPA {type = "AND"} inputs(%arg0 : memref<1x2x4x4xf16>, [[VAR0]] : memref<1x2x4x4xf16>) outputs(%arg3 : memref<1x2x4x4xf16>) -> memref<1x2x4x4xf16>
+    // CHECK: [[VAR1:%.*]] = VPUIP.EltwiseUPA {task_type = #VPU.eltwise_type<AND>} inputs(%arg0 : memref<1x2x4x4xf16>, %arg1 : memref<1x2x4x4xf16>) outputs(%arg2 : memref<1x2x4x4xf16>) -> memref<1x2x4x4xf16>
+    // CHECK: [[VAR2:%.*]] = VPUIP.EltwiseUPA {task_type = #VPU.eltwise_type<AND>} inputs(%arg0 : memref<1x2x4x4xf16>, [[VAR0]] : memref<1x2x4x4xf16>) outputs(%arg3 : memref<1x2x4x4xf16>) -> memref<1x2x4x4xf16>
     // CHECK: return [[VAR1]], [[VAR2]] : memref<1x2x4x4xf16>, memref<1x2x4x4xf16>
 }
 

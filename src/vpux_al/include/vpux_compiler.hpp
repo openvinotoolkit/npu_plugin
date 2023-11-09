@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include <cstddef>
@@ -16,7 +14,6 @@
 #include <ie_remote_context.hpp>
 
 #include "vpux/utils/IE/config.hpp"
-#include "vpux/utils/core/preprocessing.hpp"
 #include "vpux/utils/core/quant_params.hpp"
 
 namespace vpux {
@@ -24,10 +21,10 @@ namespace vpux {
 class ICompiler;
 
 /**
- * @brief A helper map to represent descriptions for inputs and outputs
+ * @brief A helper vector of pairs to represent descriptions for inputs and outputs
  * of a network
  */
-using DataMap = std::map<std::string, InferenceEngine::DataPtr>;
+using NetworkIOVector = std::vector<std::pair<std::string, InferenceEngine::DataPtr>>;
 
 /**
  * @brief A helper type to keep OV 2.0 node raw data
@@ -72,50 +69,30 @@ public:
     virtual const std::string& getName() const = 0;
 
     /**
-     * @brief Returns a map with information about network inputs. The inputs
-     * shall be obtained from the network
-     * @return Constant reference to an internally held DataMap object
-     */
-    virtual const DataMap& getInputsInfo() const = 0;
-
-    /**
-     * @brief Returns a map with information about network outputs. The outputs
-     * shall be obtained from the network
-     * @return Constant reference to an internally held DataMap object
-     */
-    virtual const DataMap& getOutputsInfo() const = 0;
-
-    /**
-     * @brief Returns a map with information about network inputs which
+     * @brief Returns a vector of pairs with information about network inputs which
      * will be executed. The inputs are defined by a compiler and can be different
      * from the original inputs due to compiler restrictions or optimizations
-     * @return Constant reference to an internally held DataMap object
+     * @return Constant reference to an internally held NetworkIOVector object
      */
-    virtual const DataMap& getDeviceInputsInfo() const = 0;
+    virtual const NetworkIOVector& getDeviceInputsInfo() const = 0;
 
     /**
-     * @brief Returns a map with information about network outputs which
+     * @brief Returns a vector of pairs with information about network outputs which
      * will be executed. The outputs are defined by a compiler and can be different
      * from the original outputs due to compiler restrictions or optimizations
-     * @return Constant reference to an internally held DataMap object
+     * @return Constant reference to an internally held NetworkIOVector object
      */
-    virtual const DataMap& getDeviceOutputsInfo() const = 0;
+    virtual const NetworkIOVector& getDeviceOutputsInfo() const = 0;
 
     /**
-     * @brief Returns a map with information about profiling outputs.
+     * @brief Returns a vector of pairs with information about profiling outputs.
      * The outputs are defined by a compiler.
-     * @return Constant reference to an internally held DataMap object
+     * @return Constant reference to an internally held NetworkIOVector object
      */
-    virtual const DataMap& getDeviceProfilingOutputsInfo() const = 0;
+    virtual const NetworkIOVector& getDeviceProfilingOutputsInfo() const = 0;
 
     virtual const std::vector<vpux::OVRawNode>& getOVParameters() const = 0;
     virtual const std::vector<vpux::OVRawNode>& getOVResults() const = 0;
-
-    /**
-     * @brief Returns a map with information about quantization parameters
-     * @return Constant reference to an internally held QuantizationParamMap object
-     */
-    virtual const vpux::QuantizationParamMap& getQuantParamsInfo() const = 0;
 
     // TODO Remove interface returning std::vector<char>.
     /**
@@ -131,14 +108,6 @@ public:
     virtual const void* getNetworkModel() const = 0;
 
     /**
-     * @brief Returns a map with information about preprocess inputs.
-     * @return Constant reference to an internally held map containing information about preprocess for inputs
-     */
-    const std::unordered_map<std::string, InferenceEngine::PreProcessInfo>& getPreprocessInfo() const {
-        return _iePreprocessInfo;
-    }
-
-    /**
      * @brief Returns size of the compiled model in bytes
      * @return size in bytes
      */
@@ -151,9 +120,6 @@ public:
     virtual int getNumStreams() const = 0;
 
     virtual ~INetworkDescription() = default;
-
-protected:
-    std::unordered_map<std::string, InferenceEngine::PreProcessInfo> _iePreprocessInfo;
 };
 
 /**
@@ -169,6 +135,8 @@ public:
     using CPtr = std::shared_ptr<const NetworkDescription>;
 
     NetworkDescription(INetworkDescription::Ptr impl, const std::shared_ptr<void>& so = {});
+    NetworkDescription(const NetworkDescription&) = default;
+    NetworkDescription& operator=(const NetworkDescription&) = default;
 
     // Destructor preserves unload order of implementation object and reference to library.
     // To preserve destruction order inside default generated assignment operator we store `_impl` before `_so`.
@@ -180,19 +148,13 @@ public:
     const std::string& getName() const {
         return _impl->getName();
     }
-    const DataMap& getInputsInfo() const {
-        return _impl->getInputsInfo();
-    }
-    const DataMap& getOutputsInfo() const {
-        return _impl->getOutputsInfo();
-    }
-    const DataMap& getDeviceInputsInfo() const {
+    const NetworkIOVector& getDeviceInputsInfo() const {
         return _impl->getDeviceInputsInfo();
     }
-    const DataMap& getDeviceOutputsInfo() const {
+    const NetworkIOVector& getDeviceOutputsInfo() const {
         return _impl->getDeviceOutputsInfo();
     }
-    const DataMap& getDeviceProfilingOutputsInfo() const {
+    const NetworkIOVector& getDeviceProfilingOutputsInfo() const {
         return _impl->getDeviceProfilingOutputsInfo();
     }
     const std::vector<OVRawNode>& getOVParameters() const {
@@ -200,9 +162,6 @@ public:
     }
     const std::vector<OVRawNode>& getOVResults() const {
         return _impl->getOVResults();
-    }
-    const vpux::QuantizationParamMap& getQuantParamsInfo() const {
-        return _impl->getQuantParamsInfo();
     }
     const std::vector<char>& getCompiledNetwork() const {
         return _impl->getCompiledNetwork();
@@ -238,30 +197,24 @@ public:
     /**
      * @brief Transforms a network from ngraph representation to a format executable
      * by a VPU device
-     * @param func a shared pointer to ngraph function representing the model
+     * @param model a shared pointer to the OpenVINO model to be compiled
      * @param netName a reference to the string describing network name
      *        to be used for creating network description
-     * @param inputsInfo a reference to map describing inputs of the network
-     * @param outputsInfo a reference to map describing outputs of the network
      * @param config a reference to VPUXConfig containing plugin config options
      *        including config options related to compilation
      * @return a shared pointer on an object implementing INetworkDescription interface
      */
-    virtual std::shared_ptr<INetworkDescription> compile(const std::shared_ptr<ngraph::Function>& func,
-                                                         const std::string& netName,
-                                                         const InferenceEngine::InputsDataMap& inputsInfo,
-                                                         const InferenceEngine::OutputsDataMap& outputsInfo,
-                                                         const Config& config) = 0;
+    virtual std::shared_ptr<INetworkDescription> compile(std::shared_ptr<ov::Model>& model,
+                                                         const std::string& networkName, const Config& config) = 0;
 
     /**
      * @brief Returns information about supported layers of the network passed
-     * @param network a const reference to CNNNetwork
-     * @param config a reference to VPUXConfig containing plugin config options
+     * @param model The model to be queried
+     * @param config A reference to VPUXConfig containing plugin config options
      *        including config options related to compilation
-     * @returns QueryNetworkResult structure with information about supported layers
+     * @returns SupportedOpsMap structure with information about supported layers
      */
-    virtual InferenceEngine::QueryNetworkResult query(const InferenceEngine::CNNNetwork& network,
-                                                      const Config& config) = 0;
+    virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) = 0;
 
     /**
      * @brief Parses already compiled network to extract meta information:
@@ -298,6 +251,8 @@ public:
 #else
     Compiler(const std::string& libpath);
 #endif
+    Compiler(const Compiler&) = delete;
+    Compiler& operator=(const Compiler&) = delete;
 
     // Destructor preserves unload order of implementation object and reference to library.
     // To preserve destruction order inside default generated assignment operator we store `_impl` before `_so`.
@@ -306,17 +261,13 @@ public:
         _impl = {};
     }
 
-    std::shared_ptr<vpux::NetworkDescription> compile(const std::shared_ptr<ngraph::Function>& func,
-                                                      const std::string& netName,
-                                                      const InferenceEngine::InputsDataMap& inputsInfo,
-                                                      const InferenceEngine::OutputsDataMap& outputsInfo,
+    std::shared_ptr<vpux::NetworkDescription> compile(std::shared_ptr<ov::Model>& model, const std::string& networkName,
                                                       const Config& config) {
-        return std::make_shared<NetworkDescription>(_impl->compile(func, netName, inputsInfo, outputsInfo, config),
-                                                    _impl);
+        return std::make_shared<NetworkDescription>(_impl->compile(model, networkName, config), _impl);
     }
 
-    InferenceEngine::QueryNetworkResult query(const InferenceEngine::CNNNetwork& network, const Config& config) {
-        return _impl->query(network, config);
+    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) {
+        return _impl->query(model, config);
     }
 
     std::shared_ptr<vpux::NetworkDescription> parse(const std::vector<char>& network, const Config& config) {
@@ -340,8 +291,8 @@ private:
 };
 
 namespace helpers {
-InferenceEngine::InputsDataMap dataMapIntoInputsDataMap(const vpux::DataMap& dataMap);
-InferenceEngine::OutputsDataMap dataMapIntoOutputsDataMap(const vpux::DataMap& dataMap);
+InferenceEngine::InputsDataMap networkIOVectorIntoInputsDataMap(const vpux::NetworkIOVector& ioVector);
+InferenceEngine::OutputsDataMap networkIOVectorIntoOutputsDataMap(const vpux::NetworkIOVector& ioVector);
 vpux::OVNodes ovRawNodesIntoOVNodes(const std::vector<vpux::OVRawNode>& rawNodes, const bool isResult);
 }  // namespace helpers
 

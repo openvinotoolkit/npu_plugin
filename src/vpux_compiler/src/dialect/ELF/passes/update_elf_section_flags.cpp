@@ -19,7 +19,7 @@ private:
     template <typename OpTy>
     void runOnSectionOps(mlir::func::FuncOp& funcOp) {
         for (auto sectionOp : funcOp.getOps<OpTy>()) {
-            auto currFlagsAttrVal = sectionOp.secFlags();
+            auto currFlagsAttrVal = sectionOp.getSecFlags();
             auto tempFlagsAttrVal = currFlagsAttrVal;
 
             for (auto sectionOpMember : sectionOp.template getOps<ELF::BinaryOpInterface>()) {
@@ -27,7 +27,7 @@ private:
             }
 
             if (tempFlagsAttrVal != currFlagsAttrVal) {
-                sectionOp.secFlagsAttr(ELF::SectionFlagsAttrAttr::get(sectionOp.getContext(), tempFlagsAttrVal));
+                sectionOp.setSecFlagsAttr(ELF::SectionFlagsAttrAttr::get(sectionOp.getContext(), tempFlagsAttrVal));
             }
         }
     }

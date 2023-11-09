@@ -31,3 +31,33 @@ SmallVector<VPU::DistributedTypeInterface> SWGeneralStrategy::getDistributedTens
             getDistributedActivationTypeFromOp(clusteredOp, origOp->getOperand(0).getType(), numClusters, strategy),
             getDistributedOutputTypeFromOp(clusteredOp, origOp->getResult(0).getType(), numClusters, strategy)};
 }
+
+bool SWGeneralStrategy::isOperationSplitOverHeightCompatible(VPU::ClusteredOpInterface clusteredOp,
+                                                             ShapeRef customOutputShape) const {
+    return checkMCRestrictions(clusteredOp) &&
+           BaseLayerStrategy::isOperationSplitOverHeightCompatible(clusteredOp, customOutputShape);
+}
+
+bool SWGeneralStrategy::isOperationSplitOverWidthCompatible(VPU::ClusteredOpInterface clusteredOp,
+                                                            ShapeRef customOutputShape) const {
+    return checkMCRestrictions(clusteredOp) &&
+           BaseLayerStrategy::isOperationSplitOverWidthCompatible(clusteredOp, customOutputShape);
+}
+
+bool SWGeneralStrategy::isOperationSplitOverKernelCompatible(VPU::ClusteredOpInterface clusteredOp,
+                                                             ShapeRef customOutputShape) const {
+    return checkMCRestrictions(clusteredOp) &&
+           BaseLayerStrategy::isOperationSplitOverKernelCompatible(clusteredOp, customOutputShape);
+}
+
+bool SWGeneralStrategy::checkMCRestrictions(VPU::ClusteredOpInterface clusteredOp) const {
+    auto module = clusteredOp->getParentOfType<mlir::ModuleOp>();
+    if (IE::getAvailableExecutor(module, VPU::ExecutorKind::SHAVE_ACT) == nullptr) {
+        return false;
+    }
+
+    auto inputShape = getShape(clusteredOp.getOperation()->getOperand(0));
+    auto outputShape = getShape(clusteredOp.getOperation()->getResult(0));
+    return !(inputShape.front() > SINGLE_BATCH || inputShape.size() != RANK_REQUIRED_FOR_TILING ||
+             outputShape.size() != RANK_REQUIRED_FOR_TILING);
+}

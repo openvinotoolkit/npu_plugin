@@ -27,53 +27,6 @@ constexpr int64_t MAX_VALID_ZTILE_EXPONENT = 8;
 // E#24298
 constexpr int64_t RUNTIME_OVERHEAD_PER_WORKLOAD = 105;
 
-VPUNN::ExecutionMode getExecutionMode(VPU::MPEMode mpeMode) {
-    switch (mpeMode) {
-    case VPU::MPEMode::VECTOR:
-        return VPUNN::ExecutionMode::VECTOR;
-    case VPU::MPEMode::MATRIX:
-        return VPUNN::ExecutionMode::MATRIX;
-    case VPU::MPEMode::VECTOR_FP16:
-        return VPUNN::ExecutionMode::VECTOR_FP16;
-    case VPU::MPEMode::CUBOID_16x16:
-        return VPUNN::ExecutionMode::CUBOID_16x16;
-    case VPU::MPEMode::CUBOID_8x16:
-        return VPUNN::ExecutionMode::CUBOID_8x16;
-    case VPU::MPEMode::CUBOID_4x16:
-        return VPUNN::ExecutionMode::CUBOID_4x16;
-    default:
-        VPUX_THROW("Unsupported MPE mode type: '{0}'", mpeMode);
-    }
-}
-
-VPUNN::DataType getElementType(mlir::Type type) {
-    if (type.isBF16()) {
-        return VPUNN::DataType::BFLOAT16;
-    } else if (type.isF16()) {
-        return VPUNN::DataType::FLOAT16;
-    } else if (type.isInteger(CHAR_BIT * sizeof(int8_t))) {
-        return VPUNN::DataType::INT8;
-    } else if (type.isUnsignedInteger(CHAR_BIT * sizeof(int8_t))) {
-        return VPUNN::DataType::UINT8;
-    } else if (auto qType = type.dyn_cast<mlir::quant::QuantizedType>()) {
-        if (qType.getStorageTypeIntegralWidth() == 8) {
-            return qType.isSigned() ? VPUNN::DataType::INT8 : VPUNN::DataType::UINT8;
-        }
-    }
-    VPUX_THROW("Unsupported data type: '{0}'", type);
-}
-
-VPUNN::VPUTensor getVPUTensor(ShapeRef shape, mlir::Type elemType) {
-    return VPUNN::VPUTensor(
-            {
-                    static_cast<unsigned int>(shape[Dims4D::Act::W]),  //
-                    static_cast<unsigned int>(shape[Dims4D::Act::H]),  //
-                    static_cast<unsigned int>(shape[Dims4D::Act::C]),  //
-                    static_cast<unsigned int>(shape[Dims4D::Act::N]),  //
-            },
-            getElementType(elemType));
-}
-
 SmallVector<int64_t> getSplitsFromRange(int64_t maxSplitRange, int64_t maxLimit) {
     SmallVector<int64_t> splits;
     for (int64_t idx = 0; idx < std::log2(maxSplitRange); idx++) {
@@ -237,9 +190,12 @@ void vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU, WorkloadSplitPool& splitPo
     nTilesOnDim[Dims4D::Act::H] = tilesCount;
 
     auto outTiles = fillDividedTiles(nTilesOnDim, _outShape);
+    if (mlir::failed(outTiles)) {
+        return;
+    }
 
     VPUIP::WorkloadSplit split;
-    for (auto& outTile : outTiles) {
+    for (auto& outTile : outTiles.value()) {
         split.emplace_back(std::move(outTile), _mpeMode);
     }
 
@@ -304,14 +260,14 @@ void vpux::VPUIP::DpuTiler::tileOverHW(int64_t splitNumber, SplitDimension split
         const auto factorList = getFactorsList(splitNumber);
 
         for (const auto factor : factorList) {
-            // Map factor.larger , factor.smaller -> width, height
-            if (factor.larger <= width && factor.smaller <= height) {
-                splitPool.emplace(createWorkloadSplitOverHW(_outShape, factor.larger, factor.smaller, _mpeMode));
+            // Map factor.first , factor.second -> width, height
+            if (factor.first <= width && factor.second <= height) {
+                splitPool.emplace(createWorkloadSplitOverHW(_outShape, factor.first, factor.second, _mpeMode));
             }
 
-            // Map factor.smaller, factor.larger -> width, height
-            if (factor.smaller <= width && factor.larger <= height) {
-                splitPool.emplace(createWorkloadSplitOverHW(_outShape, factor.smaller, factor.larger, _mpeMode));
+            // Map factor.second, factor.first -> width, height
+            if (factor.second <= width && factor.first <= height) {
+                splitPool.emplace(createWorkloadSplitOverHW(_outShape, factor.second, factor.first, _mpeMode));
             }
         }
         break;
@@ -330,60 +286,20 @@ void vpux::VPUIP::DpuTiler::tileOverHWMixedPrecision(WorkloadSplitPool& splitPoo
 }
 
 int64_t vpux::VPUIP::computeSplitCost(const WorkloadSplit& split, const WorkloadCostParams& params,
-                                      const std::shared_ptr<VPUNN::VPUCostModel>& costModel) {
-    VPUX_THROW_WHEN(params.kernelSize.size() < 2, "Kernel array size less than 2");
-    const auto KY = params.kernelSize[Dims4D::Kernel::Y.ind()];
-    const auto KX = params.kernelSize[Dims4D::Kernel::X.ind()];
-
-    VPUX_THROW_WHEN(params.kernelStride.size() < 2, "Kernel stride array size less than 2");
-    const auto SY = params.kernelStride[Dims4D::Strides::Y.ind()];
-    const auto SX = params.kernelStride[Dims4D::Strides::X.ind()];
-
-    const auto opType = getOperationType(params.nceTaskType);
-
+                                      const std::shared_ptr<VPUNN::VPUCostModel>& costModel, Logger log) {
     std::vector<int64_t> workloadCost;
     workloadCost.reserve(split.size());
 
-    auto& log = Logger::global();
-    log.setName("SplitWorkloads");
+    log.setName("ComputeSplitCost");
+    const bool verboseLog = false;  // enable it to debug error code details for each workload
     std::string vpunnInputCheckInfo;
 
     for (const auto& wl : split) {
-        const auto& outputTile = std::get<0>(wl);
-        const auto mpeMode = std::get<1>(wl);
-
-        const auto padsTileConf = backInferPadsTile(outputTile, params.fullInputShape, params.padInfo,
-                                                    makeArrayRef({KY, KX}), makeArrayRef({SY, SX}));
-
-        const auto outputTensor = getVPUTensor(outputTile.shape, params.outDataType);
-
-        const auto IW = (outputTile.shape[Dims4D::Act::W] - 1) * SX + KX - padsTileConf.left - padsTileConf.right;
-        const auto IH = (outputTile.shape[Dims4D::Act::H] - 1) * SY + KY - padsTileConf.top - padsTileConf.bottom;
-        const auto IC = params.nceTaskType == VPUIP::NCETaskType::CONV ||
-                                        params.nceTaskType == VPUIP::NCETaskType::CMCONV ||
-                                        params.nceTaskType == VPUIP::NCETaskType::FCL
-                                ? params.inputShape[Dims4D::Act::C]
-                                : outputTile.shape[Dims4D::Act::C];
-        const auto IN = outputTile.shape[Dims4D::Act::N];
-
-        const auto inputTensor = getVPUTensor(ShapeRef({IN, IC, IH, IW}), params.inDataType);
-
-        auto wlCost = VPU::checkAndReturnCost(
-                costModel->DPU(
-                        {getVPUDeviceType(params.arch),
-                         opType,
-                         {inputTensor},
-                         {outputTensor},
-                         {static_cast<unsigned int>(KX), static_cast<unsigned int>(KY)},
-                         {static_cast<unsigned int>(SX), static_cast<unsigned int>(SY)},
-                         {static_cast<unsigned int>(padsTileConf.top), static_cast<unsigned int>(padsTileConf.bottom),
-                          static_cast<unsigned int>(padsTileConf.left), static_cast<unsigned int>(padsTileConf.right)},
-                         getExecutionMode(mpeMode)},
-                        vpunnInputCheckInfo),
-                log, true);
-        if (wlCost == VPU::INVALID_COST) {
-            log.debug("[VPUNN LOG] INVALID_COST catched. Please check possible VPUNN debug info: {0}",
-                      vpunnInputCheckInfo);
+        const auto vpunnWorkload = VPU::getDPUWorkload(params, wl);
+        auto wlCost = VPU::checkAndReturnCost(costModel->DPU(vpunnWorkload, vpunnInputCheckInfo), log, !verboseLog);
+        if (wlCost >= VPU::INVALID_COST_BASE && verboseLog) {
+            log.warning("[VPUNN LOG] INVALID_COST is caught. Please check possible VPUNN debug info: {0}",
+                        vpunnInputCheckInfo);
         }
         workloadCost.push_back(static_cast<int64_t>(wlCost));
     }

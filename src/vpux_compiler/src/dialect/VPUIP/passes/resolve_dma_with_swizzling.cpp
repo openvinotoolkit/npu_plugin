@@ -29,7 +29,7 @@ private:
 
 void createNewFlatAlignedConst(Const::DeclareOp& constOp) {
     auto ctx = constOp.getContext();
-    const auto contentAttr = constOp.contentAttr();
+    const auto contentAttr = constOp.getContentAttr();
     const auto transformations = contentAttr.getTransformations();
     const auto swizzleTransformationIt =
             std::find_if(transformations.rbegin(), transformations.rend(), [](Const::TransformAttrInterface tr) {
@@ -65,12 +65,12 @@ void createNewFlatAlignedConst(Const::DeclareOp& constOp) {
     const auto newTransformationsAttr = mlir::ArrayAttr::get(ctx, newTransformationsRaw);
 
     auto newContentAttr = Const::ContentAttr::get(contentAttr.getBaseContent(), newTransformationsAttr, newOutputType);
-    constOp.contentAttr(newContentAttr);
+    constOp.setContentAttr(newContentAttr);
 
-    auto constType = constOp.output().getType().cast<vpux::NDTypeInterface>();
+    auto constType = constOp.getOutput().getType().cast<vpux::NDTypeInterface>();
     constType = constType.changeShapeElemType(newOutputType.getShape(), newOutputType.getElementType());
 
-    constOp.output().setType(constType);
+    constOp.getOutput().setType(constType);
 }
 
 void ResolveDMAWithSwizzlingPass::safeRunOnFunc() {
@@ -156,8 +156,8 @@ void ResolveDMAWithSwizzlingPass::safeRunOnFunc() {
         if (auto inputBuff = dmaOp.input().getDefiningOp<VPURT::DeclareBufferOp>()) {
             // Create new source flat buffer with aligned size
             auto newInputBuff = builder.create<VPURT::DeclareBufferOp>(
-                    appendLoc(inputBuff->getLoc(), "_flat_buffer_alloc"), newInputBuffType, inputBuff.sectionAttr(),
-                    inputBuff.sectionIndexAttr(), inputBuff.byteOffsetAttr(), inputBuff.swizzlingKeyAttr());
+                    appendLoc(inputBuff->getLoc(), "_flat_buffer_alloc"), newInputBuffType, inputBuff.getSectionAttr(),
+                    inputBuff.getSectionIndexAttr(), inputBuff.getByteOffsetAttr(), inputBuff.getSwizzlingKeyAttr());
             _log.nest().trace("Create new source flat buffer allocation of shape - '{0}', op - '{1}'",
                               ShapeRef(newShape), newInputBuff->getLoc());
             newInputOp = newInputBuff.getOperation();
@@ -174,8 +174,8 @@ void ResolveDMAWithSwizzlingPass::safeRunOnFunc() {
         // Create new destination flat buffer
         builder.setInsertionPoint(outputBuff);
         auto newOutputBuff = builder.create<VPURT::DeclareBufferOp>(
-                appendLoc(outputBuff->getLoc(), "_flat_buffer_alloc"), newOutputBuffType, outputBuff.sectionAttr(),
-                outputBuff.sectionIndexAttr(), outputBuff.byteOffsetAttr(), outputBuff.swizzlingKeyAttr());
+                appendLoc(outputBuff->getLoc(), "_flat_buffer_alloc"), newOutputBuffType, outputBuff.getSectionAttr(),
+                outputBuff.getSectionIndexAttr(), outputBuff.getByteOffsetAttr(), outputBuff.getSwizzlingKeyAttr());
         _log.nest().trace("Create new destination flat buffer allocation of shape - '{0}', op - '{1}'",
                           ShapeRef(newShape), newOutputBuff->getLoc());
 

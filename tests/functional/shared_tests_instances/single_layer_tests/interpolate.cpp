@@ -1,17 +1,17 @@
-// Copyright (C) 2019-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) 2019-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include <vector>
 
-#include "kmb_layer_test.hpp"
-#include "kmb_test_report.hpp"
 #include "single_layer_tests/interpolate.hpp"
+#include "vpu_ov1_layer_test.hpp"
 #include "vpux_private_config.hpp"
 
 namespace LayerTestsDefinitions {
 
-class VPUXInterpolateLayerTest : public InterpolateLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXInterpolateLayerTest : public InterpolateLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 class VPUXInterpolateLayerTest_VPU3700 : public VPUXInterpolateLayerTest {};
 class VPUXInterpolateLayerTest_VPU3720 : public VPUXInterpolateLayerTest {};
 
@@ -20,6 +20,8 @@ class VPUXInterpolateLayerSETest_VPU3720 : public VPUXInterpolateLayerTest {
         configuration[VPUX_CONFIG_KEY(COMPILATION_MODE_PARAMS)] = "enable-se-ptrs-operations=true";
     }
 };
+
+using VPUXInterpolateLayerSETest_VPU3720_ELF = VPUXInterpolateLayerSETest_VPU3720;
 
 TEST_P(VPUXInterpolateLayerTest_VPU3700, HW) {
     setPlatformVPU3700();
@@ -39,9 +41,16 @@ TEST_P(VPUXInterpolateLayerSETest_VPU3720, HW) {
     Run();
 }
 
+TEST_P(VPUXInterpolateLayerSETest_VPU3720_ELF, HW) {
+    setPlatformVPU3720();
+    setDefaultHardwareModeMLIR();
+    useELFCompilerBackend();
+    Run();
+}
+
 class VPUXInterpolate1LayerTest_VPU3700 :
         public Interpolate1LayerTest,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {
+        virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
 public:
     // Reference version for Interpolate-1 layer doesn't implemented in OpenVino.
     // It is enough to check the conversion of Interpolate-1 layer to Interpolate-4 layer,
@@ -202,7 +211,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_nearest_mode, VPUXInterpolateLayerTes
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inShapes), ::testing::ValuesIn(targetShapes),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(additional_config)),
                          VPUXInterpolateLayerTest_VPU3700::getTestCaseName);
 
@@ -214,7 +223,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_without_nearest, VPUXInterpolateLayer
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inShapes), ::testing::ValuesIn(targetShapes),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(additional_config)),
                          VPUXInterpolateLayerTest_VPU3700::getTestCaseName);
 
@@ -226,7 +235,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_precommit_Interpolate_nearest_mode_VPU3720, VPUXI
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inShapes), ::testing::ValuesIn(targetShapes),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(additional_config)),
                          VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
 
@@ -238,7 +247,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_precommit_Interpolate_without_nearest_VPU3720, VP
                                             ::testing::ValuesIn(layout),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inShapes), ::testing::ValuesIn(targetShapes),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(additional_config)),
                          VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
 
@@ -249,7 +258,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_precommit_Interpolate_all_axes_VPU3720, VPUXInter
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inShapes), ::testing::ValuesIn(allScalescTargetShapes),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(additional_config)),
                          VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
 
@@ -279,7 +288,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_with_tiling_VPU3720, VPUXInterpolateL
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inShapesForTiling),
                                             ::testing::ValuesIn(targetShapesForTiling),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(additional_config)),
                          VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
 
@@ -291,7 +300,7 @@ INSTANTIATE_TEST_SUITE_P(
                            ::testing::Values(InferenceEngine::Layout::ANY),
                            ::testing::Values(InferenceEngine::Layout::ANY), ::testing::ValuesIn(inShapesForTiling),
                            ::testing::ValuesIn(targetShapesForTiling),
-                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                            ::testing::Values(additional_config)),
         VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
 
@@ -305,7 +314,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_precommit_Interpolate_with_align_corners_tiling_r
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 1, 257, 257}}),
                                             ::testing::ValuesIn(std::vector<std::vector<size_t>>{{17, 17}}),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(additional_config)),
                          VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
 
@@ -338,7 +347,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_precommit_Interpolate_NHWCLayout_optimize_VPU3720
                                             ::testing::Values(InferenceEngine::Layout::NHWC),
                                             ::testing::ValuesIn(inShapesForNHWCLayoutOptimize),
                                             ::testing::ValuesIn(outShapesForNHWCLayoutOptimizeSmokePrecommit),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(additional_config)),
                          VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
 
@@ -351,7 +360,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_NHWCLayout_optimize_VPU3720, VPUXInte
                                             ::testing::Values(InferenceEngine::Layout::NHWC),
                                             ::testing::ValuesIn(inShapesForNHWCLayoutOptimize),
                                             ::testing::ValuesIn(outShapesForNHWCLayoutOptimizeSmoke),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(additional_config)),
                          VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
 
@@ -365,7 +374,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_1, VPUXInterpolate1LayerTest_VPU3700,
                                            ::testing::ValuesIn(inShapes), ::testing::ValuesIn(targetShapes),
                                            ::testing::ValuesIn(mode), ::testing::ValuesIn(axes),
                                            ::testing::ValuesIn(antialias), ::testing::ValuesIn(pads),
-                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                         VPUXInterpolate1LayerTest_VPU3700::getTestCaseName);
 
 const std::vector<std::vector<size_t>> inShapesLargeNHWC = {
@@ -379,11 +388,22 @@ const std::vector<std::vector<size_t>> targetShapesLarge = {
         {300, 300},
 };
 
+const std::vector<std::vector<size_t>> linearInShapesLargeNHWC = {
+        {1, 160, 160, 3},
+};
+const std::vector<std::vector<size_t>> linearInShapesLargeNCHW = {
+        {1, 3, 160, 160},
+};
+
+const std::vector<std::vector<size_t>> linearTargetShapesLarge = {
+        {200, 200},
+};
+
 const std::vector<std::vector<int64_t>> nhwcAxes = {{1, 2}};
 const std::vector<std::vector<int64_t>> nchwAxes = {{2, 3}};
 
 const std::vector<ngraph::op::v4::Interpolate::InterpolateMode> interpolateMode = {
-        ngraph::op::v4::Interpolate::InterpolateMode::LINEAR, ngraph::op::v4::Interpolate::InterpolateMode::CUBIC};
+        ngraph::op::v4::Interpolate::InterpolateMode::CUBIC};
 
 auto interpolateCasesWithoutNearestModeLargerNHWC = [](auto scales) {
     return ::testing::Combine(::testing::ValuesIn(interpolateMode), ::testing::ValuesIn(shapeCalculationMode),
@@ -409,7 +429,7 @@ INSTANTIATE_TEST_SUITE_P(
                            ::testing::Values(InferenceEngine::Layout::NCHW),
                            ::testing::Values(InferenceEngine::Layout::NCHW), ::testing::ValuesIn(inShapesLargeNCHW),
                            ::testing::ValuesIn(targetShapesLarge),
-                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                            ::testing::Values(additional_config)),
         VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
 
@@ -422,9 +442,10 @@ INSTANTIATE_TEST_SUITE_P(
                            ::testing::Values(InferenceEngine::Layout::NCHW),
                            ::testing::Values(InferenceEngine::Layout::NCHW), ::testing::ValuesIn(inShapesLargeNHWC),
                            ::testing::ValuesIn(targetShapesLarge),
-                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                            ::testing::Values(additional_config)),
         VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
+
 // test case for input NHWC layout axes=1,2 support
 INSTANTIATE_TEST_SUITE_P(
         smoke_Interpolate_without_nearest_NHWCinput_NHWClayout_NHWCaxes_VPU3720, VPUXInterpolateLayerTest_VPU3720,
@@ -434,7 +455,7 @@ INSTANTIATE_TEST_SUITE_P(
                            ::testing::Values(InferenceEngine::Layout::NHWC),
                            ::testing::Values(InferenceEngine::Layout::NHWC), ::testing::ValuesIn(inShapesLargeNHWC),
                            ::testing::ValuesIn(targetShapesLarge),
-                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                            ::testing::Values(additional_config)),
         VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
 
@@ -481,7 +502,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_nearest_NCinput_NClayout_NCaxes_Input
                                             ::testing::Values(InferenceEngine::Layout::CHW),
                                             ::testing::Values(InferenceEngine::Layout::CHW),
                                             ::testing::ValuesIn(inShapes3D), ::testing::ValuesIn(targetShapes3D),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(additional_config)),
                          VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
 
@@ -522,7 +543,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_nearest_NCinput_NClayout_NCaxes_Input
                                             ::testing::Values(InferenceEngine::Layout::NC),
                                             ::testing::Values(InferenceEngine::Layout::NC),
                                             ::testing::ValuesIn(inShapes2D), ::testing::ValuesIn(targetShapes2D),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(additional_config)),
                          VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
 
@@ -542,9 +563,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_nearest_NCHWlayout_NHWCaxes_VPU3720, 
                                             ::testing::Values(InferenceEngine::Layout::NCHW),
                                             ::testing::ValuesIn(inShapesLargeNHWC),
                                             ::testing::ValuesIn(targetShapesLarge),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(additional_config)),
                          VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_nearest_NHWClayout_NHWCaxes_VPU3720, VPUXInterpolateLayerTest_VPU3720,
                          ::testing::Combine(interpolateCasesNearestModeAxes12(), ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::FP16),
@@ -553,7 +575,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_nearest_NHWClayout_NHWCaxes_VPU3720, 
                                             ::testing::Values(InferenceEngine::Layout::NHWC),
                                             ::testing::ValuesIn(inShapesLargeNHWC),
                                             ::testing::ValuesIn(targetShapesLarge),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(additional_config)),
                          VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
 
@@ -579,7 +601,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_PytorchHalfPixel_Tiling_Upscale_VPU37
                                             ::testing::Values(InferenceEngine::Layout::NCHW),
                                             ::testing::Values(std::vector<size_t>({1, 32, 68, 120})),
                                             ::testing::Values(std::vector<size_t>({136, 240})),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(additional_config)),
                          VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
 
@@ -591,7 +613,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_PytorchHalfPixel_Tiling_Downscale_VPU
                                             ::testing::Values(InferenceEngine::Layout::NCHW),
                                             ::testing::Values(std::vector<size_t>({1, 3, 270, 480})),
                                             ::testing::Values(std::vector<size_t>({135, 240})),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(additional_config)),
                          VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
 
@@ -599,7 +621,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_PytorchHalfPixel_Tiling_Downscale_VPU
 // SE Interpolate
 //
 
-const std::vector<std::vector<float>> seInterpolateScales = {{2.0f, 2.0f}, {5.0f, 5.0f}};
+const std::vector<std::vector<float>> seInterpolateScales = {{9.0f, 10.0f}};
 
 const std::vector<std::vector<size_t>> seInterpolateInputShapes = {
         {1, 48, 15, 15},
@@ -609,9 +631,15 @@ const std::vector<std::vector<size_t>> seInterpolateTargetShapes = {
         {},
 };
 
+const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModesNearestSE = {
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN};
+
 auto seInterpolateParamsNearest = []() {
     return ::testing::Combine(::testing::ValuesIn(nearestMode), ::testing::ValuesIn(shapeCalculationModeSizeScale),
-                              ::testing::ValuesIn(coordinateTransformModeAsymmetric), ::testing::ValuesIn(nearestModes),
+                              ::testing::ValuesIn(coordinateTransformModesNearestSE), ::testing::ValuesIn(nearestModes),
                               ::testing::ValuesIn(antialias), ::testing::ValuesIn(pads), ::testing::ValuesIn(pads),
                               ::testing::ValuesIn(cubeCoefs), ::testing::ValuesIn(nchwAxes),
                               ::testing::ValuesIn(seInterpolateScales));
@@ -625,7 +653,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_Nearest, VPUXInterpolateLayerSETest_V
                                             ::testing::Values(InferenceEngine::Layout::NCHW),
                                             ::testing::ValuesIn(seInterpolateInputShapes),
                                             ::testing::ValuesIn(seInterpolateTargetShapes),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(additional_config)),
                          VPUXInterpolateLayerSETest_VPU3720::getTestCaseName);
 
@@ -645,8 +673,389 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_Linear, VPUXInterpolateLayerSETest_VP
                                             ::testing::Values(InferenceEngine::Layout::NCHW),
                                             ::testing::ValuesIn(seInterpolateInputShapes),
                                             ::testing::ValuesIn(seInterpolateTargetShapes),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(additional_config)),
                          VPUXInterpolateLayerSETest_VPU3720::getTestCaseName);
+
+const std::vector<std::vector<float>> seInterpolateScalesElf = {{2.0f, 2.0f}};
+
+auto seInterpolateParamsNearestElf = []() {
+    return ::testing::Combine(::testing::ValuesIn(nearestMode), ::testing::ValuesIn(shapeCalculationModeSizeScale),
+                              ::testing::ValuesIn(coordinateTransformModeAsymmetric),
+                              ::testing::ValuesIn(defaultNearestModeFloor), ::testing::ValuesIn(antialias),
+                              ::testing::ValuesIn(pads), ::testing::ValuesIn(pads), ::testing::ValuesIn(cubeCoefs),
+                              ::testing::ValuesIn(nchwAxes), ::testing::ValuesIn(seInterpolateScalesElf));
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_Interpolate_Nearest, VPUXInterpolateLayerSETest_VPU3720_ELF,
+                         ::testing::Combine(seInterpolateParamsNearestElf(), ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(InferenceEngine::Precision::FP16),
+                                            ::testing::Values(InferenceEngine::Precision::FP16),
+                                            ::testing::Values(InferenceEngine::Layout::NCHW),
+                                            ::testing::Values(InferenceEngine::Layout::NCHW),
+                                            ::testing::ValuesIn(seInterpolateInputShapes),
+                                            ::testing::ValuesIn(seInterpolateTargetShapes),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
+                                            ::testing::Values(additional_config)),
+                         VPUXInterpolateLayerSETest_VPU3720_ELF::getTestCaseName);
+
+auto seInterpolateParamsLinearElf = []() {
+    return ::testing::Combine(::testing::ValuesIn(linearOnnxMode), ::testing::ValuesIn(shapeCalculationModeSizeScale),
+                              ::testing::ValuesIn(coordinateTransformModeAsymmetric),
+                              ::testing::ValuesIn(defaultNearestModeFloor), ::testing::ValuesIn(antialias),
+                              ::testing::ValuesIn(pads), ::testing::ValuesIn(pads), ::testing::ValuesIn(cubeCoefs),
+                              ::testing::ValuesIn(nchwAxes), ::testing::ValuesIn(seInterpolateScalesElf));
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_Interpolate_Linear, VPUXInterpolateLayerSETest_VPU3720_ELF,
+                         ::testing::Combine(seInterpolateParamsLinearElf(), ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(InferenceEngine::Precision::FP16),
+                                            ::testing::Values(InferenceEngine::Precision::FP16),
+                                            ::testing::Values(InferenceEngine::Layout::NCHW),
+                                            ::testing::Values(InferenceEngine::Layout::NCHW),
+                                            ::testing::ValuesIn(seInterpolateInputShapes),
+                                            ::testing::ValuesIn(seInterpolateTargetShapes),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
+                                            ::testing::Values(additional_config)),
+                         VPUXInterpolateLayerSETest_VPU3720_ELF::getTestCaseName);
+
+//
+// Interpolate linear mode
+//
+
+const std::vector<ngraph::op::v4::Interpolate::InterpolateMode> linearMode = {
+        ngraph::op::v4::Interpolate::InterpolateMode::LINEAR};
+
+auto interpolateCasesWithoutNearestLinearModeLargerNHWC = [](auto scales) {
+    return ::testing::Combine(::testing::ValuesIn(linearMode), ::testing::ValuesIn(shapeCalculationMode),
+                              ::testing::ValuesIn(coordinateTransformModesWithoutNearest),
+                              ::testing::ValuesIn(defaultNearestMode), ::testing::ValuesIn(antialias),
+                              ::testing::ValuesIn(pads), ::testing::ValuesIn(pads), ::testing::ValuesIn(cubeCoefs),
+                              ::testing::ValuesIn(nhwcAxes), ::testing::ValuesIn(scales));
+};
+auto interpolateCasesWithoutNearestLinearModeLargerNCHW = [](auto scales) {
+    return ::testing::Combine(::testing::ValuesIn(linearMode), ::testing::ValuesIn(shapeCalculationMode),
+                              ::testing::ValuesIn(coordinateTransformModesWithoutNearest),
+                              ::testing::ValuesIn(defaultNearestMode), ::testing::ValuesIn(antialias),
+                              ::testing::ValuesIn(pads), ::testing::ValuesIn(pads), ::testing::ValuesIn(cubeCoefs),
+                              ::testing::ValuesIn(nchwAxes), ::testing::ValuesIn(scales));
+};
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Interpolate_linear_NCHWinput_NCHWlayout_NHWCaxes_VPU3720, VPUXInterpolateLayerTest_VPU3720,
+        ::testing::Combine(interpolateCasesWithoutNearestLinearModeLargerNHWC(defaultScales),
+                           ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::Precision::FP16),
+                           ::testing::Values(InferenceEngine::Precision::FP16),
+                           ::testing::Values(InferenceEngine::Layout::NCHW),
+                           ::testing::Values(InferenceEngine::Layout::NCHW),
+                           ::testing::ValuesIn(linearInShapesLargeNCHW), ::testing::ValuesIn(linearTargetShapesLarge),
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
+                           ::testing::Values(additional_config)),
+        VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Interpolate_linear_NCHWinput_NHWClayout_NHWCaxes_VPU3720, VPUXInterpolateLayerTest_VPU3720,
+        ::testing::Combine(interpolateCasesWithoutNearestLinearModeLargerNHWC(defaultScales),
+                           ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::Precision::FP16),
+                           ::testing::Values(InferenceEngine::Precision::FP16),
+                           ::testing::Values(InferenceEngine::Layout::NHWC),
+                           ::testing::Values(InferenceEngine::Layout::NHWC),
+                           ::testing::ValuesIn(linearInShapesLargeNCHW), ::testing::ValuesIn(linearTargetShapesLarge),
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
+                           ::testing::Values(additional_config)),
+        VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Interpolate_linear_NHWCinput_NCHWlayout_NCHWaxes_VPU3720, VPUXInterpolateLayerTest_VPU3720,
+        ::testing::Combine(interpolateCasesWithoutNearestLinearModeLargerNCHW(defaultScales),
+                           ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::Precision::FP16),
+                           ::testing::Values(InferenceEngine::Precision::FP16),
+                           ::testing::Values(InferenceEngine::Layout::NCHW),
+                           ::testing::Values(InferenceEngine::Layout::NCHW),
+                           ::testing::ValuesIn(linearInShapesLargeNHWC), ::testing::ValuesIn(linearTargetShapesLarge),
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
+                           ::testing::Values(additional_config)),
+        VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Interpolate_linear_NHWCinput_NHWClayout_NCHWaxes_VPU3720, VPUXInterpolateLayerTest_VPU3720,
+        ::testing::Combine(interpolateCasesWithoutNearestLinearModeLargerNCHW(defaultScales),
+                           ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::Precision::FP16),
+                           ::testing::Values(InferenceEngine::Precision::FP16),
+                           ::testing::Values(InferenceEngine::Layout::NHWC),
+                           ::testing::Values(InferenceEngine::Layout::NHWC),
+                           ::testing::ValuesIn(linearInShapesLargeNHWC), ::testing::ValuesIn(linearTargetShapesLarge),
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
+                           ::testing::Values(additional_config)),
+        VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Interpolate_linear_NCHWinput_NCHWlayout_NCHWaxes_VPU3720, VPUXInterpolateLayerTest_VPU3720,
+        ::testing::Combine(interpolateCasesWithoutNearestLinearModeLargerNCHW(defaultScales),
+                           ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::Precision::FP16),
+                           ::testing::Values(InferenceEngine::Precision::FP16),
+                           ::testing::Values(InferenceEngine::Layout::NCHW),
+                           ::testing::Values(InferenceEngine::Layout::NCHW),
+                           ::testing::ValuesIn(linearInShapesLargeNCHW), ::testing::ValuesIn(linearTargetShapesLarge),
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
+                           ::testing::Values(additional_config)),
+        VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Interpolate_linear_NCHWinput_NHWClayout_NCHWaxes_VPU3720, VPUXInterpolateLayerTest_VPU3720,
+        ::testing::Combine(interpolateCasesWithoutNearestLinearModeLargerNCHW(defaultScales),
+                           ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::Precision::FP16),
+                           ::testing::Values(InferenceEngine::Precision::FP16),
+                           ::testing::Values(InferenceEngine::Layout::NHWC),
+                           ::testing::Values(InferenceEngine::Layout::NHWC),
+                           ::testing::ValuesIn(linearInShapesLargeNCHW), ::testing::ValuesIn(linearTargetShapesLarge),
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
+                           ::testing::Values(additional_config)),
+        VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Interpolate_linear_NHWCinput_NCHWlayout_NHWCaxes_VPU3720, VPUXInterpolateLayerTest_VPU3720,
+        ::testing::Combine(interpolateCasesWithoutNearestLinearModeLargerNHWC(defaultScales),
+                           ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::Precision::FP16),
+                           ::testing::Values(InferenceEngine::Precision::FP16),
+                           ::testing::Values(InferenceEngine::Layout::NCHW),
+                           ::testing::Values(InferenceEngine::Layout::NCHW),
+                           ::testing::ValuesIn(linearInShapesLargeNHWC), ::testing::ValuesIn(linearTargetShapesLarge),
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
+                           ::testing::Values(additional_config)),
+        VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Interpolate_linear_NHWCinput_NHWClayout_NHWCaxes_VPU3720, VPUXInterpolateLayerTest_VPU3720,
+        ::testing::Combine(interpolateCasesWithoutNearestLinearModeLargerNHWC(defaultScales),
+                           ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::Precision::FP16),
+                           ::testing::Values(InferenceEngine::Precision::FP16),
+                           ::testing::Values(InferenceEngine::Layout::NHWC),
+                           ::testing::Values(InferenceEngine::Layout::NHWC),
+                           ::testing::ValuesIn(linearInShapesLargeNHWC), ::testing::ValuesIn(linearTargetShapesLarge),
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
+                           ::testing::Values(additional_config)),
+        VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
+
+// --------------------------------------------------
+// ------ VPU3720 NoTiling Interpolate Testing ------
+// --------------------------------------------------
+
+const std::vector<std::vector<int64_t>> axesComplete = {{1, 2}, {2, 3}};
+const std::vector<std::vector<int64_t>> axes23 = {{2, 3}};
+const std::vector<std::vector<int64_t>> axes12 = {{1, 2}};
+const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModeComplete = {
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS,
+};
+const std::vector<ngraph::op::v4::Interpolate::NearestMode> nearestModesComplete = {
+        ngraph::op::v4::Interpolate::NearestMode::SIMPLE,
+        ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR,
+        ngraph::op::v4::Interpolate::NearestMode::FLOOR,
+        ngraph::op::v4::Interpolate::NearestMode::CEIL,
+        ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_CEIL,
+};
+const auto interpolateCasesNearestModeComplete = ::testing::Combine(
+        ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::NEAREST),
+        ::testing::ValuesIn(shapeCalculationMode), ::testing::ValuesIn(coordinateTransformModeComplete),
+        ::testing::ValuesIn(nearestModesComplete), ::testing::ValuesIn(antialias), ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(pads), ::testing::ValuesIn(cubeCoefs), ::testing::ValuesIn(axesComplete),
+        ::testing::ValuesIn(defaultScales));
+const auto interpolateParamsLinear = ::testing::Combine(
+        ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::LINEAR),
+        ::testing::ValuesIn(shapeCalculationMode), ::testing::ValuesIn(coordinateTransformModeComplete),
+        ::testing::ValuesIn(defaultNearestMode), ::testing::ValuesIn(antialias), ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(pads), ::testing::ValuesIn(cubeCoefs), ::testing::ValuesIn(axesComplete),
+        ::testing::ValuesIn(defaultScales));
+const auto interpolateParamsLinearONNX = ::testing::Combine(
+        ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX),
+        ::testing::ValuesIn(shapeCalculationMode), ::testing::ValuesIn(coordinateTransformModeComplete),
+        ::testing::ValuesIn(defaultNearestMode), ::testing::ValuesIn(antialias), ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(pads), ::testing::ValuesIn(cubeCoefs), ::testing::ValuesIn(axes23),
+        ::testing::ValuesIn(defaultScales));
+const auto interpolateParamsCubic = ::testing::Combine(
+        ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::CUBIC),
+        ::testing::ValuesIn(shapeCalculationMode), ::testing::ValuesIn(coordinateTransformModeComplete),
+        ::testing::ValuesIn(defaultNearestMode), ::testing::ValuesIn(antialias), ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(pads), ::testing::ValuesIn(cubeCoefs), ::testing::ValuesIn(axesComplete),
+        ::testing::ValuesIn(defaultScales));
+
+const auto interpolateNearestNCHWUpscale = ::testing::Combine(
+        interpolateCasesNearestModeComplete, ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Layout::NCHW), ::testing::Values(InferenceEngine::Layout::NCHW),
+        ::testing::Values(std::vector<size_t>({1, 10, 30, 30})), ::testing::Values(std::vector<size_t>({40, 40})),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(additional_config));
+const auto interpolateNearestNHWCUpscale = ::testing::Combine(
+        interpolateCasesNearestModeComplete, ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Layout::NHWC), ::testing::Values(InferenceEngine::Layout::NHWC),
+        ::testing::Values(std::vector<size_t>({1, 10, 30, 30})), ::testing::Values(std::vector<size_t>({40, 40})),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(additional_config));
+const auto interpolateNearestNCHWDownscale = ::testing::Combine(
+        interpolateCasesNearestModeComplete, ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Layout::NCHW), ::testing::Values(InferenceEngine::Layout::NCHW),
+        ::testing::Values(std::vector<size_t>({1, 10, 40, 40})), ::testing::Values(std::vector<size_t>({30, 30})),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(additional_config));
+const auto interpolateNearestNHWCDownscale = ::testing::Combine(
+        interpolateCasesNearestModeComplete, ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Layout::NHWC), ::testing::Values(InferenceEngine::Layout::NHWC),
+        ::testing::Values(std::vector<size_t>({1, 10, 40, 40})), ::testing::Values(std::vector<size_t>({30, 30})),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(additional_config));
+
+const auto interpolateLinearNCHWUpscale = ::testing::Combine(
+        interpolateParamsLinear, ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Layout::NCHW), ::testing::Values(InferenceEngine::Layout::NCHW),
+        ::testing::Values(std::vector<size_t>({1, 10, 30, 30})), ::testing::Values(std::vector<size_t>({40, 40})),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(additional_config));
+const auto interpolateLinearNHWCUpscale = ::testing::Combine(
+        interpolateParamsLinear, ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Layout::NHWC), ::testing::Values(InferenceEngine::Layout::NHWC),
+        ::testing::Values(std::vector<size_t>({1, 10, 30, 30})), ::testing::Values(std::vector<size_t>({40, 40})),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(additional_config));
+const auto interpolateLinearNCHWDownscale = ::testing::Combine(
+        interpolateParamsLinear, ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Layout::NCHW), ::testing::Values(InferenceEngine::Layout::NCHW),
+        ::testing::Values(std::vector<size_t>({1, 10, 40, 40})), ::testing::Values(std::vector<size_t>({30, 30})),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(additional_config));
+const auto interpolateLinearNHWCDownscale = ::testing::Combine(
+        interpolateParamsLinear, ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Layout::NHWC), ::testing::Values(InferenceEngine::Layout::NHWC),
+        ::testing::Values(std::vector<size_t>({1, 10, 40, 40})), ::testing::Values(std::vector<size_t>({30, 30})),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(additional_config));
+
+const auto interpolateLinearONNXNCHWUpscale = ::testing::Combine(
+        interpolateParamsLinearONNX, ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Layout::NCHW), ::testing::Values(InferenceEngine::Layout::NCHW),
+        ::testing::Values(std::vector<size_t>({1, 10, 30, 30})), ::testing::Values(std::vector<size_t>({40, 40})),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(additional_config));
+const auto interpolateLinearONNXNHWCUpscale = ::testing::Combine(
+        interpolateParamsLinearONNX, ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Layout::NHWC), ::testing::Values(InferenceEngine::Layout::NHWC),
+        ::testing::Values(std::vector<size_t>({1, 10, 30, 30})), ::testing::Values(std::vector<size_t>({40, 40})),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(additional_config));
+const auto interpolateLinearONNXNCHWDownscale = ::testing::Combine(
+        interpolateParamsLinearONNX, ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Layout::NCHW), ::testing::Values(InferenceEngine::Layout::NCHW),
+        ::testing::Values(std::vector<size_t>({1, 10, 40, 40})), ::testing::Values(std::vector<size_t>({30, 30})),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(additional_config));
+const auto interpolateLinearONNXNHWCDownscale = ::testing::Combine(
+        interpolateParamsLinearONNX, ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Layout::NHWC), ::testing::Values(InferenceEngine::Layout::NHWC),
+        ::testing::Values(std::vector<size_t>({1, 10, 40, 40})), ::testing::Values(std::vector<size_t>({30, 30})),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(additional_config));
+
+const auto interpolateCubicNCHWUpscale = ::testing::Combine(
+        interpolateParamsCubic, ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Layout::NCHW),
+        ::testing::Values(InferenceEngine::Layout::NCHW), ::testing::Values(std::vector<size_t>({1, 10, 30, 30})),
+        ::testing::Values(std::vector<size_t>({40, 40})),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(additional_config));
+const auto interpolateCubicNHWCUpscale = ::testing::Combine(
+        interpolateParamsCubic, ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Layout::NHWC),
+        ::testing::Values(InferenceEngine::Layout::NHWC), ::testing::Values(std::vector<size_t>({1, 10, 30, 30})),
+        ::testing::Values(std::vector<size_t>({40, 40})),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(additional_config));
+const auto interpolateCubicNCHWDownscale = ::testing::Combine(
+        interpolateParamsCubic, ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Layout::NCHW),
+        ::testing::Values(InferenceEngine::Layout::NCHW), ::testing::Values(std::vector<size_t>({1, 10, 40, 40})),
+        ::testing::Values(std::vector<size_t>({30, 30})),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(additional_config));
+const auto interpolateCubicNHWCDownscale = ::testing::Combine(
+        interpolateParamsCubic, ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Layout::NHWC),
+        ::testing::Values(InferenceEngine::Layout::NHWC), ::testing::Values(std::vector<size_t>({1, 10, 40, 40})),
+        ::testing::Values(std::vector<size_t>({30, 30})),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(additional_config));
+
+// Mode NEAREST | Axes {1,2} & {2,3} | Coord Transform Mode: ALL | Nearest Mode: ALL | Layouts: NCHW and NHWC
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_NoTiling_Nearest_NCHW_Upscale_VPU3720, VPUXInterpolateLayerTest_VPU3720,
+                         interpolateNearestNCHWUpscale, VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_NoTiling_Nearest_NHWC_Upscale_VPU3720, VPUXInterpolateLayerTest_VPU3720,
+                         interpolateNearestNHWCUpscale, VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_NoTiling_Nearest_NCHW_Downscale_VPU3720, VPUXInterpolateLayerTest_VPU3720,
+                         interpolateNearestNCHWDownscale, VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_NoTiling_Nearest_NHWC_Downscale_VPU3720, VPUXInterpolateLayerTest_VPU3720,
+                         interpolateNearestNHWCDownscale, VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
+
+// Mode LINEAR | Axes {1,2} & {2,3} | Coord Transform Mode: ALL | Layouts: NCHW and NHWC
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_NoTiling_Linear_NCHW_Upscale_VPU3720, VPUXInterpolateLayerTest_VPU3720,
+                         interpolateLinearNCHWUpscale, VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_NoTiling_Linear_NHWC_Upscale_VPU3720, VPUXInterpolateLayerTest_VPU3720,
+                         interpolateLinearNHWCUpscale, VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_NoTiling_Linear_NCHW_Downscale_VPU3720, VPUXInterpolateLayerTest_VPU3720,
+                         interpolateLinearNCHWDownscale, VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_NoTiling_Linear_NHWC_Downscale_VPU3720, VPUXInterpolateLayerTest_VPU3720,
+                         interpolateLinearNHWCDownscale, VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
+
+// Mode LINEAR_ONNX | Axes {2,3} | Coord Transform Mode: ALL | Layouts: NCHW and NHWC
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_NoTiling_LinearONNX_NCHW_Upscale_VPU3720, VPUXInterpolateLayerTest_VPU3720,
+                         interpolateLinearONNXNCHWUpscale, VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_NoTiling_LinearONNX_NHWC_Upscale_VPU3720, VPUXInterpolateLayerTest_VPU3720,
+                         interpolateLinearONNXNHWCUpscale, VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_NoTiling_LinearONNX_NCHW_Downscale_VPU3720, VPUXInterpolateLayerTest_VPU3720,
+                         interpolateLinearONNXNCHWDownscale, VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_NoTiling_LinearONNX_NHWC_Downscale_VPU3720, VPUXInterpolateLayerTest_VPU3720,
+                         interpolateLinearONNXNHWCDownscale, VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
+
+// Mode CUBIC | Axes {1,2} & {2,3} | Coord Transform Mode: ALL | Layouts: NCHW and NHWC
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_NoTiling_Cubic_NCHW_Upscale_VPU3720, VPUXInterpolateLayerTest_VPU3720,
+                         interpolateCubicNCHWUpscale, VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_NoTiling_Cubic_NHWC_Upscale_VPU3720, VPUXInterpolateLayerTest_VPU3720,
+                         interpolateCubicNHWCUpscale, VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_NoTiling_Cubic_NCHW_Downscale_VPU3720, VPUXInterpolateLayerTest_VPU3720,
+                         interpolateCubicNCHWDownscale, VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_NoTiling_Cubic_NHWC_Downscale_VPU3720, VPUXInterpolateLayerTest_VPU3720,
+                         interpolateCubicNHWCDownscale, VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
+
+//
+// MapInterpolateOnDPU
+//
+
+const std::vector<std::vector<float>> mapBilinearInterpolateOnDPUScales = {{1.9444544315338135, 1.9444544315338135}};
+
+const std::vector<std::vector<size_t>> mapBilinearInterpolateOnDPUInputShapes = {
+        {1, 80, 72, 72},
+};
+
+const std::vector<std::vector<size_t>> mapBilinearInterpolateOnDPUTargetShapes = {
+        {1, 80, 140, 140},
+};
+
+auto mapBilinearInterpolateOnDPUParamsLinear = []() {
+    return ::testing::Combine(::testing::ValuesIn(linearOnnxMode), ::testing::ValuesIn(shapeCalculationMode),
+                              ::testing::ValuesIn(coordinateTransformModeComplete),
+                              ::testing::ValuesIn(defaultNearestModeFloor), ::testing::ValuesIn(antialias),
+                              ::testing::ValuesIn(pads), ::testing::ValuesIn(pads), ::testing::ValuesIn(cubeCoefs),
+                              ::testing::ValuesIn(allAxes), ::testing::ValuesIn(mapBilinearInterpolateOnDPUScales));
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_MapBilinearInterpolateOnDPU, VPUXInterpolateLayerTest_VPU3720,
+                         ::testing::Combine(mapBilinearInterpolateOnDPUParamsLinear(),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(InferenceEngine::Precision::FP16),
+                                            ::testing::Values(InferenceEngine::Precision::FP16),
+                                            ::testing::Values(InferenceEngine::Layout::NCHW),
+                                            ::testing::Values(InferenceEngine::Layout::NCHW),
+                                            ::testing::ValuesIn(mapBilinearInterpolateOnDPUInputShapes),
+                                            ::testing::ValuesIn(mapBilinearInterpolateOnDPUTargetShapes),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
+                                            ::testing::Values(additional_config)),
+                         VPUXInterpolateLayerTest_VPU3720::getTestCaseName);
 
 }  // namespace

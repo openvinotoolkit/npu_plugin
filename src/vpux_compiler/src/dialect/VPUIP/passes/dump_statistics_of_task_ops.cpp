@@ -22,6 +22,13 @@ using IsSpecificOpFunc = std::function<bool(mlir::Operation*)>;
 using RemainderHandlerFunc = std::function<std::string(mlir::Operation*)>;
 const std::string DMA_PROFILING_SPILL_CATEGORY = "CMX2DDR profiling spill";
 
+//
+// Declare utility functions
+//
+
+std::string convertBytesToReadableSize(uint64_t);
+bool printDMASizes(const std::string&, const uint64_t&);
+
 class SpecificCategoryCounter {
 public:
     using CounterPtr = std::shared_ptr<SpecificCategoryCounter>;
@@ -34,6 +41,7 @@ public:
               _predicate(std::move(predicate)),
               _nestedCounters(nestedCounters),
               _count(0),
+              _size(0),
               _maybeRemainderHandler(std::move(maybeRemainderHandler)) {
     }
 
@@ -43,18 +51,26 @@ public:
         }
 
         ++_count;
+        if (mlir::isa_and_nonnull<VPUIP::DMATypeOpInterface>(op)) {
+            auto opType = op->getResult(0).getType().cast<vpux::NDTypeInterface>();
+            _size += static_cast<uint64_t>(opType.getTotalAllocSize().count());
+        }
         bool counted = false;
         for (auto& nestedCounter : _nestedCounters) {
             counted |= nestedCounter->count(op);
         }
-        if (!counted && _maybeRemainderHandler.hasValue()) {
-            ++_remainderCounter[_maybeRemainderHandler.getValue()(op)];
+        if (!counted && _maybeRemainderHandler.has_value()) {
+            ++_remainderCounter[_maybeRemainderHandler.value()(op)];
         }
         return true;
     }
 
     void printStatistics(vpux::Logger log) {
-        log.info("{0} - {1} ops", _category, _count);
+        if (printDMASizes(_category, _size)) {
+            log.info("{0} - {1} ops : Size - {2}", _category, _count, convertBytesToReadableSize(_size));
+        } else {
+            log.info("{0} - {1} ops", _category, _count);
+        }
         log = log.nest();
         for (auto& nestedCounter : _nestedCounters) {
             if (nestedCounter->_count) {
@@ -72,11 +88,55 @@ private:
     IsSpecificOpFunc _predicate;
     CountersVec _nestedCounters;
     size_t _count;
+    uint64_t _size;
     Optional<RemainderHandlerFunc> _maybeRemainderHandler;
     std::map<std::string, size_t> _remainderCounter{};
 };
 
 using CountersVec = SpecificCategoryCounter::CountersVec;
+
+//
+// Utility Functions
+//
+
+bool printDMASizes(const std::string& category, const uint64_t& size) {
+    std::vector<std::string> dmaSubStrings = {"DDR", "CMX", "NNDMA"};
+
+    bool anyDmaSubStringFound =
+            std::any_of(dmaSubStrings.begin(), dmaSubStrings.end(), [&](const std::string& dmaSubString) {
+                return category.find(dmaSubString) != std::string::npos;
+            });
+
+    return anyDmaSubStringFound && size;
+}
+
+std::string convertBytesToReadableSize(uint64_t bytes) {
+    const uint64_t kilobyte = 1024;
+    const uint64_t megabyte = kilobyte * 1024;
+    const uint64_t gigabyte = megabyte * 1024;
+
+    std::string result;
+    if (bytes >= gigabyte) {
+        double size = static_cast<double>(bytes) / gigabyte;
+        result = std::to_string(size);
+        result.resize(result.find('.') + 3);  // Truncate to two decimal digits
+        result += " GB";
+    } else if (bytes >= megabyte) {
+        double size = static_cast<double>(bytes) / megabyte;
+        result = std::to_string(size);
+        result.resize(result.find('.') + 3);
+        result += " MB";
+    } else if (bytes >= kilobyte) {
+        double size = static_cast<double>(bytes) / kilobyte;
+        result = std::to_string(size);
+        result.resize(result.find('.') + 3);
+        result += " KB";
+    } else {
+        result = std::to_string(bytes) + " bytes";
+    }
+
+    return result;
+}
 
 bool isNameLocContainsStr(mlir::Location loc, const std::string& substr) {
     if (auto nameLoc = loc.dyn_cast<mlir::NameLoc>()) {
@@ -300,7 +360,8 @@ SpecificCategoryCounter::CounterPtr getSparsityCounter() {
             },
             CountersVec{});
 
-    CountersVec counters = {sparseInputCounter, sparseWeightsCounter, sparseOutputCounter};
+    CountersVec counters = {std::move(sparseInputCounter), std::move(sparseWeightsCounter),
+                            std::move(sparseOutputCounter)};
     return std::make_shared<SpecificCategoryCounter>(
             "NCETask Operations",
             [](mlir::Operation* op) {
@@ -418,7 +479,7 @@ public:
 
     void count(mlir::Operation* op) {
         if (auto cstOp = mlir::dyn_cast<Const::DeclareOp>(op)) {
-            if (cstOp.output().getUsers().empty()) {
+            if (cstOp.getOutput().getUsers().empty()) {
                 return;
             }
 
@@ -437,10 +498,10 @@ public:
 
     void printStatistics(vpux::Logger log) {
         log = log.nest();
-        log.info("Swizzled constants     - number: {0}, size: {1} bytes", numOfSwizzledConsts_,
-                 totalSizeOfSwizzledConsts_);
-        log.info("Not swizzled constants - number: {0}, size: {1} bytes", numOfNotSwizzledConsts_,
-                 totalSizeOfNotSwizzledConsts_);
+        log.info("Swizzled constants     - number: {0}, size: {1}", numOfSwizzledConsts_,
+                 convertBytesToReadableSize(totalSizeOfSwizzledConsts_));
+        log.info("Not swizzled constants - number: {0}, size: {1}", numOfNotSwizzledConsts_,
+                 convertBytesToReadableSize(totalSizeOfNotSwizzledConsts_));
         log = log.unnest();
     }
 
@@ -450,6 +511,23 @@ private:
     uint64_t totalSizeOfSwizzledConsts_;
     uint64_t totalSizeOfNotSwizzledConsts_;
 };
+
+std::tuple<uint64_t, uint64_t> getInputOutputSize(mlir::func::FuncOp funcOp) {
+    uint64_t inputSize = 0;
+    uint64_t outputSize = 0;
+    auto inputs = funcOp.getArgumentTypes();
+    auto results = funcOp.getResultTypes();
+
+    for (auto& input : inputs) {
+        inputSize += static_cast<uint64_t>(input.cast<vpux::NDTypeInterface>().getTotalAllocSize().count());
+    }
+    for (auto& result : results) {
+        outputSize = static_cast<uint64_t>(result.cast<vpux::NDTypeInterface>().getTotalAllocSize().count());
+    }
+    // For every result we have entry in arguments
+    inputSize -= outputSize;
+    return {inputSize, outputSize};
+}
 
 //
 // DumpStatisticsOfTaskOpsPass
@@ -479,6 +557,10 @@ void DumpStatisticsOfTaskOpsPass::safeRunOnFunc() {
     auto opStatisticsCounter = populateCounters();
     CompressionRateCounter compressionCounter;
     ConstSwizzlingCounter constSwizzlingCounter;
+
+    auto inputOutputsize = getInputOutputSize(func);
+    _log.info("Input size - {0} Output size - {1}", convertBytesToReadableSize(std::get<0>(inputOutputsize)),
+              convertBytesToReadableSize(std::get<1>(inputOutputsize)));
 
     func->walk([&](mlir::Operation* op) {
         opStatisticsCounter.count(op);

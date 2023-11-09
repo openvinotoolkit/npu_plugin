@@ -1,8 +1,9 @@
-// Copyright (C) Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 #include <ngraph_functions/builders.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -13,7 +14,7 @@ namespace {
 enum class PostOp { SIGMOID, TANH, PRELU };
 
 class VPUXConvPwlSubGraphTest_VPU3700 :
-        public LayerTestsUtils::KmbLayerTestsCommon,
+        public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<std::tuple<LayerTestsUtils::TargetDevice, PostOp>> {
     void SetUp() override {
         const InferenceEngine::SizeVector inputShape{1, 3, 32, 32};
@@ -54,7 +55,7 @@ class VPUXConvPwlSubGraphTest_VPU3700 :
 };
 
 class VPUXConvPwlQuantizedSubGraphTest_VPU3700 :
-        public LayerTestsUtils::KmbLayerTestsCommon,
+        public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<std::tuple<LayerTestsUtils::TargetDevice, PostOp>> {
     void SetUp() override {
         const InferenceEngine::SizeVector inputShape{1, 3, 32, 32};
@@ -152,11 +153,11 @@ std::vector<PostOp> quantPostOps = {
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_ConvPwl, VPUXConvPwlSubGraphTest_VPU3700,
-                        ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                        ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                            ::testing::ValuesIn(postOps)));
 
 INSTANTIATE_TEST_CASE_P(smoke_ConvPwlQuantized, VPUXConvPwlQuantizedSubGraphTest_VPU3700,
-                        ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                        ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                            ::testing::ValuesIn(quantPostOps)));
 
 }  // namespace

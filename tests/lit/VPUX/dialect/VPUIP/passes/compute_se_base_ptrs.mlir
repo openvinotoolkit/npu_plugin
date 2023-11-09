@@ -139,10 +139,10 @@ func.func @SETable(%arg0: !Input_DDR, %arg1: !InputSM_DDR, %arg2: !Output_DDR) -
             -> !OutputDistributed {
         %0 = VPUIP.NCEClusterTask {
                 activation_window_channel_length = 27 : i64,
-                kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+                kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
                 kernel_size = [1, 1],
                 kernel_strides = [1, 1],
-                task_type = "CONV"
+                task_type = #VPUIP.nce_task_type<CONV>
             }
             input(%arg3 : !Input_CMX)
             input_sparsity_map(%arg4 : !InputSM_CMX)
@@ -157,7 +157,7 @@ func.func @SETable(%arg0: !Input_DDR, %arg1: !InputSM_DDR, %arg2: !Output_DDR) -
             outputs(%arg9 : !Output_CMX)
                 -> !Output_CMX
             variants :  {
-                DPUTask {cluster_id = 0 : i64, outEnd = [16, 6, 6], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0]}
+                DPUTask {cluster_id = 0 : i64, outEnd = [16, 6, 6], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0]}
             } PPE :  {
             }
     }
@@ -252,26 +252,26 @@ func.func @SETable(%arg0: !Input_DDR, %arg1: !InputSM_DDR, %arg2: !Output_DDR) -
 func.func @Interpolate(%arg0: !Input_DDR, %arg1: !InputSM_DDR, %arg2: !Output_DDR) -> !Output_DDR {
     %input_se = VPUIP.StorageElementTable {
                 dataShape = [1, 16, 3, 3], dataElemType = f16,
-                seAttr = #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>,
+                seAttr = #VPU.SEInterpolate<mode = <NEAREST>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], nearest_mode = <FLOOR>,  offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>,
                 seSize = 16, seDepth = 1
             } -> !InputSE_DDR
     %input_sparse = VPUIP.GroupSparseBuffer (%arg0, %arg1, %input_se) {
-            seAttr = #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>
+            seAttr = #VPU.SEInterpolate<mode = <NEAREST>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], nearest_mode = <FLOOR>, offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>
         } -> !VPUIP.SparseBuffer<data=!Input_DDR, sparsity_map=!InputSM_DDR, storage_element_table=!InputSE_DDR,
-                                 #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>>
+                                 #VPU.SEInterpolate<mode = <NEAREST>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], nearest_mode = <FLOOR>, offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>>
 
     %input_data_cmx = VPURT.AllocDistributed -> !InputDistributed
     %input_sm_cmx = VPURT.AllocDistributed -> !InputSMDistributed
     %input_se_cmx = VPURT.AllocDistributed -> !InputSEDistributed
     %input_sparse_cmx = VPUIP.GroupSparseBuffer (%input_data_cmx, %input_sm_cmx, %input_se_cmx) {
-            seAttr = #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>
+            seAttr = #VPU.SEInterpolate<mode = <NEAREST>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], nearest_mode = <FLOOR>, offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>
         } -> !VPUIP.SparseBuffer<data=!InputDistributed, sparsity_map=!InputSMDistributed, storage_element_table=!InputSEDistributed,
-                                 #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>>
+                                 #VPU.SEInterpolate<mode = <NEAREST>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], nearest_mode = <FLOOR>, offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>>
 
     %input = VPUIP.NCEClusterTiling inputs(%input_sparse as %arg3: !VPUIP.SparseBuffer<data=!Input_DDR, sparsity_map=!InputSM_DDR, storage_element_table=!InputSE_DDR>)
                                outputs(%input_sparse_cmx as %arg4: !VPUIP.SparseBuffer<data=!Input_CMX, sparsity_map=!InputSM_CMX, storage_element_table=!InputSE_CMX>)
             -> !VPUIP.SparseBuffer<data=!InputDistributed, sparsity_map=!InputSMDistributed, storage_element_table=!InputSEDistributed,
-                                   #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>> {
+                                   #VPU.SEInterpolate<mode = <NEAREST>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], nearest_mode = <FLOOR>, offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>> {
         %0 = VPUIP.Copy inputs(%arg3: !VPUIP.SparseBuffer<data=!Input_DDR, sparsity_map=!InputSM_DDR, storage_element_table=!InputSE_DDR>)
                        outputs(%arg4: !VPUIP.SparseBuffer<data=!Input_CMX, sparsity_map=!InputSM_CMX, storage_element_table=!InputSE_CMX>)
               -> !VPUIP.SparseBuffer<data=!Input_CMX, sparsity_map=!InputSM_CMX, storage_element_table=!InputSE_CMX>
@@ -320,10 +320,10 @@ func.func @Interpolate(%arg0: !Input_DDR, %arg1: !InputSM_DDR, %arg2: !Output_DD
             -> !OutputDistributed {
         %0 = VPUIP.NCEClusterTask {
                 activation_window_channel_length = 27 : i64,
-                kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+                kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
                 kernel_size = [1, 1],
                 kernel_strides = [1, 1],
-                task_type = "CONV"
+                task_type = #VPUIP.nce_task_type<CONV>
             }
             input(%arg3 : !Input_CMX)
             input_sparsity_map(%arg4 : !InputSM_CMX)
@@ -338,7 +338,7 @@ func.func @Interpolate(%arg0: !Input_DDR, %arg1: !InputSM_DDR, %arg2: !Output_DD
             outputs(%arg9 : !Output_CMX)
                 -> !Output_CMX
             variants :  {
-                DPUTask {cluster_id = 0 : i64, outEnd = [16, 6, 6], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0]}
+                DPUTask {cluster_id = 0 : i64, outEnd = [16, 6, 6], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0]}
             } PPE :  {
             }
     }
@@ -359,8 +359,9 @@ func.func @Interpolate(%arg0: !Input_DDR, %arg1: !InputSM_DDR, %arg2: !Output_DD
     // CHECK-SAME:                      1, 1, 1, 1, 1, 1,
     // CHECK-SAME:                      1, 1, 1, 1, 1, 1]> : tensor<36xi32>,
     // CHECK-SAME:    dataElemType = f16, dataShape = [1, 16, 3, 3],
-    // CHECK-SAME:    seAttr = #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC",
+    // CHECK-SAME:    seAttr = #VPU.SEInterpolate<mode = <NEAREST>, coordinate_transformation_mode = <ASYMMETRIC>,
     // CHECK-SAME:                                scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00],
+    // CHECK-SAME:                                nearest_mode = <FLOOR>,
     // CHECK-SAME:                                offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>,
     // CHECK-SAME:    seDepth = 1 : i64, seSize = 16 : i64
     // CHECK-SAME:  } -> memref<1x1x6x6xi32, #NHWC>
@@ -439,34 +440,34 @@ func.func @Interpolate(%arg0: !Input_DDR, %arg1: !InputSM_DDR, %arg2: !Output_DD
 func.func @InterpolateSESize(%arg0: !Input_DDR, %arg1: !InputSM_DDR, %arg2: !Output_DDR) -> !Output_DDR {
     %input_se = VPUIP.StorageElementTable {
                 dataShape = [1, 32, 3, 3], dataElemType = f16,
-                seAttr = #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>,
+                seAttr = #VPU.SEInterpolate<mode = <NEAREST>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], nearest_mode = <FLOOR>, offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>,
                 seSize = 16, seDepth = 2
             } -> !InputSE_DDR
     %input_sparse = VPUIP.GroupSparseBuffer (%arg0, %arg1, %input_se) {
-            seAttr = #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>
+            seAttr = #VPU.SEInterpolate<mode = <NEAREST>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], nearest_mode = <FLOOR>, offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>
         } -> !VPUIP.SparseBuffer<data=!Input_DDR, sparsity_map=!InputSM_DDR, storage_element_table=!InputSE_DDR,
-                                 #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>>
+                                 #VPU.SEInterpolate<mode = <NEAREST>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], nearest_mode = <FLOOR>, offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>>
 
     %input_data_cmx = VPURT.AllocDistributed -> !InputDistributed
     %input_sm_cmx = VPURT.AllocDistributed -> !InputSMDistributed
     %input_se_cmx = VPURT.AllocDistributed -> !InputSEDistributed
     %input_sparse_cmx = VPUIP.GroupSparseBuffer (%input_data_cmx, %input_sm_cmx, %input_se_cmx) {
-            seAttr = #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>
+            seAttr = #VPU.SEInterpolate<mode = <NEAREST>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], nearest_mode = <FLOOR>, offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>
         } -> !VPUIP.SparseBuffer<data=!InputDistributed, sparsity_map=!InputSMDistributed, storage_element_table=!InputSEDistributed,
-                                 #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>>
+                                 #VPU.SEInterpolate<mode = <NEAREST>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], nearest_mode = <FLOOR>, offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>>
 
     %input = VPUIP.NCEClusterTiling inputs(%input_sparse as %arg3: !VPUIP.SparseBuffer<data=!Input_DDR, sparsity_map=!InputSM_DDR, storage_element_table=!InputSE_DDR,
-                                                                                       #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>>)
+                                                                                       #VPU.SEInterpolate<mode = <NEAREST>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], nearest_mode = <FLOOR>, offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>>)
                                outputs(%input_sparse_cmx as %arg4: !VPUIP.SparseBuffer<data=!Input_CMX, sparsity_map=!InputSM_CMX, storage_element_table=!InputSE_CMX,
-                                                                                       #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>>)
+                                                                                       #VPU.SEInterpolate<mode = <NEAREST>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], nearest_mode = <FLOOR>, offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>>)
             -> !VPUIP.SparseBuffer<data=!InputDistributed, sparsity_map=!InputSMDistributed, storage_element_table=!InputSEDistributed,
-                                   #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>> {
+                                   #VPU.SEInterpolate<mode = <NEAREST>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], nearest_mode = <FLOOR>, offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>> {
         %0 = VPUIP.Copy inputs(%arg3: !VPUIP.SparseBuffer<data=!Input_DDR, sparsity_map=!InputSM_DDR, storage_element_table=!InputSE_DDR,
-                                                          #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>>)
+                                                          #VPU.SEInterpolate<mode = <NEAREST>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], nearest_mode = <FLOOR>, offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>>)
                        outputs(%arg4: !VPUIP.SparseBuffer<data=!Input_CMX, sparsity_map=!InputSM_CMX, storage_element_table=!InputSE_CMX,
-                                                          #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>>)
+                                                          #VPU.SEInterpolate<mode = <NEAREST>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], nearest_mode = <FLOOR>, offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>>)
               -> !VPUIP.SparseBuffer<data=!Input_CMX, sparsity_map=!InputSM_CMX, storage_element_table=!InputSE_CMX,
-                                     #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>>
+                                     #VPU.SEInterpolate<mode = <NEAREST>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], nearest_mode = <FLOOR>, offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>>
     }
 
     %cst_weights = const.Declare !Weights_DDR = dense<1.0> : tensor<32x32x1x1xf16>, [#const.Reorder<#NHWC>, #const.Sparsify<false>]
@@ -512,10 +513,10 @@ func.func @InterpolateSESize(%arg0: !Input_DDR, %arg1: !InputSM_DDR, %arg2: !Out
             -> !OutputDistributed {
         %0 = VPUIP.NCEClusterTask {
                 activation_window_channel_length = 27 : i64,
-                kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+                kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
                 kernel_size = [1, 1],
                 kernel_strides = [1, 1],
-                task_type = "CONV"
+                task_type = #VPUIP.nce_task_type<CONV>
             }
             input(%arg3 : !Input_CMX)
             input_sparsity_map(%arg4 : !InputSM_CMX)
@@ -530,7 +531,7 @@ func.func @InterpolateSESize(%arg0: !Input_DDR, %arg1: !InputSM_DDR, %arg2: !Out
             outputs(%arg9 : !Output_CMX)
                 -> !Output_CMX
             variants :  {
-                DPUTask {cluster_id = 0 : i64, outEnd = [16, 6, 6], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0]}
+                DPUTask {cluster_id = 0 : i64, outEnd = [16, 6, 6], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0]}
             } PPE :  {
             }
     }
@@ -551,8 +552,9 @@ func.func @InterpolateSESize(%arg0: !Input_DDR, %arg1: !InputSM_DDR, %arg2: !Out
     // CHECK-SAME:                      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
     // CHECK-SAME:                      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]> : tensor<72xi32>,
     // CHECK-SAME:    dataElemType = f16, dataShape = [1, 32, 3, 3],
-    // CHECK-SAME:    seAttr = #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC",
+    // CHECK-SAME:    seAttr = #VPU.SEInterpolate<mode = <NEAREST>, coordinate_transformation_mode = <ASYMMETRIC>,
     // CHECK-SAME:                                scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00],
+    // CHECK-SAME:                                nearest_mode = <FLOOR>,
     // CHECK-SAME:                                offsets = [0, 0, 0, 0], sizes = [1, 32, 6, 6]>,
     // CHECK-SAME:    seDepth = 2 : i64, seSize = 16 : i64
     // CHECK-SAME:  } -> memref<1x2x6x6xi32, #NHWC>

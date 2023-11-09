@@ -109,7 +109,7 @@ MergeMap getDimMapWithFirstGreater1DimAsC(SmallVector<int64_t> shape) {
 
     shape.erase(shape.begin(), shape.begin() + nextDimCIndex);
     // Convert shape to 2D, and make the value of 2 Dims close to each other
-    const auto splitDimIndex = getBalancedDimIndexFromShape(shape) + nextDimCIndex;
+    const auto splitDimIndex = getBalancedDimIndexFromShape(std::move(shape)) + nextDimCIndex;
     retMapper.push_back(irange(nextDimCIndex, splitDimIndex));
     retMapper.push_back(irange(splitDimIndex, maxDim));
     return retMapper;
@@ -237,8 +237,7 @@ MergeMap getDimMergeMapWith2Inputs(ArrayRef<int64_t> input1, ArrayRef<int64_t> i
     }
     case 2: {
         auto expandMapTo3D = [&](auto mapIt) {
-            auto tempShape = getSubShape(maxShape, *mapIt);
-            auto newReshapeDim = getBalancedDimIndexFromShape(tempShape);
+            auto newReshapeDim = getBalancedDimIndexFromShape(getSubShape(maxShape, *mapIt));
             SmallVector<int64_t> dimTmp(mapIt->begin(), mapIt->begin() + newReshapeDim);
             mapIt->erase(mapIt->begin(), mapIt->begin() + newReshapeDim);
             dimsCanMerge.insert(mapIt, dimTmp);
@@ -385,11 +384,11 @@ void tryAndConvert2NCEShape(SmallVector<int64_t>& shape1, SmallVector<int64_t>& 
         return std::distance(shape.begin(), firstIt);
     };
     int64_t firstNonTrivialIndex;
-    if (nonTrivialShape1Dims) {
-        firstNonTrivialIndex = findFirstNonTrivialIndex(shape1);
-    } else {
-        firstNonTrivialIndex = findFirstNonTrivialIndex(shape2);
-    }
+    // Find the first non-trivial index from 2 input shapes
+    firstNonTrivialIndex = (findFirstNonTrivialIndex(shape1) <= findFirstNonTrivialIndex(shape2))
+                                   ? findFirstNonTrivialIndex(shape1)
+                                   : findFirstNonTrivialIndex(shape2);
+
     // Already at DimC
     if (firstNonTrivialIndex == 1) {
         return;
@@ -614,26 +613,23 @@ mlir::LogicalResult TopKOpConverter::matchAndRewrite(IE::TopKOp origOp, OpAdapto
     }
 
     // Deduce the new TopK aix from map table
-    const int64_t newAxis = 1;
     const auto inShape = to_small_vector(getShape(origOp.input()));
 
     MergeMap mergeMap;
-
     SmallVector<int64_t> tempMap;
-    for (int64_t i = 0; i < axis; i++) {
-        tempMap.push_back(i);
+    int64_t newAxis = 0;
+    if (axis > 0) {
+        mergeMap.push_back(irange(axis));
+        newAxis = 1;
     }
-    mergeMap.push_back(tempMap);
     mergeMap.push_back({axis});
-    SmallVector<int64_t> subShape(inShape.begin() + axis + 1, inShape.end());
-    auto balancedDim = getBalancedDimIndexFromShape(subShape);
-
-    tempMap.clear();
-    for (int64_t i = axis + 1; i < static_cast<int64_t>(inShape.size()); i++) {
-        tempMap.push_back(i);
+    if (axis < origInRank - 1) {
+        mergeMap.push_back(irange(axis + 1, origInRank));
     }
-    mergeMap.push_back(SmallVector<int64_t>(tempMap.begin(), tempMap.begin() + balancedDim));
-    mergeMap.push_back(SmallVector<int64_t>(tempMap.begin() + balancedDim, tempMap.end()));
+    // The mergeMap's Max Size is 3
+    auto delta4D = 4 - mergeMap.size();
+    mergeMap.insert(mergeMap.begin(), delta4D, {});
+    newAxis += delta4D;
 
     const auto newAxisAttr = getIntAttr(origOp->getContext(), newAxis);
 
@@ -641,8 +637,9 @@ mlir::LogicalResult TopKOpConverter::matchAndRewrite(IE::TopKOp origOp, OpAdapto
     const auto newInReshape =
             rewriter.createOrFold<IE::ReshapeOp>(origOp->getLoc(), origOp.input(), nullptr, false, newInShapeAttr);
 
-    auto newTopKOp = rewriter.create<IE::TopKOp>(origOp->getLoc(), newInReshape, origOp.k(), newAxisAttr,
-                                                 origOp.modeAttr(), origOp.sortAttr(), origOp.element_typeAttr());
+    auto newTopKOp =
+            rewriter.create<IE::TopKOp>(origOp->getLoc(), newInReshape, origOp.k(), origOp.k_valueAttr(), newAxisAttr,
+                                        origOp.modeAttr(), origOp.sortAttr(), origOp.element_typeAttr());
 
     for (auto indexResult : origOp->getResults() | indexed) {
         auto idx = checked_cast<unsigned>(indexResult.index());
@@ -682,7 +679,7 @@ mlir::LogicalResult Mvn6Converter::matchAndRewrite(IE::MVN6Op origOp, OpAdaptor,
     const auto inType = origOp.input().getType().cast<vpux::NDTypeInterface>();
     const auto inShape = inType.getShape().raw();
     const auto inRank = inShape.size();
-    const auto inAxes = parseIntArrayAttr<int64_t>(origOp.axes_value().getValue());
+    const auto inAxes = parseIntArrayAttr<int64_t>(origOp.axes_value().value());
 
     SmallVector<int64_t> newShape;
     SmallVector<int64_t> newAxes;
@@ -772,9 +769,9 @@ mlir::LogicalResult StridedSliceConverter::matchAndRewrite(IE::StridedSliceOp or
 
     SmallVector<int64_t> newInputShape;
 
-    auto begins = parseIntArrayAttr<int64_t>(origOp.begins_attr().getValue());
-    auto ends = parseIntArrayAttr<int64_t>(origOp.ends_attr().getValue());
-    auto strides = parseIntArrayAttr<int64_t>(origOp.strides_attr().getValue());
+    auto begins = parseIntArrayAttr<int64_t>(origOp.begins_attr().value());
+    auto ends = parseIntArrayAttr<int64_t>(origOp.ends_attr().value());
+    auto strides = parseIntArrayAttr<int64_t>(origOp.strides_attr().value());
     auto beginMask = parseIntArrayAttr<int64_t>(origOp.begin_mask());
     auto endMask = parseIntArrayAttr<int64_t>(origOp.end_mask());
 
@@ -921,7 +918,7 @@ mlir::LogicalResult TransposeConverter::matchAndRewrite(IE::TransposeOp origOp, 
                                                         mlir::ConversionPatternRewriter& rewriter) const {
     _log.trace("[{0}] Found IE::Transpose Operation '{1}'", getDebugName(), origOp->getLoc());
 
-    const auto origOrder = DimsOrder::fromAffineMap(origOp.order_value().getValue());
+    const auto origOrder = DimsOrder::fromAffineMap(origOp.order_value().value());
     const auto origPermVec = origOrder.toPermutation();
 
     const auto origType = origOp.input().getType().cast<vpux::NDTypeInterface>();
@@ -1013,10 +1010,17 @@ mlir::LogicalResult SoftmaxConverter::matchAndRewrite(IE::SoftMaxOp origOp, OpAd
         });
     };
 
+    // Optimization for softmax kernel should make axis last dim.
+    // Maintain axis last dim after being reshaped to 4D.
+    auto isTwoDimAxisLastSoftMax = [&]() {
+        const auto rank = origType.getRank();
+        return rank == 2 && axis == rank - 1;
+    };
+
     SmallVector<int64_t> newInputShape;
     auto addDims = static_cast<int32_t>(TARGET_TENSOR_DIM - origType.getRank());
     int64_t newAxis = axis;
-    if (isSingleDimSoftMax()) {
+    if (isSingleDimSoftMax() || isTwoDimAxisLastSoftMax()) {
         newInputShape = SmallVector<int64_t>(addDims, 1);
         for (auto i = 0; i < origType.getRank(); i++) {
             newInputShape.push_back(inputShape[i]);
@@ -1044,7 +1048,7 @@ mlir::LogicalResult SoftmaxConverter::matchAndRewrite(IE::SoftMaxOp origOp, OpAd
             rewriter.createOrFold<IE::ReshapeOp>(origOp->getLoc(), origOp.input(), nullptr, false, newInputShapeAttr);
 
     const auto axisAttr = getIntAttr(getContext(), newAxis);
-    auto newSoftmaxOp = rewriter.create<IE::SoftMaxOp>(origOp->getLoc(), inputReshape, axisAttr);
+    auto newSoftmaxOp = rewriter.create<IE::SoftMaxOp>(origOp->getLoc(), inputReshape, axisAttr, origOp.padSizeAttr());
 
     const auto outputShapeAttr = getIntArrayAttr(getContext(), getShape(origOp.output()));
     rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, newSoftmaxOp.output(), nullptr, false, outputShapeAttr);
@@ -1084,8 +1088,8 @@ mlir::LogicalResult InterpolateConverter::matchAndRewrite(IE::InterpolateOp orig
     const auto addDims = static_cast<int64_t>(TARGET_TENSOR_DIM - inputRank);
 
     const auto createAxesAttr = [&](Optional<mlir::ArrayAttr> axesAttr) {
-        if (axesAttr.hasValue()) {
-            auto intArray = parseIntArrayAttr<int64_t>(axesAttr.getValue());
+        if (axesAttr.has_value()) {
+            auto intArray = parseIntArrayAttr<int64_t>(axesAttr.value());
             for (auto& val : intArray) {
                 val += addDims;
             }
@@ -1098,8 +1102,8 @@ mlir::LogicalResult InterpolateConverter::matchAndRewrite(IE::InterpolateOp orig
     };
 
     const auto extendShapeWithValue = [&](Optional<mlir::ArrayAttr> attr, int64_t value) {
-        if (attr.hasValue()) {
-            auto intArray = parseIntArrayAttr<int64_t>(attr.getValue());
+        if (attr.has_value()) {
+            auto intArray = parseIntArrayAttr<int64_t>(attr.value());
             intArray.insert(intArray.begin(), addDims, value);
             return getIntArrayAttr(this->getContext(), intArray);
         }
@@ -1107,8 +1111,8 @@ mlir::LogicalResult InterpolateConverter::matchAndRewrite(IE::InterpolateOp orig
     };
 
     const auto extendShapeWithFloatValue = [&](Optional<mlir::ArrayAttr> attr, double value) {
-        if (attr.hasValue()) {
-            auto fpArray = parseFPArrayAttr<double>(attr.getValue());
+        if (attr.has_value()) {
+            auto fpArray = parseFPArrayAttr<double>(attr.value());
             fpArray.insert(fpArray.begin(), addDims, value);
             return getFPArrayAttr(this->getContext(), fpArray);
         }
@@ -1172,7 +1176,7 @@ mlir::LogicalResult GatherConverter::matchAndRewrite(IE::GatherOp origOp, OpAdap
     const auto origType = origOp.input().getType().cast<vpux::NDTypeInterface>();
     const auto inputShape = origType.getShape().raw();
 
-    int64_t axis = origOp.axis_value().getValue();
+    int64_t axis = origOp.axis_value().value();
     if (axis < 0) {
         axis += origType.getRank();
     }
@@ -1321,6 +1325,7 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
     target.addDynamicallyLegalOp<IE::SoftMaxOp>(is4DLegalOp);
     target.addDynamicallyLegalOp<IE::InterpolateOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::FloorOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::SquaredDifferenceOp>(isLegalOp);
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<GenericConverter<IE::ClampOp>>(typeConverter, &ctx, _log);
@@ -1384,6 +1389,7 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
     patterns.add<TransposeConverter>(typeConverter, &ctx, _log);
     patterns.add<SoftmaxConverter>(typeConverter, &ctx, _log);
     patterns.add<InterpolateConverter>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::SquaredDifferenceOp>>(typeConverter, &ctx, _log);
 
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();

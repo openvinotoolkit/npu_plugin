@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <climits>
 #include <numeric>
 
@@ -39,8 +37,7 @@ void buildDMACompressAct(const nb::TestCaseJsonDescriptor& testDesc, mlir::Modul
 
     // set runtime resources
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, None,
-                                           log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 
@@ -99,7 +96,7 @@ void buildDMACompressAct(const nb::TestCaseJsonDescriptor& testDesc, mlir::Modul
     CMX0_AVAILABLE_OFFSET += inputTotalSize;
 
     auto barrier0 = funcbuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), barrierNumber++);
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
                                           builder.getUnknownLoc(), DDRinput_uncomp,
                                           CMXbuf0Uncomp.getOperation()->getResult(0), dmaParams.engine);
 
@@ -131,8 +128,8 @@ void buildDMACompressAct(const nb::TestCaseJsonDescriptor& testDesc, mlir::Modul
     auto DDRspilledComp = func.getArgument(1);
 
     auto barrier1 = funcbuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), barrierNumber++);
-    VPURT::wrapIntoTaskOp<VPUIP::CompressDMAOp>(funcbuilder, mlir::ValueRange(barrier0.barrier()),
-                                                mlir::ValueRange(barrier1.barrier()), builder.getUnknownLoc(),
+    VPURT::wrapIntoTaskOp<VPUIP::CompressDMAOp>(funcbuilder, mlir::ValueRange(barrier0.getBarrier()),
+                                                mlir::ValueRange(barrier1.getBarrier()), builder.getUnknownLoc(),
                                                 CMXbuf0Uncomp.getOperation()->getResult(0),
                                                 actCompressionEntry.getOperation()->getResult(0), DDRspilledComp,
                                                 dmaParams.engine, nullptr, false, false, nullptr);
@@ -146,14 +143,14 @@ void buildDMACompressAct(const nb::TestCaseJsonDescriptor& testDesc, mlir::Modul
 
     auto barrier2 = funcbuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), barrierNumber++);
     VPURT::wrapIntoTaskOp<VPUIP::DecompressDMAOp>(
-            funcbuilder, mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(barrier2.barrier()),
+            funcbuilder, mlir::ValueRange(barrier1.getBarrier()), mlir::ValueRange(barrier2.getBarrier()),
             builder.getUnknownLoc(), DDRspilledComp, actCompressionEntry.getOperation()->getResult(0),
             CMXbuf1Uncomp.getOperation()->getResult(0), dmaParams.engine, nullptr, false, false, nullptr);
 
     // CMXbuf1Uncomp - DDRoutput_uncomp
     auto DDRoutput_uncomp = func.getArgument(2);
 
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier2.barrier()), mlir::ValueRange(),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier2.getBarrier()), mlir::ValueRange(),
                                           builder.getUnknownLoc(), CMXbuf1Uncomp.getOperation()->getResult(0),
                                           DDRoutput_uncomp, dmaParams.engine);
 

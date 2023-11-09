@@ -25,4 +25,4 @@ void getTaskEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffect>& effects)
 // Generated
 //
 
-#include <vpux/compiler/dialect/VPURT/generated/ops_interfaces.hpp.inc>
+#include <vpux/compiler/dialect/VPURT/ops_interfaces.hpp.inc>

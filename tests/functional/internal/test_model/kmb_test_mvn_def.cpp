@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "kmb_test_mvn_def.hpp"
 
 #include <blob_transform.hpp>

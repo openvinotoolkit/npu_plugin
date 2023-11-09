@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <numeric>
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
@@ -120,16 +118,16 @@ void buildEltwiseSparse(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     auto barrier1 = funcBuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 1);
 
     // DMAs
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
                                           builder.getUnknownLoc(), funcInputSM,
                                           inputSMCmx.getOperation()->getResult(0));
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
                                           builder.getUnknownLoc(), funcInput, inputcmx.getOperation()->getResult(0));
 
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
                                           builder.getUnknownLoc(), funcWeightsSm,
                                           weightsSMCmx.getOperation()->getResult(0));
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
                                           builder.getUnknownLoc(), funcWeights,
                                           weightscmx.getOperation()->getResult(0));
 
@@ -137,7 +135,7 @@ void buildEltwiseSparse(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     mlir::IntegerAttr actChannelLength = builder.getI32IntegerAttr(0);
 
     auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
-            funcBuilder, mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()),
+            funcBuilder, mlir::ValueRange(barrier0.getBarrier()), mlir::ValueRange(barrier1.getBarrier()),
             builder.getUnknownLoc(),
             /*input=*/inputcmx.getOperation()->getResult(0),
             /*input_sparsity_map=*/inputSMCmx.getOperation()->getResult(0),
@@ -208,14 +206,14 @@ void buildEltwiseSparse(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     // the hardware; this corresponds to CUBOID_8x16.
     nceTask.addDPUTask(variantbuilder, start, outEnd, start, inEnd, pad, VPU::MPEMode::CUBOID_8x16);
 
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(barrier1.getBarrier()), mlir::ValueRange(),
                                           builder.getUnknownLoc(), outputCmx.getOperation()->getResult(0), funcOutput);
 
     funcBuilder.create<mlir::func::ReturnOp>(builder.getUnknownLoc(), funcOutput);
 
     // set runtime resources
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(arch, VPU::CompilationMode::DefaultHW, 1, None, None, log));
+    pm.addPass(VPU::createInitCompilerPass(arch, VPU::CompilationMode::DefaultHW, 1, None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 

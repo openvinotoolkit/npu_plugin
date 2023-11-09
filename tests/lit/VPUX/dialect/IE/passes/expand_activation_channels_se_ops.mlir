@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch% compilation-mode=DefaultHW" --expand-activation-channels="adapt-se-ops=true" --canonicalize %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch% compilation-mode=DefaultHW" --expand-activation-channels="se-ops-enabled=true" --canonicalize %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
@@ -77,3 +77,4 @@ func.func @ExpandInterpolateLinearChannels(%arg0: tensor<1x3x30x30xf16>) -> tens
 // CHECK-SAME:      to tensor<1x3x60x60xf16>
 
 // CHECK        return [[OUT]]
+

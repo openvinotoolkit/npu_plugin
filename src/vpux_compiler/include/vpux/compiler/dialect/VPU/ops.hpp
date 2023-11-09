@@ -22,7 +22,7 @@
 //
 
 #define GET_OP_CLASSES
-#include <vpux/compiler/dialect/VPU/generated/ops.hpp.inc>
+#include <vpux/compiler/dialect/VPU/ops.hpp.inc>
 
 //
 // Operation verifiers
@@ -94,9 +94,9 @@ TileInfo getInstructionListTableTile(ConcreteOp* origOp, const vpux::TileInfo& /
 // Adjust paddings attributes for tiled input
 template <typename ConcreteOp>
 void adjustPaddings(ConcreteOp* op, const TilingInfo& inputTiling) {
-    VPUX_THROW_UNLESS(inputTiling.pads.hasValue(), "Missing tile information for paddings");
+    VPUX_THROW_UNLESS(inputTiling.pads.has_value(), "Missing tile information for paddings");
 
-    auto newPadAttr = getPaddingAttr(op->getContext(), inputTiling.pads.getValue());
+    auto newPadAttr = getPaddingAttr(op->getContext(), inputTiling.pads.value());
 
     op->padAttr(newPadAttr);
 }
@@ -126,12 +126,12 @@ template <typename T, enable_if_t<or_<std::is_same<VPU::DistributedTensorType, T
                                       std::is_same<VPUIP::DistributedBufferType, T>>::value,
                                   bool> = true>
 mlir::LogicalResult areDistributionAttrsCompatible(T sourceType, T targetType,
-                                                   const bool allowOverlapWithDiffConfig = false) {
+                                                   const bool allowDifferentPerClusterMemoryView = false) {
     const auto sourceAttr = sourceType.getDistribution();
     const auto targetAttr = targetType.getDistribution();
 
-    const auto inDistributionMode = sourceAttr.mode().getValue();
-    const auto outDistributionMode = targetAttr.mode().getValue();
+    const auto inDistributionMode = sourceAttr.getMode().getValue();
+    const auto outDistributionMode = targetAttr.getMode().getValue();
 
     if (inDistributionMode != outDistributionMode) {
         if (VPU::areDistributionModesCompatible(inDistributionMode, outDistributionMode).failed()) {
@@ -150,12 +150,12 @@ mlir::LogicalResult areDistributionAttrsCompatible(T sourceType, T targetType,
     // they have different alignment attributes. Because the tensors are aligned and the same on each cluster
     // For tensors that need to split, the same alignments are required to make sure tensors compatible on each cluster
     if (!(isMemoryFullSizeMode(inDistributionMode) && isMemoryFullSizeMode(outDistributionMode)) &&
-        sourceAttr.alignment() != targetAttr.alignment()) {
+        sourceAttr.getAlignment() != targetAttr.getAlignment()) {
         return mlir::failure();
     }
 
-    const auto inDistributionNumClusters = sourceAttr.num_clusters();
-    const auto outDistributionNumClusters = targetAttr.num_clusters();
+    const auto inDistributionNumClusters = sourceAttr.getNumClusters();
+    const auto outDistributionNumClusters = targetAttr.getNumClusters();
 
     if (VPU::areDistributionNumClustersCompatible(inDistributionNumClusters, outDistributionNumClusters).failed()) {
         return mlir::failure();
@@ -177,29 +177,26 @@ mlir::LogicalResult areDistributionAttrsCompatible(T sourceType, T targetType,
         return (srcMemoryOffsets == targetMemoryOffsets) && (srcMemoryShapes == targetMemoryShapes);
     };
 
-    if ((inDistributionMode == VPU::DistributionMode::SEGMENTED) &&
-        (outDistributionMode == VPU::DistributionMode::SEGMENTED)) {
-        const auto inDistributionNumTiles = parseIntArrayAttr<int64_t>(sourceAttr.num_tiles());
-        const auto outDistributionNumTiles = parseIntArrayAttr<int64_t>(targetAttr.num_tiles());
+    if ((inDistributionMode == VPU::DistributionMode::SEGMENTED ||
+         inDistributionMode == VPU::DistributionMode::OVERLAPPED) &&
+        (outDistributionMode == VPU::DistributionMode::SEGMENTED ||
+         outDistributionMode == VPU::DistributionMode::OVERLAPPED)) {
+        const auto inDistributionNumTiles = parseIntArrayAttr<int64_t>(sourceAttr.getNumTiles());
+        const auto outDistributionNumTiles = parseIntArrayAttr<int64_t>(targetAttr.getNumTiles());
         if (inDistributionNumTiles != outDistributionNumTiles) {
             return mlir::failure();
         }
 
-        return arePerClusterMemoryShapeAndOffsetsEqual() ? mlir::success() : mlir::failure();
-    }
-
-    if ((inDistributionMode == VPU::DistributionMode::OVERLAPPED) &&
-        (outDistributionMode == VPU::DistributionMode::OVERLAPPED)) {
-        const auto inDistributionNumTiles = parseIntArrayAttr<int64_t>(sourceAttr.num_tiles());
-        const auto outDistributionNumTiles = parseIntArrayAttr<int64_t>(targetAttr.num_tiles());
-        if (inDistributionNumTiles != outDistributionNumTiles) {
-            return mlir::failure();
-        }
-
-        if (allowOverlapWithDiffConfig) {
+        // When the source & target types are the types of an op's input & output, there is no generally applicable
+        // way to verify the compatibility without having information about the op itself.
+        // This util will indicate the types are compatible, with any extra checks having to be done at calling
+        // location.
+        if (allowDifferentPerClusterMemoryView) {
             return mlir::success();
         }
 
+        // If source & target types are the type of a producer op's output and the type of a consumer op's input,
+        // respectively, then as long as memory view is equal, the two distributed attributes are equivalent
         return arePerClusterMemoryShapeAndOffsetsEqual() ? mlir::success() : mlir::failure();
     }
 

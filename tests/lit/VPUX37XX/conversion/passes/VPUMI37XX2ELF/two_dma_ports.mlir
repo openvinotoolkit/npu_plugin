@@ -8,14 +8,14 @@
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 module @mainModule {
   IE.CNNNetwork entryPoint : @race_condition_dma_f16_f16 inputsInfo : {
-    DataInfo "input_0" : tensor<1x16x16x16xf16, {order = #NHWC}>
+    DataInfo "input_0" : tensor<1x16x16x16xf16>
   } outputsInfo : {
-    DataInfo "output_0" : tensor<1x16x16x16xf16, {order = #NHWC}>
-    DataInfo "output_1" : tensor<1x16x16x16xf16, {order = #NHWC}>
+    DataInfo "output_0" : tensor<1x16x16x16xf16>
+    DataInfo "output_1" : tensor<1x16x16x16xf16>
   }
   func.func private @race_condition_dma_f16_f16(%arg0: memref<1x16x16x16xf16, #NHWC, @DDR>, %arg1: memref<1x16x16x16xf16, #NHWC, @DDR>, %arg2: memref<1x16x16x16xf16, #NHWC, @DDR>) -> (memref<1x16x16x16xf16, #NHWC, @DDR>, memref<1x16x16x16xf16, #NHWC, @DDR>) {
-    %0 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 0]>
-    %1 = VPURT.DeclareBuffer "CMX_NN" [1] <0> -> memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 1]>
+    %0 = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 0]>
+    %1 = VPURT.DeclareBuffer <CMX_NN> [1] <0> -> memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 1]>
     %2 = VPUMI37XX.ConfigureBarrier {consumer_count = 2 : ui8, producer_count = 2 : ui8}<0, -1> -> !VPURegMapped.Index<0:0:0>
     %3 = VPUMI37XX.NNDMA {port = 0 : i64} inputs(%arg0 : memref<1x16x16x16xf16, #NHWC, @DDR>) outputs(%0 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 0]>) updates(%2 : !VPURegMapped.Index<0:0:0>) start_after(0) clean_after(0) -> !VPURegMapped.Index<0:0:0>
     %4 = VPUMI37XX.NNDMA {port = 1 : i64} inputs(%arg0 : memref<1x16x16x16xf16, #NHWC, @DDR>) outputs(%1 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 1]>) updates(%2 : !VPURegMapped.Index<0:0:0>) start_after(0) clean_after(0) -> !VPURegMapped.Index<0:0:0>
@@ -89,40 +89,40 @@ module @mainModule {
       // CHECK: ELF.PutOpInSection %[[symDmaSec0]] : !ELF.Symbol
       // CHECK: ELF.PutOpInSection %[[symDmaSec1]] : !ELF.Symbol
       // CHECK: ELF.PutOpInSection %[[symBarSec]] : !ELF.Symbol
-      // CHECK: %[[miSym:.*]] = ELF.Symbol %10 name("MappedInference_entry") type("VPU_STT_ENTRY") : !VPURegMapped.Index<0:0:0>
+      // CHECK: %[[miSym:.*]] = ELF.Symbol %10 name("MappedInference_entry") type(<VPU_STT_ENTRY>) : !VPURegMapped.Index<0:0:0>
 
     // CHECK: %[[rltDmaNetIn0:.*]] = ELF.CreateRelocationSection secName(".rlt.DMA_NetInput0") sourceSymbolTableSection(%[[symTabSecIn]]) targetSection(%[[dmaSec0]]) secFlags("SHF_INFO_LINK|VPU_SHF_JIT|VPU_SHF_USERINPUT") -> !ELF.Section {
-      // CHECK: ELF.RelocImmOffset baseOp(%3 : !VPURegMapped.Index<0:0:0>) offset(16) "R_VPU_64" %[[symIn0]] 0
-      // CHECK: ELF.RelocImmOffset baseOp(%6 : !VPURegMapped.Index<0:0:1>) offset(16) "R_VPU_64" %[[symIn0]] 0
+      // CHECK: ELF.RelocImmOffset baseOp(%3 : !VPURegMapped.Index<0:0:0>) offset(16) <R_VPU_64> %[[symIn0]] 0
+      // CHECK: ELF.RelocImmOffset baseOp(%6 : !VPURegMapped.Index<0:0:1>) offset(16) <R_VPU_64> %[[symIn0]] 0
 
     // CHECK: %[[rltDmaNetOut0:.*]] = ELF.CreateRelocationSection secName(".rlt.DMA_NetOutput0") sourceSymbolTableSection(%[[symTabSecOut]]) targetSection(%[[dmaSec0]]) secFlags("SHF_INFO_LINK|VPU_SHF_JIT|VPU_SHF_USEROUTPUT") -> !ELF.Section {
-      // CHECK: ELF.RelocImmOffset baseOp(%8 : !VPURegMapped.Index<0:0:2>) offset(24) "R_VPU_64" %[[symOut0]] 0
+      // CHECK: ELF.RelocImmOffset baseOp(%8 : !VPURegMapped.Index<0:0:2>) offset(24) <R_VPU_64> %[[symOut0]] 0
 
     // CHECK: %[[rltDmaTasks0:.*]] = ELF.CreateRelocationSection secName(".rlt.text.dmaTasks0") sourceSymbolTableSection(%[[RT_SYMTAB]]) targetSection(%[[dmaSec0]]) secFlags(SHF_INFO_LINK) -> !ELF.Section {
-      // CHECK: ELF.Reloc baseOp(%3 : !VPURegMapped.Index<0:0:0>) offsetOf(%0 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 0]>) "R_VPU_64" %[[SYM_NNCMX_SLICE_BASE]] 0
-      // CHECK: ELF.RelocImmOffset baseOp(%3 : !VPURegMapped.Index<0:0:0>) offset(0) "R_VPU_32_RTM" %[[SYM_RTM_DMA0]] 128
-      // CHECK: ELF.Reloc baseOp(%6 : !VPURegMapped.Index<0:0:1>) offsetOf(%0 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 0]>) "R_VPU_64" %[[SYM_NNCMX_SLICE_BASE]] 0
-      // CHECK: ELF.RelocImmOffset baseOp(%6 : !VPURegMapped.Index<0:0:1>) offset(0) "R_VPU_32_RTM" %[[SYM_RTM_DMA0]] 128
-      // CHECK: ELF.Reloc baseOp(%8 : !VPURegMapped.Index<0:0:2>) offsetOf(%0 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 0]>) "R_VPU_64" %[[SYM_NNCMX_SLICE_BASE]] 0
+      // CHECK: ELF.Reloc baseOp(%3 : !VPURegMapped.Index<0:0:0>) offsetOf(%0 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 0]>) <R_VPU_64> %[[SYM_NNCMX_SLICE_BASE]] 0
+      // CHECK: ELF.RelocImmOffset baseOp(%3 : !VPURegMapped.Index<0:0:0>) offset(0) <R_VPU_32_RTM> %[[SYM_RTM_DMA0]] 128
+      // CHECK: ELF.Reloc baseOp(%6 : !VPURegMapped.Index<0:0:1>) offsetOf(%0 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 0]>) <R_VPU_64> %[[SYM_NNCMX_SLICE_BASE]] 0
+      // CHECK: ELF.RelocImmOffset baseOp(%6 : !VPURegMapped.Index<0:0:1>) offset(0) <R_VPU_32_RTM> %[[SYM_RTM_DMA0]] 128
+      // CHECK: ELF.Reloc baseOp(%8 : !VPURegMapped.Index<0:0:2>) offsetOf(%0 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 0]>) <R_VPU_64> %[[SYM_NNCMX_SLICE_BASE]] 0
 
     // CHECK: %[[rltDmaNetIn1:.*]] = ELF.CreateRelocationSection secName(".rlt.DMA_NetInput1") sourceSymbolTableSection(%[[symTabSecIn]]) targetSection(%[[dmaSec1]]) secFlags("SHF_INFO_LINK|VPU_SHF_JIT|VPU_SHF_USERINPUT") -> !ELF.Section {
-      // CHECK: ELF.RelocImmOffset baseOp(%4 : !VPURegMapped.Index<0:0:0>) offset(16) "R_VPU_64" %[[symIn0]] 0
-      // CHECK: ELF.RelocImmOffset baseOp(%7 : !VPURegMapped.Index<0:0:1>) offset(16) "R_VPU_64" %[[symIn0]] 0
+      // CHECK: ELF.RelocImmOffset baseOp(%4 : !VPURegMapped.Index<0:0:0>) offset(16) <R_VPU_64> %[[symIn0]] 0
+      // CHECK: ELF.RelocImmOffset baseOp(%7 : !VPURegMapped.Index<0:0:1>) offset(16) <R_VPU_64> %[[symIn0]] 0
 
     // CHECK: %[[rltDmaNetOut1:.*]] = ELF.CreateRelocationSection secName(".rlt.DMA_NetOutput1") sourceSymbolTableSection(%[[symTabSecOut]]) targetSection(%[[dmaSec1]]) secFlags("SHF_INFO_LINK|VPU_SHF_JIT|VPU_SHF_USEROUTPUT") -> !ELF.Section {
-      // CHECK: ELF.RelocImmOffset baseOp(%9 : !VPURegMapped.Index<0:0:2>) offset(24) "R_VPU_64" %[[symOut1]] 0
+      // CHECK: ELF.RelocImmOffset baseOp(%9 : !VPURegMapped.Index<0:0:2>) offset(24) <R_VPU_64> %[[symOut1]] 0
 
     // CHECK: %[[rltDmaTasks1:.*]] = ELF.CreateRelocationSection secName(".rlt.text.dmaTasks1") sourceSymbolTableSection(%[[RT_SYMTAB]]) targetSection(%[[dmaSec1]]) secFlags(SHF_INFO_LINK) -> !ELF.Section {
-      // CHECK: ELF.Reloc baseOp(%4 : !VPURegMapped.Index<0:0:0>) offsetOf(%1 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 1]>) "R_VPU_64" %[[SYM_NNCMX_SLICE_BASE]] 2097152
-      // CHECK: ELF.RelocImmOffset baseOp(%4 : !VPURegMapped.Index<0:0:0>) offset(0) "R_VPU_32_RTM" %[[SYM_RTM_DMA1]] 128
-      // CHECK: ELF.Reloc baseOp(%7 : !VPURegMapped.Index<0:0:1>) offsetOf(%1 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 1]>) "R_VPU_64" %[[SYM_NNCMX_SLICE_BASE]] 2097152
-      // CHECK: ELF.RelocImmOffset baseOp(%7 : !VPURegMapped.Index<0:0:1>) offset(0) "R_VPU_32_RTM" %[[SYM_RTM_DMA1]] 128
-      // CHECK: ELF.Reloc baseOp(%9 : !VPURegMapped.Index<0:0:2>) offsetOf(%1 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 1]>) "R_VPU_64" %[[SYM_NNCMX_SLICE_BASE]] 2097152
+      // CHECK: ELF.Reloc baseOp(%4 : !VPURegMapped.Index<0:0:0>) offsetOf(%1 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 1]>) <R_VPU_64> %[[SYM_NNCMX_SLICE_BASE]] 2097152
+      // CHECK: ELF.RelocImmOffset baseOp(%4 : !VPURegMapped.Index<0:0:0>) offset(0) <R_VPU_32_RTM> %[[SYM_RTM_DMA1]] 128
+      // CHECK: ELF.Reloc baseOp(%7 : !VPURegMapped.Index<0:0:1>) offsetOf(%1 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 1]>) <R_VPU_64> %[[SYM_NNCMX_SLICE_BASE]] 2097152
+      // CHECK: ELF.RelocImmOffset baseOp(%7 : !VPURegMapped.Index<0:0:1>) offset(0) <R_VPU_32_RTM> %[[SYM_RTM_DMA1]] 128
+      // CHECK: ELF.Reloc baseOp(%9 : !VPURegMapped.Index<0:0:2>) offsetOf(%1 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 1]>) <R_VPU_64> %[[SYM_NNCMX_SLICE_BASE]] 2097152
 
     // CHECK: %[[rltMi:.*]] = ELF.CreateRelocationSection secName(".rlt.text.MappedInference") sourceSymbolTableSection(%[[symTabTasks]]) targetSection(%[[miSec]]) secFlags(SHF_INFO_LINK) -> !ELF.Section {
-      // CHECK: ELF.Reloc baseOp(%10 : !VPURegMapped.Index<0:0:0>) offsetOf(%3 : !VPURegMapped.Index<0:0:0>) "R_VPU_64" %[[symDmaSec0]] 0
-      // CHECK: ELF.Reloc baseOp(%10 : !VPURegMapped.Index<0:0:0>) offsetOf(%4 : !VPURegMapped.Index<0:0:0>) "R_VPU_64" %[[symDmaSec1]] 0
-      // CHECK: ELF.Reloc baseOp(%10 : !VPURegMapped.Index<0:0:0>) offsetOf(%2 : !VPURegMapped.Index<0:0:0>) "R_VPU_64" %[[symBarSec]] 0
+      // CHECK: ELF.Reloc baseOp(%10 : !VPURegMapped.Index<0:0:0>) offsetOf(%3 : !VPURegMapped.Index<0:0:0>) <R_VPU_64> %[[symDmaSec0]] 0
+      // CHECK: ELF.Reloc baseOp(%10 : !VPURegMapped.Index<0:0:0>) offsetOf(%4 : !VPURegMapped.Index<0:0:0>) <R_VPU_64> %[[symDmaSec1]] 0
+      // CHECK: ELF.Reloc baseOp(%10 : !VPURegMapped.Index<0:0:0>) offsetOf(%2 : !VPURegMapped.Index<0:0:0>) <R_VPU_64> %[[symBarSec]] 0
 
     return %arg1, %arg2 : memref<1x16x16x16xf16, #NHWC, @DDR>, memref<1x16x16x16xf16, #NHWC, @DDR>
   }

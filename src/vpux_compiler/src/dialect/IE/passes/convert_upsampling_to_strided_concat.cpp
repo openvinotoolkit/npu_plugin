@@ -17,7 +17,7 @@ using namespace vpux;
 
 namespace {
 
-mlir::Value getZerosConst(mlir::PatternRewriter& rewriter, Shape constShape, IE::UpsamplingOp origOp) {
+mlir::Value getZerosConst(mlir::PatternRewriter& rewriter, ShapeRef constShape, IE::UpsamplingOp origOp) {
     const auto elemType = origOp.input().getType().cast<vpux::NDTypeInterface>().getElementType();
     const auto dataStorageType = mlir::RankedTensorType::get(to_small_vector(constShape), elemType);
 
@@ -26,7 +26,7 @@ mlir::Value getZerosConst(mlir::PatternRewriter& rewriter, Shape constShape, IE:
                       "Upsampling has incompatible data type {0}, only float16 or float32 are supported", elemType);
 
     return rewriter.create<Const::DeclareOp>(origOp.getLoc(), dataStorageType, Const::ContentAttr::get(denseElementVal))
-            .output();
+            .getOutput();
 }
 
 mlir::Value getConcatResult(mlir::PatternRewriter& rewriter, vpux::Dim axis, int64_t factor, mlir::Value input,
@@ -82,9 +82,9 @@ mlir::LogicalResult ConvertUpsamplingToStridedConcatPass::UpsamplingOpConverter:
     const auto inputShape = getShape(origOp.input());
 
     const auto upsamplingFactorVectorTmp = parseIntArrayAttr<int64_t>(origOp.upsampling_factor());
-    auto padChannel = parseIntArrayAttr<int64_t>(origOp.padAttr().pads_channel());
-    auto padHeight = parseIntArrayAttr<int64_t>(origOp.padAttr().pads_height());
-    auto padWidth = parseIntArrayAttr<int64_t>(origOp.padAttr().pads_width());
+    auto padChannel = parseIntArrayAttr<int64_t>(origOp.padAttr().getPadsChannel());
+    auto padHeight = parseIntArrayAttr<int64_t>(origOp.padAttr().getPadsHeight());
+    auto padWidth = parseIntArrayAttr<int64_t>(origOp.padAttr().getPadsWidth());
     SmallVector<int64_t> upsamplingFactorVector = {1, upsamplingFactorVectorTmp[2], upsamplingFactorVectorTmp[1],
                                                    upsamplingFactorVectorTmp[0]};
     SmallVector<int64_t> padingLAtt = {0, padChannel[0], padHeight[0], padWidth[0]};
@@ -138,7 +138,7 @@ mlir::LogicalResult ConvertUpsamplingToStridedConcatPass::UpsamplingOpConverter:
         auto padChannelAttr = getIntArrayAttr(rewriter, SmallVector<int64_t>{0, upsamplingFactorVectorTmp[2] - 1});
         auto padHeightAttr = getIntArrayAttr(rewriter, SmallVector<int64_t>{0, upsamplingFactorVectorTmp[1] - 1});
         auto padWidthAttr = getIntArrayAttr(rewriter, SmallVector<int64_t>{0, upsamplingFactorVectorTmp[0] - 1});
-        auto padAttr = IE::UpsamplingPadAttr::get(padChannelAttr, padHeightAttr, padWidthAttr, rewriter.getContext());
+        auto padAttr = IE::UpsamplingPadAttr::get(rewriter.getContext(), padChannelAttr, padHeightAttr, padWidthAttr);
 
         auto newUpsample = rewriter.create<IE::UpsamplingOp>(origOp->getLoc(), upsamplingResult,
                                                              origOp.upsampling_factor(), padAttr);
@@ -178,14 +178,14 @@ void ConvertUpsamplingToStridedConcatPass::safeRunOnFunc() {
     target.addDynamicallyLegalOp<IE::UpsamplingOp>([&](IE::UpsamplingOp op) {
         const auto inputShape = getShape(op.input());
         SmallVector<int64_t> padLVector = {
-                checked_cast<int64_t>(op.padAttr().pads_channel()[0].cast<mlir::IntegerAttr>().getInt()),
-                checked_cast<int64_t>(op.padAttr().pads_height()[0].cast<mlir::IntegerAttr>().getInt()),
-                checked_cast<int64_t>(op.padAttr().pads_width()[0].cast<mlir::IntegerAttr>().getInt())};
+                checked_cast<int64_t>(op.padAttr().getPadsChannel()[0].cast<mlir::IntegerAttr>().getInt()),
+                checked_cast<int64_t>(op.padAttr().getPadsHeight()[0].cast<mlir::IntegerAttr>().getInt()),
+                checked_cast<int64_t>(op.padAttr().getPadsWidth()[0].cast<mlir::IntegerAttr>().getInt())};
 
         SmallVector<int64_t> padRVector = {
-                checked_cast<int64_t>(op.padAttr().pads_channel()[1].cast<mlir::IntegerAttr>().getInt()),
-                checked_cast<int64_t>(op.padAttr().pads_height()[1].cast<mlir::IntegerAttr>().getInt()),
-                checked_cast<int64_t>(op.padAttr().pads_width()[1].cast<mlir::IntegerAttr>().getInt())};
+                checked_cast<int64_t>(op.padAttr().getPadsChannel()[1].cast<mlir::IntegerAttr>().getInt()),
+                checked_cast<int64_t>(op.padAttr().getPadsHeight()[1].cast<mlir::IntegerAttr>().getInt()),
+                checked_cast<int64_t>(op.padAttr().getPadsWidth()[1].cast<mlir::IntegerAttr>().getInt())};
         const auto upsamplingFactorVector = parseIntArrayAttr<int64_t>(op.upsampling_factor());
 
         // Upsampling only supports 4D Input shape

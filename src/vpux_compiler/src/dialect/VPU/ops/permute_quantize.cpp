@@ -85,6 +85,6 @@ void vpux::VPU::PermuteQuantizeOp::adjustAttrs(const TilingInfo& /*inputTiling*/
     // Do nothing
 }
 
-OutputTiling vpux::VPU::PermuteQuantizeOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
+mlir::FailureOr<OutputTiling> vpux::VPU::PermuteQuantizeOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
     return vpux::getSWLayerTilingStrategy(this->getOperation(), tilingMode, log);
 }

@@ -100,6 +100,11 @@ void vpux::IE::LayerLayoutInfo::setOutput(size_t ind, const DimsOrder& info) {
     LayerDataInfo<DimsOrder>::setOutput(ind, info);
 }
 
+mlir::LogicalResult vpux::IE::verifyLayout(mlir::Operation*) {
+    // Tracking number [E#84955]
+    return mlir::success();
+}
+
 IE::LayerLayoutInfo vpux::IE::getLayoutInfo(mlir::Operation* op) {
     SmallVector<DimsOrder> inputOrders;
     inputOrders.reserve(op->getNumOperands());
@@ -201,4 +206,4 @@ bool vpux::IE::isPureViewOp(mlir::Operation* op) {
 // Generated
 //
 
-#include <vpux/compiler/dialect/IE/generated/ops_interfaces.cpp.inc>
+#include <vpux/compiler/dialect/IE/ops_interfaces.cpp.inc>

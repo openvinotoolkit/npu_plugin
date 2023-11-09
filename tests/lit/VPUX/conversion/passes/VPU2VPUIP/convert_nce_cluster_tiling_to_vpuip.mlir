@@ -62,7 +62,7 @@ func.func @NCEClusterTilingCopyOpTensorResult(%input0: !type_DDR_memref) -> !typ
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 4, 1],
     kernel = [3, 3],
-    pads = {bottom = 1, left = 1, right = 1, top = 1},
+    pads = #VPU.Padding<left = 1 , right = 1, top = 1, bottom = 1>,
     strides = [1, 1],
     num_clusters = 4
 }>
@@ -122,7 +122,7 @@ func.func @NCEClusterTilingCopyOpDistributedResult(%input0: !type_DDR_memref) ->
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 4, 1],
     kernel = [3, 3],
-    pads = {bottom = 1, left = 1, right = 1, top = 1},
+    pads = #VPU.Padding<left = 1 , right = 1, top = 1, bottom = 1>,
     strides = [1, 1],
     num_clusters = 4
 }>
@@ -358,10 +358,10 @@ func.func @SparseDistributedNCEConv(%arg0: !IOBuffer, %arg1: !IOSMBuffer, %arg2:
         %out_sm = memref.alloc() : !IOSMBuffer
 
         %out:2 = VPUIP.NCEClusterTask {
-                    kernel_padding = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+                    kernel_padding = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>,
                     kernel_size = [3, 3],
                     kernel_strides = [1, 1],
-                    task_type = "CONV"
+                    task_type = #VPUIP.nce_task_type<CONV>
                 }
                     input(%in_data : !IOBuffer)
                     input_sparsity_map(%in_sm : !IOSMBuffer)
@@ -376,7 +376,7 @@ func.func @SparseDistributedNCEConv(%arg0: !IOBuffer, %arg1: !IOSMBuffer, %arg2:
                     output_sparsity_map(%out_sm : !IOSMBuffer)
                 -> !IOBuffer, !IOSMBuffer
                 variants : {
-                    DPUTask {outEnd = [15, 15, 31], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0]}
+                    DPUTask {outEnd = [15, 15, 31], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0]}
                 } PPE : {
                 }
         %out_sparse_buffer = VPUIP.GroupSparseBuffer(%out#0, %out#1) -> !VPUIP.SparseBuffer<data=!IOBuffer, sparsity_map=!IOSMBuffer>
@@ -408,10 +408,10 @@ func.func @SparseDistributedNCEConv(%arg0: !IOBuffer, %arg1: !IOSMBuffer, %arg2:
     // CHECK-SAME:      -> (!VPUIP.DistributedBuffer<1x32x16x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
     // CHECK-SAME:          !VPUIP.DistributedBuffer<1x32x16x16xi1, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>) {
     // CHECK:           [[CONV_OUT:%.+]]:2 = VPUIP.NCEClusterTask {
-    // CHECK-SAME:          kernel_padding = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+    // CHECK-SAME:          kernel_padding = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>,
     // CHECK-SAME:          kernel_size = [3, 3],
     // CHECK-SAME:          kernel_strides = [1, 1],
-    // CHECK-SAME:          task_type = "CONV"
+    // CHECK-SAME:          task_type = #VPUIP.nce_task_type<CONV>
     // CHECK-SAME:      }
     // CHECK-SAME:          input([[ARG3]]
     // CHECK-SAME:          input_sparsity_map([[ARG4]]
@@ -426,7 +426,7 @@ func.func @SparseDistributedNCEConv(%arg0: !IOBuffer, %arg1: !IOSMBuffer, %arg2:
     // CHECK-SAME:          output_sparsity_map([[ARG9]]
     // CHECK-SAME:      -> memref<1x32x16x16xf16, #NHWC, @CMX_NN>, memref<1x32x16x16xi1, #NHWC, @CMX_NN>
     // CHECK-SAME:      variants : {
-    // CHECK:               DPUTask {mpe_mode = "VECTOR_FP16", outEnd = [15, 15, 31], outStart = [0, 0, 0], pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}}
+    // CHECK:               DPUTask {mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, outEnd = [15, 15, 31], outStart = [0, 0, 0], pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>}
     // CHECK:           } PPE : {
     // CHECK:           }
     // CHECK:       }
@@ -509,10 +509,10 @@ func.func @NCEClusterTilingCompressConv(%input: !in_CMX_tensor, %in_weights: !we
       %out_alloc = memref.alloc() : memref<1x64x112x112xf16, #NHWC, @CMX_NN>
       %in_shape_cast = VPUIP.ShapeCast {shape = [1, 16, 224, 224]} inputs(%in : memref<1x4x224x224xf16, #NHWC, @CMX_NN>) -> memref<1x16x224x224xf16, #NHWC, @CMX_NN>
       %27 = VPUIP.NCEClusterTask {
-            cm_sp_pattern = 15 : i64, input_channels_compression,
-            kernel_padding = {bottom = 2 : i64, left = 3 : i64, right = 2 : i64, top = 3 : i64},
-            kernel_size = [7, 7], kernel_strides = [2, 2],
-            minimumHardwareExecutionCost = 229838 : i64, task_type = "CONV"}
+            cm_sp_pattern = 15 : i64, input_channels_compression, 
+            kernel_padding = #VPU.Padding<left = 3 : i64, right = 2 : i64, top = 3 : i64, bottom = 2 : i64>, 
+            kernel_size = [7, 7], kernel_strides = [2, 2], 
+            minimumHardwareExecutionCost = 229838 : i64, task_type = #VPUIP.nce_task_type<CONV>}
                 input(%in_shape_cast : memref<1x16x224x224xf16, #NHWC, @CMX_NN>)
                 weights(%w_shape_cast : memref<64x16x7x7xf16, #NHWC, @CMX_NN>)
                 weight_table(%weight_table : memref<64x1x1x4xsi32, @CMX_NN>)
@@ -520,13 +520,13 @@ func.func @NCEClusterTilingCompressConv(%input: !in_CMX_tensor, %in_weights: !we
                 parent_output(%out_alloc : memref<1x64x112x112xf16, #NHWC, @CMX_NN>)
                 outputs(%out_alloc : memref<1x64x112x112xf16, #NHWC, @CMX_NN>)
                 -> memref<1x64x112x112xf16, #NHWC, @CMX_NN> variants : {
-        DPUTask {cluster_id = 0 : i64, mpe_mode = "CUBOID_16x16", outEnd = [111, 55, 63], outStart = [0, 0, 0], pad = {bottom = 0 : i64, left = 3 : i64, right = 2 : i64, top = 3 : i64}}
-        DPUTask {cluster_id = 1 : i64, mpe_mode = "CUBOID_16x16", outEnd = [111, 111, 63], outStart = [0, 56, 0], pad = {bottom = 2 : i64, left = 3 : i64, right = 2 : i64, top = 0 : i64}}
+        DPUTask {cluster_id = 0 : i64, mpe_mode = #VPU.mpe_mode<CUBOID_16x16>, outEnd = [111, 55, 63], outStart = [0, 0, 0], pad = #VPU.Padding<left = 3 : i64, right = 2 : i64, top = 3 : i64, bottom = 0 : i64>}
+        DPUTask {cluster_id = 1 : i64, mpe_mode = #VPU.mpe_mode<CUBOID_16x16>, outEnd = [111, 111, 63], outStart = [0, 56, 0], pad = #VPU.Padding<left = 3 : i64, right = 2 : i64, top = 0 : i64, bottom = 2 : i64>}
       } PPE : {
-        PPETask "NOOP" {clamp_high = 255 : i64, clamp_low = 0 : i64, fp_prelu_alpha = 1.000000e+00 : f64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64}
+        PPETask <NOOP> {clamp_high = 255 : i64, clamp_low = 0 : i64, fp_prelu_alpha = 1.000000e+00 : f64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64}
       }
       %28 = builtin.unrealized_conversion_cast %27 : memref<1x64x112x112xf16, #NHWC, @CMX_NN> to tensor<1x64x112x112xf16, {mem_space = @CMX_NN, order = #NHWC}>
-      VPU.Yield %28
+      VPU.Yield %28 
     }
 
     return %clusterTiling : !OTensorDistributed
@@ -545,18 +545,111 @@ func.func @NCEClusterTilingCompressConv(%input: !in_CMX_tensor, %in_weights: !we
 // CHECK-SAME:      [[ARG0]] as [[INNER_ARG2:[^:]+]]: memref<64x1x1x4xsi32, @CMX_NN>) outputs([[ALLOC]] as [[INNER_ARG3:[^:]+]]: memref<1x64x112x112xf16, #NHWC, @CMX_NN>)
 // CHECK-SAME:      -> !VPUIP.DistributedBuffer<1x64x112x112xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}> {
 
-// CHECK:        [[CLUSTER_TASK:%.+]] = VPUIP.NCEClusterTask {cm_sp_pattern = 15 : i64, input_channels_compression,
-// CHECK-SAME:                              kernel_padding = {bottom = 2 : i64, left = 3 : i64, right = 2 : i64, top = 3 : i64},
+// CHECK:        [[CLUSTER_TASK:%.+]] = VPUIP.NCEClusterTask {cm_sp_pattern = 15 : i64, input_channels_compression, 
+// CHECK-SAME:                              kernel_padding = #VPU.Padding<left = 3 : i64, right = 2 : i64, top = 3 : i64, bottom = 2 : i64>, 
 // CHECK-SAME:                              kernel_size = [7, 7], kernel_strides = [2, 2],
-// CHECK-SAME:                              minimumHardwareExecutionCost = 229838 : i64, task_type = "CONV"}
+// CHECK-SAME:                              minimumHardwareExecutionCost = 229838 : i64, task_type = #VPUIP.nce_task_type<CONV>}
 // CHECK-SAME:              input([[INNER_ARG0]] : memref<1x16x224x224xf16, #NHWC, @CMX_NN>)
 // CHECK-SAME:              weights([[INNER_ARG1]] : memref<64x16x7x7xf16, #NHWC, @CMX_NN>)
 // CHECK-SAME:              weight_table([[INNER_ARG2]] : memref<64x1x1x4xsi32, @CMX_NN>)
 // CHECK-SAME:              parent_input([[INNER_ARG0]] : memref<1x16x224x224xf16, #NHWC, @CMX_NN>)
 // CHECK-SAME:              parent_output([[INNER_ARG3]] : memref<1x64x112x112xf16, #NHWC, @CMX_NN>)
 // CHECK-SAME:              outputs([[INNER_ARG3]] : memref<1x64x112x112xf16, #NHWC, @CMX_NN>) -> memref<1x64x112x112xf16, #NHWC, @CMX_NN> variants : {
-// CHECK:          DPUTask {cluster_id = 0 : i64, mpe_mode = "CUBOID_16x16", outEnd = [111, 55, 63], outStart = [0, 0, 0], pad = {bottom = 0 : i64, left = 3 : i64, right = 2 : i64, top = 3 : i64}}
-// CHECK:          DPUTask {cluster_id = 1 : i64, mpe_mode = "CUBOID_16x16", outEnd = [111, 111, 63], outStart = [0, 56, 0], pad = {bottom = 2 : i64, left = 3 : i64, right = 2 : i64, top = 0 : i64}}
+// CHECK:          DPUTask {cluster_id = 0 : i64, mpe_mode = #VPU.mpe_mode<CUBOID_16x16>, outEnd = [111, 55, 63], outStart = [0, 0, 0], pad = #VPU.Padding<left = 3 : i64, right = 2 : i64, top = 3 : i64, bottom = 0 : i64>}
+// CHECK:          DPUTask {cluster_id = 1 : i64, mpe_mode = #VPU.mpe_mode<CUBOID_16x16>, outEnd = [111, 111, 63], outStart = [0, 56, 0], pad = #VPU.Padding<left = 3 : i64, right = 2 : i64, top = 0 : i64, bottom = 2 : i64>}
 // CHECK:   [[OUT:%.+]] = builtin.unrealized_conversion_cast [[CLUSTER_TILING]] : !VPUIP.DistributedBuffer<1x64x112x112xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>
 // CHECK-SAME:      to !VPU.DistributedTensor<1x64x112x112xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>
 // CHECK:  return [[OUT]] : !VPU.DistributedTensor<1x64x112x112xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+#NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+
+!OTensorDistributed = !VPU.DistributedTensor<
+    1x32x56x56xf16, #NHWC, @CMX_NN, {
+    mode = "SEGMENTED", 
+    num_tiles = [1, 1, 2, 1], 
+    num_clusters = 2 : i64
+}>
+
+!IOTensor = tensor<1x32x56x56xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!IOSMTensor = tensor<1x32x56x56xi1, {mem_space = @CMX_NN, order = #NHWC}>
+
+!IOBuffer = memref<1x32x56x56xf16, #NHWC, @CMX_NN>
+!IOSMBuffer = memref<1x32x56x56xi1, #NHWC, @CMX_NN>
+
+// CHECK-LABEL: @NCEClusterTilingEltwiseDuplicatedInput
+func.func @NCEClusterTilingEltwiseDuplicatedInput(%input: !VPU.SparseTensor<data=!IOTensor, sparsity_map=!IOSMTensor>) -> !OTensorDistributed{   
+    
+    %clusterTiling = VPU.NCE.ClusterTiling (
+            %input as %arg2: !VPU.SparseTensor<data=!IOTensor, sparsity_map=!IOSMTensor>,
+            %input as %arg3: !VPU.SparseTensor<data=!IOTensor, sparsity_map=!IOSMTensor>)
+            -> !OTensorDistributed {
+      %737 = builtin.unrealized_conversion_cast 
+            %arg3 : !VPU.SparseTensor<data=!IOTensor,
+            sparsity_map=!IOSMTensor>
+            to !VPUIP.SparseBuffer<data=!IOBuffer, sparsity_map=!IOSMBuffer>
+
+      %738 = memref.alloc() : !IOBuffer
+      %data, %sparsityMap = VPUIP.UngroupSparseBuffer(%737) {
+            result_segment_sizes = dense<[1, 1, 0]> : vector<3xi32>} -> !IOBuffer, !IOSMBuffer
+      %data_119, %sparsityMap_120 = VPUIP.UngroupSparseBuffer(%737) {
+            result_segment_sizes = dense<[1, 1, 0]> : vector<3xi32>} -> !IOBuffer, !IOSMBuffer
+      %739 = VPUIP.NCEClusterTask {
+            activation_window_channel_length = 0 : i64, minimumHardwareExecutionCost = 4434 : i64,
+            task_type = #VPUIP.nce_task_type<ELTWISE>}
+        input(%data : !IOBuffer)
+        input_sparsity_map(%sparsityMap : !IOSMBuffer)
+        weights(%data_119 : !IOBuffer)
+        weights_sparsity_map(%sparsityMap_120 : !IOSMBuffer)
+        parent_input(%data : !IOBuffer)
+        parent_input_sparsity_map(%sparsityMap : !IOSMBuffer)
+        parent_output(%738 : !IOBuffer) 
+        outputs(%738 : !IOBuffer)
+        -> !IOBuffer variants : {
+            DPUTask {cluster_id = 0 : i64, mpe_mode = #VPU.mpe_mode<CUBOID_8x16>, outEnd = [55, 27, 31], outStart = [0, 0, 0], pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>}
+            DPUTask {cluster_id = 1 : i64, mpe_mode = #VPU.mpe_mode<CUBOID_8x16>, outEnd = [55, 55, 31], outStart = [0, 28, 0], pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>}
+        } PPE : {
+            PPETask <ADD> {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, quant_scale = [5.000000e-01]}
+        }
+      %740 = builtin.unrealized_conversion_cast %739 : !IOBuffer to !IOTensor
+      VPU.Yield %740 
+    }
+
+    return %clusterTiling : !OTensorDistributed
+}
+
+// CHECK:  [[OUT_BUFFER:%.+]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<1x32x56x56xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>
+
+// CHECK:  [[BUFFER_DATA_0:%.+]] = builtin.unrealized_conversion_cast %arg0 :
+// CHECK-SAME:      !VPU.SparseTensor<data=tensor<1x32x56x56xf16, {mem_space = @CMX_NN, order = #NHWC}>, sparsity_map=tensor<1x32x56x56xi1, {mem_space = @CMX_NN, order = #NHWC}>>
+// CHECK-SAME:      to !VPUIP.SparseBuffer<data=memref<1x32x56x56xf16, #NHWC, @CMX_NN>, sparsity_map=memref<1x32x56x56xi1, #NHWC, @CMX_NN>>
+// CHECK:  [[DATA_0:%.*]], [[SM_0:%.*]] = VPUIP.UngroupSparseBuffer([[BUFFER_DATA_0]]) {result_segment_sizes = dense<[1, 1, 0]> : vector<3xi32>} -> memref<1x32x56x56xf16, #NHWC, @CMX_NN>, memref<1x32x56x56xi1, #NHWC, @CMX_NN>
+
+// CHECK:  [[BUFFER_DATA_1:%.+]] = builtin.unrealized_conversion_cast %arg0 :
+// CHECK-SAME:      !VPU.SparseTensor<data=tensor<1x32x56x56xf16, {mem_space = @CMX_NN, order = #NHWC}>, sparsity_map=tensor<1x32x56x56xi1, {mem_space = @CMX_NN, order = #NHWC}>>
+// CHECK-SAME:      to !VPUIP.SparseBuffer<data=memref<1x32x56x56xf16, #NHWC, @CMX_NN>, sparsity_map=memref<1x32x56x56xi1, #NHWC, @CMX_NN>>
+// CHECK:  [[DATA_1:%.*]], [[SM_1:%.*]] = VPUIP.UngroupSparseBuffer([[BUFFER_DATA_1]]) {result_segment_sizes = dense<[1, 1, 0]> : vector<3xi32>} -> memref<1x32x56x56xf16, #NHWC, @CMX_NN>, memref<1x32x56x56xi1, #NHWC, @CMX_NN>
+
+// CHECK:  [[CLUSTER_TILING:%.+]] = VPUIP.NCEClusterTiling
+// CHECK-SAME:      inputs([[DATA_1]] as [[INNER_ARG1:[^:]+]]: memref<1x32x56x56xf16, #NHWC, @CMX_NN>, [[SM_1]] as [[INNER_ARG2:[^:]+]]: memref<1x32x56x56xi1, #NHWC, @CMX_NN>,
+// CHECK-SAME:      [[DATA_0]] as [[INNER_ARG3:[^:]+]]: memref<1x32x56x56xf16, #NHWC, @CMX_NN>, [[SM_0]] as [[INNER_ARG4:[^:]+]]: memref<1x32x56x56xi1, #NHWC, @CMX_NN>)
+// CHECK-SAME:      outputs([[OUT_BUFFER]] as [[INNER_ARG5:[^:]+]]: memref<1x32x56x56xf16, #NHWC, @CMX_NN>)
+// CHECK-SAME:      -> !VPUIP.DistributedBuffer<1x32x56x56xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}> {
+
+// CHECK:        %5 = VPUIP.NCEClusterTask {activation_window_channel_length = 0 : i64, minimumHardwareExecutionCost = 4434 : i64, task_type = #VPUIP.nce_task_type<ELTWISE>}
+// CHECK-SAME:          input([[INNER_ARG1]] : memref<1x32x56x56xf16, #NHWC, @CMX_NN>) input_sparsity_map([[INNER_ARG2]] : memref<1x32x56x56xi1, #NHWC, @CMX_NN>)
+// CHECK-SAME:          weights([[INNER_ARG1]] : memref<1x32x56x56xf16, #NHWC, @CMX_NN>) weights_sparsity_map([[INNER_ARG2]] : memref<1x32x56x56xi1, #NHWC, @CMX_NN>)
+// CHECK-SAME:          parent_input([[INNER_ARG1]] : memref<1x32x56x56xf16, #NHWC, @CMX_NN>)
+// CHECK-SAME:          parent_input_sparsity_map([[INNER_ARG2]] : memref<1x32x56x56xi1, #NHWC, @CMX_NN>)
+// CHECK-SAME:          parent_output([[INNER_ARG5]] : memref<1x32x56x56xf16, #NHWC, @CMX_NN>)
+// CHECK-SAME:          outputs([[INNER_ARG5]] : memref<1x32x56x56xf16, #NHWC, @CMX_NN>)
+// CHECK-SAME:          -> memref<1x32x56x56xf16, #NHWC, @CMX_NN> variants : {
+// CHECK:          DPUTask {cluster_id = 0 : i64, mpe_mode = #VPU.mpe_mode<CUBOID_8x16>, outEnd = [55, 27, 31], outStart = [0, 0, 0], pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>}
+// CHECK:          DPUTask {cluster_id = 1 : i64, mpe_mode = #VPU.mpe_mode<CUBOID_8x16>, outEnd = [55, 55, 31], outStart = [0, 28, 0], pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>}
+// CHECK:          PPETask <ADD> {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, quant_scale = [5.000000e-01]}
+
+// CHECK:      [[OUTPUT:%.+]] = builtin.unrealized_conversion_cast [[CLUSTER_TILING]] : !VPUIP.DistributedBuffer<1x32x56x56xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>
+// CHECK-SAME:      to !VPU.DistributedTensor<1x32x56x56xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>
+// CHECK:      return [[OUTPUT]] : !VPU.DistributedTensor<1x32x56x56xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>

@@ -1,17 +1,17 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include <vector>
 
 #include <common/functions.h>
-#include "kmb_layer_test.hpp"
 #include "single_layer_tests/roi_pooling.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
-class VPUXROIPoolingLayerTest : public ROIPoolingLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXROIPoolingLayerTest : public ROIPoolingLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void GenerateInputs() override {
         ngraph::helpers::ROIPoolingTypes poolMethod;
         float spatialScale = 0.f;
@@ -44,16 +44,15 @@ class VPUXROIPoolingLayerTest : public ROIPoolingLayerTest, virtual public Layer
             it++;
         }
     }
-    void SkipBeforeLoad() override {
-    }
+};
+class VPUXROIPoolingLayerTest_VPU3700 : public VPUXROIPoolingLayerTest {
     void SkipBeforeInfer() override {
-        // [Track number: E#20262]
+        // Tracking number [E#85137]
         if (getBackendName(*getCore()) == "LEVEL0") {
-            throw LayerTestsUtils::KmbSkipTestException("Bad results on Level0");
+            throw LayerTestsUtils::VpuSkipTestException("Bad results on Level0");
         }
     }
 };
-class VPUXROIPoolingLayerTest_VPU3700 : public VPUXROIPoolingLayerTest {};
 class VPUXROIPoolingLayerTest_VPU3720 : public VPUXROIPoolingLayerTest {};
 
 TEST_P(VPUXROIPoolingLayerTest_VPU3700, HW) {
@@ -87,18 +86,20 @@ const std::vector<float> spatial_scales = {0.625f, 1.f};
 const auto test_ROIPooling_max = ::testing::Combine(
         ::testing::ValuesIn(inShapes), ::testing::ValuesIn(coordShapes), ::testing::ValuesIn(pooledShapes_max),
         ::testing::ValuesIn(spatial_scales), ::testing::Values(ngraph::helpers::ROIPoolingTypes::ROI_MAX),
-        ::testing::ValuesIn(netPRCs), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        ::testing::ValuesIn(netPRCs), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 const auto test_ROIPooling_bilinear = ::testing::Combine(
         ::testing::ValuesIn(inShapes), ::testing::ValuesIn(coordShapes), ::testing::ValuesIn(pooledShapes_bilinear),
         ::testing::Values(spatial_scales[1]), ::testing::Values(ngraph::helpers::ROIPoolingTypes::ROI_BILINEAR),
-        ::testing::ValuesIn(netPRCs), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        ::testing::ValuesIn(netPRCs), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
+// --------- VPU3700 ---------
 INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_TestsROIPooling_max, VPUXROIPoolingLayerTest_VPU3700, test_ROIPooling_max,
                          VPUXROIPoolingLayerTest_VPU3700::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_TestsROIPooling_bilinear, VPUXROIPoolingLayerTest_VPU3700, test_ROIPooling_bilinear,
                          VPUXROIPoolingLayerTest_VPU3700::getTestCaseName);
 
+// --------- VPU3720 ---------
 INSTANTIATE_TEST_SUITE_P(smoke_TestsROIPooling_max, VPUXROIPoolingLayerTest_VPU3720, test_ROIPooling_max,
                          VPUXROIPoolingLayerTest_VPU3720::getTestCaseName);
 

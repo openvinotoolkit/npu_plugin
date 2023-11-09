@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "allocators.hpp"
 
 #include "vpux/utils/core/helper_macros.hpp"

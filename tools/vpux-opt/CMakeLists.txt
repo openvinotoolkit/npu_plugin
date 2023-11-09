@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache 2.0
 #
 
-#
-
 set(TARGET_NAME "vpux-opt")
 
 add_tool_target(
@@ -13,5 +11,5 @@ add_tool_target(
     ADD_CLANG_FORMAT
     ENABLE_WARNINGS_AS_ERRORS
     LINK_LIBRARIES
-         vpux_mlir_compiler_static
+         npu_mlir_compiler_static
 )

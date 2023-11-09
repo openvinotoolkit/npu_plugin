@@ -34,7 +34,7 @@ public:
                              size_t cycleBegin = 0UL, size_t cycleEnd = 0UL, EOpType op_type = EOpType::ORIGINAL_OP,
                              mlir::Value spillBuffer = nullptr)
                 : op_(op),
-                  executorInstanceMask_(executorInstanceMask),
+                  executorInstanceMask_(std::move(executorInstanceMask)),
                   cycleBegin_(cycleBegin),
                   cycleEnd_(cycleEnd),
                   opType_(op_type),
@@ -365,7 +365,7 @@ public:
                            bool activationSpill = false)
                 : computeOpIdx(computeOpIdx),
                   computeOpLevel(computeOpLevel),
-                  dataOps(dataOps),
+                  dataOps(std::move(dataOps)),
                   activationSpill(activationSpill) {
         }
 
@@ -392,7 +392,7 @@ public:
                             int64_t dmaCount, bool enableScheduleStatistics);
 
 public:
-    ScheduledOpInfoVec generateSchedule(scheduleWithPrefetch prefetchSchedule = {});
+    ScheduledOpInfoVec generateSchedule(const scheduleWithPrefetch& prefetchSchedule = {});
 
 private:
     bool init();
@@ -450,7 +450,7 @@ private:
     void evictActiveOp(EvictionCandidate evictionCandidate);
     size_t evictionPriority(operationIdxType writerOpIdx, mlir::Value buffer);
     VPUIP::LayerOpInterface retrieveBufferWriter(mlir::Value buffer);
-    EvictionCandidate chooseCandidateForEviction(mlir::DenseSet<mlir::Value> aliveBuffers);
+    EvictionCandidate chooseCandidateForEviction(const mlir::DenseSet<mlir::Value>& aliveBuffers);
     void forceScheduleActiveOpEviction();
     size_t getOpBufferOutputIdx(operationIdxType opIdx, mlir::Value buffer);
     void cleanUpAndLogSchedule();
@@ -514,7 +514,8 @@ private:
     // TODO: Currently scheduler supports only multiple DMA executors (ports)
     llvm::DenseMap<VPU::ExecutorKind, SmallVector<size_t>> _executorPipelines = {
             {VPU::ExecutorKind::DMA_NN, {1}}, {VPU::ExecutorKind::DPU, {1}},      {VPU::ExecutorKind::SHAVE_UPA, {1}},
-            {VPU::ExecutorKind::NCE, {1}},    {VPU::ExecutorKind::SHAVE_NN, {1}}, {VPU::ExecutorKind::SHAVE_ACT, {1}}};
+            {VPU::ExecutorKind::NCE, {1}},    {VPU::ExecutorKind::SHAVE_NN, {1}}, {VPU::ExecutorKind::SHAVE_ACT, {1}},
+    };
     // spilled operation cycle cost
     mlir::DenseMap<mlir::Value, size_t> _spillBufferCycleCost;
 

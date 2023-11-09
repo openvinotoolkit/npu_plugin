@@ -33,5 +33,5 @@ struct BarrierResource final : public mlir::SideEffects::Resource::Base<BarrierR
 //
 
 #define GET_TYPEDEF_CLASSES
-#include <vpux/compiler/dialect/VPURT/generated/types.hpp.inc>
+#include <vpux/compiler/dialect/VPURT/types.hpp.inc>
 #undef GET_TYPEDEF_CLASSES

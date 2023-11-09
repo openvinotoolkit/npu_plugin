@@ -17,7 +17,7 @@ std::pair<uint8_t, uint32_t> getMaxVID(mlir::Operation::operand_range range) {
             auto waitBarVID = waitBar.getType().getValue();
             if (waitBarVID > maxBarrierVID) {
                 maxBarrierVID = waitBarVID;
-                maxBarrierVidPid = waitBar.id();
+                maxBarrierVidPid = waitBar.getId();
             }
         }
     }
@@ -28,7 +28,7 @@ std::pair<uint8_t, uint32_t> getMaxVID(mlir::Operation::operand_range range) {
 uint64_t computeMask(mlir::Operation::operand_range barriers) {
     uint64_t mask = 0;
     for (auto barrier : barriers) {
-        mask |= static_cast<uint64_t>(1) << mlir::cast<VPUMI37XX::ConfigureBarrierOp>(barrier.getDefiningOp()).id();
+        mask |= static_cast<uint64_t>(1) << mlir::cast<VPUMI37XX::ConfigureBarrierOp>(barrier.getDefiningOp()).getId();
     }
     return mask;
 }

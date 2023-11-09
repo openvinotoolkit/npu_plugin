@@ -16,18 +16,18 @@ mlir::Value getTargetSectionOfRelocOp(mlir::Operation* op) {
     auto relocSectionOp = mlir::dyn_cast<ELF::CreateRelocationSectionOp>(parentOp);
     VPUX_THROW_UNLESS(relocSectionOp, "Parent Op of RelocOp must be an ELF::CreateRelocationSectionOp");
 
-    return relocSectionOp.targetSection();
+    return relocSectionOp.getTargetSection();
 }
 }  // namespace
 
 void vpux::ELF::RelocOp::serialize(elf::writer::Relocation* relocation, vpux::ELF::SymbolMapType& symbolMap) {
-    auto baseOpVal = baseOp();
-    auto symbolOp = sourceSymbol().getDefiningOp();
+    auto baseOpVal = getBaseOp();
+    auto symbolOp = getSourceSymbol().getDefiningOp();
     auto actualSymbolOp = llvm::cast<vpux::ELF::SymbolOp>(symbolOp);
     auto targetSection = getTargetSectionOfRelocOp(getOperation());
 
-    if (actualSymbolOp.isBuiltin()) {
-        auto symInputValue = actualSymbolOp.inputArg();
+    if (actualSymbolOp.getIsBuiltin()) {
+        auto symInputValue = actualSymbolOp.getInputArg();
         auto const_val = llvm::cast<mlir::arith::ConstantOp>(symInputValue.getDefiningOp());
         auto symValue = const_val.getValue().cast<mlir::IntegerAttr>().getInt();
 
@@ -40,8 +40,8 @@ void vpux::ELF::RelocOp::serialize(elf::writer::Relocation* relocation, vpux::EL
     }
 
     mlir::Operation* baseOperation = baseOpVal.getDefiningOp();
-    auto relocType = relocationType();
-    auto relocAddend = addend();
+    auto relocType = getRelocationType();
+    auto relocAddend = getAddend();
 
     auto totalOffset = ELF::getOffsetOfOpInSection(baseOpVal, targetSection);
 
@@ -49,7 +49,7 @@ void vpux::ELF::RelocOp::serialize(elf::writer::Relocation* relocation, vpux::EL
     VPUX_THROW_UNLESS(
             getOffsetOfOpIf,
             "Value given as offsetOf parameter does not represent an Op that implements getOffsetOfOpInterface");
-    auto computedOffsetOf = getOffsetOfOpIf.getOffsetOfWithinOperation(offsetOf());
+    auto computedOffsetOf = getOffsetOfOpIf.getOffsetOfWithinOperation(getOffsetOf());
 
     totalOffset += computedOffsetOf.value_or(0);
 
@@ -59,11 +59,11 @@ void vpux::ELF::RelocOp::serialize(elf::writer::Relocation* relocation, vpux::EL
 }
 
 void vpux::ELF::RelocImmOffsetOp::serialize(elf::writer::Relocation* relocation, vpux::ELF::SymbolMapType& symbolMap) {
-    auto symbolOp = sourceSymbol().getDefiningOp();
+    auto symbolOp = getSourceSymbol().getDefiningOp();
     auto actualSymbolOp = llvm::cast<vpux::ELF::SymbolOp>(symbolOp);
 
-    if (actualSymbolOp.isBuiltin()) {
-        auto symInputValue = actualSymbolOp.inputArg();
+    if (actualSymbolOp.getIsBuiltin()) {
+        auto symInputValue = actualSymbolOp.getInputArg();
         auto const_val = llvm::cast<mlir::arith::ConstantOp>(symInputValue.getDefiningOp());
         auto symValue = const_val.getValue().cast<mlir::IntegerAttr>().getInt();
 
@@ -75,10 +75,10 @@ void vpux::ELF::RelocImmOffsetOp::serialize(elf::writer::Relocation* relocation,
         relocation->setSymbol(symbolEntry);
     }
 
-    auto baseOpVal = baseOp();
-    auto relocType = relocationType();
-    auto relocAddend = addend();
-    auto relocOffset = offset();
+    auto baseOpVal = getBaseOp();
+    auto relocType = getRelocationType();
+    auto relocAddend = getAddend();
+    auto relocOffset = getOffset();
 
     if (baseOpVal) {
         auto targetSection = getTargetSectionOfRelocOp(getOperation());

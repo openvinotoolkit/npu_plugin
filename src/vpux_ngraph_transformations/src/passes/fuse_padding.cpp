@@ -18,9 +18,9 @@ namespace pass {
 
 FusePadding::FusePadding() {
     auto input = ngraph::pattern::any_input();
-    auto pad_value = ngraph::pattern::wrap_type<ngraph::op::Constant>();
-    auto pad_begin = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::i64, ngraph::Shape{4});
-    auto pad_end = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::i64, ngraph::Shape{4});
+    const auto& pad_value = ngraph::pattern::wrap_type<ngraph::op::Constant>();
+    const auto& pad_begin = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::i64, ngraph::Shape{4});
+    const auto& pad_end = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::i64, ngraph::Shape{4});
 
     const ngraph::Strides strides = {1, 1, 1, 1};
     const ngraph::CoordinateDiff pad_diff = {0, 0, 0, 0};

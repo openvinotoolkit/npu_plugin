@@ -54,7 +54,6 @@ mlir::LogicalResult TimestampRewrite::matchAndRewrite(VPUIP::TimestampOp origOp,
 
     switch (_arch) {
     case VPU::ArchKind::VPUX30XX:
-    case VPU::ArchKind::VPUX311X:
         hwAddress = VPUIP::HW_TIMER_ABSOLUTE_ADDR_30XX;
         VPUX_THROW_UNLESS(origType.getElementType() == getUInt32Type(getContext()),
                           "Got wrong element type for TimestampOp");
@@ -71,7 +70,7 @@ mlir::LogicalResult TimestampRewrite::matchAndRewrite(VPUIP::TimestampOp origOp,
     auto bufferOp = rewriter.create<VPURT::DeclareBufferOp>(origOp->getLoc(), timerType, VPURT::BufferSection::Register,
                                                             hwAddress);
 
-    rewriter.replaceOpWithNewOp<VPUIP::NNDMAOp>(origOp, bufferOp.buffer(), origOp.output_buff(), dmaPort);
+    rewriter.replaceOpWithNewOp<VPUIP::NNDMAOp>(origOp, bufferOp.getBuffer(), origOp.output_buff(), dmaPort);
 
     _log.trace("Replaced with 'VPURT::DeclareBufferOp'");
 

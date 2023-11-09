@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
@@ -44,7 +42,7 @@ mlir::LogicalResult FoldReLUBeforeFQ::matchAndRewrite(IE::ReLUOp reluOp, mlir::P
             return mlir::failure();
         }
 
-        auto inputLowContent = inputLowConst.content();
+        auto inputLowContent = inputLowConst.getContent();
         auto inputLowValues = inputLowContent.getValues<float>();
 
         auto hasNegativeInputLowVals = std::any_of(inputLowValues.begin(), inputLowValues.end(), [](float val) {

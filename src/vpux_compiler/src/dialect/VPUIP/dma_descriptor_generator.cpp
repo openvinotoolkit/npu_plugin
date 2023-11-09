@@ -13,7 +13,7 @@ vpux::VPUIP::PermuteDmaDescriptorGenerator::PermuteDmaDescriptorGenerator(mlir::
         : _ctx(ctx), _mergedMemPerm(mergedMemPerm), _log(log) {
 }
 
-VPUIP::DmaDescriptorAttr vpux::VPUIP::PermuteDmaDescriptorGenerator::generate(ShapeRef mergedInputShape,
+VPUIP::DMADescriptorAttr vpux::VPUIP::PermuteDmaDescriptorGenerator::generate(ShapeRef mergedInputShape,
                                                                               ShapeRef mergedOutputShape,
                                                                               Byte elemTypeSize) const {
     VPUX_THROW_UNLESS(_mergedMemPerm.getNumResults() == 2 || _mergedMemPerm.getNumResults() == 3,
@@ -29,14 +29,14 @@ VPUIP::DmaDescriptorAttr vpux::VPUIP::PermuteDmaDescriptorGenerator::generate(Sh
     }
 }
 
-SmallVector<VPUIP::DmaDescriptorAttr> vpux::VPUIP::PermuteDmaDescriptorGenerator::generate(
+SmallVector<VPUIP::DMADescriptorAttr> vpux::VPUIP::PermuteDmaDescriptorGenerator::generate(
         ShapeRef mergedInputShape, ShapeRef mergedOutputShape, ArrayRef<Shape> mergedSubOutputShapes, Dim tileDim,
         Byte elemTypeSize) const {
     VPUX_THROW_UNLESS(_mergedMemPerm.getNumResults() == 2, "Invalid merged mem perm {0}", _mergedMemPerm);
     return generateWithTwoAxis(mergedInputShape, mergedOutputShape, mergedSubOutputShapes, tileDim, elemTypeSize);
 }
 
-VPUIP::DmaDescriptorAttr vpux::VPUIP::PermuteDmaDescriptorGenerator::generateWithTwoAxis(ShapeRef mergedInputShape,
+VPUIP::DMADescriptorAttr vpux::VPUIP::PermuteDmaDescriptorGenerator::generateWithTwoAxis(ShapeRef mergedInputShape,
                                                                                          ShapeRef mergedOutputShape,
                                                                                          Byte elemSize) const {
     // Permute pattern [x y] #NC -> [y z] #NC, note that expand op may be fused into permute op, so x may not equal
@@ -59,11 +59,11 @@ VPUIP::DmaDescriptorAttr vpux::VPUIP::PermuteDmaDescriptorGenerator::generateWit
     auto dstWidth = vpux::getIntAttr(_ctx, elemTypeSize);
     auto dstStride = vpux::getIntAttr(_ctx, OC * elemTypeSize);
     auto dstPlaneStride = vpux::getIntAttr(_ctx, elemTypeSize);
-    return VPUIP::DmaDescriptorAttr::get(numPlane, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
-                                         dstPlaneStride, _ctx);
+    return VPUIP::DMADescriptorAttr::get(_ctx, numPlane, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
+                                         dstPlaneStride);
 }
 
-SmallVector<VPUIP::DmaDescriptorAttr> vpux::VPUIP::PermuteDmaDescriptorGenerator::generateWithTwoAxis(
+SmallVector<VPUIP::DMADescriptorAttr> vpux::VPUIP::PermuteDmaDescriptorGenerator::generateWithTwoAxis(
         ShapeRef mergedInputShape, ShapeRef mergedOutputShape, ArrayRef<Shape> mergedSubOutputShapes, Dim tileDim,
         Byte elemSize) const {
     VPUX_THROW_UNLESS(_mergedMemPerm.getNumResults() == 2, "Unexpected merged mem perm {0} ", _mergedMemPerm);
@@ -79,7 +79,7 @@ SmallVector<VPUIP::DmaDescriptorAttr> vpux::VPUIP::PermuteDmaDescriptorGenerator
     auto IC = mergedInputShape.back();
 
     auto OC = mergedOutputShape.back();
-    SmallVector<VPUIP::DmaDescriptorAttr> dmaDescriptorAttrs;
+    SmallVector<VPUIP::DMADescriptorAttr> dmaDescriptorAttrs;
 
     int64_t usedNumPlaneCount = 0;
     for (auto& mergedSubOutputShape : mergedSubOutputShapes) {
@@ -99,22 +99,22 @@ SmallVector<VPUIP::DmaDescriptorAttr> vpux::VPUIP::PermuteDmaDescriptorGenerator
             auto len = vpux::getIntAttr(_ctx, subON * elemTypeSize);
             auto srcWidth = vpux::getIntAttr(_ctx, subON * elemTypeSize);
             auto dstStride = vpux::getIntAttr(_ctx, OC * elemTypeSize);
-            dmaDescriptorAttrs.push_back(VPUIP::DmaDescriptorAttr::get(
-                    numPlane, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride, dstPlaneStride, _ctx));
+            dmaDescriptorAttrs.push_back(VPUIP::DMADescriptorAttr::get(
+                    _ctx, numPlane, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride, dstPlaneStride));
         } else {
             auto numPlane = vpux::getIntAttr(_ctx, std::min(IN - usedNumPlaneCount, subOC));
             auto len = vpux::getIntAttr(_ctx, IC * elemTypeSize);
             auto srcWidth = vpux::getIntAttr(_ctx, IC * elemTypeSize);
             auto dstStride = vpux::getIntAttr(_ctx, subOC * elemTypeSize);
-            dmaDescriptorAttrs.push_back(VPUIP::DmaDescriptorAttr::get(
-                    numPlane, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride, dstPlaneStride, _ctx));
+            dmaDescriptorAttrs.push_back(VPUIP::DMADescriptorAttr::get(
+                    _ctx, numPlane, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride, dstPlaneStride));
             usedNumPlaneCount += numPlane.getInt();
         }
     }
     return dmaDescriptorAttrs;
 }
 
-VPUIP::DmaDescriptorAttr vpux::VPUIP::PermuteDmaDescriptorGenerator::generateWithSwapFront(ShapeRef mergedInputShape,
+VPUIP::DMADescriptorAttr vpux::VPUIP::PermuteDmaDescriptorGenerator::generateWithSwapFront(ShapeRef mergedInputShape,
                                                                                            Byte elemSize) const {
     VPUX_THROW_UNLESS(mergedInputShape.size() == 3, "The size of merged input shape {0} is not equal to 3",
                       mergedInputShape.size());
@@ -133,11 +133,11 @@ VPUIP::DmaDescriptorAttr vpux::VPUIP::PermuteDmaDescriptorGenerator::generateWit
     auto dstWidth = vpux::getIntAttr(_ctx, C * elemTypeSize);
     auto dstStride = vpux::getIntAttr(_ctx, H * C * elemTypeSize);
     auto dstPlaneStride = vpux::getIntAttr(_ctx, C * elemTypeSize);
-    return VPUIP::DmaDescriptorAttr::get(numPlane, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
-                                         dstPlaneStride, _ctx);
+    return VPUIP::DMADescriptorAttr::get(_ctx, numPlane, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
+                                         dstPlaneStride);
 }
 
-VPUIP::DmaDescriptorAttr vpux::VPUIP::PermuteDmaDescriptorGenerator::generateWithSwapBack(ShapeRef mergedInputShape,
+VPUIP::DMADescriptorAttr vpux::VPUIP::PermuteDmaDescriptorGenerator::generateWithSwapBack(ShapeRef mergedInputShape,
                                                                                           Byte elemSize) const {
     // Permute pattern #HWC ->  #HCW
     VPUX_THROW_UNLESS(mergedInputShape.size() == 3, "The size of merged input shape {0} is not equal to 2",
@@ -156,8 +156,8 @@ VPUIP::DmaDescriptorAttr vpux::VPUIP::PermuteDmaDescriptorGenerator::generateWit
     auto dstWidth = vpux::getIntAttr(_ctx, elemTypeSize);
     auto dstStride = vpux::getIntAttr(_ctx, W * elemTypeSize);
     auto dstPlaneStride = vpux::getIntAttr(_ctx, elemTypeSize);
-    return VPUIP::DmaDescriptorAttr::get(numPlane, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
-                                         dstPlaneStride, _ctx);
+    return VPUIP::DMADescriptorAttr::get(_ctx, numPlane, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
+                                         dstPlaneStride);
 }
 
 vpux::VPUIP::DepthToSpaceDmaDescriptorGenerator::DepthToSpaceDmaDescriptorGenerator(mlir::MLIRContext* ctx,
@@ -165,18 +165,16 @@ vpux::VPUIP::DepthToSpaceDmaDescriptorGenerator::DepthToSpaceDmaDescriptorGenera
         : _ctx(ctx), _log(log) {
 }
 
-VPUIP::DmaDescriptorAttr vpux::VPUIP::DepthToSpaceDmaDescriptorGenerator::generate(
-        vpux::NDTypeInterface inType, vpux::NDTypeInterface outType, vpux::IE::DepthToSpaceMode mode, int64_t blockSize,
-        mlir::IntegerAttr paddedIC, mlir::IntegerAttr paddedOC) const {
+VPUIP::DMADescriptorAttr vpux::VPUIP::DepthToSpaceDmaDescriptorGenerator::generate(
+        vpux::NDTypeInterface inType, vpux::NDTypeInterface outType, ShapeRef inShape, ShapeRef outShape,
+        vpux::IE::DepthToSpaceMode mode, int64_t blockSize, mlir::IntegerAttr paddedIC,
+        mlir::IntegerAttr paddedOC) const {
     const auto inOrder = inType.getDimsOrder();
     const auto outOrder = outType.getDimsOrder();
-    auto isLegalType = (inOrder == DimsOrder::NHWC && outOrder == DimsOrder::NHWC) ||
-                       (inOrder == DimsOrder::NCHW && outOrder == DimsOrder::NCHW);
+    auto isLegalType = (inOrder == DimsOrder::NHWC && outOrder == DimsOrder::NHWC);
     VPUX_THROW_UNLESS(isLegalType, "Unsupported layout: input={0} and output={1}.", inOrder, outOrder);
 
     const auto elemTypeByteSize = Byte(inType.getElemTypeSize()).count();
-    const auto inShape = inType.getShape();
-    const auto outShape = outType.getShape();
 
     const auto inputH = inShape[Dims4D::Act::H];
     const auto inputW = inShape[Dims4D::Act::W];
@@ -224,8 +222,8 @@ VPUIP::DmaDescriptorAttr vpux::VPUIP::DepthToSpaceDmaDescriptorGenerator::genera
         VPUX_THROW("Unsupported order {0} and mode {1} for DepthToSpaceDMA op", inOrder, mode);
     }
 
-    return VPUIP::DmaDescriptorAttr::get(numPlanes, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
-                                         dstPlaneStride, _ctx);
+    return VPUIP::DMADescriptorAttr::get(_ctx, numPlanes, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
+                                         dstPlaneStride);
 }
 
 vpux::VPUIP::SpaceToDepthDmaDescriptorGenerator::SpaceToDepthDmaDescriptorGenerator(mlir::MLIRContext* ctx,
@@ -233,7 +231,7 @@ vpux::VPUIP::SpaceToDepthDmaDescriptorGenerator::SpaceToDepthDmaDescriptorGenera
         : _ctx(ctx), _log(log) {
 }
 
-VPUIP::DmaDescriptorAttr vpux::VPUIP::SpaceToDepthDmaDescriptorGenerator::generate(vpux::NDTypeInterface inType,
+VPUIP::DMADescriptorAttr vpux::VPUIP::SpaceToDepthDmaDescriptorGenerator::generate(vpux::NDTypeInterface inType,
                                                                                    vpux::NDTypeInterface outType,
                                                                                    vpux::IE::SpaceToDepthMode mode,
                                                                                    int64_t blockSize) const {
@@ -277,7 +275,7 @@ VPUIP::DmaDescriptorAttr vpux::VPUIP::SpaceToDepthDmaDescriptorGenerator::genera
     return nullptr;
 }
 
-VPUIP::DmaDescriptorAttr vpux::VPUIP::SpaceToDepthDmaDescriptorGenerator::generateBlocksFirstNCHW2NCHW(
+VPUIP::DMADescriptorAttr vpux::VPUIP::SpaceToDepthDmaDescriptorGenerator::generateBlocksFirstNCHW2NCHW(
         vpux::ShapeRef inShape, vpux::ShapeRef outShape, int64_t elemTypeSize, int64_t blockSize) const {
     const auto IW = inShape[Dims4D::Act::W];
     const auto IC = inShape[Dims4D::Act::C];
@@ -294,11 +292,11 @@ VPUIP::DmaDescriptorAttr vpux::VPUIP::SpaceToDepthDmaDescriptorGenerator::genera
     auto dstPlaneStride = vpux::getIntAttr(_ctx, OH * OW * IC * elemTypeSize);
     auto numPlanes = vpux::getIntAttr(_ctx, blockSize);
 
-    return VPUIP::DmaDescriptorAttr::get(numPlanes, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
-                                         dstPlaneStride, _ctx);
+    return VPUIP::DMADescriptorAttr::get(_ctx, numPlanes, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
+                                         dstPlaneStride);
 }
 
-VPUIP::DmaDescriptorAttr vpux::VPUIP::SpaceToDepthDmaDescriptorGenerator::generateBlocksFirstNHWC2NHWC(
+VPUIP::DMADescriptorAttr vpux::VPUIP::SpaceToDepthDmaDescriptorGenerator::generateBlocksFirstNHWC2NHWC(
         vpux::ShapeRef inShape, vpux::ShapeRef outShape, int64_t elemTypeSize, int64_t blockSize) const {
     const auto IW = inShape[Dims4D::Act::W];
     const auto IC = inShape[Dims4D::Act::C];
@@ -314,11 +312,11 @@ VPUIP::DmaDescriptorAttr vpux::VPUIP::SpaceToDepthDmaDescriptorGenerator::genera
     auto dstPlaneStride = vpux::getIntAttr(_ctx, IC * blockSize * elemTypeSize);
     auto numPlanes = vpux::getIntAttr(_ctx, blockSize);
 
-    return VPUIP::DmaDescriptorAttr::get(numPlanes, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
-                                         dstPlaneStride, _ctx);
+    return VPUIP::DMADescriptorAttr::get(_ctx, numPlanes, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
+                                         dstPlaneStride);
 }
 
-VPUIP::DmaDescriptorAttr vpux::VPUIP::SpaceToDepthDmaDescriptorGenerator::generateBlocksFirstNCHW2NHWC(
+VPUIP::DMADescriptorAttr vpux::VPUIP::SpaceToDepthDmaDescriptorGenerator::generateBlocksFirstNCHW2NHWC(
         vpux::ShapeRef inShape, vpux::ShapeRef outShape, int64_t elemTypeSize, int64_t blockSize) const {
     const auto IW = inShape[Dims4D::Act::W];
     const auto IC = inShape[Dims4D::Act::C];
@@ -334,11 +332,11 @@ VPUIP::DmaDescriptorAttr vpux::VPUIP::SpaceToDepthDmaDescriptorGenerator::genera
     auto dstPlaneStride = vpux::getIntAttr(_ctx, OC * elemTypeSize);
     auto numPlanes = vpux::getIntAttr(_ctx, OW);
 
-    return VPUIP::DmaDescriptorAttr::get(numPlanes, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
-                                         dstPlaneStride, _ctx);
+    return VPUIP::DMADescriptorAttr::get(_ctx, numPlanes, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
+                                         dstPlaneStride);
 }
 
-VPUIP::DmaDescriptorAttr vpux::VPUIP::SpaceToDepthDmaDescriptorGenerator::generateDepthFirstNCHW2NCHW(
+VPUIP::DMADescriptorAttr vpux::VPUIP::SpaceToDepthDmaDescriptorGenerator::generateDepthFirstNCHW2NCHW(
         vpux::ShapeRef inShape, vpux::ShapeRef outShape, int64_t elemTypeSize, int64_t blockSize) const {
     const auto IW = inShape[Dims4D::Act::W];
     const auto OH = outShape[Dims4D::Act::H];
@@ -353,11 +351,11 @@ VPUIP::DmaDescriptorAttr vpux::VPUIP::SpaceToDepthDmaDescriptorGenerator::genera
     auto dstPlaneStride = vpux::getIntAttr(_ctx, OH * OW * elemTypeSize);
     auto numPlanes = vpux::getIntAttr(_ctx, blockSize);
 
-    return VPUIP::DmaDescriptorAttr::get(numPlanes, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
-                                         dstPlaneStride, _ctx);
+    return VPUIP::DMADescriptorAttr::get(_ctx, numPlanes, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
+                                         dstPlaneStride);
 }
 
-VPUIP::DmaDescriptorAttr vpux::VPUIP::SpaceToDepthDmaDescriptorGenerator::generateDepthFirstNHWC2NHWC(
+VPUIP::DMADescriptorAttr vpux::VPUIP::SpaceToDepthDmaDescriptorGenerator::generateDepthFirstNHWC2NHWC(
         vpux::ShapeRef inShape, vpux::ShapeRef outShape, int64_t elemTypeSize, int64_t blockSize) const {
     const auto IW = inShape[Dims4D::Act::W];
     const auto IC = inShape[Dims4D::Act::C];
@@ -372,11 +370,11 @@ VPUIP::DmaDescriptorAttr vpux::VPUIP::SpaceToDepthDmaDescriptorGenerator::genera
     auto dstPlaneStride = vpux::getIntAttr(_ctx, blockSize * blockSize * elemTypeSize);
     auto numPlanes = vpux::getIntAttr(_ctx, IC);
 
-    return VPUIP::DmaDescriptorAttr::get(numPlanes, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
-                                         dstPlaneStride, _ctx);
+    return VPUIP::DMADescriptorAttr::get(_ctx, numPlanes, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
+                                         dstPlaneStride);
 }
 
-VPUIP::DmaDescriptorAttr vpux::VPUIP::SpaceToDepthDmaDescriptorGenerator::generateDepthFirstNCHW2NHWC(
+VPUIP::DMADescriptorAttr vpux::VPUIP::SpaceToDepthDmaDescriptorGenerator::generateDepthFirstNCHW2NHWC(
         vpux::ShapeRef inShape, vpux::ShapeRef outShape, int64_t elemTypeSize, int64_t blockSize) const {
     const auto IH = inShape[Dims4D::Act::H];
     const auto IW = inShape[Dims4D::Act::W];
@@ -393,8 +391,8 @@ VPUIP::DmaDescriptorAttr vpux::VPUIP::SpaceToDepthDmaDescriptorGenerator::genera
     auto dstPlaneStride = vpux::getIntAttr(_ctx, OW * IH * elemTypeSize);
     auto numPlanes = vpux::getIntAttr(_ctx, blockSize);
 
-    return VPUIP::DmaDescriptorAttr::get(numPlanes, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
-                                         dstPlaneStride, _ctx);
+    return VPUIP::DMADescriptorAttr::get(_ctx, numPlanes, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
+                                         dstPlaneStride);
 }
 
 vpux::VPUIP::PerAxisTileDmaDescriptorGenerator::PerAxisTileDmaDescriptorGenerator(mlir::MLIRContext* ctx,
@@ -402,7 +400,7 @@ vpux::VPUIP::PerAxisTileDmaDescriptorGenerator::PerAxisTileDmaDescriptorGenerato
         : _ctx(ctx), _log(log) {
 }
 
-VPUIP::DmaDescriptorAttr vpux::VPUIP::PerAxisTileDmaDescriptorGenerator::generate(vpux::ShapeRef inShape,
+VPUIP::DMADescriptorAttr vpux::VPUIP::PerAxisTileDmaDescriptorGenerator::generate(vpux::ShapeRef inShape,
                                                                                   vpux::ShapeRef outShape,
                                                                                   int64_t repeats,
                                                                                   int64_t elemTypeSize) const {
@@ -422,15 +420,15 @@ VPUIP::DmaDescriptorAttr vpux::VPUIP::PerAxisTileDmaDescriptorGenerator::generat
     auto dstPlaneStride = vpux::getIntAttr(_ctx, M * R * repeats * elemTypeSize);
     auto numPlanes = vpux::getIntAttr(_ctx, L);
 
-    return VPUIP::DmaDescriptorAttr::get(numPlanes, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
-                                         dstPlaneStride, _ctx);
+    return VPUIP::DMADescriptorAttr::get(_ctx, numPlanes, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
+                                         dstPlaneStride);
 }
 
 vpux::VPUIP::ExpandDmaDescriptorGenerator::ExpandDmaDescriptorGenerator(mlir::MLIRContext* ctx, vpux::Logger log)
         : _ctx(ctx), _log(log) {
 }
 
-VPUIP::DmaDescriptorAttr vpux::VPUIP::ExpandDmaDescriptorGenerator::generate(vpux::NDTypeInterface inType,
+VPUIP::DMADescriptorAttr vpux::VPUIP::ExpandDmaDescriptorGenerator::generate(vpux::NDTypeInterface inType,
                                                                              vpux::NDTypeInterface outType,
                                                                              mlir::ArrayAttr padsBegin,
                                                                              mlir::ArrayAttr padsEnd,
@@ -476,6 +474,6 @@ VPUIP::DmaDescriptorAttr vpux::VPUIP::ExpandDmaDescriptorGenerator::generate(vpu
     auto dstPlaneStride = vpux::getIntAttr(_ctx, 0 * elemTypeSize);
     auto numPlanes = vpux::getIntAttr(_ctx, 1);
 
-    return VPUIP::DmaDescriptorAttr::get(numPlanes, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
-                                         dstPlaneStride, _ctx);
+    return VPUIP::DMADescriptorAttr::get(_ctx, numPlanes, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
+                                         dstPlaneStride);
 }

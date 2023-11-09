@@ -22,10 +22,18 @@ macro(replace_compile_visibility_options)
 endmacro()
 
 macro(replace_noerror TARGET_NAME)
+    # TODO(E#78994): better way to wrap up code which uses deprecated declarations
     if(NOT MSVC)
         target_compile_options(${TARGET_NAME}
             PRIVATE
                 -Wno-error=deprecated-declarations
+        )
+    endif()
+    # TODO(E#83264): consider making it enabled
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        target_compile_options(${TARGET_NAME}
+            PRIVATE
+                -Wno-error=covered-switch-default
         )
     endif()
 endmacro()
@@ -53,6 +61,11 @@ if(MSVC)
         message ("[FYI]: In order to prevent errors related to the storage format of debug information cmake flags '/Zi /FS' have been added")
     endif()
 
+    # Optimize global data
+    add_compile_options(/Zc:inline /Gw)
+    # Use compiler intrinsincs
+    add_compile_options(/Oi)
+
 endif()
 
 function(enable_warnings_as_errors TARGET_NAME)
@@ -70,7 +83,8 @@ function(enable_warnings_as_errors TARGET_NAME)
             # Use W3 instead of Wall, since W4 introduces some hard-to-fix warnings
             target_compile_options(${TARGET_NAME}
                 PRIVATE
-                    /WX /W3
+                    /WX /W3 /wd4244 /wd4267 /wd4293
+                    # TODO(E#86977): check and fix warnings to avoid error c2220
             )
 
             # Disable 3rd-party components warnings

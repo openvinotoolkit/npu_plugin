@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
+#include "vpux/compiler/dialect/IE/passes/optimize_slice_expand.hpp"
+#include <mlir/Pass/PassManager.h>
+#include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
-
-#include <mlir/Pass/PassManager.h>
-#include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/logging.hpp"
@@ -20,32 +20,12 @@
 
 using namespace vpux;
 
-namespace {
-
 //
 // OptimizeSliceImplicitExpand
 //
 
-template <class ImplicitLayer>
-class OptimizeSliceImplicitExpand final : public mlir::OpRewritePattern<IE::ExpandOp> {
-public:
-    OptimizeSliceImplicitExpand(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<IE::ExpandOp>(ctx), _log(log) {
-        setDebugName("OptimizeSliceImplicitExpand");
-    }
-
-public:
-    mlir::LogicalResult matchAndRewrite(IE::ExpandOp origOp, mlir::PatternRewriter& rewriter) const final;
-
-private:
-    Logger _log;
-};
-
-template <class ImplicitLayer>
-mlir::LogicalResult OptimizeSliceImplicitExpand<ImplicitLayer>::matchAndRewrite(IE::ExpandOp layerOp,
-                                                                                mlir::PatternRewriter& rewriter) const {
-    auto implicitOp = layerOp.input().getDefiningOp<ImplicitLayer>();
-
+mlir::LogicalResult vpux::IE::genericOptimizeSliceImplicitExpand(IE::ExpandOp layerOp, mlir::Operation* implicitOp,
+                                                                 mlir::PatternRewriter& rewriter) {
     // avoid unsupported cases
     if (implicitOp == nullptr || implicitOp->getNumResults() != 1 || !implicitOp->hasOneUse()) {
         return mlir::failure();
@@ -84,7 +64,7 @@ mlir::LogicalResult OptimizeSliceImplicitExpand<ImplicitLayer>::matchAndRewrite(
         return mlir::failure();
     }
 
-    // check here if operation changes N/H/W axis, Slice/Expand shoud not change this as well
+    // check here if operation changes N/H/W axis, Slice/Expand should not change this as well
     auto outputShape = to_small_vector(getShape(implicitOp->getResult(0)));
     for (mlir::Value input : inputs) {
         auto sliceOp = input.getDefiningOp<IE::SliceOp>();
@@ -145,23 +125,156 @@ mlir::LogicalResult OptimizeSliceImplicitExpand<ImplicitLayer>::matchAndRewrite(
 }
 
 //
+// Single slice beneficial pattern:
+//
+//               input1
+//                 |
+//      input0    Slice                   input0    input 1
+//          \      /                          \      /
+//           Concat            ==>             Concat
+//              |                                 |
+//           Expand                             output
+//              |
+//            output
+//
+bool isSingleSliceBeneficialPattern(IE::ConcatOp concatOp, IE::ExpandOp layerOp) {
+    const auto inputs = concatOp.getInputs();
+    auto expandedShape = to_small_vector(getShape(layerOp.output()));
+    auto concatShape = to_small_vector(getShape(concatOp.output()));
+    uint32_t expandAxisNum = 0;
+    SmallVector<uint32_t> expandAxisSet;
+    uint32_t inputSliceNum = 0;
+    mlir::DenseSet<IE::SliceOp> inputSliceOps{};
+
+    // Infer sliceOp number and sliceOp
+    for (mlir::Value input : inputs) {
+        if (auto sliceOp = input.getDefiningOp<IE::SliceOp>()) {
+            inputSliceNum++;
+            if (inputSliceNum == 1) {
+                inputSliceOps.insert(sliceOp);
+            }
+        }
+    }
+
+    // Infer expandOp axis
+    for (auto index : irange(expandedShape.size())) {
+        if (expandedShape[index] != concatShape[index]) {
+            expandAxisNum++;
+            expandAxisSet.push_back(static_cast<uint32_t>(index));
+        }
+    }
+
+    if (inputs.size() <= 1 || inputSliceNum != 1 || expandAxisNum != 1) {
+        return false;
+    }
+
+    auto inputSliceOp = *inputSliceOps.begin();
+    const auto expandAxis = expandAxisSet.front();
+
+    // Expand axis equals to Slice axis and Concat axis
+    auto sliceOutShape = to_small_vector(getShape(inputSliceOp->getResult(0)));
+    auto sliceInShape = to_small_vector(getShape(inputSliceOp.source()));
+    for (auto index : irange(sliceOutShape.size())) {
+        if (index != expandAxis &&
+            (sliceOutShape[index] != sliceInShape[index] || sliceOutShape[index] != concatShape[index])) {
+            return false;
+        }
+    }
+
+    const auto axisShape = std::accumulate(inputs.begin(), inputs.end(), static_cast<int64_t>(0),
+                                           [&](int64_t accumulator, mlir::Value operand) {
+                                               return accumulator + getShape(operand)[Dim(expandAxis)];
+                                           });
+    if (axisShape != concatShape[expandAxis]) {
+        return false;
+    }
+
+    // Check the slice offset is the last one in Concat
+    if (!concatOp.static_offsetsAttr()) {
+        return false;
+    }
+    const auto concatOffsets = parseIntArrayOfArrayAttr<int64_t>(concatOp.static_offsetsAttr());
+    uint32_t lastOffset = 0;
+    for (const auto& p : zip(concatOp.inputs(), concatOffsets)) {
+        auto curInput = std::get<0>(p);
+        auto curSlice = curInput.getDefiningOp<IE::SliceOp>();
+        if (curSlice != nullptr) {
+            const auto curOffset = std::get<1>(p);
+            const auto curOffsetShape = Shape(curOffset);
+            lastOffset = curOffsetShape[Dim(expandAxis)];
+        }
+    }
+
+    return (lastOffset + sliceOutShape[expandAxis]) == concatShape[expandAxis] &&
+           (lastOffset + sliceInShape[expandAxis]) == expandedShape[expandAxis];
+}
+
+//
+// OptimizeSingleSliceConcatExpand
+//
+
+mlir::LogicalResult vpux::IE::OptimizeSingleSliceConcatExpand::matchAndRewrite(IE::ExpandOp layerOp,
+                                                                               mlir::PatternRewriter& rewriter) const {
+    auto concatOp = layerOp.input().getDefiningOp<IE::ConcatOp>();
+    // avoid unsupported cases
+    if (concatOp == nullptr || concatOp->getNumResults() != 1 || !concatOp->hasOneUse()) {
+        return mlir::failure();
+    }
+
+    auto expandedShape = to_small_vector(getShape(layerOp.output()));
+    auto concatShape = to_small_vector(getShape(concatOp.output()));
+
+    bool sameAxisSliceConcatExpand = isSingleSliceBeneficialPattern(concatOp, layerOp);
+    if (!sameAxisSliceConcatExpand) {
+        return mlir::failure();
+    }
+
+    SmallVector<uint32_t> expandAxis;
+    for (auto index : irange(expandedShape.size())) {
+        if (expandedShape[index] != concatShape[index]) {
+            expandAxis.push_back(static_cast<uint32_t>(index));
+        }
+    }
+
+    const auto inputs = concatOp.getInputs();
+    mlir::Operation* updateOp = concatOp.getOperation();
+
+    rewriter.startRootUpdate(updateOp);
+    rewriter.setInsertionPoint(updateOp);
+
+    for (auto i : irange<size_t>(0, inputs.size())) {
+        auto sliceOp = inputs[i].getDefiningOp<IE::SliceOp>();
+        if (sliceOp == nullptr) {
+            continue;
+        }
+        auto newInput = sliceOp.source();
+        updateOp->getOpOperand(static_cast<uint32_t>(i)).set(newInput);
+    }
+
+    const auto expandAxisData = expandAxis.front();
+    for (mlir::Value result : updateOp->getResults()) {
+        auto resultType = result.getType().cast<vpux::NDTypeInterface>();
+        auto resultShape = to_small_vector(getShape(result));
+        resultShape[expandAxisData] = expandedShape[expandAxisData];
+        const auto outType = resultType.changeShape(ShapeRef(resultShape));
+        result.setType(outType);
+    }
+
+    for (auto* user : llvm::make_early_inc_range(updateOp->getUsers())) {
+        rewriter.replaceOp(user, updateOp->getResults());
+    }
+
+    rewriter.finalizeRootUpdate(updateOp);
+
+    return mlir::success();
+}
+
+//
 // OptimizeSliceExpand
 //
 
-class OptimizeSliceExpand final : public mlir::OpRewritePattern<IE::ExpandOp> {
-public:
-    OptimizeSliceExpand(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::ExpandOp>(ctx), _log(log) {
-        setDebugName("OptimizeSliceExpand");
-    }
-
-public:
-    mlir::LogicalResult matchAndRewrite(IE::ExpandOp layerOp, mlir::PatternRewriter& rewriter) const final;
-
-private:
-    Logger _log;
-};
-
-mlir::LogicalResult OptimizeSliceExpand::matchAndRewrite(IE::ExpandOp layerOp, mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult vpux::IE::OptimizeSliceExpand::matchAndRewrite(IE::ExpandOp layerOp,
+                                                                   mlir::PatternRewriter& rewriter) const {
     auto sliceOp = layerOp.input().getDefiningOp<IE::SliceOp>();
     if (sliceOp == nullptr) {
         return mlir::failure();
@@ -209,19 +322,7 @@ mlir::LogicalResult OptimizeSliceExpand::matchAndRewrite(IE::ExpandOp layerOp, m
 // OptimizeExpandSlice
 //
 
-class OptimizeExpandSlice final : public mlir::OpRewritePattern<IE::ExpandOp> {
-public:
-    OptimizeExpandSlice(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::ExpandOp>(ctx), _log(log) {
-        setDebugName("OptimizeExpandSlice");
-    }
-
-public:
-    mlir::LogicalResult matchAndRewrite(IE::ExpandOp layerOp, mlir::PatternRewriter& rewriter) const final;
-
-private:
-    Logger _log;
-};
-
+namespace {
 // check if the Expand-Slice pattern could be eliminated or not
 // examples that could be eliminated, input shape is [1, 3, 32, 32]
 //      Expand pads_begin = [0, 0, 0, 0] pads_end = [0, 13, 0, 0]
@@ -257,8 +358,10 @@ bool expandSliceFusable(IE::ExpandOp expandOp, IE::SliceOp sliceOp) {
     }
     return true;
 }
+}  // namespace
 
-mlir::LogicalResult OptimizeExpandSlice::matchAndRewrite(IE::ExpandOp layerOp, mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult vpux::IE::OptimizeExpandSlice::matchAndRewrite(IE::ExpandOp layerOp,
+                                                                   mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got '{1}' at '{2}'", getDebugName(), layerOp->getName(), layerOp->getLoc());
     auto sliceOp = mlir::dyn_cast<IE::SliceOp>(*layerOp.output().getUsers().begin());
 
@@ -323,40 +426,4 @@ mlir::LogicalResult OptimizeExpandSlice::matchAndRewrite(IE::ExpandOp layerOp, m
                                              getIntArrayAttr(layerOp.getContext(), sliceSizes));
 
     return mlir::success();
-}
-
-//
-// OptimizeSliceExpandPass
-//
-
-class OptimizeSliceExpandPass final : public IE::OptimizeSliceExpandBase<OptimizeSliceExpandPass> {
-public:
-    explicit OptimizeSliceExpandPass(Logger log) {
-        Base::initLogger(log, Base::getArgumentName());
-    }
-
-private:
-    void safeRunOnFunc() final;
-};
-
-void OptimizeSliceExpandPass::safeRunOnFunc() {
-    auto& ctx = getContext();
-
-    mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<OptimizeSliceExpand>(&ctx, _log);
-    patterns.add<OptimizeExpandSlice>(&ctx, _log);
-    patterns.add<OptimizeSliceImplicitExpand<IE::QuantizeCastOp>>(&ctx, _log);
-    patterns.add<OptimizeSliceImplicitExpand<IE::ConcatOp>>(&ctx, _log);
-
-    auto func = getOperation();
-    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
-        signalPassFailure();
-        return;
-    }
-}
-
-}  // namespace
-
-std::unique_ptr<mlir::Pass> vpux::IE::createOptimizeSliceExpandPass(Logger log) {
-    return std::make_unique<OptimizeSliceExpandPass>(log);
 }

@@ -197,7 +197,7 @@ int32_t ConstantFusing::getOffsetForConstant(VPUIP::NCEClusterTaskOp& nceOp, mli
 VPUIP::DistributedBufferType ConstantFusing::getDistributedBufferType(VPUIP::DistributedBufferType origDistType,
                                                                       Const::DeclareOp declOp,
                                                                       mlir::PatternRewriter& rewriter) {
-    auto typeInterface = declOp.output().getType().cast<vpux::NDTypeInterface>();
+    auto typeInterface = declOp.getOutput().getType().cast<vpux::NDTypeInterface>();
 
     const auto ctx = typeInterface.getContext();
     const auto order = typeInterface.getDimsOrder();
@@ -219,10 +219,11 @@ VPUIP::DistributedBufferType ConstantFusing::getDistributedBufferType(VPUIP::Dis
     // Create updated distributedTensorAttr, remove alignment as the fused buffer is a flat buffer
     auto origDistributedTensorAttr = origDistType.getDistribution();
     auto distributedTensorAttr = VPU::DistributedTensorAttr::get(
-            origDistributedTensorAttr.mode(), origDistributedTensorAttr.num_tiles(), nullptr, nullptr, nullptr,
-            origDistributedTensorAttr.num_clusters(), nullptr, origDistributedTensorAttr.uniform_distributed_segments(),
-            origDistributedTensorAttr.compute_shapes(), origDistributedTensorAttr.compute_offsets(),
-            origDistributedTensorAttr.equal_memory_and_compute_view(), ctx);
+            ctx, origDistributedTensorAttr.getMode(), origDistributedTensorAttr.getNumTiles(), nullptr, nullptr,
+            nullptr, origDistributedTensorAttr.getNumClusters(), nullptr,
+            origDistributedTensorAttr.getUniformDistributedSegments(), origDistributedTensorAttr.getComputeShapes(),
+            origDistributedTensorAttr.getComputeOffsets(), origDistributedTensorAttr.getMemoryShapes(),
+            origDistributedTensorAttr.getMemoryOffsets(), origDistributedTensorAttr.getEqualMemoryAndComputeView());
 
     return VPUIP::DistributedBufferType::get(ctx, typeInterface.getShape().raw(), typeInterface.getElementType(),
                                              layoutAttr, memKindAttr, distributedTensorAttr);
@@ -251,7 +252,7 @@ void ConstantFusing::getCopyAndDeclareOpForFusion(VPUIP::NCEClusterTaskOp& nceOp
         // Get distribution mode
         foundAllocDistributed = tilingOp.output_buffs()[0].getDefiningOp<VPURT::AllocDistributed>();
         auto inputType = foundAllocDistributed.getType().dyn_cast<VPUIP::DistributedBufferType>();
-        auto isDuplicated = inputType.getDistribution().mode().getValue() == VPU::DistributionMode::DUPLICATED;
+        auto isDuplicated = inputType.getDistribution().getMode().getValue() == VPU::DistributionMode::DUPLICATED;
 
         // Only Fuse if the constants are broadcasted/duplcicated
         if (isDuplicated) {

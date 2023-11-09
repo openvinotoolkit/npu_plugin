@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -93,10 +93,10 @@ mlir::LogicalResult ManualStrategyUtilsPass::initializeOptions(StringRef options
 
 void ManualStrategyUtilsPass::safeRunOnFunc() {
 #if defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
-    parseEnv("IE_VPUX_WRITE_STRATEGY_JSON", _writeStrategyToJSON);
-    parseEnv("IE_VPUX_WRITE_STRATEGY_JSON_LOC", _writeStrategyFileLocation);
-    parseEnv("IE_VPUX_READ_STRATEGY_JSON", _readStrategyFromJSON);
-    parseEnv("IE_VPUX_READ_STRATEGY_JSON_LOC", _readStrategyFileLocation);
+    parseEnv("IE_NPU_WRITE_STRATEGY_JSON", _writeStrategyToJSON);
+    parseEnv("IE_NPU_WRITE_STRATEGY_JSON_LOC", _writeStrategyFileLocation);
+    parseEnv("IE_NPU_READ_STRATEGY_JSON", _readStrategyFromJSON);
+    parseEnv("IE_NPU_READ_STRATEGY_JSON_LOC", _readStrategyFileLocation);
 #endif  // defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
 
     auto func = getOperation();

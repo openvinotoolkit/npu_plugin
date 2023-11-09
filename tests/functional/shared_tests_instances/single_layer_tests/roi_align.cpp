@@ -1,22 +1,20 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include <vector>
 
 #include <common/functions.h>
-#include "kmb_layer_test.hpp"
 #include "single_layer_tests/roi_align.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
-class VPUXROIAlignLayerTest_VPU3700 : public ROIAlignLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-    void SkipBeforeLoad() override {
-    }
+class VPUXROIAlignLayerTest_VPU3700 : public ROIAlignLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void SkipBeforeInfer() override {
         if (getBackendName(*getCore()) == "LEVEL0") {
-            throw LayerTestsUtils::KmbSkipTestException("Bad results on Level0");
+            throw LayerTestsUtils::VpuSkipTestException("Bad results on Level0");
         }
     }
 };
@@ -52,7 +50,7 @@ const auto testROIAlignParams =
         testing::Combine(testing::ValuesIn(inputShape), testing::ValuesIn(coordsShape), testing::ValuesIn(pooledH),
                          testing::ValuesIn(pooledW), testing::ValuesIn(spatialScale), testing::ValuesIn(poolingRatio),
                          testing::ValuesIn(poolingMode), testing::ValuesIn(netPrecision),
-                         testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+                         testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_ROIAlign, VPUXROIAlignLayerTest_VPU3700, testROIAlignParams,
                          VPUXROIAlignLayerTest_VPU3700::getTestCaseName);

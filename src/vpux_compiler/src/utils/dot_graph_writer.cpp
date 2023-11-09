@@ -161,7 +161,7 @@ EdgeDir GraphWriter::getEdgeDirection(mlir::Operation* source, mlir::Operation* 
     VPUX_THROW_UNLESS(it != targetOperands.end(), "Wrong edge");
 
     const auto val = *it;
-    if (sideEffectsOp.getEffectOnValue<mlir::MemoryEffects::Write>(val).hasValue()) {
+    if (sideEffectsOp.getEffectOnValue<mlir::MemoryEffects::Write>(val).has_value()) {
         return EdgeDir::EDGE_REVERSE;
     }
 

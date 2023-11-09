@@ -28,13 +28,16 @@ struct WorkloadCostParams {
     Shape inputShape;
     Shape outputShape;
     PadInfo padInfo;
-    int64_t numDPU;
+    int64_t numDPU;    // DPUs per tile
+    int64_t numTiles;  // Store used CMX tiles, e.g., SOK may use partial nce clusters
     SmallVector<int64_t> kernelSize;
     SmallVector<int64_t> kernelStride;
     // Sparsity ratio calculation can refer the comments for getWeightsSparsityRatio()
     // The two items will pass to VPUNN for memory calculation
     bool isWeightsSparsityEnabled = false;
     float weightsSparsityRatio = 0.0;
+    VPU::MultiClusterStrategy layerStrategy = VPU::MultiClusterStrategy::Clustering;
+    VPU::PPETaskAttr ppeTask = nullptr;
 };
 
 enum class SplitDimension { SPLIT_OVER_H = 0, SPLIT_OVER_W = 1, SPLIT_OVER_HW = 2 };
@@ -63,7 +66,7 @@ private:
 };
 
 int64_t computeSplitCost(const WorkloadSplit& split, const WorkloadCostParams& params,
-                         const std::shared_ptr<VPUNN::VPUCostModel>& costModel);
+                         const std::shared_ptr<VPUNN::VPUCostModel>& costModel, Logger log = Logger::global());
 VPUNN::Operation getOperationType(VPUIP::NCETaskType taskType);
 
 }  // namespace VPUIP

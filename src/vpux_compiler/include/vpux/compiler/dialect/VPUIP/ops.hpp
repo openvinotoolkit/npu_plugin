@@ -33,7 +33,7 @@
 //
 
 #define GET_OP_CLASSES
-#include <vpux/compiler/dialect/VPUIP/generated/ops.hpp.inc>
+#include <vpux/compiler/dialect/VPUIP/ops.hpp.inc>
 
 //
 // Operation verifiers
@@ -47,7 +47,8 @@ constexpr KB SHAVE_LIB_DATA_SIZE = 112_KB;
 
 // According to the documentation, total transfer length (LEN) field is stored in 24 bits that means max value is 16MB
 constexpr Byte DMA_LIMIT = MB(16).to<Byte>() - Byte(1);
-constexpr int64_t CMX_DMA_MAX_NUM_PLANES = 255;
+constexpr int64_t CMX_DMA_MAX_NUM_PLANES_30XX_37XX = 255;
+constexpr int64_t CMX_DMA_MAX_STRIDING_LEVEL_30XX_37XX = 2;
 
 }  // namespace VPUIP
 }  // namespace vpux

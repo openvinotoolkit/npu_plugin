@@ -50,3 +50,4 @@ func.func @RemoveQuantReshapeDequantSequence(%arg0: tensor<1x4420x1x2xf16>, %arg
   //CHECK: [[VAL2:%.*]] = IE.Add([[VAL1]], %arg1) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>} : tensor<1x4420x1x2xf16>, tensor<1x4420x1x2xf16> -> tensor<1x4420x1x2xf16>
   //CHECK: return [[VAL2]]
 }
+

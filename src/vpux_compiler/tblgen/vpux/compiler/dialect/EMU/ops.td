@@ -63,7 +63,7 @@ def EMU_PPETaskOp :
     let summary = "PPE Type for NCE Task";
 
     let arguments = (ins
-        VPU_PPEMode:$ppe_layer_type,
+        VPU_PPEModeAttr:$ppe_layer_type,
 
         OptionalAttr<IntAttr>:$clamp_low,
         OptionalAttr<IntAttr>:$clamp_high,
@@ -129,7 +129,7 @@ def EMU_NCEClusterTaskOp :
         Optional<RankedTensorOf<[F16, quant_QuantizedType]>>:$weights,
         Optional<RankedTensorOf<[SI32]>>:$weight_table,
 
-        VPUIP_NCETaskType:$task_type,
+        VPUIP_NCETaskTypeAttr:$task_type,
         OptionalAttr<I64ArrayAttr>:$kernel_size,
         OptionalAttr<I64ArrayAttr>:$kernel_strides,
         OptionalAttr<I64ArrayAttr>:$kernel_padding,

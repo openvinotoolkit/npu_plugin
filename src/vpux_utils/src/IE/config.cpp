@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/utils/IE/config.hpp"
 
 #include "vpux/utils/core/error.hpp"

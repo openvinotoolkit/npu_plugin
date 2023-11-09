@@ -1,10 +1,10 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "common/functions.h"
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 #include <ngraph_functions/builders.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -12,16 +12,10 @@
 
 namespace {
 
-class VPUXConvHSwishTest_VPU3700 : public LayerTestsUtils::KmbLayerTestsCommon {
-    // [Track number: E#26428]
-    void SkipBeforeLoad() override {
-        if (getBackendName(*getCore()) == "VPUAL") {
-            throw LayerTestsUtils::KmbSkipTestException("LoadNetwork throws an exception");
-        }
-    }
+class VPUXConvHSwishTest_VPU3700 : public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void SkipBeforeValidate() override {
-        if (envConfig.IE_KMB_TESTS_RUN_INFER) {
-            throw LayerTestsUtils::KmbSkipTestException("Interpreter backend doesn't implement evaluate"
+        if (envConfig.IE_NPU_TESTS_RUN_INFER) {
+            throw LayerTestsUtils::VpuSkipTestException("Interpreter backend doesn't implement evaluate"
                                                         " method for OP HSwish  comparison fails");
         }
     }
@@ -30,7 +24,7 @@ class VPUXConvHSwishTest_VPU3700 : public LayerTestsUtils::KmbLayerTestsCommon {
         cnnNetwork.getOutputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
     }
     void SetUp() override {
-        targetDevice = LayerTestsUtils::testPlatformTargetDevice;
+        targetDevice = LayerTestsUtils::testPlatformTargetDevice();
         constexpr int inChan = 16;
         constexpr int inWidth = 18;
         constexpr int inHeight = 18;

@@ -31,10 +31,10 @@ func.func @CopyToBlockArgumentNoChange(%arg0: memref<1x16x1x1xf16, #NHWC, @CMX_N
     %0 = memref.alloc() : memref<1x16x1x1xf16, #NHWC, @CMX_NN>
     %1 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%arg0 : memref<1x16x1x1xf16, #NHWC, @CMX_NN>)
         weight_table(%wt : memref<16x1x1x4xsi32, @CMX_NN>)
@@ -44,7 +44,7 @@ func.func @CopyToBlockArgumentNoChange(%arg0: memref<1x16x1x1xf16, #NHWC, @CMX_N
         outputs(%0 : memref<1x16x1x1xf16, #NHWC, @CMX_NN>) -> memref<1x16x1x1xf16, #NHWC, @CMX_NN>
         variants :
         {
-            DPUTask { outEnd = [16, 1, 1], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 1, 1], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }
@@ -72,10 +72,10 @@ func.func @CopyToBlockArgumentMoveCopyOnly(%arg0: memref<1x16x1x1xf16, #NHWC, @C
     %1 = memref.alloc() : memref<1x16x1x1xf16, #NHWC, @CMX_NN>
     %2 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%arg0 : memref<1x16x1x1xf16, #NHWC, @CMX_NN>)
         weight_table(%wt : memref<16x1x1x4xsi32, @CMX_NN>)
@@ -85,16 +85,16 @@ func.func @CopyToBlockArgumentMoveCopyOnly(%arg0: memref<1x16x1x1xf16, #NHWC, @C
         outputs(%0 : memref<1x16x1x1xf16, #NHWC, @CMX_NN>) -> memref<1x16x1x1xf16, #NHWC, @CMX_NN>
         variants :
         {
-            DPUTask { outEnd = [16, 1, 1], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 1, 1], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }
     %3 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%arg0 : memref<1x16x1x1xf16, #NHWC, @CMX_NN>)
         weight_table(%wt : memref<16x1x1x4xsi32, @CMX_NN>)
@@ -104,7 +104,7 @@ func.func @CopyToBlockArgumentMoveCopyOnly(%arg0: memref<1x16x1x1xf16, #NHWC, @C
         outputs(%1 : memref<1x16x1x1xf16, #NHWC, @CMX_NN>) -> memref<1x16x1x1xf16, #NHWC, @CMX_NN>
         variants :
         {
-            DPUTask { outEnd = [16, 1, 1], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 1, 1], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }
@@ -137,10 +137,10 @@ func.func @CopyToBlockArgumentSubView(%arg0: memref<1x8x1x1xf16, #NHWC, @CMX_NN>
     %1 = memref.alloc() : memref<1x8x1x1xf16, #NHWC, @CMX_NN>
     %2 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%arg0 : memref<1x8x1x1xf16, #NHWC, @CMX_NN>)
         weight_table(%wt : memref<8x1x1x4xsi32, @CMX_NN>)
@@ -150,16 +150,16 @@ func.func @CopyToBlockArgumentSubView(%arg0: memref<1x8x1x1xf16, #NHWC, @CMX_NN>
         outputs(%0 : memref<1x8x1x1xf16, #NHWC, @CMX_NN>) -> memref<1x8x1x1xf16, #NHWC, @CMX_NN>
         variants :
         {
-            DPUTask { outEnd = [16, 1, 1], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 1, 1], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }
     %3 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%arg0 : memref<1x8x1x1xf16, #NHWC, @CMX_NN>)
         weight_table(%wt : memref<8x1x1x4xsi32, @CMX_NN>)
@@ -169,7 +169,7 @@ func.func @CopyToBlockArgumentSubView(%arg0: memref<1x8x1x1xf16, #NHWC, @CMX_NN>
         outputs(%1 : memref<1x8x1x1xf16, #NHWC, @CMX_NN>) -> memref<1x8x1x1xf16, #NHWC, @CMX_NN>
         variants :
         {
-            DPUTask { outEnd = [16, 1, 1], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 1, 1], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }
@@ -217,7 +217,7 @@ func.func @CopyFromBlockArgumentNoChangeSparse(%arg0: !SparseInputCMXBufferType,
     %1 = VPUIP.Copy inputs(%arg0 : !SparseInputCMXBufferType) outputs(%arg2 : !SparseInputDDRBufferType) -> !SparseInputDDRBufferType
     return %0, %1 : !SparseInputDDRBufferType, !SparseInputDDRBufferType
 
-    // CHECK:       [[VAR0:%.+]] = VPUIP.Copy inputs(%arg0 : !VPUIP.SparseBuffer<data=memref<1x16x1x1xf16, @CMX_NN>, sparsity_map=memref<1x16x1x1xi1, @CMX_NN>>)
+    // CHECK:       [[VAR0:%.+]] = VPUIP.Copy inputs(%arg0 : !VPUIP.SparseBuffer<data=memref<1x16x1x1xf16, @CMX_NN>, sparsity_map=memref<1x16x1x1xi1, @CMX_NN>>) 
     // CHECK-SAME:                      outputs(%arg1 : !VPUIP.SparseBuffer<data=memref<1x16x1x1xf16, @DDR>, sparsity_map=memref<1x16x1x1xi1, @DDR>>)
     // CHECK:       [[VAR1:%.+]] = VPUIP.Copy inputs(%arg0 : !VPUIP.SparseBuffer<data=memref<1x16x1x1xf16, @CMX_NN>, sparsity_map=memref<1x16x1x1xi1, @CMX_NN>>)
     // CHECK-SAME:                      outputs(%arg2 : !VPUIP.SparseBuffer<data=memref<1x16x1x1xf16, @DDR>, sparsity_map=memref<1x16x1x1xi1, @DDR>>)
@@ -256,10 +256,10 @@ func.func @CopyToBlockArgumentNoChangeSparse(%arg0: !IOZMajorSparseType, %arg1: 
 
     %3:2 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%in_data : !IOZMajorDataType)
         input_sparsity_map(%in_sm : !IOZMajorSMType)
@@ -273,7 +273,7 @@ func.func @CopyToBlockArgumentNoChangeSparse(%arg0: !IOZMajorSparseType, %arg1: 
         output_sparsity_map(%out_sm : !IOZMajorSMType) -> !IOZMajorDataType, !IOZMajorSMType
         variants :
         {
-            DPUTask { outEnd = [16, 1, 1], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 1, 1], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }
@@ -286,7 +286,7 @@ func.func @CopyToBlockArgumentNoChangeSparse(%arg0: !IOZMajorSparseType, %arg1: 
     // CHECK:       [[BUFF_0_SM:%.+]] = memref.alloc() : memref<1x16x1x1xi1, #NHWC, @CMX_NN>
     // CHECK:       [[BUFF_0:%.*]] = VPUIP.GroupSparseBuffer([[BUFF_0_DATA]], [[BUFF_0_SM]])
 
-    // CHECK:       [[DATA_0:%.*]], [[SM_0:%.*]] = VPUIP.UngroupSparseBuffer(%arg0)
+    // CHECK:       [[DATA_0:%.*]], [[SM_0:%.*]] = VPUIP.UngroupSparseBuffer(%arg0) 
     // CHECK:       [[DATA_1:%.*]], [[SM_1:%.*]] = VPUIP.UngroupSparseBuffer([[BUFF_0]])
 
     // CHECK:       [[NCE0:%.+]]:2 = VPUIP.NCEClusterTask
@@ -323,7 +323,7 @@ func.func @CopyToBlockArgumentNoChangeSparse(%arg0: !IOZMajorSparseType, %arg1: 
 func.func @CopyToBlockArgumentMoveCopyOnlySparse(%arg0: !IOZMajorSparseType, %arg1: !SparseOutputDDRBufferType, %arg2: !SparseOutputDDRBufferType) -> (!SparseOutputDDRBufferType, !SparseOutputDDRBufferType) {
     %wt = const.Declare memref<16x1x1x4xsi32, @CMX_NN> = dense<1> : tensor<16x1x1x4xsi32>
     %act_win = const.Declare memref<1x1x1x16xui8, @CMX_NN> = dense<1> : tensor<1x1x1x16xui8>
-
+    
     %0 = memref.alloc() : !IOZMajorDataType
     %1 = memref.alloc() : !IOZMajorSMType
     %2 = VPUIP.GroupSparseBuffer(%0, %1) -> !IOZMajorSparseType
@@ -341,10 +341,10 @@ func.func @CopyToBlockArgumentMoveCopyOnlySparse(%arg0: !IOZMajorSparseType, %ar
 
     %6:2 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%in_data : !IOZMajorDataType)
         input_sparsity_map(%in_sm : !IOZMajorSMType)
@@ -358,7 +358,7 @@ func.func @CopyToBlockArgumentMoveCopyOnlySparse(%arg0: !IOZMajorSparseType, %ar
         output_sparsity_map(%out_sm_0 : !IOZMajorSMType) -> !IOZMajorDataType, !IOZMajorSMType
         variants :
         {
-            DPUTask { outEnd = [16, 1, 1], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 1, 1], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }
@@ -366,10 +366,10 @@ func.func @CopyToBlockArgumentMoveCopyOnlySparse(%arg0: !IOZMajorSparseType, %ar
 
     %8:2 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%in_data : !IOZMajorDataType)
         input_sparsity_map(%in_sm : !IOZMajorSMType)
@@ -383,7 +383,7 @@ func.func @CopyToBlockArgumentMoveCopyOnlySparse(%arg0: !IOZMajorSparseType, %ar
         output_sparsity_map(%out_sm_1 : !IOZMajorSMType) -> !IOZMajorDataType, !IOZMajorSMType
         variants :
         {
-            DPUTask { outEnd = [16, 1, 1], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 1, 1], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }
@@ -400,8 +400,8 @@ func.func @CopyToBlockArgumentMoveCopyOnlySparse(%arg0: !IOZMajorSparseType, %ar
     // CHECK:       [[BUFF_1_DATA:%.+]] = memref.alloc() : memref<1x16x1x1xf16, #NHWC, @CMX_NN>
     // CHECK:       [[BUFF_1_SM:%.+]] = memref.alloc() : memref<1x16x1x1xi1, #NHWC, @CMX_NN>
     // CHECK:       [[BUFF_1:%.*]] = VPUIP.GroupSparseBuffer([[BUFF_1_DATA]], [[BUFF_1_SM]])
-
-    // CHECK:       [[DATA_0:%.*]], [[SM_0:%.*]] = VPUIP.UngroupSparseBuffer(%arg0)
+        
+    // CHECK:       [[DATA_0:%.*]], [[SM_0:%.*]] = VPUIP.UngroupSparseBuffer(%arg0) 
     // CHECK:       [[DATA_1:%.*]], [[SM_1:%.*]] = VPUIP.UngroupSparseBuffer([[BUFF_0]])
     // CHECK:       [[DATA_2:%.*]], [[SM_2:%.*]] = VPUIP.UngroupSparseBuffer([[BUFF_1]])
 
@@ -455,7 +455,7 @@ func.func @CopyToBlockArgumentMoveCopyOnlySparse(%arg0: !IOZMajorSparseType, %ar
 func.func @CopyToBlockArgumentSubViewSparse(%arg0: !IOZMajorSparseType, %arg1: !SparseOutputDDRBufferType) -> !SparseOutputDDRBufferType {
     %wt = const.Declare memref<8x1x1x4xsi32, @CMX_NN> = dense<1> : tensor<8x1x1x4xsi32>
     %act_win = const.Declare memref<1x1x1x8xui8, @CMX_NN> = dense<1> : tensor<1x1x1x8xui8>
-
+    
     %0 = memref.alloc() : !IOZMajorDataType
     %1 = memref.alloc() : !IOZMajorSMType
     %2 = VPUIP.GroupSparseBuffer(%0, %1) -> !IOZMajorSparseType
@@ -473,10 +473,10 @@ func.func @CopyToBlockArgumentSubViewSparse(%arg0: !IOZMajorSparseType, %arg1: !
 
     %6:2 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%in_data : !IOZMajorDataType)
         input_sparsity_map(%in_sm : !IOZMajorSMType)
@@ -490,7 +490,7 @@ func.func @CopyToBlockArgumentSubViewSparse(%arg0: !IOZMajorSparseType, %arg1: !
         output_sparsity_map(%out_sm_0 : !IOZMajorSMType) -> !IOZMajorDataType, !IOZMajorSMType
         variants :
         {
-            DPUTask { outEnd = [16, 1, 1], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 1, 1], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }
@@ -498,10 +498,10 @@ func.func @CopyToBlockArgumentSubViewSparse(%arg0: !IOZMajorSparseType, %arg1: !
 
     %8:2 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%in_data : !IOZMajorDataType)
         input_sparsity_map(%in_sm : !IOZMajorSMType)
@@ -515,7 +515,7 @@ func.func @CopyToBlockArgumentSubViewSparse(%arg0: !IOZMajorSparseType, %arg1: !
         output_sparsity_map(%out_sm_1 : !IOZMajorSMType) -> !IOZMajorDataType, !IOZMajorSMType
         variants :
         {
-            DPUTask { outEnd = [16, 1, 1], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 1, 1], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }
@@ -537,8 +537,8 @@ func.func @CopyToBlockArgumentSubViewSparse(%arg0: !IOZMajorSparseType, %arg1: !
     // CHECK:       [[BUFF_1_DATA:%.+]] = memref.alloc() : memref<1x8x1x1xf16, #NHWC, @CMX_NN>
     // CHECK:       [[BUFF_1_SM:%.+]] = memref.alloc() : memref<1x8x1x1xi1, #NHWC, @CMX_NN>
     // CHECK:       [[BUFF_1:%.*]] = VPUIP.GroupSparseBuffer([[BUFF_1_DATA]], [[BUFF_1_SM]])
-
-    // CHECK:       [[DATA_0:%.*]], [[SM_0:%.*]] = VPUIP.UngroupSparseBuffer(%arg0)
+        
+    // CHECK:       [[DATA_0:%.*]], [[SM_0:%.*]] = VPUIP.UngroupSparseBuffer(%arg0) 
     // CHECK:       [[DATA_1:%.*]], [[SM_1:%.*]] = VPUIP.UngroupSparseBuffer([[BUFF_0]])
     // CHECK:       [[DATA_2:%.*]], [[SM_2:%.*]] = VPUIP.UngroupSparseBuffer([[BUFF_1]])
 
@@ -551,7 +551,7 @@ func.func @CopyToBlockArgumentSubViewSparse(%arg0: !IOZMajorSparseType, %arg1: !
     // CHECK:       [[VAR1:%.*]] = VPUIP.GroupSparseBuffer([[NCE0]]#0, [[NCE0]]#1)
     // CHECK:       [[VAR2:%.*]] = VPUIP.SubView %arg1 [0, 0, 0, 0] [1, 8, 1, 1]
     // CHECK:       [[VAR3:%.+]] = VPUIP.Copy inputs([[VAR1]] : !VPUIP.SparseBuffer<data=memref<1x8x1x1xf16, #NHWC, @CMX_NN>, sparsity_map=memref<1x8x1x1xi1, #NHWC, @CMX_NN>>)
-    // CHECK-SAME:      outputs([[VAR2]] : !VPUIP.SparseBuffer<data=memref<1x8x1x1xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [16, 1, 1, 1]}>,
+    // CHECK-SAME:      outputs([[VAR2]] : !VPUIP.SparseBuffer<data=memref<1x8x1x1xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [16, 1, 1, 1]}>, 
     // CHECK-SAME:                                             sparsity_map=memref<1x8x1x1xi1, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [16, 1, 1, 1]}>>)
 
 
@@ -564,9 +564,9 @@ func.func @CopyToBlockArgumentSubViewSparse(%arg0: !IOZMajorSparseType, %arg1: !
     // CHECK:       [[VAR4:%.*]] = VPUIP.GroupSparseBuffer([[NCE1]]#0, [[NCE1]]#1)
     // CHECK:       [[VAR5:%.*]] = VPUIP.SubView %arg1 [0, 8, 0, 0] [1, 8, 1, 1]
     // CHECK:       [[VAR6:%.+]] = VPUIP.Copy inputs([[VAR4]] : !VPUIP.SparseBuffer<data=memref<1x8x1x1xf16, #NHWC, @CMX_NN>, sparsity_map=memref<1x8x1x1xi1, #NHWC, @CMX_NN>>)
-    // CHECK-SAME:      outputs([[VAR5]] : !VPUIP.SparseBuffer<data=memref<1x8x1x1xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [16, 1, 1, 1]}>,
+    // CHECK-SAME:      outputs([[VAR5]] : !VPUIP.SparseBuffer<data=memref<1x8x1x1xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [16, 1, 1, 1]}>, 
     // CHECK-SAME:                                             sparsity_map=memref<1x8x1x1xi1, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [16, 1, 1, 1]}>>)
-
+    
     // CHECK:       [[VAR7:%.+]] = VPUIP.ConcatView inputs([[VAR3]], [[VAR6]]
     // CHECK-SAME:      outputs(%arg1 : !VPUIP.SparseBuffer<data=memref<1x16x1x1xf16>, sparsity_map=memref<1x16x1x1xi1>>) -> !VPUIP.SparseBuffer<data=memref<1x16x1x1xf16>, sparsity_map=memref<1x16x1x1xi1>>
 

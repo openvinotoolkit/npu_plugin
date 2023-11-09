@@ -76,7 +76,7 @@ def DeclareTaskBufferOp : VPURegMapped_Op<"DeclareTaskBuffer", []> {
     let summary = "Buffer Op representing a discrete location of a task in runtime metadataBuffer";
 
     let arguments = (ins
-        VPURegMapped_TaskType:$task_type
+        VPURegMapped_TaskTypeAttr:$task_type
     );
 
     let results = (outs

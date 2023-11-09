@@ -13,7 +13,7 @@ func.func @TopK_SI32toFP16(%arg0: tensor<1x77xsi32>) -> (tensor<1x1xsi32>, tenso
     return %output_values, %target_shape : tensor<1x1xsi32>, tensor<1x1xsi32>
 
     // CHECK: [[INPUT_CVT:%.*]] = IE.Convert(%arg0) {dstElemType = f16} : tensor<1x77xsi32> -> tensor<1x77xf16>
-    // CHECK: [[VALUES:%.*]], [[SHAPE:%.*]] = IE.TopK([[INPUT_CVT]],
+    // CHECK: [[VALUES:%.*]], [[SHAPE:%.*]] = IE.TopK([[INPUT_CVT]]
     // CHECK: [[OUT_CVT:%.*]] = IE.Convert([[VALUES]]) {dstElemType = si32} : tensor<1x1xf16> -> tensor<1x1xsi32>
     // CHECK: return [[OUT_CVT]], [[SHAPE]] : tensor<1x1xsi32>, tensor<1x1xsi32>
 }
@@ -27,7 +27,7 @@ func.func @TopK_SI64toFP16(%arg0: tensor<1x77xsi64>) -> (tensor<1x1xsi64>, tenso
     return %output_values, %target_shape : tensor<1x1xsi64>, tensor<1x1xsi32>
 
     // CHECK: [[INPUT_CVT:%.*]] = IE.Convert(%arg0) {dstElemType = f16} : tensor<1x77xsi64> -> tensor<1x77xf16>
-    // CHECK: [[VALUES:%.*]], [[SHAPE:%.*]] = IE.TopK([[INPUT_CVT]],
+    // CHECK: [[VALUES:%.*]], [[SHAPE:%.*]] = IE.TopK([[INPUT_CVT]]
     // CHECK: [[OUT_CVT:%.*]] = IE.Convert([[VALUES]]) {dstElemType = si64} : tensor<1x1xf16> -> tensor<1x1xsi64>
     // CHECK: return [[OUT_CVT]], [[SHAPE]] : tensor<1x1xsi64>, tensor<1x1xsi32>
 }

@@ -71,8 +71,8 @@ SmallVector<uint8_t> createInvocationArgs(VPUIP::BlobWriter& blobWriter, VPUIP::
                 VPUX_THROW("Only block arguments are supported");
             }
         }
-        if (kernelRun.attrs().hasValue()) {
-            const mlir::ArrayAttr arrayAttrs = kernelRun.attrs().getValue();
+        if (kernelRun.attrs().has_value()) {
+            const mlir::ArrayAttr arrayAttrs = kernelRun.attrs().value();
             const auto& attrs = arrayAttrs.getValue();
             for (const auto& attr : attrs) {
                 invocationBuilder.addArg(attr);
@@ -186,8 +186,8 @@ vpux::VPUIP::BlobWriter::ActKernel vpux::VPUIP::BlobWriter::createRuntimeKernelT
     auto swRuntimeOp = mlir::dyn_cast<VPURT::SWRunTimeOp>(op);
     VPUX_THROW_UNLESS(swRuntimeOp != nullptr, "Operation '{0}' is not a SWRuntimeOp", op->getName());
 
-    auto kernelFunc = module.lookupSymbol<mlir::func::FuncOp>(swRuntimeOp.entryPointAttr());
-    VPUX_THROW_UNLESS(kernelFunc, "Undefined runtime kernel : '{0}'", swRuntimeOp.entryPointAttr());
+    auto kernelFunc = module.lookupSymbol<mlir::func::FuncOp>(swRuntimeOp.getEntryPointAttr());
+    VPUX_THROW_UNLESS(kernelFunc, "Undefined runtime kernel : '{0}'", swRuntimeOp.getEntryPointAttr());
 
     const auto kernelCode = kernelFunc->getAttrOfType<mlir::StringAttr>("VPU.kernel_code");
     VPUX_THROW_UNLESS(kernelCode, "Operation '{0}' doesn't have VPU.kernel_code attribute", kernelFunc);
@@ -295,13 +295,13 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
     VPUIP::BlobWriter::KernelDataRef perfDataRef;
     if (profilingData != nullptr) {
         if (auto bufOp = mlir::dyn_cast<VPURT::DeclareBufferOp>(profilingData.getDefiningOp())) {
-            const ::llvm::Optional<mlir::ArrayAttr> sectionIndexOpt = bufOp.sectionIndex();
-            if (sectionIndexOpt.hasValue()) {
+            const ::llvm::Optional<mlir::ArrayAttr> sectionIndexOpt = bufOp.getSectionIndex();
+            if (sectionIndexOpt.has_value()) {
                 const int64_t sectionIndex =
-                        (sectionIndexOpt.getValue())[0].cast<mlir::IntegerAttr>().getValue().getSExtValue();
+                        (sectionIndexOpt.value())[0].cast<mlir::IntegerAttr>().getValue().getSExtValue();
                 perfDataRef = vpux::VPUIP::BlobWriter::createActKernelPerfDataRef(
-                        llvm::StringRef("perfBuffer"), bufOp.getType().cast<mlir::ShapedType>(), bufOp.section(),
-                        sectionIndex, bufOp.byteOffset());
+                        llvm::StringRef("perfBuffer"), bufOp.getType().cast<mlir::ShapedType>(), bufOp.getSection(),
+                        sectionIndex, bufOp.getByteOffset());
             }
         }
     }
@@ -347,9 +347,9 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
 
     auto taskOp = op->getParentOfType<VPURT::TaskOp>();
     VPUX_THROW_WHEN(taskOp == nullptr, "VPUIP task is doesn`t have VPURT TaskOp as a parent");
-    const auto isTrailingSWLayer = taskOp.isTrailingSWLayer();
+    const auto isTrailingSWLayer = taskOp.getIsTrailingSWLayer();
     vpux::VPUIP::BlobWriter::TensorReference profiling;
-    auto profilingData = taskOp.profiling_data();
+    auto profilingData = taskOp.getProfilingData();
     if (profilingData != nullptr) {
         profiling = getTensorRef(profilingData);
     }
@@ -392,19 +392,19 @@ const VPUIP::DMADescriptorReference vpux::VPUIP::BlobWriter::getDepthToSpaceNNDM
     uint32_t dstWidth(0), dstStride(0), dstPlaneStride(0), numPlanes(0);
 
     auto dmaDescriptor = dmaTask.dma_descriptor();
-    VPUX_THROW_UNLESS(dmaDescriptor.hasValue(), "DMA descriptor attr not found at '{0}'", dmaTask->getLoc());
-    auto dmaDescriptorValue = dmaDescriptor.getValue();
+    VPUX_THROW_UNLESS(dmaDescriptor.has_value(), "DMA descriptor attr not found at '{0}'", dmaTask->getLoc());
+    auto dmaDescriptorValue = dmaDescriptor.value();
 
-    numPlanes = checked_cast<uint32_t>(dmaDescriptorValue.numPlanes().getInt());
+    numPlanes = checked_cast<uint32_t>(dmaDescriptorValue.getNumPlanes().getInt());
     VPUX_THROW_UNLESS(numPlanes <= DMA_MAX_NUMBER_PLANES,
                       "NUM PLANES should be less than or equal to {0}, but got {1}.", DMA_MAX_NUMBER_PLANES, numPlanes);
-    len = checked_cast<uint32_t>(dmaDescriptorValue.len().getInt());
-    srcWidth = checked_cast<uint32_t>(dmaDescriptorValue.srcWidth().getInt());
-    srcStride = checked_cast<uint32_t>(dmaDescriptorValue.srcStride().getInt());
-    srcPlaneStride = checked_cast<uint32_t>(dmaDescriptorValue.srcPlaneStride().getInt());
-    dstWidth = checked_cast<uint32_t>(dmaDescriptorValue.dstWidth().getInt());
-    dstStride = checked_cast<uint32_t>(dmaDescriptorValue.dstStride().getInt());
-    dstPlaneStride = checked_cast<uint32_t>(dmaDescriptorValue.dstPlaneStride().getInt());
+    len = checked_cast<uint32_t>(dmaDescriptorValue.getLen().getInt());
+    srcWidth = checked_cast<uint32_t>(dmaDescriptorValue.getSrcWidth().getInt());
+    srcStride = checked_cast<uint32_t>(dmaDescriptorValue.getSrcStride().getInt());
+    srcPlaneStride = checked_cast<uint32_t>(dmaDescriptorValue.getSrcPlaneStride().getInt());
+    dstWidth = checked_cast<uint32_t>(dmaDescriptorValue.getDstWidth().getInt());
+    dstStride = checked_cast<uint32_t>(dmaDescriptorValue.getDstStride().getInt());
+    dstPlaneStride = checked_cast<uint32_t>(dmaDescriptorValue.getDstPlaneStride().getInt());
 
     _log.trace("Create DMADestribution type for Task {0}", op->getLoc());
     return VPUIP::DMADescriptorReference{len,      srcWidth,  srcStride,      srcPlaneStride,
@@ -417,17 +417,17 @@ const VPUIP::DMADescriptorReference vpux::VPUIP::BlobWriter::getSpaceToDepthNNDM
     VPUX_THROW_UNLESS(dmaTask, "Got unexpected SpaceToDepthDMAOp.");
 
     auto dmaDescriptor = dmaTask.dma_descriptor();
-    VPUX_THROW_UNLESS(dmaDescriptor.hasValue(), "DMA descriptor attribute not found at '{0}'", dmaTask->getLoc());
+    VPUX_THROW_UNLESS(dmaDescriptor.has_value(), "DMA descriptor attribute not found at '{0}'", dmaTask->getLoc());
 
-    auto dmaDescriptorValue = dmaDescriptor.getValue();
-    auto len = checked_cast<uint32_t>(dmaDescriptorValue.len().getInt());
-    auto srcWidth = checked_cast<uint32_t>(dmaDescriptorValue.srcWidth().getInt());
-    auto srcStride = checked_cast<uint32_t>(dmaDescriptorValue.srcStride().getInt());
-    auto srcPlaneStride = checked_cast<uint32_t>(dmaDescriptorValue.srcPlaneStride().getInt());
-    auto dstWidth = checked_cast<uint32_t>(dmaDescriptorValue.dstWidth().getInt());
-    auto dstStride = checked_cast<uint32_t>(dmaDescriptorValue.dstStride().getInt());
-    auto dstPlaneStride = checked_cast<uint32_t>(dmaDescriptorValue.dstPlaneStride().getInt());
-    auto numPlanes = checked_cast<uint32_t>(dmaDescriptorValue.numPlanes().getInt());
+    auto dmaDescriptorValue = dmaDescriptor.value();
+    auto len = checked_cast<uint32_t>(dmaDescriptorValue.getLen().getInt());
+    auto srcWidth = checked_cast<uint32_t>(dmaDescriptorValue.getSrcWidth().getInt());
+    auto srcStride = checked_cast<uint32_t>(dmaDescriptorValue.getSrcStride().getInt());
+    auto srcPlaneStride = checked_cast<uint32_t>(dmaDescriptorValue.getSrcPlaneStride().getInt());
+    auto dstWidth = checked_cast<uint32_t>(dmaDescriptorValue.getDstWidth().getInt());
+    auto dstStride = checked_cast<uint32_t>(dmaDescriptorValue.getDstStride().getInt());
+    auto dstPlaneStride = checked_cast<uint32_t>(dmaDescriptorValue.getDstPlaneStride().getInt());
+    auto numPlanes = checked_cast<uint32_t>(dmaDescriptorValue.getNumPlanes().getInt());
 
     _log.trace("Create DMA descriptor type for Task {0}", op->getLoc());
     return VPUIP::DMADescriptorReference{len,      srcWidth,  srcStride,      srcPlaneStride,
@@ -440,17 +440,17 @@ const VPUIP::DMADescriptorReference vpux::VPUIP::BlobWriter::getExpandNNDMADescr
     VPUX_THROW_UNLESS(dmaTask, "Got unexpect ExpandDMAOp.");
 
     auto dmaDescriptor = dmaTask.dma_descriptor();
-    VPUX_THROW_UNLESS(dmaDescriptor.hasValue(), "DMA descriptor attribute not found at '{0}'", dmaTask->getLoc());
+    VPUX_THROW_UNLESS(dmaDescriptor.has_value(), "DMA descriptor attribute not found at '{0}'", dmaTask->getLoc());
 
-    auto dmaDescriptorValue = dmaDescriptor.getValue();
-    auto len = checked_cast<uint32_t>(dmaDescriptorValue.len().getInt());
-    auto srcWidth = checked_cast<uint32_t>(dmaDescriptorValue.srcWidth().getInt());
-    auto srcStride = checked_cast<uint32_t>(dmaDescriptorValue.srcStride().getInt());
-    auto srcPlaneStride = checked_cast<uint32_t>(dmaDescriptorValue.srcPlaneStride().getInt());
-    auto dstWidth = checked_cast<uint32_t>(dmaDescriptorValue.dstWidth().getInt());
-    auto dstStride = checked_cast<uint32_t>(dmaDescriptorValue.dstStride().getInt());
-    auto dstPlaneStride = checked_cast<uint32_t>(dmaDescriptorValue.dstPlaneStride().getInt());
-    auto numPlanes = checked_cast<uint32_t>(dmaDescriptorValue.numPlanes().getInt());
+    auto dmaDescriptorValue = dmaDescriptor.value();
+    auto len = checked_cast<uint32_t>(dmaDescriptorValue.getLen().getInt());
+    auto srcWidth = checked_cast<uint32_t>(dmaDescriptorValue.getSrcWidth().getInt());
+    auto srcStride = checked_cast<uint32_t>(dmaDescriptorValue.getSrcStride().getInt());
+    auto srcPlaneStride = checked_cast<uint32_t>(dmaDescriptorValue.getSrcPlaneStride().getInt());
+    auto dstWidth = checked_cast<uint32_t>(dmaDescriptorValue.getDstWidth().getInt());
+    auto dstStride = checked_cast<uint32_t>(dmaDescriptorValue.getDstStride().getInt());
+    auto dstPlaneStride = checked_cast<uint32_t>(dmaDescriptorValue.getDstPlaneStride().getInt());
+    auto numPlanes = checked_cast<uint32_t>(dmaDescriptorValue.getNumPlanes().getInt());
 
     _log.trace("Create DMA descriptor type for Task {0}", op->getLoc());
     return VPUIP::DMADescriptorReference{len,      srcWidth,  srcStride,      srcPlaneStride,
@@ -467,16 +467,16 @@ const VPUIP::DMADescriptorReference vpux::VPUIP::BlobWriter::getPermuteNNDMADesc
                       "PermuteDMAOp shape size should be 2 or 3. but got {0}", dataShape.size());
 
     auto dmaDescriptor = dmaTask.dma_descriptor();
-    VPUX_THROW_UNLESS(dmaDescriptor.hasValue(), "DMA descriptor attr not found at '{0}'", dmaTask->getLoc());
-    auto dmaDescriptorValue = dmaDescriptor.getValue();
-    auto len = checked_cast<uint32_t>(dmaDescriptorValue.len().getInt());
-    auto srcWidth = checked_cast<uint32_t>(dmaDescriptorValue.srcWidth().getInt());
-    auto srcStride = checked_cast<uint32_t>(dmaDescriptorValue.srcStride().getInt());
-    auto srcPlaneStride = checked_cast<uint32_t>(dmaDescriptorValue.srcPlaneStride().getInt());
-    auto dstWidth = checked_cast<uint32_t>(dmaDescriptorValue.dstWidth().getInt());
-    auto dstStride = checked_cast<uint32_t>(dmaDescriptorValue.dstStride().getInt());
-    auto dstPlaneStride = checked_cast<uint32_t>(dmaDescriptorValue.dstPlaneStride().getInt());
-    auto numPlanes = checked_cast<uint32_t>(dmaDescriptorValue.numPlanes().getInt());
+    VPUX_THROW_UNLESS(dmaDescriptor.has_value(), "DMA descriptor attr not found at '{0}'", dmaTask->getLoc());
+    auto dmaDescriptorValue = dmaDescriptor.value();
+    auto len = checked_cast<uint32_t>(dmaDescriptorValue.getLen().getInt());
+    auto srcWidth = checked_cast<uint32_t>(dmaDescriptorValue.getSrcWidth().getInt());
+    auto srcStride = checked_cast<uint32_t>(dmaDescriptorValue.getSrcStride().getInt());
+    auto srcPlaneStride = checked_cast<uint32_t>(dmaDescriptorValue.getSrcPlaneStride().getInt());
+    auto dstWidth = checked_cast<uint32_t>(dmaDescriptorValue.getDstWidth().getInt());
+    auto dstStride = checked_cast<uint32_t>(dmaDescriptorValue.getDstStride().getInt());
+    auto dstPlaneStride = checked_cast<uint32_t>(dmaDescriptorValue.getDstPlaneStride().getInt());
+    auto numPlanes = checked_cast<uint32_t>(dmaDescriptorValue.getNumPlanes().getInt());
     VPUX_THROW_UNLESS(numPlanes <= DMA_MAX_NUMBER_PLANES,
                       "NUM PLANES should be less than or equal to {0}, but got {1}.", DMA_MAX_NUMBER_PLANES, numPlanes);
     _log.trace("Create DMA distribution type for Task '{0}' at '{1}'", op->getName(), op->getLoc());
@@ -490,16 +490,16 @@ const VPUIP::DMADescriptorReference vpux::VPUIP::BlobWriter::getUpsamplingNNDMAD
     VPUX_THROW_UNLESS(dmaTask, "Got unexpect UpsamplingDMAOp");
 
     auto dmaDescriptor = dmaTask.dma_descriptor();
-    VPUX_THROW_UNLESS(dmaDescriptor.hasValue(), "DMA descriptor attr not found at '{0}'", dmaTask->getLoc());
-    auto dmaDescriptorValue = dmaDescriptor.getValue();
-    auto len = checked_cast<uint32_t>(dmaDescriptorValue.len().getInt());
-    auto srcWidth = checked_cast<uint32_t>(dmaDescriptorValue.srcWidth().getInt());
-    auto srcStride = checked_cast<uint32_t>(dmaDescriptorValue.srcStride().getInt());
-    auto srcPlaneStride = checked_cast<uint32_t>(dmaDescriptorValue.srcPlaneStride().getInt());
-    auto dstWidth = checked_cast<uint32_t>(dmaDescriptorValue.dstWidth().getInt());
-    auto dstStride = checked_cast<uint32_t>(dmaDescriptorValue.dstStride().getInt());
-    auto dstPlaneStride = checked_cast<uint32_t>(dmaDescriptorValue.dstPlaneStride().getInt());
-    auto numPlanes = checked_cast<uint32_t>(dmaDescriptorValue.numPlanes().getInt());
+    VPUX_THROW_UNLESS(dmaDescriptor.has_value(), "DMA descriptor attr not found at '{0}'", dmaTask->getLoc());
+    auto dmaDescriptorValue = dmaDescriptor.value();
+    auto len = checked_cast<uint32_t>(dmaDescriptorValue.getLen().getInt());
+    auto srcWidth = checked_cast<uint32_t>(dmaDescriptorValue.getSrcWidth().getInt());
+    auto srcStride = checked_cast<uint32_t>(dmaDescriptorValue.getSrcStride().getInt());
+    auto srcPlaneStride = checked_cast<uint32_t>(dmaDescriptorValue.getSrcPlaneStride().getInt());
+    auto dstWidth = checked_cast<uint32_t>(dmaDescriptorValue.getDstWidth().getInt());
+    auto dstStride = checked_cast<uint32_t>(dmaDescriptorValue.getDstStride().getInt());
+    auto dstPlaneStride = checked_cast<uint32_t>(dmaDescriptorValue.getDstPlaneStride().getInt());
+    auto numPlanes = checked_cast<uint32_t>(dmaDescriptorValue.getNumPlanes().getInt());
     VPUX_THROW_UNLESS(numPlanes <= DMA_MAX_NUMBER_PLANES,
                       "NUM PLANES should be less than or equal to {0}, but got {1}.", DMA_MAX_NUMBER_PLANES, numPlanes);
     _log.trace("Create DMA distribution type for Task '{0}' at '{1}'", op->getName(), op->getLoc());
@@ -513,17 +513,17 @@ const VPUIP::DMADescriptorReference vpux::VPUIP::BlobWriter::getPerAxisTileNNDMA
     VPUX_THROW_UNLESS(dmaTask, "Got unexpected PerAxisTileDMAOp.");
 
     auto dmaDescriptor = dmaTask.dma_descriptor();
-    VPUX_THROW_UNLESS(dmaDescriptor.hasValue(), "DMA descriptor attribute not found at '{0}'", dmaTask->getLoc());
+    VPUX_THROW_UNLESS(dmaDescriptor.has_value(), "DMA descriptor attribute not found at '{0}'", dmaTask->getLoc());
 
-    auto dmaDescriptorValue = dmaDescriptor.getValue();
-    auto len = checked_cast<uint32_t>(dmaDescriptorValue.len().getInt());
-    auto srcWidth = checked_cast<uint32_t>(dmaDescriptorValue.srcWidth().getInt());
-    auto srcStride = checked_cast<uint32_t>(dmaDescriptorValue.srcStride().getInt());
-    auto srcPlaneStride = checked_cast<uint32_t>(dmaDescriptorValue.srcPlaneStride().getInt());
-    auto dstWidth = checked_cast<uint32_t>(dmaDescriptorValue.dstWidth().getInt());
-    auto dstStride = checked_cast<uint32_t>(dmaDescriptorValue.dstStride().getInt());
-    auto dstPlaneStride = checked_cast<uint32_t>(dmaDescriptorValue.dstPlaneStride().getInt());
-    auto numPlanes = checked_cast<uint32_t>(dmaDescriptorValue.numPlanes().getInt());
+    auto dmaDescriptorValue = dmaDescriptor.value();
+    auto len = checked_cast<uint32_t>(dmaDescriptorValue.getLen().getInt());
+    auto srcWidth = checked_cast<uint32_t>(dmaDescriptorValue.getSrcWidth().getInt());
+    auto srcStride = checked_cast<uint32_t>(dmaDescriptorValue.getSrcStride().getInt());
+    auto srcPlaneStride = checked_cast<uint32_t>(dmaDescriptorValue.getSrcPlaneStride().getInt());
+    auto dstWidth = checked_cast<uint32_t>(dmaDescriptorValue.getDstWidth().getInt());
+    auto dstStride = checked_cast<uint32_t>(dmaDescriptorValue.getDstStride().getInt());
+    auto dstPlaneStride = checked_cast<uint32_t>(dmaDescriptorValue.getDstPlaneStride().getInt());
+    auto numPlanes = checked_cast<uint32_t>(dmaDescriptorValue.getNumPlanes().getInt());
 
     VPUX_THROW_UNLESS(numPlanes <= DMA_MAX_NUMBER_PLANES,
                       "NUM PLANES should be less than or equal to {0}, but got {1}.", DMA_MAX_NUMBER_PLANES, numPlanes);
@@ -573,8 +573,8 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
     builder.add_quant_post_shift_right(checked_cast<int8_t>(postShift));
     builder.add_order(dimsOrder.code());
     builder.add_base_ptrs(basePtrs);
-    if (swizzlingKey.hasValue()) {
-        builder.add_swizzling_key(checked_cast<uint8_t>(swizzlingKey.getValue()));
+    if (swizzlingKey.has_value()) {
+        builder.add_swizzling_key(checked_cast<uint8_t>(swizzlingKey.value()));
     }
     return builder.Finish();
 }
@@ -698,16 +698,16 @@ VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::createBarrier(mlir::Value va
     }
 
     MVCNN::BarrierBuilder builder(_impl);
-    if (physicalID.hasValue()) {
-        builder.add_barrier_id(checked_cast<int16_t>(physicalID.getValue()));
+    if (physicalID.has_value()) {
+        builder.add_barrier_id(checked_cast<int16_t>(physicalID.value()));
     }
     builder.add_consumer_count(checked_cast<int16_t>(numConsumers));
     builder.add_producer_count(checked_cast<int16_t>(numProducers));
     const auto off = builder.Finish();
 
     _barriersVirtIds.insert({val, checked_cast<uint32_t>(_barriersVirtIds.size())});
-    if (physicalID.hasValue()) {
-        _barriersPhysIds.insert({val, checked_cast<uint32_t>(physicalID.getValue())});
+    if (physicalID.has_value()) {
+        _barriersPhysIds.insert({val, checked_cast<uint32_t>(physicalID.value())});
     }
 
     return off;
@@ -739,16 +739,16 @@ VPUIP::BlobWriter::BarrierReference vpux::VPUIP::BlobWriter::createBarrierRefere
             virtIds.push_back(getBarrierVirtualID(bar));
 
             if (auto physID = getBarrierPhysicalID(bar)) {
-                physIds.push_back(physID.getValue());
+                physIds.push_back(physID.value());
             }
         }
     };
 
     std::vector<uint32_t> waitVirtIds, waitPhysIds;
-    extractBarriersIDs(taskOp.waitBarriers(), waitVirtIds, waitPhysIds);
+    extractBarriersIDs(taskOp.getWaitBarriers(), waitVirtIds, waitPhysIds);
 
     std::vector<uint32_t> updateVirtIds, updatePhysIds;
-    extractBarriersIDs(taskOp.updateBarriers(), updateVirtIds, updatePhysIds);
+    extractBarriersIDs(taskOp.getUpdateBarriers(), updateVirtIds, updatePhysIds);
 
     // FIXME: BarrierReference structure specification requires to fill it as:
     //   * wait_barriers / update_barriers - physical IDs
@@ -805,15 +805,27 @@ VPUIP::BlobWriter::IndirectDataReference vpux::VPUIP::BlobWriter::createIndirect
         Optional<int64_t> storageElementSize) {
     MVCNN::IndirectDataReferenceBuilder builder(_impl);
     builder.add_data_index(checked_cast<uint64_t>(dataIndex));
-    if (sparsityIndex.hasValue()) {
-        builder.add_sparsity_index(checked_cast<uint64_t>(sparsityIndex.getValue()));
+    if (sparsityIndex.has_value()) {
+        builder.add_sparsity_index(checked_cast<uint64_t>(sparsityIndex.value()));
     }
-    if (storageElementIndex.hasValue()) {
-        builder.add_storage_element_index(checked_cast<uint64_t>(storageElementIndex.getValue()));
+    if (storageElementIndex.has_value()) {
+        builder.add_storage_element_index(checked_cast<uint64_t>(storageElementIndex.value()));
     }
-    if (storageElementSize.hasValue()) {
-        builder.add_storage_element_size(checked_cast<uint32_t>(storageElementSize.getValue()));
+    if (storageElementSize.has_value()) {
+        builder.add_storage_element_size(checked_cast<uint32_t>(storageElementSize.value()));
     }
+    return builder.Finish();
+}
+
+VPUIP::BlobWriter::BinaryData vpux::VPUIP::BlobWriter::createBinaryData(ArrayRef<uint64_t> content, size_t totalBytes,
+                                                                        bool csram_cacheable) {
+    const auto serializedContent = createVector(content);
+
+    MVCNN::BinaryDataBuilder builder(_impl);
+    builder.add_underlying_type(MVCNN::DType::DType_U8);
+    builder.add_length(totalBytes);
+    builder.add_data(serializedContent);
+    builder.add_csram_cacheable(csram_cacheable);
     return builder.Finish();
 }
 
@@ -821,14 +833,7 @@ VPUIP::BlobWriter::BinaryData vpux::VPUIP::BlobWriter::createBinaryData(ArrayRef
                                                                         vpux::NDTypeInterface type,
                                                                         bool csram_cacheable) {
     const auto totalByteSize = type.getTotalAllocSize();
-    const auto serializedContent = createVector(content);
-
-    MVCNN::BinaryDataBuilder builder(_impl);
-    builder.add_underlying_type(MVCNN::DType::DType_U8);
-    builder.add_length(totalByteSize.count());
-    builder.add_data(serializedContent);
-    builder.add_csram_cacheable(csram_cacheable);
-    return builder.Finish();
+    return createBinaryData(content, totalByteSize.count(), csram_cacheable);
 }
 
 void vpux::VPUIP::BlobWriter::setAliasForSerializedTensors(mlir::Operation* op) {

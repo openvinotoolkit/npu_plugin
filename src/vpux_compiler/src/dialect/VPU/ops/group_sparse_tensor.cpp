@@ -127,12 +127,12 @@ mlir::LogicalResult MoveViewLikeOps::matchAndRewrite(VPU::GroupSparseTensorOp or
                         VPU::tileCompressionScheme(compressionSchemeAttr, Shape(sliceOffsets), Shape(sliceSizes));
             }
 
-            auto rewriteInput = [&](mlir::Value value, vpux::Shape offsets, vpux::Shape sizes) {
+            auto rewriteInput = [&](mlir::Value value, ShapeRef offsets, ShapeRef sizes) {
                 if (auto constOp = value.getDefiningOp<Const::DeclareOp>()) {
-                    auto newContentAttr = constOp.contentAttr().subview(offsets, sizes);
+                    auto newContentAttr = constOp.getContentAttr().subview(offsets, sizes);
                     auto newConstOp = rewriter.create<Const::DeclareOp>(constOp.getLoc(), newContentAttr.getType(),
                                                                         newContentAttr);
-                    return newConstOp.output();
+                    return newConstOp.getOutput();
                 }
                 auto newSliceOp = rewriter.create<VPU::SliceOp>(value.getLoc(), value, getIntArrayAttr(ctx, offsets),
                                                                 getIntArrayAttr(ctx, sizes));

@@ -484,6 +484,21 @@ void OptimizeCopiesPass::safeRunOnFunc() {
 }
 ```
 
+## Project structure
+
+At a high level, the project is divided into common part and HW-specific part.
+HW-specific stuff is placed separately for each architecture in folders such as: [VPU30XX](../include/vpux/compiler/VPU30XX), [VPU37XX](../include/vpux/compiler/VPU37XX), etc.
+
+The newer generation of the device may depend on the older one, but not vice versa. And all devices depend on a common part. The relationship between the components is shown in the diagram:
+
+```mermaid
+  graph TD;
+      VPU30XX-->Common;
+      VPU37XX-->Common & VPU30XX;
+```
+
+Thus, if a class/method/constant/etc. is used by all generations, it should be placed in the common part. Otherwise place the object in the oldest device folder that uses it and reuse it in newer ones if needed.
+
 ## Lit-tests
 
 ### Command line
@@ -495,6 +510,18 @@ There are two ways to do this:
 ```
 // RUN: vpux-opt --vpu-arch=VPUX37XX --split-input-file --mlir-elide-elementsattrs-if-larger 8 --default-hw-mode %s | FileCheck %s
 ```
+
+`vpux-arch` is also required to be used with vpux-translate to specify platform for import
+```
+./vpux-translate --vpu-arch=VPUX30XX --import-IE <xml path> --mlir-print-debuginfo -o net.mlir
+```
+and export:
+```
+// RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" %s | vpux-translate --vpu-arch=VPUX37XX --export-VPUIP -o %t
+```
+
+> Note: TODO(E#84874): currently, --vpu-arch is used for both import and export. However, it would be a better option to extract arch info from module for the export case
+
 
 `init-compiler` for passes and sub-pipelines:
 ```
@@ -521,7 +548,7 @@ The file name have to match the pass name, so for `OptimizeCopiesPass` the file 
 It is allowed to divide the file into several specialized test suites and use the suffix for this: `optimize_copies_DDR.mlir`, `optimize_copies_CMX.mlir`.
 
 Test system has several folders:
-- For common tests: [VPUX](../../../tests/lit/VPUX). If the test suite is suitable for all types of devices, then it should only follow general naming rules. 
+- For common tests: [VPUX](../../../tests/lit/VPUX). If the test suite is suitable for all types of devices, then it should only follow general naming rules.
 Otherwise, add suffix for each supported device: `optimize_copies_37XX_30XX.mlir`
 - For specic tests: [VPUX30XX](../../../tests/lit/VPUX30XX)/[VPUX37XX](../../../tests/lit/VPUX37XX). The test suite suitable for only one device have to be placed here and follow general naming rules.
 
@@ -563,7 +590,7 @@ Each variable should have a meaningful name:
 // CHECK:       [[CONV:%.+]] = IE.Convolution([[ARG0]], [[FILTERS]], [[BIAS]])
 // CHECK:       return [[CONV]]
 
-// BAD: Such a test is much more difficult to understand, 
+// BAD: Such a test is much more difficult to understand,
 //      since the origin of the variables and what they mean are unknown.
 //      There is also a high probability of making a "green" test for the wrong behavior of the pass
 // CHECK-DAG:   [[VAR1:%.+]] = const.Declare tensor<16x3x3x3xf32> = dense<1.000000e+00> : tensor<16x3x3x3xf32>
@@ -571,3 +598,69 @@ Each variable should have a meaningful name:
 // CHECK:       [[VAR3:%.+]] = IE.Convolution([[VAR0]], [[VAR1]], [[VAR2]])
 // CHECK:       return [[VAR4]]
 ```
+
+## Unit tests
+
+### Using MLIR_UnitBase
+
+There is a common class recommended as a base class for a unit test. It handles dialect registration, which is a shared
+step for the compiler unit tests.
+```cpp
+// BAD
+TEST(MLIR_IndexedSymbolAttr, CheckNestedAttr) {
+    mlir::DialectRegistry registry;
+    vpux::registerDialects(registry);
+    ...
+}
+
+// OK
+using MLIR_IndexedSymbolAttr = MLIR_UnitBase;
+TEST_F(MLIR_IndexedSymbolAttr, CheckNestedAttr) {
+    ...
+}
+```
+
+## Pipelines and passes
+
+### Pass integration
+- Passes must be integrated as a part of a pipeline. Exceptions to this flow must be covered in comment and ticket
+- Principles of combining passes in pipelines:
+    - Passes that solve a complicated problem
+    - Passes have dependencies
+    ```cpp
+    // OK: Passes are combined into a pipeline. Dependencies are obvious and can be tested.
+    void vpux::IE::buildOptimizeActivationsPipeline(mlir::OpPassManager& pm, Logger log) {
+        const auto grc = getDefaultGreedyRewriteConfig();
+
+        pm.addPass(IE::createSwapOperationsPass(log));
+        pm.addPass(IE::createInsertIdentityPoolBeforeActivationPass(log));
+        pm.addPass(IE::createFusePostOpsPass(log));
+        pm.addPass(mlir::createCanonicalizerPass(grc));
+    }
+
+    void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOptions37XX& options, Logger log) {
+        // ...
+        IE::buildOptimizeActivationsPipeline(pm, log)
+        // ...
+    }
+
+    // BAD: There are a lot of passes around, the dependence is not obvious.
+    // It's impossible to test the solution of the problem in isolation, need to test the entire DefaultHW pipeline.
+    void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOptions37XX& options, Logger log) {
+        // ...
+        pm.addPass(IE::createSwapOperationsPass(log));
+        pm.addPass(IE::createInsertIdentityPoolBeforeActivationPass(log));
+        pm.addPass(IE::createFusePostOpsPass(log));
+        pm.addPass(mlir::createCanonicalizerPass(grc));
+        // ...
+    }
+    ```
+- Passes with strict dependencies must be tested together usign LIT for pipelines
+```cpp
+// OK: Pass interactions are fixed. If the pipeline is changed, the test may show an error
+// RUN: vpux-opt --init-compiler="vpu-arch=%arch%" --optimize-activations %s | FileCheck %s
+
+// BAD: Pass interactions are fixed, but the potential error will not be shown when changing the real pipeline(some passes could be added between SwapOperations and FusePostOps)
+// RUN: vpux-opt --init-compiler="vpu-arch=%arch%" --swap-operations --fuse-post-ops %s | FileCheck %s
+```
+- We allow calling pipelines multiples times to express dependencies in code

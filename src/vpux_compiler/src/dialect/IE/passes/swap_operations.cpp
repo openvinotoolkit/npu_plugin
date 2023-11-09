@@ -45,7 +45,7 @@ bool checkOrderCompatible(mlir::Operation* origOp, DimsOrder origOrder, DimsOrde
 
         auto orderInfo = iface.getLayoutInfo();
         orderInfo.setInput(0, parentOrder);
-        iface.inferLayoutInfo(orderInfo);
+        iface.inferLayoutInfo(orderInfo, /*seOpsEnabled=*/false);
         if (orderInfo.getInput(0) != parentOrder) {
             return false;
         }
@@ -291,8 +291,8 @@ mlir::LogicalResult SwapWithActivation<Activation>::matchAndRewrite(Activation o
         return mlir::failure();
     }
 
-    if (!mlir::isa<IE::ElemTypeInfoOpInterface>(parentOp) || mlir::isa<IE::SliceOp>(parentOp) ||
-        mlir::isa<Activation>(parentOp)) {
+    if (!mlir::isa<IE::ElemTypeInfoOpInterface>(parentOp) || mlir::isa<IE::LayerWithPostOpInterface>(parentOp) ||
+        mlir::isa<IE::SliceOp>(parentOp) || mlir::isa<Activation>(parentOp)) {
         _log.trace("[{0}] Swapped operation {1} doesn't implement ElemTypeInfoOpInterface interface {0} or it is an "
                    "activation",
                    this->getDebugName(), parentOp);
@@ -458,6 +458,7 @@ void SwapOperationsPass::safeRunOnFunc() {
     patterns.add<SwapWithActivation<IE::SigmoidOp>>(&ctx, _log.nest());
     patterns.add<SwapWithActivation<IE::TanhOp>>(&ctx, _log.nest());
     patterns.add<SwapWithActivation<IE::ClampOp>>(&ctx, _log.nest());
+    patterns.add<SwapWithActivation<IE::LeakyReluOp>>(&ctx, _log.nest());
     patterns.add<SwapWithBias>(&ctx, _log.nest());
     // TODO: E#18651 Support ElemTypeInfoOpInterface for Slice
     patterns.add<SwapTanhSlice>(&ctx, _log.nest());

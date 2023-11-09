@@ -33,8 +33,8 @@ mlir::LogicalResult vpux::IE::CopyOp::inferReturnTypeComponents(
     }
 
     IndexedSymbolAttr outMemSpace = nullptr;
-    if (copyOp.out_mem_space().hasValue()) {
-        outMemSpace = copyOp.out_mem_space().getValue();
+    if (copyOp.out_mem_space().has_value()) {
+        outMemSpace = copyOp.out_mem_space().value();
     }
     const auto outType = ndInType.changeMemSpace(outMemSpace).cast<mlir::RankedTensorType>();
 

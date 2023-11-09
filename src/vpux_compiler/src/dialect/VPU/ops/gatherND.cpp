@@ -45,10 +45,6 @@ mlir::LogicalResult vpux::VPU::GatherNDOp::inferReturnTypes(mlir::MLIRContext* c
     return mlir::success();
 }
 
-void vpux::VPU::GatherNDOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
-    IE::fillDefaultLayoutInfo(info);
-}
-
 //
 // serialize
 //
@@ -137,7 +133,7 @@ vpux::InputTiling vpux::VPU::GatherNDOp::backInferTileInfo(const vpux::TileInfo&
 void vpux::VPU::GatherNDOp::adjustAttrs(const TilingInfo& /*inputTiling*/, const TileInfo& /*outputTile*/) {
 }
 
-OutputTiling vpux::VPU::GatherNDOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
+mlir::FailureOr<OutputTiling> vpux::VPU::GatherNDOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
     auto baseOp = this->getOperation();
     VPUX_THROW_WHEN(tilingMode != TilingMode::ISOLATED,
                     "Only supporting isolated tiling for GatherND currently, for op {0} at '{1}'", baseOp->getName(),
@@ -153,7 +149,10 @@ OutputTiling vpux::VPU::GatherNDOp::getTilingStrategy(TilingMode tilingMode, Log
     const auto isSupportedTileSize = [baseOp, &tilingInfo, outputShape, log](ShapeRef nTilesOnDim,
                                                                              TilingMode tilingMode) -> bool {
         const auto tiles = fillDividedTiles(baseOp, nTilesOnDim, outputShape);
-        return tilingInfo.isSupportedTiling(tiles, tilingMode, log);
+        if (mlir::failed(tiles)) {
+            return false;
+        }
+        return tilingInfo.isSupportedTiling(tiles.value(), tilingMode, log);
     };
 
     const auto tileDimRange = [isSupportedTileSize, &nTilesOnDimforGatherND, tilingMode, outputShape](

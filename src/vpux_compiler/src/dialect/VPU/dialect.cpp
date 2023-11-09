@@ -16,7 +16,7 @@ using namespace vpux;
 void vpux::VPU::VPUDialect::initialize() {
     addOperations<
 #define GET_OP_LIST
-#include <vpux/compiler/dialect/VPU/generated/ops.cpp.inc>
+#include <vpux/compiler/dialect/VPU/ops.cpp.inc>
             >();
 
     registerAttributes();
@@ -27,4 +27,4 @@ void vpux::VPU::VPUDialect::initialize() {
 // Generated
 //
 
-#include <vpux/compiler/dialect/VPU/generated/dialect.cpp.inc>
+#include <vpux/compiler/dialect/VPU/dialect.cpp.inc>

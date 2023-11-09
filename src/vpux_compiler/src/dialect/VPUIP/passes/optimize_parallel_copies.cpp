@@ -170,7 +170,7 @@ bool isCopyFusable(VPUIP::CopyOp copyOp, bool enableOptimizeConstCopy, Logger lo
     // single copy e.g. cases when the NCEOps that shares the same weights
     // Note that weight table and compressed convolution cannot apply this optimization. This is because
     // 1. for weight table, contents of weigthTable need to be adjusted with proper pointer value
-    // 2. for compressed convolution, const data like weight also will be adjusted in AdjustCompressConvInputs pass,
+    // 2. for compressed convolution, const data like weight also will be adjusted in ConvWeightsCompression pass,
     // will prevent the copy optimization.
     if (mlir::isa<Const::DeclareOp>(parentOp)) {
         if (!enableOptimizeConstCopy) {

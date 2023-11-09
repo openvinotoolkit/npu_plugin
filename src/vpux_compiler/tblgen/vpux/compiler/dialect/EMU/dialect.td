@@ -33,12 +33,15 @@ It has the following properties:
         "vpux::Const::ConstDialect",
         "vpux::IE::IEDialect",
         "vpux::VPU::VPUDialect",
+        "vpux::VPUIP::VPUIPDialect",
         "mlir::func::FuncDialect",
         "mlir::tensor::TensorDialect",
         "mlir::quant::QuantizationDialect"
     ];
 
     let hasConstantMaterializer = 1;
+
+    let emitAccessorPrefix = kEmitAccessorPrefix_Prefixed;
 }
 
 #endif

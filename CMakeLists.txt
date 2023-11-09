@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2022 Intel Corporation.
+# Copyright (C) 2022-2023 Intel Corporation.
 # SPDX-License-Identifier: Apache 2.0
 #
 
@@ -24,8 +24,8 @@ project(InferenceEngineVPUXPlugin)
 # Build properties
 #
 
-set(VPUX_DEVICE_NAME "VPUX")
-string(TOLOWER "${VPUX_DEVICE_NAME}" VPUX_PLUGIN_COMPONENT)
+set(NPU_DEVICE_NAME "NPU")
+string(TOLOWER "${NPU_DEVICE_NAME}" VPUX_PLUGIN_COMPONENT)
 set(VPUX_TESTS_COMPONENT "${VPUX_PLUGIN_COMPONENT}_tests")
 
 set(IE_MAIN_VPUX_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
@@ -49,6 +49,14 @@ endif()
 include(FetchContent)
 
 find_package(InferenceEngineDeveloperPackage REQUIRED)
+get_directory_property(defs DIRECTORY ${CMAKE_SOURCE_DIR} COMPILE_DEFINITIONS)
+set(IE_BUILD_POSTFIX_VAR)
+foreach(def ${defs})
+    if(def MATCHES "IE_BUILD_POSTFIX=")
+        string(REPLACE IE_BUILD_POSTFIX= "" IE_BUILD_POSTFIX_VAR ${def})
+        remove_definitions(-D${def})
+    endif()
+endforeach()
 
 include(cmake/features.cmake)
 include(cmake/compile_options.cmake)
@@ -62,6 +70,7 @@ include(cmake/flatbuffers.cmake)
 include(cmake/bundle_static_library.cmake)
 include(cmake/embed_bin_file.cmake)
 include(cmake/add_tool_target.cmake)
+include(cmake/coverage.cmake)
 
 if(ENABLE_TESTS)
     enable_testing()
@@ -90,26 +99,6 @@ endif()
 
 add_subdirectory(thirdparty EXCLUDE_FROM_ALL)
 
-set(LLVM_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/llvm-project/llvm")
-set(LLVM_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/thirdparty/llvm-project/llvm")
-
-set(MLIR_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/llvm-project/mlir")
-set(MLIR_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/thirdparty/llvm-project/llvm/tools/mlir")
-
-set(LLVM_INCLUDE_DIRS
-    "${LLVM_SOURCE_DIR}/include"
-    "${LLVM_BINARY_DIR}/include"
-)
-
-set(MLIR_INCLUDE_DIRS
-    "${MLIR_SOURCE_DIR}/include"
-    "${MLIR_BINARY_DIR}/include"
-)
-
-list(APPEND CMAKE_MODULE_PATH
-    "${LLVM_SOURCE_DIR}/cmake/modules"
-)
-
 set(VPUNN_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/vpucostmodel")
 set(VPUNN_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/thirdparty/vpucostmodel")
 
@@ -117,8 +106,6 @@ set(VPUNN_INCLUDE_DIRS
         "${VPUNN_SOURCE_DIR}/include"
         "${VPUNN_BINARY_DIR}/include"
 )
-
-include(cmake/tblgen.cmake)
 
 if(ENABLE_DEVELOPER_BUILD)
     add_compile_definitions(VPUX_DEVELOPER_BUILD)

@@ -20,7 +20,7 @@ mlir::LogicalResult vpux::IE::MVN6Op::inferReturnTypeComponents(
 
     const auto inType = mvn.input().getType().cast<mlir::ShapedType>();
     const auto rankedInType = mvn.input().getType().cast<mlir::RankedTensorType>();
-    const auto outDesc = IE::getTensorAttr(rankedInType);
+    const auto outDesc = vpux::getTensorAttr(rankedInType);
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType(), outDesc);
 
     return mlir::success();
@@ -33,15 +33,15 @@ namespace {
 //
 
 mlir::FailureOr<SmallVector<int64_t>> getAxes(IE::MVN6OpAdaptor mvn, mlir::Location loc) {
-    if (mvn.axes() != nullptr && mvn.axes_value().hasValue()) {
+    if (mvn.axes() != nullptr && mvn.axes_value().has_value()) {
         return errorAt(loc, "Ambiguous axes representation");
     }
-    if (mvn.axes() == nullptr && !mvn.axes_value().hasValue()) {
+    if (mvn.axes() == nullptr && !mvn.axes_value().has_value()) {
         return errorAt(loc, "Missing axes value");
     }
 
-    if (mvn.axes_value().hasValue()) {
-        return parseIntArrayAttr<int64_t>(mvn.axes_value().getValue());
+    if (mvn.axes_value().has_value()) {
+        return parseIntArrayAttr<int64_t>(mvn.axes_value().value());
     }
 
     auto axesConst = mvn.axes().getDefiningOp<Const::DeclareOp>();
@@ -49,7 +49,7 @@ mlir::FailureOr<SmallVector<int64_t>> getAxes(IE::MVN6OpAdaptor mvn, mlir::Locat
         return errorAt(loc, "Only constant axes are supported");
     }
 
-    const auto axesContent = axesConst.content();
+    const auto axesContent = axesConst.getContent();
     auto axes = to_small_vector(axesContent.getValues<int64_t>());
 
     const auto inType = mvn.input().getType().cast<mlir::ShapedType>();
@@ -78,16 +78,16 @@ public:
 };
 
 mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::MVN6Op origOp, mlir::PatternRewriter& rewriter) const {
-    if (origOp.axes_value().hasValue()) {
+    if (origOp.axes_value().has_value()) {
         return mlir::failure();
     }
 
-    const auto axes = getAxes(origOp, origOp->getLoc());
+    const auto axes = ::getAxes(origOp, origOp->getLoc());
     if (mlir::failed(axes)) {
         return mlir::failure();
     }
 
-    const auto axesAttr = getIntArrayAttr(getContext(), axes.getValue());
+    const auto axesAttr = getIntArrayAttr(getContext(), axes.value());
     rewriter.replaceOpWithNewOp<IE::MVN6Op>(origOp, origOp.input(), nullptr, axesAttr, origOp.normalize_varianceAttr(),
                                             origOp.epsAttr(), origOp.eps_modeAttr());
     return mlir::success();

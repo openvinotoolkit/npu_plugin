@@ -3,17 +3,16 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/distributed_tensor_utils.hpp"
 #include "vpux/compiler/dialect/VPU/utils/generate_tiling.hpp"
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/layers.hpp"
 
-#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/empty_node.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
@@ -73,27 +72,42 @@ mlir::LogicalResult vpux::VPU::NCEInterpolateOp::inferReturnTypes(
 }
 
 //
-// LayoutInfoOpInterface
+// Verifier
 //
 
-void vpux::VPU::NCEInterpolateOp::inferLayoutInfo(IE::LayerLayoutInfo& info) {
-    info.setInput(0, DimsOrder::NHWC);
-    info.setInput(1, DimsOrder::OYXI);
+mlir::LogicalResult vpux::VPU::NCEInterpolateOp::verify() {
+    auto sparseInput = input().getType().dyn_cast<VPU::SparseTensorType>();
+    if (sparseInput == nullptr) {
+        return mlir::failure();
+    }
 
-    info.setOutput(0, DimsOrder::NHWC);  // See NCEConvolution::inferLayoutInfo.
+    auto seAttr = sparseInput.getSeAttr().dyn_cast_or_null<VPU::SEInterpolateAttr>();
+    if (seAttr == nullptr) {
+        return mlir::failure();
+    }
+
+    return mlir::success();
 }
 
 //
 // NCEOpInterface
 //
 
-SmallVector<int64_t> vpux::VPU::NCEInterpolateOp::getKernelSize() {
+SmallVector<int64_t> vpux::VPU::NCEInterpolateOp::getKernelSizeVal() {
     const auto kernelShape = Shape(parseIntArrayAttr<int64_t>(rawFilterShape()));
 
     const auto KY = kernelShape[Dims4D::Filter::KY];
     const auto KX = kernelShape[Dims4D::Filter::KX];
 
     return {KY, KX};
+}
+
+SmallVector<int64_t> vpux::VPU::NCEInterpolateOp::getStridesVal() {
+    return {1, 1};
+}
+
+vpux::VPU::PaddingAttr vpux::VPU::NCEInterpolateOp::getPad() {
+    return VPU::getPaddingAttr(getContext(), PadInfo(0, 0, 0, 0));
 }
 
 bool isNCEInterpolateSupported(vpux::NDTypeInterface inputType, vpux::NDTypeInterface outputType,
@@ -127,6 +141,20 @@ bool isNCEInterpolateSupported(vpux::NDTypeInterface inputType, vpux::NDTypeInte
         return false;
     }
 
+    // Only 4D interpolates are supported and the interpolation axes must be H and/or W
+    if (inputShape.size() != 4 || outputShape.size() != 4) {
+        logCb(formatv("Only 4D data is supported. Got {0}D input, {1}D output", inputShape.size(), outputShape.size()));
+        return false;
+    }
+    if (outputShape[Dims4D::Act::N] != inputShape[Dims4D::Act::N]) {
+        logCb(formatv("Interpolation over axis {0} is not supported", Dims4D::Act::N.ind()));
+        return false;
+    }
+    if (outputShape[Dims4D::Act::C] != inputShape[Dims4D::Act::C]) {
+        logCb(formatv("Interpolation over axis {0} is not supported", Dims4D::Act::C.ind()));
+        return false;
+    }
+
     // Check for the supported modes
     SmallVector<IE::InterpolateMode> supportedModes = {IE::InterpolateMode::NEAREST, IE::InterpolateMode::LINEAR,
                                                        IE::InterpolateMode::LINEAR_ONNX};
@@ -134,10 +162,23 @@ bool isNCEInterpolateSupported(vpux::NDTypeInterface inputType, vpux::NDTypeInte
         logCb(formatv("Mode {0} is not supported", attr.getMode().getValue()));
         return false;
     }
-    SmallVector<IE::InterpolateCoordMode> supportedCoordModes = {IE::InterpolateCoordMode::ASYMMETRIC};
-    if (llvm::find(supportedCoordModes, attr.getCoordMode().getValue()) == supportedCoordModes.end()) {
-        logCb(formatv("Coordinate transformation mode {0} is not supported", attr.getCoordMode().getValue()));
-        return false;
+
+    // For linear interpolate, only ASYMMETRIC coordinate transformations mode is supported
+    if (attr.getMode().getValue() == IE::InterpolateMode::LINEAR ||
+        attr.getMode().getValue() == IE::InterpolateMode::LINEAR_ONNX) {
+        SmallVector<IE::InterpolateCoordMode> supportedCoordModes = {IE::InterpolateCoordMode::ASYMMETRIC};
+        if (llvm::find(supportedCoordModes, attr.getCoordMode().getValue()) == supportedCoordModes.end()) {
+            logCb(formatv("Coordinate transformation mode {0} is not supported", attr.getCoordMode().getValue()));
+            return false;
+        }
+    }
+
+    // TODO E#83681: Add support for ALIGN_CORNERS mode
+    if (attr.getMode().getValue() == IE::InterpolateMode::NEAREST) {
+        if (attr.getCoordMode().getValue() == IE::InterpolateCoordMode::ALIGN_CORNERS) {
+            logCb(formatv("Coordinate transformation mode {0} is not yet supported", attr.getCoordMode().getValue()));
+            return false;
+        }
     }
 
     // Only interpolate ops without padding are supported
@@ -155,20 +196,12 @@ bool isNCEInterpolateSupported(vpux::NDTypeInterface inputType, vpux::NDTypeInte
         return false;
     }
 
-    // The axes must be H or W
-    if (outputShape[Dims4D::Act::N] != inputShape[Dims4D::Act::N]) {
-        logCb(formatv("Interpolation over axis {0} is not supported", Dims4D::Act::N.ind()));
-        return false;
-    }
-    if (outputShape[Dims4D::Act::C] != inputShape[Dims4D::Act::C]) {
-        logCb(formatv("Interpolation over axis {0} is not supported", Dims4D::Act::C.ind()));
-        return false;
-    }
-
     // Scale must be integers; for linear modes, they must be in range [1-11]
     SmallVector<double> scales;
-    if (auto scalesValue = scalesAttr.value_or(nullptr)) {
-        scales = parseFPArrayAttr<double>(scalesValue);
+    auto shapeCalcModeAttr = attr.getShapeCalcMode();
+    if (shapeCalcModeAttr != nullptr && shapeCalcModeAttr.getValue() == IE::InterpolateCalcMode::SCALES &&
+        scalesAttr.has_value()) {
+        scales = parseFPArrayAttr<double>(scalesAttr.value());
     } else {
         scales = {static_cast<double>(outputShape[Dims4D::Act::H]) / static_cast<double>(inputShape[Dims4D::Act::H]),
                   static_cast<double>(outputShape[Dims4D::Act::W]) / static_cast<double>(inputShape[Dims4D::Act::W])};
@@ -223,17 +256,9 @@ bool VPU::NCEInterpolateOp::isSupported(VPU::InterpolateOp op, vpux::LogCb logCb
                                      checkChannelAlignment, checkLayout, logCb);
 }
 
-SmallVector<int64_t> vpux::VPU::NCEInterpolateOp::getStrides() {
-    return {1, 1};
-}
-
-vpux::VPU::PaddingAttr vpux::VPU::NCEInterpolateOp::getPad() {
-    return VPU::getPaddingAttr(getContext(), PadInfo(0, 0, 0, 0));
-}
-
 mlir::LogicalResult vpux::VPU::NCEInterpolateOp::verifyInputType(vpux::NDTypeInterface inputType) {
-    return mlir::success(vpux::VPU::NCEInvariant::isInputActTypeSupported(VPU::getArch(*this), inputType,
-                                                                          getInputChannelAlignment(), true));
+    return mlir::success(vpux::VPU::NCEInvariant::isInputActTypeSupported(
+            VPU::getArch(*this), inputType, getInputChannelAlignment(), /*supportsInputActCompression=*/false));
 }
 
 //
@@ -246,7 +271,7 @@ TilingInfo vpux::VPU::NCEInterpolateOp::backInferTileInfo(const vpux::TileInfo& 
 
     // This op incorporates bias values in WeightsTable
     const auto origBiasShape = ShapeRef();
-    const auto strides = getIntArrayAttr(getContext(), getStrides());
+    const auto strides = getIntArrayAttr(getContext(), getStridesVal());
     const auto padding = VPU::toPadInfo(getPad());
 
     auto inputTiling = backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides, padding);
@@ -268,7 +293,7 @@ void vpux::VPU::NCEInterpolateOp::adjustAttrs(const vpux::TilingInfo&, const vpu
     VPU::adjustRawFilterShape(this, outputTile);
 }
 
-OutputTiling vpux::VPU::NCEInterpolateOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
+mlir::FailureOr<OutputTiling> vpux::VPU::NCEInterpolateOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
     return vpux::getHWLayerTilingStrategy(this->getOperation(), tilingMode, log);
 }
 
@@ -279,6 +304,15 @@ OutputTiling vpux::VPU::NCEInterpolateOp::getTilingStrategy(TilingMode tilingMod
 bool vpux::VPU::NCEInterpolateOp::checkStrategyCompatibility(vpux::VPU::MultiClusterStrategy strategy) {
     // TODO E#71871: enable SplitOverHeight and HKSwitch once runtime supports this
     return strategy == VPU::MultiClusterStrategy::Clustering || strategy == VPU::MultiClusterStrategy::SplitOverKernel;
+}
+
+vpux::VPU::DistributedTensorAttr vpux::VPU::NCEInterpolateOp::getExplicitDistributedTensorAttr(
+        vpux::ShapeRef shape, vpux::VPU::DistributionMode distributionMode, mlir::ArrayAttr numTiles,
+        mlir::IntegerAttr numClusters, mlir::ArrayAttr alignment, mlir::ArrayAttr kernel, vpux::VPU::PaddingAttr pad,
+        mlir::ArrayAttr stride, mlir::UnitAttr uniformDistributedSegments) {
+    return VPU::getNCEExplicitDistributedTensorAttr(mlir::dyn_cast<VPU::NCEOpInterface>(getOperation()), shape,
+                                                    distributionMode, numTiles, numClusters, alignment, kernel, pad,
+                                                    stride, uniformDistributedSegments);
 }
 
 //
@@ -321,8 +355,7 @@ vpux::VPU::SparsitySupport vpux::VPU::NCEInterpolateOp::sparsitySupport() {
     }
 
     switch (arch) {
-    case VPU::ArchKind::VPUX30XX:
-    case VPU::ArchKind::VPUX311X: {
+    case VPU::ArchKind::VPUX30XX: {
         // Layout will always be NHWC for VPUX30XX.
         return (VPU::SparsitySupport::SPARSE_INPUTS | VPU::SparsitySupport::SPARSE_WEIGHTS) & excludeMode;
     }

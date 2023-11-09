@@ -304,13 +304,18 @@ void vpux::BarrierInfo::buildBarrierMaps(mlir::func::FuncOp func) {
 
     // resize implict dependency map
     const auto module = func->getParentOfType<mlir::ModuleOp>();
-    const auto dmaEngineNum = IE::getAvailableExecutor(module, VPU::ExecutorKind::DMA_NN).count();
-    for (auto dmaIdx : irange(dmaEngineNum)) {
-        VPURT::TaskQueueType taskQueueType;
-        taskQueueType.type = VPU::ExecutorKind::DMA_NN;
-        taskQueueType.index = dmaIdx;
-        llvm::BitVector taskList(checked_cast<uint32_t>(_allTaskOps.size()));
-        _taskQueueTypeMap.insert(std::make_pair(taskQueueType, taskList));
+    const auto dmaPortNum = IE::getAvailableExecutor(module, VPU::ExecutorKind::DMA_NN).count();
+
+    SmallVector<int64_t> dmaPerPortChannelIndexes = {0};
+
+    for (auto dmaPortIdx : irange(dmaPortNum)) {
+        for (auto dmaChannelIdx : dmaPerPortChannelIndexes) {
+            VPURT::TaskQueueType taskQueueType;
+            taskQueueType.type = VPU::ExecutorKind::DMA_NN;
+            taskQueueType.id = VPURT::getDMAQueueIdEncoding(dmaPortIdx, dmaChannelIdx);
+            llvm::BitVector taskList(checked_cast<uint32_t>(_allTaskOps.size()));
+            _taskQueueTypeMap.insert(std::make_pair(taskQueueType, taskList));
+        }
     }
 
     // set index to task ops and barrier ops
@@ -326,10 +331,11 @@ void vpux::BarrierInfo::buildBarrierMaps(mlir::func::FuncOp func) {
             addTaskOp(taskOp);
         } else if (auto barrierOp = mlir::dyn_cast<VPURT::DeclareVirtualBarrierOp>(op)) {
             _log.nest().trace("Found 'VPURT::DeclareVirtualBarrierOp' Operation at '{0}'", op.getLoc());
-            VPUX_THROW_WHEN(barrierOp.barrier() == nullptr, "DeclareVirtualBarrierOp '{0}' has no barrier.", barrierOp);
+            VPUX_THROW_WHEN(barrierOp.getBarrier() == nullptr, "DeclareVirtualBarrierOp '{0}' has no barrier.",
+                            barrierOp);
 
             // ensure all barrier users are TaskOps
-            for (auto* user : barrierOp.barrier().getUsers()) {
+            for (auto* user : barrierOp.getBarrier().getUsers()) {
                 VPUX_THROW_WHEN(mlir::dyn_cast<VPURT::TaskOp>(user) == nullptr, "Got non-TaskOp Operation at '{0}'",
                                 op.getLoc());
             }
@@ -413,14 +419,14 @@ void vpux::BarrierInfo::addTaskOp(VPURT::TaskOp taskOp) {
     const auto taskInd = getIndex(taskOp);
     _log.trace("Found 'TaskOp' Operation '{0}'", taskInd);
 
-    for (const auto& bar : taskOp.waitBarriers()) {
+    for (const auto& bar : taskOp.getWaitBarriers()) {
         // Note: can also be VPURT::ConfigureBarrierOp
         auto barrierOp = bar.getDefiningOp<VPURT::DeclareVirtualBarrierOp>();
         VPUX_THROW_WHEN(barrierOp == nullptr, "Invalid wait barrier op type {0}", bar);
         addConsumer(barrierOp, taskInd);
     }
 
-    for (const auto& bar : taskOp.updateBarriers()) {
+    for (const auto& bar : taskOp.getUpdateBarriers()) {
         // Note: can also be VPURT::ConfigureBarrierOp
         auto barrierOp = bar.getDefiningOp<VPURT::DeclareVirtualBarrierOp>();
         VPUX_THROW_WHEN(barrierOp == nullptr, "Invalid wait barrier op type {0}", bar);
@@ -654,16 +660,16 @@ void vpux::BarrierInfo::updateIR() {
     for (size_t taskInd = 0; taskInd < _allTaskOps.size(); ++taskInd) {
         auto taskOp = getTaskOpAtIndex(taskInd);
 
-        taskOp.waitBarriersMutable().clear();
+        taskOp.getWaitBarriersMutable().clear();
         for (auto barrierInd : _taskWaitBarriers[taskInd]) {
             auto barrierOp = getBarrierOpAtIndex(static_cast<size_t>(barrierInd));
-            taskOp.waitBarriersMutable().append(barrierOp.barrier());
+            taskOp.getWaitBarriersMutable().append(barrierOp.getBarrier());
         }
 
-        taskOp.updateBarriersMutable().clear();
+        taskOp.getUpdateBarriersMutable().clear();
         for (auto barrierInd : _taskUpdateBarriers[taskInd]) {
             auto barrierOp = getBarrierOpAtIndex(static_cast<size_t>(barrierInd));
-            taskOp.updateBarriersMutable().append(barrierOp.barrier());
+            taskOp.getUpdateBarriersMutable().append(barrierOp.getBarrier());
         }
     }
 }
@@ -674,11 +680,13 @@ void vpux::BarrierInfo::updateIR() {
 
 void vpux::BarrierInfo::orderBarriers() {
     // move barriers before first use
-    for (auto& barrierOp : _allBarrierOps) {
-        const auto barrierProducers = getBarrierProducers(barrierOp);
-        const auto barrierConsumers = getBarrierConsumers(barrierOp);
+    for (size_t barrierInd = 0; barrierInd < _allBarrierOps.size(); ++barrierInd) {
+        const auto barrierOp = getBarrierOpAtIndex(barrierInd);
+        const auto barrierProducers = getBarrierProducers(barrierInd);
+        const auto barrierConsumers = getBarrierConsumers(barrierInd);
+
+        // move barriers with no use to the end
         if (barrierProducers.empty() && barrierConsumers.empty()) {
-            // move barriers with no use to the end
             barrierOp->moveAfter(_allTaskOps.back());
             continue;
         }
@@ -716,6 +724,41 @@ void vpux::BarrierInfo::logBarrierInfo() {
             _log.nest(2).trace("Task '{0}' updates '{1}'", taskInd, barrierOp);
         }
     }
+}
+
+//
+// createLegalVariantBatches
+//
+
+SmallVector<BarrierInfo::TaskSet> vpux::BarrierInfo::createLegalVariantBatches(const TaskSet& tasks,
+                                                                               size_t availableSlots) {
+    // store batches of tasks
+    SmallVector<TaskSet> legalBatches(1);
+
+    // store total slot count used by batch
+    size_t totalSlotCount = 0;
+
+    const auto isLegalVariantCountWith = [&](size_t numSlotsUsedByTask) -> bool {
+        return (totalSlotCount + numSlotsUsedByTask) <= availableSlots;
+    };
+
+    // create batches for new barriers
+    auto orderedTasks = std::set<size_t>(tasks.begin(), tasks.end());
+    for (const auto& taskInd : orderedTasks) {
+        // find number of slots consumed by this task
+        auto numSlotsUsedByTask = getNumOfSlotsUsed(getTaskOpAtIndex(taskInd));
+
+        // check if new batch needs to be created
+        if (!isLegalVariantCountWith(numSlotsUsedByTask)) {
+            legalBatches.push_back({});
+            totalSlotCount = 0;
+        }
+
+        legalBatches.rbegin()->insert(taskInd);
+        totalSlotCount += numSlotsUsedByTask;
+    }
+
+    return legalBatches;
 }
 
 //

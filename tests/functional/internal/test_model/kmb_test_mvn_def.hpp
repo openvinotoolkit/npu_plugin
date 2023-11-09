@@ -3,12 +3,9 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "kmb_test_model.hpp"
-#include "kmb_test_utils.hpp"
 
 #include <ngraph/op/util/attr_types.hpp>
 

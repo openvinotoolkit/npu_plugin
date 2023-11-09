@@ -37,6 +37,14 @@ bool AveragePoolStrategy::isOperationSplitOverHeightCompatible(VPU::ClusteredOpI
     auto origOp = mlir::dyn_cast<NCEAveragePoolOp>(clusteredOp.getOperation());
     VPUX_THROW_UNLESS(origOp != nullptr, "Got non VPU::NCEAveragePoolOp operation {0}", clusteredOp->getName());
 
-    const auto inputShape = getShape(origOp.input());
-    return isSOHSupportedByDPU(inputShape, _numClusters, true, VPU::getArch(clusteredOp.getOperation()));
+    Shape inputShape = getShape(origOp.input()).toValues();
+    // If has custom output shape, infer the input shape
+    if (outputShape != getShape(clusteredOp->getResult(0))) {
+        vpux::TileInfo outputTile{outputShape};
+        auto computerShape = origOp.backInferTileInfo(outputTile, Logger::global());
+        inputShape = computerShape.tiles[0].shape;
+    }
+
+    auto inputType = origOp.input().getType().cast<NDTypeInterface>();
+    return isSOHSupportedByDPU(inputType, inputShape, _numClusters, true, VPU::getArch(clusteredOp.getOperation()));
 }

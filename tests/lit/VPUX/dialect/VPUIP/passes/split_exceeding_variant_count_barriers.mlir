@@ -16,8 +16,8 @@ func.func @ExceedingProducersEqual() -> memref<1x16x1x1xf16, #NHWC, @DDR> {
 
     // dummy buffers
 
-    %buf0 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x16x1x1xf16, #NHWC, @DDR>
-    %buf1 = VPURT.DeclareBuffer "DDR" <32> -> memref<1x16x1x1xf16, #NHWC, @DDR>
+    %buf0 = VPURT.DeclareBuffer <DDR> <0> -> memref<1x16x1x1xf16, #NHWC, @DDR>
+    %buf1 = VPURT.DeclareBuffer <DDR> <32> -> memref<1x16x1x1xf16, #NHWC, @DDR>
 
     //   0 1 2 3 4 5
     //        |
@@ -112,8 +112,8 @@ func.func @ExceedingProducersUnEqual() -> memref<1x16x1x1xf16, #NHWC, @DDR> {
 
     // dummy buffers
 
-    %buf0 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x16x1x1xf16, #NHWC, @DDR>
-    %buf1 = VPURT.DeclareBuffer "DDR" <32> -> memref<1x16x1x1xf16, #NHWC, @DDR>
+    %buf0 = VPURT.DeclareBuffer <DDR> <0> -> memref<1x16x1x1xf16, #NHWC, @DDR>
+    %buf1 = VPURT.DeclareBuffer <DDR> <32> -> memref<1x16x1x1xf16, #NHWC, @DDR>
 
     //    0 1 2 3 4
     //        |
@@ -200,10 +200,10 @@ func.func @ExceedingConsumersEqual() -> memref<1x16x1x1xf16, #NHWC, @DDR> {
 
     // dummy buffers
 
-    %buf0 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x16x1x1xf16, #NHWC, @DDR>
-    %buf1 = VPURT.DeclareBuffer "DDR" <32> -> memref<1x16x1x1xf16, #NHWC, @DDR>
+    %buf0 = VPURT.DeclareBuffer <DDR> <0> -> memref<1x16x1x1xf16, #NHWC, @DDR>
+    %buf1 = VPURT.DeclareBuffer <DDR> <32> -> memref<1x16x1x1xf16, #NHWC, @DDR>
 
-    //        0
+    //        0 
     //        |
     //       bar0
     //        |
@@ -274,7 +274,7 @@ func.func @ExceedingConsumersEqual() -> memref<1x16x1x1xf16, #NHWC, @DDR> {
     // CHECK: [[BAR1:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
     // CHECK: VPURT.Task updates([[BAR0]], [[BAR1]] : !VPURT.Barrier, !VPURT.Barrier)
-
+    
     // CHECK: VPURT.Task waits([[BAR0]] : !VPURT.Barrier)
     // CHECK: VPURT.Task waits([[BAR0]] : !VPURT.Barrier)
     // CHECK: VPURT.Task waits([[BAR0]] : !VPURT.Barrier)
@@ -296,8 +296,8 @@ func.func @ExceedingConsumersUnEqual() -> memref<1x16x1x1xf16, #NHWC, @DDR> {
 
     // dummy buffers
 
-    %buf0 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x16x1x1xf16, #NHWC, @DDR>
-    %buf1 = VPURT.DeclareBuffer "DDR" <32> -> memref<1x16x1x1xf16, #NHWC, @DDR>
+    %buf0 = VPURT.DeclareBuffer <DDR> <0> -> memref<1x16x1x1xf16, #NHWC, @DDR>
+    %buf1 = VPURT.DeclareBuffer <DDR> <32> -> memref<1x16x1x1xf16, #NHWC, @DDR>
 
     //        0
     //        |
@@ -363,7 +363,7 @@ func.func @ExceedingConsumersUnEqual() -> memref<1x16x1x1xf16, #NHWC, @DDR> {
     // CHECK: [[BAR1:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
     // CHECK: VPURT.Task updates([[BAR0]], [[BAR1]] : !VPURT.Barrier, !VPURT.Barrier)
-
+    
     // CHECK: VPURT.Task waits([[BAR0]] : !VPURT.Barrier)
     // CHECK: VPURT.Task waits([[BAR0]] : !VPURT.Barrier)
     // CHECK: VPURT.Task waits([[BAR0]] : !VPURT.Barrier)
@@ -384,8 +384,8 @@ func.func @ExceedingProducersUnEqual() -> memref<1x16x1x1xf16, #NHWC, @DDR> {
 
     // dummy buffers
 
-    %buf0 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x16x1x1xf16, #NHWC, @DDR>
-    %buf1 = VPURT.DeclareBuffer "DDR" <32> -> memref<1x16x1x1xf16, #NHWC, @DDR>
+    %buf0 = VPURT.DeclareBuffer <DDR> <0> -> memref<1x16x1x1xf16, #NHWC, @DDR>
+    %buf1 = VPURT.DeclareBuffer <DDR> <32> -> memref<1x16x1x1xf16, #NHWC, @DDR>
 
     //    0 1 2 3 4
     //        |
@@ -472,10 +472,10 @@ func.func @ExceedingConsumersEqual() -> memref<1x16x1x1xf16, #NHWC, @DDR> {
 
     // dummy buffers
 
-    %buf0 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x16x1x1xf16, #NHWC, @DDR>
-    %buf1 = VPURT.DeclareBuffer "DDR" <32> -> memref<1x16x1x1xf16, #NHWC, @DDR>
+    %buf0 = VPURT.DeclareBuffer <DDR> <0> -> memref<1x16x1x1xf16, #NHWC, @DDR>
+    %buf1 = VPURT.DeclareBuffer <DDR> <32> -> memref<1x16x1x1xf16, #NHWC, @DDR>
 
-    //        0
+    //        0 
     //        |
     //       bar0
     //        |
@@ -546,7 +546,7 @@ func.func @ExceedingConsumersEqual() -> memref<1x16x1x1xf16, #NHWC, @DDR> {
     // CHECK: [[BAR1:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
     // CHECK: VPURT.Task updates([[BAR0]], [[BAR1]] : !VPURT.Barrier, !VPURT.Barrier)
-
+    
     // CHECK: VPURT.Task waits([[BAR0]] : !VPURT.Barrier)
     // CHECK: VPURT.Task waits([[BAR0]] : !VPURT.Barrier)
     // CHECK: VPURT.Task waits([[BAR0]] : !VPURT.Barrier)
@@ -568,8 +568,8 @@ func.func @NoChange() -> memref<1x16x1x1xf16, #NHWC, @DDR> {
 
     // dummy buffers
 
-    %buf0 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x16x1x1xf16, #NHWC, @DDR>
-    %buf1 = VPURT.DeclareBuffer "DDR" <32> -> memref<1x16x1x1xf16, #NHWC, @DDR>
+    %buf0 = VPURT.DeclareBuffer <DDR> <0> -> memref<1x16x1x1xf16, #NHWC, @DDR>
+    %buf1 = VPURT.DeclareBuffer <DDR> <32> -> memref<1x16x1x1xf16, #NHWC, @DDR>
 
     //      0 1 2
     //        |
@@ -636,7 +636,7 @@ func.func @NoChange() -> memref<1x16x1x1xf16, #NHWC, @DDR> {
     // CHECK: VPURT.Task updates([[BAR0]] : !VPURT.Barrier)
     // CHECK: VPURT.Task updates([[BAR0]] : !VPURT.Barrier)
     // CHECK: VPURT.Task updates([[BAR0]] : !VPURT.Barrier)
-
+    
     // CHECK: VPURT.Task waits([[BAR0]] : !VPURT.Barrier)
     // CHECK: VPURT.Task waits([[BAR0]] : !VPURT.Barrier)
     // CHECK: VPURT.Task waits([[BAR0]] : !VPURT.Barrier)

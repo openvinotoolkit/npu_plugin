@@ -1,5 +1,6 @@
-// Copyright (C) Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "subgraph_tests/quantized_group_convolution.hpp"
@@ -8,7 +9,7 @@
 
 #include <vector>
 
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -27,7 +28,7 @@ namespace SubgraphTestsDefinitions {
 
 class VPUXQuantGroupConvLayerTest_VPU3700 :
         public QuantGroupConvLayerTest,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {
+        virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void SetUp() override {
         threshold = 0.5f;
 
@@ -95,9 +96,6 @@ class VPUXQuantGroupConvLayerTest_VPU3700 :
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(outFq)};
         function = std::make_shared<ngraph::Function>(results, params, "QuantGroupConvolution");
     }
-
-    void SkipBeforeLoad() override {
-    }
 };
 
 TEST_P(VPUXQuantGroupConvLayerTest_VPU3700, SW) {
@@ -145,7 +143,7 @@ const auto quantGroupConv2DParams = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_QuantGroupConv2D, VPUXQuantGroupConvLayerTest_VPU3700,
                          ::testing::Combine(quantGroupConv2DParams, ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(inputShapes2D),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          QuantGroupConvLayerTest::getTestCaseName);
 
 /* ============= 3D GroupConvolution ============= */
@@ -166,7 +164,7 @@ const auto quantGroupConv3DParams = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_QuantGroupConv3D, VPUXQuantGroupConvLayerTest_VPU3700,
                          ::testing::Combine(quantGroupConv3DParams, ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(inputShapes3D),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          QuantGroupConvLayerTest::getTestCaseName);
 
 }  // namespace

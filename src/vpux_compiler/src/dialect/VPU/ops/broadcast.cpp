@@ -56,15 +56,11 @@ mlir::LogicalResult vpux::VPU::BroadcastOp::inferReturnTypes(mlir::MLIRContext* 
 
     const auto inType = broadcast.input().getType().cast<vpux::NDTypeInterface>();
     auto inShape = to_small_vector(inType.getShape().raw());
-    auto targetShape = IE::constInputToData(loc, broadcast.target_shape()).getValue();
-    const auto broadcastMode = broadcast.mode().getValue();
+    const auto broadcastMode = broadcast.mode().value();
 
-    SmallVector<int64_t> outShape;
-
-    if (broadcastMode == IE::BroadcastType::NUMPY || broadcastMode == IE::BroadcastType::EXPLICIT) {
-        outShape = targetShape;
-    } else if (broadcastMode == IE::BroadcastType::BIDIRECTIONAL) {
-        outShape = getResultShapeBidirectional(inShape, targetShape);
+    auto outShape = IE::constInputToData(loc, broadcast.target_shape()).value();
+    if (broadcastMode == IE::BroadcastType::BIDIRECTIONAL) {
+        outShape = getResultShapeBidirectional(inShape, outShape);
     }
 
     auto outType = inType.changeShape(Shape(outShape));

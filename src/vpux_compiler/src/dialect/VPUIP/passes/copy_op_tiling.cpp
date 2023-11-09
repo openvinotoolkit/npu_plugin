@@ -24,17 +24,6 @@ using namespace vpux;
 
 namespace {
 
-int64_t getFirstStridingDimSize(VPUIP::CopyOp copyOp) {
-    const auto inputShape = getShape(copyOp.input());
-    const auto inOrder = DimsOrder::fromValue(copyOp.input());
-    const auto inMemShape = inOrder.toMemoryOrder(inputShape);
-    const auto firstStridingDim = VPUIP::getFirstStridingDim(copyOp);
-    if (firstStridingDim != -1) {
-        return checked_cast<int64_t>(inMemShape[MemDim(firstStridingDim)]);
-    }
-    return 0;
-}
-
 Byte getDmaSize(VPUIP::CopyOp copyOp) {
     const auto inputShape = getShape(copyOp.input());
     const auto outputShape = getShape(copyOp.output());
@@ -81,7 +70,8 @@ private:
 // Splits large CopyOps into a bunch of smaller ones to fit DMA capabilities
 class CopyOpTiling final : public mlir::OpRewritePattern<VPUIP::CopyOp> {
 public:
-    CopyOpTiling(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<VPUIP::CopyOp>(ctx), _log(log) {
+    CopyOpTiling(mlir::MLIRContext* ctx, Logger log, VPU::ArchKind arch)
+            : mlir::OpRewritePattern<VPUIP::CopyOp>(ctx), _log(log), _arch(arch) {
     }
 
 public:
@@ -91,6 +81,7 @@ private:
     SmallVector<mlir::Value> createTiles(VPUIP::CopyOp origOp, mlir::PatternRewriter& rewriter) const;
 
     Logger _log;
+    VPU::ArchKind _arch;
 };
 
 SmallVector<mlir::Value> CopyOpTiling::createTiles(VPUIP::CopyOp origOp, mlir::PatternRewriter& rewriter) const {
@@ -98,23 +89,10 @@ SmallVector<mlir::Value> CopyOpTiling::createTiles(VPUIP::CopyOp origOp, mlir::P
     const auto origInputShape = getShape(origOp.input());
 
     const auto fullCopySize = getDmaSize(origOp);
-    // A workaround to always split by the first non-batch dimension, regardless the layout
-    // NCHW - C, NHWC - H, NWHC - W
-    const auto inOrder = DimsOrder::fromValue(origOp.input());
 
-    size_t index = 0;
-    while (origInputShape[inOrder.toDim(MemDim(index))] <= 1) {
-        VPUX_THROW_UNLESS(index < origInputShape.size(), "Unable to find a dim to tile over it");
-        index++;
-    }
-
-    auto tileDim = inOrder.toDim(MemDim(index));
-    // If the tile is performed for the reason of the stride, we need to ensure that the slice is performed in the
-    // dimension where the stride exists and this stride is implemented in DMA by plane.
-    if (VPUIP::strideMoreThanOne(origOp) && VPUIP::getNumberOfPlanes(origOp) > VPUIP::CMX_DMA_MAX_NUM_PLANES) {
-        auto firstStridingDim = VPUIP::getFirstStridingDim(origOp);
-        VPUX_THROW_UNLESS(firstStridingDim != -1, "At least one of the input or output of copy has stride");
-        tileDim = inOrder.toDim(MemDim(firstStridingDim));
+    auto tileDim = VPUIP::getCopyDMATilingDimForLargeSize(origOp);
+    if (VPUIP::isSplitNeededForLargePlanesNum(origOp)) {
+        tileDim = VPUIP::getCopyDMATilingDimForLargePlaneNum(origOp);
     }
 
     // We cannot _just_ divide the fullCopySize by sizeLimit to get the number of tiles required
@@ -124,11 +102,12 @@ SmallVector<mlir::Value> CopyOpTiling::createTiles(VPUIP::CopyOp origOp, mlir::P
     const auto singlePlaneSize = fullCopySize / numPlanesOfFullShape;
     //  The number of planes DMA could process within one tile. In case of small spatial dimensions of tensor (e.g.
     // 1x2048x8x8) it can exceed CMX_DMA_MAX_NUM_PLANES, so it's necessary to limit this value
+    const auto maxNumPlanes = VPUIP::getMaxNumberPlanes(_arch);
     const auto desiredPlanesPerTileAmount = (VPUIP::DMA_LIMIT.count() / singlePlaneSize.count());
     VPUX_THROW_UNLESS(desiredPlanesPerTileAmount != 0,
                       "Couldn't split a CopyOp with single plane size greater than DMA_LIMIT");
 
-    const auto numPlanesPerTile = std::min(desiredPlanesPerTileAmount, VPUIP::CMX_DMA_MAX_NUM_PLANES);
+    const auto numPlanesPerTile = std::min(desiredPlanesPerTileAmount, maxNumPlanes);
 
     SmallVector<mlir::Value> concatInputs;
     auto currentOffset = SmallVector<int64_t>(origInputShape.size(), 0);
@@ -192,27 +171,29 @@ So if the higher dim with stride size large than CMX_DMA_MAX_NUM_PLANES, we need
 
 void CopyOpTilingPass::safeRunOnFunc() {
     auto& ctx = getContext();
+    auto func = getOperation();
+    auto module = func->getParentOfType<mlir::ModuleOp>();
+    const auto arch = VPU::getArch(module);
 
     auto isLegalOp = [](VPUIP::CopyOp copyOp) {
+        // Distributed CopyOp is not handled
+        if (mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(copyOp->getParentOp()) != nullptr) {
+            return true;
+        }
+
         // If tensor size is greater than DMA_LIMIT its no longer legal operation
         if (getDmaSize(copyOp) > VPUIP::DMA_LIMIT) {
             return false;
         }
 
-        if (!VPUIP::strideMoreThanOne(copyOp)) {
-            return true;
-        }
-
-        // If striding level is greater than 1, try splitting the tensor by plane dimension.
-        return VPUIP::getNumberOfPlanes(copyOp) <= VPUIP::CMX_DMA_MAX_NUM_PLANES ||
-               getFirstStridingDimSize(copyOp) <= VPUIP::CMX_DMA_MAX_NUM_PLANES;
+        return !VPUIP::isSplitNeededForLargePlanesNum(copyOp);
     };
 
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalOp<VPUIP::CopyOp>(isLegalOp);
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<CopyOpTiling>(&ctx, _log);
+    patterns.add<CopyOpTiling>(&ctx, _log, arch);
 
     // The new operations added by CopyOpTiling pattern:
     target.addLegalOp<VPUIP::SubViewOp>();

@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2022 Intel Corporation.
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/layers.hpp"
@@ -19,10 +20,10 @@ using namespace vpux;
 namespace {
 
 mlir::ArrayAttr getKernelPadding(mlir::MLIRContext* ctx, VPU::PaddingAttr padAttr) {
-    const auto padLeft = padAttr.left().getInt();
-    const auto padRight = padAttr.right().getInt();
-    const auto padTop = padAttr.top().getInt();
-    const auto padBottom = padAttr.bottom().getInt();
+    const auto padLeft = padAttr.getLeft().getInt();
+    const auto padRight = padAttr.getRight().getInt();
+    const auto padTop = padAttr.getTop().getInt();
+    const auto padBottom = padAttr.getBottom().getInt();
 
     return getIntArrayAttr(ctx, makeArrayRef({padLeft, padRight, padTop, padBottom}));
 }
@@ -66,7 +67,7 @@ mlir::LogicalResult ConvToEMU::matchAndRewrite(VPU::NCEConvolutionOp origOp, mli
             origOp->getLoc(), origOp.getType(), origOp.input(), origOp.filter(), origOp.weightsTable(), taskType,
             kernelSizeAttr, origOp.strides(), kernelPaddingAttr, origOp.rawFilterShapeAttr(), origOp.ppe());
 
-    rewriter.replaceOp(origOp, nceOp.output());
+    rewriter.replaceOp(origOp, nceOp.getOutput());
     return mlir::success();
 }
 
@@ -108,7 +109,7 @@ mlir::LogicalResult DepthConvToEMU::matchAndRewrite(VPU::NCEDepthConvolutionOp o
                                                         VPUIP::NCETaskType::DWCONV, kernelSizeAttr, origOp.strides(),
                                                         kernelPaddingAttr, origOp.rawFilterShapeAttr(), origOp.ppe());
 
-    rewriter.replaceOp(origOp, nceOp.output());
+    rewriter.replaceOp(origOp, nceOp.getOutput());
     return mlir::success();
 }
 
@@ -136,7 +137,7 @@ mlir::LogicalResult MaxPoolToEMU::matchAndRewrite(VPU::NCEMaxPoolOp origOp, mlir
             origOp->getLoc(), origOp.getType(), origOp.input(), nullptr, origOp.weightsTable(),
             VPUIP::NCETaskType::MAXPOOL, origOp.kernel_size(), origOp.strides(), kernelPaddingAttr, origOp.ppe());
 
-    rewriter.replaceOp(origOp, nceOp.output());
+    rewriter.replaceOp(origOp, nceOp.getOutput());
     return mlir::success();
 }
 
@@ -164,7 +165,7 @@ mlir::LogicalResult AvgPoolToEMU::matchAndRewrite(VPU::NCEAveragePoolOp origOp, 
                                                         nullptr, VPUIP::NCETaskType::AVEPOOL, origOp.kernel_size(),
                                                         origOp.strides(), kernelPaddingAttr, origOp.ppe());
 
-    rewriter.replaceOp(origOp, nceOp.output());
+    rewriter.replaceOp(origOp, nceOp.getOutput());
     return mlir::success();
 }
 
@@ -187,12 +188,12 @@ private:
 mlir::LogicalResult EltwiseToEMU::matchAndRewrite(VPU::NCEEltwiseOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got '{1}' at '{2}'", this->getDebugName(), origOp->getName(), origOp->getLoc());
 
-    VPUX_THROW_UNLESS(origOp.ppe().hasValue(), "Eltwise operation should always have PPE info");
+    VPUX_THROW_UNLESS(origOp.ppe().has_value(), "Eltwise operation should always have PPE info");
     auto nceOp = rewriter.create<EMU::NCEClusterTaskOp>(origOp->getLoc(), origOp.getType(), origOp.input1(),
                                                         origOp.input2(), nullptr, VPUIP::NCETaskType::ELTWISE, nullptr,
                                                         nullptr, nullptr, origOp.ppe());
 
-    rewriter.replaceOp(origOp, nceOp.output());
+    rewriter.replaceOp(origOp, nceOp.getOutput());
     return mlir::success();
 }
 

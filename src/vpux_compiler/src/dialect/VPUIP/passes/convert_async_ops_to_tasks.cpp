@@ -40,7 +40,7 @@ public:
             : mlir::OpConversionPattern<mlir::async::ExecuteOp>(typeConverter, ctx),
               _log(log),
               _arch(arch),
-              _costModel(costModel) {
+              _costModel(std::move(costModel)) {
     }
 
 public:
@@ -86,12 +86,12 @@ mlir::LogicalResult InlineAsyncRegion::matchAndRewrite(mlir::async::ExecuteOp ex
         }
         if (!execOp.token().use_empty()) {
             _log.nest(3).trace("Append it's update barrier list");
-            updateBarriers.push_back(barrierOp.barrier());
+            updateBarriers.push_back(barrierOp.getBarrier());
         }
 
         rewriter.setInsertionPoint(op);
         auto taskOp = rewriter.create<VPURT::TaskOp>(op->getLoc(), waitBarriers, updateBarriers);
-        auto& block = taskOp.body().emplaceBlock();
+        auto& block = taskOp.getBody().emplaceBlock();
         op->moveBefore(&block, block.end());
 
         if (!hasCycleCost) {
@@ -123,7 +123,7 @@ mlir::LogicalResult InlineAsyncRegion::matchAndRewrite(mlir::async::ExecuteOp ex
 
     SmallVector<mlir::Value> newResults;
     newResults.reserve(execOp->getNumResults());
-    newResults.push_back(barrierOp.barrier());
+    newResults.push_back(barrierOp.getBarrier());
     newResults.append(yieldOp.operands().begin(), yieldOp.operands().end());
 
     rewriter.eraseOp(yieldOp);

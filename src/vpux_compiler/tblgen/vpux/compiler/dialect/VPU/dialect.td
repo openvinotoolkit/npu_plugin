@@ -38,6 +38,8 @@ def VPU_Dialect : Dialect {
     let hasConstantMaterializer = 1;
     let useDefaultTypePrinterParser = 1;
     let useDefaultAttributePrinterParser = 1;
+
+    let emitAccessorPrefix = kEmitAccessorPrefix_Both;
 }
 
 #endif

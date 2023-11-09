@@ -84,7 +84,7 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     auto barrier1 = funcbuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 1);
 
     // DMA input-->cmx
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
                                           builder.getUnknownLoc(), funcinput0, input0cmx.getOperation()->getResult(0));
 
     mlir::Type uderlyingInputType = inputType.isa<mlir::quant::QuantizedType>()
@@ -118,7 +118,7 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     auto actWindow_cmx = createDeclareTensorOp(funcbuilder, actWindow_cmx_type, VPURT::BufferSection::CMX_NN, 0,
                                                ACTIVATIONWINDOW_CMX_OFFSET);
 
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
                                           builder.getUnknownLoc(), dataConstOp.getOperation()->getResult(0),
                                           actWindow_cmx.getOperation()->getResult(0));
     // weights table ddr tensor
@@ -148,7 +148,7 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
                                            WEIGHTSTABLE_CMX_OFFSET);
 
     // weights table dma ddr->cmx
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
                                           builder.getUnknownLoc(), weightTbl_data_ddr.getOperation()->getResult(0),
                                           wtTbl_cmx.getOperation()->getResult(0));
 
@@ -159,7 +159,7 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
                                               padding_vec[PAD_NCETASK_TOP], padding_vec[PAD_NCETASK_BOTTOM]);
 
     auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
-            funcbuilder, mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()),
+            funcbuilder, mlir::ValueRange(barrier0.getBarrier()), mlir::ValueRange(barrier1.getBarrier()),
             builder.getUnknownLoc(), outputcmx_type, input0cmx.getOperation()->getResult(0), mlir::Value(),
             wtTbl_cmx.getOperation()->getResult(0), /*instruction_table_list*/ nullptr,
             actWindow_cmx.getOperation()->getResult(0), parent_input0cmx.getOperation()->getResult(0),
@@ -184,14 +184,13 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     auto variantbuilder = mlir::OpBuilder::atBlockBegin(&nceTask.variants().front(), builder.getListener());
     createDPUTaskOp(funcbuilder, variantbuilder, out_shape, in_shape, padding_vec, VPU::MPEMode::CUBOID_16x16);
 
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.getBarrier()), mlir::ValueRange(),
                                           builder.getUnknownLoc(), outputcmx.getOperation()->getResult(0), funcoutput);
 
     funcbuilder.create<mlir::func::ReturnOp>(builder.getUnknownLoc(), funcoutput);
     // set runtime resources
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, None,
-                                           log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
     // IE.CNNNetwork

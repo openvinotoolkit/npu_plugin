@@ -6,6 +6,7 @@
 #pragma once
 
 #include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/dialect/VPUIP/attr_interfaces.hpp"
 #include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/func_ref.hpp"
 #include "vpux/utils/core/mem_size.hpp"
@@ -18,12 +19,12 @@
 // Generated
 //
 
+#include <vpux/compiler/dialect/VPUIP/enums.hpp.inc>
+
 #define GET_ATTRDEF_CLASSES
-#include <vpux/compiler/dialect/VPUIP/generated/attributes.hpp.inc>
+#include <vpux/compiler/dialect/VPUIP/attributes.hpp.inc>
 
-#include <vpux/compiler/dialect/VPUIP/generated/attributes/enums.hpp.inc>
-#include <vpux/compiler/dialect/VPUIP/generated/attributes/structs.hpp.inc>
-
+#include <vpux/compiler/dialect/VPUIP/structs.hpp.inc>
 namespace vpux {
 namespace VPUIP {
 

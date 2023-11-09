@@ -22,9 +22,9 @@ mlir::LogicalResult vpux::VPU::UpsamplingOp::inferReturnTypes(mlir::MLIRContext*
         return mlir::failure();
     }
 
-    auto padChannelVector = parseIntArrayAttr<int32_t>(upsampling.padAttr().pads_channel());
-    auto padHeightVector = parseIntArrayAttr<int32_t>(upsampling.padAttr().pads_height());
-    auto padWidthVector = parseIntArrayAttr<int32_t>(upsampling.padAttr().pads_width());
+    auto padChannelVector = parseIntArrayAttr<int32_t>(upsampling.padAttr().getPadsChannel());
+    auto padHeightVector = parseIntArrayAttr<int32_t>(upsampling.padAttr().getPadsHeight());
+    auto padWidthVector = parseIntArrayAttr<int32_t>(upsampling.padAttr().getPadsWidth());
     auto upsamplingFactorVector = parseIntArrayAttr<int32_t>(upsampling.upsampling_factor());
 
     const auto inType = upsampling.input().getType().cast<vpux::NDTypeInterface>();
@@ -54,17 +54,19 @@ mlir::LogicalResult vpux::VPU::UpsamplingOp::inferReturnTypes(mlir::MLIRContext*
 //
 
 EMU::BlobWriter::SpecificTask vpux::VPU::UpsamplingOp::serialize(EMU::BlobWriter& writer) {
-    SmallVector<int32_t> pad_x = {checked_cast<int32_t>(padAttr().pads_width()[0].cast<mlir::IntegerAttr>().getInt()),
-                                  checked_cast<int32_t>(padAttr().pads_width()[1].cast<mlir::IntegerAttr>().getInt())};
+    SmallVector<int32_t> pad_x = {
+            checked_cast<int32_t>(padAttr().getPadsWidth()[0].cast<mlir::IntegerAttr>().getInt()),
+            checked_cast<int32_t>(padAttr().getPadsWidth()[1].cast<mlir::IntegerAttr>().getInt())};
     auto pad_x_vector = writer.createVector(pad_x);
 
-    SmallVector<int32_t> pad_y = {checked_cast<int32_t>(padAttr().pads_height()[0].cast<mlir::IntegerAttr>().getInt()),
-                                  checked_cast<int32_t>(padAttr().pads_height()[1].cast<mlir::IntegerAttr>().getInt())};
+    SmallVector<int32_t> pad_y = {
+            checked_cast<int32_t>(padAttr().getPadsHeight()[0].cast<mlir::IntegerAttr>().getInt()),
+            checked_cast<int32_t>(padAttr().getPadsHeight()[1].cast<mlir::IntegerAttr>().getInt())};
     auto pad_y_vector = writer.createVector(pad_y);
 
     SmallVector<int32_t> pad_z = {
-            checked_cast<int32_t>(padAttr().pads_channel()[0].cast<mlir::IntegerAttr>().getInt()),
-            checked_cast<int32_t>(padAttr().pads_channel()[1].cast<mlir::IntegerAttr>().getInt())};
+            checked_cast<int32_t>(padAttr().getPadsChannel()[0].cast<mlir::IntegerAttr>().getInt()),
+            checked_cast<int32_t>(padAttr().getPadsChannel()[1].cast<mlir::IntegerAttr>().getInt())};
     auto pad_z_vector = writer.createVector(pad_z);
 
     MVCNN::UpsamplingParamsBuilder builder(writer);

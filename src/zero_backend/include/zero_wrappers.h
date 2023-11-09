@@ -68,10 +68,10 @@ private:
 
 class CommandList {
 public:
-    friend struct CommandQueue;
+    friend class CommandQueue;
     CommandList() = delete;
     CommandList(const ze_device_handle_t& device_handle, const ze_context_handle_t& context,
-                ze_graph_dditable_ext_t* graph_ddi_table_ext, const Config& config);
+                ze_graph_dditable_ext_t* graph_ddi_table_ext, const Config& config, const uint32_t& group_ordinal);
     CommandList(const CommandList&) = delete;
     CommandList(CommandList&&) = delete;
     CommandList& operator=(const CommandList&) = delete;
@@ -124,7 +124,7 @@ class CommandQueue {
 public:
     CommandQueue() = delete;
     CommandQueue(const ze_device_handle_t& device_handle, const ze_context_handle_t& context,
-                 const ze_command_queue_priority_t& priority, const Config& config);
+                 const ze_command_queue_priority_t& priority, const Config& config, const uint32_t& group_ordinal);
     CommandQueue(const CommandQueue&) = delete;
     CommandQueue(CommandQueue&&) = delete;
     CommandQueue& operator=(const CommandQueue&) = delete;

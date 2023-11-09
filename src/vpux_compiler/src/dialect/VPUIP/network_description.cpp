@@ -75,21 +75,6 @@ DimsOrder extractLayoutFromStrides(const llvm::ArrayRef<float>& inStrides) {
     return tensorLayout;
 }
 
-DimsOrder orderVectorToLayout(const llvm::ArrayRef<float>& inStrides) {
-    std::function<bool(const std::pair<DimsOrder, llvm::ArrayRef<float>>&)> mapSearchPredicate =
-            [inStrides](const std::pair<DimsOrder, llvm::ArrayRef<float>>& orderPair) -> bool {
-        size_t orderSize = inStrides.size();
-        size_t pairSize = orderPair.second.size();
-        return (orderSize == pairSize) && std::equal(inStrides.begin(), inStrides.end(), orderPair.second.begin());
-    };
-    std::unordered_map<DimsOrder, std::vector<float>>::const_iterator mapIter =
-            std::find_if(orderMapping.begin(), orderMapping.end(), mapSearchPredicate);
-    if (mapIter == orderMapping.end()) {
-        IE_THROW() << "orderToLayout: failed to convert input order";
-    }
-    return mapIter->first;
-}
-
 Data deserializeTensor(const MVCNN::TensorReference* tensor,
                        DimsOrder (*backupStridesToLayoutConvertor)(const llvm::ArrayRef<float>&)) {
     const auto* dims = tensor->dimensions();
@@ -124,9 +109,9 @@ Data deserializeTensor(const MVCNN::TensorReference* tensor,
 
 using TensorReferenceVector = flatbuffers::Vector<flatbuffers::Offset<MVCNN::TensorReference>>;
 
-DataMap deserializeDataMap(const TensorReferenceVector* tensors,
-                           DimsOrder (*backupStridesToLayoutConvertor)(const llvm::ArrayRef<float>&)) {
-    DataMap out;
+NetworkIOVector deserializeIOVector(const TensorReferenceVector* tensors,
+                                    DimsOrder (*backupStridesToLayoutConvertor)(const llvm::ArrayRef<float>&)) {
+    NetworkIOVector out;
 
     if (tensors == nullptr) {
         return out;
@@ -137,81 +122,10 @@ DataMap deserializeDataMap(const TensorReferenceVector* tensors,
 
         const auto ieData = deserializeTensor(tensor, backupStridesToLayoutConvertor);
 
-        out.emplace(ieData.getName(), std::make_shared<Data>(ieData));
+        out.emplace_back(ieData.getName(), std::make_shared<Data>(ieData));
     }
 
     return out;
-}
-
-vpux::QuantizationParamMap deserializeQuantMap(const TensorReferenceVector* tensors) {
-    vpux::Optional<vpux::QuantizationParam> quantParam{vpux::None};
-    vpux::QuantizationParamMap resultQuantParamMap{};
-
-    if (tensors == nullptr) {
-        return resultQuantParamMap;
-    }
-
-    for (auto ind : irange(tensors->size())) {
-        const auto* tensor = tensors->Get(ind);
-
-        const auto isQuantZeroDefined = tensor->quant_zero() && tensor->quant_zero()->size() == 1;
-        const auto isQuantScaleDefined = tensor->quant_mult() && tensor->quant_mult()->size() == 1;
-        const auto pluginQuantization = isQuantZeroDefined && isQuantScaleDefined;
-
-        if (pluginQuantization) {
-            const uint16_t quantMult = *tensor->quant_mult()->cbegin();
-            const uint8_t quantZero = *tensor->quant_zero()->cbegin();
-            const uint8_t quantShift = *tensor->quant_shift()->cbegin();
-
-            quantParam = vpux::QuantizationParam{};
-            if (quantMult == 1 && quantZero == 0) {
-                // Default values.
-                quantParam = vpux::None;
-            } else {
-                const float scaleFP32 = static_cast<float>(quantMult) / (1 << quantShift);
-                if (scaleFP32 != 0.f) {
-                    quantParam.getValue()._reverseScale = 1.f / scaleFP32;
-                }
-                quantParam.getValue()._zeroPoint = quantZero;
-            }
-        }
-        resultQuantParamMap.insert({tensor->name()->str(), quantParam});
-    }
-
-    return resultQuantParamMap;
-}
-
-const EnumMap<MVCNN::PreProcessColorSpace, InferenceEngine::ColorFormat> mapPreProcessColorFormatIE = {
-        {MVCNN::PreProcessColorSpace::PreProcessColorSpace_BGR, ColorFormat::BGR},
-        {MVCNN::PreProcessColorSpace::PreProcessColorSpace_RGB, ColorFormat::RGB},
-        {MVCNN::PreProcessColorSpace::PreProcessColorSpace_NV12, ColorFormat::NV12},
-        {MVCNN::PreProcessColorSpace::PreProcessColorSpace_I420, ColorFormat::I420},
-        {MVCNN::PreProcessColorSpace::PreProcessColorSpace_DEFAULT, ColorFormat::RAW},
-};
-
-const EnumMap<MVCNN::PreProcessResizeAlgorithm, InferenceEngine::ResizeAlgorithm> mapPreProcessResizeAlgorithmIE = {
-        {MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_BILINEAR, ResizeAlgorithm::RESIZE_BILINEAR},
-        {MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_AREA, ResizeAlgorithm::RESIZE_AREA},
-        {MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_NO_RESIZE, ResizeAlgorithm::NO_RESIZE},
-};
-
-void deserializePreprocessInfo(
-        const flatbuffers::Vector<flatbuffers::Offset<MVCNN::preprocessingInfo>>* mvcnnPreprocessInfo,
-        std::unordered_map<std::string, InferenceEngine::PreProcessInfo>& preProcInfo) {
-    // Check for the existence of a field in a blob. In older versions of the blob, this field may not exist
-    if (mvcnnPreprocessInfo == nullptr)
-        return;
-
-    preProcInfo.clear();
-    for (uint32_t i = 0; i < mvcnnPreprocessInfo->size(); i++) {
-        if (const auto* pr = mvcnnPreprocessInfo->Get(i)) {
-            auto preprocess = InferenceEngine::PreProcessInfo();
-
-            preprocess.setColorFormat(mapPreProcessColorFormatIE.at(pr->input_format()));
-            preprocess.setResizeAlgorithm(mapPreProcessResizeAlgorithmIE.at(pr->algorithm()));
-            preProcInfo[pr->input_name()->str()] = preprocess;
-        }
-    }
 }
 
 const EnumMap<MVCNN::OVNodeType, ov::element::Type_t> mapElementTypeIE = {
@@ -271,8 +185,7 @@ std::vector<OVRawNode> deserializeOVNodes(const flatbuffers::Vector<flatbuffers:
 }
 }  // namespace
 
-vpux::VPUIP::NetworkDescription::NetworkDescription(std::vector<char> blob)
-        : _compiledNetwork(std::move(blob)), _quantParams{} {
+vpux::VPUIP::NetworkDescription::NetworkDescription(std::vector<char> blob): _compiledNetwork(std::move(blob)) {
     OV_ITT_TASK_CHAIN(NETWORK_DESCRIPTION, itt::domains::VPUXPlugin, "NetworkDescription::NetworkDescription",
                       "VerifyGraphFileBuffer");
     VPUX_THROW_UNLESS(!_compiledNetwork.empty(), "Got NULL pointer");
@@ -289,16 +202,6 @@ vpux::VPUIP::NetworkDescription::NetworkDescription(std::vector<char> blob)
         _name = header->identifier()->str();
     }
 
-    OV_ITT_TASK_NEXT(NETWORK_DESCRIPTION, "deserializeDataMap");
-    _networkInputs = deserializeDataMap(header->in_tensor_desc(), orderVectorToLayout);
-    _networkOutputs = deserializeDataMap(header->out_tensor_desc(), orderVectorToLayout);
-    _quantParams = deserializeQuantMap(header->in_tensor_desc());
-
-    OV_ITT_TASK_NEXT(NETWORK_DESCRIPTION, "deserializePreprocessInfo");
-    const auto preProcTable = header->pre_process_info();
-    if (preProcTable != nullptr)
-        deserializePreprocessInfo(preProcTable, _iePreprocessInfo);
-
     OV_ITT_TASK_NEXT(NETWORK_DESCRIPTION, "deserializeOVNodes");
     const auto ovParams = header->ov_parameters();
     if (ovParams != nullptr) {
@@ -309,11 +212,10 @@ vpux::VPUIP::NetworkDescription::NetworkDescription(std::vector<char> blob)
         _ovResults = deserializeOVNodes(ovResults);
     }
 
-    OV_ITT_TASK_NEXT(NETWORK_DESCRIPTION, "deserializeDataMap");
-    _deviceInputs = deserializeDataMap(header->net_input(), extractLayoutFromStrides);
-    _deviceOutputs = deserializeDataMap(header->net_output(), extractLayoutFromStrides);
-    _deviceProfilingOutputs = deserializeDataMap(header->profiling_output(), extractLayoutFromStrides);
+    OV_ITT_TASK_NEXT(NETWORK_DESCRIPTION, "deserializeIOVector");
+    _deviceInputs = deserializeIOVector(header->net_input(), extractLayoutFromStrides);
+    _deviceOutputs = deserializeIOVector(header->net_output(), extractLayoutFromStrides);
+    _deviceProfilingOutputs = deserializeIOVector(header->profiling_output(), extractLayoutFromStrides);
 
-    VPUX_THROW_UNLESS(!_networkOutputs.empty(), "VPUIP blob does not contain network outputs");
     VPUX_THROW_UNLESS(!_deviceOutputs.empty(), "VPUIP blob does not contain device outputs");
 }

@@ -16,12 +16,12 @@ using namespace vpux;
 namespace {
 
 Dim normalizeAxis(VPU::SplitOpAdaptor split) {
-    VPUX_THROW_UNLESS(split.axis_value().hasValue(), "Got non constant axis");
+    VPUX_THROW_UNLESS(split.axis_value().has_value(), "Got non constant axis");
 
     const auto inType = split.input().getType().cast<vpux::NDTypeInterface>();
     const auto inRank = inType.getRank();
 
-    auto axisInd = split.axis_value().getValue();
+    auto axisInd = split.axis_value().value();
 
     // Negative value means counting dimension from the end
     if (axisInd < 0) {
@@ -41,7 +41,7 @@ mlir::FailureOr<Dim> extractAxis(mlir::Location loc, VPU::SplitOpAdaptor split) 
             return errorAt(loc, "Only constant input is supported for axis");
         }
 
-        const auto axisContent = axisConst.content();
+        const auto axisContent = axisConst.getContent();
         if (!axisContent.isSplat()) {
             return errorAt(loc, "Axis value must be a scalar");
         }
@@ -60,7 +60,7 @@ mlir::FailureOr<Dim> extractAxis(mlir::Location loc, VPU::SplitOpAdaptor split) 
                           inRank);
 
         return Dim(axisInd);
-    } else if (split.axis_value().hasValue()) {
+    } else if (split.axis_value().has_value()) {
         return normalizeAxis(split);
     } else {
         return errorAt(loc, "Axis was not provided");

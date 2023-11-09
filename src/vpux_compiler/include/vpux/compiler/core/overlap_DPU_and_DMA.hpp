@@ -50,7 +50,7 @@ class OverlapDMAandDPU final {
         bool operator==(const DataOpOptimalCycles& other) const {
             return opIdx_ == other.opIdx_;
         }
-        size_t cycleCost() {
+        size_t cycleCost() const {
             return cycleEnd_ - cycleBegin_;
         }
         // DMA index
@@ -131,7 +131,7 @@ class OverlapDMAandDPU final {
         // add DMA to interval
         void addOpToFreeInterval(DataOpOptimalCycles dataOp);
         // add DMA to interval and stall pipeline
-        void addOpsToFreeIntervalWithActivationStall(SmallVector<DataOpOptimalCycles> dataOps);
+        void addOpsToFreeIntervalWithActivationStall(ArrayRef<DataOpOptimalCycles> dataOps);
         // stall interval based on a fixed stall
         void addFreeIntervalStall(size_t stall);
         // stall interval based on cycles
@@ -200,7 +200,7 @@ class OverlapDMAandDPU final {
         // update DPU cycles based on input DMAs
         size_t updateDPUCycles();
         // add DMAs which delay DPU but enable overlap
-        size_t addOpsToIntervalWithActivationStall(SmallVector<DataOpOptimalCycles> dataOps);
+        size_t addOpsToIntervalWithActivationStall(ArrayRef<DataOpOptimalCycles> dataOps);
         // update DPU cycle look up based on input DMAs
         void updateDPULookUp(ArrayRef<DPUOptimalCycles> DPUOptimalCycles);
         // stall DPUs based on a fixed stall
@@ -238,7 +238,7 @@ class OverlapDMAandDPU final {
     struct PrefetchPipeline {
         explicit PrefetchPipeline();
         // add a new interval consisting of free interval, DPU optimal cycles, and activation copy out
-        void addPrefetchInterval(PrefetchInterval interval);
+        void addPrefetchInterval(const PrefetchInterval& interval);
         // return all activation copy outs from all prefetch intervals
         SmallVector<ActivationSpill> getActivationSpills();
         // try to prefetch activation copy in DMA
@@ -260,7 +260,7 @@ class OverlapDMAandDPU final {
         // move DMAs to previous intervals to make cycle space
         bool shiftToPreviousInterval(PrefetchInterval* currentInterval, DataOpOptimalCycles dataOp);
         // data bound case where DPU might need to be delayed in order to prefetch
-        void prefetchOpsAndDelayPipeline(PrefetchInterval* currInterval, SmallVector<DataOpOptimalCycles> dataOps,
+        void prefetchOpsAndDelayPipeline(PrefetchInterval* currInterval, ArrayRef<DataOpOptimalCycles> dataOps,
                                          size_t dataOpsCycleCost, DataOpOptimalCycles* dataOp);
         // recursively shift DMAs to previous intervals, stalling DPU pipeline for better overlap
         void maximizeOverlap(PrefetchInterval* currInterval, PrefetchInterval* targetInterval,

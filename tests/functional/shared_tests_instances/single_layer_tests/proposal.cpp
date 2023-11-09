@@ -1,19 +1,19 @@
 //
-// Copyright (C) 2022 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include <vector>
 
-#include "kmb_layer_test.hpp"
 #include "single_layer_tests/proposal.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
-class VPUXProposalLayerTest_VPU3700 : public ProposalLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXProposalLayerTest : public ProposalLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
 protected:
     void Validate() override {
-        LayerTestsUtils::KmbLayerTestsCommon::Validate();
+        LayerTestsUtils::VpuOv1LayerTestsCommon::Validate();
     }
     int outputSize = 0;
     // "IoU = intersection area / union area" of two boxes A, B
@@ -108,7 +108,7 @@ protected:
     //  openvino/src/tests_deprecated/functional/vpu/common/layers/myriad_layers_proposal_test.cpp
     // and from previous implementation:
     // See
-    // ${VPU_FIRMWARE_SOURCES_PATH}/blob/develop/validation/validationApps/system/nn/mvTensor/layer_tests/test_icv/leon/tests/exp_generate_proposals.cpp
+    // ${NPU_FIRMWARE_SOURCES_PATH}/blob/develop/validation/validationApps/system/nn/mvTensor/layer_tests/test_icv/leon/tests/exp_generate_proposals.cpp
     // Reference compare function from above link check just if from first 20 output ROI 18 of them can be found inside
     // reference with 70% overlap. I consider to extend this verification base on: the output can have less that 20 ROI,
     // if output have 1000 elements to check just first 20 I consider to be not enought; 70% error accepted I supose to
@@ -176,8 +176,17 @@ protected:
     }
 };
 
+class VPUXProposalLayerTest_VPU3700 : public VPUXProposalLayerTest {};
+class VPUXProposalLayerTest_VPU3720 : public VPUXProposalLayerTest {};
+
 TEST_P(VPUXProposalLayerTest_VPU3700, HW) {
     setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
+    Run();
+}
+
+TEST_P(VPUXProposalLayerTest_VPU3720, HW) {
+    setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
 }
@@ -211,7 +220,7 @@ const auto proposalParams = ::testing::Combine(::testing::ValuesIn(base_size_), 
 
 INSTANTIATE_TEST_SUITE_P(smoke_Proposal_tests, VPUXProposalLayerTest_VPU3700,
                          ::testing::Combine(proposalParams,
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          VPUXProposalLayerTest_VPU3700::getTestCaseName);
 // conformance "Proposal_108377"
 INSTANTIATE_TEST_SUITE_P(
@@ -226,7 +235,7 @@ INSTANTIATE_TEST_SUITE_P(
                                               ::testing::ValuesIn(std::vector<clip_before_nms_type>{true}),
                                               ::testing::ValuesIn(std::vector<clip_after_nms_type>{false}),
                                               ::testing::ValuesIn(std::vector<framework_type>{"tensorflow"})),
-                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
         VPUXProposalLayerTest_VPU3700::getTestCaseName);
 
 // conformance "Proposal_129693"
@@ -242,6 +251,22 @@ INSTANTIATE_TEST_SUITE_P(
                                               ::testing::ValuesIn(std::vector<clip_before_nms_type>{true}),
                                               ::testing::ValuesIn(std::vector<clip_after_nms_type>{false}),
                                               ::testing::ValuesIn(std::vector<framework_type>{""})),
-                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
         VPUXProposalLayerTest_VPU3700::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Proposal_test, VPUXProposalLayerTest_VPU3720,
+        ::testing::Combine(::testing::Combine(::testing::ValuesIn(std::vector<base_size_type>{4}),
+                                              ::testing::ValuesIn(std::vector<pre_nms_topn_type>{6000}),
+                                              ::testing::ValuesIn(std::vector<post_nms_topn_type>{300}),
+                                              ::testing::ValuesIn(std::vector<nms_thresh_type>{0.69999998807907104f}),
+                                              ::testing::ValuesIn(std::vector<min_size_type>{4}),
+                                              ::testing::ValuesIn(std::vector<ratio_type>{{0.5f}}),
+                                              ::testing::ValuesIn(std::vector<scale_type>{{1.2f}}),
+                                              ::testing::ValuesIn(std::vector<clip_before_nms_type>{true}),
+                                              ::testing::ValuesIn(std::vector<clip_after_nms_type>{false}),
+                                              ::testing::ValuesIn(std::vector<framework_type>{""})),
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
+        VPUXProposalLayerTest_VPU3720::getTestCaseName);
+
 }  // namespace

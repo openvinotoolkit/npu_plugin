@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/utils/IE/blob.hpp"
 
 #include "vpux/utils/IE/float16.hpp"
@@ -200,8 +198,7 @@ MemoryBlob::Ptr vpux::copyBlob(const MemoryBlob::Ptr& in, void* ptr) {
 namespace {
 
 template <typename InT, typename OutT>
-void cvtBlobPrecisionImpl(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out,
-                          const vpux::Optional<vpux::QuantizationParam>& outQuantParams) {
+void cvtBlobPrecisionImpl(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out) {
     const auto& inPrecision = in->getTensorDesc().getPrecision();
     const auto& outPrecision = out->getTensorDesc().getPrecision();
 
@@ -217,35 +214,14 @@ void cvtBlobPrecisionImpl(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out,
     const auto outPtr = outMem.as<OutT*>();
     VPUX_THROW_UNLESS(outPtr != nullptr, "Blob was not allocated");
 
-    const auto pluginQuantization = outQuantParams.hasValue();
-    if (pluginQuantization) {
-        const auto isSupportedTypes =
-                (inPrecision == Precision::FP32 || inPrecision == Precision::FP16) && outPrecision == Precision::U8;
-        VPUX_THROW_UNLESS(isSupportedTypes, "VPUX Plugin quantization is supported only for FP32/FP16 to U8 cases");
-    }
-
-    if (!pluginQuantization) {
-        loop_1d(LoopExecPolicy::Parallel, in->size(), [inPtr, outPtr](int64_t index) {
-            outPtr[index] = checked_cast<OutT>(inPtr[index]);
-        });
-    } else {
-        const auto& quantP = outQuantParams.getValue();
-        const float minU8 = static_cast<float>(std::numeric_limits<uint8_t>().lowest());
-        const float maxU8 = static_cast<float>(std::numeric_limits<uint8_t>().max());
-        loop_1d(LoopExecPolicy::Parallel, in->size(), [inPtr, outPtr, &quantP, minU8, maxU8](int64_t index) {
-            const float fp32InValue = static_cast<float>(inPtr[index]);
-            const float inValueQuant =
-                    static_cast<float>(quantP._zeroPoint + quantP._reverseScale * fp32InValue + 0.5f);
-            outPtr[index] =
-                    static_cast<OutT>(inValueQuant < minU8 ? minU8 : (inValueQuant > maxU8 ? maxU8 : inValueQuant));
-        });
-    }
+    loop_1d(LoopExecPolicy::Parallel, in->size(), [inPtr, outPtr](int64_t index) {
+        outPtr[index] = checked_cast<OutT>(inPtr[index]);
+    });
 }
 
 }  // namespace
 
-void vpux::cvtBlobPrecision(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out,
-                            const vpux::Optional<vpux::QuantizationParam>& outQuantParams) {
+void vpux::cvtBlobPrecision(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out) {
     VPUX_THROW_UNLESS(in != nullptr && out != nullptr, "Got NULL pointer");
     VPUX_THROW_UNLESS(isCompact(in) && isCompact(out), "Got non-compact blobs");
 
@@ -262,8 +238,8 @@ void vpux::cvtBlobPrecision(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& ou
         return;
     }
 
-#define CASE(InT, OutT)                                       \
-    cvtBlobPrecisionImpl<InT, OutT>(in, out, outQuantParams); \
+#define CASE(InT, OutT)                       \
+    cvtBlobPrecisionImpl<InT, OutT>(in, out); \
     break
 
     switch (inPrecision) {
@@ -623,7 +599,6 @@ void vpux::cvtBlobPrecision(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& ou
 }
 
 MemoryBlob::Ptr vpux::toPrecision(const MemoryBlob::Ptr& in, const Precision& precision,
-                                  const vpux::Optional<vpux::QuantizationParam>& outQuantParams,
                                   const std::shared_ptr<IAllocator>& allocator, void* ptr) {
     VPUX_THROW_UNLESS(in != nullptr, "Got NULL pointer");
 
@@ -636,7 +611,7 @@ MemoryBlob::Ptr vpux::toPrecision(const MemoryBlob::Ptr& in, const Precision& pr
     const auto outDesc = TensorDesc(precision, inDesc.getDims(), inDesc.getLayout());
     const auto out = makeBlob(outDesc, allocator, ptr);
 
-    cvtBlobPrecision(in, out, outQuantParams);
+    cvtBlobPrecision(in, out);
 
     return out;
 }
@@ -648,7 +623,7 @@ MemoryBlob::Ptr vpux::toDefPrecision(const MemoryBlob::Ptr& in, const std::share
     const auto inPrec = in->getTensorDesc().getPrecision();
 
     if (inPrec == Precision::U8 || inPrec == Precision::FP16) {
-        return toPrecision(in, Precision::FP32, vpux::None, allocator, ptr);
+        return toPrecision(in, Precision::FP32, allocator, ptr);
     } else {
         if (allocator == nullptr && ptr == nullptr) {
             return in;

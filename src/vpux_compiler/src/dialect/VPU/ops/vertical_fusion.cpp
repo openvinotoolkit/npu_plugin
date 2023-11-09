@@ -19,13 +19,13 @@ mlir::OperandRange vpux::VPU::VerticalFusionOp::getSuccessorEntryOperands(Option
 
 void vpux::VPU::VerticalFusionOp::getSuccessorRegions(Optional<unsigned> index, ArrayRef<mlir::Attribute>,
                                                       SmallVectorImpl<mlir::RegionSuccessor>& regions) {
-    if (index.hasValue()) {
+    if (index.has_value()) {
         VPUX_THROW_WHEN(*index != 0, "Invalid region index: {0}", *index);
         regions.emplace_back(results());
         return;
     }
 
-    regions.emplace_back(&body(), body().getArguments());
+    regions.emplace_back(&ops(), ops().getArguments());
 }
 
 bool vpux::VPU::VerticalFusionOp::areTypesCompatible(mlir::Type, mlir::Type) {
@@ -38,7 +38,7 @@ bool vpux::VPU::VerticalFusionOp::areTypesCompatible(mlir::Type, mlir::Type) {
 //
 
 mlir::Operation* vpux::VPU::VerticalFusionOp::getFirstInnerTaskOp() {
-    return &body().front().getOperations().front();
+    return &ops().front().getOperations().front();
 }
 
 //
@@ -48,9 +48,9 @@ mlir::Operation* vpux::VPU::VerticalFusionOp::getFirstInnerTaskOp() {
 void vpux::VPU::VerticalFusionOp::print(mlir::OpAsmPrinter& p) {
     // (%operand as %blockArg: <type>, ...)
 
-    VPUX_THROW_WHEN(body().empty(), "Cannot serialize operation with empty body.");
+    VPUX_THROW_WHEN(ops().empty(), "Cannot serialize operation with empty body.");
 
-    auto* entry = &body().front();
+    auto* entry = &ops().front();
     VPUX_THROW_WHEN(getNumOperands() != entry->getNumArguments(),
                     "Mismatch between the number of operands({0}) and body arguments({1}).", getNumOperands(),
                     entry->getNumArguments());
@@ -65,7 +65,7 @@ void vpux::VPU::VerticalFusionOp::print(mlir::OpAsmPrinter& p) {
     p.printOptionalAttrDictWithKeyword(getOperation()->getAttrs());
     p.printOptionalArrowTypeList(getResultTypes());
     p << " ";
-    p.printRegion(body(), /*printEntryBlockArgs=*/false);
+    p.printRegion(ops(), /*printEntryBlockArgs=*/false);
 }
 
 mlir::ParseResult vpux::VPU::VerticalFusionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result) {
@@ -148,7 +148,7 @@ void vpux::VPU::VerticalFusionOp::build(mlir::OpBuilder& builder, mlir::Operatio
 
 mlir::LogicalResult vpux::VPU::VerticalFusionOp::verify() {
     const auto op = getOperation();
-    auto& opBody = body();
+    auto& opBody = ops();
     if (!opBody.hasOneBlock()) {
         return errorAt(op->getLoc(), "Operation must have only one block.");
     }
@@ -169,22 +169,22 @@ mlir::LogicalResult vpux::VPU::VerticalFusionOp::verify() {
         return errorAt(op->getLoc(), "Operation must have at least one result.");
     }
 
-    auto yieldOps = body().getOps<vpux::VPU::YieldOp>();
+    auto yieldOps = ops().getOps<vpux::VPU::YieldOp>();
     const auto numYieldOps = std::distance(yieldOps.begin(), yieldOps.end());
     if (numYieldOps != 1) {
         return errorAt(op->getLoc(), "Operation have to contain one YieldOp, but it has {0}", numYieldOps);
     }
 
     // check multicluster strategy for all ops
-    auto clusterOps = body().getOps<VPU::ClusteredOpInterface>();
+    auto clusterOps = ops().getOps<VPU::ClusteredOpInterface>();
     if (!clusterOps.empty()) {
-        const auto firstMCAttr = (*clusterOps.begin()).getMultiClusterStrategyAttr();
+        const auto firstMCAttr = (*clusterOps.begin()).getMultiClusterStrategy();
 
         const auto anyMCDiff = llvm::any_of(clusterOps, [&](auto op) {
-            const auto currentMCAttr = op.getMultiClusterStrategyAttr();
-            return firstMCAttr.hasValue() ^ currentMCAttr.hasValue() ||
-                   (firstMCAttr.hasValue() && currentMCAttr.hasValue() &&
-                    firstMCAttr.getValue() != currentMCAttr.getValue());
+            const auto currentMCAttr = op.getMultiClusterStrategy();
+            return firstMCAttr.has_value() ^ currentMCAttr.has_value() ||
+                   (firstMCAttr.has_value() && currentMCAttr.has_value() &&
+                    firstMCAttr.value() != currentMCAttr.value());
         });
 
         if (anyMCDiff) {
@@ -217,9 +217,9 @@ mlir::LogicalResult RemoveIfEmptyBody::matchAndRewrite(VPU::VerticalFusionOp ori
         return mlir::failure();
     }
 
-    auto& bodyBlock = origOp.body().front();
+    auto& bodyBlock = origOp.ops().front();
 
-    // Check if body does not have any operation besides YieldOp which is
+    // Check if ops does not have any operation besides YieldOp which is
     // integral part of VerticalFusion
     bool allYields = llvm::all_of(bodyBlock.getOperations(), [](const auto& op) {
         return mlir::isa<VPU::YieldOp>(op);

@@ -30,6 +30,7 @@ set(BUILD_SHARED_LIBS OFF)
 # LLVM/MLIR
 #
 
+set(LLVM_ENABLE_WARNINGS OFF CACHE BOOL "")
 set(LLVM_ENABLE_BINDINGS OFF CACHE BOOL "" FORCE)
 set(LLVM_ENABLE_RTTI ON CACHE BOOL "" FORCE)
 set(LLVM_ENABLE_EH ON CACHE BOOL "" FORCE)
@@ -54,26 +55,11 @@ set(LLVM_INCLUDE_EXAMPLES OFF CACHE BOOL "" FORCE)
 
 add_subdirectory(llvm-project/llvm EXCLUDE_FROM_ALL)
 
-set(LLVM_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/llvm-project/llvm")
-set(LLVM_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/llvm-project/llvm")
-
-set(MLIR_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/llvm-project/mlir")
-set(MLIR_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/llvm-project/llvm/tools/mlir")
-
-set(LLVM_INCLUDE_DIRS
-    "${LLVM_SOURCE_DIR}/include"
-    "${LLVM_BINARY_DIR}/include"
-)
-
-set(MLIR_INCLUDE_DIRS
-    "${MLIR_SOURCE_DIR}/include"
-    "${MLIR_BINARY_DIR}/include"
-)
-
+set(MLIR_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/llvm-project/mlir/include")
+set(MLIR_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/llvm-project/llvm/tools/mlir/include")
 include_directories(SYSTEM
-  ${LLVM_INCLUDE_DIRS}
-  ${MLIR_INCLUDE_DIRS}
-)
+    ${MLIR_SOURCE_DIR}
+    ${MLIR_BINARY_DIR})
 
 #
 # flatbuffers
@@ -88,8 +74,12 @@ add_subdirectory(flatbuffers EXCLUDE_FROM_ALL)
 # FIXME: this flag is forced while building in a single tree with OV
 # but code cannot be compiled with the flag
 if(NOT MSVC)
-    target_compile_options(flatbuffers PRIVATE -Wno-error=suggest-override)
-    target_compile_options(flatc PRIVATE -Wno-error=suggest-override)
+    target_compile_options(flatbuffers PRIVATE -Wno-suggest-override)
+    target_compile_options(flatc PRIVATE -Wno-suggest-override)
+    if ((CMAKE_CXX_COMPILER_ID STREQUAL "Clang") AND (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13))
+        target_compile_options(flatbuffers PRIVATE -Wno-unused-but-set-variable)
+        target_compile_options(flatc PRIVATE -Wno-unused-but-set-variable)
+    endif()
 endif()
 
 vpux_add_native_tool(flatc "${CMAKE_CURRENT_SOURCE_DIR}/flatbuffers"
@@ -132,35 +122,16 @@ if(ENABLE_BITCOMPACTOR)
 
     add_library(${BITCOMPACTOR_TARGET_NAME}
         OBJECT
-        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/bitcompactor/src/bitCompactor.cpp")
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/bitcompactor/src/bitCompactor.cpp"
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/bitcompactor/src/utils/logger.cpp"
+        )
 
+    include_directories(
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    )
     target_include_directories(${BITCOMPACTOR_TARGET_NAME}
         PUBLIC
-            $<BUILD_INTERFACE:${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/bitcompactor/include>
-    )
-    if (NOT BUILD_SHARED_LIBS)
-        install(TARGETS ${BITCOMPACTOR_TARGET_NAME} EXPORT OpenVINOTargets
-                RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
-                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
-                LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
-    endif()
-endif()
-
-#
-# huffman_codec
-#
-if(ENABLE_HUFFMAN_CODEC)
-    set(HUFFMAN_CODEC_TARGET_NAME "huffman_codec")
-    add_library(${HUFFMAN_CODEC_TARGET_NAME}
-        OBJECT
-        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/compression_codec/huffman_encoding/src/logging.cpp"
-        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/compression_codec/huffman_encoding/src/ms_vasprintf.cpp"
-        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/compression_codec/huffman_encoding/src/Huffman.cpp"
-        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/compression_codec/huffman_encoding/src/huffmanCodec.cpp")
-
-    target_include_directories(${HUFFMAN_CODEC_TARGET_NAME}
-        PUBLIC
-            "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/compression_codec/huffman_encoding/include"
+            "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/bitcompactor/include"
     )
 endif()
 

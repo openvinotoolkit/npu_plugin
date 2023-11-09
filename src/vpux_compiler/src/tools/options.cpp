@@ -27,8 +27,8 @@ struct InitCompilerPassOptions : mlir::PassPipelineOptions<InitCompilerPassOptio
 // parseArchKind
 //
 
-vpux::VPU::ArchKind vpux::parseArchKind(int argc, char* argv[]) {
-    static llvm::cl::OptionCategory vpuxOptOptions("VPUX Options");
+vpux::VPU::ArchKind vpux::parseArchKind(int argc, char* argv[], StringRef helpHeader) {
+    static llvm::cl::OptionCategory vpuxOptOptions("NPU Options");
 
     // Please use this option to test pipelines only (DefaultHW, ReferenceSW, etc.)
     // This option allows us to avoid ambiguity here when the parameters contradict each other:
@@ -51,10 +51,8 @@ vpux::VPU::ArchKind vpux::parseArchKind(int argc, char* argv[]) {
     // skip unknown options here, like split-input-file, show-dialects, etc.
     llvm::cl::list<std::string> sink(llvm::cl::Sink);
 
-    // At this moment output of such command line will be reduced: "vpux-opt --help",
-    // since this is the first call of the parser here and not all options are registered
-    llvm::cl::ParseCommandLineOptions(argc, argv, "Register passes and pipelines depending on device type", nullptr,
-                                      nullptr,
+    const auto toolName = helpHeader.empty() ? "Register passes and pipelines depending on device type" : helpHeader;
+    llvm::cl::ParseCommandLineOptions(argc, argv, toolName, nullptr, nullptr,
                                       /*LongOptionsUseDoubleDash=*/true);
 
     VPUX_THROW_WHEN(!archOpt.empty() && !initCompiler.empty(),
@@ -64,8 +62,8 @@ vpux::VPU::ArchKind vpux::parseArchKind(int argc, char* argv[]) {
 
     const auto getArchFromString = [](vpux::StringRef archOptStr) {
         auto archKind = vpux::VPU::symbolizeEnum<vpux::VPU::ArchKind>(archOptStr);
-        VPUX_THROW_UNLESS(archKind.hasValue(), "Unknown VPU architecture : '{0}'", archOpt.getValue());
-        return archKind.getValue();
+        VPUX_THROW_UNLESS(archKind.has_value(), "Unknown VPU architecture : '{0}'", archOpt.getValue());
+        return archKind.value();
     };
 
     auto arch = vpux::VPU::ArchKind::UNKNOWN;

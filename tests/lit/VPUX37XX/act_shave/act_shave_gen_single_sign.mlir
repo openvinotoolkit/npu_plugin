@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-// RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" %s | vpux-translate --export-VPUIP -o %t
+// RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" %s | vpux-translate --vpu-arch=VPUX37XX --export-VPUIP -o %t
 // RUN: flatc --raw-binary --json %vpuip_schema_file% -- %t
 // RUN: FileCheck %s --input-file %basename_t.json
 // RUN: rm %basename_t.json
@@ -53,8 +53,8 @@ module @VPU.SW {
 
 func.func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
 
-    %in_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x1x1x1000xf16, [@CMX_NN, 0]>
-    %out_tile0_cmx = VPURT.DeclareBuffer "CMX_NN" [0] <2000> -> memref<1x1x1x1000xf16, [@CMX_NN, 0]>
+    %in_tile0_cmx  = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x1x1x1000xf16, [@CMX_NN, 0]>
+    %out_tile0_cmx = VPURT.DeclareBuffer <CMX_NN> [0] <2000> -> memref<1x1x1x1000xf16, [@CMX_NN, 0]>
 
     %b0 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     %b1 = VPURT.ConfigureBarrier<1> -> !VPURT.Barrier
@@ -65,7 +65,7 @@ func.func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memre
 
     // Genetic Kernel information for the scheduler.
     VPURT.Task waits(%b0 : !VPURT.Barrier) updates(%b1 : !VPURT.Barrier) {
-        VPUIP.SW.Kernel
+        VPUIP.SW.Kernel 
                     {result_segment_sizes = dense<[1, 0]> : vector<2xi32>}
                     @VPU.SW::@builtin_sign            // The reference to the Kernel function.
                     inputs(%in_tile0_cmx as %arg0: memref<1x1x1x1000xf16, [@CMX_NN, 0]>)     // Inputs/outputs buffers for generic operation interface

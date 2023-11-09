@@ -14,10 +14,10 @@ func.func @CopyToTempBufNoChange(%arg0: memref<1x16x1x1xf16, #NHWC, @CMX_NN>, %a
     %0 = memref.alloc() : memref<1x16x1x1xf16, #NHWC, @CMX_NN>
     %1 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%arg0 : memref<1x16x1x1xf16, #NHWC, @CMX_NN>)
         weight_table(%wt : memref<16x1x1x4xsi32, @CMX_NN>)
@@ -27,7 +27,7 @@ func.func @CopyToTempBufNoChange(%arg0: memref<1x16x1x1xf16, #NHWC, @CMX_NN>, %a
         outputs(%0 : memref<1x16x1x1xf16, #NHWC, @CMX_NN>) -> memref<1x16x1x1xf16, #NHWC, @CMX_NN>
         variants :
         {
-            DPUTask { outEnd = [16, 1, 1], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 1, 1], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }
@@ -60,10 +60,10 @@ func.func @CopyToTempBufMoveCopyOnly(%arg0: memref<1x16x1x1xf16, #NHWC, @CMX_NN>
     %3 = memref.alloc() : memref<1x16x1x1xf16>
     %4 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%arg0 : memref<1x16x1x1xf16, #NHWC, @CMX_NN>)
         weight_table(%wt : memref<16x1x1x4xsi32, @CMX_NN>)
@@ -73,16 +73,16 @@ func.func @CopyToTempBufMoveCopyOnly(%arg0: memref<1x16x1x1xf16, #NHWC, @CMX_NN>
         outputs(%0 : memref<1x16x1x1xf16, #NHWC, @CMX_NN>) -> memref<1x16x1x1xf16, #NHWC, @CMX_NN>
         variants :
         {
-            DPUTask { outEnd = [16, 1, 1], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 1, 1], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }
     %5 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%arg0 : memref<1x16x1x1xf16, #NHWC, @CMX_NN>)
         weight_table(%wt : memref<16x1x1x4xsi32, @CMX_NN>)
@@ -92,7 +92,7 @@ func.func @CopyToTempBufMoveCopyOnly(%arg0: memref<1x16x1x1xf16, #NHWC, @CMX_NN>
         outputs(%1 : memref<1x16x1x1xf16, #NHWC, @CMX_NN>) -> memref<1x16x1x1xf16, #NHWC, @CMX_NN>
         variants :
         {
-            DPUTask { outEnd = [16, 1, 1], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 1, 1], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }
@@ -130,10 +130,10 @@ func.func @CopyToTempBufMoveWithAlloc(%arg0: memref<1x16x1x1xf16, #NHWC, @CMX_NN
     %0 = memref.alloc() : memref<1x16x1x1xf16, #NHWC, @CMX_NN>
     %1 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%arg0 : memref<1x16x1x1xf16, #NHWC, @CMX_NN>)
         weight_table(%wt : memref<16x1x1x4xsi32, @CMX_NN>)
@@ -143,17 +143,17 @@ func.func @CopyToTempBufMoveWithAlloc(%arg0: memref<1x16x1x1xf16, #NHWC, @CMX_NN
         outputs(%0 : memref<1x16x1x1xf16, #NHWC, @CMX_NN>) -> memref<1x16x1x1xf16, #NHWC, @CMX_NN>
         variants :
         {
-            DPUTask { outEnd = [16, 1, 1], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 1, 1], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }
     %2 = memref.alloc() : memref<1x16x1x1xf16, #NHWC, @CMX_NN>
     %3 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%arg0 : memref<1x16x1x1xf16, #NHWC, @CMX_NN>)
         weight_table(%wt : memref<16x1x1x4xsi32, @CMX_NN>)
@@ -163,7 +163,7 @@ func.func @CopyToTempBufMoveWithAlloc(%arg0: memref<1x16x1x1xf16, #NHWC, @CMX_NN
         outputs(%2 : memref<1x16x1x1xf16, #NHWC, @CMX_NN>) -> memref<1x16x1x1xf16, #NHWC, @CMX_NN>
         variants :
         {
-            DPUTask { outEnd = [16, 1, 1], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 1, 1], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }
@@ -207,10 +207,10 @@ func.func @CopyToTempBufSubViewMoveCopyOnly(%arg0: memref<1x8x1x1xf16, #NHWC, @C
     %4 = VPUIP.SubView %2 [8, 0, 0] [8, 1, 1] : memref<16x1x1xf16> to memref<8x1x1xf16>
     %5 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%arg0 : memref<1x8x1x1xf16, #NHWC, @CMX_NN>)
         weight_table(%wt : memref<8x1x1x4xsi32, @CMX_NN>)
@@ -220,16 +220,16 @@ func.func @CopyToTempBufSubViewMoveCopyOnly(%arg0: memref<1x8x1x1xf16, #NHWC, @C
         outputs(%0 : memref<1x8x1x1xf16, #NHWC, @CMX_NN>) -> memref<1x8x1x1xf16, #NHWC, @CMX_NN>
         variants :
         {
-            DPUTask { outEnd = [16, 1, 1], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 1, 1], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }
     %6 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%arg0 : memref<1x8x1x1xf16, #NHWC, @CMX_NN>)
         weight_table(%wt : memref<8x1x1x4xsi32, @CMX_NN>)
@@ -239,7 +239,7 @@ func.func @CopyToTempBufSubViewMoveCopyOnly(%arg0: memref<1x8x1x1xf16, #NHWC, @C
         outputs(%1 : memref<1x8x1x1xf16, #NHWC, @CMX_NN>) -> memref<1x8x1x1xf16, #NHWC, @CMX_NN>
         variants :
         {
-            DPUTask { outEnd = [16, 1, 1], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 1, 1], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }
@@ -278,10 +278,10 @@ func.func @CopyToTempBufSubViewMoveWithAlloc(%arg0: memref<1x8x1x1xf16, #NHWC, @
     %0 = memref.alloc() : memref<1x8x1x1xf16, #NHWC, @CMX_NN>
     %1 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%arg0 : memref<1x8x1x1xf16, #NHWC, @CMX_NN>)
         weight_table(%wt : memref<8x1x1x4xsi32, @CMX_NN>)
@@ -291,17 +291,17 @@ func.func @CopyToTempBufSubViewMoveWithAlloc(%arg0: memref<1x8x1x1xf16, #NHWC, @
         outputs(%0 : memref<1x8x1x1xf16, #NHWC, @CMX_NN>) -> memref<1x8x1x1xf16, #NHWC, @CMX_NN>
         variants :
         {
-            DPUTask { outEnd = [16, 1, 1], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 1, 1], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }
     %2 = memref.alloc() : memref<1x8x1x1xf16, #NHWC, @CMX_NN>
     %3 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%arg0 : memref<1x8x1x1xf16, #NHWC, @CMX_NN>)
         weight_table(%wt : memref<8x1x1x4xsi32, @CMX_NN>)
@@ -311,7 +311,7 @@ func.func @CopyToTempBufSubViewMoveWithAlloc(%arg0: memref<1x8x1x1xf16, #NHWC, @
         outputs(%2 : memref<1x8x1x1xf16, #NHWC, @CMX_NN>) -> memref<1x8x1x1xf16, #NHWC, @CMX_NN>
         variants :
         {
-            DPUTask { outEnd = [16, 1, 1], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 1, 1], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }

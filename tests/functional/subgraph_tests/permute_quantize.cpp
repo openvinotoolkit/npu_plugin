@@ -1,10 +1,10 @@
 //
-// Copyright (C) Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
-#include "kmb_layer_test.hpp"
 #include "subgraph_tests/nce_tasks.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 #include <ngraph_functions/builders.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -13,7 +13,7 @@
 namespace {
 
 class VPUXPermuteQuantizeTest :
-        public LayerTestsUtils::KmbLayerTestsCommon,
+        public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<std::tuple<InferenceEngine::SizeVector>> {
     void ConfigureNetwork() override {
         cnnNetwork.getInputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
@@ -22,7 +22,7 @@ class VPUXPermuteQuantizeTest :
         cnnNetwork.getOutputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NHWC);
     }
     void SetUp() override {
-        targetDevice = LayerTestsUtils::testPlatformTargetDevice;
+        targetDevice = LayerTestsUtils::testPlatformTargetDevice();
         const auto inputShape = std::get<0>(GetParam());
 
         const auto params = ngraph::builder::makeParams(ngraph::element::f16, {inputShape});
@@ -46,7 +46,7 @@ TEST_P(VPUXPermuteQuantizeTest_VPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     configuration["PERFORMANCE_HINT"] = "LATENCY";
-    configuration["VPUX_DPU_GROUPS"] = "2";
+    configuration["NPU_DPU_GROUPS"] = "2";
     Run();
 }
 

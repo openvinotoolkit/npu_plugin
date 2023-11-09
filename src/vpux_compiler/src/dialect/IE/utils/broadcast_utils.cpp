@@ -29,5 +29,14 @@ SmallVector<int64_t> getBroadcastAxesExplicit(ArrayRef<int64_t> axesMapping, Arr
     return broadcastAxes;
 }
 
+Const::DeclareOp createShapeConstForBroadCast(mlir::PatternRewriter& rewriter, mlir::MLIRContext* ctx,
+                                              mlir::Location loc, ShapeRef shape) {
+    auto intType = getSInt64Type(ctx);
+    const auto shapeStorageType = mlir::RankedTensorType::get({static_cast<int64_t>(shape.size())}, intType);
+    const auto shapeDenseAttr = mlir::DenseElementsAttr::get(shapeStorageType, shape.raw());
+    auto newContentAttr = Const::ContentAttr::get(shapeDenseAttr).convertElemType(getSInt32Type(ctx));
+    return rewriter.create<Const::DeclareOp>(loc, shapeStorageType, newContentAttr);
+}
+
 }  // namespace IE
 }  // namespace vpux

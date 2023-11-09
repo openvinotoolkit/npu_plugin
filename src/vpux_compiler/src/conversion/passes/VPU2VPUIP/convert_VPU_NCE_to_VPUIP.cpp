@@ -42,24 +42,24 @@ void addPPETask(const Logger& log, mlir::OpBuilder& builder, VPUIP::NCEClusterTa
     log.nest().trace("Adding PPE task '{0}'", ppeAttr);
 
     const auto input1MultList =
-            ppeAttr.in1_quant_mult() != nullptr
-                    ? builder.getI64ArrayAttr(makeArrayRef(parseIntArrayAttr<int64_t>(ppeAttr.in1_quant_mult())))
+            ppeAttr.getIn1QuantMult() != nullptr
+                    ? builder.getI64ArrayAttr(makeArrayRef(parseIntArrayAttr<int64_t>(ppeAttr.getIn1QuantMult())))
                     : nullptr;
     const auto input2MultList =
-            ppeAttr.in2_quant_mult() != nullptr
-                    ? builder.getI64ArrayAttr(makeArrayRef(parseIntArrayAttr<int64_t>(ppeAttr.in2_quant_mult())))
+            ppeAttr.getIn2QuantMult() != nullptr
+                    ? builder.getI64ArrayAttr(makeArrayRef(parseIntArrayAttr<int64_t>(ppeAttr.getIn2QuantMult())))
                     : nullptr;
     const auto outputMultList =
-            ppeAttr.quant_mult() != nullptr
-                    ? builder.getI64ArrayAttr(makeArrayRef(parseIntArrayAttr<int64_t>(ppeAttr.quant_mult())))
+            ppeAttr.getQuantMult() != nullptr
+                    ? builder.getI64ArrayAttr(makeArrayRef(parseIntArrayAttr<int64_t>(ppeAttr.getQuantMult())))
                     : nullptr;
     const auto shiftList =
-            ppeAttr.quant_shift() != nullptr
-                    ? builder.getI64ArrayAttr(makeArrayRef(parseIntArrayAttr<int64_t>(ppeAttr.quant_shift())))
+            ppeAttr.getQuantShift() != nullptr
+                    ? builder.getI64ArrayAttr(makeArrayRef(parseIntArrayAttr<int64_t>(ppeAttr.getQuantShift())))
                     : nullptr;
-    nceOp.addPPETask(builder, ppeAttr.mode(), ppeAttr.clamp_low(), ppeAttr.clamp_high(), ppeAttr.lrelu_mult(),
-                     ppeAttr.lrelu_shift(), outputMultList, shiftList, ppeAttr.quant_post_shift(),
-                     ppeAttr.quant_scale(), input1MultList, input2MultList, ppeAttr.fp_prelu_alpha());
+    nceOp.addPPETask(builder, ppeAttr.getMode(), ppeAttr.getClampLow(), ppeAttr.getClampHigh(), ppeAttr.getLreluMult(),
+                     ppeAttr.getLreluShift(), outputMultList, shiftList, ppeAttr.getQuantPostShift(),
+                     ppeAttr.getQuantScale(), input1MultList, input2MultList, ppeAttr.getFpPreluAlpha());
 }
 
 void addDPUTasks(const Logger& log, VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter,
@@ -77,9 +77,10 @@ void addDPUTasks(const Logger& log, VPUIP::NCEClusterTaskOp nceOp, mlir::Pattern
         });
 
         // as soon as we need workload_x, workload_y, workload_z coords
-        const auto outDpuStart = {offsets[Dims4D::Act::W.ind()], offsets[Dims4D::Act::H.ind()],
-                                  offsets[Dims4D::Act::C.ind()]};
-        const auto outDpuEnds = {ends[Dims4D::Act::W.ind()], ends[Dims4D::Act::H.ind()], ends[Dims4D::Act::C.ind()]};
+        const SmallVector<int64_t> outDpuStart{offsets[Dims4D::Act::W.ind()], offsets[Dims4D::Act::H.ind()],
+                                               offsets[Dims4D::Act::C.ind()]};
+        const SmallVector<int64_t> outDpuEnds{ends[Dims4D::Act::W.ind()], ends[Dims4D::Act::H.ind()],
+                                              ends[Dims4D::Act::C.ind()]};
 
         mlir::ArrayAttr inStartAttr = nullptr;
         mlir::ArrayAttr inEndAttr = nullptr;
@@ -88,11 +89,11 @@ void addDPUTasks(const Logger& log, VPUIP::NCEClusterTaskOp nceOp, mlir::Pattern
             const auto inOffset = parseIntArrayAttr<int64_t>(dpuTaskOp.inOffsetsAttr());
             const auto inSizes = parseIntArrayAttr<int64_t>(dpuTaskOp.inSizesAttr());
 
-            const auto inDpuStart = {inOffset[Dims4D::Act::W.ind()], inOffset[Dims4D::Act::H.ind()],
-                                     inOffset[Dims4D::Act::C.ind()]};
-            const auto inDpuEnds = {inOffset[Dims4D::Act::W.ind()] + inSizes[Dims4D::Act::W.ind()] - 1,
-                                    inOffset[Dims4D::Act::H.ind()] + inSizes[Dims4D::Act::H.ind()] - 1,
-                                    inOffset[Dims4D::Act::C.ind()] + inSizes[Dims4D::Act::C.ind()] - 1};
+            const SmallVector<int64_t> inDpuStart{inOffset[Dims4D::Act::W.ind()], inOffset[Dims4D::Act::H.ind()],
+                                                  inOffset[Dims4D::Act::C.ind()]};
+            const SmallVector<int64_t> inDpuEnds{inOffset[Dims4D::Act::W.ind()] + inSizes[Dims4D::Act::W.ind()] - 1,
+                                                 inOffset[Dims4D::Act::H.ind()] + inSizes[Dims4D::Act::H.ind()] - 1,
+                                                 inOffset[Dims4D::Act::C.ind()] + inSizes[Dims4D::Act::C.ind()] - 1};
 
             inStartAttr = getIntArrayAttr(rewriter, inDpuStart);
             inEndAttr = getIntArrayAttr(rewriter, inDpuEnds);
@@ -232,7 +233,7 @@ mlir::LogicalResult ConvRewriter::matchAndRewrite(VPU::NCEConvolutionOp origOp, 
 
     const auto kernelSizeAttr = getIntArrayAttr(getContext(), makeArrayRef({KY, KX}));
     const auto taskType = isCMajor ? VPUIP::NCETaskType::CMCONV : VPUIP::NCETaskType::CONV;
-    auto ppeAttr = origOp.ppe().hasValue() ? origOp.ppeAttr() : nullptr;
+    auto ppeAttr = origOp.ppe().has_value() ? origOp.ppeAttr() : nullptr;
     auto dpuCostAttr = origOp->hasAttr(DPUCost) ? origOp->getAttr(DPUCost) : nullptr;
 
     _log.nest().trace("Creating VPUIP::NCEClusterTaskOp");
@@ -296,7 +297,7 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(VPU::NCEMaxPoolOp origOp, O
     // Create NCE per-cluster Operation
     //
 
-    auto ppeAttr = origOp.ppe().hasValue() ? origOp.ppeAttr() : nullptr;
+    auto ppeAttr = origOp.ppe().has_value() ? origOp.ppeAttr() : nullptr;
     auto dpuCostAttr = origOp->hasAttr(DPUCost) ? origOp->getAttr(DPUCost) : nullptr;
 
     _log.nest().trace("Creating VPUIP::NCEClusterTaskOp");
@@ -358,7 +359,7 @@ mlir::LogicalResult AveragePoolRewriter::matchAndRewrite(VPU::NCEAveragePoolOp o
     // Create NCE per-cluster Operation
     //
 
-    auto ppeAttr = origOp.ppe().hasValue() ? origOp.ppeAttr() : nullptr;
+    auto ppeAttr = origOp.ppe().has_value() ? origOp.ppeAttr() : nullptr;
     auto dpuCostAttr = origOp->hasAttr(DPUCost) ? origOp->getAttr(DPUCost) : nullptr;
 
     _log.nest().trace("Creating VPUIP::NCEClusterTaskOp");
@@ -432,7 +433,7 @@ mlir::LogicalResult DepthwiseConvRewriter::matchAndRewrite(VPU::NCEDepthConvolut
     //
 
     const auto kernelSizeAttr = getIntArrayAttr(getContext(), makeArrayRef({KY, KX}));
-    auto ppeAttr = origOp.ppe().hasValue() ? origOp.ppeAttr() : nullptr;
+    auto ppeAttr = origOp.ppe().has_value() ? origOp.ppeAttr() : nullptr;
     auto dpuCostAttr = origOp->hasAttr(DPUCost) ? origOp->getAttr(DPUCost) : nullptr;
 
     _log.nest().trace("Creating VPUIP::NCEClusterTaskOp");
@@ -497,7 +498,7 @@ mlir::LogicalResult InterpolateRewriter::matchAndRewrite(VPU::NCEInterpolateOp o
 
     _log.nest().trace("Creating VPUIP::NCEClusterTaskOp");
 
-    auto ppeTaskAttr = origOp.ppe().hasValue() ? origOp.ppeAttr() : nullptr;
+    auto ppeTaskAttr = origOp.ppe().has_value() ? origOp.ppeAttr() : nullptr;
     auto dpuCostAttr = origOp->hasAttr(DPUCost) ? origOp->getAttr(DPUCost) : nullptr;
 
     mlir::UnitAttr isSuperdenseAttr = nullptr;
@@ -513,7 +514,7 @@ mlir::LogicalResult InterpolateRewriter::matchAndRewrite(VPU::NCEInterpolateOp o
             /*instructionListTable=*/nullptr,
             /*activationWindow=*/nullptr, /*outputBuffs=*/outputBuffers, /*taskType=*/VPUIP::NCETaskType::CONV,
             /*kernelSizeAttr=*/kernelSizeAttr,
-            /*kernelStridesAttr=*/getIntArrayAttr(getContext(), origOp.getStrides()),
+            /*kernelStridesAttr=*/getIntArrayAttr(getContext(), origOp.getStridesVal()),
             /*kernelPaddingAttr=*/origOp.getPad(),
             /*activationWindowChannelLengthAttr=*/nullptr,
             /*workloads=*/origOp.workloads(), /*isSuperdenseAttr=*/isSuperdenseAttr, /*ppeAttr=*/ppeTaskAttr,
@@ -567,7 +568,7 @@ mlir::LogicalResult EltwiseRewriter::matchAndRewrite(VPU::NCEEltwiseOp origOp, O
     //
 
     const auto activation_window_channel_length = getIntAttr(this->getContext(), static_cast<int32_t>(0));
-    auto ppeAttr = origOp.ppe().hasValue() ? origOp.ppeAttr() : nullptr;
+    auto ppeAttr = origOp.ppe().has_value() ? origOp.ppeAttr() : nullptr;
     VPUX_THROW_UNLESS(ppeAttr != nullptr, "Eltwise operation should always have PPE info");
     auto dpuCostAttr = origOp->hasAttr(DPUCost) ? origOp->getAttr(DPUCost) : nullptr;
 
@@ -754,7 +755,7 @@ mlir::LogicalResult CompressConvRewriter::matchAndRewrite(VPU::NCECompressConvol
     auto finalInputShapeAttr = getIntArrayAttr(origOp.getContext(), finalInputShape);
 
     const auto kernelSizeAttr = getIntArrayAttr(getContext(), makeArrayRef({KY, KX}));
-    auto ppeAttr = origOp.ppe().hasValue() ? origOp.ppeAttr() : nullptr;
+    auto ppeAttr = origOp.ppe().has_value() ? origOp.ppeAttr() : nullptr;
     auto dpuCostAttr = origOp->hasAttr(DPUCost) ? origOp->getAttr(DPUCost) : nullptr;
 
     _log.nest().trace("Creating VPUIP::NCEClusterTaskOp");

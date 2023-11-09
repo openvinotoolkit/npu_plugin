@@ -1,8 +1,9 @@
-// Copyright (C) Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 #include <ngraph_functions/builders.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -17,7 +18,7 @@ using FQClampTestParams = std::tuple<InferenceEngine::Precision,  // inPrc
                                      outFQAndClampRangesType, LayerTestsUtils::TargetDevice>;
 
 class VPUXFQClampSubGraphTest :
-        public LayerTestsUtils::KmbLayerTestsCommon,
+        public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<FQClampTestParams> {
     void GenerateInputs() override {
         inputs.clear();
@@ -120,7 +121,7 @@ const std::vector<InferenceEngine::Precision> outrecisions = {
 
 const auto basicCases = ::testing::Combine(::testing::ValuesIn(inPrecisions), ::testing::ValuesIn(outrecisions),
                                            ::testing::ValuesIn(outFQAndClampRanges),
-                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_SUITE_P(precommit_FQClamp, VPUXFQClampSubGraphTest_VPU3720, basicCases,
                          VPUXFQClampSubGraphTest::getTestCaseName);

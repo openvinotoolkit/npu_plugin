@@ -11,6 +11,6 @@ using namespace vpux;
 // SparsityInfoOp
 //
 
-double vpux::IE::SparsityInfoOp::getRatio() {
+double vpux::IE::SparsityInfoOp::getRatioAsDouble() {
     return ratioAttr().getValueAsDouble();
 }

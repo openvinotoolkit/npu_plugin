@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 /**
  * @brief Represent private params options, which should not be exposed to user and used only inside plugin
  *
@@ -28,7 +26,7 @@ DECLARE_VPUX_PARAM_KEY(ROI_PTR, std::shared_ptr<InferenceEngine::ROI>);
 DECLARE_VPUX_PARAM_KEY(ORIGINAL_TENSOR_DESC, std::shared_ptr<InferenceEngine::TensorDesc>);
 
 /** @brief Information about blob color format */
-DECLARE_VPUX_PARAM_KEY(BLOB_COLOR_FORMAT, IE::ColorFormat);
+DECLARE_VPUX_PARAM_KEY(BLOB_COLOR_FORMAT, InferenceEngine::ColorFormat);
 
 /** @brief VPUSMM allocator need to know size of allocation */
 DECLARE_VPUX_PARAM_KEY(ALLOCATION_SIZE, size_t);

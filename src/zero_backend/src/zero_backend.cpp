@@ -12,6 +12,7 @@
 #include "zero_device.h"
 #include "zero_utils.h"
 
+#include "vpux/al/config/common.hpp"
 #include "vpux/utils/IE/itt.hpp"
 #include "vpux/utils/core/logger.hpp"
 
@@ -39,7 +40,7 @@ private:
 
 const ze_driver_uuid_t ZeroStructsInitializer::uuid = ze_intel_vpu_driver_uuid;
 
-ZeroStructsInitializer::ZeroStructsInitializer(): log(Logger::global().nest("ZeroStructsInitializer", 0)) {
+ZeroStructsInitializer::ZeroStructsInitializer(): log(Logger::global().nest("NPUZeroStructsInitializer", 0)) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "ZeroStructsInitializer::ZeroStructsInitializer");
     zeroUtils::throwOnFail("zeInit", zeInit(ZE_INIT_FLAG_VPU_ONLY));
 
@@ -80,9 +81,9 @@ ZeroStructsInitializer::ZeroStructsInitializer(): log(Logger::global().nest("Zer
                    << "Driver L0 API major version = " << ZE_MAJOR_VERSION(ze_drv_api_version);
     }
     if (ZE_MINOR_VERSION(ZE_API_VERSION_CURRENT) != ZE_MINOR_VERSION(ze_drv_api_version)) {
-        log.warning("Some features might not be available! "
-                    "Plugin L0 API minor version = {0}, Driver L0 API minor version = {1}",
-                    ZE_MINOR_VERSION(ZE_API_VERSION_CURRENT), ZE_MINOR_VERSION(ze_drv_api_version));
+        log.debug("Some features might not be available! "
+                  "Plugin L0 API minor version = {0}, Driver L0 API minor version = {1}",
+                  ZE_MINOR_VERSION(ZE_API_VERSION_CURRENT), ZE_MINOR_VERSION(ze_drv_api_version));
     }
 
     // Load our graph extension
@@ -116,7 +117,10 @@ ZeroStructsInitializer::~ZeroStructsInitializer() {
     }
 };
 
-ZeroEngineBackend::ZeroEngineBackend(): instance(std::make_unique<ZeroStructsInitializer>()) {
+ZeroEngineBackend::ZeroEngineBackend(const vpux::Config& config) {
+    Logger::global().setLevel(config.get<LOG_LEVEL>());
+
+    instance = std::make_unique<ZeroStructsInitializer>();
 }
 
 ZeroEngineBackend::~ZeroEngineBackend() = default;
@@ -145,6 +149,7 @@ const std::vector<std::string> ZeroEngineBackend::getDeviceNames() const {
 
 }  // namespace vpux
 
-INFERENCE_PLUGIN_API(void) CreateVPUXEngineBackend(std::shared_ptr<vpux::IEngineBackend>& obj) {
-    obj = std::make_shared<vpux::ZeroEngineBackend>();
+INFERENCE_PLUGIN_API(void)
+CreateVPUXEngineBackend(std::shared_ptr<vpux::IEngineBackend>& obj, const vpux::Config& config) {
+    obj = std::make_shared<vpux::ZeroEngineBackend>(config);
 }

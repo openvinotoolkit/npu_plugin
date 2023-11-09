@@ -80,6 +80,19 @@ struct TilingOptions : mlir::PassPipelineOptions<TilingOptions> {
 
     BoolOption enableVerticalFusion{*this, "vertical-fusion", llvm::cl::desc("Enable vertical fusion feature"),
                                     llvm::cl::init(false)};
+    // Extended Tiling options - Incremental Pipeline
+    BoolOption readStrategyFromJson{*this, "read-strategy-from-json",
+                                    llvm::cl::desc("Read the multiclustering and tiling strategy from a JSON file"),
+                                    llvm::cl::init(false)};
+
+    BoolOption writeStrategyToJson{*this, "write-strategy-to-json",
+                                   llvm::cl::desc("Write the multiclustering and tiling strategy to a JSON file"),
+                                   llvm::cl::init(false)};
+
+    BoolOption enableExplicitDistributedTensorAttr{
+            *this, "enable-explicit-distributed-attr",
+            llvm::cl::desc("Enable DistributedTensorAttr with explicit per cluster memory/compute shapes & offsets"),
+            llvm::cl::init(false)};
 
     TilingOptions() = default;
 
@@ -89,6 +102,9 @@ struct TilingOptions : mlir::PassPipelineOptions<TilingOptions> {
     explicit TilingOptions(const OtherOptions& options) {
         enablePrefetchTiling = options.enablePrefetchTiling;
         enableVerticalFusion = options.enableVerticalFusion;
+        readStrategyFromJson = options.readStrategyFromJson;
+        writeStrategyToJson = options.writeStrategyToJson;
+        enableExplicitDistributedTensorAttr = options.enableExplicitDistributedTensorAttr;
     }
 };
 
@@ -99,14 +115,14 @@ struct TilingOptions : mlir::PassPipelineOptions<TilingOptions> {
 std::unique_ptr<mlir::Pass> createInitCompilerPass();
 std::unique_ptr<mlir::Pass> createInitCompilerPass(ArchKind arch, CompilationMode compilationMode,
                                                    Optional<int> numOfDPUGroups = None,
-                                                   Optional<int> numOfDMAPorts = None, Optional<int> ddrHeapSize = None,
-                                                   Logger log = Logger::global());
+                                                   Optional<int> numOfDMAPorts = None, Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createCMXConcatPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSplitNCEOpsOntoWorkloadsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createCorrectNCEWorkloadsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createResolveEltwiseWithZTiledWorkloadsPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createWrapVPUOpsInNCEClusterTilingPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createWrapVPUOpsInNCEClusterTilingPass(bool enableExplicitDistributedTensorAttr = false,
+                                                                   Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createAdjustMemorySpacePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createMultiClusterStrategyAssignmentPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createManualStrategyUtilsPass();
@@ -120,6 +136,7 @@ std::unique_ptr<mlir::Pass> createResolvePWLPostOpsPass(Logger log = Logger::glo
 std::unique_ptr<mlir::Pass> createDetectionOutputDecompositionPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSplitGRUSequencePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createDetectInPlaceEltwisePass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createFuseNCEInterpolateConsumersPass(Logger log = Logger::global());
 
 //
 // Sparsity
@@ -151,15 +168,21 @@ std::unique_ptr<mlir::Pass> createLowerOpsToSENCEPass(Logger log = Logger::globa
 std::unique_ptr<mlir::Pass> createTilingStrategyAssignmentPass(bool enablePrefetchTiling = true,
                                                                Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createApplyTilingPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createTileOverHForVFPass(bool enablePrefetchTiling = true, Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createWrapVerticalFusionRegionPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createMergeVfSubgraphsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createVfTilingPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createUnrollUnusedVerticalFusionRegionPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createRollBackTilingStrategyPass(bool enablePrefetchTiling = true,
+                                                             Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createAdjustVFTilingStrategyPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSetupPPEPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createEnsureNCEOpsSizeRequirementsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createFuseClampPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createAdjustTilingForPermuteQuantizePass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createOptimizeConcatPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createStrategyManagerImplPass(bool enablePrefetchTiling = true,
+                                                          Logger log = Logger::global());
 
 void buildActivationSparsityPipeline(mlir::OpPassManager& pm, const VPU::ActivationSparsityOptions& options,
                                      Logger log = Logger::global());
@@ -175,15 +198,22 @@ void buildTilingPipeline(mlir::OpPassManager& pm, const VPU::TilingOptions& opti
 void registerVPUPipelines();
 
 //
+// Strategy Pipeline
+//
+
+void buildVFPipeline(mlir::OpPassManager& pm, const VPU::TilingOptions& options, Logger log = Logger::global());
+void buildSMPipeline(mlir::OpPassManager& pm, const VPU::TilingOptions& options, Logger log = Logger::global());
+
+//
 // Generated
 //
 
 #define GEN_PASS_CLASSES
-#include <vpux/compiler/dialect/VPU/generated/passes.hpp.inc>
+#include <vpux/compiler/dialect/VPU/passes.hpp.inc>
 #undef GEN_PASS_CLASSES
 
 #define GEN_PASS_REGISTRATION
-#include <vpux/compiler/dialect/VPU/generated/passes.hpp.inc>
+#include <vpux/compiler/dialect/VPU/passes.hpp.inc>
 #undef GEN_PASS_REGISTRATION
 
 }  // namespace VPU

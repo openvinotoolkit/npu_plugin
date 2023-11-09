@@ -1,8 +1,9 @@
-// Copyright (C) Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 #include <ngraph_functions/builders.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -11,10 +12,10 @@
 namespace {
 
 class VPUXReshapeWithTransposeTest_VPU3720 :
-        public LayerTestsUtils::KmbLayerTestsCommon,
+        public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<std::vector<int64_t>> {
     void SetUp() override {
-        targetDevice = LayerTestsUtils::testPlatformTargetDevice;
+        targetDevice = LayerTestsUtils::testPlatformTargetDevice();
         const auto transposeOrder = GetParam();
         const size_t inputColumns = 64;
         const size_t outputColumns = 76;

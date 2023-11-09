@@ -106,11 +106,11 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
     }
 
     auto& cnnOp = *this;
-    auto inputsInfo = to_small_vector(this->inputsInfo().getOps<IE::DataInfoOp>());
-    auto outputsInfo = to_small_vector(this->outputsInfo().getOps<IE::DataInfoOp>());
+    auto inputsInfo = to_small_vector(this->getInputsInfo().getOps<IE::DataInfoOp>());
+    auto outputsInfo = to_small_vector(this->getOutputsInfo().getOps<IE::DataInfoOp>());
     SmallVector<IE::DataInfoOp> profilingOutputsInfo;
-    if (!this->profilingOutputsInfo().empty()) {
-        profilingOutputsInfo = to_small_vector(this->profilingOutputsInfo().front().getOps<IE::DataInfoOp>());
+    if (!this->getProfilingOutputsInfo().empty()) {
+        profilingOutputsInfo = to_small_vector(this->getProfilingOutputsInfo().front().getOps<IE::DataInfoOp>());
     }
 
     if (checkFunctionPrototype(cnnOp, netFunc, inputsInfo, outputsInfo, profilingOutputsInfo).failed()) {
@@ -189,15 +189,14 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verify() {
         return errorAt(*this, "entryPoint attribute is NULL");
     }
 
-    if (mlir::failed(verifyDataInfoRegion(*this, inputsInfo(), "inputInfo"))) {
+    if (mlir::failed(verifyDataInfoRegion(*this, getInputsInfo(), "inputInfo"))) {
         return mlir::failure();
     }
-    if (mlir::failed(verifyDataInfoRegion(*this, outputsInfo(), "outputsInfo"))) {
+    if (mlir::failed(verifyDataInfoRegion(*this, getOutputsInfo(), "outputsInfo"))) {
         return mlir::failure();
     }
 
-    auto inputsInfo = getInputsInfo();
-    auto outputsInfo = getOutputsInfo();
+    auto outputsInfo = getOutputsDataInfo();
 
     if (outputsInfo.empty()) {
         return errorAt(*this, "Operation has no user outputs information");
@@ -207,31 +206,31 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verify() {
 }
 
 size_t vpux::IE::CNNNetworkOp::getNetInputsCount() {
-    return inputsInfo().front().getOperations().size();
+    return getInputsInfo().front().getOperations().size();
 }
 
-SmallVector<IE::DataInfoOp, 1> vpux::IE::CNNNetworkOp::getInputsInfo() {
-    return to_vector<1>(inputsInfo().getOps<IE::DataInfoOp>());
+SmallVector<IE::DataInfoOp, 1> vpux::IE::CNNNetworkOp::getInputsDataInfo() {
+    return to_vector<1>(getInputsInfo().getOps<IE::DataInfoOp>());
 }
 
 size_t vpux::IE::CNNNetworkOp::getNetOutputsCount() {
-    return outputsInfo().front().getOperations().size();
+    return getOutputsInfo().front().getOperations().size();
 }
 
-SmallVector<IE::DataInfoOp, 1> vpux::IE::CNNNetworkOp::getOutputsInfo() {
-    return to_vector<1>(outputsInfo().getOps<IE::DataInfoOp>());
+SmallVector<IE::DataInfoOp, 1> vpux::IE::CNNNetworkOp::getOutputsDataInfo() {
+    return to_vector<1>(getOutputsInfo().getOps<IE::DataInfoOp>());
 }
 
 size_t vpux::IE::CNNNetworkOp::getProfilingOutputsCount() {
-    if (!profilingOutputsInfo().empty() && !profilingOutputsInfo().front().empty()) {
-        return profilingOutputsInfo().front().front().getOperations().size();
+    if (!getProfilingOutputsInfo().empty() && !getProfilingOutputsInfo().front().empty()) {
+        return getProfilingOutputsInfo().front().front().getOperations().size();
     }
     return 0;
 }
 
-SmallVector<IE::DataInfoOp, 1> vpux::IE::CNNNetworkOp::getProfilingOutputsInfo() {
-    if (!profilingOutputsInfo().empty()) {
-        return to_vector<1>(profilingOutputsInfo().front().getOps<IE::DataInfoOp>());
+SmallVector<IE::DataInfoOp, 1> vpux::IE::CNNNetworkOp::getProfilingOutputsDataInfo() {
+    if (!getProfilingOutputsInfo().empty()) {
+        return to_vector<1>(getProfilingOutputsInfo().front().getOps<IE::DataInfoOp>());
     }
     return SmallVector<IE::DataInfoOp, 1>();
 }

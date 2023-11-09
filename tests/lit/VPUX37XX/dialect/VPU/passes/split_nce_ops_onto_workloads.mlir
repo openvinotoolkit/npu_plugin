@@ -21,7 +21,7 @@ func.func @ConvRewriter(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>) -> tenso
     %2 = VPU.Copy(%wt) {out_mem_space = @CMX_NN} : tensor<16x1x1x4xsi32, {order = #NHWC}>
         -> tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NHWC}>
     %3 = VPU.NCE.Convolution(%0, %1, %2) {
-            pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             rawFilterShape = [16, 16, 1, 1],
             strides = [1, 1]
         } : tensor<1x16x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>,
@@ -45,10 +45,10 @@ func.func @ConvRewriter(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>) -> tenso
     // CHECK-SAME:      -> tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NHWC}>
 
     // CHECK:       [[VAL3:%.+]] = VPU.NCE.Convolution([[VAL0]], [[VAL1]], [[VAL2]]) {
-    // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+    // CHECK-SAME:      pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
     // CHECK-SAME:      strides = [1, 1]}
     // CHECK-SAME:      -> tensor<1x16x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:               DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 16, 16, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16"
+    // CHECK:               DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 16, 16, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16>
     // CHECK:           }
 
     // CHECK:       [[VAL4:%.+]] = VPU.Copy([[VAL3]])
@@ -81,7 +81,7 @@ func.func @DepthConvRewriter(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>) -> 
 
     %4 = VPU.NCE.DepthConvolution(%0, %1, %2, %3) {
             activation_window_channel_length = 44 : i64,
-            pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             rawFilterShape = [16, 1, 4, 8],
             strides = [1, 1]
         } -> tensor<1x16x37x73xf16, {mem_space = @CMX_NN, order = #NHWC}>
@@ -105,10 +105,10 @@ func.func @DepthConvRewriter(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>) -> 
     // CHECK-SAME:      -> tensor<1x1x1x16xui8, {mem_space = @CMX_NN, order = #NHWC}>
 
     // CHECK:       [[VAL4:%.+]] = VPU.NCE.DepthConvolution([[VAL0]], [[VAL1]], [[VAL2]], [[VAL3]]) {
-    // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+    // CHECK-SAME:      pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
     // CHECK-SAME:      strides = [1, 1]}
     // CHECK-SAME:      -> tensor<1x16x37x73xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:               DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 16, 37, 73] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16"
+    // CHECK:               DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 16, 37, 73] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16>
     // CHECK:           }
 
     // CHECK:       [[VAL5:%.+]] = VPU.Copy([[VAL4]])
@@ -137,7 +137,7 @@ func.func @MaxPoolRewriter(%arg0: tensor<1x16x1x4xf16, {order = #NHWC}>) -> tens
 
     %3 = VPU.NCE.MaxPool(%0, %1, %2) {
             activation_window_channel_length = 4 : i64,
-            pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             strides = [1, 1],
             kernel_size = [1, 1]
         } -> tensor<1x16x1x4xf16, {mem_space = @CMX_NN, order = #NHWC}>
@@ -159,10 +159,10 @@ func.func @MaxPoolRewriter(%arg0: tensor<1x16x1x4xf16, {order = #NHWC}>) -> tens
 
     // CHECK:       [[VAL3:%.+]] = VPU.NCE.MaxPool([[VAL0]], [[VAL1]], [[VAL2]]) {
     // CHECK-SAME:      kernel_size = [1, 1],
-    // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+    // CHECK-SAME:      pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
     // CHECK-SAME:      strides = [1, 1]}
     // CHECK-SAME:      -> tensor<1x16x1x4xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:               DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 16, 1, 4] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16"
+    // CHECK:               DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 16, 1, 4] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16>
     // CHECK:           }
 
     // CHECK:       [[VAL4:%.+]] = VPU.Copy([[VAL3]])
@@ -183,7 +183,7 @@ func.func @EltwiseAddRewriter(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>, %a
     %1 = VPU.Copy(%arg1) {out_mem_space = @CMX_NN} : tensor<1x64x28x28xf16, {order = #NHWC}>
         -> tensor<1x64x28x28xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
-    %2 = VPU.NCE.Eltwise(%0, %1) { op_type = "ADD" } :
+    %2 = VPU.NCE.Eltwise(%0, %1) { op_type = #VPU.eltwise_type<ADD> } :
         tensor<1x64x28x28xf16, {mem_space = @CMX_NN, order = #NHWC}>, tensor<1x64x28x28xf16, {mem_space = @CMX_NN, order = #NHWC}>
         -> tensor<1x64x28x28xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
@@ -199,7 +199,7 @@ func.func @EltwiseAddRewriter(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>, %a
 
     // CHECK:       [[VAL2:%.+]] = VPU.NCE.Eltwise([[VAL0]], [[VAL1]])
     // CHECK-SAME:      -> tensor<1x64x28x28xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:               DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 28, 28] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_8x16"
+    // CHECK:               DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 28, 28] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_8x16>
     // CHECK:           }
 
     // CHECK:       [[VAL3:%.+]] = VPU.Copy([[VAL2]])
@@ -218,7 +218,7 @@ func.func @EltwiseAddRewriter(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>, %a
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 4, 1],
     kernel = [3, 3],
-    pads = {bottom = 1, left = 1, right = 1, top = 1},
+    pads = #VPU.Padding<left = 1 , right = 1, top = 1, bottom = 1>,
     strides = [1, 1],
     num_clusters = 4
 }>
@@ -279,7 +279,7 @@ func.func @ConvolutionWithDistributedTensor(%arg0: !Input_DDR) -> !Output_DDR {
               -> !OutputDistributed {
         // Generate different workloads due to different pads on each cluster
         %0 = VPU.NCE.Convolution(%arg1, %arg2, %arg3) {
-                pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+                pad = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>,
                 rawFilterShape = [64, 32, 3, 3],
                 strides = [1, 1]
             } -> !OutputStub_CMX
@@ -299,7 +299,7 @@ func.func @ConvolutionWithDistributedTensor(%arg0: !Input_DDR) -> !Output_DDR {
     // CHECK:        [[INPUT_CMX:%.*]] = VPU.NCE.ClusterTiling (%arg0 as %arg1: tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}>)
     // CHECK-SAME:           -> !VPU.DistributedTensor<1x32x16x16xf16, #NHWC, @CMX_NN,
     // CHECK-SAME:              {mode = "OVERLAPPED", num_tiles = [1, 1, 4, 1], kernel = [3, 3],
-    // CHECK-SAME:               pads = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, strides = [1, 1], num_clusters = 4 : i64}> {
+    // CHECK-SAME:               pads = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>, strides = [1, 1], num_clusters = 4 : i64}> {
     // CHECK:            [[RES0:%.*]] = VPU.Copy(%arg1) {out_mem_space = @CMX_NN} : tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}>
     // CHECK-SAME:           -> tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
     // CHECK:            VPU.Yield [[RES0]]
@@ -325,13 +325,13 @@ func.func @ConvolutionWithDistributedTensor(%arg0: !Input_DDR) -> !Output_DDR {
     // CHECK-SAME:             [[WEIGHTS_TABLE_CMX]] as %arg3: tensor<64x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>)
     // CHECK-SAME:             -> !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 4, 1], num_clusters = 4 : i64}> {
     // CHECK:                [[RES4:%.*]] = VPU.NCE.Convolution(%arg1, %arg2, %arg3)
-    // CHECK-SAME:                            pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+    // CHECK-SAME:                            pad = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>,
     // CHECK-SAME:                            strides = [1, 1]
     // CHECK-SAME:             } -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
-    // CHECK:                    DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 4, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64} "CUBOID_16x16" attributes {cluster_id = 0 : i64}
-    // CHECK:                    DPU.Workload outOffsets [0, 0, 4, 0] outSizes [1, 64, 4, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "CUBOID_16x16" attributes {cluster_id = 1 : i64}
-    // CHECK:                    DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 64, 4, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "CUBOID_16x16" attributes {cluster_id = 2 : i64}
-    // CHECK:                    DPU.Workload outOffsets [0, 0, 12, 0] outSizes [1, 64, 4, 16] {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "CUBOID_16x16" attributes {cluster_id = 3 : i64}
+    // CHECK:                    DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 4, 16] <left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 0 : i64> <CUBOID_16x16> attributes {cluster_id = 0 : i64}
+    // CHECK:                    DPU.Workload outOffsets [0, 0, 4, 0] outSizes [1, 64, 4, 16] <left = 1 : i64, right = 1 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16> attributes {cluster_id = 1 : i64}
+    // CHECK:                    DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 64, 4, 16] <left = 1 : i64, right = 1 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16> attributes {cluster_id = 2 : i64}
+    // CHECK:                    DPU.Workload outOffsets [0, 0, 12, 0] outSizes [1, 64, 4, 16] <left = 1 : i64, right = 1 : i64, top = 0 : i64, bottom = 1 : i64> <CUBOID_16x16> attributes {cluster_id = 3 : i64}
     // CHECK:            VPU.Yield [[RES4]]
     // CHECK:        }
 
@@ -363,7 +363,7 @@ func.func @ConvRewriterCUBOID_16x16(%arg0: tensor<1x16x16x16xf16, {order = #NHWC
     %2 = VPU.Copy(%wt) {out_mem_space = @CMX_NN} : tensor<16x1x1x4xsi32, {order = #NHWC}>
         -> tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NHWC}>
     %3 = VPU.NCE.Convolution(%0, %1, %2) {
-            pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             rawFilterShape = [16, 16, 1, 1],
             strides = [1, 1]
         } : tensor<1x16x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>,
@@ -387,10 +387,10 @@ func.func @ConvRewriterCUBOID_16x16(%arg0: tensor<1x16x16x16xf16, {order = #NHWC
     // CHECK-SAME:      -> tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NHWC}>
 
     // CHECK:       [[VAL3:%.+]] = VPU.NCE.Convolution([[VAL0]], [[VAL1]], [[VAL2]]) {
-    // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+    // CHECK-SAME:      pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
     // CHECK-SAME:      strides = [1, 1]}
     // CHECK-SAME:      -> tensor<1x16x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:               DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 16, 16, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16"
+    // CHECK:               DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 16, 16, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16>
     // CHECK:           }
 
     // CHECK:       [[VAL4:%.+]] = VPU.Copy([[VAL3]])
@@ -419,7 +419,7 @@ func.func @ConvRewriterCUBOID_8x16(%arg0: tensor<1x128x56x28xf16, {order = #NHWC
     %2 = VPU.Copy(%wt) {out_mem_space = @CMX_NN} : tensor<128x1x1x4xsi32, {order = #NHWC}>
         -> tensor<128x1x1x4xsi32, {mem_space = @CMX_NN, order = #NHWC}>
     %3 = VPU.NCE.Convolution(%0, %1, %2) {
-            pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             rawFilterShape = [128, 128, 1, 1],
             strides = [1, 1]
         } : tensor<1x128x56x28xf16, {mem_space = @CMX_NN, order = #NHWC}>,
@@ -443,10 +443,10 @@ func.func @ConvRewriterCUBOID_8x16(%arg0: tensor<1x128x56x28xf16, {order = #NHWC
     // CHECK-SAME:      -> tensor<128x1x1x4xsi32, {mem_space = @CMX_NN, order = #NHWC}>
 
     // CHECK:       [[VAL3:%.+]] = VPU.NCE.Convolution([[VAL0]], [[VAL1]], [[VAL2]]) {
-    // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+    // CHECK-SAME:      pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
     // CHECK-SAME:      strides = [1, 1]}
     // CHECK-SAME:      -> tensor<1x128x56x28xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:               DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 128, 56, 28] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_8x16"
+    // CHECK:               DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 128, 56, 28] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_8x16>
     // CHECK:           }
 
     // CHECK:       [[VAL4:%.+]] = VPU.Copy([[VAL3]])
@@ -474,7 +474,7 @@ func.func @ConvRewriterCUBOID_4x16(%arg0: tensor<1x256x8x8xf16, {order = #NHWC}>
     %2 = VPU.Copy(%wt) {out_mem_space = @CMX_NN} : tensor<256x1x1x4xsi32, {order = #NHWC}>
         -> tensor<256x1x1x4xsi32, {mem_space = @CMX_NN, order = #NHWC}>
     %3 = VPU.NCE.Convolution(%0, %1, %2) {
-            pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             rawFilterShape = [256, 256, 1, 1],
             strides = [1, 1]
         } : tensor<1x256x8x8xf16, {mem_space = @CMX_NN, order = #NHWC}>,
@@ -498,10 +498,10 @@ func.func @ConvRewriterCUBOID_4x16(%arg0: tensor<1x256x8x8xf16, {order = #NHWC}>
     // CHECK-SAME:      -> tensor<256x1x1x4xsi32, {mem_space = @CMX_NN, order = #NHWC}>
 
     // CHECK:       [[VAL3:%.+]] = VPU.NCE.Convolution([[VAL0]], [[VAL1]], [[VAL2]]) {
-    // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+    // CHECK-SAME:      pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
     // CHECK-SAME:      strides = [1, 1]}
     // CHECK-SAME:      -> tensor<1x256x8x8xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:               DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 256, 8, 8] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_4x16"
+    // CHECK:               DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 256, 8, 8] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_4x16>
     // CHECK:           }
 
     // CHECK:       [[VAL4:%.+]] = VPU.Copy([[VAL3]])
@@ -584,8 +584,8 @@ func.func @ConvolutionWithSparseDistributedTensor(%arg0: !Input_DDR) -> !Output_
               -> !OutputDistributed {
         // Generate different workloads due to different pads on each cluster
         %0 = VPU.NCE.Convolution(%arg1, %arg2, %arg3) {
-            pad = {bottom = 2 : i64, left = 3 : i64, right = 2 : i64, top = 3 : i64},
-            ppe = {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, fp_prelu_alpha = 1.000000e+00 : f64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "LRELU"},
+            pad = #VPU.Padding<left = 3 : i64, right = 2 : i64, top = 3 : i64, bottom = 2 : i64>,
+            ppe = #VPU.PPETask<mode = <LRELU>, clamp_low = -2147483648 : i64, clamp_high = 2147483647 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, fp_prelu_alpha = 1.000000e+00 : f64>,
             rawFilterShape = [32, 16, 7, 7],
             strides = [2, 2]
             } -> !OutputStub_CMX
@@ -635,13 +635,13 @@ func.func @ConvolutionWithSparseDistributedTensor(%arg0: !Input_DDR) -> !Output_
     // CHECK-SAME:             -> !VPU.SparseTensor<data=!VPU.DistributedTensor<1x32x112x112xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
     // CHECK-SAME:                                  sparsity_map=!VPU.DistributedTensor<1x32x112x112xi1, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>> {
     // CHECK:                [[RES4:%.*]] = VPU.NCE.Convolution(%arg1, %arg2, %arg3)
-    // CHECK-SAME:                            pad = {bottom = 2 : i64, left = 3 : i64, right = 2 : i64, top = 3 : i64},
-    // CHECK-SAME:                            ppe = {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, fp_prelu_alpha = 1.000000e+00 : f64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "LRELU"},
+    // CHECK-SAME:                            pad = #VPU.Padding<left = 3 : i64, right = 2 : i64, top = 3 : i64, bottom = 2 : i64>,
+    // CHECK-SAME:                            ppe = #VPU.PPETask<mode = <LRELU>, clamp_low = -2147483648 : i64, clamp_high = 2147483647 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, fp_prelu_alpha = 1.000000e+00 : f64>,
     // CHECK-SAME:                            rawFilterShape = [32, 16, 7, 7], strides = [2, 2]}
     // CHECK-SAME:             -> !VPU.SparseTensor<data=tensor<1x32x112x112xf16, {mem_space = @CMX_NN, order = #NHWC}>,
     // CHECK-SAME:                                  sparsity_map=tensor<1x32x112x112xi1, {mem_space = @CMX_NN, order = #NHWC}>> {
-    // CHECK:                    VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 32, 56, 112] {bottom = 0 : i64, left = 3 : i64, right = 2 : i64, top = 3 : i64} "CUBOID_16x16" attributes {cluster_id = 0 : i64}
-    // CHECK:                    VPU.DPU.Workload outOffsets [0, 0, 56, 0] outSizes [1, 32, 56, 112] {bottom = 2 : i64, left = 3 : i64, right = 2 : i64, top = 0 : i64} "CUBOID_16x16" attributes {cluster_id = 1 : i64}
+    // CHECK:                    VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 32, 56, 112] <left = 3 : i64, right = 2 : i64, top = 3 : i64, bottom = 0 : i64> <CUBOID_16x16> attributes {cluster_id = 0 : i64}
+    // CHECK:                    VPU.DPU.Workload outOffsets [0, 0, 56, 0] outSizes [1, 32, 56, 112] <left = 3 : i64, right = 2 : i64, top = 0 : i64, bottom = 2 : i64> <CUBOID_16x16> attributes {cluster_id = 1 : i64}
     // CHECK:            VPU.Yield [[RES4]]
     // CHECK:        }
 
@@ -677,9 +677,8 @@ func.func @InterpolateBilinear(
         seSize = 64,
         dataShape = [1, 64, 5, 10],
         seAttr = #VPU.SEInterpolate<
-            mode = "BILINEAR",
-            nearest_mode = "FLOOR",
-            coordinate_transformation_mode = "ASYMMETRIC",
+            mode = <BILINEAR>,
+            coordinate_transformation_mode = <ASYMMETRIC>,
             scale = [1.0, 1.0, 2.0, 2.0],
             offsets = [0, 0, 0, 0],
             sizes = [1, 64, 11, 21]>
@@ -687,9 +686,8 @@ func.func @InterpolateBilinear(
 
     %input = VPU.GroupSparseTensor(%arg0, %sparsityMap, %storageElement) {
         seAttr = #VPU.SEInterpolate<
-            mode = "BILINEAR",
-            nearest_mode = "FLOOR",
-            coordinate_transformation_mode = "ASYMMETRIC",
+            mode = <BILINEAR>,
+            coordinate_transformation_mode = <ASYMMETRIC>,
             scale = [1.0, 1.0, 2.0, 2.0],
             offsets = [0, 0, 0, 0],
             sizes = [1, 64, 11, 21]>
@@ -699,9 +697,8 @@ func.func @InterpolateBilinear(
             sparsity_map=tensor<1x64x11x21xi1>,
             storage_element_table=tensor<1x1x11x21xi32, {order = #NHWC}>,
             #VPU.SEInterpolate<
-                mode = "BILINEAR",
-                nearest_mode = "FLOOR",
-                coordinate_transformation_mode = "ASYMMETRIC",
+                mode = <BILINEAR>,
+                coordinate_transformation_mode = <ASYMMETRIC>,
                 scale = [1.0, 1.0, 2.0, 2.0],
                 offsets = [0, 0, 0, 0],
                 sizes = [1, 64, 11, 21]>>
@@ -711,9 +708,8 @@ func.func @InterpolateBilinear(
         sparsity_map=tensor<1x64x11x21xi1>,
         storage_element_table=tensor<1x1x11x21xi32, {order = #NHWC}>,
         #VPU.SEInterpolate<
-            mode = "BILINEAR",
-            nearest_mode = "FLOOR",
-            coordinate_transformation_mode = "ASYMMETRIC",
+            mode = <BILINEAR>,
+            coordinate_transformation_mode = <ASYMMETRIC>,
             scale = [1.0, 1.0, 2.0, 2.0],
             offsets = [0, 0, 0, 0],
             sizes = [1, 64, 11, 21]>>
@@ -722,18 +718,17 @@ func.func @InterpolateBilinear(
             sparsity_map=tensor<1x64x11x21xi1, {mem_space = @CMX_NN}>,
             storage_element_table=tensor<1x1x11x21xi32, {order = #NHWC, mem_space = @CMX_NN}>,
             #VPU.SEInterpolate<
-                mode = "BILINEAR",
-                nearest_mode = "FLOOR",
-                coordinate_transformation_mode = "ASYMMETRIC",
+                mode = <BILINEAR>,
+                coordinate_transformation_mode = <ASYMMETRIC>,
                 scale = [1.0, 1.0, 2.0, 2.0],
                 offsets = [0, 0, 0, 0],
                 sizes = [1, 64, 11, 21]>>
 
     %task = VPU.NCE.Interpolate(%input_cmx, %arg1, %arg2) {
         rawFilterShape = [64, 64, 2, 2],
-        mode = "BILINEAR",
+        mode = #VPU.nce_interpolate_mode<BILINEAR>,
         scales_attr = [2, 2],
-        ppe = {clamp_high = 2147483647, clamp_low = 0, lrelu_mult = 1, lrelu_shift = 0, mode = "NOOP"}
+        ppe = #VPU.PPETask<clamp_high = 2147483647, clamp_low = 0, lrelu_mult = 1, lrelu_shift = 0, mode = <NOOP>>
     } -> tensor<1x64x10x20xf16, {order = #NHWC, mem_space = @CMX_NN}>
 
     return %task : tensor<1x64x10x20xf16, {order = #NHWC, mem_space = @CMX_NN}>
@@ -744,9 +739,8 @@ func.func @InterpolateBilinear(
     // CHECK-SAME:      dataElemType = i32,
     // CHECK-SAME:      dataShape = [1, 64, 5, 10],
     // CHECK-SAME:      seAttr = #VPU.SEInterpolate<
-    // CHECK-SAME:          mode = "BILINEAR",
-    // CHECK-SAME:          nearest_mode = "FLOOR",
-    // CHECK-SAME:          coordinate_transformation_mode = "ASYMMETRIC",
+    // CHECK-SAME:          mode = <BILINEAR>,
+    // CHECK-SAME:          coordinate_transformation_mode = <ASYMMETRIC>,
     // CHECK-SAME:          scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00],
     // CHECK-SAME:          offsets = [0, 0, 0, 0],
     // CHECK-SAME:          sizes = [1, 64, 11, 21]>,
@@ -756,9 +750,8 @@ func.func @InterpolateBilinear(
 
     // CHECK:       [[SPARSE_TENSOR:%.+]] = VPU.GroupSparseTensor(%arg0, [[SPARSITY_MAP]], [[STORAGE_ELEMENT]]) {
     // CHECK-SAME:      seAttr = #VPU.SEInterpolate<
-    // CHECK-SAME:          mode = "BILINEAR",
-    // CHECK-SAME:          nearest_mode = "FLOOR",
-    // CHECK-SAME:          coordinate_transformation_mode = "ASYMMETRIC",
+    // CHECK-SAME:          mode = <BILINEAR>,
+    // CHECK-SAME:          coordinate_transformation_mode = <ASYMMETRIC>,
     // CHECK-SAME:          scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00],
     // CHECK-SAME:          offsets = [0, 0, 0, 0],
     // CHECK-SAME:          sizes = [1, 64, 11, 21]>
@@ -767,9 +760,8 @@ func.func @InterpolateBilinear(
     // CHECK-SAME:      sparsity_map=tensor<1x64x11x21xi1>,
     // CHECK-SAME:      storage_element_table=tensor<1x1x11x21xi32, {order = #NHWC}>,
     // CHECK-SAME:      #VPU.SEInterpolate<
-    // CHECK-SAME:          mode = "BILINEAR",
-    // CHECK-SAME:          nearest_mode = "FLOOR",
-    // CHECK-SAME:          coordinate_transformation_mode = "ASYMMETRIC",
+    // CHECK-SAME:          mode = <BILINEAR>,
+    // CHECK-SAME:          coordinate_transformation_mode = <ASYMMETRIC>,
     // CHECK-SAME:          scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00],
     // CHECK-SAME:          offsets = [0, 0, 0, 0],
     // CHECK-SAME:          sizes = [1, 64, 11, 21]>>
@@ -779,9 +771,8 @@ func.func @InterpolateBilinear(
     // CHECK-SAME:      sparsity_map=tensor<1x64x11x21xi1>,
     // CHECK-SAME:      storage_element_table=tensor<1x1x11x21xi32, {order = #NHWC}>,
     // CHECK-SAME:      #VPU.SEInterpolate<
-    // CHECK-SAME:          mode = "BILINEAR",
-    // CHECK-SAME:          nearest_mode = "FLOOR",
-    // CHECK-SAME:          coordinate_transformation_mode = "ASYMMETRIC",
+    // CHECK-SAME:          mode = <BILINEAR>,
+    // CHECK-SAME:          coordinate_transformation_mode = <ASYMMETRIC>,
     // CHECK-SAME:          scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00],
     // CHECK-SAME:          offsets = [0, 0, 0, 0],
     // CHECK-SAME:          sizes = [1, 64, 11, 21]>> ->
@@ -790,20 +781,19 @@ func.func @InterpolateBilinear(
     // CHECK-SAME:      sparsity_map=tensor<1x64x11x21xi1, {mem_space = @CMX_NN}>,
     // CHECK-SAME:      storage_element_table=tensor<1x1x11x21xi32, {mem_space = @CMX_NN, order = #NHWC}>,
     // CHECK-SAME:      #VPU.SEInterpolate<
-    // CHECK-SAME:          mode = "BILINEAR",
-    // CHECK-SAME:          nearest_mode = "FLOOR",
-    // CHECK-SAME:          coordinate_transformation_mode = "ASYMMETRIC",
+    // CHECK-SAME:          mode = <BILINEAR>,
+    // CHECK-SAME:          coordinate_transformation_mode = <ASYMMETRIC>,
     // CHECK-SAME:          scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00],
     // CHECK-SAME:          offsets = [0, 0, 0, 0],
     // CHECK-SAME:          sizes = [1, 64, 11, 21]>>
 
     // CHECK:       [[INTERPOLATE:%.+]] = VPU.NCE.Interpolate([[SPARSE_TENSOR_CMX]], %arg1, %arg2) {
-    // CHECK-SAME:      mode = "BILINEAR",
-    // CHECK-SAME:      ppe = {clamp_high = 2147483647 : i64, clamp_low = 0 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "NOOP"},
+    // CHECK-SAME:      mode = #VPU.nce_interpolate_mode<BILINEAR>,
+    // CHECK-SAME:      ppe = #VPU.PPETask<mode = <NOOP>, clamp_low = 0 : i64, clamp_high = 2147483647 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64>,
     // CHECK-SAME:      rawFilterShape = [64, 64, 2, 2],
     // CHECK-SAME:      scales_attr = [2, 2]
     // CHECK-SAME:  } -> tensor<1x64x10x20xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 10, 20] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16"
+    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 10, 20] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16>
     // CHECK:       }
 
     // CHECK:       return [[INTERPOLATE]] : tensor<1x64x10x20xf16, {mem_space = @CMX_NN, order = #NHWC}>
@@ -826,20 +816,20 @@ func.func @InterpolateNearest(
         seSize = 64,
         dataShape = [1, 64, 5, 10],
         seAttr = #VPU.SEInterpolate<
-            mode = "NEAREST",
-            nearest_mode = "FLOOR",
-            coordinate_transformation_mode = "ASYMMETRIC",
+            mode = <NEAREST>,
+            coordinate_transformation_mode = <ASYMMETRIC>,
             scale = [1.0, 1.0, 2.0, 2.0],
+            nearest_mode = <FLOOR>,
             offsets = [0, 0, 0, 0],
             sizes = [1, 64, 10, 20]>
     } -> tensor<1x1x10x20xi32, {order = #NHWC}>
 
     %input = VPU.GroupSparseTensor(%arg0, %sparsityMap, %storageElement) {
         seAttr = #VPU.SEInterpolate<
-            mode = "NEAREST",
-            nearest_mode = "FLOOR",
-            coordinate_transformation_mode = "ASYMMETRIC",
+            mode = <NEAREST>,
+            coordinate_transformation_mode = <ASYMMETRIC>,
             scale = [1.0, 1.0, 2.0, 2.0],
+            nearest_mode = <FLOOR>,
             offsets = [0, 0, 0, 0],
             sizes = [1, 64, 10, 20]>
     } ->
@@ -848,10 +838,10 @@ func.func @InterpolateNearest(
             sparsity_map=tensor<1x64x10x20xi1>,
             storage_element_table=tensor<1x1x10x20xi32, {order = #NHWC}>,
             #VPU.SEInterpolate<
-                mode = "NEAREST",
-                nearest_mode = "FLOOR",
-                coordinate_transformation_mode = "ASYMMETRIC",
+                mode = <NEAREST>,
+                coordinate_transformation_mode = <ASYMMETRIC>,
                 scale = [1.0, 1.0, 2.0, 2.0],
+                nearest_mode = <FLOOR>,
                 offsets = [0, 0, 0, 0],
                 sizes = [1, 64, 10, 20]>>
 
@@ -860,10 +850,10 @@ func.func @InterpolateNearest(
         sparsity_map=tensor<1x64x10x20xi1>,
         storage_element_table=tensor<1x1x10x20xi32, {order = #NHWC}>,
         #VPU.SEInterpolate<
-            mode = "NEAREST",
-            nearest_mode = "FLOOR",
-            coordinate_transformation_mode = "ASYMMETRIC",
+            mode = <NEAREST>,
+            coordinate_transformation_mode = <ASYMMETRIC>,
             scale = [1.0, 1.0, 2.0, 2.0],
+            nearest_mode = <FLOOR>,
             offsets = [0, 0, 0, 0],
             sizes = [1, 64, 10, 20]>>
         -> !VPU.SparseTensor<
@@ -871,18 +861,18 @@ func.func @InterpolateNearest(
             sparsity_map=tensor<1x64x10x20xi1, {mem_space = @CMX_NN}>,
             storage_element_table=tensor<1x1x10x20xi32, {order = #NHWC, mem_space = @CMX_NN}>,
             #VPU.SEInterpolate<
-                mode = "NEAREST",
-                nearest_mode = "FLOOR",
-                coordinate_transformation_mode = "ASYMMETRIC",
+                mode = <NEAREST>,
+                coordinate_transformation_mode = <ASYMMETRIC>,
                 scale = [1.0, 1.0, 2.0, 2.0],
+                nearest_mode = <FLOOR>,
                 offsets = [0, 0, 0, 0],
                 sizes = [1, 64, 10, 20]>>
 
     %task = VPU.NCE.Interpolate(%input_cmx, %arg1, %arg2) {
         rawFilterShape = [64, 64, 1, 1],
-        mode = "NEAREST",
+        mode = #VPU.nce_interpolate_mode<NEAREST>,
         scales_attr = [2, 2],
-        ppe = {clamp_high = 2147483647, clamp_low = 0, lrelu_mult = 1, lrelu_shift = 0, mode = "NOOP"}
+        ppe = #VPU.PPETask<clamp_high = 2147483647, clamp_low = 0, lrelu_mult = 1, lrelu_shift = 0, mode = <NOOP>>
     } -> tensor<1x64x10x20xf16, {order = #NHWC, mem_space = @CMX_NN}>
 
     return %task : tensor<1x64x10x20xf16, {order = #NHWC, mem_space = @CMX_NN}>
@@ -893,10 +883,10 @@ func.func @InterpolateNearest(
     // CHECK-SAME:      dataElemType = i32,
     // CHECK-SAME:      dataShape = [1, 64, 5, 10],
     // CHECK-SAME:      seAttr = #VPU.SEInterpolate<
-    // CHECK-SAME:          mode = "NEAREST",
-    // CHECK-SAME:          nearest_mode = "FLOOR",
-    // CHECK-SAME:          coordinate_transformation_mode = "ASYMMETRIC",
+    // CHECK-SAME:          mode = <NEAREST>,
+    // CHECK-SAME:          coordinate_transformation_mode = <ASYMMETRIC>,
     // CHECK-SAME:          scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00],
+    // CHECK-SAME:          nearest_mode = <FLOOR>,
     // CHECK-SAME:          offsets = [0, 0, 0, 0],
     // CHECK-SAME:          sizes = [1, 64, 10, 20]>,
     // CHECK-SAME:      seDepth = 1 : i64,
@@ -905,10 +895,10 @@ func.func @InterpolateNearest(
 
     // CHECK:       [[SPARSE_TENSOR:%.+]] = VPU.GroupSparseTensor(%arg0, [[SPARSITY_MAP]], [[STORAGE_ELEMENT]]) {
     // CHECK-SAME:      seAttr = #VPU.SEInterpolate<
-    // CHECK-SAME:          mode = "NEAREST",
-    // CHECK-SAME:          nearest_mode = "FLOOR",
-    // CHECK-SAME:          coordinate_transformation_mode = "ASYMMETRIC",
+    // CHECK-SAME:          mode = <NEAREST>,
+    // CHECK-SAME:          coordinate_transformation_mode = <ASYMMETRIC>,
     // CHECK-SAME:          scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00],
+    // CHECK-SAME:          nearest_mode = <FLOOR>,
     // CHECK-SAME:          offsets = [0, 0, 0, 0],
     // CHECK-SAME:          sizes = [1, 64, 10, 20]>
     // CHECK-SAME:  } -> !VPU.SparseTensor<
@@ -916,10 +906,10 @@ func.func @InterpolateNearest(
     // CHECK-SAME:      sparsity_map=tensor<1x64x10x20xi1>,
     // CHECK-SAME:      storage_element_table=tensor<1x1x10x20xi32, {order = #NHWC}>,
     // CHECK-SAME:      #VPU.SEInterpolate<
-    // CHECK-SAME:          mode = "NEAREST",
-    // CHECK-SAME:          nearest_mode = "FLOOR",
-    // CHECK-SAME:          coordinate_transformation_mode = "ASYMMETRIC",
+    // CHECK-SAME:          mode = <NEAREST>,
+    // CHECK-SAME:          coordinate_transformation_mode = <ASYMMETRIC>,
     // CHECK-SAME:          scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00],
+    // CHECK-SAME:          nearest_mode = <FLOOR>,
     // CHECK-SAME:          offsets = [0, 0, 0, 0],
     // CHECK-SAME:          sizes = [1, 64, 10, 20]>>
 
@@ -928,10 +918,10 @@ func.func @InterpolateNearest(
     // CHECK-SAME:      sparsity_map=tensor<1x64x10x20xi1>,
     // CHECK-SAME:      storage_element_table=tensor<1x1x10x20xi32, {order = #NHWC}>,
     // CHECK-SAME:      #VPU.SEInterpolate<
-    // CHECK-SAME:          mode = "NEAREST",
-    // CHECK-SAME:          nearest_mode = "FLOOR",
-    // CHECK-SAME:          coordinate_transformation_mode = "ASYMMETRIC",
+    // CHECK-SAME:          mode = <NEAREST>,
+    // CHECK-SAME:          coordinate_transformation_mode = <ASYMMETRIC>,
     // CHECK-SAME:          scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00],
+    // CHECK-SAME:          nearest_mode = <FLOOR>,
     // CHECK-SAME:          offsets = [0, 0, 0, 0],
     // CHECK-SAME:          sizes = [1, 64, 10, 20]>> ->
     // CHECK-SAME:  !VPU.SparseTensor<
@@ -939,20 +929,20 @@ func.func @InterpolateNearest(
     // CHECK-SAME:      sparsity_map=tensor<1x64x10x20xi1, {mem_space = @CMX_NN}>,
     // CHECK-SAME:      storage_element_table=tensor<1x1x10x20xi32, {mem_space = @CMX_NN, order = #NHWC}>,
     // CHECK-SAME:      #VPU.SEInterpolate<
-    // CHECK-SAME:          mode = "NEAREST",
-    // CHECK-SAME:          nearest_mode = "FLOOR",
-    // CHECK-SAME:          coordinate_transformation_mode = "ASYMMETRIC",
+    // CHECK-SAME:          mode = <NEAREST>,
+    // CHECK-SAME:          coordinate_transformation_mode = <ASYMMETRIC>,
     // CHECK-SAME:          scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00],
+    // CHECK-SAME:          nearest_mode = <FLOOR>,
     // CHECK-SAME:          offsets = [0, 0, 0, 0],
     // CHECK-SAME:          sizes = [1, 64, 10, 20]>>
 
     // CHECK:       [[INTERPOLATE:%.+]] = VPU.NCE.Interpolate([[SPARSE_TENSOR_CMX]], %arg1, %arg2) {
-    // CHECK-SAME:      mode = "NEAREST",
-    // CHECK-SAME:      ppe = {clamp_high = 2147483647 : i64, clamp_low = 0 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "NOOP"},
+    // CHECK-SAME:      mode = #VPU.nce_interpolate_mode<NEAREST>,
+    // CHECK-SAME:      ppe = #VPU.PPETask<mode = <NOOP>, clamp_low = 0 : i64, clamp_high = 2147483647 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64>,
     // CHECK-SAME:      rawFilterShape = [64, 64, 1, 1],
     // CHECK-SAME:      scales_attr = [2, 2]
     // CHECK-SAME:  } -> tensor<1x64x10x20xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 10, 20] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16"
+    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 10, 20] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16>
     // CHECK:       }
 
     // CHECK:       return [[INTERPOLATE]] : tensor<1x64x10x20xf16, {mem_space = @CMX_NN, order = #NHWC}>

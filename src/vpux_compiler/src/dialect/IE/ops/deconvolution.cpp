@@ -80,7 +80,7 @@ mlir::LogicalResult vpux::IE::DeconvolutionOp::inferReturnTypeComponents(
             return errorAt(loc, "Only constant input is supported for output_shape");
         }
 
-        const auto outputShapeContent = outputShapeConst.content();
+        const auto outputShapeContent = outputShapeConst.getContent();
         const auto outputShapeVals = outputShapeContent.getValues<int64_t>();
 
         SmallVector<int64_t> mlirOutputShape;
@@ -104,7 +104,7 @@ mlir::LogicalResult vpux::IE::DeconvolutionOp::inferReturnTypeComponents(
                 ngraph::CoordinateDiff(dataPaddingAbove.begin(), dataPaddingAbove.end()),  // pads_end
                 ngraph::CoordinateDiff(outputPadding.begin(), outputPadding.end()),        // output_padding
                 __resultShape);
-        const auto resultShape = ngraph::PartialShape{__resultShape}.get_shape();
+        const auto resultShape = ngraph::PartialShape{std::move(__resultShape)}.get_shape();
 
         SmallVector<int64_t> mlirOutputShape;
         mlirOutputShape.push_back(featureShape[0]);

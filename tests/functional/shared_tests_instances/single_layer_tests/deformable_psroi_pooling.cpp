@@ -1,4 +1,5 @@
-// Copyright (C) 2022-2023 Intel Corporation
+//
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -6,14 +7,14 @@
 
 #include <common/functions.h>
 #include "common_test_utils/test_constants.hpp"
-#include "kmb_layer_test.hpp"
 #include "single_layer_tests/deformable_psroi_pooling.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
 class VPUXDeformablePSROIPoolingLayerTest :
         public DeformablePSROIPoolingLayerTest,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+        virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
 class VPUXDeformablePSROIPoolingLayerTest_VPU3700 : public VPUXDeformablePSROIPoolingLayerTest {};
 
@@ -43,8 +44,8 @@ const auto deformablePSROIParams = ::testing::Combine(
 
 const auto deformablePSROICases_test_params =
         ::testing::Combine(deformablePSROIParams,
-                           ::testing::Values(InferenceEngine::Precision::FP32),            // Net precision
-                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));  // Device name
+                           ::testing::Values(InferenceEngine::Precision::FP32),              // Net precision
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));  // Device name
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_TestsDeformablePSROIPooling, VPUXDeformablePSROIPoolingLayerTest_VPU3700,
                          deformablePSROICases_test_params,
@@ -63,8 +64,8 @@ const auto deformablePSROIParams_advanced =
 
 const auto deformablePSROICases_test_params_advanced =
         ::testing::Combine(deformablePSROIParams_advanced,
-                           ::testing::Values(InferenceEngine::Precision::FP32),            // Net precision
-                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));  // Device name
+                           ::testing::Values(InferenceEngine::Precision::FP32),              // Net precision
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));  // Device name
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_TestsDeformablePSROIPooling_advanced,
                          VPUXDeformablePSROIPoolingLayerTest_VPU3700, deformablePSROICases_test_params_advanced,
@@ -83,8 +84,8 @@ const auto deformablePSROIParams_advanced1 =
 
 const auto deformablePSROICases_test_params_advanced1 =
         ::testing::Combine(deformablePSROIParams_advanced1,
-                           ::testing::Values(InferenceEngine::Precision::FP32),            // Net precision
-                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));  // Device name
+                           ::testing::Values(InferenceEngine::Precision::FP32),              // Net precision
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));  // Device name
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_TestsDeformablePSROIPooling_advanced1,
                          VPUXDeformablePSROIPoolingLayerTest_VPU3700, deformablePSROICases_test_params_advanced1,

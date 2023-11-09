@@ -102,7 +102,7 @@ struct UnaryOpLoweringCos : public mlir::ConversionPattern {
                            IERT::CosOp::Adaptor unaryAdaptor(memRefOperands);
 
                            // Generate load for the element of 'lhs' at the inner loop.
-                           auto loadedOpnd = builder.create<mlir::AffineLoadOp>(loc, unaryAdaptor.input(), loopIvs);
+                           auto loadedOpnd = builder.create<mlir::AffineLoadOp>(loc, unaryAdaptor.getInput(), loopIvs);
 
                            auto cosOp = builder.create<mlir::math::CosOp>(loc, loadedOpnd);
 
@@ -129,13 +129,13 @@ struct UnaryOpLoweringHSwish : public mlir::ConversionPattern {
                     IERT::HSwishOp::Adaptor unaryAdaptor(memRefOperands);
 
                     // Generate load for the element.
-                    auto loadedOpnd = builder.create<mlir::AffineLoadOp>(loc, unaryAdaptor.input(), loopIvs);
+                    auto loadedOpnd = builder.create<mlir::AffineLoadOp>(loc, unaryAdaptor.getInput(), loopIvs);
 
                     // IMPORTANT: HSwish(x) = x * min(max(x+3, 0), 6) / 6
                     float f;
                     mlir::MLIRContext* ctx = op->getContext();
 
-                    auto memRefOperands0Type = unaryAdaptor.input().getType();
+                    auto memRefOperands0Type = unaryAdaptor.getInput().getType();
 
                     auto memRefOperands0TypeMemref = memRefOperands0Type.dyn_cast_or_null<mlir::MemRefType>();
                     VPUX_THROW_UNLESS(memRefOperands0TypeMemref != nullptr, "Abnormal situation encountered");
@@ -240,7 +240,7 @@ struct UnaryOpLoweringSoftMax : public mlir::ConversionPattern {
                     // ODS.
                     IERT::SoftMaxOp::Adaptor unaryAdaptor(memRefOperands);
 
-                    auto loadedOpnd = builder.create<mlir::AffineLoadOp>(loc, unaryAdaptor.input(), loopIvs);
+                    auto loadedOpnd = builder.create<mlir::AffineLoadOp>(loc, unaryAdaptor.getInput(), loopIvs);
 
                     // Following
                     // https://slaystudy.com/implementation-of-softmax-activation-function-in-c-c/,

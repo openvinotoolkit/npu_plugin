@@ -29,20 +29,22 @@ mlir::LogicalResult vpux::VPU::ReduceProdOp::inferReturnTypes(mlir::MLIRContext*
 
     const auto input = reduceProd.input();
     const auto keepDims = reduceProd.keep_dims();
-    auto axes = IE::constInputToData(loc, reduceProd.axes());
-    if (mlir::failed(axes)) {
-        return mlir::failure();
-    }
 
-    return VPU::inferReduceReturnTypes(loc, input, keepDims, axes.getValue(), inferredReturnTypes);
+    auto axesValue = parseIntArrayAttr<int64_t>(reduceProd.axes_value());
+
+    return VPU::inferReduceReturnTypes(loc, input, keepDims, axesValue, inferredReturnTypes);
 }
 
 //
-// inferLayoutInfo
+// fold
 //
 
-void vpux::VPU::ReduceProdOp::inferLayoutInfo(mlir::Operation* op, vpux::IE::LayerLayoutInfo& info) {
-    vpux::IE::inferReduceLayoutInfo(op, info);
+mlir::OpFoldResult vpux::VPU::ReduceProdOp::fold(ArrayRef<mlir::Attribute>) {
+    if (input().getType() == output().getType()) {
+        return input();
+    }
+
+    return nullptr;
 }
 
 //
@@ -50,13 +52,14 @@ void vpux::VPU::ReduceProdOp::inferLayoutInfo(mlir::Operation* op, vpux::IE::Lay
 //
 
 EMU::BlobWriter::SpecificTask vpux::VPU::ReduceProdOp::serialize(EMU::BlobWriter& writer) {
-    MVCNN::ReduceParamsBuilder builder(writer);
-
     EMU::BlobWriter::String type;
     type = writer.createString("prod");
+    const auto axes = writer.createVector(parseIntArrayAttr<int64_t>(axes_value()));
 
+    MVCNN::ReduceParamsBuilder builder(writer);
     builder.add_keep_dims(checked_cast<bool>(keep_dims()));
     builder.add_operation(type);
+    builder.add_axes_value(axes);
 
     const auto paramsOff = builder.Finish();
 

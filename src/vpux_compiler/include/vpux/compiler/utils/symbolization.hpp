@@ -43,9 +43,10 @@ public:
     void initialize() {
         size_t counter = 0;
         for (auto op : _parentFunc.getOps<SourceOp>()) {
-            auto symbolicName = getSymbolicName(op, counter);
+            if (auto symbolicName = getSymbolicName(op, counter)) {
+                _mapper->insert(std::make_pair(op.getResult(), symbolicName));
+            }
             counter++;
-            _mapper->insert(std::make_pair(op.getResult(), symbolicName));
         }
     }
 
@@ -71,7 +72,8 @@ template <typename SourceOp>
 mlir::FlatSymbolRefAttr SymbolizationPattern<SourceOp>::findSym(mlir::Value val) const {
     auto it = _mapper->find(val);
 
-    VPUX_THROW_WHEN(it == _mapper->end(), "Could not find symbol name entry for {0}", SourceOp::getOperationName());
+    VPUX_THROW_WHEN(it == _mapper->end(), "Could not find symbol name entry for {0}, val {1}",
+                    SourceOp::getOperationName(), val);
 
     return it->getSecond();
 }

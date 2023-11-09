@@ -412,7 +412,7 @@ Optional<StringLiteral> vpux::DimsOrder::getCanonicalName() const {
 
 void vpux::DimsOrder::printFormat(llvm::raw_ostream& stream) const {
     if (const auto name = getCanonicalName()) {
-        stream << name.getValue();
+        stream << name.value();
     } else {
         printTo(stream, "{0}", toPermutation());
     }

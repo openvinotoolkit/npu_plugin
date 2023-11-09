@@ -174,7 +174,7 @@ func.func @ExpandConvolutionChannelsWithAdd(%arg0: tensor<1x3x30x30xf16, {order 
 // CHECK:       [[EXPAND_OUT:%.+]] = IE.Expand(%arg0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 13, 0, 0]}
 
 // CHECK:       [[VAR0:%.*]] = IE.Add([[EXPAND_OUT]], [[EXPAND_OUT]])
-// CHECK-SAME:       tensor<1x16x30x30xf16, {order = #NHWC}>, tensor<1x16x30x30xf16, {order = #NHWC}>
+// CHECK-SAME:       tensor<1x16x30x30xf16, {order = #NHWC}>, tensor<1x16x30x30xf16, {order = #NHWC}> 
 // CHECK-SAME:       -> tensor<1x16x30x30xf16, {order = #NHWC}>
 
 // CHECK:       [[CONV_OUT:%.+]] = IE.Convolution([[VAR0]], [[EXPAND_FILTER]])
@@ -192,7 +192,7 @@ func.func @ExpandConvolutionChannelsWithAdd(%arg0: tensor<1x3x30x30xf16, {order 
 !qElemType0 = !quant.uniform<u8:f16, 0.5>
 !qElemType1 = !quant.uniform<u8:f16, 0.25>
 
-func.func @ExpandConvolutionChannelsWithAddAndQuantCast(%arg0: tensor<1x3x30x30x!qElemType0, {order = #NHWC}>)
+func.func @ExpandConvolutionChannelsWithAddAndQuantCast(%arg0: tensor<1x3x30x30x!qElemType0, {order = #NHWC}>) 
         -> tensor<1x5x28x28x!qElemType1, {order = #NHWC}> {
     %filter = const.Declare tensor<5x3x3x3x!qElemType0, {order = #NHWC}> =
         dense<1.0> : tensor<5x3x3x3xf16, {order = #NHWC}>, [
@@ -202,7 +202,7 @@ func.func @ExpandConvolutionChannelsWithAddAndQuantCast(%arg0: tensor<1x3x30x30x
     %0 = IE.Add(%arg0, %arg0) { auto_broadcast = #IE.auto_broadcast_type<NUMPY> } :
         tensor<1x3x30x30x!qElemType0, {order = #NHWC}>, tensor<1x3x30x30x!qElemType0, {order = #NHWC}>
         -> tensor<1x3x30x30x!qElemType0, {order = #NHWC}>
-    %1 = IE.QuantizeCast(%0) {dstElemType = !qElemType1} :
+    %1 = IE.QuantizeCast(%0) {dstElemType = !qElemType1} : 
         tensor<1x3x30x30x!qElemType0, {order = #NHWC}> -> tensor<1x3x30x30x!qElemType1, {order = #NHWC}>
     %2 = IE.Convolution(%1, %filter) {
         dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]

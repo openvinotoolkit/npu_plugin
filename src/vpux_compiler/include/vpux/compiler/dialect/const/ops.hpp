@@ -19,7 +19,7 @@
 // Generated
 //
 
-#include <vpux/compiler/dialect/const/generated/dialect.hpp.inc>
+#include <vpux/compiler/dialect/const/dialect.hpp.inc>
 
 #define GET_OP_CLASSES
-#include <vpux/compiler/dialect/const/generated/ops.hpp.inc>
+#include <vpux/compiler/dialect/const/ops.hpp.inc>

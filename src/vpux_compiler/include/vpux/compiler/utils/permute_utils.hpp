@@ -14,10 +14,15 @@ namespace vpux {
 
 MemShape applyPerm(MemShapeRef memShape, mlir::AffineMap memPerm);
 
+SmallVector<int64_t> getPermutateDims(MemShapeRef inShape, mlir::AffineMap memPerm);
 bool isTrivialPermute(MemShapeRef inShape, mlir::AffineMap memPerm);
 bool isTrivialReorder(IE::ReorderOp origOp);
 
 mlir::AffineMap getPermutationFromOrders(DimsOrder inOrder, DimsOrder outOrder, mlir::MLIRContext* ctx);
 DimsOrder applyPermutation(const DimsOrder lhs, const DimsOrder rhs);
+
+VPU::DistributedTensorAttr applyPermutationOnDistributedTensorAttr(VPU::DistributedTensorAttr inDistribution,
+                                                                   mlir::AffineMap memPerm, DimsOrder inOrder,
+                                                                   DimsOrder outOrder);
 
 }  // namespace vpux

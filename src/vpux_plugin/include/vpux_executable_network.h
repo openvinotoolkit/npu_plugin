@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -29,12 +29,17 @@ public:
      * @param network InferenceEngine neural network object
      * @param device pointer to device object
      * @param config config object connecting configuration with which network is compiled
+     * @param isNewAPI Set to "true" if the OpenVINO 2.0 API is being used or "false" in the 1.0 case.
+     * The information is used for flagging the need of transferring I/O metadata information from the
+     * "IE::CNNNetwork" structure to the "ov::Model" one within. More precisely, in the 1.0 API version case,
+     * the legacy class contains the "real" values, thus the newer one should be updated as a consequence
+     * of the Plugin API 1.0 refactorization.
      * @note properties supplied through config parameter, are mutable during the creation
      * of ExecutableNetwork (i.e. until network is compiled) and after ExecutableNetwork is created,
      * all of the supplied properties are switched to read-only mode.
      */
     explicit ExecutableNetwork(const InferenceEngine::CNNNetwork& network, const Device::Ptr& device,
-                               const Config& config);
+                               const Config& config, const bool& isNewAPI);
 
     /**
      * @brief Executable network constructor, imports network from file
@@ -46,6 +51,12 @@ public:
      * all of the supplied properties are switched to read-only mode.
      */
     explicit ExecutableNetwork(std::istream& networkModel, const Device::Ptr& device, const Config& config);
+
+    ExecutableNetwork(const ExecutableNetwork&) = delete;
+    ExecutableNetwork(ExecutableNetwork&&) = delete;
+    ExecutableNetwork& operator=(const ExecutableNetwork&) = delete;
+    ExecutableNetwork&& operator=(ExecutableNetwork&&) = delete;
+    virtual ~ExecutableNetwork() = default;
 
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
             const InferenceEngine::InputsDataMap networkInputs,
@@ -75,8 +86,8 @@ private:
 private:
     void ConfigureStreamsExecutor(const std::string& networkName);
     InferenceEngine::ITaskExecutor::Ptr GetNextTaskExecutor();
-    InferenceEngine::Parameter GetConfigValue(const std::string& name) const;
-    vpux::DataMap ExtractStatesFromInputsInfo() const;
+    void initializeProperties();
+    vpux::NetworkIOVector ExtractStatesFromInputsInfo() const;
     InferenceEngine::InputsDataMap BeautifyInputsInfo() const;
     InferenceEngine::OutputsDataMap BeautifyOutputsInfo() const;
 
@@ -89,11 +100,16 @@ private:
     NetworkDescription::Ptr _networkPtr = nullptr;
     Executor::Ptr _executorPtr;
     std::vector<std::string> _supportedMetrics;
+    // properties map: {name -> [supported, mutable, eval function]}
+    std::map<std::string,
+             std::tuple<bool, ov::PropertyMutability, std::function<InferenceEngine::Parameter(const Config&)>>>
+            propertiesOv2;
+    std::vector<ov::PropertyName> supportedProperties;
 
     static std::atomic<int> loadBlobCounter;
     std::queue<std::string> _taskExecutorGetResultIds;
 
-    vpux::DataMap _networkStatesInfo;  //!< Holds information about network states
+    vpux::NetworkIOVector _networkStatesInfo;  //!< Holds information about network states
 };
 
 }  //  namespace vpux

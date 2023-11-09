@@ -32,30 +32,33 @@ func.func @FaceDetectionAdas(%arg0: tensor<1x40448xf16>, %arg1: tensor<1x20224xf
     >, operand_segment_sizes = dense<[1, 1, 1, 0, 0]> : vector<5xi32>} : tensor<1x40448xf16>, tensor<1x20224xf16>, tensor<1x2x40448xf16> -> tensor<1x1x200x7xf16>
   return %9 : tensor<1x1x200x7xf16>
 
+// CHECK:       [[PRIORS:%.+]] = VPU.Reshape(%arg2)
+// CHECK-SAME:      shape_value = [1, 2, 10112, 4]
+
 // CHECK:       [[LOGITS_4D:%.+]] = VPU.Reshape(%arg0)
 // CHECK-SAME:      shape_value = [1, 10112, 1, 4]
 // CHECK:       [[LOGITS_TRANSPOSED:%.+]] = VPU.MemPermute([[LOGITS_4D]])
 // CHECK-SAME:      tensor<1x10112x1x4xf16> -> tensor<1x1x10112x4xf16>
 
-// CHECK:       [[CONF_3D:%.+]] = VPU.Reshape(%arg1)
-// CHECK-SAME:      shape_value = [1, 10112, 2]
-
-// CHECK:       [[DECODED_BOXES:%.+]] = VPU.DetectionOutputDecodeBoxes([[LOGITS_TRANSPOSED]], %arg2)
+// CHECK:       [[DECODED_BOXES:%.+]] = VPU.DetectionOutputDecodeBoxes([[LOGITS_TRANSPOSED]], [[PRIORS]])
 // CHECK-SAME:      code_type = #IE.detection_output_code_type<CENTER_SIZE>
-// CHECK:       [[BOXES_CWH:%.+]] = VPU.Reshape([[DECODED_BOXES]])
-// CHECK-SAME:      shape_value = [1, 1, 40448]
 
-// CHECK:       [[CONF_CWH:%.+]] = VPU.MemPermute([[CONF_3D]])
-// CHECK-SAME:      tensor<1x10112x2xf16> -> tensor<1x2x10112xf16>
+// CHECK:       [[CONFIDENCE:%.+]] = VPU.Reshape(%arg1)
+// CHECK-SAME:      shape_value = [1, 1, 10112, 2]
+// CHECK:       [[CONF_CWH:%.+]] = VPU.MemPermute([[CONFIDENCE]])
+// CHECK-SAME:      dst_order = #NCHW, mem_perm = #NCWH
+
 // CHECK:       [[TOPK_CONF:%.+]], [[INDICES:%.+]], [[SIZES:%.+]] = VPU.DetectionOutputSortTopK([[CONF_CWH]])
 // CHECK-SAME:      background_id = 0 : i64,
 // CHECK-SAME:      confidence_threshold = 1.000000e-03 : f64,
 // CHECK-SAME:      top_k = 400 : i64
 
-// CHECK:       [[BOXES:%.+]] = VPU.DetectionOutputSelectBoxes([[BOXES_CWH]], [[INDICES]], [[SIZES]])
+// CHECK:       [[BOXES:%.+]] = VPU.DetectionOutputSelectBoxes([[DECODED_BOXES]], [[INDICES]], [[SIZES]])
 // CHECK-SAME:      top_k = 400 : i64
 
-// CHECK:       [[OUT_CONF:%.+]], [[OUT_BOXES:%.+]], [[OUT_SIZES:%.+]] = VPU.DetectionOutputNmsCaffe([[TOPK_CONF]], [[BOXES]], [[SIZES]])
+// CHECK:       [[BOXES_3D:%.+]] = VPU.Reshape([[BOXES]])
+// CHECK-SAME:      shape_value = [1, 2, 1600]
+// CHECK:       [[OUT_CONF:%.+]], [[OUT_BOXES:%.+]], [[OUT_SIZES:%.+]] = VPU.DetectionOutputNmsCaffe([[TOPK_CONF]], [[BOXES_3D]], [[SIZES]])
 // CHECK-SAME:      nms_threshold = 4.500000e-01 : f64
 
 // CHECK:       [[RESULT:%.+]] = VPU.DetectionOutputCollectResults([[OUT_CONF]], [[OUT_BOXES]], [[OUT_SIZES]])
@@ -88,7 +91,11 @@ func.func @NotNormalizedEncodedVariance(%arg0: tensor<1x40448xf16>, %arg1: tenso
     >, operand_segment_sizes = dense<[1, 1, 1, 0, 0]> : vector<5xi32>} : tensor<1x40448xf16>, tensor<1x20224xf16>, tensor<1x1x50560xf16> -> tensor<1x1x200x7xf16>
   return %9 : tensor<1x1x200x7xf16>
 
-// CHECK:       [[NORM_PRIORS:%.+]] = VPU.DetectionOutputNormalize(%arg2)
+// CHECK:       [[NON_NORMALIZED:%.+]] = VPU.Reshape(%arg2)
+// CHECK-SAME:      shape_value = [1, 1, 10112, 5]
+// CHECK:       [[NORM_PRIORS:%.+]] = VPU.DetectionOutputNormalize([[NON_NORMALIZED]])
+// CHECK-SAME:      tensor<1x1x10112x5xf16> ->
+// CHECK-SAME:      tensor<1x1x10112x4xf16>
 // CHECK:       VPU.DetectionOutputDecodeBoxes
-// CHECK-SAME:      [[NORM_PRIORS]]
+// CHECK-SAME:     [[NORM_PRIORS]]
 }

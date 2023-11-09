@@ -28,10 +28,10 @@ func.func @OptimizeParallelNonConstCopies(
     %4 = memref.alloc() : memref<1x16x112x112xf16, #NHWC, @CMX_NN>
     %5 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%3 : memref<1x16x112x112xf16, #NHWC, @CMX_NN>)
         weight_table(%wt : memref<16x1x1x4xsi32, @CMX_NN>)
@@ -41,7 +41,7 @@ func.func @OptimizeParallelNonConstCopies(
         outputs(%4 : memref<1x16x112x112xf16, #NHWC, @CMX_NN>) -> memref<1x16x112x112xf16, #NHWC, @CMX_NN>
         variants :
         {
-            DPUTask { outEnd = [16, 112, 112], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 112, 112], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }
@@ -58,10 +58,10 @@ func.func @OptimizeParallelNonConstCopies(
     %9 = memref.alloc() : memref<1x16x112x112xf16, #NHWC, @CMX_NN>
     %10 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%8 : memref<1x16x112x112xf16, #NHWC, @CMX_NN>)
         weight_table(%wt : memref<16x1x1x4xsi32, @CMX_NN>)
@@ -71,7 +71,7 @@ func.func @OptimizeParallelNonConstCopies(
         outputs(%9 : memref<1x16x112x112xf16, #NHWC, @CMX_NN>) -> memref<1x16x112x112xf16, #NHWC, @CMX_NN>
         variants :
         {
-            DPUTask { outEnd = [16, 112, 112], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 112, 112], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }
@@ -124,10 +124,10 @@ func.func @OptimizeParallelSubViewPatternCopies(
     %5 = memref.alloc() : memref<1x16x112x112xf16, #NHWC, @CMX_NN>
     %6 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%4 : memref<1x16x112x112xf16, #NHWC, @CMX_NN>)
         weight_table(%wt : memref<16x1x1x4xsi32, @CMX_NN>)
@@ -137,7 +137,7 @@ func.func @OptimizeParallelSubViewPatternCopies(
         outputs(%5 : memref<1x16x112x112xf16, #NHWC, @CMX_NN>) -> memref<1x16x112x112xf16, #NHWC, @CMX_NN>
         variants :
         {
-            DPUTask { outEnd = [16, 112, 112], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 112, 112], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }
@@ -156,10 +156,10 @@ func.func @OptimizeParallelSubViewPatternCopies(
     %11 = memref.alloc() : memref<1x16x112x112xf16, #NHWC, @CMX_NN>
     %12 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%10 : memref<1x16x112x112xf16, #NHWC, @CMX_NN>)
         weight_table(%wt : memref<16x1x1x4xsi32, @CMX_NN>)
@@ -169,7 +169,7 @@ func.func @OptimizeParallelSubViewPatternCopies(
         outputs(%11 : memref<1x16x112x112xf16, #NHWC, @CMX_NN>) -> memref<1x16x112x112xf16, #NHWC, @CMX_NN>
         variants :
         {
-            DPUTask { outEnd = [16, 112, 112], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 112, 112], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }

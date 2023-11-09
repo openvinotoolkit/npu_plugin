@@ -1,9 +1,9 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 #include <ngraph_functions/builders.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -12,7 +12,7 @@
 namespace {
 
 class VPUXQuantizedAvgPoolSubGraphTest_VPU3700 :
-        public LayerTestsUtils::KmbLayerTestsCommon,
+        public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<LayerTestsUtils::TargetDevice> {
     void SetUp() override {
         const InferenceEngine::SizeVector inputShape{1, 16, 32, 32};
@@ -65,6 +65,6 @@ TEST_P(VPUXQuantizedAvgPoolSubGraphTest_VPU3700, HW) {
 }
 
 INSTANTIATE_TEST_CASE_P(smoke_QuantizedAvgPool, VPUXQuantizedAvgPoolSubGraphTest_VPU3700,
-                        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+                        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 }  // namespace

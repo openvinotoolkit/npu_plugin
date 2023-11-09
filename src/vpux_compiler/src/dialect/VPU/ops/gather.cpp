@@ -21,7 +21,7 @@ mlir::FailureOr<int64_t> extractAxis(mlir::Location loc, VPU::GatherOpAdaptor ga
             return errorAt(loc, "Only constant input is supported for axis");
         }
 
-        const auto axisContent = axisConst.content();
+        const auto axisContent = axisConst.getContent();
         if (!axisContent.isSplat()) {
             return errorAt(loc, "Axis value must be a scalar");
         }
@@ -36,8 +36,8 @@ mlir::FailureOr<int64_t> extractAxis(mlir::Location loc, VPU::GatherOpAdaptor ga
         }
 
         return axisInd;
-    } else if (gather.axis_value().hasValue()) {
-        return gather.axis_value().getValue();
+    } else if (gather.axis_value().has_value()) {
+        return gather.axis_value().value();
     } else {
         return errorAt(loc, "Axis was not provided");
     }
@@ -93,17 +93,13 @@ mlir::LogicalResult vpux::VPU::GatherOp::inferReturnTypes(mlir::MLIRContext* ctx
     return mlir::success();
 }
 
-void vpux::VPU::GatherOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
-    IE::fillDefaultLayoutInfo(info);
-}
-
 //
 // serialize
 //
 
 EMU::BlobWriter::SpecificTask vpux::VPU::GatherOp::serialize(EMU::BlobWriter& writer) {
     MVCNN::GatherParamsBuilder builder(writer);
-    builder.add_axis(checked_cast<uint32_t>(axis_value().getValue()));
+    builder.add_axis(checked_cast<uint32_t>(axis_value().value()));
     const auto paramsOff = builder.Finish();
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_GatherParams});
 }
@@ -112,7 +108,7 @@ EMU::BlobWriter::SpecificTask vpux::VPU::GatherOp::serialize(EMU::BlobWriter& wr
 // TilingBuilderOpInterface
 //
 
-vpux::InputTiling vpux::VPU::GatherOp::backInferTileInfo(const vpux::TileInfo& outputTile, vpux::Logger) {
+vpux::InputTiling vpux::VPU::GatherOp::backInferTileInfo(const vpux::TileInfo& outputTile, vpux::Logger log) {
     const auto origInputShape = getShape(input());
     const auto origIndicesShape = getShape(indices());
     bool hasAxisTensor = false;
@@ -125,7 +121,7 @@ vpux::InputTiling vpux::VPU::GatherOp::backInferTileInfo(const vpux::TileInfo& o
     if (axis() != nullptr) {
         auto axisConst = axis().getDefiningOp<Const::DeclareOp>();
         VPUX_THROW_UNLESS(axisConst != nullptr, "Only constant input is supported for axis");
-        const auto axisContent = axisConst.content();
+        const auto axisContent = axisConst.getContent();
         VPUX_THROW_UNLESS(axisContent.isSplat(), "Axis value must be a scalar");
         axisValue = axisContent.getSplatValue<int64_t>();
         hasAxisTensor = true;
@@ -135,46 +131,14 @@ vpux::InputTiling vpux::VPU::GatherOp::backInferTileInfo(const vpux::TileInfo& o
         batchDims = batch_dimsAttr().dyn_cast_or_null<mlir::IntegerAttr>().getValue().getSExtValue();
     }
 
-    TileInfo inputTile(origInputShape);
-    TileInfo indicesTile(origIndicesShape);
-    TileInfo axisTile(ShapeRef({1}));
-
-    auto inputRank = origInputShape.size();
-    auto indicesRank = origIndicesShape.size();
-
-    for (int64_t i = 0; i < static_cast<int64_t>(inputRank); ++i) {
-        if (i < axisValue) {
-            inputTile.shape[Dim(i)] = outputTile.shape[Dim(i)];
-            inputTile.offsets[Dim(i)] = outputTile.offsets[Dim(i)];
-        } else if (i == axisValue) {
-            continue;
-        } else {
-            inputTile.shape[Dim(i)] = outputTile.shape[Dim(i + indicesRank - batchDims - 1)];
-            inputTile.offsets[Dim(i)] = outputTile.offsets[Dim(i + indicesRank - batchDims - 1)];
-        }
-    }
-
-    for (int64_t i = 0; i < static_cast<int64_t>(indicesRank); ++i) {
-        if (i < batchDims) {
-            indicesTile.shape[Dim(i)] = outputTile.shape[Dim(i)];
-            indicesTile.offsets[Dim(i)] = outputTile.offsets[Dim(i)];
-        } else {
-            indicesTile.shape[Dim(i)] = outputTile.shape[Dim(i + axisValue - batchDims)];
-            indicesTile.offsets[Dim(i)] = outputTile.offsets[Dim(i + axisValue - batchDims)];
-        }
-    }
-
-    if (hasAxisTensor) {
-        return InputTiling{{inputTile, indicesTile, axisTile}};
-    } else {
-        return InputTiling{{inputTile, indicesTile}};
-    }
+    return vpux::backInferGatherTile(outputTile, origInputShape, origIndicesShape, axisValue, batchDims, hasAxisTensor,
+                                     log);
 }
 
 void vpux::VPU::GatherOp::adjustAttrs(const TilingInfo& /*inputTiling*/, const TileInfo& /*outputTile*/) {
 }
 
-OutputTiling vpux::VPU::GatherOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
+mlir::FailureOr<OutputTiling> vpux::VPU::GatherOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
     auto baseOp = this->getOperation();
     VPUX_THROW_WHEN(tilingMode != TilingMode::ISOLATED,
                     "Only supporting isolated tiling for Gather currently, for op {0} at '{1}'", baseOp->getName(),
@@ -187,7 +151,7 @@ OutputTiling vpux::VPU::GatherOp::getTilingStrategy(TilingMode tilingMode, Logge
     if (axis() != nullptr) {
         auto axisConst = axis().getDefiningOp<Const::DeclareOp>();
         VPUX_THROW_UNLESS(axisConst != nullptr, "Only constant input is supported for axis");
-        const auto axisContent = axisConst.content();
+        const auto axisContent = axisConst.getContent();
         VPUX_THROW_UNLESS(axisContent.isSplat(), "Axis value must be a scalar");
         axisValue = axisContent.getSplatValue<int64_t>();
     }
@@ -201,7 +165,10 @@ OutputTiling vpux::VPU::GatherOp::getTilingStrategy(TilingMode tilingMode, Logge
     const auto isSupportedTileSize = [baseOp, &tilingInfo, outputShape, log](ShapeRef nTilesOnDim,
                                                                              TilingMode tilingMode) -> bool {
         const auto tiles = fillDividedTiles(baseOp, nTilesOnDim, outputShape);
-        return tilingInfo.isSupportedTiling(tiles, tilingMode, log);
+        if (mlir::failed(tiles)) {
+            return false;
+        }
+        return tilingInfo.isSupportedTiling(tiles.value(), tilingMode, log);
     };
 
     int64_t batchDims = 0;

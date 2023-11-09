@@ -96,7 +96,7 @@ bool isUpstreamPossible(IE::LayerOpInterface sliceOp, mlir::Value tensor) {
 
     // Can't handle yet upstreaming and adapting channelwise parameters
     if (const auto quantAxis = IE::getQuantAxisIndex(parentOp)) {
-        if (inputShape[Dim(quantAxis.getValue())] != outputShape[Dim(quantAxis.getValue())]) {
+        if (inputShape[Dim(quantAxis.value())] != outputShape[Dim(quantAxis.value())]) {
             return false;
         }
     }

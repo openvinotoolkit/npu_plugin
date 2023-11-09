@@ -45,11 +45,13 @@ std::shared_ptr<ngraph::Node> clone_down_fq_node(std::shared_ptr<ngraph::Node> f
     return clone_fq_node;
 }
 
-static bool all_consumers_has_fq(const ngraph::Output<ngraph::Node>& node_output) {
-    for (auto output : node_output.get_target_inputs()) {
+static bool all_consumers_has_fq_or_result(const ngraph::Output<ngraph::Node>& node_output) {
+    for (auto& output : node_output.get_target_inputs()) {
         const auto output_as_fq =
                 std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(output.get_node()->shared_from_this());
-        if (output_as_fq == nullptr) {
+        const auto output_as_result =
+                std::dynamic_pointer_cast<ngraph::op::v0::Result>(output.get_node()->shared_from_this());
+        if (output_as_fq == nullptr && output_as_result == nullptr) {
             return false;
         }
     }
@@ -59,7 +61,7 @@ static bool all_consumers_has_fq(const ngraph::Output<ngraph::Node>& node_output
 static void propagate_down(std::shared_ptr<ngraph::Node> fq_node, std::shared_ptr<ngraph::Node> node, int& copy_num) {
     if (is_fq_agnostic(node)) {
         for (const auto& node_output : node->outputs()) {
-            if (all_consumers_has_fq(node_output))
+            if (all_consumers_has_fq_or_result(node_output))
                 continue;
             auto consumers = node_output.get_target_inputs();
             if (std::all_of(consumers.begin(), consumers.end(), [](const auto consumer) {
@@ -69,7 +71,7 @@ static void propagate_down(std::shared_ptr<ngraph::Node> fq_node, std::shared_pt
                 continue;
             }
 
-            auto new_fq_node = clone_down_fq_node(fq_node, node_output, copy_num);
+            const auto& new_fq_node = clone_down_fq_node(fq_node, node_output, copy_num);
             for (auto consumer : consumers) {
                 // if FQ already exist - we don't need to generate a copy
                 // also we can't insert FQ before Result node to keep output layer search logic
@@ -100,7 +102,7 @@ static void propagate_up(std::shared_ptr<ngraph::Node> fq_node, std::shared_ptr<
                 if (input == node->input_values().back())
                     continue;
 
-            auto new_fq_node = clone_up_fq_node(fq_node, input, copy_num);
+            const auto& new_fq_node = clone_up_fq_node(fq_node, input, copy_num);
             propagate_up(fq_node, input.get_node_shared_ptr(), copy_num);
             for (auto consumer : input.get_target_inputs()) {
                 // if FQ already exist - we don't need to generate a copy

@@ -140,8 +140,8 @@ void vpux::VPUIP::BlobReader::parseGraphInputsOutputs() {
 }
 
 void vpux::VPUIP::BlobReader::parseUserInputsOutputs(OpBuilderLogger& builderLog, IE::CNNNetworkOp& cnnOp) {
-    cnnOp.inputsInfo().emplaceBlock();
-    cnnOp.outputsInfo().emplaceBlock();
+    cnnOp.getInputsInfo().emplaceBlock();
+    cnnOp.getOutputsInfo().emplaceBlock();
 
     const auto processUserIO = [this](const flatbuffers::Vector<TensorReferenceOffset>* ioTensorDescriptors,
                                       mlir::OpBuilder& builder) {
@@ -157,7 +157,8 @@ void vpux::VPUIP::BlobReader::parseUserInputsOutputs(OpBuilderLogger& builderLog
                 const auto nameAttr = mlir::StringAttr::get(_ctx, inputName->str());
                 const auto userTypeAttr = mlir::TypeAttr::get(tensor);
 
-                builder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(_ctx), nameAttr, userTypeAttr);
+                builder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(_ctx), nameAttr, userTypeAttr,
+                                               /*profilingSectionsCount=*/0);
             } else {
                 VPUX_THROW("Failed to parse {0} user input/output", j);
             }
@@ -165,11 +166,11 @@ void vpux::VPUIP::BlobReader::parseUserInputsOutputs(OpBuilderLogger& builderLog
     };
 
     const auto* header = _graphFile->header();
-    auto inputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.inputsInfo().front(), &builderLog);
+    auto inputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.getInputsInfo().front(), &builderLog);
     VPUX_THROW_UNLESS(header->in_tensor_desc(), "Missing information about user input tensor descriptors");
     processUserIO(header->in_tensor_desc(), inputsInfoBuilder);
 
-    auto outputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.outputsInfo().front(), &builderLog);
+    auto outputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.getOutputsInfo().front(), &builderLog);
     VPUX_THROW_UNLESS(header->out_tensor_desc(), "Missing information about user output tensor descriptors");
     processUserIO(header->out_tensor_desc(), outputsInfoBuilder);
 }
@@ -250,8 +251,6 @@ VPU::ArchKind vpux::VPUIP::BlobReader::parseDeviceRevision(const MVCNN::SummaryH
         default:
             VPUX_THROW("Unsupported VPUX30XX Revision '{0}'", header->device_revision());
         }
-    case MVCNN::TargetDevice_VPUX311X:
-        return VPU::ArchKind::VPUX311X;
     case MVCNN::TargetDevice::TargetDevice_VPUX37XX:
         return VPU::ArchKind::VPUX37XX;
     default:
@@ -500,7 +499,7 @@ void vpux::VPUIP::BlobReader::buildMainFunc() {
             const auto parser = dispatchIt->second;
 
             auto taskOp = opsBuilder.create<VPURT::TaskOp>(loc, waitBarriers, updateBarriers);
-            auto& block = taskOp.body().emplaceBlock();
+            auto& block = taskOp.getBody().emplaceBlock();
             lastInsertPoint = opsBuilder.saveInsertionPoint();
             opsBuilder.setInsertionPointToStart(&block);
             (this->*parser)(opsBuilder, inputs, outputs, upaTask);
@@ -515,7 +514,7 @@ void vpux::VPUIP::BlobReader::buildMainFunc() {
             outputs.push_back(createTensorOp(opsBuilder, dst));
 
             auto taskOp = opsBuilder.create<VPURT::TaskOp>(loc, waitBarriers, updateBarriers);
-            auto& block = taskOp.body().emplaceBlock();
+            auto& block = taskOp.getBody().emplaceBlock();
             lastInsertPoint = opsBuilder.saveInsertionPoint();
             opsBuilder.setInsertionPointToStart(&block);
 
@@ -563,7 +562,7 @@ void vpux::VPUIP::BlobReader::buildMainFunc() {
             VPUX_THROW_UNLESS(barrierTask, "Unsupported controller task type {0}", controllerTask->task_type());
             VPUX_THROW_UNLESS(barrierTask->target(), "Barrier has no target");
             auto barrier = opsBuilder.create<VPURT::ConfigureBarrierOp>(loc, barrierTask->target()->barrier_id());
-            _barriers.push_back(barrier.barrier());
+            _barriers.push_back(barrier.getBarrier());
         } else {
             VPUX_THROW("Unsupported task type {0}", task->task_type());
         }

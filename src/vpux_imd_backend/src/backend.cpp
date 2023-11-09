@@ -33,7 +33,7 @@ const std::shared_ptr<vpux::IDevice> vpux::IMD::BackendImpl::getDevice(const Inf
 }
 
 const std::vector<std::string> vpux::IMD::BackendImpl::getDeviceNames() const {
-    return {"3720", "3400", "3700", "4000"};
+    return {"3700", "3720", "4000"};
 }
 
 const std::string vpux::IMD::BackendImpl::getName() const {
@@ -46,6 +46,7 @@ void vpux::IMD::BackendImpl::registerOptions(OptionsDesc& options) const {
     options.add<IMD::MV_RUN_TIMEOUT>();
 }
 
-INFERENCE_PLUGIN_API(void) CreateVPUXEngineBackend(std::shared_ptr<vpux::IEngineBackend>& obj) {
+INFERENCE_PLUGIN_API(void)
+CreateVPUXEngineBackend(std::shared_ptr<vpux::IEngineBackend>& obj, const vpux::Config&) {
     obj = std::make_shared<vpux::IMD::BackendImpl>();
 }

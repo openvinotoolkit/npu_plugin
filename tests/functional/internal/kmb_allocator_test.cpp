@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <file_reader.h>
 #include <fstream>
 #include "allocators.hpp"

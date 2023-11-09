@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-// RUN: vpux-opt --init-compiler="vpu-arch=%arch%" %s | FileCheck %s
+// RUN: vpux-opt --init-compiler="vpu-arch=%arch%" %s | FileCheck %s 
 // REQUIRES: arch-VPUX37XX
 
   func.func private @MLIR_VPURegMapped_CreateDpuVariantRegisterAllowOverlapTrue() {

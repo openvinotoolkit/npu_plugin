@@ -33,7 +33,7 @@ mlir::FailureOr<StridedSliceInputData> extractData(VPU::StridedSliceOpAdaptor st
     if (stridedSlice.begins_attr()) {
         auto begins = parseIntArrayAttr<int64_t>(stridedSlice.begins_attr());
         auto ends = parseIntArrayAttr<int64_t>(stridedSlice.ends_attr());
-        auto strides = parseIntArrayAttr<int64_t>(stridedSlice.strides_attr().getValue());
+        auto strides = parseIntArrayAttr<int64_t>(stridedSlice.strides_attr().value());
 
         return StridedSliceInputData{std::move(begins), std::move(ends), std::move(strides)};
     }
@@ -42,7 +42,7 @@ mlir::FailureOr<StridedSliceInputData> extractData(VPU::StridedSliceOpAdaptor st
 }
 
 }  // namespace
-
+// TODO: E-90249 Extend the infer type logic for StridedSlice to support different input / output ranks
 mlir::LogicalResult vpux::VPU::StridedSliceOp::inferReturnTypes(
         mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> optLoc, mlir::ValueRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange /*regions*/,
@@ -72,9 +72,9 @@ mlir::LogicalResult vpux::VPU::StridedSliceOp::inferReturnTypes(
 
     const auto inputData = extractData(slice);
 
-    const auto begins = to_std_vector(inputData.getValue().begins);
-    const auto ends = to_std_vector(inputData.getValue().ends);
-    const auto strides = to_std_vector(inputData.getValue().strides);
+    const auto begins = to_std_vector(inputData.value().begins);
+    const auto ends = to_std_vector(inputData.value().ends);
+    const auto strides = to_std_vector(inputData.value().strides);
 
     const auto beginMask = getAxisSetArr(slice.begin_mask());
     const auto endMask = getAxisSetArr(slice.end_mask());
@@ -92,7 +92,6 @@ mlir::LogicalResult vpux::VPU::StridedSliceOp::inferReturnTypes(
 
     const auto newShape = Shape(shapeI64);
     auto outType = inDataType.changeShape(newShape);
-    outType = outType.changeDimsOrder(DimsOrder::fromNumDims(newShape.size()));
     inferredReturnTypes.push_back(outType);
 
     return mlir::success();
@@ -162,6 +161,6 @@ void vpux::VPU::StridedSliceOp::adjustAttrs(const TilingInfo& inputTiling, const
     begins_attrAttr(newBeginsAttr);
 }
 
-OutputTiling vpux::VPU::StridedSliceOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
+mlir::FailureOr<OutputTiling> vpux::VPU::StridedSliceOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
     return vpux::getSWLayerTilingStrategy(this->getOperation(), tilingMode, log);
 }

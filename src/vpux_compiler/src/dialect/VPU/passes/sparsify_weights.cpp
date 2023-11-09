@@ -50,8 +50,6 @@ void SparsifyWeightsPass::safeRunOnFunc() {
     auto module = getOperation();
     auto& ctx = getContext();
 
-    const auto arch = VPU::getArch(module);
-
     std::unique_ptr<BaseWeightsSparsityStrategy> enablementStrategy;
     if (_heuristic == VPU::WeightsSparsityHeuristic::CMX) {
         _log.trace("Using CMX-based heuristic");
@@ -99,7 +97,7 @@ void SparsifyWeightsPass::safeRunOnFunc() {
             return;
         }
 
-        if (VPU::NCEInvariant::isCompressConvolution(arch, sparsifiableOp)) {
+        if (mlir::isa<vpux::VPU::NCECompressConvolutionOp>(sparsifiableOp)) {
             innerLog.trace("Operation uses the compressed convolution feature. Skipping");
             return;
         }
@@ -116,7 +114,7 @@ void SparsifyWeightsPass::safeRunOnFunc() {
 
         mlir::OpBuilder builder(weightsOp);
 
-        auto weightsContent = weightsOp.contentAttr();
+        auto weightsContent = weightsOp.getContentAttr();
         auto sparsityMapContent = weightsContent.getSparsityMap();
         auto sparsifiedContent = weightsContent.sparsify(false);
 

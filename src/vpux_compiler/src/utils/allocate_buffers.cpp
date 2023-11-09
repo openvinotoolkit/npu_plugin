@@ -25,7 +25,7 @@ SmallVector<mlir::Value> vpux::allocateBuffersOfType(const Logger& log, mlir::Lo
         } else if (auto memref = type.dyn_cast<mlir::MemRefType>()) {
             return builder.create<mlir::memref::AllocOp>(loc, memref).memref();
         } else if (auto distributedBuffer = type.dyn_cast<VPUIP::DistributedBufferType>()) {
-            return builder.create<VPURT::AllocDistributed>(loc, distributedBuffer, nullptr, nullptr).buffer();
+            return builder.create<VPURT::AllocDistributed>(loc, distributedBuffer, nullptr, nullptr).getBuffer();
         }
         VPUX_THROW("Unexpected type to allocate: {0}", type);
     };

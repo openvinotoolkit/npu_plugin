@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache 2.0
 #
 
-#
-
 if(ENABLE_LTO)
     ie_enable_lto()
 endif()
@@ -40,7 +38,7 @@ link_system_libraries(${TARGET_NAME}
     PRIVATE
         IE::inference_engine_plugin_api
     PUBLIC
-        vpux_utils
+        npu_utils
 )
 
 if (NOT BUILD_SHARED_LIBS)

@@ -48,7 +48,7 @@ mlir::LogicalResult GenericConverter::matchAndRewrite(mlir::Operation* postOp, m
     if (!producerOp.isSupportedPostOp(postOp)) {
         return matchFailed(_log, rewriter, postOp, "PostOp producer does not support post-processing for current case");
     }
-    if (producerOp.getPostOp().hasValue()) {
+    if (producerOp.getPostOp().has_value()) {
         return matchFailed(_log, rewriter, postOp, "PostOp producer already has post-processing '{0}'",
                            producerOp.getPostOp());
     }

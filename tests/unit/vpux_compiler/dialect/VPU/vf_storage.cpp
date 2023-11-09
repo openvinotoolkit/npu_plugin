@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -7,7 +7,8 @@
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/types.hpp"
 #include "vpux/compiler/dialect/VPU/vertical_fusion_storage.hpp"
-#include "vpux/compiler/init.hpp"
+
+#include "common/utils.hpp"
 
 #include "vpux/utils/core/small_vector.hpp"
 
@@ -20,10 +21,9 @@ using namespace vpux;
 
 using VFTilingStorage = VPU::VFContainer<size_t, TileInfo>;
 
-TEST(MLIR_VPU_VFStorage, VF_Container_Insert) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
+using MLIR_VPU_VFStorage = MLIR_UnitBase;
 
+TEST_F(MLIR_VPU_VFStorage, VF_Container_Insert) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPU::VPUDialect>();
 
@@ -44,21 +44,18 @@ TEST(MLIR_VPU_VFStorage, VF_Container_Insert) {
 
     // check that between two elements for same argument
     // for same VF tiles, max element was chosen
-    EXPECT_TRUE(storage.get(0, 0).hasValue());
-    EXPECT_EQ(storage.get(0, 0).getValue(), tileMore0);
+    EXPECT_TRUE(storage.get(0, 0).has_value());
+    EXPECT_EQ(storage.get(0, 0).value(), tileMore0);
 
     // check that element for VF tile 1 was found too
-    EXPECT_TRUE(storage.get(0, 1).hasValue());
-    EXPECT_EQ(storage.get(0, 1).getValue(), tile1);
+    EXPECT_TRUE(storage.get(0, 1).has_value());
+    EXPECT_EQ(storage.get(0, 1).value(), tile1);
 
     // check that there is no elements for VF tile 2
-    EXPECT_FALSE(storage.get(0, 2).hasValue());
+    EXPECT_FALSE(storage.get(0, 2).has_value());
 }
 
-TEST(MLIR_VPU_VFStorage, VF_Container_Merge) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
+TEST_F(MLIR_VPU_VFStorage, VF_Container_Merge) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPU::VPUDialect>();
 
@@ -85,13 +82,13 @@ TEST(MLIR_VPU_VFStorage, VF_Container_Merge) {
 
     // check that between two elements for same argument
     // for same VF tiles, max element was chosen
-    EXPECT_TRUE(dst.get(0, 0).hasValue());
-    EXPECT_EQ(dst.get(0, 0).getValue(), tileMore0);
+    EXPECT_TRUE(dst.get(0, 0).has_value());
+    EXPECT_EQ(dst.get(0, 0).value(), tileMore0);
 
     // check that element for VF tile 1 was found too
-    EXPECT_TRUE(dst.get(0, 1).hasValue());
-    EXPECT_EQ(dst.get(0, 1).getValue(), tile1);
+    EXPECT_TRUE(dst.get(0, 1).has_value());
+    EXPECT_EQ(dst.get(0, 1).value(), tile1);
 
     // check that there is no elements for VF tile 2
-    EXPECT_FALSE(dst.get(0, 2).hasValue());
+    EXPECT_FALSE(dst.get(0, 2).has_value());
 }

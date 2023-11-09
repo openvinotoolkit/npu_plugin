@@ -47,8 +47,8 @@ void insertCaptureDma(mlir::OpBuilder& builder, int64_t profOutputId, size_t dst
     const auto port = 0;
     // Since the payload is copied into the final destination is DDR no barriers needed, so may be inserted anywhere in
     // the network without barriers setup
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(builder, /*waitBarriers=*/{}, /*updateBarriers=*/{}, loc, hwRegOp.buffer(),
-                                          dstBufProfResultOp.buffer(), port, /*is_out_of_order=*/true,
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(builder, /*waitBarriers=*/{}, /*updateBarriers=*/{}, loc, hwRegOp.getBuffer(),
+                                          dstBufProfResultOp.getBuffer(), port, /*is_out_of_order=*/true,
                                           /*is_critical=*/false, /*spillId=*/nullptr);
 }
 
@@ -56,7 +56,7 @@ void CaptureWorkpointPass::safeRunOnModule() {
     auto module = getOperation();
     auto* ctx = module->getContext();
     const auto arch = VPU::getArch(module);
-    VPUX_THROW_UNLESS(arch == VPU::ArchKind::VPUX37XX, "Capture of workpoint available only for VPUX37XX");
+    VPUX_THROW_UNLESS(arch == VPU::ArchKind::VPUX37XX, "Profiling workpoint capture not available");
 
     IE::CNNNetworkOp netOp;
     mlir::func::FuncOp func;
@@ -64,10 +64,10 @@ void CaptureWorkpointPass::safeRunOnModule() {
     mlir::OpBuilder builder(&func.getBody().front().front());
 
     const auto profOutputId = static_cast<int64_t>(netOp.getProfilingOutputsCount());
-    const auto outputResult = mlir::MemRefType::get({VPUIP::NUM_CAPTURED_WORKPOINTS}, getUInt32Type(ctx));
+    const auto outputResult = mlir::MemRefType::get({vpux::WORKPOINT_BUFFER_SIZE / 4}, getUInt32Type(ctx));
 
     // Update network output information to have also new pll profiling result
-    auto profilingResult = addNewProfilingOutput(ctx, func, netOp, outputResult, "pll");
+    auto profilingResult = addNewProfilingOutput(ctx, func, netOp, outputResult, profiling::ExecutorType::WORKPOINT);
     auto returnOp = mlir::dyn_cast_or_null<mlir::func::ReturnOp>(func.getBody().front().getTerminator());
     VPUX_THROW_UNLESS(returnOp != nullptr, "No ReturnOp was found");
     builder.setInsertionPoint(returnOp);

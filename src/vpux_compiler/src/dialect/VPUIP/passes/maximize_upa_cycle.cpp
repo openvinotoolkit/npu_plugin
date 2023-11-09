@@ -24,12 +24,12 @@ private:
 };
 
 class CycleComparator {
-    std::function<size_t(mlir::async::ExecuteOp)> _cycleGetter;
     AsyncDepsInfo& _depsInfo;
+    std::function<size_t(mlir::async::ExecuteOp)> _cycleGetter;
 
 public:
-    CycleComparator(AsyncDepsInfo& depsInfo, std::function<size_t(mlir::async::ExecuteOp)> func): _depsInfo(depsInfo) {
-        _cycleGetter = func;
+    CycleComparator(AsyncDepsInfo& depsInfo, std::function<size_t(mlir::async::ExecuteOp)> func)
+            : _depsInfo(depsInfo), _cycleGetter(std::move(func)) {
     }
     bool operator()(size_t opIndex1, size_t opIndex2) const {
         auto execOp1 = _depsInfo.getExecuteOpAtIndex(opIndex1);

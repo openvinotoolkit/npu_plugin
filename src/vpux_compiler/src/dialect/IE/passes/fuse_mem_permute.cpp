@@ -41,67 +41,43 @@ mlir::LogicalResult MemPermuteRewriter::matchAndRewrite(IE::MemPermuteOp origOp,
                                                         mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got '{1}' at '{2}'", getDebugName(), origOp->getName(), origOp->getLoc());
 
-    // Check that reorder is not applied to sub-byte element types:
-    const auto elemType = origOp.input().getType().cast<vpux::NDTypeInterface>();
-    const Bit elemSize = vpux::getElemTypeSize(elemType);
-    if (elemSize.count() < CHAR_BIT) {
-        return matchFailed(_log.nest(), rewriter, origOp, "ODU permutation does not apply to sub-byte types. Got {0}",
-                           elemType);
-    }
-
-    // Check that permutation is supported by ODU
-    const auto outOrder = DimsOrder::fromValue(origOp.output());
-    const std::array<DimsOrder, 6> supportedOrders = {
-            DimsOrder::NCHW, DimsOrder::NCWH, DimsOrder::NHCW, DimsOrder::NHWC, DimsOrder::NWCH, DimsOrder::NWHC,
-    };
-    const auto isOutOrder = [&](const DimsOrder supported) -> bool {
-        return supported == outOrder;
-    };
-    if (std::none_of(supportedOrders.cbegin(), supportedOrders.cend(), isOutOrder)) {
-        return matchFailed(_log.nest(), rewriter, origOp, "ODU permutation does not support {0}", outOrder);
-    }
-
     const auto inOrder = DimsOrder::fromValue(origOp.input());
     const auto inShape = getShape(origOp.input());
     const auto inMemShape = inOrder.toMemoryOrder(inShape);
     if (isTrivialPermute(inMemShape, origOp.mem_perm())) {
-        return matchFailed(_log.nest(), rewriter, origOp, "ReorderOp is actually a permute cast");
+        return matchFailed(_log.nest(), rewriter, origOp, "MemPermuteOp is actually a permute cast");
     }
 
-    auto maybeNCEOp = origOp.input().getDefiningOp();
-    if (maybeNCEOp == nullptr) {
-        return matchFailed(_log.nest(), rewriter, origOp, "ReorderOp does not have defining operation");
+    auto layerWithPermute = origOp.input().getDefiningOp<IE::LayerWithPermuteInterface>();
+    if (layerWithPermute == nullptr) {
+        return matchFailed(_log.nest(), rewriter, origOp, "MemPermuteRewriter applies for NCE tasks");
     }
 
-    // TODO: Remove this as part of E#72884
-    if (mlir::isa<IE::MultiplyOp, IE::SubtractOp, IE::AndOp>(maybeNCEOp)) {
-        return matchFailed(_log.nest(), rewriter, origOp, "ReorderRewriter applies only for NCE tasks");
+    if (!layerWithPermute.isSupportedPermutation(origOp)) {
+        return matchFailed(_log.nest(), rewriter, origOp, "ODU permutation does not support {0} at {1}",
+                           origOp->getName(), origOp->getLoc());
     }
 
-    if (VPUIP::NCEInvariant::verifyKernel(maybeNCEOp, _log).failed()) {
-        return matchFailed(_log.nest(), rewriter, origOp, "ReorderRewriter applies for NCE tasks");
-    }
-
-    if (!maybeNCEOp->getResult(0).hasOneUse()) {
+    if (!layerWithPermute->getResult(0).hasOneUse()) {
         return matchFailed(_log.nest(), rewriter, origOp,
                            "ReorderRewriter applies only for NCE tasks with one consumer");
     }
 
-    auto output = maybeNCEOp->getResult(0);
+    auto output = layerWithPermute->getResult(0);
     const auto origType = output.getType().cast<vpux::NDTypeInterface>();
     if (origType == nullptr) {
         return matchFailed(_log.nest(), rewriter, origOp, "NCE task does not implement vpux::NDTypeInterface");
     }
 
     const auto newType = composeType(origType, inOrder, origOp.mem_perm());
-    maybeNCEOp->getResult(0).setType(newType);
+    layerWithPermute->getResult(0).setType(newType);
 
     auto ctx = rewriter.getContext();
     const auto orderInAttr = mlir::AffineMapAttr::get(DimsOrder::fromValue(origOp.output()).toAffineMap(ctx));
     auto outLayoutCast =
-            rewriter.createOrFold<IE::LayoutCastOp>(origOp.getLoc(), maybeNCEOp->getResult(0), orderInAttr);
+            rewriter.createOrFold<IE::LayoutCastOp>(origOp.getLoc(), layerWithPermute->getResult(0), orderInAttr);
 
-    _log.trace("Fuse {0} to {1}", origOp->getLoc(), maybeNCEOp->getLoc());
+    _log.trace("Fuse {0} to {1}", origOp->getLoc(), layerWithPermute->getLoc());
 
     const auto targetShape = getShape(origOp.output()).raw();
     auto reshapedOut = rewriter.createOrFold<IE::ShapeCastOp>(origOp.getLoc(), origOp.getType(), outLayoutCast,

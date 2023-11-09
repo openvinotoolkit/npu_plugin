@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <mlir/IR/DialectImplementation.h>
+#include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/Types.h>
 
 //
@@ -13,5 +13,5 @@
 //
 
 #define GET_TYPEDEF_CLASSES
-#include <vpux/compiler/dialect/ELF/generated/types.hpp.inc>
+#include <vpux/compiler/dialect/ELF/types.hpp.inc>
 #undef GET_TYPEDEF_CLASSES

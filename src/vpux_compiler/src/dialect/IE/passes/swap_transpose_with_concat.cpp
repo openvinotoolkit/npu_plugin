@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -55,7 +55,7 @@ private:
     Logger _log;
 };
 
-void updateConcatAttributes(IE::ConcatAttrs& axisAttr, mlir::ArrayAttr& staticOffsets, mlir::AffineMap permutation,
+void updateConcatAttributes(IE::ConcatAttr& axisAttr, mlir::ArrayAttr& staticOffsets, mlir::AffineMap permutation,
                             DimsOrder inOrder) {
     VPUX_THROW_UNLESS(permutation.isPermutation(), "Incorrect permutation");
 
@@ -63,13 +63,13 @@ void updateConcatAttributes(IE::ConcatAttrs& axisAttr, mlir::ArrayAttr& staticOf
     const auto dimsPermutation = order.toPermutation();
 
     if (axisAttr != nullptr) {
-        const auto oldAxis = axisAttr.axis().getValue().getSExtValue();
+        const auto oldAxis = axisAttr.getAxis().getValue().getSExtValue();
 
         VPUX_THROW_UNLESS(permutation.getNumDims() > oldAxis, "Incorrect permutation");
 
         auto newAxis = dimsPermutation[oldAxis];
-        axisAttr = IE::ConcatAttrs::get(getIntAttr(permutation.getContext(), newAxis.ind()), axisAttr.offset(),
-                                        axisAttr.stride(), permutation.getContext());
+        axisAttr = IE::ConcatAttr::get(permutation.getContext(), getIntAttr(permutation.getContext(), newAxis.ind()),
+                                       axisAttr.getOffset(), axisAttr.getStride());
     } else if (staticOffsets != nullptr) {
         const auto oldOffsets = parseIntArrayOfArrayAttr<int64_t>(staticOffsets);
         SmallVector<SmallVector<int64_t>> newOffsets;

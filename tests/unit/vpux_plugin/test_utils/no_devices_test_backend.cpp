@@ -37,6 +37,6 @@ public:
 }  // namespace vpux
 
 INFERENCE_PLUGIN_API(void)
-CreateVPUXEngineBackend(std::shared_ptr<vpux::IEngineBackend>& backend) {
+CreateVPUXEngineBackend(std::shared_ptr<vpux::IEngineBackend>& backend, const vpux::Config&) {
     backend = std::make_shared<vpux::NoDevicesTestBackend>();
 }

@@ -4,6 +4,7 @@
 //
 
 #include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPU/utils/sw_utils.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
 
 using namespace vpux;
@@ -27,26 +28,6 @@ mlir::LogicalResult vpux::VPU::DequantizeOp::inferReturnTypes(mlir::MLIRContext*
     inferredReturnTypes.push_back(outType);
 
     return mlir::success();
-}
-
-void vpux::VPU::DequantizeOp::inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) {
-    const auto inType = origOp->getOperand(0).getType().cast<vpux::NDTypeInterface>().getElementType();
-
-    const auto qType = inType.cast<mlir::quant::QuantizedType>();
-
-    if (qType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
-        const auto numDims = info.getInput(0).numDims();
-        if (numDims == 3) {
-            info.fill(DimsOrder::HWC);
-        } else if (numDims == 4) {
-            info.fill(DimsOrder::NHWC);
-        } else {
-            VPUX_THROW("Unsupported rank '{0}'", numDims);
-        }
-    } else {
-        VPU::inferLayoutInfoSameInOutSpecificDimsOrder(
-                info, {DimsOrder::CHW, DimsOrder::HWC, DimsOrder::NCHW, DimsOrder::NHWC});
-    }
 }
 
 //

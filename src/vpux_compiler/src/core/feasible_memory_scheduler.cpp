@@ -44,7 +44,7 @@ FeasibleMemoryScheduler::FeasibleMemoryScheduler(VPU::MemoryKind memKind, MemLiv
           _aliasInfo(aliasInfo),
           _scan(scan),
           _archKind(arch),
-          _costModel(costModel),
+          _costModel(std::move(costModel)),
           _nceClusterCount(nceClusterCount),
           _enableScheduleStatistics(enableScheduleStatistics) {
     _log.setName("feasible-memory-scheduler-allocator");
@@ -145,7 +145,7 @@ VPU::ExecutorKind FeasibleMemoryScheduler::getExecutorType(operationIdxType opId
 // multiple ports
 bool areMultipleDmaPortsNeeded(mlir::Value buffer) {
     if (auto distType = buffer.getType().dyn_cast<VPUIP::DistributedBufferType>()) {
-        auto mode = distType.getDistribution().mode().getValue();
+        auto mode = distType.getDistribution().getMode().getValue();
         if (mode == VPU::DistributionMode::SEGMENTED || mode == VPU::DistributionMode::OVERLAPPED) {
             return true;
         }
@@ -266,7 +266,7 @@ FeasibleMemoryScheduler::ExecutorAndCycleType FeasibleMemoryScheduler::getCurren
     for (auto& dep : _depsInfo.getOpDeps(opIdx)) {
         earliestBeginCycle = std::max(earliestBeginCycle, getOperationEndCycle(dep, earliestBeginCycle));
     }
-    return ExecutorAndCycleType{executor, executorInstanceMask, earliestBeginCycle};
+    return ExecutorAndCycleType{executor, std::move(executorInstanceMask), earliestBeginCycle};
 }
 
 FeasibleMemoryScheduler::ExecutorAndCycleType FeasibleMemoryScheduler::getCurrentCycleAndExecutorInstanceMaskForSpill(
@@ -872,7 +872,7 @@ void FeasibleMemoryScheduler::allocatePrefetchOps(operationIdxType opIdx, size_t
                             _scan.handler().markAsAlive(prefetchDMA.buffer_);
                             scheduleSpilledOpBuffer(prefetchDMA.opIdx_, &prefetchDMA.buffer_);
                         }
-                        buffersNeedingAllocation = buffersPlusCurrentPrefetch;
+                        buffersNeedingAllocation = std::move(buffersPlusCurrentPrefetch);
                         ++prefetchCount;
                     }
                 }
@@ -902,7 +902,7 @@ void FeasibleMemoryScheduler::allocatePrefetchOps(operationIdxType opIdx, size_t
                     newPrefetchDataOps.insert(prefetchDMA);
                 }
             }
-            prefetchFront->dataOps = newPrefetchDataOps;
+            prefetchFront->dataOps = std::move(newPrefetchDataOps);
         }
 
         // if candidates were not prefetched during the current compute op due to
@@ -1215,7 +1215,7 @@ size_t FeasibleMemoryScheduler::getOpBufferOutputIdx(operationIdxType opIdx, mli
 }
 
 FeasibleMemoryScheduler::EvictionCandidate FeasibleMemoryScheduler::chooseCandidateForEviction(
-        mlir::DenseSet<mlir::Value> aliveBuffers) {
+        const mlir::DenseSet<mlir::Value>& aliveBuffers) {
     // sort buffers using eviction priority
     std::set<EvictionCandidate, EvictionPriority> evictionCandidates;
     for (const auto& buffer : aliveBuffers) {
@@ -1486,8 +1486,8 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
     ScheduledOpInfo scheduled;
     scheduled.op_ = scheduledOp.op_;
     scheduled.opType_ = scheduledOp.opType_;
-    scheduled.outputResourceInfo_ = outputIntervals;
-    scheduled.inputResourceInfo_ = inputIntervals;
+    scheduled.outputResourceInfo_ = std::move(outputIntervals);
+    scheduled.inputResourceInfo_ = std::move(inputIntervals);
     scheduled.cycleBegin_ = scheduledOp.cycleBegin_;
     scheduled.cycleEnd_ = scheduledOp.cycleEnd_;
     scheduled.isDataOp_ = isDataOp(scheduledOp.op_);
@@ -1667,7 +1667,7 @@ void FeasibleMemoryScheduler::cleanUpAndLogSchedule() {
 }
 
 FeasibleMemoryScheduler::ScheduledOpInfoVec FeasibleMemoryScheduler::generateSchedule(
-        scheduleWithPrefetch prefetchSchedule) {
+        const scheduleWithPrefetch& prefetchSchedule) {
     // iteration with prefetch edges
     if (!prefetchSchedule.empty()) {
         _scan.handler().markAllBuffersAsDead();

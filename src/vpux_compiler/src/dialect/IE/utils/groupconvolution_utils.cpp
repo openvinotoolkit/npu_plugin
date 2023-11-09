@@ -4,6 +4,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/utils/groupconvolution_utils.hpp"
+#include "vpux/compiler/dialect/IE/utils/const_attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/utils/core/logger.hpp"
 
@@ -43,26 +44,24 @@ mlir::LogicalResult canConvertGroupConvToConv(IE::GroupConvolutionOp groupconv) 
         return mlir::failure();
     }
 
-    const auto arch = vpux::VPU::getArch(groupconv.getOperation());
     const auto group = groupconv.groups().value();
     const auto filterShape = getShape(groupconv.filter());
-    const auto OC = filterShape[Dims4D::Filter::OC] / group;
-    const auto IC = filterShape[Dims4D::Filter::IC];
-    const auto KY = filterShape[Dims4D::Filter::KY];
-    const auto KX = filterShape[Dims4D::Filter::KX];
-    const auto alignment = VPU::NCEInvariant::getAlignment(outputType.getElementType());
-
-    // Currently groupconv is only allowed to be converted if the resulting conv is channel-aligned
-    // TODO: More precise condition should be used to determine whether groupconv should run on NCE or on SHAVE
-    //       Possible factors: input/ouput size, channel alignment, arch, etc
-    if (OC % alignment != 0 || IC % alignment != 0) {
-        logCb(formatv("Converted convolutions' channels are not aligned: IC {0}, OC {1}", IC, OC));
+    if (filterShape[Dims4D::Filter::OC] == group) {
+        logCb(formatv("Conversion is not needed for dw conv"));
         return mlir::failure();
     }
 
-    const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(groupconv.strides()));
-    const auto SY = kernelStrides[Dims4D::Strides::Y];
-    const auto SX = kernelStrides[Dims4D::Strides::X];
+    // Channel alignment is not checked here because experiments show that NCE is still able to provide better
+    // performance than SHAVE even if channel expand is done.
+
+    const auto arch = vpux::VPU::getArch(groupconv.getOperation());
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
+
+    const auto kernelStrides = parseIntArrayAttr<int64_t>(groupconv.strides());
+    const auto kernelStridesShape = Shape(kernelStrides);
+    const auto SY = kernelStridesShape[Dims4D::Strides::Y];
+    const auto SX = kernelStridesShape[Dims4D::Strides::X];
     const auto pads = PadInfo(groupconv.pads_begin(), groupconv.pads_end());
     if (!VPU::NCEInvariant::isAttrsSupported(arch, KY, KX, SY, SX, pads.top, pads.bottom, pads.left, pads.right,
                                              logCb)) {
@@ -70,6 +69,33 @@ mlir::LogicalResult canConvertGroupConvToConv(IE::GroupConvolutionOp groupconv) 
     }
 
     return mlir::success();
+}
+
+bool groupConvIsEltwise(IE::GroupConvolutionOp convOp) {
+    // check kernel size is 1x1
+    auto filterShape = getShape(convOp.filter());
+    if (filterShape[Dims4D::Filter::KX] != 1 || filterShape[Dims4D::Filter::KX] != 1 ||
+        filterShape[Dims4D::Filter::OC] != convOp.groups().getValue()) {
+        return false;
+    }
+    // if there is stride > 1, it can not consider to be an eltwise op
+    const auto greaterThanOne = [](auto stride) {
+        return stride > 1;
+    };
+    auto stridesGreaterThanOne = llvm::any_of(parseIntArrayAttr<int64_t>(convOp.strides()), greaterThanOne);
+    if (stridesGreaterThanOne) {
+        return false;
+    }
+    // check input const is single data or not
+    mlir::SmallVector<Const::DeclareOp> constInputOps;
+    constInputOps.push_back(convOp.filter().getDefiningOp<Const::DeclareOp>());
+    if (convOp.bias()) {
+        constInputOps.push_back(convOp.bias().getDefiningOp<Const::DeclareOp>());
+    }
+    return llvm::all_of(constInputOps, [](Const::DeclareOp constOp) {
+        auto realDataSizeResult = getBaseContentNumElements(constOp);
+        return mlir::succeeded(realDataSizeResult) && realDataSizeResult.value() == 1;
+    });
 }
 }  // namespace IE
 }  // namespace vpux

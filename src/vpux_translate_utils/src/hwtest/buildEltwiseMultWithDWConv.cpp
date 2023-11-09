@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <climits>
 #include <numeric>
 
@@ -207,8 +205,8 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     // Barriers
     auto barrier0 = funcbuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 0);
     auto barrier1 = funcbuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 1);
-    auto BARRIER_0 = barrier0.barrier();
-    auto BARRIER_1 = barrier1.barrier();
+    auto BARRIER_0 = barrier0.getBarrier();
+    auto BARRIER_1 = barrier1.getBarrier();
 
     auto wt_data_vals = generateZeroPadForEltwiseMultWeights(zero_pad_shape, weightsType, ctx);
     auto wt_data_attr = Const::ContentAttr::get(wt_data_vals);
@@ -347,8 +345,7 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
 
     // Runtime resources
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, None,
-                                           log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, log));
 
     // Compile
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");

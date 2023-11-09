@@ -7,6 +7,7 @@
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
@@ -88,17 +89,6 @@ private:
     Logger _log;
 };
 
-static inline Const::DeclareOp declareFloatConst(mlir::Location loc, float val, mlir::RankedTensorType argType,
-                                                 mlir::PatternRewriter& rewriter) {
-    const auto denseElementVal = wrapData(argType, val);
-    // Must never fail, given the 'RankedTensorOf<[F16, F32]>:$input,' declaration.
-    VPUX_THROW_UNLESS(denseElementVal != nullptr,
-                      "Average pool has incompatible data type {0}, only float16 or float32 are supported",
-                      argType.getElementType());
-
-    return rewriter.create<Const::DeclareOp>(loc, argType, Const::ContentAttr::get(denseElementVal));
-}
-
 bool ConvertAvgPoolToDWConvPass::AvgPoolOpConverter::isAvgPoolQuantized(IE::AvgPoolOp& origOp) const {
     const mlir::Operation* inputOp = origOp.input().getDefiningOp();
     if (inputOp == nullptr) {
@@ -130,8 +120,8 @@ mlir::LogicalResult ConvertAvgPoolToDWConvPass::AvgPoolOpConverter::matchAndRewr
 
     const bool isAvgPoolQuantizedVal = isAvgPoolQuantized(origOp);
     const float weightRealVal = (isAvgPoolQuantizedVal) ? 1.0f : weightsScaleFactor;
-    auto dwConvFilter = declareFloatConst(location, weightRealVal, dataStorageType, rewriter);
-    auto weights = dwConvFilter.output();
+    auto dwConvFilter = VPU::declareFloatConst(rewriter, location, weightRealVal, dataStorageType);
+    auto weights = dwConvFilter.getOutput();
 
     if (isAvgPoolQuantizedVal) {
         _log.trace("AvgPool is quantized, replacing it by DW convolution with quantized weights.");
@@ -139,15 +129,15 @@ mlir::LogicalResult ConvertAvgPoolToDWConvPass::AvgPoolOpConverter::matchAndRewr
         const auto fqArgType = mlir::RankedTensorType::get({}, elemType);
 
         auto fqLevelsVal = getIntAttr(ctx, 255);
-        auto fqLowVal = declareFloatConst(location, 0.0f, fqArgType, rewriter);
-        auto fqInHighVal = declareFloatConst(location, 254.0f, fqArgType, rewriter);
-        auto fqOutHighVal = declareFloatConst(location, 254.0f * weightsScaleFactor, fqArgType, rewriter);
+        auto fqLowVal = VPU::declareFloatConst(rewriter, location, 0.0f, fqArgType);
+        auto fqInHighVal = VPU::declareFloatConst(rewriter, location, 254.0f, fqArgType);
+        auto fqOutHighVal = VPU::declareFloatConst(rewriter, location, 254.0f * weightsScaleFactor, fqArgType);
 
         IE::FakeQuantizeOp inputLayerFQ = origOp.input().getDefiningOp<IE::FakeQuantizeOp>();
 
         IE::FakeQuantizeOp quantizationForWeights = rewriter.create<IE::FakeQuantizeOp>(
-                origOp.getLoc(), dataStorageType, dwConvFilter.output(), fqLowVal, fqInHighVal, fqLowVal, fqOutHighVal,
-                fqLevelsVal, inputLayerFQ.auto_broadcastAttr());
+                origOp.getLoc(), dataStorageType, dwConvFilter.getOutput(), fqLowVal, fqInHighVal, fqLowVal,
+                fqOutHighVal, fqLevelsVal, inputLayerFQ.auto_broadcastAttr());
         weights = quantizationForWeights.output();
     }
 

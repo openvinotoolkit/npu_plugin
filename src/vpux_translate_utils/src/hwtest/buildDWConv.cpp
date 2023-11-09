@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <numeric>
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
@@ -30,7 +28,7 @@ unsigned round_up(unsigned x, unsigned mult) {
     return ((x + mult - 1) / mult) * mult;
 }
 
-SmallVector<int64_t> getWeightsPaddedShape(SmallVector<int64_t> wt_shape) {
+SmallVector<int64_t> getWeightsPaddedShape(ArrayRef<int64_t> wt_shape) {
     auto kernelWidth = wt_shape[3];
     auto kernelHeight = wt_shape[2];
 
@@ -46,8 +44,7 @@ SmallVector<int64_t> getWeightsPaddedShape(SmallVector<int64_t> wt_shape) {
 
     auto weightSetDimensionPadded = round_up(static_cast<unsigned int>(weightSetDimension), 16);
 
-    SmallVector<int64_t> wt_shape_padded({outputChannels, 1, 1, weightSetDimensionPadded});
-    return wt_shape_padded;
+    return SmallVector<int64_t>{outputChannels, 1, 1, weightSetDimensionPadded};
 }
 
 void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
@@ -109,7 +106,7 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     auto funcoutput = func.getArgument(1);
 
     // weights data
-    auto wt_data_shape_padded = getWeightsPaddedShape(wt_data_shape);
+    auto wt_data_shape_padded = getWeightsPaddedShape(makeArrayRef(wt_data_shape));
     auto weightData_ddr_type =
             getMemRefType(VPURT::BufferSection::Constant, wt_data_shape_padded, weightsType, DimsOrder::NHWC);
 
@@ -151,11 +148,12 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     auto barrier1 = funcbuilder.create<VPURT::ConfigureBarrierOp>(loc, 1);
 
     // DMAs
-    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
-                                                loc, funcinput, inputcmx.getOperation()->getResult(0));
-    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
-                                                loc, weight_data_ddr.getOperation()->getResult(0),
-                                                wtData_cmx.getOperation()->getResult(0));
+    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(),
+                                                mlir::ValueRange(barrier0.getBarrier()), loc, funcinput,
+                                                inputcmx.getOperation()->getResult(0));
+    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
+            funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()), loc,
+            weight_data_ddr.getOperation()->getResult(0), wtData_cmx.getOperation()->getResult(0));
 
     // Activation Window ddr
     const auto bitPatternSize = VPU::NCESparsity::getBitPatternSize(
@@ -194,9 +192,9 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
                                   /*data idx=*/ACTIVATIONWINDOW_CMX_OFFSET);
 
     // activation window dma ddr->cmx
-    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
-                                                loc, activationWindow_ddr.getOperation()->getResult(0),
-                                                actWindow_cmx.getOperation()->getResult(0));
+    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
+            funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()), loc,
+            activationWindow_ddr.getOperation()->getResult(0), actWindow_cmx.getOperation()->getResult(0));
 
     // weights table ddr tensor
     auto weights_outChannel = wtData_cmx_type.getShape()[0];
@@ -239,9 +237,9 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
                                   /*data idx=*/WEIGHTSTABLE_CMX_OFFSET);
 
     // weights table dma ddr->cmx
-    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
-                                                loc, weightTbl_data_ddr.getOperation()->getResult(0),
-                                                wtTbl_cmx.getOperation()->getResult(0));
+    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
+            funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()), loc,
+            weightTbl_data_ddr.getOperation()->getResult(0), wtTbl_cmx.getOperation()->getResult(0));
 
     // NCE Task
     auto filtersize = getIntArrayAttr(builder, filter_size);
@@ -250,7 +248,7 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
                                               padding_vec[PAD_NCETASK_TOP], padding_vec[PAD_NCETASK_BOTTOM]);
 
     auto nceTask = vpux::VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
-            funcbuilder, mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()), loc,
+            funcbuilder, mlir::ValueRange(barrier0.getBarrier()), mlir::ValueRange(barrier1.getBarrier()), loc,
             outputcmx_type, inputcmx.getOperation()->getResult(0), wtData_cmx.getOperation()->getResult(0),
             wtTbl_cmx.getOperation()->getResult(0), /*instruction_table_list*/ nullptr,
             actWindow_cmx.getOperation()->getResult(0), parent_inputcmx.getOperation()->getResult(0),
@@ -284,16 +282,16 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
 
     nceTask.addDPUTask(funcbuilder, start, outEnd, start, inEnd, pad, VPU::MPEMode::CUBOID_8x16);
 
-    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(),
-                                                loc, outputcmx.getOperation()->getResult(0), funcoutput);
+    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.getBarrier()),
+                                                mlir::ValueRange(), loc, outputcmx.getOperation()->getResult(0),
+                                                funcoutput);
 
     // TODO : return empty as func does not return anything
     /* auto returnOp = */ funcbuilder.create<mlir::func::ReturnOp>(builder.getUnknownLoc(), funcoutput);
 
     // set runtime resources
     mlir::PassManager pm(builder.getContext(), mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, None,
-                                           log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 

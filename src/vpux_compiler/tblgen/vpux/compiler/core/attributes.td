@@ -34,4 +34,24 @@ def IndexedSymbolAttr :
     let constBuilderCall = "$0";
 }
 
+def TensorAttr :
+        Attr<
+            CPred<"$_self.isa<vpux::TensorAttr>()">,
+            "Symbol name with optional index"
+        > {
+    let storageType = "vpux::TensorAttr";
+    let returnType = "vpux::TensorAttr";
+    let convertFromStorage = "$_self";
+    let constBuilderCall = "$0";
+}
+
+def UI6 : UI<6>;
+
+def UI6Attr  : TypedUnsignedIntegerAttrBase<
+    UI6,  "uint8_t",  "6-bit unsigned integer attribute">;
+
+def UI6ArrayAttr : TypedArrayAttrBase<UI6Attr,
+                                      "Unsigned 6-bit integer array attribute">;
+
+
 #endif

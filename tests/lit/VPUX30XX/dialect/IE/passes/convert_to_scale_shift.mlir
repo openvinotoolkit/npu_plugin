@@ -217,3 +217,19 @@ func.func @NoConvertMultiplyToScaleShift(%arg0: tensor<1x3x300x300xsi32>) -> ten
     // CHECK:       %[[VAL0:.*]] = IE.Multiply(%arg0, %[[WEIGHTS]]) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>} : tensor<1x3x300x300xsi32>, tensor<1x3x1x1xsi32> -> tensor<1x3x300x300xsi32>
     // CHECK:       return %[[VAL0]]
 }
+
+// -----
+
+// CHECK-LABEL: @NoConvertMultiplyToScaleShiftWithInconsistentActShape
+func.func @NoConvertMultiplyToScaleShiftWithInconsistentActShape(%arg0: tensor<1x256x1x1xf16>) -> tensor<1x256x1x768xf16> {
+    %weights = const.Declare tensor<1x1x1x768xf16> = dense<3.0> : tensor<1x1x1x768xf16>
+    %0 = IE.Multiply(%arg0, %weights)
+        { auto_broadcast = #IE.auto_broadcast_type<NUMPY> } :
+        tensor<1x256x1x1xf16>, tensor<1x1x1x768xf16> -> tensor<1x256x1x768xf16>
+
+    return %0 : tensor<1x256x1x768xf16>
+
+    // CHECK-DAG:       %[[WEIGHTS:.*]] = const.Declare tensor<1x1x1x768xf16> = dense<3.000000e+00> : tensor<1x1x1x768xf16>
+    // CHECK:       %[[VAL0:.*]] = IE.Multiply(%arg0, %[[WEIGHTS]]) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>} : tensor<1x256x1x1xf16>, tensor<1x1x1x768xf16> -> tensor<1x256x1x768xf16>
+    // CHECK:       return %[[VAL0]]
+}

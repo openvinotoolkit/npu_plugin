@@ -117,5 +117,11 @@ private:
 VPU::MultiClusterStrategy getDefaultLayerStrategy(VPU::ClusteredOpInterface clusteredOp,
                                                   BaseLayerStrategy::Ptr layerStrategy);
 
+bool doesLayerFitIntoCMX(VPU::ClusteredOpInterface clusterOp, VPU::MultiClusterStrategy strategy, Byte reservedMem,
+                         Logger log);
+
+bool isStrategyCompatibleShape(VPU::ClusteredOpInterface clusteredOp, ShapeRef shape,
+                               VPU::MultiClusterStrategy strategy, Logger log);
+
 }  // namespace VPU
 }  // namespace vpux

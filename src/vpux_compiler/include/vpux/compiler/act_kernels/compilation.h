@@ -42,7 +42,7 @@ struct CompilationUnitDesc {
     mlir::StringRef entry;
 };
 
-ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc, VPU::ArchKind /*archKind*/);
+ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc, VPU::ArchKind archKind);
 
 const CompilationUnitDesc& managementKernelCompilationDesc();
 

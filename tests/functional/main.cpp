@@ -1,15 +1,17 @@
 //
-// Copyright (C) 2022 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include <signal.h>
 #include <functional_test_utils/summary/op_summary.hpp>
 #include <iostream>
 #include <sstream>
+#include <vpux/utils/core/logger.hpp>
 #include "gtest/gtest.h"
-#include "kmb_test_report.hpp"
-#include "kmb_test_tool.hpp"
+#include "vpu_test_report.hpp"
+#include "vpu_test_tool.hpp"
+#include "vpux/utils/IE/config.hpp"
 #include "vpux/vpux_metrics.hpp"
 
 // Headers below are just for Yocto.
@@ -75,7 +77,7 @@ int main(int argc, char** argv, char** envp) {
     }
 
     ::testing::InitGoogleTest(&argc, argv);
-    ::testing::AddGlobalTestEnvironment(new LayerTestsUtils::KmbTestReportEnvironment());
+    ::testing::AddGlobalTestEnvironment(new LayerTestsUtils::VpuTestReportEnvironment());
 
     const bool dryRun = ::testing::GTEST_FLAG(list_tests) || ::testing::internal::g_help_flag;
 
@@ -83,7 +85,7 @@ int main(int argc, char** argv, char** envp) {
         const std::string noFetch{"<not fetched>"};
         std::string backend{noFetch}, arch{noFetch}, full{noFetch};
         try {
-            LayerTestsUtils::KmbTestTool kmbTestTool(LayerTestsUtils::KmbTestEnvConfig::getInstance());
+            LayerTestsUtils::VpuTestTool kmbTestTool(LayerTestsUtils::VpuTestEnvConfig::getInstance());
             backend = kmbTestTool.getDeviceMetric(VPUX_METRIC_KEY(BACKEND_NAME));
             arch = kmbTestTool.getDeviceMetric(METRIC_KEY(DEVICE_ARCHITECTURE));
             full = kmbTestTool.getDeviceMetric(METRIC_KEY(FULL_DEVICE_NAME));
@@ -100,6 +102,10 @@ int main(int argc, char** argv, char** envp) {
     } else {
         std::cout << "gtest death test process is running" << std::endl;
     }
+
+    auto& log = vpux::Logger::global();
+    auto& level = LayerTestsUtils::VpuTestEnvConfig::getInstance().IE_NPU_TESTS_LOG_LEVEL;
+    log.setLevel(level.empty() ? vpux::LogLevel::Info : vpux::OptionParser<vpux::LogLevel>::parse(level));
 
     return RUN_ALL_TESTS();
 }

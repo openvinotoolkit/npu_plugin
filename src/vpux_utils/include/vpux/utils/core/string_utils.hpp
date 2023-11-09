@@ -4,8 +4,6 @@
 //
 
 //
-
-//
 // Various string manipulation utility functions.
 //
 

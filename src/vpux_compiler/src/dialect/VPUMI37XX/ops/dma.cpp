@@ -5,11 +5,12 @@
 
 #include <mlir/IR/BuiltinTypes.h>
 #include "vpux/compiler/dialect/ELF/utils.hpp"
-#include "vpux/compiler/dialect/VPU37XX/api/vpu_nnrt_api.h"
 #include "vpux/compiler/dialect/VPUMI37XX/ops.hpp"
 #include "vpux/utils/core/mem_size.hpp"
 
 #include "vpux/compiler/dialect/VPUMI37XX/utils.hpp"
+
+#include <vpu_nnrt_api_37xx.h>
 
 using namespace vpux;
 
@@ -23,7 +24,7 @@ void VPUMI37XX::NNDMAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationS
                                mlir::Value input, mlir::ValueRange output_buffs, mlir::Value previousDMAIdx,
                                mlir::ValueRange waitBarriers, mlir::ValueRange updateBarriers, bool compression,
                                uint64_t start_after, uint64_t clean_after, bool is_out_of_order, bool is_critical,
-                               int64_t port, VPUIP::DmaDescriptorAttr dma_descriptor) {
+                               int64_t port, VPUIP::DMADescriptorAttr dma_descriptor) {
     build(odsBuilder, odsState, index, nullptr, input, output_buffs, previousDMAIdx, waitBarriers, updateBarriers,
           compression, start_after, clean_after, is_out_of_order, is_critical, port, dma_descriptor);
 }
@@ -134,20 +135,20 @@ void vpux::VPUMI37XX::NNDMAOp::serialize(elf::writer::BinaryDataSection<uint8_t>
     // safe init to zero the structure
     memset(reinterpret_cast<void*>(&dmaTask), 0, sizeof(dmaTask));
 
-    const auto hasDescriptor = dma_descriptor().hasValue();
+    const auto hasDescriptor = getDmaDescriptor().has_value();
 
-    auto inputType = input().getType().cast<mlir::MemRefType>();
+    auto inputType = getInput().getType().cast<mlir::MemRefType>();
 
-    dmaTask.barriers_sched_.start_after_ = checked_cast<uint16_t>(start_after());
-    dmaTask.barriers_sched_.clean_after_ = checked_cast<uint16_t>(clean_after());
+    dmaTask.barriers_sched_.start_after_ = checked_cast<uint16_t>(getStartAfter());
+    dmaTask.barriers_sched_.clean_after_ = checked_cast<uint16_t>(getCleanAfter());
 
     auto& descriptor = dmaTask.transaction_;
-    descriptor.cfg_link.cfg_bits.burst_length = 16;
+    descriptor.cfg_link.cfg_bits.burst_length = 255;  // set burst lenght to max value
     descriptor.cfg_link.cfg_bits.barrier_en = 1;
 
     // In case of multicasting (multiple outputs) we will mask the destination with the multicast mask;
 
-    if (output_buffs().size() > 1)
+    if (getOutputBuffs().size() > 1)
         descriptor.dst = 0xC00000;
 
     // If this DMA Op is not used by any other Op this is the last Op in DMA chain and link_address shall be zero
@@ -173,11 +174,11 @@ void vpux::VPUMI37XX::NNDMAOp::serialize(elf::writer::BinaryDataSection<uint8_t>
     }
 
     descriptor.cfg_link.cfg_bits.critical = 1;
-    descriptor.cfg_link.cfg_bits.order_forced = !is_out_of_order();
+    descriptor.cfg_link.cfg_bits.order_forced = !getIsOutOfOrder();
     descriptor.cfg_link.cfg_bits.skip_nr = 63;
 
-    auto src_layout = SimplifiedTensorLayout(input());
-    auto dst_layout = SimplifiedTensorLayout(output_buffs()[0]);
+    auto src_layout = SimplifiedTensorLayout(getInput());
+    auto dst_layout = SimplifiedTensorLayout(getOutputBuffs()[0]);
 
     uint32_t src_width = src_layout.line_length();
     uint32_t dst_width = dst_layout.line_length();
@@ -188,7 +189,7 @@ void vpux::VPUMI37XX::NNDMAOp::serialize(elf::writer::BinaryDataSection<uint8_t>
     uint32_t dst_plane_stride = dst_layout.plane_stride();
     uint32_t size = src_layout.total_length();
 
-    if (!hasDescriptor && !compression()) {
+    if (!hasDescriptor && !getCompression()) {
         if (!!src_plane_stride ^ !!dst_plane_stride) {
             if (src_plane_stride)
                 num_planes = std::max(1u, src_layout.plane_count()), dst_plane_stride = size / num_planes;
@@ -206,15 +207,15 @@ void vpux::VPUMI37XX::NNDMAOp::serialize(elf::writer::BinaryDataSection<uint8_t>
     }
 
     if (hasDescriptor) {
-        const auto dmaDescriptor = dma_descriptor().getValue();
-        descriptor.length = checked_cast<uint32_t>(dmaDescriptor.len().getInt());
-        descriptor.attr2d.src_width = checked_cast<uint32_t>(dmaDescriptor.srcWidth().getInt());
-        descriptor.attr2d.dst_width = checked_cast<uint32_t>(dmaDescriptor.dstWidth().getInt());
-        descriptor.attr2d.src_stride = checked_cast<int32_t>(dmaDescriptor.srcStride().getInt());
-        descriptor.attr2d.dst_stride = checked_cast<int32_t>(dmaDescriptor.dstStride().getInt());
-        descriptor.src_plane_stride = checked_cast<int32_t>(dmaDescriptor.srcPlaneStride().getInt());
-        descriptor.dst_plane_stride = checked_cast<int32_t>(dmaDescriptor.dstPlaneStride().getInt());
-        descriptor.num_planes = checked_cast<uint32_t>(dmaDescriptor.numPlanes().getInt());
+        const auto dmaDescriptor = getDmaDescriptor().value();
+        descriptor.length = checked_cast<uint32_t>(dmaDescriptor.getLen().getInt());
+        descriptor.attr2d.src_width = checked_cast<uint32_t>(dmaDescriptor.getSrcWidth().getInt());
+        descriptor.attr2d.dst_width = checked_cast<uint32_t>(dmaDescriptor.getDstWidth().getInt());
+        descriptor.attr2d.src_stride = checked_cast<int32_t>(dmaDescriptor.getSrcStride().getInt());
+        descriptor.attr2d.dst_stride = checked_cast<int32_t>(dmaDescriptor.getDstStride().getInt());
+        descriptor.src_plane_stride = checked_cast<int32_t>(dmaDescriptor.getSrcPlaneStride().getInt());
+        descriptor.dst_plane_stride = checked_cast<int32_t>(dmaDescriptor.getDstPlaneStride().getInt());
+        descriptor.num_planes = checked_cast<uint32_t>(dmaDescriptor.getNumPlanes().getInt());
     } else {
         const auto elemSize = vpux::getElemTypeSize(inputType);
         auto totalSizeBits = alignMemSize(inputType.getNumElements() * elemSize, Byte(1));
@@ -241,7 +242,7 @@ void vpux::VPUMI37XX::NNDMAOp::serialize(elf::writer::BinaryDataSection<uint8_t>
         descriptor.cfg_link.cfg_bits.type = 1;
     }
 
-    if (compression()) {
+    if (getCompression()) {
         descriptor.cfg_link.cfg_bits.dec_en = 1;
         VPUX_THROW_UNLESS(descriptor.num_planes == 0,
                           "For DMA compression to be possible, the computed num_planes for the transaction needs to be "
@@ -258,8 +259,8 @@ void vpux::VPUMI37XX::NNDMAOp::serialize(elf::writer::BinaryDataSection<uint8_t>
     auto& barrierProdMask =
             descriptor.cfg_link.cfg_bits.type ? descriptor.barriers.prod_mask : descriptor.barriers1d.prod_mask;
 
-    barrierConsMask = VPUMI37XX::computeMask(waitBarriers());
-    barrierProdMask = VPUMI37XX::computeMask(updateBarriers());
+    barrierConsMask = VPUMI37XX::computeMask(getWaitBarriers());
+    barrierProdMask = VPUMI37XX::computeMask(getUpdateBarriers());
 
     uint8_t* ptrCharTmp = reinterpret_cast<uint8_t*>(&dmaTask);
     binDataSection.appendData(ptrCharTmp, getBinarySize());
@@ -274,11 +275,11 @@ size_t vpux::VPUMI37XX::NNDMAOp::getAlignmentRequirements() {
 }
 
 mlir::FailureOr<uint64_t> vpux::VPUMI37XX::NNDMAOp::getOffsetOfWithinOperation(mlir::Value val) {
-    if (val == input()) {
+    if (val == getInput()) {
         return offsetof(nn_public::VpuDMATask, transaction_) + offsetof(vpu_dma_descriptor_t, src);
-    } else if (val == output_buffs()[0]) {
+    } else if (val == getOutputBuffs()[0]) {
         return offsetof(nn_public::VpuDMATask, transaction_) + offsetof(vpu_dma_descriptor_t, dst);
-    } else if (val == previousDMAIdx()) {
+    } else if (val == getPreviousDMAIdx()) {
         return offsetof(nn_public::VpuDMATask, transaction_);
     }
 

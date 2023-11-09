@@ -34,6 +34,10 @@ The **VPUMI37XX Dialect** represents NN RunTime IR together with MappedInference
         void registerTypes();
         void registerAttributes();
     }];
+
+    let useDefaultAttributePrinterParser = 1;
+
+    let emitAccessorPrefix = kEmitAccessorPrefix_Prefixed;
 }
 
 #endif

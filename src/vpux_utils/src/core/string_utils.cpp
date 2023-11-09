@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/utils/core/string_utils.hpp"
 
 #include <algorithm>

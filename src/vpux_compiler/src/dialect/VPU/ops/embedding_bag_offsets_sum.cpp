@@ -18,14 +18,20 @@ mlir::LogicalResult vpux::VPU::EmbeddingBagOffsetsSumOp::inferReturnTypes(
         return mlir::failure();
     }
 
-    const auto inTypeEmbTable = embeddingBag.input().getType().cast<vpux::NDTypeInterface>();
-    const auto inTypeOffsets = parseIntArrayAttr<int32_t>(embeddingBag.offsets_value());
-    const auto inShape = inTypeEmbTable.getShape().raw();
+    const auto inTypeEmbTable = embeddingBag.emb_table().getType().cast<vpux::NDTypeInterface>();
+    auto embTableShape = to_small_vector(inTypeEmbTable.getShape().raw());
+    SmallVector<int64_t> outShape(embTableShape);
 
-    SmallVector<int64_t> outShape;
-    for (size_t i = 0; i < inShape.size(); i++)
-        outShape.emplace_back(inShape[i]);
-    outShape[0] = inTypeOffsets.size();
+    if (embeddingBag.offsets() != nullptr) {
+        const auto inTypeOffsets = embeddingBag.offsets().getType().cast<vpux::NDTypeInterface>();
+        SmallVector<int64_t> offsetsOutShape(to_small_vector(inTypeOffsets.getShape().raw()));
+        outShape[0] = offsetsOutShape[0];
+    } else if (embeddingBag.offsets_value().has_value()) {
+        const auto offsetsAttr = parseIntArrayAttr<int32_t>(embeddingBag.offsets_value().value());
+        outShape[0] = offsetsAttr.size();
+    } else {
+        return errorAt(loc, "Offsets input was not provided properly");
+    }
 
     const auto outType = inTypeEmbTable.changeShape(Shape(outShape));
     inferredReturnTypes.push_back(outType);
@@ -38,6 +44,9 @@ mlir::LogicalResult vpux::VPU::EmbeddingBagOffsetsSumOp::inferReturnTypes(
 //
 
 EMU::BlobWriter::SpecificTask vpux::VPU::EmbeddingBagOffsetsSumOp::serialize(EMU::BlobWriter& writer) {
+    const auto indices = writer.createVector(parseIntArrayAttr<int32_t>(indices_value().value()));
+    const auto offsets = writer.createVector(parseIntArrayAttr<int32_t>(offsets_value().value()));
+
     const auto getRawFP16 = [](auto val) {
         const auto valFP16 = float16(val);
         return valFP16.to_bits();
@@ -48,9 +57,7 @@ EMU::BlobWriter::SpecificTask vpux::VPU::EmbeddingBagOffsetsSumOp::serialize(EMU
     };
 
     EMU::BlobWriter::Vector<uint16_t> serializedWeights;
-    const auto weightsArr = parseFPArrayAttr<double>(weights_value());
-    const auto indices = writer.createVector(parseIntArrayAttr<int32_t>(indices_value()));
-    const auto offsets = writer.createVector(parseIntArrayAttr<int32_t>(offsets_value()));
+    const auto weightsArr = parseFPArrayAttr<double>(per_sample_weights_value().value());
     serializedWeights = getVecFP16(weightsArr);
 
     MVCNN::EmbeddingBagOffsetsSumParamsBuilder builder(writer);

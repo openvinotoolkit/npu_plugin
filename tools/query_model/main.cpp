@@ -1,6 +1,6 @@
 //
-// Copyright (C) 2022 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include <cassert>
@@ -25,7 +25,7 @@ static const char target_device_message[] =
 
 DEFINE_bool(h, false, help_message);
 DEFINE_string(m, "", model_message);
-DEFINE_string(d, "VPUX.3720", target_device_message);
+DEFINE_string(d, "NPU.3720", target_device_message);
 
 static void showUsage() {
     std::cout << std::endl;
@@ -55,8 +55,8 @@ void ParseAndCheckCommandLine(int argc, char* argv[]) {
         throw std::logic_error("Parameter -m is not set");
     }
 
-    if (std::getenv("VPUX_SERIALIZE_CANONICAL_MODEL") == NULL) {
-        throw std::logic_error("VPUX_SERIALIZE_CANONICAL_MODEL environment variable is not set.");
+    if (std::getenv("NPU_SERIALIZE_CANONICAL_MODEL") == NULL) {
+        throw std::logic_error("NPU_SERIALIZE_CANONICAL_MODEL environment variable is not set.");
     }
 }
 

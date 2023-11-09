@@ -3,12 +3,9 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "test_model/kmb_test_model.hpp"
-#include "test_model/kmb_test_utils.hpp"
 
 struct ReshapeLayerDef final {
     TestNetwork& net_;

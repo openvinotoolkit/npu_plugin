@@ -44,6 +44,11 @@ mlir::LogicalResult vpux::IE::ExpandDilatedOp::inferReturnTypeComponents(
 
 void vpux::IE::ExpandDilatedOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
     const auto inputElemType = info.getInput(0);
+    const auto dilationsVal = parseIntArrayAttr<int64_t>(dilations());
+    if (inputElemType.isa<mlir::quant::UniformQuantizedPerAxisType>() && dilationsVal.size() > 2) {
+        // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
+        return;
+    }
 
     for (size_t outputInd = 0; outputInd < info.getNumOutputs(); ++outputInd) {
         info.setOutput(outputInd, inputElemType);
@@ -52,6 +57,11 @@ void vpux::IE::ExpandDilatedOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::
 
 void vpux::IE::ExpandDilatedOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
     const auto outputElemType = info.getOutput(0);
+    const auto dilationsVal = parseIntArrayAttr<int64_t>(dilations());
+    if (outputElemType.isa<mlir::quant::UniformQuantizedPerAxisType>() && dilationsVal.size() > 2) {
+        // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
+        return;
+    }
 
     for (size_t inputInd = 0; inputInd < info.getNumInputs(); ++inputInd) {
         info.setInput(inputInd, outputElemType);

@@ -149,7 +149,7 @@ VPU::MemoryKind VPUIP::BufferType::getMemoryKind() const {
         return VPU::MemoryKind::DDR;
     }
 
-    return VPU::symbolizeEnum<VPU::MemoryKind>(memSpace.getLeafName()).getValue();
+    return VPU::symbolizeEnum<VPU::MemoryKind>(memSpace.getLeafName()).value();
 }
 
 Strides VPUIP::BufferType::getStrides() const {
@@ -274,7 +274,7 @@ NDTypeInterface VPUIP::BufferType::changeStrides(StridesRef strides) const {
                                   getSwizzlingKey());
 }
 
-NDTypeInterface VPUIP::BufferType::changeTypeComponents(TypeComponents typeComponents) const {
+NDTypeInterface VPUIP::BufferType::changeTypeComponents(const vpux::TypeComponents& typeComponents) const {
     const auto ctx = getContext();
 
     const auto shape = typeComponents.shape.value_or(Shape(getShape().toValues()));

@@ -12,6 +12,8 @@ if(NOT ENABLE_TESTS)
 endif()
 ie_dependent_option(ENABLE_TESTS "Unit, behavior and functional tests" ${ENABLE_TESTS} "ENABLE_TESTS" OFF)
 
+ie_dependent_option(ENABLE_VPUX_FUZZ_TESTS "NPU Fuzz tests" OFF "ENABLE_TESTS" OFF)
+
 if(NOT ENABLE_LTO)
     set(ENABLE_LTO OFF)
 endif()
@@ -51,11 +53,7 @@ ie_dependent_option(ENABLE_VALIDATION_SET "download validation_set required for 
 
 ie_option(ENABLE_EXPORT_SYMBOLS "Enable compiler -fvisibility=default and linker -export-dynamic options" OFF)
 
-if(ENABLE_MCM_COMPILER)
-    message (WARNING "ENABLE_MCM_COMPILER is deprecated option due to mcmCompiler removing")
-endif()
-
-ie_option(ENABLE_MLIR_COMPILER "Enable compilation of vpux_mlir_compiler libraries" ON)
+ie_option(ENABLE_MLIR_COMPILER "Enable compilation of npu_mlir_compiler libraries" ON)
 if(ENABLE_MLIR_COMPILER)
     add_definitions(-DENABLE_MLIR_COMPILER)
 endif()

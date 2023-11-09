@@ -15,6 +15,9 @@
 namespace vpux {
 namespace VPU {
 
+constexpr int64_t SINGLE_BATCH = 1;
+constexpr size_t RANK_REQUIRED_FOR_TILING = 4;
+
 //
 // BaseLayerStrategy
 //
@@ -191,8 +194,18 @@ public:
     SWGeneralStrategy(mlir::func::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
 
+    virtual bool isOperationSplitOverHeightCompatible(VPU::ClusteredOpInterface clusteredOp,
+                                                      ShapeRef customOutputShape = ShapeRef()) const final;
+    virtual bool isOperationSplitOverWidthCompatible(VPU::ClusteredOpInterface clusteredOp,
+                                                     ShapeRef customOutputShape = ShapeRef()) const final;
+    virtual bool isOperationSplitOverKernelCompatible(VPU::ClusteredOpInterface clusteredOp,
+                                                      ShapeRef customOutputShape = ShapeRef()) const final;
+
     SmallVector<VPU::DistributedTypeInterface> getDistributedTensorType(VPU::ClusteredOpInterface nceOp,
                                                                         VPU::MultiClusterStrategy strategy) const final;
+
+private:
+    bool checkMCRestrictions(VPU::ClusteredOpInterface clusteredOp) const;
 };
 
 //
@@ -216,6 +229,18 @@ public:
     }
 
     SmallVector<VPU::DistributedTypeInterface> getDistributedTensorType(VPU::ClusteredOpInterface nceOp,
+                                                                        VPU::MultiClusterStrategy strategy) const final;
+};
+
+//
+// SWTopKStrategy
+//
+class SWTopKStrategy : public BaseLayerStrategy {
+public:
+    SWTopKStrategy(mlir::func::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
+    }
+
+    SmallVector<VPU::DistributedTypeInterface> getDistributedTensorType(VPU::ClusteredOpInterface swOp,
                                                                         VPU::MultiClusterStrategy strategy) const final;
 };
 

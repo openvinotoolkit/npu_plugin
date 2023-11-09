@@ -27,11 +27,13 @@ void buildBarrierLegalizationPipeline(mlir::OpPassManager& pm, Logger log = Logg
 // Passes
 //
 
-std::unique_ptr<mlir::Pass> createAssignVirtualBarriersPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSplitExceedingVariantCountBarriersPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createSatisfyOneWaitBarrierPerTaskPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createReduceExceedingActiveCountBarriersPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createAssignPhysicalBarriersPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createBarrierSimulationPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createInferenceExecutionAnalysisPass(
+        std::string compileSchedTraceFileName = "compileTimeScheduleTrace.json", Logger log = Logger::global());
 
 //
 // Registration
@@ -44,11 +46,11 @@ void registerVPURTPipelines();
 //
 
 #define GEN_PASS_CLASSES
-#include <vpux/compiler/dialect/VPURT/generated/passes.hpp.inc>
+#include <vpux/compiler/dialect/VPURT/passes.hpp.inc>
 #undef GEN_PASS_CLASSES
 
 #define GEN_PASS_REGISTRATION
-#include <vpux/compiler/dialect/VPURT/generated/passes.hpp.inc>
+#include <vpux/compiler/dialect/VPURT/passes.hpp.inc>
 #undef GEN_PASS_REGISTRATION
 
 }  // namespace VPURT

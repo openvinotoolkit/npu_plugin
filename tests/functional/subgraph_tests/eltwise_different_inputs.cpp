@@ -1,8 +1,9 @@
-// Copyright (C) Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 #include <ngraph_functions/builders.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -11,7 +12,7 @@
 namespace {
 
 class VPUXEltwiseAddQuantizedSubGraphTest_VPU3720 :
-        public LayerTestsUtils::KmbLayerTestsCommon,
+        public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<std::tuple<LayerTestsUtils::TargetDevice>> {
     void ConfigureNetwork() override {
         cnnNetwork.getInputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
@@ -57,6 +58,6 @@ TEST_P(VPUXEltwiseAddQuantizedSubGraphTest_VPU3720, HW) {
 }
 
 INSTANTIATE_TEST_CASE_P(smoke_EltwiseAddQuantized, VPUXEltwiseAddQuantizedSubGraphTest_VPU3720,
-                        ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice)));
+                        ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice())));
 
 }  // namespace

@@ -51,38 +51,31 @@ void VPUIP::QuantizeCastOp::getCanonicalizationPatterns(mlir::RewritePatternSet&
     results.add<FuseQuantizeCastOps>(ctx);
 }
 
-bool isOverlapped(const VPUIP::DistributedBufferType inType, const VPUIP::DistributedBufferType outType) {
-    // QuantizeCast does not alter the shape, so OVERLAPPED mode can also be supported.
-    if (inType == nullptr || outType == nullptr) {
-        return false;
-    }
-    const auto inMode = inType.getDistribution().mode().getValue();
-    const auto outMode = outType.getDistribution().mode().getValue();
-    return VPU::bitEnumContains(inMode, VPU::DistributionMode::OVERLAPPED) &&
-           VPU::bitEnumContains(outMode, VPU::DistributionMode::OVERLAPPED);
-}
-
 mlir::LogicalResult vpux::VPUIP::QuantizeCastOp::verify() {
     const auto op = getOperation();
     auto distributedInType = input().getType().dyn_cast<VPUIP::DistributedBufferType>();
     auto distributedOutType = output().getType().dyn_cast<VPUIP::DistributedBufferType>();
     if (distributedInType && distributedOutType) {
-        if (!isCompatibleForDistributedInputOutput(op, distributedInType, distributedOutType) &&
-            !isOverlapped(distributedInType, distributedOutType)) {
-            return errorAt(op, "QuantizeCastOp input and output must have the same distribution mode");
-        }
-        auto inElemType = distributedInType.getElementType();
-        auto outElemType = distributedOutType.getElementType();
-        if (inElemType.isa<mlir::FloatType>() || outElemType.isa<mlir::FloatType>()) {
-            return errorAt(op, " QuantizeCastOp input and output must have the legal element type");
+        auto inputDistribution = distributedInType.getDistribution();
+        auto outputDistribution = distributedOutType.getDistribution();
+        if (inputDistribution != outputDistribution) {
+            return errorAt(op, "QuantizeCastOp input and output must have the same distribution attribute");
         }
     }
+
+    auto inElemType = input().getType().cast<NDTypeInterface>().getElementType();
+    auto outElemType = output().getType().cast<NDTypeInterface>().getElementType();
+    if (inElemType.isa<mlir::FloatType>() || outElemType.isa<mlir::FloatType>()) {
+        return errorAt(op, " QuantizeCastOp input and output must have the legal element type");
+    }
+
     auto inputStrides = getStrides(input());
     auto outputStrides = getStrides(output());
     if (inputStrides != outputStrides) {
         return errorAt(op, "QuantizeCastOp input and output must have the same strides, but got {0} and {1}",
                        inputStrides, outputStrides);
     }
+
     auto inputShape = getShape(input());
     auto outputShape = getShape(output());
     if (inputShape != outputShape) {

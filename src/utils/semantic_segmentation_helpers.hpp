@@ -3,10 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
-#include <limits>
 
 #include <ie_blob.h>
 #include <limits>

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-// RUN: vpux-opt --init-compiler="vpu-arch=%arch% compilation-mode=ReferenceSW" %s | vpux-translate --export-EMU -o %t
+// RUN: vpux-opt --init-compiler="vpu-arch=%arch% compilation-mode=ReferenceSW allow-custom-values=true" %s | vpux-translate --vpu-arch=%arch% --export-EMU -o %t
 // RUN: flatc --raw-binary --json %vpuip_schema_file% -- %t
 // RUN: FileCheck %s --input-file %basename_t.json
 // RUN: rm %basename_t.json
@@ -12,9 +12,13 @@ module @Test {
 
 module @UsedMemory {
     IE.MemoryResource 2048 bytes of @DDR
-    IE.MemoryResource 1048576 bytes of @CMX_NN
 }
 
+IE.ExecutorResource 1 of @NCE at 1.300000e+03 MHz {
+    builtin.module @UsedMemory {
+        IE.MemoryResource 1048576 bytes of @CMX_NN
+    }
+}
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
@@ -172,3 +176,5 @@ func.func @main(%arg0: tensor<1x1x1x1000xf16>) -> tensor<1x1x1x1000xf16> {
 // CHECK:                     0
 // CHECK:                   ],
 // CHECK:                   data_dtype: "FP16",
+
+

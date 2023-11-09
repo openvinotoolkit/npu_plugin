@@ -28,12 +28,12 @@ using namespace mlir;
 void vpux::IERT::IERTDialect::initialize() {
     addOperations<
 #define GET_OP_LIST
-#include <vpux/compiler/dialect/IERT/generated/ops.cpp.inc>
+#include <vpux/compiler/dialect/IERT/ops.cpp.inc>
             >();
 
     addTypes<
 #define GET_TYPEDEF_LIST
-#include <vpux/compiler/dialect/IERT/generated/types.cpp.inc>
+#include <vpux/compiler/dialect/IERT/types.cpp.inc>
             >();
 }
 
@@ -147,7 +147,7 @@ void IERT::IERTDialect::setupExtraInterfaces(mlir::DialectRegistry& registry) {
 // Generated
 //
 
-#include <vpux/compiler/dialect/IERT/generated/dialect.cpp.inc>
+#include <vpux/compiler/dialect/IERT/dialect.cpp.inc>
 
 #define GET_OP_CLASSES
-#include <vpux/compiler/dialect/IERT/generated/ops.cpp.inc>
+#include <vpux/compiler/dialect/IERT/ops.cpp.inc>

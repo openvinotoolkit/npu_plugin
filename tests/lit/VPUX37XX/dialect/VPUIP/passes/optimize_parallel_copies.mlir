@@ -35,10 +35,10 @@ func.func @OptimizeParallelNonConstCopies(
     %4 = memref.alloc() : memref<1x16x112x112xf16, #NHWC, @CMX_NN>
     %5 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%3 : memref<1x16x112x112xf16, #NHWC, @CMX_NN>)
         weight_table(%wt : memref<16x1x1x4xsi32, @CMX_NN>)
@@ -48,7 +48,7 @@ func.func @OptimizeParallelNonConstCopies(
         outputs(%4 : memref<1x16x112x112xf16, #NHWC, @CMX_NN>) -> memref<1x16x112x112xf16, #NHWC, @CMX_NN>
         variants :
         {
-            DPUTask { outEnd = [16, 112, 112], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 112, 112], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }
@@ -65,10 +65,10 @@ func.func @OptimizeParallelNonConstCopies(
     %9 = memref.alloc() : memref<1x16x112x112xf16, #NHWC, @CMX_NN>
     %10 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%8 : memref<1x16x112x112xf16, #NHWC, @CMX_NN>)
         weight_table(%wt : memref<16x1x1x4xsi32, @CMX_NN>)
@@ -78,7 +78,7 @@ func.func @OptimizeParallelNonConstCopies(
         outputs(%9 : memref<1x16x112x112xf16, #NHWC, @CMX_NN>) -> memref<1x16x112x112xf16, #NHWC, @CMX_NN>
         variants :
         {
-            DPUTask { outEnd = [16, 112, 112], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 112, 112], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }
@@ -137,10 +137,10 @@ func.func @OptimizeParallelSubViewPatternCopies(
     %5 = memref.alloc() : memref<1x16x112x112xf16, #NHWC, @CMX_NN>
     %6 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%4 : memref<1x16x112x112xf16, #NHWC, @CMX_NN>)
         weight_table(%wt : memref<16x1x1x4xsi32, @CMX_NN>)
@@ -150,7 +150,7 @@ func.func @OptimizeParallelSubViewPatternCopies(
         outputs(%5 : memref<1x16x112x112xf16, #NHWC, @CMX_NN>) -> memref<1x16x112x112xf16, #NHWC, @CMX_NN>
         variants :
         {
-            DPUTask { outEnd = [16, 112, 112], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 112, 112], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }
@@ -169,10 +169,10 @@ func.func @OptimizeParallelSubViewPatternCopies(
     %11 = memref.alloc() : memref<1x16x112x112xf16, #NHWC, @CMX_NN>
     %12 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             kernel_size = [1, 1],
             kernel_strides = [1, 1],
-            task_type = "MAXPOOL"
+            task_type = #VPUIP.nce_task_type<MAXPOOL>
         }
         input(%10 : memref<1x16x112x112xf16, #NHWC, @CMX_NN>)
         weight_table(%wt : memref<16x1x1x4xsi32, @CMX_NN>)
@@ -182,7 +182,7 @@ func.func @OptimizeParallelSubViewPatternCopies(
         outputs(%11 : memref<1x16x112x112xf16, #NHWC, @CMX_NN>) -> memref<1x16x112x112xf16, #NHWC, @CMX_NN>
         variants :
         {
-            DPUTask { outEnd = [16, 112, 112], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0] }
+            DPUTask { outEnd = [16, 112, 112], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0] }
         }
         PPE : {
         }
@@ -242,14 +242,14 @@ func.func @NotOptimizeConstCopyForCompressedConv(%arg0: memref<1x16x224x224x!qEl
         inputs(%cst_0 : memref<64x1x1x4xsi32>)
         outputs(%4 : memref<64x1x1x4xsi32, [@CMX_NN, 0]>)
          -> memref<64x1x1x4xsi32, [@CMX_NN, 0]>
-
+ 
     %output_0 = memref.alloc() : memref<1x64x112x112x!qElemType3, #NHWC, [@CMX_NN, 0]>
     %NCEOp_0 = VPUIP.NCEClusterTask {
-          kernel_padding = {bottom = 2 : i64, left = 3 : i64, right = 2 : i64, top = 3 : i64},
+          kernel_padding = #VPU.Padding<left = 3 : i64, right = 2 : i64, top = 3 : i64, bottom = 2 : i64>,
           kernel_size = [7, 7],
           kernel_strides = [2, 2],
           minimumHardwareExecutionCost = 375613 : i64,
-          task_type = "CONV"
+          task_type = #VPUIP.nce_task_type<CONV>
       }
       input(%arg0 : memref<1x16x224x224x!qElemType2, #NHWC, [@CMX_NN, 0]>)
       weights(%weights : memref<64x1x1x208x!qElemType0, #NHWC, [@CMX_NN, 0]>)
@@ -260,8 +260,8 @@ func.func @NotOptimizeConstCopyForCompressedConv(%arg0: memref<1x16x224x224x!qEl
       {
           DPUTask
             {
-                mpe_mode = "CUBOID_16x16", outEnd = [111, 111, 63], outStart = [0, 0, 0],
-                pad = {bottom = 2 : i64, left = 3 : i64, right = 2 : i64, top = 3 : i64}
+                mpe_mode = #VPU.mpe_mode<CUBOID_16x16>, outEnd = [111, 111, 63], outStart = [0, 0, 0],
+                pad = #VPU.Padding<left = 3 : i64, right = 2 : i64, top = 3 : i64, bottom = 2 : i64>
             }
       }
       PPE :  {
@@ -269,11 +269,11 @@ func.func @NotOptimizeConstCopyForCompressedConv(%arg0: memref<1x16x224x224x!qEl
 
     %output_1 = memref.alloc() : memref<1x64x112x112x!qElemType3, #NHWC, [@CMX_NN, 0]>
     %NCEOp_1 = VPUIP.NCEClusterTask {
-          kernel_padding = {bottom = 2 : i64, left = 3 : i64, right = 2 : i64, top = 3 : i64},
+          kernel_padding = #VPU.Padding<left = 3 : i64, right = 2 : i64, top = 3 : i64, bottom = 2 : i64>,
           kernel_size = [7, 7],
           kernel_strides = [2, 2],
           minimumHardwareExecutionCost = 375613 : i64,
-          task_type = "CONV"
+          task_type = #VPUIP.nce_task_type<CONV>
       }
       input(%arg1 : memref<1x16x224x224x!qElemType2, #NHWC, [@CMX_NN, 0]>)
       weights(%weights : memref<64x1x1x208x!qElemType0, #NHWC, [@CMX_NN, 0]>)
@@ -284,8 +284,8 @@ func.func @NotOptimizeConstCopyForCompressedConv(%arg0: memref<1x16x224x224x!qEl
       {
           DPUTask
             {
-                mpe_mode = "CUBOID_16x16", outEnd = [111, 111, 63], outStart = [0, 0, 0],
-                pad = {bottom = 2 : i64, left = 3 : i64, right = 2 : i64, top = 3 : i64}
+                mpe_mode = #VPU.mpe_mode<CUBOID_16x16>, outEnd = [111, 111, 63], outStart = [0, 0, 0],
+                pad = #VPU.Padding<left = 3 : i64, right = 2 : i64, top = 3 : i64, bottom = 2 : i64>
             }
       }
       PPE :  {
@@ -302,8 +302,8 @@ func.func @NotOptimizeConstCopyForCompressedConv(%arg0: memref<1x16x224x224x!qEl
     //CHECK:        [[BUF2:%.*]] = memref.alloc() : memref<64x1x1x4xsi32, [@CMX_NN, 0]>
     //CHECK:        [[WEIGHTS_TABLE1:%.*]] = VPUIP.Copy inputs([[CST_0]] : memref<64x1x1x4xsi32>) outputs([[BUF2]] : memref<64x1x1x4xsi32, [@CMX_NN, 0]>) -> memref<64x1x1x4xsi32, [@CMX_NN, 0]>
     //CHECK:        [[BUF3:%.*]] = memref.alloc() : memref<1x64x112x112x!qElemType1, #NHWC, [@CMX_NN, 0]>
-    //CHECK:        [[NCE0:%.*]] = VPUIP.NCEClusterTask {kernel_padding = {bottom = 2 : i64, left = 3 : i64, right = 2 : i64, top = 3 : i64}, kernel_size = [7, 7], kernel_strides = [2, 2], minimumHardwareExecutionCost = 375613 : i64, task_type = "CONV"} input(%arg0 : memref<1x16x224x224x!qElemType0, #NHWC, [@CMX_NN, 0]>) weights(%1 : memref<64x1x1x208x!qElemType2, #NHWC, [@CMX_NN, 0]>) weight_table(%3 : memref<64x1x1x4xsi32, [@CMX_NN, 0]>) parent_input(%arg0 : memref<1x16x224x224x!qElemType0, #NHWC, [@CMX_NN, 0]>) parent_output([[BUF3]] : memref<1x64x112x112x!qElemType1, #NHWC, [@CMX_NN, 0]>) outputs([[BUF3]] : memref<1x64x112x112x!qElemType1, #NHWC, [@CMX_NN, 0]>) -> memref<1x64x112x112x!qElemType1, #NHWC, [@CMX_NN, 0]> variants : {
+    //CHECK:        [[NCE0:%.*]] = VPUIP.NCEClusterTask {kernel_padding = #VPU.Padding<left = 3 : i64, right = 2 : i64, top = 3 : i64, bottom = 2 : i64>, kernel_size = [7, 7], kernel_strides = [2, 2], minimumHardwareExecutionCost = 375613 : i64, task_type = #VPUIP.nce_task_type<CONV>} input(%arg0 : memref<1x16x224x224x!qElemType0, #NHWC, [@CMX_NN, 0]>) weights(%1 : memref<64x1x1x208x!qElemType2, #NHWC, [@CMX_NN, 0]>) weight_table(%3 : memref<64x1x1x4xsi32, [@CMX_NN, 0]>) parent_input(%arg0 : memref<1x16x224x224x!qElemType0, #NHWC, [@CMX_NN, 0]>) parent_output([[BUF3]] : memref<1x64x112x112x!qElemType1, #NHWC, [@CMX_NN, 0]>) outputs([[BUF3]] : memref<1x64x112x112x!qElemType1, #NHWC, [@CMX_NN, 0]>) -> memref<1x64x112x112x!qElemType1, #NHWC, [@CMX_NN, 0]> variants : {
     //CHECK:        [[BUF4:%.*]] = memref.alloc() : memref<1x64x112x112x!qElemType1, #NHWC, [@CMX_NN, 0]>
-    //CHECK:        [[NCE1:%.*]] = VPUIP.NCEClusterTask {kernel_padding = {bottom = 2 : i64, left = 3 : i64, right = 2 : i64, top = 3 : i64}, kernel_size = [7, 7], kernel_strides = [2, 2], minimumHardwareExecutionCost = 375613 : i64, task_type = "CONV"} input(%arg1 : memref<1x16x224x224x!qElemType0, #NHWC, [@CMX_NN, 0]>) weights(%1 : memref<64x1x1x208x!qElemType2, #NHWC, [@CMX_NN, 0]>) weight_table(%5 : memref<64x1x1x4xsi32, [@CMX_NN, 0]>) parent_input(%arg1 : memref<1x16x224x224x!qElemType0, #NHWC, [@CMX_NN, 0]>) parent_output([[BUF4]] : memref<1x64x112x112x!qElemType1, #NHWC, [@CMX_NN, 0]>) outputs([[BUF4]] : memref<1x64x112x112x!qElemType1, #NHWC, [@CMX_NN, 0]>) -> memref<1x64x112x112x!qElemType1, #NHWC, [@CMX_NN, 0]> variants : {
+    //CHECK:        [[NCE1:%.*]] = VPUIP.NCEClusterTask {kernel_padding = #VPU.Padding<left = 3 : i64, right = 2 : i64, top = 3 : i64, bottom = 2 : i64>, kernel_size = [7, 7], kernel_strides = [2, 2], minimumHardwareExecutionCost = 375613 : i64, task_type = #VPUIP.nce_task_type<CONV>} input(%arg1 : memref<1x16x224x224x!qElemType0, #NHWC, [@CMX_NN, 0]>) weights(%1 : memref<64x1x1x208x!qElemType2, #NHWC, [@CMX_NN, 0]>) weight_table(%5 : memref<64x1x1x4xsi32, [@CMX_NN, 0]>) parent_input(%arg1 : memref<1x16x224x224x!qElemType0, #NHWC, [@CMX_NN, 0]>) parent_output([[BUF4]] : memref<1x64x112x112x!qElemType1, #NHWC, [@CMX_NN, 0]>) outputs([[BUF4]] : memref<1x64x112x112x!qElemType1, #NHWC, [@CMX_NN, 0]>) -> memref<1x64x112x112x!qElemType1, #NHWC, [@CMX_NN, 0]> variants : {
     //CHECK:        return [[NCE0]], [[NCE1]] : memref<1x64x112x112x!qElemType1, #NHWC, [@CMX_NN, 0]>, memref<1x64x112x112x!qElemType1, #NHWC, [@CMX_NN, 0]>
 }

@@ -5,6 +5,7 @@
 
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/distributed_tensor_utils.hpp"
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/layers.hpp"
@@ -104,22 +105,14 @@ mlir::LogicalResult vpux::VPU::NCEEltwiseOp::inferReturnTypes(mlir::MLIRContext*
 }
 
 //
-// LayoutInfoOpInterface
-//
-
-void vpux::VPU::NCEEltwiseOp::inferLayoutInfo(IE::LayerLayoutInfo& info) {
-    info.fill(DimsOrder::NHWC);
-}
-
-//
 // NCEOpInterface
 //
 
-SmallVector<int64_t> vpux::VPU::NCEEltwiseOp::getKernelSize() {
+SmallVector<int64_t> vpux::VPU::NCEEltwiseOp::getKernelSizeVal() {
     return {1, 1};
 }
 
-SmallVector<int64_t> vpux::VPU::NCEEltwiseOp::getStrides() {
+SmallVector<int64_t> vpux::VPU::NCEEltwiseOp::getStridesVal() {
     return {1, 1};
 }
 
@@ -135,6 +128,15 @@ bool vpux::VPU::NCEEltwiseOp::checkStrategyCompatibility(VPU::MultiClusterStrate
 
     return strategy == VPU::MultiClusterStrategy::Clustering ||
            strategy == VPU::MultiClusterStrategy::SplitOverHeight || strategy == VPU::MultiClusterStrategy::HKSwitch;
+}
+
+vpux::VPU::DistributedTensorAttr vpux::VPU::NCEEltwiseOp::getExplicitDistributedTensorAttr(
+        vpux::ShapeRef shape, vpux::VPU::DistributionMode distributionMode, mlir::ArrayAttr numTiles,
+        mlir::IntegerAttr numClusters, mlir::ArrayAttr alignment, mlir::ArrayAttr kernel, vpux::VPU::PaddingAttr pad,
+        mlir::ArrayAttr stride, mlir::UnitAttr uniformDistributedSegments) {
+    return VPU::getNCEExplicitDistributedTensorAttr(mlir::dyn_cast<VPU::NCEOpInterface>(getOperation()), shape,
+                                                    distributionMode, numTiles, numClusters, alignment, kernel, pad,
+                                                    stride, uniformDistributedSegments);
 }
 
 mlir::LogicalResult vpux::VPU::NCEEltwiseOp::verifyInputType(vpux::NDTypeInterface inputType) {
@@ -158,7 +160,7 @@ bool vpux::VPU::NCEEltwiseOp::availableSingleMerge() {
     // if both operand of eltwise are different and cannot be merged with blocks
     // come before its operands, it would be invalid VF subgraph, reject merging
     return input1() == input2();
-};
+}
 
 //
 // sparsitySupport
@@ -168,7 +170,6 @@ vpux::VPU::SparsitySupport vpux::VPU::NCEEltwiseOp::sparsitySupport() {
     const auto arch = getArch(getOperation());
     switch (arch) {
     case VPU::ArchKind::VPUX30XX:
-    case VPU::ArchKind::VPUX311X:
         return VPU::SparsitySupport::NONE;
     case VPU::ArchKind::VPUX37XX:
         // TODO E#66913: enable input sparsity support once inputs are aligned with respect to storage element size
@@ -189,6 +190,6 @@ void vpux::VPU::NCEEltwiseOp::adjustAttrs(const TilingInfo&, const TileInfo&) {
     // Do nothing
 }
 
-OutputTiling vpux::VPU::NCEEltwiseOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
+mlir::FailureOr<OutputTiling> vpux::VPU::NCEEltwiseOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
     return vpux::getHWLayerTilingStrategy(this->getOperation(), tilingMode, log);
 }

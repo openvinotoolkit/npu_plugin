@@ -15,7 +15,7 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 list(FILTER SOURCES EXCLUDE REGEX "vpux_plugin.cpp")
 
-set(VPUX_PLUGIN_TARGET "openvino_intel_vpux_plugin" CACHE INTERNAL "")
+set(VPUX_PLUGIN_TARGET "openvino_intel_npu_plugin" CACHE INTERNAL "")
 set(VPUX_PLUGIN_STATIC_TARGET "${VPUX_PLUGIN_TARGET}_static" CACHE INTERNAL "")
 set(VPUX_PLUGIN_ENGINE_SOURCE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/src/vpux_plugin.cpp CACHE INTERNAL "")
 
@@ -37,7 +37,7 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 ov_add_plugin(NAME ${VPUX_PLUGIN_TARGET}
-    DEVICE_NAME ${VPUX_DEVICE_NAME}
+    DEVICE_NAME ${NPU_DEVICE_NAME}
     SOURCES
         ${VPUX_PLUGIN_TARGET_SOURCES}
         ${VPUX_PLUGIN_ENGINE_SOURCE_FILE}
@@ -51,7 +51,7 @@ if(BUILD_SHARED_LIBS)
 else()
     set(TARGET_NAME ${VPUX_PLUGIN_TARGET} CACHE INTERNAL "")
     if(ENABLE_ZEROAPI_BACKEND)
-        target_link_libraries(${VPUX_PLUGIN_TARGET} INTERFACE vpux_level_zero_backend)
+        target_link_libraries(${VPUX_PLUGIN_TARGET} INTERFACE npu_level_zero_backend)
     endif()
     target_compile_definitions(${VPUX_PLUGIN_TARGET} PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
@@ -70,15 +70,15 @@ link_system_libraries(${TARGET_NAME}
     PUBLIC
         openvino::runtime
         openvino::runtime::dev
-        vpux_utils
+        npu_utils
 )
 
 target_link_libraries(${TARGET_NAME}
     PUBLIC
         kmb_utils
-        vpux_al
+        npu_al
     PRIVATE
-        vpux_utils
+        npu_utils
 )
 
 #

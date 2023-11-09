@@ -29,7 +29,7 @@
 //
 
 #define GET_OP_CLASSES
-#include <vpux/compiler/dialect/IE/generated/ops.hpp.inc>
+#include <vpux/compiler/dialect/IE/ops.hpp.inc>
 
 //
 // Operation verifiers
@@ -48,7 +48,7 @@ bool isActShaveKernel(mlir::Operation* operation);
 template <typename ConcreteOp>
 void adjustPaddings(ConcreteOp* op, const TilingInfo& inputTiling) {
     const auto& inputTilePads = inputTiling.pads;
-    VPUX_THROW_UNLESS(inputTilePads.hasValue(), "Missing tile information for paddings");
+    VPUX_THROW_UNLESS(inputTilePads.has_value(), "Missing tile information for paddings");
 
     const std::array<int64_t, 2> padsBegin = {inputTilePads->top, inputTilePads->left};
     const std::array<int64_t, 2> padsEnd = {inputTilePads->bottom, inputTilePads->right};

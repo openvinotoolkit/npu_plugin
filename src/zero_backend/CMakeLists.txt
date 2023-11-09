@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022 Intel Corporation.
 # SPDX-License-Identifier: Apache 2.0
 #
 
@@ -7,7 +7,7 @@ if(ENABLE_LTO)
     ie_enable_lto()
 endif()
 
-set(TARGET_NAME vpux_level_zero_backend)
+set(TARGET_NAME npu_level_zero_backend)
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
@@ -44,9 +44,9 @@ link_system_libraries(${TARGET_NAME}
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE
-        vpux_al
+        npu_al
         kmb_utils
-        vpux_utils
+        npu_utils
 )
 
 if(ENABLE_CLANG_FORMAT)

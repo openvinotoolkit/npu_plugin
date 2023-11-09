@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <llvm/ADT/TypeSwitch.h>
 #include "vpux/compiler/dialect/VPU/layer_strategy.hpp"
 
@@ -48,5 +46,6 @@ bool CompressConvolutionStrategy::isOperationSplitOverHeightCompatible(VPU::Clus
         inputShape = computerShape.tiles[0].shape;
     }
 
-    return isSOHSupportedByDPU(inputShape, _numClusters, false, VPU::getArch(nceOp.getOperation()));
+    auto inputType = origOp.input().getType().cast<NDTypeInterface>();
+    return isSOHSupportedByDPU(inputType, inputShape, _numClusters, false, VPU::getArch(nceOp.getOperation()));
 }

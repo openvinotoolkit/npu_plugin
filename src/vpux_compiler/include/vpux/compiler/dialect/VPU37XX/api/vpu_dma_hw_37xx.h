@@ -3,6 +3,8 @@
  * Copyright (c) 2022-2023, Intel Corporation.
  */
 
+// clang-format off
+
 /**
  * @brief VPU DMA public header file.
  *
@@ -16,8 +18,8 @@
 
 /*
  * If changes are made to this file that break backwards compatibility, e.g. adding struct
- * members, please update VPU_NNRT_API_VERSION_MAJOR & VPU_NNRT_API_VERSION_MINOR in
- * vpu_nnrt_api.h. This allows the NNRuntime to detect old MappedInferences.
+ * members, please update VPU_NNRT_37XX_API_VER_MAJOR & VPU_NNRT_37XX_API_VER_MINOR in
+ * vpu_nnrt_api_37xx.h. This allows the NNRuntime to detect old MappedInferences.
  */
 
 /** Pack the API structures for now, once alignment issues are fixed this can be removed */
@@ -44,7 +46,7 @@ struct vpu_dma_config_bits {
     uint64_t interrupt_trigger : 7; /* Interrupt status id when task is executed */
     uint64_t skip_nr : 7;           /* Skip descriptor */
     uint64_t
-            order_forced : 1; /* Force ordering. Dispatch the current task only after the previous task has completed */
+        order_forced : 1; /* Force ordering. Dispatch the current task only after the previous task has completed */
     uint64_t watermark_en : 1; /* Job watermark enable */
     uint64_t dec_en : 1;       /* Decoder enable */
     uint64_t barrier_en : 1;   /* Barrier use enable */
@@ -108,3 +110,5 @@ static_assert(sizeof(vpu_dma_descriptor_t) == 80, "DMA descriptor size != 80");
 #endif /* ifndef VPU_DMA_HW_37XX_H_ */
 
 /** @} */
+
+// clang-format on

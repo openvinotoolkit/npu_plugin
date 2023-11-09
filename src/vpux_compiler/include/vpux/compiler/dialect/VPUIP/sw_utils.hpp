@@ -14,9 +14,14 @@ namespace VPUIP {
 
 // TODO: E60214, need support more sw kernel task type. Currently only enable MVN
 const SmallVector<StringLiteral> SW_KERNELS_SUPPORTING_TILING = {
-        "singleShaveMVN", "singleShaveInterpolate", "swish_fp16", "gelu_fp16", "singleShaveSoftmax", "hswish_fp16",
-        "eltwise_mul"};
+        "singleShaveMVN", "singleShaveInterpolate", "swish_fp16",
+        "gelu_fp16",      "singleShaveSoftmax",     "hswish_fp16",
+        "eltwise_mul",    "hardsigmoid_fp16",       "single_shave_convert",
+        "tanh_fp16",      "single_shave_topk",      "single_shave_gather"};
+
 const SmallVector<StringLiteral> SW_KERNELS_SUPPORTING_STRIDE = {"singleShaveMVN"};
+
+constexpr StringLiteral SW_KERNEL_NAME_PREFIX = "builtin_";
 
 mlir::SymbolRefAttr createBuiltInFunction(mlir::ModuleOp module, mlir::StringRef builtInFunctionName,
                                           const ArrayRef<mlir::Type> inputTypes, mlir::StringRef kernelEntryName,

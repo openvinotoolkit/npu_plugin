@@ -1,6 +1,6 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "single_layer_tests/nonzero.hpp"
@@ -8,18 +8,18 @@
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
-class VPUXNonZeroLayerTest_VPU3700 : public NonZeroLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXNonZeroLayerTest_VPU3700 : public NonZeroLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void SkipBeforeLoad() override {
-        if (envConfig.IE_KMB_TESTS_RUN_INFER) {
-            throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
+        if (envConfig.IE_NPU_TESTS_RUN_INFER) {
+            throw LayerTestsUtils::VpuSkipTestException("layer test networks hang the board");
         }
     }
     void SkipBeforeValidate() override {
-        throw LayerTestsUtils::KmbSkipTestException("comparison fails");
+        throw LayerTestsUtils::VpuSkipTestException("comparison fails");
     }
 };
 
@@ -46,10 +46,10 @@ const std::vector<InferenceEngine::Precision> inputPrecisions = {
 
 std::map<std::string, std::string> additional_config = {};
 
-// [Track number: S#43181]
+// Tracking number [E#85137]
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_nonzero, VPUXNonZeroLayerTest_VPU3700,
                          ::testing::Combine(::testing::ValuesIn(inShapes), ::testing::ValuesIn(inputPrecisions),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(additional_config)),
                          VPUXNonZeroLayerTest_VPU3700::getTestCaseName);
 

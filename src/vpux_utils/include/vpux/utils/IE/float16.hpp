@@ -4,8 +4,6 @@
 //
 
 //
-
-//
 // FP16 and BF16 implementation
 //
 

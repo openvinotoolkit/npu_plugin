@@ -21,9 +21,9 @@ static uint32_t opsetVersionToInt(const std::string& opsetVersion) {
     return intVersion;
 }
 
-bool isFunctionSupported(const std::shared_ptr<const ngraph::Function>& netGraph, std::string opsetVersion) {
+bool isFunctionSupported(const std::shared_ptr<const ov::Model>& model, std::string opsetVersion) {
     std::string highestVersion = "opset0";
-    for (const auto& op : netGraph->get_ops()) {
+    for (const auto& op : model->get_ops()) {
         const std::string opVersionId = std::string(op->get_type_info().version_id);
         const uint32_t intVersion = opsetVersionToInt(opVersionId);
         const uint32_t largestIntVersion = opsetVersionToInt(highestVersion);
@@ -49,7 +49,7 @@ void downgradeOpset(ngraph::pass::Manager& manager, const uint32_t& supportedVer
     }
 }
 
-IR serializeToIR(const std::shared_ptr<ngraph::Function>& netGraph, const uint32_t& supportedVersionByCompiler) {
+IR serializeToIR(std::shared_ptr<ov::Model>& model, const uint32_t& supportedVersionByCompiler) {
     const auto passConfig = std::make_shared<ngraph::pass::PassConfig>();
     ngraph::pass::Manager manager(passConfig);
 
@@ -58,7 +58,7 @@ IR serializeToIR(const std::shared_ptr<ngraph::Function>& netGraph, const uint32
     downgradeOpset(manager, supportedVersionByCompiler);
 
     manager.register_pass<ngraph::pass::Serialize>(xmlStream, weightsStream);
-    manager.run_passes(netGraph);
+    manager.run_passes(model);
     const size_t xmlSize = vpu::KmbPlugin::utils::getFileSize(xmlStream);
     const size_t weightsSize = vpu::KmbPlugin::utils::getFileSize(weightsStream);
     std::vector<char> xmlBlob(xmlSize), weightsBlob(weightsSize);

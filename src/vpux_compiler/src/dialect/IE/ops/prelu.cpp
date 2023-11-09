@@ -62,7 +62,7 @@ mlir::LogicalResult UseLeakyRelu::matchAndRewrite(IE::PReluOp origOp, mlir::Patt
         return mlir::failure();
     }
 
-    const auto negativeSlopeContent = negativeSlopeOp.content();
+    const auto negativeSlopeContent = negativeSlopeOp.getContent();
     if (!negativeSlopeContent.isSplat()) {
         return mlir::failure();
     }

@@ -21,10 +21,10 @@ func.func @ParsePrintClusterTask(%arg0: memref<1x32x16x16xf16, #NHWC, @CMX_NN>) 
                 -> !async.value<memref<1x64x14x14xf16, #NHWC, @CMX_NN>>
                     attributes {VPUIP.executor = @NCE, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
         %0 = VPUIP.NCEClusterTask {
-                kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+                kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
                 kernel_size = [1, 1],
                 kernel_strides = [1, 1],
-                task_type = "CONV"
+                task_type = #VPUIP.nce_task_type<CONV>
             }  input(%arg0 : memref<1x32x16x16xf16, #NHWC, @CMX_NN>)
                 weights(%weights : memref<64x32x3x3xf16, #NHWC, @CMX_NN>)
                 weight_table(%weight_table_cmx : memref<64x1x1x4xsi32, @CMX_NN>)
@@ -34,8 +34,8 @@ func.func @ParsePrintClusterTask(%arg0: memref<1x32x16x16xf16, #NHWC, @CMX_NN>) 
                     -> memref<1x64x14x14xf16, #NHWC, @CMX_NN> variants :  {
                 DPUTask {
                     outStart = [0, 0, 0], outEnd = [31, 15, 15],
-                    mpe_mode = "VECTOR_FP16",
-                    pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
+                    mpe_mode = #VPU.mpe_mode<VECTOR_FP16>,
+                    pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>
                 }
                 } PPE :  {
                 }
@@ -78,7 +78,7 @@ func.func @ParsePrintClusterTask(%arg0: memref<1x32x16x16xf16, #NHWC, @CMX_NN>) 
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 4, 1],
     kernel = [3, 3],
-    pads = {bottom = 1, left = 1, right = 1, top = 1},
+    pads = #VPU.Padding<left = 1 , right = 1, top = 1, bottom = 1>,
     strides = [1, 1],
     num_clusters = 4
 }>
@@ -140,10 +140,10 @@ func.func @ParsePrintDistributedBuffer(%input: !Input_DDR) -> !Output_DDR {
     %t3 = async.execute [%t0, %t1, %t2]
                 attributes {VPUIP.executor = @NCE, VPUIP.num_units = 4 : i64, "async-deps-index" = 3 : i64} {
             %0 = VPUIP.NCEClusterTask {
-                    kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+                    kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
                     kernel_size = [1, 1],
                     kernel_strides = [1, 1],
-                    task_type = "CONV"
+                    task_type = #VPUIP.nce_task_type<CONV>
                 }  input(%input_cmx : !InputDistributed)
                     weights(%weights_cmx : !WeightsDistributed)
                     weight_table(%weights_table_cmx : !WeightsTableDistributed)
@@ -153,8 +153,8 @@ func.func @ParsePrintDistributedBuffer(%input: !Input_DDR) -> !Output_DDR {
                         -> !OutputDistributed variants :  {
                     DPUTask {
                         outStart = [0, 0, 0], outEnd = [31, 15, 15],
-                        mpe_mode = "VECTOR_FP16",
-                        pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
+                        mpe_mode = #VPU.mpe_mode<VECTOR_FP16>,
+                        pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>
                     }
                     } PPE :  {
                     }
@@ -175,7 +175,7 @@ func.func @ParsePrintDistributedBuffer(%input: !Input_DDR) -> !Output_DDR {
     //CHECK:        %cst = const.Declare memref<64x32x3x3xf16, #NHWC, @DDR>
     //CHECK:        [[INPUT_CMX:%.*]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<1x32x16x16xf16, #NHWC, @CMX_NN,
     //CHECK-SAME:                           {mode = "OVERLAPPED", num_tiles = [1, 1, 4, 1], kernel = [3, 3],
-    //CHECK-SAME:                           pads = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, strides = [1, 1], num_clusters = 4 : i64}>
+    //CHECK-SAME:                           pads = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>, strides = [1, 1], num_clusters = 4 : i64}>
     //CHECK:        %token = async.execute attributes {VPUIP.executor = @DMA_NN, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
     //CHECK:              %5 = VPUIP.NNDMA inputs(%arg0 : memref<1x32x16x16xf16, #NHWC, @DDR>
     //CHECK-SAME:                          outputs([[INPUT_CMX]] : !VPUIP.DistributedBuffer
@@ -199,16 +199,16 @@ func.func @ParsePrintDistributedBuffer(%input: !Input_DDR) -> !Output_DDR {
     //CHECK:        }
 
     //CHECK:        %token_2 = async.execute [%token, %token_0, %token_1] attributes {VPUIP.executor = @NCE, VPUIP.num_units = 4 : i64, "async-deps-index" = 3 : i64} {
-    //CHECK:                %5 = VPUIP.NCEClusterTask {kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, kernel_size = [1, 1], kernel_strides = [1, 1], task_type = "CONV"}
+    //CHECK:                %5 = VPUIP.NCEClusterTask {kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, kernel_size = [1, 1], kernel_strides = [1, 1], task_type = #VPUIP.nce_task_type<CONV>} 
     //CHECK-SAME:               input([[INPUT_CMX]] : !VPUIP.DistributedBuffer
     //CHECK-SAME:               weights([[WEIGHTS_CMX]] : !VPUIP.DistributedBuffer
     //CHECK-SAME:               weight_table([[WEIGHTS_TABLE_CMX]] : !VPUIP.DistributedBuffer
     //CHECK-SAME:               parent_input([[INPUT_CMX]] : !VPUIP.DistributedBuffer
     //CHECK-SAME:               parent_output([[OUTPUT_BUFF_CMX]] : !VPUIP.DistributedBuffer
-    //CHECK-SAME:               outputs([[OUTPUT_BUFF_CMX]] : !VPUIP.DistributedBuffer
-    //CHECK-SAME:                   -> !VPUIP.DistributedBuffer
+    //CHECK-SAME:               outputs([[OUTPUT_BUFF_CMX]] : !VPUIP.DistributedBuffer 
+    //CHECK-SAME:                   -> !VPUIP.DistributedBuffer 
     //CHECK-SAME:           variants :  {
-    //CHECK:                  DPUTask {mpe_mode = "VECTOR_FP16", outEnd = [31, 15, 15], outStart = [0, 0, 0], pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}}
+    //CHECK:                  DPUTask {mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, outEnd = [31, 15, 15], outStart = [0, 0, 0], pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>}
     //CHECK:                } PPE :  {
     //CHECK:                }
     //CHECK:              async.yield

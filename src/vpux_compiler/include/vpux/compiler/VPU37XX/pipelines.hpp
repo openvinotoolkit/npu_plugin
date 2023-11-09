@@ -56,6 +56,14 @@ struct ReferenceHWOptions37XX final : public ReferenceHWOptions<ReferenceHWOptio
     BoolOption enableSEPtrsOperations{*this, "enable-se-ptrs-operations",
                                       llvm::cl::desc("Enable storage element pointer operations"),
                                       llvm::cl::init(false)};
+
+    BoolOption useNCEPermute{*this, "use-nce-permute", llvm::cl::desc("Use nce permute operation"),
+                             llvm::cl::init(false)};
+
+    BoolOption enableExplicitDistributedTensorAttr{
+            *this, "enable-explicit-distributed-attr",
+            llvm::cl::desc("Enable DistributedTensorAttr with explicit per cluster memory/compute shapes & offsets"),
+            llvm::cl::init(false)};
 };
 
 void buildReferenceHWModePipeline(mlir::OpPassManager& pm, const ReferenceHWOptions37XX& options,
@@ -94,8 +102,15 @@ struct DefaultHWOptions37XX final : public DefaultHWOptions<DefaultHWOptions37XX
     BoolOption enableSEPtrsOperations{*this, "enable-se-ptrs-operations",
                                       llvm::cl::desc("Enable storage element pointer operations"),
                                       llvm::cl::init(false)};
-};
 
+    BoolOption useNCEPermute{*this, "use-nce-permute", llvm::cl::desc("Use nce permute operation"),
+                             llvm::cl::init(false)};
+
+    BoolOption enableExplicitDistributedTensorAttr{
+            *this, "enable-explicit-distributed-attr",
+            llvm::cl::desc("Enable DistributedTensorAttr with explicit per cluster memory/compute shapes & offsets"),
+            llvm::cl::init(false)};
+};
 void buildShaveCodeGenPipeline37XX(mlir::OpPassManager& pm, Logger log = Logger::global());
 
 void buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOptions37XX& options,

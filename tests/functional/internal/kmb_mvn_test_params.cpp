@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "kmb_mvn_test_params.hpp"
 
 std::ostream& operator<<(std::ostream& os, const MVNTestParams& p) {

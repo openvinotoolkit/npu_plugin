@@ -20,3 +20,4 @@ func.func @ResolveScatterUpdateByTranspose (%arg0: tensor<10x16x12x15xf16>, %arg
     // CHECK:  [[TRANSPOSE_3:%.*]] = IE.Transpose([[VAL1]]) {order_value = #map1} : tensor<12x10x16x15xf16> -> tensor<10x16x12x15xf16>
     // CHECK:  return [[TRANSPOSE_3]] : tensor<10x16x12x15xf16>
 }
+

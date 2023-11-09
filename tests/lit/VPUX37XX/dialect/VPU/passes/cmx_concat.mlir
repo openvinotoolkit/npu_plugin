@@ -68,8 +68,8 @@ func.func @SparseConvolution(%input: !SparseInput,
         %weights as %arg2: !WeightsType,
         %weightsTable as %arg3: !WeightsTableType) -> !SparseConvOutputDist {
         %20 = VPU.NCE.Convolution(%arg1, %arg2, %arg3)
-                {pad = {bottom = 0 : i64, left = 1 : i64, right = 0 : i64, top = 1 : i64},
-                ppe = {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, fp_prelu_alpha = 1.000000e+00 : f64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "LRELU"},
+                {pad = #VPU.Padding<left = 1 : i64, right = 0 : i64, top = 1 : i64, bottom = 0 : i64>,
+                ppe = #VPU.PPETask<mode = <LRELU>, clamp_low = -2147483648 : i64, clamp_high = 2147483647 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, fp_prelu_alpha = 1.000000e+00 : f64>,
                 rawFilterShape = [128, 256, 3, 3], strides = [2, 2]}
                     -> !SparseConvOutputCMX
         VPU.Yield %20
@@ -87,8 +87,8 @@ func.func @SparseConvolution(%input: !SparseInput,
         %weights as %arg2: !WeightsType,
         %weightsTable as %arg3: !WeightsTableType)  -> !SparseConvOutputDist {
         %20 = VPU.NCE.Convolution(%arg1, %arg2, %arg3)
-                {pad = {bottom = 0 : i64, left = 1 : i64, right = 0 : i64, top = 1 : i64},
-                ppe = {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, fp_prelu_alpha = 1.000000e+00 : f64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "LRELU"},
+                {pad = #VPU.Padding<left = 1 : i64, right = 0 : i64, top = 1 : i64, bottom = 0 : i64>,
+                ppe = #VPU.PPETask<mode = <LRELU>, clamp_low = -2147483648 : i64, clamp_high = 2147483647 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, fp_prelu_alpha = 1.000000e+00 : f64>,
                 rawFilterShape = [128, 256, 3, 3], strides = [2, 2]}
                     -> !SparseConvOutputCMX
         VPU.Yield %20
@@ -116,8 +116,8 @@ func.func @SparseConvolution(%input: !SparseInput,
         %weightsTable as %arg3: !WeightsTableType)
             -> !VPU.SparseTensor<data=!VPU.DistributedTensor<1x128x6x6xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, @CMX_NN, {mode = "DUPLICATED|SEGMENTED", num_tiles = [1, 2, 1, 1], num_clusters = 2 : i64, alignment = [1, 16, 1, 1]}>, sparsity_map=!VPU.DistributedTensor<1x128x6x6xi1, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, @CMX_NN, {mode = "DUPLICATED|SEGMENTED", num_tiles = [1, 2, 1, 1], num_clusters = 2 : i64, alignment = [1, 16, 1, 1]}>> {
         %20 = VPU.NCE.Convolution(%arg1, %arg2, %arg3)
-                {pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
-                ppe = {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, fp_prelu_alpha = 1.000000e+00 : f64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "NOOP"},
+                {pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
+                ppe = #VPU.PPETask<mode = <NOOP>, clamp_low = -2147483648 : i64, clamp_high = 2147483647 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, fp_prelu_alpha = 1.000000e+00 : f64>,
                 rawFilterShape = [128, 256, 3, 3], strides = [2, 2]} -> !VPU.SparseTensor<data=tensor<1x128x6x6xf16, {mem_space = @CMX_NN, order = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>}>, sparsity_map=tensor<1x128x6x6xi1, {mem_space = @CMX_NN, order = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>}>>
         VPU.Yield %20
     }

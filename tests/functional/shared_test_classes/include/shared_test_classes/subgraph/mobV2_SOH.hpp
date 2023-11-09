@@ -1,11 +1,12 @@
-// Copyright (C) 2019 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) 2019 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #pragma once
 
-#include "kmb_layer_test.hpp"
 #include "shared_test_classes/single_layer/activation.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace SubgraphTestsDefinitions {
 

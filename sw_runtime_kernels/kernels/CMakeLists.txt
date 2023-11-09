@@ -1,5 +1,7 @@
-# Copyright (C) 2022 Intel Corporation
+#
+# Copyright (C) 2022-2023 Intel Corporation.
 # SPDX-License-Identifier: Apache 2.0
+#
 
 cmake_minimum_required(VERSION 3.13.4)
 
@@ -54,42 +56,42 @@ option(ENABLE_JTAG_BINARIES_BUILD "Enable jtag binaries build" OFF)
 
 set(use_prebuilt_binaries OFF)
 
-if(NOT ENABLE_SHAVE_BINARIES_BUILD)
-  set(use_prebuilt_binaries ON)
-
-  if(ENABLE_MANAGEMENT_KERNEL_BUILD)
-    message(FATAL_ERROR "When ENABLE_MANAGEMENT_KERNEL_BUILD=ON please use ENABLE_SHAVE_BINARIES_BUILD=`ON`")
-  endif()
+if(ENABLE_JTAG_BINARIES_BUILD)
+  set(IE_MAIN_VPUX_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 endif()
 
-if(DEFINED ENV{MV_TOOLS_DIR} AND DEFINED ENV{MV_TOOLS_VERSION})
-  set(MV_TOOLS_DIR "$ENV{MV_TOOLS_DIR}")
-  set(MV_TOOLS_VERSION "$ENV{MV_TOOLS_VERSION}")
+if(ENABLE_SHAVE_BINARIES_BUILD)
+  exists_mv_tools_version(available)
+  if(NOT available)
+    get_mv_tools()
+  endif()
+
+  get_mv_tools_path(MV_TOOLS_PATH)
 
   if(UNIX)
-    set(mv_tools_compile "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/bin/moviCompile")
-    set(mv_tools_link "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/bin/moviLLD")
-    set(mv_tools_objcopy "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/bin/llvm-objcopy")
+    set(mv_tools_compile "${MV_TOOLS_PATH}/linux64/bin/moviCompile")
+    set(mv_tools_link "${MV_TOOLS_PATH}/linux64/bin/moviLLD")
+    set(mv_tools_objcopy "${MV_TOOLS_PATH}/linux64/bin/llvm-objcopy")
   elseif(WIN32)
-    set(mv_tools_compile "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/win32/bin/moviCompile.exe")
-    set(mv_tools_link "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/win64/bin/moviLLD.exe")
-    set(mv_tools_objcopy "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/win64/bin/llvm-objcopy.exe")
+    set(mv_tools_compile "${MV_TOOLS_PATH}/win32/bin/moviCompile.exe")
+    set(mv_tools_link "${MV_TOOLS_PATH}/win64/bin/moviLLD.exe")
+    set(mv_tools_objcopy "${MV_TOOLS_PATH}/win64/bin/llvm-objcopy.exe")
+  else()
+    message(FATAL_ERROR "Unsupported operating system")
   endif()
 
   set(link_libraries_list_VPU3720
-    "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/37xxxx/mlibc_lgpl.a"
-    "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/37xxxx/mlibm.a"
-    "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/37xxxx/mlibcxx.a"
-    "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/37xxxx/mlibc.a"
-    "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/37xxxx/mlibcrt.a"
+    "${MV_TOOLS_PATH}/common/moviCompile/lib/37xxxx/mlibc_lgpl.a"
+    "${MV_TOOLS_PATH}/common/moviCompile/lib/37xxxx/mlibm.a"
+    "${MV_TOOLS_PATH}/common/moviCompile/lib/37xxxx/mlibcxx.a"
+    "${MV_TOOLS_PATH}/common/moviCompile/lib/37xxxx/mlibc.a"
+    "${MV_TOOLS_PATH}/common/moviCompile/lib/37xxxx/mlibcrt.a"
   )
 else()
-  if(ENABLE_SHAVE_BINARIES_BUILD)
-    message(FATAL_ERROR "MV_TOOLS_DIR and MV_TOOLS_VERSION environment variables must be defined when ENABLE_SHAVE_BINARIES_BUILD=ON")
-  endif()
+  set(use_prebuilt_binaries ON)
 
   if(ENABLE_MANAGEMENT_KERNEL_BUILD)
-    message(FATAL_ERROR "MV_TOOLS_DIR and MV_TOOLS_VERSION environment variables must be defined when BUILD_MANGEMENT_KERNEL=ON")
+    message(FATAL_ERROR "When ENABLE_MANAGEMENT_KERNEL_BUILD=ON please use ENABLE_SHAVE_BINARIES_BUILD=ON")
   endif()
 endif()
 
@@ -259,7 +261,7 @@ foreach(kernel_descrip ${kernel_descrip_list})
         add_custom_command(
           OUTPUT "${obj_file}"
           DEPENDS "${extra_src_file}"
-          COMMAND "${mv_tools_compile}" -mcpu=${kernel_cpu} -O3 ${include_dirs_list} ${define_symbols_list} -c "${extra_src_file}" -o "${obj_file}"
+          COMMAND "${mv_tools_compile}" -mcpu=${kernel_cpu} -O3 ${cppflags_list} ${include_dirs_list} ${define_symbols_list} -c "${extra_src_file}" -o "${obj_file}"
         )
         list(APPEND compiled_extra_list "${obj_file}")
       endif()

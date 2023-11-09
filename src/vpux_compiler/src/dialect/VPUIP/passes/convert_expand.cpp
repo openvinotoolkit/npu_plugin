@@ -70,7 +70,7 @@ mlir::Value ConvertExpandPass::applyPadding(const int64_t padAxis, const int64_t
     auto constantOp = constantBuffer.getDefiningOp<Const::DeclareOp>();
     VPUX_THROW_UNLESS(constantOp != nullptr, "Can not get constant Op");
 
-    const auto constShapeType = constantOp.output().getType().cast<NDTypeInterface>();
+    const auto constShapeType = constantOp.getOutput().getType().cast<NDTypeInterface>();
     const auto constOuputShape = constShapeType.getShape();
     Shape subViewShape;
     std::copy(inShape.begin(), inShape.end(), std::back_inserter(subViewShape));
@@ -205,7 +205,7 @@ void ConvertExpandPass::safeRunOnFunc() {
         SmallVector<mlir::Value> concatInputs;
         const auto inShape = inputType.getShape();
         auto subViewOffsets = SmallVector<int64_t>(inShape.size(), 0);
-        PaddingContext padCtx(origOp->getLoc(), ShapeRef(inShape), expandedBuffer, constantOp.output());
+        PaddingContext padCtx(origOp->getLoc(), ShapeRef(inShape), expandedBuffer, constantOp.getOutput());
 
         // Apply pads_begin
         _log.nest().trace("Process Expand Operation '{0}' for pads begin", origOp->getLoc());

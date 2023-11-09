@@ -64,6 +64,7 @@ public:
     BaseActShaveProfiler(unsigned clustersNum, mlir::OpBuilder& builder, mlir::MLIRContext* ctx,
                          vpux::IndexedSymbolAttr memKindAttr, mlir::func::FuncOp netFunc, vpux::Logger& log,
                          std::shared_ptr<NameUniqifier> uniqifier);
+    virtual ~BaseActShaveProfiler() = default;
 
     // Get amount of memory needed to store profiling data of all ActShave tasks in the model
     unsigned getRequiredDdrMemory() const;

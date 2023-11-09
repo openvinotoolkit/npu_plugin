@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 /**
  * @brief VPUX platform configuration
  *
@@ -28,14 +26,10 @@ namespace VPUXConfigParams {
  * @brief VPUX device
  */
 enum class VPUXPlatform : int {
-    AUTO_DETECT = 0,  // auto detection
-    VPU3400_A0 = 1,   // VPU30XX A0
-    VPU3400 = 2,      // VPU30XX B0
-    VPU3700 = 3,      // VPU30XX B0
-    VPU3800 = 4,      // VPU311X Prime
-    VPU3900 = 5,      // VPU311X Full
-    VPU3720 = 6,      // VPU3720
-    EMULATOR = 7,     // emulator
+    AUTO_DETECT = 0,  // Auto detection
+    EMULATOR = 1,     // Emulator
+    VPU3700 = 2,      // VPU30XX
+    VPU3720 = 3,      // VPU37XX
 };
 
 /**
@@ -50,20 +44,12 @@ inline std::ostream& operator<<(std::ostream& os, const VPUXPlatform& vpux_platf
     switch (vpux_platform) {
     case VPUXPlatform::AUTO_DETECT:
         return os << "AUTO_DETECT";
-    case VPUXPlatform::VPU3400_A0:
-        return os << "VPU3400_A0";
-    case VPUXPlatform::VPU3400:
-        return os << "VPU3400";
-    case VPUXPlatform::VPU3700:
-        return os << "VPU3700";
-    case VPUXPlatform::VPU3800:
-        return os << "VPU3800";
-    case VPUXPlatform::VPU3900:
-        return os << "VPU3900";
-    case VPUXPlatform::VPU3720:
-        return os << "VPU3720";
     case VPUXPlatform::EMULATOR:
         return os << "EMULATOR";
+    case VPUXPlatform::VPU3700:
+        return os << "VPU3700";
+    case VPUXPlatform::VPU3720:
+        return os << "VPU3720";
     default:
         return os << "0x" << std::hex << static_cast<uint8_t>(vpux_platform);
     }

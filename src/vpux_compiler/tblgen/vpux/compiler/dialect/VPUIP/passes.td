@@ -118,7 +118,7 @@ def CopyOpTiling : PassBase<"tile-copies", "vpux::FunctionPass"> {
         This pass checks if Copy Op can be executed at target hardware and splits it into a few tiles if necessary.
         To fit hardware requirements it should copy less or equal than 16MB(2**24 bytes) and have less than 256 planes.
         The higher dimensional stride of the two-dimensional stride DMA is implemented through the plane.
-        So if the copy has two dimensional stride, and the higher dimensional stride exceeds the number of planes, 
+        So if the copy has two dimensional stride, and the higher dimensional stride exceeds the number of planes,
         we need to split the copy on the higher stride dimension
     }];
 
@@ -431,9 +431,9 @@ def MaximizeUPACycles : PassBase<"maximize-upa-cycles", "vpux::FunctionPass"> {
 
     let description = [{
         For each SHAVE_UPA executor the pass recalculates cycleBegin, cycleEnd and cycleCost
-        in order to expand cycle from latest producer of executor to nearest consumer. 
+        in order to expand cycle from latest producer of executor to nearest consumer.
         It takes maximum of cycleEnd value of producers as new cycleBegin and minimum of cycleBegin
-        of consumers as new cycleEnd. 
+        of consumers as new cycleEnd.
     }];
 
     let constructor = "vpux::VPUIP::createMaximizeUPACyclesPass()";
@@ -598,21 +598,6 @@ def CompressWeightsBTC : PassBase<"compress-weights-btc", "vpux::FunctionPass"> 
 }
 
 //
-// UnrollClusterTiling
-//
-
-def UnrollClusterTiling : PassBase<"unroll-cluster-tiling", "vpux::FunctionPass"> {
-    let summary = "Extracts child operations from ClusterTiling operation";
-
-    let description = [{
-        Legalizes chain of ClusterTiling operations according to the tile schema
-    }];
-
-    let constructor = "vpux::VPUIP::createUnrollClusterTilingPass()";
-
-}
-
-//
 // UnwrapClusterTiling
 //
 
@@ -640,7 +625,7 @@ def UnrollDepthToSpaceDMA : PassBase<"unroll-depth-to-space-dma", "vpux::Functio
         Each sub DepthToSpaceDMA will be converted to a NNDMA.
         1. if input/output layout is NHWC with model block_first, number of sub DepthToSpaceDMA is same as block_size.
         2. if input/output layout is NHWC with model depth_first, number of sub DepthToSpaceDMA is OH * OW / block_size.
-        block_size is the size of the spatial block. It is an attribution of DepthToSpace. 
+        block_size is the size of the spatial block. It is an attribution of DepthToSpace.
     }];
 
     let constructor = "vpux::VPUIP::createUnrollDepthToSpaceDMAPass()";
@@ -894,18 +879,18 @@ def OperationStubbing : PassBase<"operation-stubbing", "vpux::FunctionPass"> {
 }
 
 //
-// AdjustCompressConvInputs
+// ConvWeightsCompression
 //
 
-def AdjustCompressConvInputs : PassBase<"adjust-compress-conv-inputs", "vpux::FunctionPass"> {
-    let summary = "Modify compress conv inputs";
+def ConvWeightsCompression : PassBase<"conv-weights-compression", "vpux::FunctionPass"> {
+    let summary = "Compress weights of Conv operation";
 
     let description = [{
-        This pass checks if weights from a Convolution op were previously padded with zero, remove that pad and insert a ShapeCast op.
-        Also add a ShapeCast Op to activations if channels there are less than 16 channels 
+        This pass checks if weights from a Convolution op were previously padded with zero, remove that pad, insert a ShapeCast op
+        and set cm_sp_pattern value.
     }];
 
-    let constructor = "vpux::VPUIP::createAdjustCompressConvInputsPass()";
+    let constructor = "vpux::VPUIP::createConvWeightsCompressionPass()";
 }
 
 //
@@ -934,7 +919,7 @@ def PatchFusedConstants : PassBase<"patch-fused-constants", "vpux::FunctionPass"
     let summary = "Patch the weight table fused in fused constant";
 
     let description = [{
-        This pass converts the U8 weight table values to I32. Updates the address of each weight set 
+        This pass converts the U8 weight table values to I32. Updates the address of each weight set
         and activation window present in the fused constant for each output channel of the layer
     }];
 
@@ -1231,6 +1216,23 @@ def FuseDDRCopiesIntoConcats : PassBase<"fuse-ddr-copies-into-concats", "vpux::F
     }];
 
     let constructor = "vpux::VPUIP::createFuseDDRCopiesIntoConcats()";
+}
+
+//
+// NNDMATiling
+//
+
+def NNDMATiling : PassBase<"nn-dma-tiling", "vpux::FunctionPass"> {
+    let summary = "Legalizes NNDMA Ops which do not fit hardware capabilities";
+
+    let description = [{
+        This pass splits NNDMAOp if DMA data size is greater than 16MB(2**24 bytes) or it has more than 256 planes after unroll-cluster-tiling.
+        CopyOpTiling pass has similar logic to tile CopyOp, but Distributed CopyOp can not be handled.
+        This pass is added to legalize NNDMAOp so that each DMA job can fit hardware capabilities as a timely solution.
+        The refactoring in E#84706 will provide a more maintainable long term solution.
+    }];
+
+    let constructor = "vpux::VPUIP::createNNDMATilingPass()";
 }
 
 #endif

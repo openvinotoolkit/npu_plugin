@@ -383,7 +383,7 @@ NDTypeInterface VPUIP::SparseBufferType::changeStrides(StridesRef strides) const
                                         getCompressionScheme(), getSeAttr());
 }
 
-NDTypeInterface VPUIP::SparseBufferType::changeTypeComponents(TypeComponents typeComponents) const {
+NDTypeInterface VPUIP::SparseBufferType::changeTypeComponents(const vpux::TypeComponents& typeComponents) const {
     const auto shape = typeComponents.shape.value_or(Shape(getShape().toValues()));
     const auto dimsOrder = typeComponents.dimsOrder.value_or(getDimsOrder());
     const auto memSpace = typeComponents.memSpace.value_or(getMemSpace());
@@ -393,7 +393,8 @@ NDTypeInterface VPUIP::SparseBufferType::changeTypeComponents(TypeComponents typ
     if (auto seAttr = getSeAttr()) {
         newInputDataShape = seAttr.backInferShape(shape);
     }
-    const auto newData = ndData.changeTypeComponents(typeComponents.setShape(newInputDataShape));
+    TypeComponents dataTypeComponents(typeComponents);
+    const auto newData = ndData.changeTypeComponents(dataTypeComponents.setShape(newInputDataShape));
 
     auto sparsityMap = getSparsityMap();
     if (sparsityMap != nullptr) {

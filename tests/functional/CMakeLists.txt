@@ -1,9 +1,9 @@
 #
-# Copyright (C) 2022 Intel Corporation
-# SPDX-License-Identifier: Apache-2.0
+# Copyright (C) 2022 Intel Corporation.
+# SPDX-License-Identifier: Apache 2.0
 #
 
-set(TARGET_NAME vpuxFuncTests)
+set(TARGET_NAME npuFuncTests)
 
 addIeTargetTest(
     NAME ${TARGET_NAME}
@@ -21,7 +21,7 @@ addIeTargetTest(
         "${PROJECT_BINARY_DIR}/src/vpux_compiler/include"
         ${LLVM_INCLUDE_DIRS}
     DEPENDENCIES
-        openvino_intel_vpux_plugin
+        openvino_intel_npu_plugin
     LINK_LIBRARIES
         IE::funcSharedTests
         IE::ngraph
@@ -30,7 +30,8 @@ addIeTargetTest(
         IE::inference_engine
         kmb_utils
         common_tests_helpers
-        vpux_utils
+        npu_utils
+        npu_al
     DEFINES
         DATA_PATH=\"${DATA_PATH}\"
         MODELS_PATH=\"${MODELS_PATH}\"

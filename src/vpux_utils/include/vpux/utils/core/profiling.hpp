@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 namespace vpux {
 
@@ -20,4 +18,10 @@ constexpr char PROFILING_DMA_TASK_BEGIN_PREFIX[] = "PROFTASKBEGIN";
 constexpr char PROFILING_DMA_TASK_END_PREFIX[] = "PROFTASKEND";
 constexpr char PROFILING_WORKPOINT_READ_ATTR[] = "PROFWORKPOINT_READ";
 constexpr char PROFILING_PREFIX[] = "PROF";
+constexpr char PROFILING_OUTPUT_NAME[] = "profilingOutput";
+
+// DMA HW profiling and workpoint capture require 64B section alignment
+constexpr auto PROFILING_SECTION_ALIGNMENT = 64u;
+constexpr auto WORKPOINT_BUFFER_SIZE = 64u;  // must be in a separate cache line
+
 }  // namespace vpux

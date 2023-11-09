@@ -29,7 +29,7 @@ mlir::LogicalResult vpux::IE::MinimumOp::inferReturnTypeComponents(
             IE::broadcastEltwiseShape(in1Type.getShape(), in2Type.getShape(), minimum.auto_broadcast(), loc);
 
     if (mlir::succeeded(outShapeRes)) {
-        inferredReturnShapes.emplace_back(outShapeRes.getValue(), in1Type.getElementType());
+        inferredReturnShapes.emplace_back(outShapeRes.value(), in1Type.getElementType());
     }
 
     return outShapeRes;

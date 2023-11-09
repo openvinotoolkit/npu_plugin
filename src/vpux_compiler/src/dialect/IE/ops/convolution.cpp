@@ -192,7 +192,7 @@ mlir::LogicalResult vpux::IE::GroupConvolutionOp::inferReturnTypeComponents(
                            filterShape.size());
         }
 
-        groups = conv.groups().getValue();
+        groups = conv.groups().value();
     } else {
         if (filterShape.size() != inShape.size() + 1) {
             return errorAt(loc, "Input size '{0}' does not match filter size '{1}'. (groups == 0)", inShape.size() + 1,
@@ -237,7 +237,7 @@ public:
 
 mlir::LogicalResult GroupsToAttr::matchAndRewrite(IE::GroupConvolutionOp convOp,
                                                   mlir::PatternRewriter& rewriter) const {
-    if (convOp.groups().hasValue()) {
+    if (convOp.groups().has_value()) {
         return mlir::failure();
     }
 

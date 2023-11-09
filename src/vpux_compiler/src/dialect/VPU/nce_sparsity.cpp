@@ -31,7 +31,7 @@ using namespace VPU::NCESparsity;
 
 int32_t toHex(double realVal) {
     return llvm::bit_cast<int32_t>(static_cast<float>(realVal));
-};
+}
 
 bool isMixedPrecisionSupported(VPU::ArchKind arch) {
     return arch == VPU::ArchKind::VPUX37XX;
@@ -179,7 +179,7 @@ llvm::unique_function<int32_t(size_t)> getBiasFunc(mlir::Type inElemType, mlir::
         auto rescaledBias = VPU::NCESparsity::getRescaledBias(bias, inElemType, weightsElemType, OC);
         VPUX_THROW_WHEN(mlir::failed(rescaledBias), "Rescaled bias value is out of range");
 
-        return [rescaledBiasValue = std::move(rescaledBias.getValue())](size_t oc) -> int32_t {
+        return [rescaledBiasValue = std::move(rescaledBias.value())](size_t oc) -> int32_t {
             return checked_cast<int32_t>(std::round(rescaledBiasValue[oc]));
         };
     } else if (isFloat || isFloatInQuantOut) {
@@ -205,14 +205,13 @@ llvm::unique_function<int32_t(size_t)> getMultShiftFunc(mlir::Type inElemType, m
                                                         mlir::Type weightsType, VPU::PPETaskAttr ppe,
                                                         VPU::ArchKind arch, size_t OC, bool isSpecialRelu) {
     auto changeMultForPPE = [](int32_t& mult, VPU::PPETaskAttr ppe) {
-        if (ppe && ppe.mode().getValue() == VPU::PPEMode::LPRELU) {
+        if (ppe && ppe.getMode().getValue() == VPU::PPEMode::LPRELU) {
             mult &= 0xFFFFFF00;
-            mult |= static_cast<int32_t>(ppe.lrelu_mult().getInt());
+            mult |= static_cast<int32_t>(ppe.getLreluMult().getInt());
         }
     };
     auto bypassMultForPPE = [](int32_t&, VPU::PPETaskAttr) {};
-    auto updateMultForPPE =
-            (arch == VPU::ArchKind::VPUX37XX) ? bypassMultForPPE : changeMultForPPE;
+    auto updateMultForPPE = (arch == VPU::ArchKind::VPUX37XX) ? bypassMultForPPE : changeMultForPPE;
     if (!inElemType.isa<mlir::quant::QuantizedType>() && !outElemType.isa<mlir::quant::QuantizedType>()) {
         const auto ppeConverter = VPU::NCESparsity::ppeConvertersMap.at(arch);
         int32_t multShift = ppeConverter(0, 1, 1, inElemType);
@@ -266,13 +265,11 @@ llvm::unique_function<int32_t(size_t)> getMultShiftFunc(mlir::Type inElemType, m
 
 const EnumMap<VPU::ArchKind, VPU::NCESparsity::PPEConverterCb> vpux::VPU::NCESparsity::ppeConvertersMap = {
         {VPU::ArchKind::VPUX30XX, getVPUX30XX_Scale},
-        {VPU::ArchKind::VPUX311X, getVPUX30XX_Scale},
         {VPU::ArchKind::VPUX37XX, getVPUX37XX_Scale},
 };
 
 const EnumMap<VPU::ArchKind, VPU::NCESparsity::BiasConverterCb> vpux::VPU::NCESparsity::biasConvertersMap = {
         {VPU::ArchKind::VPUX30XX, toFixedPoint},
-        {VPU::ArchKind::VPUX311X, toFixedPoint},
         {VPU::ArchKind::VPUX37XX, toHex},
 };
 
@@ -395,7 +392,7 @@ int32_t vpux::VPU::NCESparsity::getWeightPtrStep(mlir::Value weights) {
 }
 
 bool isQuantLeakyRelu025(VPU::ArchKind arch, mlir::Type inElemType, mlir::Type outElemType,
-                         vpux::IE::PostOp postOpAttr) {
+                         vpux::IE::PostOpAttr postOpAttr) {
     if (arch == VPU::ArchKind::VPUX37XX) {
         return false;
     }
@@ -410,11 +407,11 @@ bool isQuantLeakyRelu025(VPU::ArchKind arch, mlir::Type inElemType, mlir::Type o
         return false;
     }
 
-    if (postOpAttr.name().getValue() != IE::LeakyReluOp::getOperationName()) {
+    if (postOpAttr.getName().getValue() != IE::LeakyReluOp::getOperationName()) {
         return false;
     }
 
-    IE::LeakyReluOp::Adaptor leakyRelu(None, postOpAttr.attrs());
+    IE::LeakyReluOp::Adaptor leakyRelu(None, postOpAttr.getAttrs());
     auto dummyLocation = mlir::UnknownLoc::get(inElemType.getContext());
     if (leakyRelu.verify(dummyLocation).failed()) {
         return false;
@@ -429,11 +426,11 @@ std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemTy
                                                              Optional<int32_t> sparsityPtr, int32_t sparsityPtrStep,
                                                              VPU::ArchKind arch, int64_t OC, mlir::Type weightsElemType,
                                                              Const::ContentAttr bias, VPU::PPETaskAttr ppe,
-                                                             vpux::IE::PostOp postOpAttr) {
-    auto weightsPtrOffset = weightsPtr.hasValue() ? weightsPtr.getValue() : 0;
+                                                             vpux::IE::PostOpAttr postOpAttr) {
+    auto weightsPtrOffset = weightsPtr.has_value() ? weightsPtr.value() : 0;
 
     // In case of dense operation use sparsityPtrOffset beyond CMX memory range to satisfy HW requirements
-    auto sparsityPtrOffset = sparsityPtr.hasValue() ? sparsityPtr.getValue() : SPARSITY_PTR_WHEN_NO_SPARSITY;
+    auto sparsityPtrOffset = sparsityPtr.has_value() ? sparsityPtr.value() : SPARSITY_PTR_WHEN_NO_SPARSITY;
 
     SmallVector<int32_t> weightsPtrs(OC, 0);
     SmallVector<int32_t> sparsityPtrs(OC, 0);
@@ -450,11 +447,10 @@ std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemTy
 }
 
 std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemType, mlir::Type outElemType,
-                                                             SmallVector<int32_t> weightsPtrs,
-                                                             SmallVector<int32_t> sparsityPtrs, ArchKind arch,
-                                                             int64_t OC, mlir::Type weightsElemType,
-                                                             Const::ContentAttr bias, VPU::PPETaskAttr ppe,
-                                                             vpux::IE::PostOp postOpAttr) {
+                                                             ArrayRef<int32_t> weightsPtrs,
+                                                             ArrayRef<int32_t> sparsityPtrs, ArchKind arch, int64_t OC,
+                                                             mlir::Type weightsElemType, Const::ContentAttr bias,
+                                                             VPU::PPETaskAttr ppe, vpux::IE::PostOpAttr postOpAttr) {
     VPUX_THROW_WHEN(inElemType == nullptr || outElemType == nullptr,
                     "Can't create weights table without operation input/output types");
     VPUX_THROW_WHEN(static_cast<int64_t>(weightsPtrs.size()) != OC,
@@ -671,7 +667,7 @@ mlir::FailureOr<SmallVector<double>> vpux::VPU::NCESparsity::getRescaledBias(Con
  - Effective ratio is: 1 - (size of non-zero vals)/(size of tensor)
 */
 double vpux::VPU::NCESparsity::getSparsityRatio(Const::DeclareOp weightsConst) {
-    const auto content = weightsConst.content();
+    const auto content = weightsConst.getContent();
     const auto contentType = content.getType();
     auto elemType = contentType.getElementType();
 
@@ -700,7 +696,7 @@ bool vpux::VPU::NCESparsity::isSparsifiableWeightsOperand(mlir::Value operand) {
     if (!sourceOp) {
         return false;
     }
-    for (const auto transformation : sourceOp.contentAttr().getTransformations()) {
+    for (const auto transformation : sourceOp.getContentAttr().getTransformations()) {
         if (transformation.isa<Const::SparsifyAttr, Const::GetSparsityMapAttr>()) {
             VPUX_THROW("Trying to sparsify already sparsity related content at '{0}'", sourceOp->getLoc());
         }
@@ -766,7 +762,7 @@ bool vpux::VPU::NCESparsity::RuntimeSparsityStatsProvider::likelySparsityConsume
         if (inputId != requestedInputId) {
             continue;
         }
-        const auto ratio = opStats.getRatio();
+        const auto ratio = opStats.getRatioAsDouble();
         _logger.trace("Found RT stats for input {0} of '{1}'.  Sparsity ratio is {2}", requestedInputId, op->getLoc(),
                       ratio);
         return ratio >= MINIMAL_SPARSITY_THRESHOLD;

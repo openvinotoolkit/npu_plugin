@@ -49,5 +49,6 @@ bool InterpolateStrategy::isOperationSplitOverHeightCompatible(VPU::ClusteredOpI
         inputShape = computerShape.tiles.front().shape;
     }
 
-    return isSOHSupportedByDPU(inputShape, _numClusters, false, VPU::getArch(nceOp.getOperation()));
+    auto inputType = origOp.input().getType().cast<NDTypeInterface>();
+    return isSOHSupportedByDPU(inputType, inputShape, _numClusters, false, VPU::getArch(nceOp.getOperation()));
 }

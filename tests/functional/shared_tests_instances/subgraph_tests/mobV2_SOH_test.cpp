@@ -1,14 +1,14 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "shared_test_classes/subgraph/mobV2_SOH.hpp"
 #include <vector>
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace SubgraphTestsDefinitions {
-class VPUXMobilenetV2SlicedTest : public mobilenetV2SlicedTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXMobilenetV2SlicedTest : public mobilenetV2SlicedTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     /* tests for mobilenet v2 split over H unequal subtensors
             input
               |
@@ -45,7 +45,7 @@ const std::vector<std::map<std::string, std::string>> configs = {{{"LOG_LEVEL", 
 
 INSTANTIATE_TEST_CASE_P(smoke_mobilenetV2SlicedTest, VPUXMobilenetV2SlicedTest,
                         ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                            ::testing::ValuesIn(configs)),
                         mobilenetV2SlicedTest::getTestCaseName);
 }  // namespace

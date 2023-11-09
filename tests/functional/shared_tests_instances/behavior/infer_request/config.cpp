@@ -1,5 +1,6 @@
-// Copyright (C) 2018-2021 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) 2018-2021 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "behavior/infer_request/config.hpp"
@@ -21,7 +22,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
         {{CONFIG_KEY(MODEL_PRIORITY), CONFIG_VALUE(MODEL_PRIORITY_HIGH)}},
 
         // Private options
-        {{"VPUX_PLATFORM", "AUTO_DETECT"}},
+        {{"NPU_PLATFORM", "AUTO_DETECT"}},
 };
 
 const std::vector<std::map<std::string, std::string>> Inconfigs = {
@@ -31,7 +32,7 @@ const std::vector<std::map<std::string, std::string>> Inconfigs = {
         {{CONFIG_KEY(DEVICE_ID), "SOME_DEVICE_ID"}},
 
         // Private options
-        {{"VPUX_PLATFORM", "SOME_PLATFORM"}},
+        {{"NPU_PLATFORM", "SOME_PLATFORM"}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestConfigTest,

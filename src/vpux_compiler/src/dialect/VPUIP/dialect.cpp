@@ -16,7 +16,7 @@ using namespace vpux;
 void vpux::VPUIP::VPUIPDialect::initialize() {
     addOperations<
 #define GET_OP_LIST
-#include <vpux/compiler/dialect/VPUIP/generated/ops.cpp.inc>
+#include <vpux/compiler/dialect/VPUIP/ops.cpp.inc>
             >();
 
     registerAttributes();
@@ -61,7 +61,7 @@ void vpux::VPUIP::VPUIPDialect::setExecutorInstanceMask(mlir::async::ExecuteOp e
             }
 
             if (auto dmaOp = mlir::dyn_cast<VPUIP::DMATypeOpInterface>(innerOp)) {
-                dmaOp.setPortAttr(portIdxAttr);
+                dmaOp.setPortAttribute(portIdxAttr);
             }
         }
     }
@@ -83,10 +83,11 @@ IndexedSymbolAttr vpux::VPUIP::VPUIPDialect::getExecutor(mlir::async::ExecuteOp 
 
 VPU::ExecutorKind vpux::VPUIP::VPUIPDialect::getExecutorKind(mlir::async::ExecuteOp execOp) {
     const auto executor = getExecutor(execOp);
-    const auto executorKind = executor.getLeafNameAttr().dyn_cast<VPU::ExecutorKindAttr>();
-    VPUX_THROW_UNLESS(executorKind != nullptr, "Unsupported Executor Kind attribute '{0}'", executor.getLeafNameAttr());
+    const auto maybeExecutorKind = vpux::VPU::symbolizeExecutorKind(executor.getLeafNameAttr());
+    VPUX_THROW_WHEN(!maybeExecutorKind.has_value(), "Unsupported Executor Kind attribute '{0}'",
+                    executor.getLeafNameAttr());
 
-    return executorKind.getValue();
+    return maybeExecutorKind.value();
 }
 
 bool vpux::VPUIP::VPUIPDialect::hasExecutorInstanceMask(mlir::async::ExecuteOp execOp) {
@@ -135,4 +136,4 @@ mlir::Operation* vpux::VPUIP::VPUIPDialect::materializeConstant(mlir::OpBuilder&
 // Generated
 //
 
-#include <vpux/compiler/dialect/VPUIP/generated/dialect.cpp.inc>
+#include <vpux/compiler/dialect/VPUIP/dialect.cpp.inc>

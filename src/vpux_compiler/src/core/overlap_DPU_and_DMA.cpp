@@ -96,7 +96,7 @@ void OverlapDMAandDPU::FreeInterval::addOpToFreeInterval(DataOpOptimalCycles dat
 }
 
 void OverlapDMAandDPU::FreeInterval::addOpsToFreeIntervalWithActivationStall(
-        SmallVector<OverlapDMAandDPU::DataOpOptimalCycles> dataOps) {
+        ArrayRef<OverlapDMAandDPU::DataOpOptimalCycles> dataOps) {
     // move all current ops to front
     auto front = prefetchOps_.begin();
     auto insertedStartTime = cycleBegin_;
@@ -110,7 +110,7 @@ void OverlapDMAandDPU::FreeInterval::addOpsToFreeIntervalWithActivationStall(
     }
 
     // insert ops exceeding activation copy out
-    for (auto dataOp : dataOps) {
+    for (const auto& dataOp : dataOps) {
         size_t insertedEndTime = insertedStartTime + dataOp.cycleCost();
         prefetchOps_.push_back(
                 DataOpOptimalCycles(dataOp.opIdx_, dataOp.DPUIdx_, dataOp.level_, insertedStartTime, insertedEndTime));
@@ -321,7 +321,9 @@ void OverlapDMAandDPU::ActivationSpill::addActivationSpillStall(size_t oldCycle,
 OverlapDMAandDPU::PrefetchInterval::PrefetchInterval(OverlapDMAandDPU::FreeInterval freeInterval,
                                                      SmallVector<OverlapDMAandDPU::DPUOptimalCycles> DPUOptimalCycles,
                                                      OverlapDMAandDPU::ActivationSpill activationSpill)
-        : freeInterval_(freeInterval), DPUOptimalCycles_(DPUOptimalCycles), activationSpill_(activationSpill) {
+        : freeInterval_(std::move(freeInterval)),
+          DPUOptimalCycles_(DPUOptimalCycles),
+          activationSpill_(std::move(activationSpill)) {
     updateDPULookUp(DPUOptimalCycles);
 }
 
@@ -403,7 +405,7 @@ size_t OverlapDMAandDPU::PrefetchInterval::updateDPUCycles() {
 }
 
 size_t OverlapDMAandDPU::PrefetchInterval::addOpsToIntervalWithActivationStall(
-        SmallVector<OverlapDMAandDPU::DataOpOptimalCycles> dataOps) {
+        ArrayRef<OverlapDMAandDPU::DataOpOptimalCycles> dataOps) {
     auto endCycle = activationSpill_.cycleEnd_;
     freeInterval_.addOpsToFreeIntervalWithActivationStall(dataOps);
     updateDPUCycles();
@@ -503,7 +505,7 @@ size_t OverlapDMAandDPU::PrefetchInterval::getDPUBeginCycle(operationIdxType opI
 OverlapDMAandDPU::PrefetchPipeline::PrefetchPipeline(): _log(Logger::global().nest("prefetch-pipeline", 0)) {
 }
 
-void OverlapDMAandDPU::PrefetchPipeline::addPrefetchInterval(PrefetchInterval interval) {
+void OverlapDMAandDPU::PrefetchPipeline::addPrefetchInterval(const PrefetchInterval& interval) {
     prefetchIntervals_.push_back(interval);
 }
 
@@ -668,11 +670,11 @@ bool OverlapDMAandDPU::PrefetchPipeline::shiftToPreviousInterval(PrefetchInterva
 }
 
 void OverlapDMAandDPU::PrefetchPipeline::prefetchOpsAndDelayPipeline(
-        PrefetchInterval* currInterval, SmallVector<OverlapDMAandDPU::DataOpOptimalCycles> dataOps,
+        PrefetchInterval* currInterval, ArrayRef<OverlapDMAandDPU::DataOpOptimalCycles> dataOps,
         size_t dataOpsCycleCost, OverlapDMAandDPU::DataOpOptimalCycles* dataOp) {
     // case for a different interval
     if (currInterval->canOpFitInInterval(dataOpsCycleCost)) {
-        for (auto dataOp : dataOps) {
+        for (const auto& dataOp : dataOps) {
             currInterval->addOpToInterval(dataOp);
         }
     } else {

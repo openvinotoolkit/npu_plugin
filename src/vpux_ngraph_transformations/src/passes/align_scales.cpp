@@ -39,12 +39,12 @@ static std::vector<std::shared_ptr<ngraph::Node>> gather_nodes_around(std::share
 
 static void gather_fqs(std::shared_ptr<ngraph::Node> node, std::set<std::shared_ptr<ngraph::Node>>& fqs_to_align) {
     for (const auto& input : node->input_values()) {
-        auto input_node = input.get_node()->shared_from_this();
+        const auto& input_node = input.get_node()->shared_from_this();
         if (std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(input_node) != nullptr) {
             if (fqs_to_align.find(input_node) == fqs_to_align.end()) {
                 fqs_to_align.insert(input_node);
                 auto nodes_around = gather_nodes_around(input_node);
-                for (auto node_around : nodes_around) {
+                for (const auto& node_around : nodes_around) {
                     if (is_fq_agnostic(node_around)) {
                         gather_fqs(node_around, fqs_to_align);
                     }
@@ -55,12 +55,12 @@ static void gather_fqs(std::shared_ptr<ngraph::Node> node, std::set<std::shared_
     if (is_fq_agnostic(node)) {
         for (const auto& node_output : node->outputs()) {
             for (auto consumer : node_output.get_target_inputs()) {
-                auto output_node = consumer.get_node()->shared_from_this();
+                const auto& output_node = consumer.get_node()->shared_from_this();
                 if (std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(output_node) != nullptr) {
                     if (fqs_to_align.find(output_node) == fqs_to_align.end()) {
                         fqs_to_align.insert(output_node);
                         auto nodes_around = gather_nodes_around(output_node);
-                        for (auto node_around : nodes_around) {
+                        for (const auto& node_around : nodes_around) {
                             if (is_fq_agnostic(node_around)) {
                                 gather_fqs(node_around, fqs_to_align);
                             }
@@ -73,9 +73,9 @@ static void gather_fqs(std::shared_ptr<ngraph::Node> node, std::set<std::shared_
 }
 
 static bool no_concat_consumers_around_fqs(std::set<std::shared_ptr<ngraph::Node>>& fqs) {
-    for (auto fq : fqs) {
-        auto nodes_around = gather_nodes_around(fq);
-        for (auto node_around : nodes_around) {
+    for (const auto& fq : fqs) {
+        const auto& nodes_around = gather_nodes_around(fq);
+        for (const auto& node_around : nodes_around) {
             if (std::dynamic_pointer_cast<ngraph::op::v0::Concat>(node_around) != nullptr) {
                 return false;
             }
@@ -247,7 +247,7 @@ static void adjust_fqs_to_align(std::set<std::shared_ptr<ngraph::Node>>& fqs) {
         }
     }
 
-    fqs = filtered_fqs;
+    fqs = std::move(filtered_fqs);
 }
 
 static void broadcast_changes(const std::shared_ptr<ngraph::Node>& node) {
@@ -406,7 +406,7 @@ bool AlignScales::run_on_node(std::shared_ptr<ngraph::Node> node) {
         return false;
     }
 
-    update_concat_out_fq(node, fqs_to_align);
+    update_concat_out_fq(std::move(node), fqs_to_align);
 
     if (fqs_to_align.size() > 2)
         adjust_fqs_to_align(fqs_to_align);

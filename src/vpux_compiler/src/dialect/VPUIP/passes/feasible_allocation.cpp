@@ -79,8 +79,8 @@ mlir::LogicalResult MemRefAllocRewrite::matchAndRewrite(mlir::memref::AllocOp or
     auto section = VPURT::getBufferSection(valType.getMemoryKind());
     auto sectionIndex = valType.getMemSpace().getIndex();
 
-    if (sectionIndex.hasValue()) {
-        auto sectionIndexArrayAttr = getIntArrayAttr(getContext(), makeArrayRef(sectionIndex.getValue()));
+    if (sectionIndex.has_value()) {
+        auto sectionIndexArrayAttr = getIntArrayAttr(getContext(), makeArrayRef(sectionIndex.value()));
         rewriter.replaceOpWithNewOp<VPURT::DeclareBufferOp>(origOp, val.getType(), section, sectionIndexArrayAttr,
                                                             offset, nullptr);
     } else {
@@ -111,7 +111,7 @@ private:
 mlir::LogicalResult AllocRewrite::matchAndRewrite(VPURT::Alloc origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Found Alloc Operation '{0}'", origOp->getLoc());
 
-    const auto val = origOp.buffer();
+    const auto val = origOp.getBuffer();
 
     for (auto* user : origOp->getUsers()) {
         if (auto iface = mlir::dyn_cast<mlir::MemoryEffectOpInterface>(user)) {
@@ -128,10 +128,10 @@ mlir::LogicalResult AllocRewrite::matchAndRewrite(VPURT::Alloc origOp, mlir::Pat
     auto section = VPURT::getBufferSection(valType.getMemoryKind());
     auto sectionIndex = valType.getMemSpace().getIndex();
 
-    auto swizzlingKey = origOp.swizzlingKeyAttr();
+    auto swizzlingKey = origOp.getSwizzlingKeyAttr();
 
-    if (sectionIndex.hasValue()) {
-        auto sectionIndexArrayAttr = getIntArrayAttr(getContext(), makeArrayRef(sectionIndex.getValue()));
+    if (sectionIndex.has_value()) {
+        auto sectionIndexArrayAttr = getIntArrayAttr(getContext(), makeArrayRef(sectionIndex.value()));
         rewriter.replaceOpWithNewOp<VPURT::DeclareBufferOp>(origOp, val.getType(), section, sectionIndexArrayAttr,
                                                             offset, swizzlingKey);
     } else {
@@ -164,7 +164,7 @@ mlir::LogicalResult AllocDistributedRewrite::matchAndRewrite(VPURT::AllocDistrib
                                                              mlir::PatternRewriter& rewriter) const {
     _log.trace("Found Alloc Operation '{0}'", origOp->getLoc());
 
-    const auto val = origOp.buffer();
+    const auto val = origOp.getBuffer();
 
     for (auto* user : origOp->getUsers()) {
         if (auto iface = mlir::dyn_cast<mlir::MemoryEffectOpInterface>(user)) {
@@ -179,7 +179,7 @@ mlir::LogicalResult AllocDistributedRewrite::matchAndRewrite(VPURT::AllocDistrib
 
     auto section = VPURT::getBufferSection(val.getType().cast<vpux::NDTypeInterface>().getMemoryKind());
 
-    auto swizzlingKey = origOp.swizzlingKeyAttr();
+    auto swizzlingKey = origOp.getSwizzlingKeyAttr();
 
     rewriter.replaceOpWithNewOp<VPURT::DeclareBufferOp>(origOp, val.getType(), section, nullptr, offset, swizzlingKey);
 
@@ -209,7 +209,7 @@ private:
     VPUIP::MemKindCreateFunc _secondLvlMemKindCb;
     VPU::MemoryKind _memKind{vpux::VPU::MemoryKind::DDR};
     mlir::Optional<VPU::MemoryKind> _secondLvlMemKind{vpux::VPU::MemoryKind::DDR};
-    mlir::SymbolRefAttr _memKindAttr;
+    mlir::StringAttr _memKindAttr;
     bool _enableScheduleStatistics{false};
 };
 
@@ -225,12 +225,12 @@ mlir::LogicalResult FeasibleAllocationPass::initialize(mlir::MLIRContext* ctx) {
     }
 
     auto maybeMemKind = _memKindCb(memSpaceName.getValue());
-    if (!maybeMemKind.hasValue()) {
+    if (!maybeMemKind.has_value()) {
         return mlir::failure();
     }
 
-    _memKind = maybeMemKind.getValue();
-    _memKindAttr = mlir::SymbolRefAttr::get(ctx, stringifyEnum(_memKind));
+    _memKind = maybeMemKind.value();
+    _memKindAttr = mlir::StringAttr::get(ctx, stringifyEnum(_memKind));
 
     _secondLvlMemKind = (_secondLvlMemKindCb != nullptr ? _secondLvlMemKindCb(secondLvlMemSpaceName.getValue()) : None);
 
@@ -303,7 +303,7 @@ void FeasibleAllocationPass::assignCyclesToExecOps(AsyncDepsInfo& depsInfo,
 void FeasibleAllocationPass::safeRunOnModule() {
 #if defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
 
-    parseEnv("IE_VPUX_ENABLE_SCHEDULE_STATISTICS", _enableScheduleStatistics);
+    parseEnv("IE_NPU_ENABLE_SCHEDULE_STATISTICS", _enableScheduleStatistics);
 
 #endif  // defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
 
@@ -400,7 +400,7 @@ void FeasibleAllocationPass::safeRunOnModule() {
                                                       prefetchScan, arch, costModel, nceClusterCount, dmaCount,
                                                       _enableScheduleStatistics);
         scheduledOps = schedulerWithPrefetch.generateSchedule(prefetchSchedule);
-        scan = prefetchScan;
+        scan = std::move(prefetchScan);
     }
     // TODO: recurse to strategy with useful info
 
@@ -465,11 +465,11 @@ void FeasibleAllocationPass::safeRunOnModule() {
         return type == nullptr || type.getMemoryKind() != _memKind;
     });
     target.addDynamicallyLegalOp<VPURT::Alloc>([&](VPURT::Alloc op) {
-        const auto type = op.buffer().getType().cast<vpux::NDTypeInterface>();
+        const auto type = op.getBuffer().getType().cast<vpux::NDTypeInterface>();
         return type == nullptr || type.getMemoryKind() != _memKind;
     });
     target.addDynamicallyLegalOp<VPURT::AllocDistributed>([&](VPURT::AllocDistributed op) {
-        const auto type = op.buffer().getType().cast<vpux::NDTypeInterface>();
+        const auto type = op.getBuffer().getType().cast<vpux::NDTypeInterface>();
         return type == nullptr || type.getMemoryKind() != _memKind;
     });
 

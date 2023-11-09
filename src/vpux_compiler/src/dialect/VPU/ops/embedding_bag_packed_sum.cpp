@@ -10,7 +10,7 @@ using namespace vpux;
 mlir::LogicalResult vpux::VPU::EmbeddingBagPackedSumOp::inferReturnTypes(
         mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> optLoc, mlir::ValueRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange, mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
     VPU::EmbeddingBagPackedSumOpAdaptor embeddingBag(operands, attrs);
     if (mlir::failed(embeddingBag.verify(loc))) {
         return mlir::failure();

@@ -5,10 +5,11 @@
 
 #include <mlir/IR/BuiltinTypes.h>
 #include "vpux/compiler/dialect/ELF/utils.hpp"
-#include "vpux/compiler/dialect/VPU37XX/api/vpu_nnrt_api.h"
 #include "vpux/compiler/dialect/VPUMI37XX/ops.hpp"
 
 #include "vpux/compiler/dialect/VPUMI37XX/utils.hpp"
+
+#include <vpu_nnrt_api_37xx.h>
 
 using namespace vpux;
 
@@ -20,17 +21,17 @@ void vpux::VPUMI37XX::ActKernelInvocationOp::serialize(elf::writer::BinaryDataSe
     nn_public::VpuActKernelInvocation actKernelInvocation;
     memset(reinterpret_cast<void*>(&actKernelInvocation), 0, sizeof(actKernelInvocation));
 
-    auto rangeIndex = range_index().getType().cast<VPURegMapped::IndexType>();
+    auto rangeIndex = getRangeIndex().getType().cast<VPURegMapped::IndexType>();
     auto invoIndex = getType().cast<VPURegMapped::IndexType>();
 
     actKernelInvocation.range = rangeIndex.getValue();
     actKernelInvocation.kernel_range_index = rangeIndex.getValue();
-    actKernelInvocation.invo_tile = tile();
-    actKernelInvocation.barriers_sched.start_after_ = start_after();
-    actKernelInvocation.barriers_sched.clean_after_ = clean_after();
+    actKernelInvocation.invo_tile = getTile();
+    actKernelInvocation.barriers_sched.start_after_ = getStartAfter();
+    actKernelInvocation.barriers_sched.clean_after_ = getCleanAfter();
     actKernelInvocation.invo_index = invoIndex.getValue();
-    actKernelInvocation.barriers.wait_mask_ = VPUMI37XX::computeMask(waitBarriers());
-    actKernelInvocation.barriers.post_mask_ = VPUMI37XX::computeMask(updateBarriers());
+    actKernelInvocation.barriers.wait_mask_ = VPUMI37XX::computeMask(getWaitBarriers());
+    actKernelInvocation.barriers.post_mask_ = VPUMI37XX::computeMask(getUpdateBarriers());
 
     actKernelInvocation.barriers.group_ = 0;
     actKernelInvocation.barriers.mask_ = 0;
@@ -73,7 +74,7 @@ vpux::ELF::SectionFlagsAttr vpux::VPUMI37XX::ActKernelInvocationOp::getUserProcs
 }
 
 mlir::FailureOr<uint64_t> vpux::VPUMI37XX::ActKernelInvocationOp::getOffsetOfWithinOperation(mlir::Value val) {
-    if (val == range_index()) {
+    if (val == getRangeIndex()) {
         return offsetof(nn_public::VpuActKernelInvocation, range);
     }
 

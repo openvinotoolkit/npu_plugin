@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-// RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" %s | vpux-translate --export-VPUIP -o %t
+// RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" %s | vpux-translate --vpu-arch=VPUX37XX --export-VPUIP -o %t
 // RUN: flatc --raw-binary --json %vpuip_schema_file% -- %t
 // RUN: FileCheck %s --input-file %basename_t.json
 // RUN: rm %basename_t.json
@@ -53,17 +53,17 @@ func.func @main(%arg0: memref<2x1x10xf16, @DDR>, %arg1: memref<2x1x4xf16, @DDR>,
     %0 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     %1 = VPURT.ConfigureBarrier<1> -> !VPURT.Barrier
 
-    %2 = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> memref<2x1x10xf16, @DDR>
-    %3 = VPURT.DeclareBuffer "NetworkInput" [1] <0> -> memref<2x1x4xf16, @DDR>
-    %4 = VPURT.DeclareBuffer "NetworkOutput" [0] <0> -> memref<2x1x1x4xf16, @DDR>
-    %5 = VPURT.DeclareBuffer "NetworkOutput" [1] <0> -> memref<2x1x4xf16, @DDR>
-    %6 = VPURT.DeclareBuffer "CMX_NN" [0] <384> -> memref<2x1x10xf16, [@CMX_NN, 0]>
-    %7 = VPURT.DeclareBuffer "CMX_NN" [0] <512> -> memref<2x1x4xf16, [@CMX_NN, 0]>
-    %8 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x12x10xf16, [@CMX_NN, 0]>
-    %9 = VPURT.DeclareBuffer "CMX_NN" [0] <256> -> memref<1x12x4xf16, [@CMX_NN, 0]>
-    %10 = VPURT.DeclareBuffer "CMX_NN" [0] <448> -> memref<1x16xf16, [@CMX_NN, 0]>
-    %11 = VPURT.DeclareBuffer "CMX_NN" [0] <576> -> memref<2x1x1x4xf16, [@CMX_NN, 0]>
-    %12 = VPURT.DeclareBuffer "CMX_NN" [0] <640> -> memref<2x1x4xf16, [@CMX_NN, 0]>
+    %2 = VPURT.DeclareBuffer <NetworkInput> [0] <0> -> memref<2x1x10xf16, @DDR>
+    %3 = VPURT.DeclareBuffer <NetworkInput> [1] <0> -> memref<2x1x4xf16, @DDR>
+    %4 = VPURT.DeclareBuffer <NetworkOutput> [0] <0> -> memref<2x1x1x4xf16, @DDR>
+    %5 = VPURT.DeclareBuffer <NetworkOutput> [1] <0> -> memref<2x1x4xf16, @DDR>
+    %6 = VPURT.DeclareBuffer <CMX_NN> [0] <384> -> memref<2x1x10xf16, [@CMX_NN, 0]>
+    %7 = VPURT.DeclareBuffer <CMX_NN> [0] <512> -> memref<2x1x4xf16, [@CMX_NN, 0]>
+    %8 = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x12x10xf16, [@CMX_NN, 0]>
+    %9 = VPURT.DeclareBuffer <CMX_NN> [0] <256> -> memref<1x12x4xf16, [@CMX_NN, 0]>
+    %10 = VPURT.DeclareBuffer <CMX_NN> [0] <448> -> memref<1x16xf16, [@CMX_NN, 0]>
+    %11 = VPURT.DeclareBuffer <CMX_NN> [0] <576> -> memref<2x1x1x4xf16, [@CMX_NN, 0]>
+    %12 = VPURT.DeclareBuffer <CMX_NN> [0] <640> -> memref<2x1x4xf16, [@CMX_NN, 0]>
 
     VPURT.Task attributes {cycleBegin = 0 : i64, cycleEnd = 952 : i64, isTrailingSWLayer = false} {
         %13 = VPUIP.NNDMA {port = 0 : i64} inputs(%2 : memref<2x1x10xf16, @DDR>) outputs(%6 : memref<2x1x10xf16, [@CMX_NN, 0]>) -> memref<2x1x10xf16, [@CMX_NN, 0]>

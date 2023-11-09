@@ -142,7 +142,7 @@ def IE_LayoutInfoOpInterface : OpInterface<"LayoutInfoOpInterface"> {
         InterfaceMethod<
             "Infer supported Data Layouts from inputs to outputs or describe the supported combination",
             "void", "inferLayoutInfo",
-            (ins "vpux::IE::LayerLayoutInfo&":$info)
+            (ins "vpux::IE::LayerLayoutInfo&":$info, "const bool":$seOpsEnabled)
         >,
 
         InterfaceMethod<
@@ -152,7 +152,16 @@ def IE_LayoutInfoOpInterface : OpInterface<"LayoutInfoOpInterface"> {
             [{
                 return vpux::IE::getLayoutInfo($_op);
             }]
-        >
+        >,
+
+        InterfaceMethod<
+            "Verify layout info",
+            "mlir::LogicalResult", "verifyLayout", (ins),
+            [{}],
+            [{
+                return vpux::IE::verifyLayout($_op);
+            }]
+        >,
     ];
 }
 
@@ -175,20 +184,6 @@ def IERT_ResourceOpInterface : OpInterface<"ResourceOpInterface"> {
             }]
         >,
     ];
-
-    let extraTraitClassDeclaration = [{
-         template<class ConcreteAttr>
-         ConcreteAttr getKindAs() {
-             VPUX_THROW_UNLESS(getKind().template isa<ConcreteAttr>(), "Resource type is not {0}", typeid(ConcreteAttr).name());
-             return getKind().template cast<ConcreteAttr>();
-         }
-
-         template<class ConcreteAttr>
-         typename ConcreteAttr::ValueType getKindValue() {
-             VPUX_THROW_UNLESS(getKind().template isa<ConcreteAttr>(), "Resource type is not {0}", typeid(ConcreteAttr).name());
-             return getKind().template cast<ConcreteAttr>().getValue();
-         }
-    }];
 }
 
 //
@@ -247,6 +242,23 @@ def IE_SEOpInterface : OpInterface<"SEOpInterface"> {
     let description = "Interface for operations that can be executed using the Storage Element feature";
 
     let cppNamespace = "vpux::IE";
+}
+
+//
+// LayerWithPermuteInterface
+//
+
+def IE_LayerWithPermuteInterface : OpInterface<"LayerWithPermuteInterface"> {
+    let description = "Interface for operations that support hardware output permutations";
+
+    let cppNamespace = "vpux::IE";
+
+    let methods = [
+        InterfaceMethod<
+            "Check if a permutation can be fused into this layer",
+            "bool", "isSupportedPermutation", (ins "mlir::Operation*":$permuteOp)
+        >,
+    ];
 }
 
 #endif

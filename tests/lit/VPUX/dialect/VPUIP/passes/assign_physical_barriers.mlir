@@ -11,7 +11,7 @@ func.func @LinearDMA(%arg0: memref<10xf16>, %arg1: memref<10xf16>) -> memref<10x
     // CHECK-NOT: VPURT.DeclareVirtualBarrier
     // CHECK: VPURT.ConfigureBarrier<0>
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    %buf0 = VPURT.DeclareBuffer "DDR" <0> -> memref<10xf16, @DDR>
+    %buf0 = VPURT.DeclareBuffer <DDR> <0> -> memref<10xf16, @DDR>
     VPURT.Task updates(%bar0 : !VPURT.Barrier) {
         %0 = VPUIP.NNDMA
             inputs(
@@ -23,7 +23,7 @@ func.func @LinearDMA(%arg0: memref<10xf16>, %arg1: memref<10xf16>) -> memref<10x
     // CHECK-NOT: VPURT.DeclareVirtualBarrier
     // CHECK: VPURT.ConfigureBarrier<1>
     %bar1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    %buf1 = VPURT.DeclareBuffer "DDR" <2048> -> memref<10xf16, @DDR>
+    %buf1 = VPURT.DeclareBuffer <DDR> <2048> -> memref<10xf16, @DDR>
     VPURT.Task waits(%bar0 : !VPURT.Barrier) updates(%bar1 : !VPURT.Barrier) {
         %1 = VPUIP.NNDMA
             inputs(
@@ -58,26 +58,26 @@ func.func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x3
     %cst1 = const.Declare memref<16x1x1x4xsi32> = dense<1> : tensor<16x1x1x4xsi32>
 
     // input buffers for SOH tiling
-    %buf0 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x16x32x32xf16, #NHWC, @DDR>
-    %buf1 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x16x8x32xf16, #NHWC, @DDR>
-    %buf2 = VPURT.DeclareBuffer "DDR" <8192> -> memref<1x16x8x32xf16, #NHWC, @DDR>
-    %buf3 = VPURT.DeclareBuffer "DDR" <16384> -> memref<1x16x8x32xf16, #NHWC, @DDR>
-    %buf4 = VPURT.DeclareBuffer "DDR" <24576> -> memref<1x16x8x32xf16, #NHWC, @DDR>
+    %buf0 = VPURT.DeclareBuffer <DDR> <0> -> memref<1x16x32x32xf16, #NHWC, @DDR>
+    %buf1 = VPURT.DeclareBuffer <DDR> <0> -> memref<1x16x8x32xf16, #NHWC, @DDR>
+    %buf2 = VPURT.DeclareBuffer <DDR> <8192> -> memref<1x16x8x32xf16, #NHWC, @DDR>
+    %buf3 = VPURT.DeclareBuffer <DDR> <16384> -> memref<1x16x8x32xf16, #NHWC, @DDR>
+    %buf4 = VPURT.DeclareBuffer <DDR> <24576> -> memref<1x16x8x32xf16, #NHWC, @DDR>
 
     // output buffers for SOH tiling
-    %buf5 = VPURT.DeclareBuffer "DDR" <32768> -> memref<1x16x32x32xf16, #NHWC, @DDR>
-    %buf6 = VPURT.DeclareBuffer "DDR" <32768> -> memref<1x16x8x32xf16, #NHWC, @DDR>
-    %buf7 = VPURT.DeclareBuffer "DDR" <40960> -> memref<1x16x8x32xf16, #NHWC, @DDR>
-    %buf8 = VPURT.DeclareBuffer "DDR" <49152> -> memref<1x16x8x32xf16, #NHWC, @DDR>
-    %buf9 = VPURT.DeclareBuffer "DDR" <57344> -> memref<1x16x8x32xf16, #NHWC, @DDR>
+    %buf5 = VPURT.DeclareBuffer <DDR> <32768> -> memref<1x16x32x32xf16, #NHWC, @DDR>
+    %buf6 = VPURT.DeclareBuffer <DDR> <32768> -> memref<1x16x8x32xf16, #NHWC, @DDR>
+    %buf7 = VPURT.DeclareBuffer <DDR> <40960> -> memref<1x16x8x32xf16, #NHWC, @DDR>
+    %buf8 = VPURT.DeclareBuffer <DDR> <49152> -> memref<1x16x8x32xf16, #NHWC, @DDR>
+    %buf9 = VPURT.DeclareBuffer <DDR> <57344> -> memref<1x16x8x32xf16, #NHWC, @DDR>
 
     // CMX buffers (double-buffers)
-    %buf10 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>
-    %buf11 = VPURT.DeclareBuffer "CMX_NN" [0] <8192> -> memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>
-    %buf12 = VPURT.DeclareBuffer "CMX_NN" [0] <16384> -> memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>
-    %buf13 = VPURT.DeclareBuffer "CMX_NN" [0] <24576> -> memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>
-    %buf14 = VPURT.DeclareBuffer "CMX_NN" [0] <32768> -> memref<16x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
-    %buf15 = VPURT.DeclareBuffer "CMX_NN" [0] <33280> -> memref<16x1x1x4xsi32, [@CMX_NN, 0]>
+    %buf10 = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>
+    %buf11 = VPURT.DeclareBuffer <CMX_NN> [0] <8192> -> memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>
+    %buf12 = VPURT.DeclareBuffer <CMX_NN> [0] <16384> -> memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>
+    %buf13 = VPURT.DeclareBuffer <CMX_NN> [0] <24576> -> memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>
+    %buf14 = VPURT.DeclareBuffer <CMX_NN> [0] <32768> -> memref<16x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
+    %buf15 = VPURT.DeclareBuffer <CMX_NN> [0] <33280> -> memref<16x1x1x4xsi32, [@CMX_NN, 0]>
 
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     %bar1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
@@ -139,10 +139,10 @@ func.func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x3
 
     VPURT.Task waits(%bar1: !VPURT.Barrier) updates(%bar2: !VPURT.Barrier) {
         VPUIP.NCEClusterTask {
-                kernel_padding = {bottom = 0, left = 0, right = 0, top = 0},
+                kernel_padding = #VPU.Padding<left = 0 , right = 0, top = 0, bottom = 0>,
                 kernel_size = [1, 1],
                 kernel_strides = [1, 1],
-                task_type = "CONV"
+                task_type = #VPUIP.nce_task_type<CONV>
             }
             input(%buf10: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
             weights(%buf14: memref<16x16x1x1xf16, #NHWC, [@CMX_NN, 0]>)
@@ -155,8 +155,8 @@ func.func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x3
                 DPUTask {
                     outStart = [0, 0, 0],
                     outEnd = [31, 7, 15],
-                    pad = {bottom = 0, left = 0, right = 0, top = 0},
-                    mpe_mode = "VECTOR_FP16"
+                    pad = #VPU.Padding<left = 0 , right = 0, top = 0, bottom = 0>,
+                    mpe_mode = #VPU.mpe_mode<VECTOR_FP16>
                 }
             } PPE : {
             }
@@ -184,10 +184,10 @@ func.func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x3
 
     VPURT.Task waits(%bar3: !VPURT.Barrier) updates(%bar5: !VPURT.Barrier) {
         VPUIP.NCEClusterTask {
-                kernel_padding = {bottom = 0, left = 0, right = 0, top = 0},
+                kernel_padding = #VPU.Padding<left = 0 , right = 0, top = 0, bottom = 0>,
                 kernel_size = [1, 1],
                 kernel_strides = [1, 1],
-                task_type = "CONV"
+                task_type = #VPUIP.nce_task_type<CONV>
             }
             input(%buf12: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
             weights(%buf14: memref<16x16x1x1xf16, #NHWC, [@CMX_NN, 0]>)
@@ -200,8 +200,8 @@ func.func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x3
                 DPUTask {
                     outStart = [0, 0, 0],
                     outEnd = [31, 7, 15],
-                    pad = {bottom = 0, left = 0, right = 0, top = 0},
-                    mpe_mode = "VECTOR_FP16"
+                    pad = #VPU.Padding<left = 0 , right = 0, top = 0, bottom = 0>,
+                    mpe_mode = #VPU.mpe_mode<VECTOR_FP16>
                 }
             } PPE : {
             }
@@ -229,10 +229,10 @@ func.func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x3
 
     VPURT.Task waits(%bar6: !VPURT.Barrier) updates(%bar7: !VPURT.Barrier) {
         VPUIP.NCEClusterTask {
-                kernel_padding = {bottom = 0, left = 0, right = 0, top = 0},
+                kernel_padding = #VPU.Padding<left = 0 , right = 0, top = 0, bottom = 0>,
                 kernel_size = [1, 1],
                 kernel_strides = [1, 1],
-                task_type = "CONV"
+                task_type = #VPUIP.nce_task_type<CONV>
             }
             input(%buf10: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
             weights(%buf14: memref<16x16x1x1xf16, #NHWC, [@CMX_NN, 0]>)
@@ -245,8 +245,8 @@ func.func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x3
                 DPUTask {
                     outStart = [0, 0, 0],
                     outEnd = [31, 7, 15],
-                    pad = {bottom = 0, left = 0, right = 0, top = 0},
-                    mpe_mode = "VECTOR_FP16"
+                    pad = #VPU.Padding<left = 0 , right = 0, top = 0, bottom = 0>,
+                    mpe_mode = #VPU.mpe_mode<VECTOR_FP16>
                 }
             } PPE : {
             }
@@ -274,10 +274,10 @@ func.func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x3
 
     VPURT.Task waits(%bar8: !VPURT.Barrier) updates(%bar9: !VPURT.Barrier) {
         VPUIP.NCEClusterTask {
-                kernel_padding = {bottom = 0, left = 0, right = 0, top = 0},
+                kernel_padding = #VPU.Padding<left = 0 , right = 0, top = 0, bottom = 0>,
                 kernel_size = [1, 1],
                 kernel_strides = [1, 1],
-                task_type = "CONV"
+                task_type = #VPUIP.nce_task_type<CONV>
             }
             input(%buf12: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
             weights(%buf14: memref<16x16x1x1xf16, #NHWC, [@CMX_NN, 0]>)
@@ -290,8 +290,8 @@ func.func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x3
                 DPUTask {
                     outStart = [0, 0, 0],
                     outEnd = [31, 7, 15],
-                    pad = {bottom = 0, left = 0, right = 0, top = 0},
-                    mpe_mode = "VECTOR_FP16"
+                    pad = #VPU.Padding<left = 0 , right = 0, top = 0, bottom = 0>,
+                    mpe_mode = #VPU.mpe_mode<VECTOR_FP16>
                 }
             } PPE : {
             }

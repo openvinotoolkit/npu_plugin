@@ -7,6 +7,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPU/utils/ppe_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -89,8 +90,8 @@ mlir::LogicalResult FuseWithConv::matchAndRewrite(IE::QuantizeOp quantizeOp, mli
     const auto arch = VPU::getArch(quantizeOp->getParentOfType<mlir::ModuleOp>());
     if (arch == VPU::ArchKind::VPUX37XX) {
         if (convOp.post_opAttr() != nullptr &&
-            convOp.post_opAttr().name().getValue() == IE::LeakyReluOp::getOperationName()) {
-            IE::LeakyReluOp::Adaptor leakyRelu(None, convOp.post_opAttr().attrs());
+            convOp.post_opAttr().getName().getValue() == IE::LeakyReluOp::getOperationName()) {
+            IE::LeakyReluOp::Adaptor leakyRelu(None, convOp.post_opAttr().getAttrs());
             if (leakyRelu.verify(convOp->getLoc()).succeeded()) {
                 const auto alpha = leakyRelu.negative_slope().convertToDouble();
                 if (alpha < 0.0) {
@@ -169,8 +170,8 @@ mlir::LogicalResult FuseWithGroupConv::matchAndRewrite(IE::QuantizeOp quantizeOp
     const auto arch = VPU::getArch(quantizeOp->getParentOfType<mlir::ModuleOp>());
     if (arch == VPU::ArchKind::VPUX37XX) {
         if (grConvOp.post_opAttr() != nullptr &&
-            grConvOp.post_opAttr().name().getValue() == IE::LeakyReluOp::getOperationName()) {
-            IE::LeakyReluOp::Adaptor leakyRelu(None, grConvOp.post_opAttr().attrs());
+            grConvOp.post_opAttr().getName().getValue() == IE::LeakyReluOp::getOperationName()) {
+            IE::LeakyReluOp::Adaptor leakyRelu(None, grConvOp.post_opAttr().getAttrs());
             if (leakyRelu.verify(grConvOp->getLoc()).succeeded()) {
                 const auto alpha = leakyRelu.negative_slope().convertToDouble();
                 if (alpha < 0.0) {
@@ -237,7 +238,7 @@ mlir::LogicalResult FuseWithMaxPool::matchAndRewrite(IE::QuantizeOp quantizeOp, 
     // Only zero-centered values would be supported. Currently, quantized MaxPool is disabled for all post-ops.
     auto mainOp = mlir::dyn_cast<IE::LayerWithPostOpInterface>(maxPoolOp.getOperation());
     if (mainOp != nullptr) {
-        if (mainOp.getPostOp().hasValue()) {
+        if (mainOp.getPostOp().has_value()) {
             return mlir::failure();
         }
     }
@@ -304,7 +305,7 @@ mlir::LogicalResult FuseWithAveragePool::matchAndRewrite(IE::QuantizeOp quantize
     // Only zero-centered values would be supported. Currently, quantized AveragePool is disabled for all post-ops.
     auto mainOp = mlir::dyn_cast<IE::LayerWithPostOpInterface>(avgPoolOp.getOperation());
     if (mainOp != nullptr) {
-        if (mainOp.getPostOp().hasValue()) {
+        if (mainOp.getPostOp().has_value()) {
             return mlir::failure();
         }
     }
@@ -321,6 +322,28 @@ mlir::LogicalResult FuseWithAveragePool::matchAndRewrite(IE::QuantizeOp quantize
             ->setLoc(avgPoolOp->getLoc());
 
     return mlir::success();
+}
+
+bool isLegalFuseOp(mlir::Operation* concreteOp, IE::QuantizeOp quantizeOp) {
+    if (!areAllUsersQuantized(concreteOp)) {
+        return false;
+    }
+
+    auto inputDequantizeOp = concreteOp->getOperand(0).getDefiningOp<IE::DequantizeOp>();
+    if (inputDequantizeOp == nullptr) {
+        return false;
+    }
+
+    auto origOutput = quantizeOp.output();
+    auto origInput = inputDequantizeOp.input();
+    auto tileOpInputElementType = origInput.getType().cast<vpux::NDTypeInterface>().getElementType();
+    auto tileOpOutputElementType = origOutput.getType().cast<vpux::NDTypeInterface>().getElementType();
+
+    if (tileOpInputElementType != tileOpOutputElementType) {
+        return false;
+    }
+
+    return true;
 }
 
 //
@@ -358,29 +381,62 @@ mlir::LogicalResult FuseWithSlice::matchAndRewrite(IE::QuantizeOp quantizeOp, ml
         return mlir::failure();
     }
 
-    if (!areAllUsersQuantized(sliceOp)) {
-        return mlir::failure();
+    if (!isLegalFuseOp(sliceOp, quantizeOp)) {
+        return matchFailed(rewriter, sliceOp, "Quantize op cannot fuse into op {0} at {1}", sliceOp->getName(),
+                           sliceOp->getLoc());
     }
 
-    auto inputDequantizeOp = sliceOp.source().getDefiningOp<IE::DequantizeOp>();
-    if (inputDequantizeOp == nullptr) {
-        return mlir::failure();
-    }
-
-    auto origOutput = quantizeOp.output();
-    auto origInput = inputDequantizeOp.input();
-    auto sliceOpInputElementType = origInput.getType().cast<vpux::NDTypeInterface>().getElementType();
-    auto sliceOpOutputElementType = origOutput.getType().cast<vpux::NDTypeInterface>().getElementType();
-
-    if (sliceOpInputElementType != sliceOpOutputElementType) {
-        return matchFailed(_log, rewriter, sliceOp,
-                           "Slice input ElementType:'{0}' and output ElementType:'{1}' mismatch.",
-                           sliceOpInputElementType, sliceOpOutputElementType);
-    }
-
-    rewriter.replaceOpWithNewOp<IE::SliceOp>(quantizeOp, quantizeOp.getType(), inputDequantizeOp.input(),
+    rewriter.replaceOpWithNewOp<IE::SliceOp>(quantizeOp, quantizeOp.getType(),
+                                             sliceOp.source().getDefiningOp<IE::DequantizeOp>().input(),
                                              sliceOp.static_offsetsAttr(), sliceOp.static_sizesAttr())
             ->setLoc(sliceOp->getLoc());
+
+    return mlir::success();
+}
+
+//
+// FuseWithTile
+//
+
+//
+//       [input]
+//          |
+//     (dequantize)
+//          |
+//       (tile)
+//          |
+//       [output]
+//          |
+//      (quantize)
+//
+
+class FuseWithTile final : public mlir::OpRewritePattern<IE::QuantizeOp> {
+public:
+    FuseWithTile(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::QuantizeOp>(ctx), _log(log) {
+        setDebugName("FuseWithTile");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::QuantizeOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult FuseWithTile::matchAndRewrite(IE::QuantizeOp quantizeOp, mlir::PatternRewriter& rewriter) const {
+    auto tileOp = quantizeOp.input().getDefiningOp<IE::TileOp>();
+    if (tileOp == nullptr) {
+        return mlir::failure();
+    }
+
+    if (!isLegalFuseOp(tileOp, quantizeOp)) {
+        return matchFailed(rewriter, tileOp, "Quantize op cannot fuse into op {0} at {1}", tileOp->getName(),
+                           tileOp->getLoc());
+    }
+
+    rewriter.replaceOpWithNewOp<IE::TileOp>(quantizeOp, quantizeOp.getType(),
+                                            tileOp.input().getDefiningOp<IE::DequantizeOp>().input(), nullptr,
+                                            tileOp.repeats_valuesAttr());
 
     return mlir::success();
 }
@@ -614,18 +670,97 @@ mlir::LogicalResult FuseWithDepth2Space::matchAndRewrite(IE::QuantizeOp quantize
 }
 
 //
+// FuseWithInterpolate
+//
+
+//
+//       [input]
+//          |
+//     (dequantize)
+//          |
+//     (interpolate)
+//          |
+//       [output]
+//          |
+//      (quantize)
+//
+
+class FuseWithInterpolate final : public mlir::OpRewritePattern<IE::QuantizeOp> {
+public:
+    FuseWithInterpolate(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::QuantizeOp>(ctx), _log(log) {
+        setDebugName("FuseWithInterpolate");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::QuantizeOp quantizeOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult FuseWithInterpolate::matchAndRewrite(IE::QuantizeOp quantizeOp,
+                                                         mlir::PatternRewriter& rewriter) const {
+    auto interpOp = quantizeOp.input().getDefiningOp<IE::InterpolateOp>();
+    if (interpOp == nullptr) {
+        return mlir::failure();
+    }
+
+    if (!areAllUsersQuantized(interpOp)) {
+        return mlir::failure();
+    }
+
+    auto isNCESupported = VPU::NCEInvariant::isSupported(interpOp.getOperation(), _log);
+    if (isNCESupported.failed()) {
+        return mlir::failure();
+    }
+
+    auto inputDequantizeOp = interpOp.input().getDefiningOp<IE::DequantizeOp>();
+    if (inputDequantizeOp == nullptr) {
+        return mlir::failure();
+    }
+
+    rewriter.replaceOpWithNewOp<IE::InterpolateOp>(
+                    quantizeOp, quantizeOp.getType(), inputDequantizeOp.input(), nullptr, nullptr, nullptr,
+                    interpOp.sizes_attr().value_or(nullptr), interpOp.scales_attr().value_or(nullptr),
+                    interpOp.axes_attr().value_or(nullptr), interpOp.tile_offset_attrAttr(),
+                    interpOp.initial_input_dims_attrAttr(), interpOp.initial_output_dims_attrAttr(), interpOp.attr())
+            ->setLoc(interpOp->getLoc());
+
+    return mlir::success();
+}
+
+//
 // FuseQuantizedOpsPass
 //
 
 class FuseQuantizedOpsPass final : public IE::FuseQuantizedOpsBase<FuseQuantizedOpsPass> {
 public:
-    explicit FuseQuantizedOpsPass(Logger log) {
+    explicit FuseQuantizedOpsPass(const bool seOpsEnabled, Logger log): _seOpsEnabled(seOpsEnabled) {
         Base::initLogger(log, Base::getArgumentName());
     }
 
+    mlir::LogicalResult initialize(mlir::MLIRContext* ctx) final;
+
 private:
     void safeRunOnFunc() final;
+
+private:
+    bool _seOpsEnabled;
 };
+
+mlir::LogicalResult FuseQuantizedOpsPass::initialize(mlir::MLIRContext* ctx) {
+    if (mlir::failed(Base::initialize(ctx))) {
+        return mlir::failure();
+    }
+
+    // When this parameter has a value, it probably comes from LIT test.
+    // Override the default
+    if (seOpsEnabled.hasValue()) {
+        _seOpsEnabled = seOpsEnabled.getValue();
+    }
+
+    return mlir::success();
+}
 
 void FuseQuantizedOpsPass::safeRunOnFunc() {
     auto& ctx = getContext();
@@ -671,6 +806,7 @@ void FuseQuantizedOpsPass::safeRunOnFunc() {
     patterns.add<FuseWithEltwiseConverter<IE::AddOp>>(&ctx, checkAddInputTypes, _log);
     patterns.add<FuseWithSlice>(&ctx, _log);
     patterns.add<FuseWithMaxPool>(&ctx, _log);
+    patterns.add<FuseWithTile>(&ctx, _log);
     if (arch == VPU::ArchKind::VPUX37XX) {
         patterns.add<FuseWithAveragePool>(&ctx, _log);
     }
@@ -680,6 +816,9 @@ void FuseQuantizedOpsPass::safeRunOnFunc() {
         patterns.add<FuseWithEltwiseConverter<IE::MultiplyOp>>(&ctx, checkMulInputTypes, _log);
     } else {
         patterns.add<FuseWithDepth2Space>(&ctx, _log);
+    }
+    if (_seOpsEnabled) {
+        patterns.add<FuseWithInterpolate>(&ctx, _log);
     }
 
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
@@ -693,6 +832,6 @@ void FuseQuantizedOpsPass::safeRunOnFunc() {
 // createFuseQuantizedOpsPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::IE::createFuseQuantizedOpsPass(Logger log) {
-    return std::make_unique<FuseQuantizedOpsPass>(log);
+std::unique_ptr<mlir::Pass> vpux::IE::createFuseQuantizedOpsPass(const bool seOpsEnabled, Logger log) {
+    return std::make_unique<FuseQuantizedOpsPass>(seOpsEnabled, log);
 }

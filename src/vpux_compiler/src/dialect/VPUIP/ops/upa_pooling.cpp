@@ -118,7 +118,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PoolingUPAOp::serialize(VPUIP::Blob
     const auto padsEnd = VPUIP::createOrder3(this->padsEnd());
 
     VPUIP::BlobWriter::String type;
-    switch (this->type()) {
+    switch (this->task_type()) {
     case VPUIP::PoolLayerType::MAX:
         type = writer.createString("max");
         break;
@@ -126,7 +126,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PoolingUPAOp::serialize(VPUIP::Blob
         type = writer.createString("avg");
         break;
     default:
-        VPUX_THROW("Unsupported PoolLayerType {0}", this->type());
+        VPUX_THROW("Unsupported PoolLayerType {0}", this->task_type());
     }
 
     const auto excludePad = writer.createString(this->excludePad() ? "true" : "false");

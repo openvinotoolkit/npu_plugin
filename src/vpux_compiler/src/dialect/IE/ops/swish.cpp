@@ -57,7 +57,7 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::SwishOp swishOp, mli
             return mlir::failure();
         }
 
-        const auto betaContent = betaOp.content();
+        const auto betaContent = betaOp.getContent();
         if (!betaContent.isSplat()) {
             return mlir::failure();
         }

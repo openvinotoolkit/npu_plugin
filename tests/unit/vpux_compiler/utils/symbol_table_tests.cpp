@@ -3,9 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
-#include "vpux/compiler/init.hpp"
+#include "common/utils.hpp"
 
 #include <mlir/IR/MLIRContext.h>
 #include <mlir/IR/SymbolTable.h>
@@ -29,10 +27,9 @@ static SymbolRefAttr generateNewRefAttr(SymbolRefAttr oldAttr, SymbolRefAttr new
 }
 }  // namespace mlir
 
-TEST(MLIR_SymbolTable, CheckGenerateNewRefAttr) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
+using MLIR_SymbolTable = MLIR_UnitBase;
 
+TEST_F(MLIR_SymbolTable, CheckGenerateNewRefAttr) {
     mlir::MLIRContext ctx(registry);
 
     llvm::StringLiteral root = "root";

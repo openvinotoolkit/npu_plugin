@@ -1,6 +1,6 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "shared_test_classes/subgraph/multiple_outputs.hpp"
@@ -9,10 +9,10 @@
 
 #include <vector>
 
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace SubgraphTestsDefinitions {
-class VPUXMultipleoutputTest : public MultioutputTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXMultipleoutputTest : public MultioutputTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
 class VPUXMultipleoutputTest_VPU3700 : public VPUXMultipleoutputTest {
     /* tests dumping intermediate outputs
@@ -56,7 +56,7 @@ std::vector<size_t> outputChannels = {16};
 
 INSTANTIATE_TEST_SUITE_P(smoke_MultipleOutputs, VPUXMultipleoutputTest_VPU3700,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::ValuesIn(configs), ::testing::ValuesIn(convParams),
                                             ::testing::ValuesIn(outputChannels)),
                          MultioutputTest::getTestCaseName);

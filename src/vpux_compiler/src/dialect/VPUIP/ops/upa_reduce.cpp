@@ -13,7 +13,7 @@ using namespace vpux;
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ReduceUPAOp::serialize(VPUIP::BlobWriter& writer) {
     VPUIP::BlobWriter::String type;
 
-    switch (this->type()) {
+    switch (this->task_type()) {
     case VPUIP::ReduceLayerType::MAX:
         type = writer.createString("max");
         break;
@@ -42,12 +42,14 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ReduceUPAOp::serialize(VPUIP::BlobW
         type = writer.createString("l2");
         break;
     default:
-        VPUX_THROW("Unsupported ReduceLayerType {0}", this->type());
+        VPUX_THROW("Unsupported ReduceLayerType {0}", this->task_type());
     }
-
+    const auto axes = writer.createVector(parseIntArrayAttr<int64_t>(axes_value()));
     MVCNN::ReduceParamsBuilder builder(writer);
+
     builder.add_keep_dims(checked_cast<bool>(keep_dims()));
     builder.add_operation(type);
+    builder.add_axes_value(axes);
 
     const auto paramsOff = builder.Finish();
 
@@ -56,7 +58,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ReduceUPAOp::serialize(VPUIP::BlobW
 
 mlir::Operation* vpux::VPUIP::BlobReader::parseReduce(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
                                                       ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task) {
-    VPUX_THROW_UNLESS(inputs.size() == 2, "UPAReduce supports only 2 input, got {0}", inputs.size());
+    VPUX_THROW_UNLESS(inputs.size() == 1, "UPAReduce supports only 1 input, got {0}", inputs.size());
     VPUX_THROW_UNLESS(outputs.size() == 1, "UPAReduce supports only 1 output, got {0}", outputs.size());
     const auto params = task->softLayerParams_as_ReduceParams();
     const auto typeStr = params->operation()->str();
@@ -84,8 +86,10 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseReduce(mlir::OpBuilder& builder, 
         VPUX_THROW("Unsupported ReduceLayerType {0}", typeStr);
     }
 
+    const SmallVector<int64_t> axes{params->axes_value()->cbegin(), params->axes_value()->cend()};
     const auto keep_dims = params->keep_dims() ? mlir::UnitAttr::get(_ctx) : nullptr;
 
-    return builder.create<VPUIP::ReduceUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1], outputs[0], keep_dims,
+    return builder.create<VPUIP::ReduceUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0],
+                                              getIntArrayAttr(_ctx, axes), keep_dims,
                                               VPUIP::ReduceLayerTypeAttr::get(_ctx, type));
 }

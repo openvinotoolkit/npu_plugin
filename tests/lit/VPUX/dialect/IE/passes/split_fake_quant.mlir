@@ -363,9 +363,9 @@ func.func @NegativeScalarAsInputRange(%arg0: tensor<1x3x30x30xf32>) -> tensor<1x
 
 // CHECK-LABEL: @PerChannelQuant
 func.func @PerChannelQuant(%arg0: tensor<1x16x112x112xf32>) -> tensor<1x16x112x112xf32> {
-    %input_low = const.Declare tensor<1x16x1x1xf32> =
-        dense<[[[[0.000000e+00]], [[0.000000e+00]], [[0.000000e+00]], [[0.000000e+00]], [[-3.750000e-01]],
-        [[0.000000e+00]], [[-0.297849566]], [[-0.382785916]], [[-0.399385154]], [[-3.750000e-01]],
+    %input_low = const.Declare tensor<1x16x1x1xf32> = 
+        dense<[[[[0.000000e+00]], [[0.000000e+00]], [[0.000000e+00]], [[0.000000e+00]], [[-3.750000e-01]], 
+        [[0.000000e+00]], [[-0.297849566]], [[-0.382785916]], [[-0.399385154]], [[-3.750000e-01]], 
         [[0.000000e+00]], [[-0.381789744]], [[0.000000e+00]], [[-3.750000e-01]], [[-3.750000e-01]], [[-0.389199734]]]]> : tensor<1x16x1x1xf32>
     %input_high = const.Declare tensor<1x16x1x1xf32> = dense<[[[[2.88798332]], [[17.5819988]], [[23.3847122]],
         [[6.1077733]], [[1.875000e+01]], [[3.81057024]], [[0.192161009]], [[13.5615578]], [[12.3310165]],
@@ -379,8 +379,8 @@ func.func @PerChannelQuant(%arg0: tensor<1x16x112x112xf32>) -> tensor<1x16x112x1
         [[12.3310165]], [[3.609375]], [[2.681180e+00]], [[3.0952239]], [[3.04886699]], [[1.556250e+01]],
         [[2.70967746]], [[8.63315773]]]]> : tensor<1x16x1x1xf32>
 
-    %fq = IE.FakeQuantize(%arg0, %input_low, %input_high, %output_low, %output_high)
-        {auto_broadcast = #IE.auto_broadcast_type<NUMPY>, levels = 256 : i64} :
+    %fq = IE.FakeQuantize(%arg0, %input_low, %input_high, %output_low, %output_high) 
+        {auto_broadcast = #IE.auto_broadcast_type<NUMPY>, levels = 256 : i64} : 
         tensor<1x16x112x112xf32>, tensor<1x16x1x1xf32>, tensor<1x16x1x1xf32>, tensor<1x16x1x1xf32>, tensor<1x16x1x1xf32> -> tensor<1x16x112x112xf32>
 
     return %fq : tensor<1x16x112x112xf32>
@@ -400,7 +400,7 @@ func.func @PerChannelQuantInput(%arg0: tensor<1x3x299x299xf16>) -> tensor<1x3x29
     %input_high = const.Declare tensor<1x3x1x1xf16> = dense<[[[[2.551250e+02]], [[2.670000e+02]], [[2.780000e+02]]]]> : tensor<1x3x1x1xf32>, [#const.ConvertElemType<f16>]
     %input_low =  const.Declare tensor<1x3x1x1xf16> = dense<[[[[-49.28125]], [[-35.65625]], [[-31.828125]]]]> : tensor<1x3x1x1xf32>, [#const.ConvertElemType<f16>]
 
-    %1 = IE.FakeQuantize(%arg0, %input_low, %input_high, %output_low, %output_high)
+    %1 = IE.FakeQuantize(%arg0, %input_low, %input_high, %output_low, %output_high) 
         {auto_broadcast = #IE.auto_broadcast_type<NUMPY>, levels = 256 : i64} : tensor<1x3x299x299xf16>, tensor<1x3x1x1xf16>, tensor<1x3x1x1xf16>, tensor<1x1x1x1xf16>, tensor<1x1x1x1xf16> -> tensor<1x3x299x299xf16>
 
     return %1 : tensor<1x3x299x299xf16>

@@ -14,16 +14,16 @@ using namespace vpux;
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::RegionYoloUPAOp::serialize(VPUIP::BlobWriter& writer) {
     VPUIP::BlobWriter::Vector<int32_t> serializedMask;
-    if (mask().hasValue()) {
-        serializedMask = writer.createVector(parseIntArrayAttr<int32_t>(mask().getValue()));
+    if (mask().has_value()) {
+        serializedMask = writer.createVector(parseIntArrayAttr<int32_t>(mask().value()));
     }
 
     MVCNN::RegionYOLOParamsBuilder builder(writer);
     builder.add_coords(checked_cast<int32_t>(coords()));
     builder.add_classes(checked_cast<int32_t>(classes()));
-    builder.add_num(checked_cast<int32_t>(regions()));
+    builder.add_num(checked_cast<int32_t>(num_regions()));
     builder.add_do_softmax(do_softmax().value_or(false));
-    if (mask().hasValue()) {
+    if (mask().has_value()) {
         builder.add_mask(serializedMask);
     }
 

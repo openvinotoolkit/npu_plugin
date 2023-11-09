@@ -14,7 +14,7 @@ StrategyManager::StrategyManager(mlir::func::FuncOp func, Logger log)
         : _func(func), _log(log), _costModel(func, log), _optimizer(func, log) {
 }
 
-void StrategyManager::assignMultiClusterStrategy() {
+void StrategyManager::assignMultiClusterStrategy(bool enableMultiClusterForSWLayer) {
     auto setLayerStrategy = [this](VPU::MultiClusterStrategy strategy, mlir::Operation* op) {
         if (strategy == VPU::MultiClusterStrategy::SplitOverHeight ||
             strategy == VPU::MultiClusterStrategy::SplitOverKernel ||
@@ -23,7 +23,7 @@ void StrategyManager::assignMultiClusterStrategy() {
             strategy == VPU::MultiClusterStrategy::HKSwitch || strategy == VPU::MultiClusterStrategy::SplitOverWidth) {
             llvm::TypeSwitch<mlir::Operation*, void>(op).Case<ClusteredOpInterface>(
                     [strategy](ClusteredOpInterface clusterOp) {
-                        clusterOp.setMultiClusterStrategyAttr(strategy);
+                        clusterOp.setMultiClusterStrategy(strategy);
                     });
 
             _log.trace("Assigning multi-cluster strategy '{0}' to layer '{1}' - '{2}'", strategy, op->getName(),
@@ -37,34 +37,27 @@ void StrategyManager::assignMultiClusterStrategy() {
         _log.trace("Getting strategy for op {0}", op->getName());
         llvm::TypeSwitch<mlir::Operation*, void>(op)
                 .Case<NCEMaxPoolOp>([&](NCEMaxPoolOp origOp) {
-                    auto layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(origOp->getName());
+                    const auto& layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(origOp->getName());
                     auto bestStrategy = _costModel.getOptimalLayerStrategy(origOp.getOperation(), layerStrategyChecker);
                     setLayerStrategy(bestStrategy, origOp.getOperation());
                 })
                 .Case<NCEAveragePoolOp>([&](NCEAveragePoolOp origOp) {
-                    auto layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(origOp->getName());
+                    const auto& layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(origOp->getName());
                     auto bestStrategy = _costModel.getOptimalLayerStrategy(origOp.getOperation(), layerStrategyChecker);
                     setLayerStrategy(bestStrategy, origOp.getOperation());
                 })
                 .Case<NCEEltwiseOp>([&](NCEEltwiseOp origOp) {
-                    auto layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(origOp->getName());
+                    const auto& layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(origOp->getName());
                     auto bestStrategy = _costModel.getOptimalLayerStrategy(origOp.getOperation(), layerStrategyChecker);
                     setLayerStrategy(bestStrategy, origOp.getOperation());
                 })
                 .Case<NCEConvolutionOp>([&](NCEConvolutionOp origOp) {
-                    auto layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(origOp->getName());
+                    const auto& layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(origOp->getName());
                     const auto arch = VPU::getArch(origOp.getOperation());
                     if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NHWC) {
-                        if (VPU::NCEInvariant::isCompressConvolution(arch, origOp) &&
-                            layerStrategyChecker->isOperationSplitOverHeightCompatible(origOp.getOperation())) {
-                            setLayerStrategy(VPU::MultiClusterStrategy::SplitOverHeightOverlapped,
-                                             origOp.getOperation());
-                        } else {
-                            auto bestStrategy =
-                                    _costModel.getOptimalLayerStrategy(origOp.getOperation(), layerStrategyChecker);
-                            setLayerStrategy(bestStrategy, origOp.getOperation());
-                        }
-
+                        auto bestStrategy =
+                                _costModel.getOptimalLayerStrategy(origOp.getOperation(), layerStrategyChecker);
+                        setLayerStrategy(bestStrategy, origOp.getOperation());
                     } else if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NCHW) {
                         const auto canUseCMajor = VPU::NCEInvariant::isChannelMajorCompatible(
                                 arch, origOp.input().getType().cast<vpux::NDTypeInterface>());
@@ -82,7 +75,7 @@ void StrategyManager::assignMultiClusterStrategy() {
                     }
                 })
                 .Case<NCECompressConvolutionOp>([&](NCECompressConvolutionOp origOp) {
-                    auto layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(origOp->getName());
+                    const auto& layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(origOp->getName());
                     if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NHWC) {
                         if (layerStrategyChecker->isOperationSplitOverHeightCompatible(origOp.getOperation())) {
                             setLayerStrategy(VPU::MultiClusterStrategy::SplitOverHeightOverlapped,
@@ -98,7 +91,7 @@ void StrategyManager::assignMultiClusterStrategy() {
                     }
                 })
                 .Case<NCEDepthConvolutionOp>([&](NCEDepthConvolutionOp origOp) {
-                    auto layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(origOp->getName());
+                    const auto& layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(origOp->getName());
                     auto bestStrategy = _costModel.getOptimalLayerStrategy(origOp.getOperation(), layerStrategyChecker);
                     setLayerStrategy(bestStrategy, origOp.getOperation());
                 })
@@ -106,7 +99,6 @@ void StrategyManager::assignMultiClusterStrategy() {
                     const auto inputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
                     const auto inputShape = inputType.getShape();
                     // Such configurations cannot be tiled properly.
-                    constexpr size_t RANK_REQUIRED_FOR_TILING = 4;
                     if (inputShape.size() != RANK_REQUIRED_FOR_TILING) {
                         _log.trace(
                                 "Operation '{0}' at '{1}' has input rank {2} and cannot be tiled. Expected rank: {3}.",
@@ -142,21 +134,38 @@ void StrategyManager::assignMultiClusterStrategy() {
                     setLayerStrategy(bestStrategy, origOp.getOperation());
                 })
                 .Case<NCEInterpolateOp>([&](NCEInterpolateOp origOp) {
-                    auto layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(origOp->getName());
+                    const auto& layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(origOp->getName());
                     auto bestStrategy = _costModel.getOptimalLayerStrategy(origOp.getOperation(), layerStrategyChecker);
                     setLayerStrategy(bestStrategy, origOp.getOperation());
                 })
                 .Case<SWOpInterface>([&](SWOpInterface origOp) {
-                    const auto arch = VPU::getArch(origOp.getOperation());
-                    // E#73159
-                    if (arch == vpux::VPU::ArchKind::VPUX30XX) {
+                    if (!enableMultiClusterForSWLayer) {
                         return;
                     }
-                    auto layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(origOp->getName());
-                    auto bestStrategy =
-                            origOp.supportCycleCostCalculation()
-                                    ? _costModel.getOptimalLayerStrategy(origOp.getOperation(), layerStrategyChecker)
-                                    : VPU::getDefaultLayerStrategy(origOp.getOperation(), layerStrategyChecker);
+
+                    auto inputShape =
+                            origOp.getOperation()->getOperand(0).getType().cast<vpux::NDTypeInterface>().getShape();
+                    auto outputShape =
+                            origOp.getOperation()->getResult(0).getType().cast<vpux::NDTypeInterface>().getShape();
+
+                    // Non 4D Tensor or Tensor with larger batch size cannot be tiled properly.
+                    // [E90039]MC support for Non 4D Tensor.
+                    VPU::MultiClusterStrategy bestStrategy;
+                    if (inputShape.front() > SINGLE_BATCH || inputShape.size() != RANK_REQUIRED_FOR_TILING ||
+                        outputShape.size() != RANK_REQUIRED_FOR_TILING) {
+                        _log.trace("Operation '{0}' at '{1}' has input shape {2} forcing clustering", origOp->getName(),
+                                   origOp->getLoc(), inputShape);
+                        bestStrategy = VPU::MultiClusterStrategy::Clustering;
+                    } else {
+                        const auto& layerStrategyChecker =
+                                LayerStrategyCheckerFactory::instance().get(origOp->getName());
+                        if (origOp.supportCycleCostCalculation()) {
+                            bestStrategy =
+                                    _costModel.getOptimalLayerStrategy(origOp.getOperation(), layerStrategyChecker);
+                        } else {
+                            bestStrategy = VPU::getDefaultLayerStrategy(origOp.getOperation(), layerStrategyChecker);
+                        }
+                    }
                     setLayerStrategy(bestStrategy, origOp.getOperation());
                     _log.info("SW Operation '{0}' {1} set to {2}", origOp->getName(), origOp->getLoc(), bestStrategy);
                 })
@@ -182,7 +191,7 @@ void StrategyManager::assignMultiClusterStrategy() {
                         return;
                     }
 
-                    auto layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(origOp->getName());
+                    const auto& layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(origOp->getName());
                     auto bestStrategy = VPU::getDefaultLayerStrategy(origOp.getOperation(), layerStrategyChecker);
                     setLayerStrategy(bestStrategy, origOp.getOperation());
                 })
@@ -199,12 +208,38 @@ void StrategyManager::optimizeMulticlusterStrategy() {
     _optimizer.optimizeStrategyAvoidSpillingOnModel();
 }
 
+size_t getNumNonConstantOperands(mlir::Operation* op) {
+    return std::count_if(op->operand_begin(), op->operand_end(), [](mlir::Value operand) {
+        return !mlir::isa_and_nonnull<Const::DeclareOp>(operand.getDefiningOp());
+    });
+}
+
+bool hasLayerWithMultipleInputs(mlir::Operation* op) {
+    return std::any_of(op->user_begin(), op->user_end(), [](mlir::Operation* user) {
+        return getNumNonConstantOperands(user) > 1 || hasLayerWithMultipleInputs(user);
+    });
+}
+
 // Temporary strategy is assigned to Concat to help strategy optimization. We need to remove it after strategy manager
 // pass.
 void StrategyManager::removeTemporaryMulticlusterStrategy() {
-    const auto callback = [](VPU::ConcatOp concatOp) {
+    const auto callbackConcat = [](VPU::ConcatOp concatOp) {
         concatOp.removeMultiClusterStrategyAttr();
     };
-
-    _func.walk(callback);
+    // E#81901 When assigning clustering strategy to ConvertOps for the following pattern(s) breaks the accuracy
+    // ConvertOp            ConvertOp
+    //     |                    |
+    //     IntermediateOp       |
+    //           |              |
+    //              Layer (Layers with multiple inputs)
+    // For such cases and strategies remove the strategy as a temporary measure
+    const auto callbackConvert = [&](VPU::ConvertOp convertOp) {
+        if (hasLayerWithMultipleInputs(convertOp)) {
+            _log.info("SW Operation '{0}' {1} removed strategy {2}", convertOp->getName(), convertOp->getLoc(),
+                      convertOp.multiClusterStrategy());
+            convertOp.removeMultiClusterStrategyAttr();
+        }
+    };
+    _func.walk(callbackConvert);
+    _func.walk(callbackConcat);
 }

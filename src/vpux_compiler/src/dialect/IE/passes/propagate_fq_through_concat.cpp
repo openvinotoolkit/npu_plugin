@@ -61,8 +61,8 @@ bool isPerTensorFq(const mlir::Value in) {
     }
 
     const auto axis = IE::getFQAxisIndex(maybeFqOp);
-    return !axis.hasValue();
-};
+    return !axis.has_value();
+}
 
 mlir::LogicalResult PropagateFqThroughConcat::ConcatOpConverter::matchAndRewrite(
         IE::ConcatOp origConcatOp, mlir::PatternRewriter& rewriter) const {

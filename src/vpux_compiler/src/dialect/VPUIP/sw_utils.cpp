@@ -39,7 +39,7 @@ mlir::SymbolRefAttr createBuiltInFunction(mlir::ModuleOp module, StringRef built
     auto vpuswModule = getVPUSWModule(module, log);
 
     auto builtInFlatFunction = mlir::SymbolRefAttr::get(ctx, builtInFunctionName);
-    auto builtInFunction = mlir::SymbolRefAttr::get(ctx, vpuswModule.getName().getValue(), {builtInFlatFunction});
+    auto builtInFunction = mlir::SymbolRefAttr::get(ctx, vpuswModule.getName().value(), {builtInFlatFunction});
 
     // check if this builtInFunction already created - consider names are unique - e.g. no overloads
     if (auto prebuiltFunction = vpuswModule.lookupSymbol<mlir::func::FuncOp>(builtInFunctionName)) {
@@ -63,7 +63,7 @@ mlir::SymbolRefAttr createBuiltInFunction(mlir::ModuleOp module, StringRef built
     return builtInFunction;
 }
 
-void createRuntimeKernelDefinition(mlir::ModuleOp module, const Logger& log, vpux::VPU::ArchKind /*arch*/) {
+void createRuntimeKernelDefinition(mlir::ModuleOp module, const Logger& log, vpux::VPU::ArchKind /* arch */) {
     auto vpuswModule = getVPUSWModule(module, log);
 
     static const SmallString runtimeKernelName{"runtime"};
@@ -94,12 +94,13 @@ void createRuntimeKernelDefinition(mlir::ModuleOp module, const Logger& log, vpu
 
     // creating name symbol
     auto runtimeFlatSym = mlir::SymbolRefAttr::get(ctx, runtimeKernelName);
-    auto runtimeSym = mlir::SymbolRefAttr::get(ctx, vpuswModule.getName().getValue(), {runtimeFlatSym});
+    auto runtimeSym = mlir::SymbolRefAttr::get(ctx, vpuswModule.getName().value(), {runtimeFlatSym});
 
     static constexpr int64_t defaultStackSize = 4096;
 
     // TODO: always extract num shaves info from VPURT::SW.Runtime, which can be extracted from module
-    const auto maxShaves = 4;
+    auto maxShaves = 4;
+
     SmallVector<int64_t> stacksArray(maxShaves, defaultStackSize);
 
     //  adding runtime kernel configuration - stacks, etc
@@ -179,6 +180,15 @@ void initSwKernel(VPUIP::SwKernelOp swKernelOp, VPUIP::SwKernelRun swKernelRunOp
     //         [OUTPUT_TILE1] as %arg5: Output of 2th tile
     // Tile 0: VPUIP.SW.Kernel.run {attrs} (%arg0, %arg1, %arg4)
     // Tile 1: VPUIP.SW.Kernel.run {attrs} (%arg2, %arg3, %arg5)
+    // For example: For Operation that has 1 input, 2 output and tile number is 2. After tile it should be like:
+    // inputs: [INPUT0_TILE0] as %arg0: First intput with 1th tile
+    //         [INPUT0_TILE1] as %arg1: First intput with 2th tile
+    // outputs:[OUTPUT_TILE0] as %arg2: First Output of 1th tile
+    //         [OUTPUT_TILE1] as %arg3: Second Output of 1th tile
+    //         [OUTPUT_TILE0] as %arg4: First Output of 2th tile
+    //         [OUTPUT_TILE1] as %arg5: Second Output of 2th tile
+    // Tile 0: VPUIP.SW.Kernel.run {attrs} (%arg0, %arg2, %arg3)
+    // Tile 1: VPUIP.SW.Kernel.run {attrs} (%arg1, %arg4, %arg5)
     for (auto tileIdx : irange(tileNum)) {
         auto newRunOp = swKernelBlockBuilder.clone(*swKernelRunOp.getOperation());
         for (auto argInputIdx : irange(numSwKernelRunInputs)) {
@@ -225,6 +235,12 @@ bool isStridedDataAccessSupported(VPUIP::SwKernelOp swKernelOp) {
 }
 
 namespace {
+// reverse int attribute from the physical order
+int64_t reverseMemDim(DimsOrder inOrder, int64_t dimIdx) {
+    const auto origPerm = inOrder.toPermutation();
+    return origPerm[origPerm.size() - 1 - dimIdx].ind();
+}
+
 // reverse int array attribute from the physical order
 SmallVector<int64_t> reverseIntArrayAttr(DimsOrder inOrder, mlir::ArrayAttr arrayAttr) {
     const auto origPerm = inOrder.toPermutation();
@@ -240,7 +256,7 @@ SmallVector<int64_t> reverseIntArrayAttr(DimsOrder inOrder, mlir::ArrayAttr arra
 }
 
 // permute int array attribute in the physical order
-static SmallVector<int64_t> permuteIntArrayAttr(DimsOrder inOrder, SmallVector<int64_t> origArray) {
+SmallVector<int64_t> permuteIntArrayAttr(DimsOrder inOrder, ArrayRef<int64_t> origArray) {
     const auto origPerm = inOrder.toPermutation();
     SmallVector<int64_t> permArray(origArray.size());
     for (const auto srcInd : irange(origPerm.size())) {
@@ -259,8 +275,8 @@ InputTiling backInferInterpolateSwKernelInputTile(VPUIP::SwKernelOp swKernelOp, 
                       "SwKernelOp has already been tiled at '{0}'", swKernelOp);
 
     auto swKernelRun = *swKernelRuns.begin();
-    VPUX_THROW_UNLESS(swKernelRun.attrs().hasValue(), "SwKernelOp has no attr '{0}'", swKernelOp);
-    const auto attrs = swKernelRun.attrs().getValue();
+    VPUX_THROW_UNLESS(swKernelRun.attrs().has_value(), "SwKernelOp has no attr '{0}'", swKernelOp);
+    const auto attrs = swKernelRun.attrs().value();
     auto inOrder = swKernelOp.inputs()[0].getType().dyn_cast<vpux::NDTypeInterface>().getDimsOrder();
 
     const auto coordMode = static_cast<IE::InterpolateCoordMode>(attrs[1].dyn_cast<mlir::IntegerAttr>().getInt());
@@ -272,6 +288,35 @@ InputTiling backInferInterpolateSwKernelInputTile(VPUIP::SwKernelOp swKernelOp, 
                                           initialOutputOffset, coordMode, log);
 }
 
+int64_t convertKernelAxisToOrigAxis(mlir::Value tensorArg, int64_t kernelAxis) {
+    const auto shape = getShape(tensorArg);
+    // Dims/Order sequence is not same on kernel-FW & compiler side. Convert the axis from kernel to compiler
+    // representation.
+    auto nDims = checked_cast<uint32_t>(shape.size());
+
+    return nDims - 1 - kernelAxis;
+}
+
+InputTiling backInferGatherSwKernelInputTile(VPUIP::SwKernelOp swKernelOp, const vpux::TileInfo& outputTile,
+                                             Logger log) {
+    auto swKernelRuns = swKernelOp.body().getOps<VPUIP::SwKernelRun>();
+    VPUX_THROW_UNLESS(std::distance(swKernelRuns.begin(), swKernelRuns.end()) == 1,
+                      "SwKernelOp has already been tiled at '{0}'", swKernelOp);
+    auto swKernelRun = *swKernelRuns.begin();
+    VPUX_THROW_UNLESS(swKernelRun.attrs().hasValue(), "SwKernelOp has no attr '{0}'", swKernelOp);
+    const auto attrs = swKernelRun.attrs().getValue();
+    const auto inputs = swKernelOp.inputs();
+
+    const auto kernelAxis = attrs[0].dyn_cast<mlir::IntegerAttr>().getValue().getSExtValue();
+    const auto axisValue = convertKernelAxisToOrigAxis(inputs[0], kernelAxis);
+    const auto batchDims = attrs[1].dyn_cast<mlir::IntegerAttr>().getValue().getSExtValue();
+
+    const auto origInputShape = inputs[0].getType().dyn_cast<vpux::NDTypeInterface>().getShape();
+    const auto origIndicesShape = inputs[1].getType().dyn_cast<vpux::NDTypeInterface>().getShape();
+
+    return vpux::backInferGatherTile(outputTile, origInputShape, origIndicesShape, axisValue, batchDims, false, log);
+}
+
 SmallVector<mlir::Attribute> getInterpolateSwkernelNewAttrsAfterTiling(VPUIP::SwKernelOp swKernelOp,
                                                                        ArrayRef<mlir::Attribute> origAttr,
                                                                        const TilingInfo& inputTiling,
@@ -279,7 +324,7 @@ SmallVector<mlir::Attribute> getInterpolateSwkernelNewAttrsAfterTiling(VPUIP::Sw
     log.trace("update attrs for SwKernel Op at '{0}' for out tile {1}", swKernelOp, outTile);
     // Get output tile against the original output
     auto kernelRun = *swKernelOp.body().getOps<VPUIP::SwKernelRun>().begin();
-    auto attrs = kernelRun.attrs().getValue();
+    auto attrs = kernelRun.attrs().value();
     VPUX_THROW_UNLESS(origAttr.size() == attrs.size(), "Unmatched attr size found at '{0}'", swKernelOp);
 
     SmallVector<mlir::Attribute> newAttrs(attrs.begin(), attrs.end());
@@ -305,13 +350,51 @@ SmallVector<mlir::Attribute> getInterpolateSwkernelNewAttrsAfterTiling(VPUIP::Sw
     newAttrs[10] = getIntArrayAttr(swKernelOp->getContext(), permuteIntArrayAttr(dim, outputTileOffset));
     return newAttrs;
 }
+
+InputTiling backInferTopKSwKernelInputTile(VPUIP::SwKernelOp swKernelOp, const vpux::TileInfo& outputTile, Logger) {
+    auto swKernelRuns = swKernelOp.body().getOps<VPUIP::SwKernelRun>();
+    VPUX_THROW_UNLESS(std::distance(swKernelRuns.begin(), swKernelRuns.end()) == 1,
+                      "SwKernelOp has already been tiled at '{0}'", swKernelOp);
+
+    auto swKernelRun = *swKernelRuns.begin();
+    VPUX_THROW_UNLESS(swKernelRun.attrs().has_value(), "SwKernelOp has no attr '{0}'", swKernelOp);
+    const auto inOrder = swKernelOp.inputs()[0].getType().cast<vpux::NDTypeInterface>().getDimsOrder();
+    const auto attrs = swKernelRun.attrs().value();
+    const auto axis = reverseMemDim(inOrder, attrs[0].cast<mlir::IntegerAttr>().getInt());
+
+    const auto inShape = getShape(swKernelOp.inputs()[0]);
+    SmallVector<TileInfo> inputTiles;
+    for (auto origInput : swKernelOp.inputs()) {
+        const auto curShape = getShape(origInput);
+        VPUX_THROW_UNLESS(curShape.size() == outputTile.shape.size(),
+                          "Can't tile SwKernel operation '{0}' at '{1}', which has operands with different rank",
+                          swKernelOp->getName(), swKernelOp->getLoc());
+
+        auto curTile = outputTile;
+        for (auto ind : irange(curShape.size())) {
+            const auto d = Dim(ind);
+            if (axis == d.ind()) {
+                curTile.shape[d] = inShape[d];
+            }
+        }
+
+        inputTiles.push_back(curTile);
+    }
+    return TilingInfo{inputTiles};
+}
+
 }  // namespace
 
 InputTiling backInferSwKernelInputTile(VPUIP::SwKernelOp swKernelOp, const vpux::TileInfo& outputTile, Logger log) {
     auto kernelEntryName = getSwKernelEntryName(swKernelOp);
     if (kernelEntryName == "singleShaveInterpolate") {
         return backInferInterpolateSwKernelInputTile(swKernelOp, outputTile, log);
+    } else if (kernelEntryName == "single_shave_topk") {
+        return backInferTopKSwKernelInputTile(swKernelOp, outputTile, log);
+    } else if (kernelEntryName == "single_shave_gather") {
+        return backInferGatherSwKernelInputTile(swKernelOp, outputTile, log);
     }
+
     SmallVector<TileInfo> inputTiles;
     for (const auto& origInput : swKernelOp.inputs()) {
         const auto curShape = getShape(origInput);

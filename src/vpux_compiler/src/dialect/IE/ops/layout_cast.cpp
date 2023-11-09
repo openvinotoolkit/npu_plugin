@@ -21,7 +21,7 @@ mlir::LogicalResult vpux::IE::LayoutCastOp::inferReturnTypeComponents(
 
     const auto outAffineMap = overrideLayout.dst_order();
     const auto inType = overrideLayout.input().getType().cast<mlir::RankedTensorType>();
-    const auto outDesc = IE::getTensorAttr(outAffineMap, nullptr);
+    const auto outDesc = vpux::getTensorAttr(outAffineMap, nullptr);
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType(), outDesc);
 
     return mlir::success();

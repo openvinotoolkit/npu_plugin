@@ -55,23 +55,3 @@ mlir::LogicalResult vpux::IE::AvgPoolOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
-
-//
-// inferLayoutInfo
-//
-
-void vpux::IE::AvgPoolOp::inferLayoutInfo(vpux::IE::LayerLayoutInfo& info) {
-    const auto arch = VPU::getArch((*this)->getParentOfType<mlir::ModuleOp>());
-    if (arch == VPU::ArchKind::VPUX37XX) {
-        const auto logCb = [&](const formatv_object_base&) {};
-        if (!VPU::NCEAveragePoolOp::isSupported(*this, logCb, /*checkLayout=*/false, /*checkChannelAlignment=*/false)) {
-            // Operation will be done on software so dims order have no restriction.
-            info.setOutput(0, info.getInput(0));
-        } else {
-            info.setInput(0, DimsOrder::NHWC);
-            info.setOutput(0, DimsOrder::NHWC);
-        }
-    } else {
-        info.setOutput(0, info.getInput(0));
-    }
-}

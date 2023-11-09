@@ -80,9 +80,10 @@ TEST(MLIR_VPU_WorkloadCost, VPUNNCostInterface) {
             const auto optionalAlignment = vpux::Optional<llvm::ArrayRef<int64_t>>(alignment);
             auto outTilesWithSingleSplit =
                     vpux::fillDividedTiles(nTilesOnDim, costParams.outputShape, optionalAlignment);
+            VPUX_THROW_WHEN(mlir::failed(outTilesWithSingleSplit), "Invalid tiling");
 
             vpux::VPUIP::WorkloadSplit singleSplit;
-            for (auto& outTile : outTilesWithSingleSplit) {
+            for (auto& outTile : outTilesWithSingleSplit.value()) {
                 singleSplit.emplace_back(std::move(outTile), mpeMode);
             }
 

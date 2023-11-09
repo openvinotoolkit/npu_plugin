@@ -5,6 +5,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
+#include "vpux/compiler/dialect/IE/utils/propagate_quantize_dequantize_utils.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -17,7 +18,7 @@ using namespace vpux;
 
 namespace {
 
-mlir::SmallVector<int64_t> calcTileOutputShape(mlir::Value input, llvm::SmallVector<int64_t> repeatsVals) {
+mlir::SmallVector<int64_t> calcTileOutputShape(mlir::Value input, ArrayRef<int64_t> repeatsVals) {
     // If number of elements in *"repeats"* is more than shape of *"data"*, then *"data"* will be promoted to
     // "*repeats*" by prepending new axes, e.g. let's shape of *"data"* is equal to (2, 3) and *"repeats"* is equal to
     // [2, 2, 2], then shape of *"data"* will be promoted to (1, 2, 3) and result shape will be (2, 4, 6).
@@ -54,17 +55,17 @@ mlir::LogicalResult vpux::IE::TileOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    if (tile.repeats() != nullptr && tile.repeats_values().hasValue()) {
+    if (tile.repeats() != nullptr && tile.repeats_values().has_value()) {
         return errorAt(loc, "Ambiguous repeats representation");
     }
 
     llvm::SmallVector<int64_t> repeatsVector;
     const auto inType = tile.input().getType().cast<mlir::ShapedType>();
     if (tile.repeats() != nullptr) {
-        auto repeatsConst = tile.repeats().getDefiningOp<Const::DeclareOp>().content();
+        auto repeatsConst = tile.repeats().getDefiningOp<Const::DeclareOp>().getContent();
         repeatsVector = to_small_vector(repeatsConst.getValues<int64_t>());
-    } else if (tile.repeats_values().hasValue()) {
-        repeatsVector = parseIntArrayAttr<int64_t>(tile.repeats_values().getValue());
+    } else if (tile.repeats_values().has_value()) {
+        repeatsVector = parseIntArrayAttr<int64_t>(tile.repeats_values().value());
     } else {
         return errorAt(loc, "Repeats was not provided properly");
     }
@@ -89,11 +90,11 @@ public:
 
 mlir::LogicalResult ConvertRepeatsToAttr::matchAndRewrite(IE::TileOp tileOp, mlir::PatternRewriter& rewriter) const {
     // check if input was already converted to Attr
-    if (tileOp.repeats_values().hasValue()) {
+    if (tileOp.repeats_values().has_value()) {
         return mlir::failure();
     }
     // convert repeats into attribute
-    const auto repeatsContent = tileOp.repeats().getDefiningOp<Const::DeclareOp>().content();
+    const auto repeatsContent = tileOp.repeats().getDefiningOp<Const::DeclareOp>().getContent();
     auto repeats_values = to_small_vector(repeatsContent.getValues<int64_t>());
     const auto repeatsAttr = getIntArrayAttr(tileOp.getContext(), repeats_values);
 
@@ -113,11 +114,11 @@ public:
 
 mlir::LogicalResult AddUnsqueeze::matchAndRewrite(IE::TileOp origOp, mlir::PatternRewriter& rewriter) const {
     // repeats attribute has no value
-    if (!origOp.repeats_values().hasValue()) {
+    if (!origOp.repeats_values().has_value()) {
         return mlir::failure();
     }
 
-    auto newRepeats = parseIntArrayAttr<int64_t>(origOp.repeats_values().getValue());
+    auto newRepeats = parseIntArrayAttr<int64_t>(origOp.repeats_values().value());
     auto inputRank = origOp.input().getType().cast<mlir::ShapedType>().getRank();
     auto numRepeats = static_cast<int64_t>(newRepeats.size());
     int64_t nDimsToAdd = 0;
@@ -194,4 +195,18 @@ mlir::LogicalResult vpux::IE::PerAxisTileOp::inferReturnTypeComponents(
     inferredReturnShapes.emplace_back(outShape, inType.getElementType());
 
     return mlir::success();
+}
+
+//
+// inferElemTypeInfo
+//
+
+void vpux::IE::TileOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
+    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
+    propagateElementTypeDown(info);
+}
+
+void vpux::IE::TileOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
+    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
+    propagateElementTypeUp(info);
 }

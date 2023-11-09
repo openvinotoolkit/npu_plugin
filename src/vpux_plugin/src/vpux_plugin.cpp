@@ -25,7 +25,6 @@
 #include "vpux_executable_network.h"
 #include "vpux_metrics.h"
 #include "vpux_plugin.h"
-#include "vpux_remote_context.h"
 
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 #include <device_helpers.hpp>
@@ -35,9 +34,9 @@
 #include "vpux/utils/core/helper_macros.hpp"
 #include "vpux/utils/plugin/plugin_name.hpp"
 
-namespace vpux {
-namespace IE = InferenceEngine;
+namespace ie = InferenceEngine;
 
+namespace vpux {
 //------------------------------------------------------------------------------
 //      Helpers
 //------------------------------------------------------------------------------
@@ -60,93 +59,446 @@ static Config mergeConfigs(const Config& globalConfig, const std::map<std::strin
 }
 
 //------------------------------------------------------------------------------
+namespace {
+auto getSpecifiedDeviceName(const Config config) {
+    if (config.has<DEVICE_ID>()) {
+        return config.get<DEVICE_ID>();
+    }
+    return std::string();
+}
+
+Config addPlatformToTheConfig(Config config, std::string platform) {
+    config.update({{ov::intel_vpux::vpux_platform.name(), platform}});
+    return config;
+}
+}  // namespace
 
 Engine::Engine()
-        : _options(std::make_shared<OptionsDesc>()), _globalConfig(_options), _logger("VPUXEngine", LogLevel::Error) {
+        : _options(std::make_shared<OptionsDesc>()), _globalConfig(_options), _logger("NPUEngine", LogLevel::Error) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "Engine::Engine");
-    _pluginName = "VPUX";
+    _pluginName = "NPU";
 
     registerCommonOptions(*_options);
     registerCompilerOptions(*_options);
     registerRunTimeOptions(*_options);
 
+    // parse env_variables to get LOG_LEVEL if needed
+    _globalConfig.parseEnvVars();
+    Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
+
     // TODO: generation of available backends list can be done during execution of CMake scripts
     std::vector<std::string> backendRegistry;
 
 #if defined(OPENVINO_STATIC_LIBRARY)
-    backendRegistry.push_back("vpux_level_zero_backend");
+    backendRegistry.push_back("npu_level_zero_backend");
 #else
 
 #if defined(ENABLE_IMD_BACKEND)
-    if (const auto* envVar = std::getenv("IE_VPUX_USE_IMD_BACKEND")) {
-        if (envVarStrToBool("IE_VPUX_USE_IMD_BACKEND", envVar)) {
-            backendRegistry.push_back("vpux_imd_backend");
+    if (const auto* envVar = std::getenv("IE_NPU_USE_IMD_BACKEND")) {
+        if (envVarStrToBool("IE_NPU_USE_IMD_BACKEND", envVar)) {
+            backendRegistry.push_back("npu_imd_backend");
         }
     }
 #endif
 
 #if defined(_WIN32) || defined(_WIN64) || (defined(__linux__) && defined(__x86_64__))
-    backendRegistry.push_back("vpux_level_zero_backend");
+    backendRegistry.push_back("npu_level_zero_backend");
 #endif
 #if defined(ENABLE_EMULATOR)
-    backendRegistry.push_back("vpux_emulator_backend");
+    backendRegistry.push_back("npu_emulator_backend");
 #endif
 
 #endif
 
-    OV_ITT_TASK_CHAIN(ENGINE, itt::domains::VPUXPlugin, "Engine::Engine", "VPUXBackends");
-    _backends = std::make_shared<VPUXBackends>(backendRegistry);
+    OV_ITT_TASK_CHAIN(ENGINE, itt::domains::VPUXPlugin, "Engine::Engine", "NPUBackends");
+    _backends = std::make_shared<VPUXBackends>(backendRegistry, _globalConfig);
     OV_ITT_TASK_NEXT(ENGINE, "registerOptions");
     _backends->registerOptions(*_options);
 
     OV_ITT_TASK_NEXT(ENGINE, "Metrics");
     _metrics = std::make_unique<Metrics>(_backends);
 
-    OV_ITT_TASK_NEXT(ENGINE, "parseEnvVars");
+    // parse again env_variables after backend is initialized to get backend proprieties
     _globalConfig.parseEnvVars();
-    Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
+
+    // Map from name to function {Config -> ie::Parameter}
+    // Note that some properties are RW before network is loaded, and become RO after network is loaded
+    propertiesOv2 = {
+            // from Engine::GetConfig
+            {ov::supported_properties.name(),
+             {true, ov::PropertyMutability::RO,
+              [&](const Config&) {
+                  return supportedProperties0v2;
+              }}},
+            {ov::caching_properties.name(),
+             {true, ov::PropertyMutability::RW,
+              [&](const Config&) {
+                  return _metrics->GetCachingProperties();
+              }}},
+            {ov::streams::num.name(),
+             {true, ov::PropertyMutability::RO,
+              [](const Config& config) {
+                  return config.get<NUM_STREAMS>();
+              }}},
+            {ov::optimal_number_of_infer_requests.name(),
+             {true, ov::PropertyMutability::RO,
+              [&](const Config& config) {
+                  return static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(addPlatformToTheConfig(
+                          config, _backends->getCompilationPlatform(config.get<PLATFORM>(), config.get<DEVICE_ID>()))));
+              }}},
+            {ov::enable_profiling.name(),
+             {true, ov::PropertyMutability::RW,
+              [](const Config& config) {
+                  return config.get<PERF_COUNT>();
+              }}},
+            {ov::hint::performance_mode.name(),
+             {true, ov::PropertyMutability::RW,
+              [](const Config& config) {
+                  return config.get<PERFORMANCE_HINT>();
+              }}},
+            {ov::hint::num_requests.name(),
+             {true, ov::PropertyMutability::RW,
+              [](const Config& config) {
+                  return config.get<PERFORMANCE_HINT_NUM_REQUESTS>();
+              }}},
+            {ov::log::level.name(),
+             {true, ov::PropertyMutability::RW,
+              [](const Config& config) {
+                  return cvtLogLevel(config.get<LOG_LEVEL>());
+              }}},
+            {ov::cache_dir.name(),
+             {true, ov::PropertyMutability::RO,
+              [&](const Config& config) {
+                  return config.get<CACHE_DIR>();
+              }}},
+            {ov::device::id.name(),
+             {true, ov::PropertyMutability::RW,
+              [](const Config& config) {
+                  return config.get<DEVICE_ID>();
+              }}},
+            {ov::intel_vpux::dpu_groups.name(),
+             {true, ov::PropertyMutability::RW,
+              [](const Config& config) {
+                  return config.get<DPU_GROUPS>();
+              }}},
+            {ov::intel_vpux::dma_engines.name(),
+             {true, ov::PropertyMutability::RW,
+              [](const Config& config) {
+                  return config.get<DMA_ENGINES>();
+              }}},
+            {ov::intel_vpux::compilation_mode.name(),
+             {true, ov::PropertyMutability::RW,
+              [](const Config& config) {
+                  return config.get<COMPILATION_MODE>();
+              }}},
+            {ov::intel_vpux::compilation_mode_params.name(),
+             {true, ov::PropertyMutability::RW,
+              [](const Config& config) {
+                  return config.get<COMPILATION_MODE_PARAMS>();
+              }}},
+            {ov::intel_vpux::compiler_type.name(),
+             {true, ov::PropertyMutability::RW,
+              [](const Config& config) {
+                  return stringifyEnum(config.get<COMPILER_TYPE>()).str();
+              }}},
+            {ov::intel_vpux::print_profiling.name(),
+             {true, ov::PropertyMutability::RW,
+              [](const Config& config) {
+                  return config.get<PRINT_PROFILING>();
+              }}},
+            {ov::intel_vpux::profiling_output_file.name(),
+             {true, ov::PropertyMutability::RW,
+              [](const Config& config) {
+                  return config.get<PROFILING_OUTPUT_FILE>();
+              }}},
+            {ov::intel_vpux::vpux_platform.name(),
+             {true, ov::PropertyMutability::RW,
+              [](const Config& config) {
+                  return config.get<PLATFORM>();
+              }}},
+            {ov::hint::model_priority.name(),
+             {false, ov::PropertyMutability::RW,
+              [](const Config& config) {
+                  return config.get<MODEL_PRIORITY>();
+              }}},
+            {ov::intel_vpux::use_elf_compiler_backend.name(),
+             {true, ov::PropertyMutability::RW,
+              [](const Config& config) {
+                  return config.get<USE_ELF_COMPILER_BACKEND>();
+              }}},
+            {ov::intel_vpux::device_total_mem_size.name(),
+             {true, ov::PropertyMutability::RO,
+              [&](const Config& config) {
+                  IE_SET_METRIC_RETURN(NPU_DEVICE_TOTAL_MEM_SIZE,
+                                       _metrics->GetDeviceTotalMemSize(getSpecifiedDeviceName(config)));
+              }}},
+            {ov::intel_vpux::driver_version.name(),
+             {true, ov::PropertyMutability::RO,
+              [&](const Config& config) {
+                  IE_SET_METRIC_RETURN(NPU_DRIVER_VERSION, _metrics->GetDriverVersion(getSpecifiedDeviceName(config)));
+              }}},
+            // from Engine::GetConfig
+
+            // from Engine::GetMetric
+            {ov::available_devices.name(),
+             {true, ov::PropertyMutability::RO,
+              [&](const Config&) {
+                  return _metrics->GetAvailableDevicesNames();
+              }}},
+            {ov::device::capabilities.name(),
+             {true, ov::PropertyMutability::RO,
+              [&](const Config&) {
+                  return _metrics->GetOptimizationCapabilities();
+              }}},
+            {ov::optimal_number_of_infer_requests.name(),
+             {true, ov::PropertyMutability::RO,
+              [&](const Config& config) {
+                  return static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(addPlatformToTheConfig(
+                          config, _backends->getCompilationPlatform(config.get<PLATFORM>(), config.get<DEVICE_ID>()))));
+              }}},
+            {ov::range_for_async_infer_requests.name(),
+             {true, ov::PropertyMutability::RO,
+              [&](const Config&) {
+                  return _metrics->GetRangeForAsyncInferRequest();
+              }}},
+            {ov::range_for_streams.name(),
+             {true, ov::PropertyMutability::RO,
+              [&](const Config&) {
+                  return _metrics->GetRangeForStreams();
+              }}},
+            {ov::device::uuid.name(),
+             {true, ov::PropertyMutability::RO,
+              [&](const Config& config) {
+                  const auto specifiedDeviceName = getSpecifiedDeviceName(config);
+                  auto devUuid = _metrics->GetDeviceUuid(specifiedDeviceName);
+                  return decltype(ov::device::uuid)::value_type{devUuid};
+              }}},
+            // from Engine::GetMetric
+
+            // Add FULL_DEVICE_NAME and DEVICE_ARCHITECTURE in supported
+            // properties list only in case of non-empty device list (#1424144d)
+            {ov::device::architecture.name(),
+             {!_metrics->GetAvailableDevicesNames().empty(), ov::PropertyMutability::RO,
+              [&](const Config& config) {
+                  const auto specifiedDeviceName = getSpecifiedDeviceName(config);
+                  return _metrics->GetDeviceArchitecture(specifiedDeviceName);
+              }}},
+
+            {ov::device::full_name.name(),
+             {!_metrics->GetAvailableDevicesNames().empty(), ov::PropertyMutability::RO,
+              [&](const Config& config) {
+                  const auto specifiedDeviceName = getSpecifiedDeviceName(config);
+                  return _metrics->GetFullDeviceName(specifiedDeviceName);
+              }}},
+    };
+
+    for (auto& prop : propertiesOv2) {
+        if (std::get<0>(prop.second)) {
+            supportedProperties0v2.emplace_back(ov::PropertyName(prop.first, std::get<1>(prop.second)));
+        }
+    }
+
+    propertiesOv1 = {
+            // from Engine::GetConfig
+            {CONFIG_KEY(LOG_LEVEL),
+             {true,
+              [&](const Config& config) {
+                  return static_cast<int>(config.get<LOG_LEVEL>());
+              }}},
+            {CONFIG_KEY(PERF_COUNT),
+             {true,
+              [&](const Config& config) {
+                  return config.get<PERF_COUNT>();
+              }}},
+            {CONFIG_KEY(DEVICE_ID),
+             {true,
+              [&](const Config& config) {
+                  return config.get<DEVICE_ID>();
+              }}},
+            {CONFIG_KEY(PERFORMANCE_HINT),
+             {true,
+              [&](const Config& config) {
+                  return stringifyEnum(config.get<PERFORMANCE_HINT>()).str();
+              }}},
+            {CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS),
+             {true,
+              [&](const Config& config) {
+                  return config.get<PERFORMANCE_HINT_NUM_REQUESTS>();
+              }}},
+            {VPUX_CONFIG_KEY(DMA_ENGINES),
+             {true,
+              [&](const Config& config) {
+                  return config.get<DMA_ENGINES>();
+              }}},
+            {VPUX_CONFIG_KEY(DPU_GROUPS),
+             {true,
+              [&](const Config& config) {
+                  return config.get<DPU_GROUPS>();
+              }}},
+            {VPUX_CONFIG_KEY(COMPILATION_MODE),
+             {true,
+              [&](const Config& config) {
+                  return config.get<COMPILATION_MODE>();
+              }}},
+            {VPUX_CONFIG_KEY(COMPILATION_MODE_PARAMS),
+             {true,
+              [&](const Config& config) {
+                  return config.get<COMPILATION_MODE_PARAMS>();
+              }}},
+            {VPUX_CONFIG_KEY(USE_ELF_COMPILER_BACKEND),
+             {true,
+              [&](const Config& config) {
+                  return config.get<USE_ELF_COMPILER_BACKEND>();
+              }}},
+            {VPUX_CONFIG_KEY(COMPILER_TYPE),
+             {true,
+              [&](const Config& config) {
+                  return stringifyEnum(config.get<COMPILER_TYPE>()).str();
+              }}},
+            {CONFIG_KEY(CACHE_DIR),
+             {true,
+              [&](const Config& config) {
+                  return config.get<CACHE_DIR>();
+              }}},
+            {ov::caching_properties.name(),
+             {true,
+              [&](const Config&) {
+                  return _metrics->GetCachingProperties();
+              }}},
+            {ov::num_streams.name(),
+             {true,
+              [&](const Config& config) {
+                  return config.get<NUM_STREAMS>();
+              }}},
+            {ov::supported_properties.name(),
+             {true,
+              [&](const Config&) {
+                  return supportedProperties0v1;
+              }}},
+            // from Engine::GetConfig
+
+            // from Engine::GetMetric
+            {VPUX_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE),
+             {true,
+              [&](const Config& config) {
+                  IE_SET_METRIC_RETURN(NPU_DEVICE_TOTAL_MEM_SIZE,
+                                       _metrics->GetDeviceTotalMemSize(getSpecifiedDeviceName(config)));
+              }}},
+            {VPUX_METRIC_KEY(DRIVER_VERSION),
+             {true,
+              [&](const Config& config) {
+                  IE_SET_METRIC_RETURN(NPU_DRIVER_VERSION, _metrics->GetDriverVersion(getSpecifiedDeviceName(config)));
+              }}},
+            {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS),
+             {true,
+              [&](const Config& config) {
+                  return static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(addPlatformToTheConfig(
+                          config, _backends->getCompilationPlatform(config.get<PLATFORM>(), config.get<DEVICE_ID>()))));
+              }}},
+            {METRIC_KEY(AVAILABLE_DEVICES),
+             {true,
+              [&](const Config&) {
+                  IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, _metrics->GetAvailableDevicesNames());
+              }}},
+            {METRIC_KEY(SUPPORTED_METRICS),
+             {true,
+              [&](const Config&) {
+                  IE_SET_METRIC_RETURN(SUPPORTED_METRICS, _metrics->SupportedMetrics());
+              }}},
+            {METRIC_KEY(FULL_DEVICE_NAME),
+             {true,
+              [&](const Config& config) {
+                  const auto specifiedDeviceName = getSpecifiedDeviceName(config);
+                  IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, _metrics->GetFullDeviceName(specifiedDeviceName));
+              }}},
+            {METRIC_KEY(SUPPORTED_CONFIG_KEYS),
+             {true,
+              [&](const Config&) {
+                  IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, _metrics->GetSupportedConfigKeys());
+              }}},
+            {METRIC_KEY(OPTIMIZATION_CAPABILITIES),
+             {true,
+              [&](const Config&) {
+                  IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, _metrics->GetOptimizationCapabilities());
+              }}},
+            {METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
+             {true,
+              [&](const Config&) {
+                  IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, _metrics->GetRangeForAsyncInferRequest());
+              }}},
+            {METRIC_KEY(RANGE_FOR_STREAMS),
+             {true,
+              [&](const Config&) {
+                  IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, _metrics->GetRangeForStreams());
+              }}},
+            {METRIC_KEY(IMPORT_EXPORT_SUPPORT),
+             {true,
+              [&](const Config&) {
+                  IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
+              }}},
+            {METRIC_KEY(DEVICE_ARCHITECTURE),
+             {true,
+              [&](const Config& config) {
+                  const auto specifiedDeviceName = getSpecifiedDeviceName(config);
+                  IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, _metrics->GetDeviceArchitecture(specifiedDeviceName));
+              }}},
+            {VPUX_METRIC_KEY(BACKEND_NAME),
+             {true,
+              [&](const Config&) {
+                  IE_SET_METRIC_RETURN(NPU_BACKEND_NAME, _metrics->GetBackendName());
+              }}},
+            // from Engine::GetMetric
+    };
+
+    for (auto& prop : propertiesOv1) {
+        if (std::get<0>(prop.second)) {
+            supportedProperties0v1.emplace_back(ov::PropertyName(prop.first));
+        }
+    }
 }
 
 //------------------------------------------------------------------------------
 //      Load network
 //------------------------------------------------------------------------------
-IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetwork(const IE::CNNNetwork& network,
+ie::IExecutableNetworkInternal::Ptr Engine::LoadExeNetwork(const ie::CNNNetwork& network,
                                                            std::shared_ptr<Device>& device,
                                                            const Config& networkConfig) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "Engine::LoadExeNetwork");
     try {
-        return std::make_shared<ExecutableNetwork>(network, device, networkConfig);
+        return std::make_shared<ExecutableNetwork>(network, device, networkConfig, GetCore()->isNewAPI());
     } catch (const std::exception& ex) {
         IE_THROW(Unexpected) << ex.what();
     } catch (...) {
-        IE_THROW(Unexpected) << "VPUX LoadExeNetwork got unexpected exception from ExecutableNetwork";
+        IE_THROW(Unexpected) << "NPU LoadExeNetwork got unexpected exception from ExecutableNetwork";
     }
 }
 
-IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetwork& network,
+ie::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const ie::CNNNetwork& network,
                                                                const std::map<std::string, std::string>& config) {
     auto localConfig = mergeConfigs(_globalConfig, config);
+
+    const auto set_cache_dir = localConfig.get<CACHE_DIR>();
+    if (!set_cache_dir.empty()) {
+        const auto compilerType = localConfig.get<COMPILER_TYPE>();
+        if (compilerType == cvtCompilerType(ov::intel_vpux::CompilerType::MLIR))
+            IE_THROW() << "Option 'CACHE_DIR' is not supported with MLIR compiler type";
+    }
+
     const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
     auto device = _backends->getDevice(localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_vpux::vpux_platform.name(), platform}});
     return LoadExeNetwork(network, device, localConfig);
 }
 
-IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetwork& network,
-                                                               const IE::RemoteContext::Ptr& context,
-                                                               const std::map<std::string, std::string>& config) {
-    auto localConfig = mergeConfigs(_globalConfig, config);
-
-    const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
-    auto device = _backends->getDevice(context);
-    localConfig.update({{ov::intel_vpux::vpux_platform.name(), platform}});
-    return LoadExeNetwork(network, device, localConfig);
+ie::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const ie::CNNNetwork&, const ie::RemoteContext::Ptr&,
+                                                               const std::map<std::string, std::string>&) {
+    IE_THROW() << "LoadExeNetworkImpl failed due to RemoteContext deprecation";
 }
 
 //------------------------------------------------------------------------------
 //      Import network
 //------------------------------------------------------------------------------
-IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(const std::string& modelFileName,
+ie::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(const std::string& modelFileName,
                                                           const std::map<std::string, std::string>& config) {
     OV_ITT_TASK_CHAIN(IMPORT_NETWORK, itt::domains::VPUXPlugin, "Engine::ImportNetwork", "FileToStream");
     std::ifstream blobStream(modelFileName, std::ios::binary);
@@ -159,7 +511,7 @@ IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(const std::string& mod
     return ImportNetwork(vpu::KmbPlugin::utils::skipMagic(blobStream), config);
 }
 
-IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkModel,
+ie::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkModel,
                                                           const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "Engine::ImportNetwork");
     try {
@@ -174,28 +526,13 @@ IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkM
     } catch (const std::exception& ex) {
         IE_THROW(Unexpected) << "Can't import network: " << ex.what();
     } catch (...) {
-        IE_THROW(Unexpected) << "VPUX ImportNetwork got unexpected exception from ExecutableNetwork";
+        IE_THROW(Unexpected) << "NPU ImportNetwork got unexpected exception from ExecutableNetwork";
     }
 }
 
-IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkModel,
-                                                          const IE::RemoteContext::Ptr& context,
-                                                          const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "Engine::ImportNetwork");
-    try {
-        auto localConfig = mergeConfigs(_globalConfig, config, OptionMode::RunTime);
-        const auto platform =
-                _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
-        localConfig.update({{ov::intel_vpux::vpux_platform.name(), platform}});
-        auto device = _backends->getDevice(context);
-        const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, device, localConfig);
-        executableNetwork->SetPointerToPlugin(shared_from_this());
-        return executableNetwork;
-    } catch (const std::exception& ex) {
-        IE_THROW(Unexpected) << "Can't import network: " << ex.what();
-    } catch (...) {
-        IE_THROW(Unexpected) << "VPUX ImportNetwork got unexpected exception from ExecutableNetwork";
-    }
+ie::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream&, const ie::RemoteContext::Ptr&,
+                                                          const std::map<std::string, std::string>&) {
+    IE_THROW() << "ImportNetwork failed due to RemoteContext deprecation";
 }
 
 //------------------------------------------------------------------------------
@@ -212,12 +549,13 @@ void Engine::SetConfig(const std::map<std::string, std::string>& config) {
     }
 }
 
-IE::QueryNetworkResult Engine::QueryNetwork(const IE::CNNNetwork& network,
+ie::QueryNetworkResult Engine::QueryNetwork(const ie::CNNNetwork& network,
                                             const std::map<std::string, std::string>& config) const {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "Engine::QueryNetwork");
+    ie::QueryNetworkResult queryNetworkResult;
 
     if (nullptr == network.getFunction()) {
-        IE_THROW() << "VPUX Plugin supports only ngraph cnn network representation";
+        IE_THROW() << "NPU Plugin supports only ngraph cnn network representation";
     }
 
     auto localConfig = mergeConfigs(_globalConfig, config, OptionMode::CompileTime);
@@ -226,206 +564,60 @@ IE::QueryNetworkResult Engine::QueryNetwork(const IE::CNNNetwork& network,
 
     Compiler::Ptr compiler = Compiler::create(localConfig);
 
-    return compiler->query(network, localConfig);
+    const std::shared_ptr<const ov::Model>& model = network.getFunction();
+    queryNetworkResult.supportedLayersMap = compiler->query(model, localConfig);
+    return queryNetworkResult;
 }
 
-IE::RemoteContext::Ptr Engine::CreateContext(const IE::ParamMap& map) {
-    // Device in this case will be searched inside RemoteContext creation
-    const auto device = _backends->getDevice(map);
-    if (device == nullptr) {
-        IE_THROW() << "CreateContext: Failed to find suitable device to use";
-    }
-    return std::make_shared<VPUXRemoteContext>(device, map, _globalConfig.get<LOG_LEVEL>());
+ie::RemoteContext::Ptr Engine::CreateContext(const ie::ParamMap&) {
+    IE_THROW() << "CreateContext failed due to RemoteContext deprecation";
 }
 
-namespace {
-auto getSpecifiedDeviceName(const std::map<std::string, IE::Parameter>& options) {
-    std::string specifiedDeviceName;
-    if (options.count(ov::device::id.name())) {
-        specifiedDeviceName = options.at(ov::device::id.name()).as<std::string>();
+ie::Parameter Engine::GetConfig(const std::string& name, const std::map<std::string, ie::Parameter>& options) const {
+    std::map<std::string, std::string> amends;
+    for (auto option : options) {
+        amends.insert({option.first, option.second.as<std::string>()});
     }
-    if (options.count(CONFIG_KEY(DEVICE_ID)) && options.at(CONFIG_KEY(DEVICE_ID)).is<std::string>()) {
-        specifiedDeviceName = options.at(CONFIG_KEY(DEVICE_ID)).as<std::string>();
-    }
-    return specifiedDeviceName;
-}
-}  // namespace
+    const Config amendedConfig = mergeConfigs(_globalConfig, amends);
 
-IE::Parameter Engine::GetConfig(const std::string& name, const std::map<std::string, IE::Parameter>& options) const {
     if (GetCore()->isNewAPI()) {
-        if (name == ov::streams::num) {
-            return _globalConfig.get<NUM_STREAMS>();
-        } else if (name == ov::enable_profiling) {
-            return _globalConfig.get<PERF_COUNT>();
-        } else if (name == ov::hint::performance_mode) {
-            return _globalConfig.get<PERFORMANCE_HINT>();
-        } else if (name == ov::hint::num_requests) {
-            return _globalConfig.get<PERFORMANCE_HINT_NUM_REQUESTS>();
-        } else if (name == ov::log::level) {
-            return cvtLogLevel(_globalConfig.get<LOG_LEVEL>());
-        } else if (name == ov::device::id) {
-            return _globalConfig.get<DEVICE_ID>();
-        } else if (name == ov::intel_vpux::force_host_precision_layout_conversion) {
-            return _globalConfig.get<FORCE_HOST_PRECISION_LAYOUT_CONVERSION>();
-        } else if (name == ov::intel_vpux::dpu_groups) {
-            return _globalConfig.get<DPU_GROUPS>();
-        } else if (name == ov::intel_vpux::dma_engines) {
-            return _globalConfig.get<DMA_ENGINES>();
-        } else if (name == ov::intel_vpux::compilation_mode) {
-            return _globalConfig.get<COMPILATION_MODE>();
-        } else if (name == ov::intel_vpux::compilation_mode_params) {
-            return _globalConfig.get<COMPILATION_MODE_PARAMS>();
-        } else if (name == ov::intel_vpux::compiler_type) {
-            return stringifyEnum(_globalConfig.get<COMPILER_TYPE>()).str();
-        } else if (name == ov::intel_vpux::print_profiling) {
-            return _globalConfig.get<PRINT_PROFILING>();
-        } else if (name == ov::intel_vpux::profiling_output_file) {
-            return _globalConfig.get<PROFILING_OUTPUT_FILE>();
-        } else if (name == ov::intel_vpux::vpux_platform) {
-            return _globalConfig.get<PLATFORM>();
-        } else if (name == ov::hint::model_priority) {
-            return _globalConfig.get<MODEL_PRIORITY>();
-        } else if (name == ov::intel_vpux::use_elf_compiler_backend) {
-            return _globalConfig.get<USE_ELF_COMPILER_BACKEND>();
-        } else if (name == ov::intel_vpux::ddr_heap_size_mb) {
-            return _globalConfig.get<DDR_HEAP_SIZE_MB>();
-        } else if (name == ov::intel_vpux::device_total_mem_size) {
-            IE_SET_METRIC_RETURN(VPUX_DEVICE_TOTAL_MEM_SIZE,
-                                 _metrics->GetDeviceTotalMemSize(getSpecifiedDeviceName(options)));
+        auto&& cit = propertiesOv2.find(name);
+        if (cit != propertiesOv2.cend()) {
+            return std::get<2>(cit->second)(amendedConfig);
         }
     }
 
-    if (name == CONFIG_KEY(LOG_LEVEL)) {
-        return static_cast<int>(_globalConfig.get<LOG_LEVEL>());
-    } else if (name == CONFIG_KEY(PERF_COUNT)) {
-        return _globalConfig.get<PERF_COUNT>();
-    } else if (name == CONFIG_KEY(DEVICE_ID)) {
-        return _globalConfig.get<DEVICE_ID>();
-    } else if (name == CONFIG_KEY(PERFORMANCE_HINT)) {
-        return stringifyEnum(_globalConfig.get<PERFORMANCE_HINT>()).str();
-    } else if (name == CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)) {
-        return _globalConfig.get<PERFORMANCE_HINT_NUM_REQUESTS>();
-    } else if (name == VPUX_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)) {
-        IE_SET_METRIC_RETURN(VPUX_DEVICE_TOTAL_MEM_SIZE,
-                             _metrics->GetDeviceTotalMemSize(getSpecifiedDeviceName(options)));
-    } else if (name == ov::num_streams) {
-        return _globalConfig.get<NUM_STREAMS>();
-    } else if (name == VPUX_CONFIG_KEY(DMA_ENGINES)) {
-        return _globalConfig.get<DMA_ENGINES>();
-    } else if (name == VPUX_CONFIG_KEY(DPU_GROUPS)) {
-        return _globalConfig.get<DPU_GROUPS>();
-    } else if (name == VPUX_CONFIG_KEY(COMPILATION_MODE)) {
-        return _globalConfig.get<COMPILATION_MODE>();
-    } else if (name == VPUX_CONFIG_KEY(COMPILATION_MODE_PARAMS)) {
-        return _globalConfig.get<COMPILATION_MODE_PARAMS>();
-    } else if (name == ov::caching_properties) {
-        return _metrics->GetCachingProperties();
+    auto&& cit = propertiesOv1.find(name);
+    if (cit != propertiesOv1.cend()) {
+        return std::get<1>(cit->second)(amendedConfig);
     }
 
     VPUX_THROW("Unsupported configuration key {0}", name);
 }
 
-IE::Parameter Engine::GetMetric(const std::string& name, const std::map<std::string, IE::Parameter>& options) const {
-    if (GetCore()->isNewAPI()) {
-        const auto RO_property = [](const std::string& propertyName) {
-            return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
-        };
-        const auto RW_property = [](const std::string& propertyName) {
-            return ov::PropertyName(propertyName, ov::PropertyMutability::RW);
-        };
+ie::Parameter Engine::GetMetric(const std::string& name, const std::map<std::string, ie::Parameter>& options) const {
+    std::map<std::string, std::string> amends;
+    for (auto option : options) {
+        amends.insert({option.first, option.second.as<std::string>()});
+    }
+    const Config amendedConfig = mergeConfigs(_globalConfig, amends);
 
-        if (name == ov::supported_properties) {
-            // some properties are RW before network is loaded, and become RO after that
-            static const std::vector<ov::PropertyName> baseProperties{
-                    RO_property(ov::supported_properties.name()),                                //
-                    RO_property(ov::available_devices.name()),                                   //
-                    RO_property(ov::device::capabilities.name()),                                //
-                    RO_property(ov::range_for_async_infer_requests.name()),                      //
-                    RO_property(ov::range_for_streams.name()),                                   //
-                    RO_property(ov::device::uuid.name()),                                        //
-                    RO_property(ov::intel_vpux::device_total_mem_size.name()),                   //
-                    RW_property(ov::hint::num_requests.name()),                                  //
-                    RO_property(ov::streams::num.name()),                                        //
-                    RO_property(ov::num_streams.name()),                                         //
-                    RW_property(ov::enable_profiling.name()),                                    //
-                    RW_property(ov::hint::performance_mode.name()),                              //
-                    RW_property(ov::log::level.name()),                                          //
-                    RW_property(ov::device::id.name()),                                          //
-                    RO_property(ov::caching_properties.name()),                                  //
-                    RW_property(ov::intel_vpux::compilation_mode.name()),                        //
-                    RW_property(ov::intel_vpux::compilation_mode_params.name()),                 //
-                    RW_property(ov::intel_vpux::compiler_type.name()),                           //
-                    RW_property(ov::intel_vpux::dpu_groups.name()),                              //
-                    RW_property(ov::intel_vpux::dma_engines.name()),                             //
-                    RW_property(ov::intel_vpux::print_profiling.name()),                         //
-                    RW_property(ov::intel_vpux::profiling_output_file.name()),                   //
-                    RW_property(ov::intel_vpux::vpux_platform.name()),                           //
-                    RW_property(ov::intel_vpux::use_elf_compiler_backend.name()),                //
-                    RW_property(ov::intel_vpux::force_host_precision_layout_conversion.name()),  //
-            };
-            static const std::vector<ov::PropertyName> supportedProperties = [&]() {
-                std::vector<ov::PropertyName> retProperties = baseProperties;
-                if (!_metrics->GetAvailableDevicesNames().empty()) {
-                    retProperties.push_back(RO_property(ov::device::full_name.name()));
-                    retProperties.push_back(RO_property(ov::device::architecture.name()));
-                }
-                return retProperties;
-            }();
-            return supportedProperties;
-        } else if (name == ov::available_devices) {
-            return _metrics->GetAvailableDevicesNames();
-        } else if (name == ov::device::full_name) {
-            const auto specifiedDeviceName = getSpecifiedDeviceName(options);
-            return _metrics->GetFullDeviceName(specifiedDeviceName);
-        } else if (name == ov::device::capabilities) {
-            return _metrics->GetOptimizationCapabilities();
-        } else if (name == ov::range_for_async_infer_requests) {
-            return _metrics->GetRangeForAsyncInferRequest();
-        } else if (name == ov::range_for_streams) {
-            return _metrics->GetRangeForStreams();
-        } else if (name == ov::device::architecture) {
-            const auto specifiedDeviceName = getSpecifiedDeviceName(options);
-            return _metrics->GetDeviceArchitecture(specifiedDeviceName);
-        } else if (name == ov::device::uuid) {
-            const auto specifiedDeviceName = getSpecifiedDeviceName(options);
-            auto devUuid = _metrics->GetDeviceUuid(specifiedDeviceName);
-            return decltype(ov::device::uuid)::value_type{devUuid};
+    if (GetCore()->isNewAPI()) {
+        auto&& cit = propertiesOv2.find(name);
+        if (cit != propertiesOv2.cend()) {
+            return std::get<2>(cit->second)(amendedConfig);
         }
     }
 
-    if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
-        IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, _metrics->GetAvailableDevicesNames());
-    } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, _metrics->SupportedMetrics());
-    } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
-        const auto specifiedDeviceName = getSpecifiedDeviceName(options);
-        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, _metrics->GetFullDeviceName(specifiedDeviceName));
-    } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, _metrics->GetSupportedConfigKeys());
-    } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
-        IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, _metrics->GetOptimizationCapabilities());
-    } else if (name == METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)) {
-        IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, _metrics->GetRangeForAsyncInferRequest());
-    } else if (name == METRIC_KEY(RANGE_FOR_STREAMS)) {
-        IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, _metrics->GetRangeForStreams());
-    } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
-        IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
-    } else if (name == METRIC_KEY(DEVICE_ARCHITECTURE)) {
-        const auto specifiedDeviceName = getSpecifiedDeviceName(options);
-        IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, _metrics->GetDeviceArchitecture(specifiedDeviceName));
-    } else if (name == VPUX_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)) {
-        IE_SET_METRIC_RETURN(VPUX_DEVICE_TOTAL_MEM_SIZE,
-                             _metrics->GetDeviceTotalMemSize(getSpecifiedDeviceName(options)));
-    } else if (name == VPUX_METRIC_KEY(BACKEND_NAME)) {
-        IE_SET_METRIC_RETURN(VPUX_BACKEND_NAME, _metrics->GetBackendName());
-    } else if (name == ov::caching_properties) {
-        return _metrics->GetCachingProperties();
+    auto&& cit = propertiesOv1.find(name);
+    if (cit != propertiesOv1.cend()) {
+        return std::get<1>(cit->second)(amendedConfig);
     }
 
     VPUX_THROW("Unsupported metric {0}", name);
 }
 
-static const IE::Version version = {{2, 1}, CI_BUILD_NUMBER, vpux::VPUX_PLUGIN_LIB_NAME};
+static const ie::Version version = {{2, 1}, CI_BUILD_NUMBER, vpux::VPUX_PLUGIN_LIB_NAME};
 IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, version)
 
 }  // namespace vpux

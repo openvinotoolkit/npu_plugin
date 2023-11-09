@@ -1,16 +1,16 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "single_layer_tests/prior_box_clustered.hpp"
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
 class VPUXPriorBoxClusteredLayerTest :
         public PriorBoxClusteredLayerTest,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+        virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
 class VPUXPriorBoxClusteredLayerTest_VPU3700 : public VPUXPriorBoxClusteredLayerTest {};
 class VPUXPriorBoxClusteredLayerTest_VPU3720 : public VPUXPriorBoxClusteredLayerTest {};
@@ -56,26 +56,17 @@ const auto layerSpeficParams =
                          testing::ValuesIn(step_widths), testing::ValuesIn(step_heights), testing::ValuesIn(step),
                          testing::ValuesIn(offsets), testing::ValuesIn(variances));
 
-INSTANTIATE_TEST_CASE_P(smoke_PriorBoxClustered, VPUXPriorBoxClusteredLayerTest_VPU3700,
-                        testing::Combine(layerSpeficParams, testing::Values(InferenceEngine::Precision::FP16),
-                                         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                         testing::Values(InferenceEngine::Layout::ANY),
-                                         testing::Values(InferenceEngine::Layout::ANY),
-                                         testing::Values(std::vector<size_t>({4, 4})),
-                                         testing::Values(std::vector<size_t>({50, 50})),
-                                         testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+const auto params = testing::Combine(
+        layerSpeficParams, testing::Values(InferenceEngine::Precision::FP16),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED), testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY), testing::Values(std::vector<size_t>({4, 4})),
+        testing::Values(std::vector<size_t>({50, 50})), testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
+
+INSTANTIATE_TEST_CASE_P(smoke_PriorBoxClustered, VPUXPriorBoxClusteredLayerTest_VPU3700, params,
                         VPUXPriorBoxClusteredLayerTest_VPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_PriorBoxClustered_VPU3720, VPUXPriorBoxClusteredLayerTest_VPU3720,
-                        testing::Combine(layerSpeficParams, testing::Values(InferenceEngine::Precision::FP16),
-                                         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                         testing::Values(InferenceEngine::Layout::ANY),
-                                         testing::Values(InferenceEngine::Layout::ANY),
-                                         testing::Values(std::vector<size_t>({4, 4})),
-                                         testing::Values(std::vector<size_t>({50, 50})),
-                                         testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+INSTANTIATE_TEST_CASE_P(smoke_PriorBoxClustered, VPUXPriorBoxClusteredLayerTest_VPU3720, params,
                         VPUXPriorBoxClusteredLayerTest_VPU3720::getTestCaseName);
 
 const auto precommit_layerSpeficParams =
@@ -84,15 +75,14 @@ const auto precommit_layerSpeficParams =
                          testing::ValuesIn(clips), testing::ValuesIn(step_widths), testing::ValuesIn(step_heights),
                          testing::ValuesIn(step), testing::ValuesIn(offsets), testing::ValuesIn(variances));
 
-INSTANTIATE_TEST_CASE_P(smoke_precommit_PriorBoxClustered_VPU3720, VPUXPriorBoxClusteredLayerTest_VPU3720,
-                        testing::Combine(precommit_layerSpeficParams, testing::Values(InferenceEngine::Precision::FP16),
-                                         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                         testing::Values(InferenceEngine::Layout::ANY),
-                                         testing::Values(InferenceEngine::Layout::ANY),
-                                         testing::Values(std::vector<size_t>({4, 4})),
-                                         testing::Values(std::vector<size_t>({13, 13})),
-                                         testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+const auto paramsPrecommit = testing::Combine(
+        precommit_layerSpeficParams, testing::Values(InferenceEngine::Precision::FP16),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED), testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY), testing::Values(std::vector<size_t>({4, 4})),
+        testing::Values(std::vector<size_t>({13, 13})), testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
+
+INSTANTIATE_TEST_CASE_P(smoke_precommit_PriorBoxClustered, VPUXPriorBoxClusteredLayerTest_VPU3720, paramsPrecommit,
                         VPUXPriorBoxClusteredLayerTest_VPU3720::getTestCaseName);
 
 }  // namespace

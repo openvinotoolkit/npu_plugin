@@ -5,6 +5,7 @@
 
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/distributed_tensor_utils.hpp"
 
 using namespace vpux;
 
@@ -49,113 +50,55 @@ vpux::InputTiling vpux::VPU::SoftMaxOp::backInferTileInfo(const vpux::TileInfo& 
 void vpux::VPU::SoftMaxOp::adjustAttrs(const TilingInfo& /*inputTiling*/, const TileInfo& /*outputTile*/) {
 }
 
-// Based on getSWLayerTilingStrategy logic, need to avoid tiling on Softmax dimension.
-
-OutputTiling vpux::VPU::SoftMaxOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
-    auto op = getOperation();
-    auto tilingInfo = mlir::dyn_cast<VPU::TilingInfoOpInterface>(op);
-    VPUX_THROW_WHEN(tilingInfo == nullptr, "Operation '{0}' doesn't implement TilingInfoOpInterface", op->getName());
-    auto tilingBuilder = mlir::dyn_cast<VPU::TilingBuilderOpInterface>(op);
-    VPUX_THROW_WHEN(tilingBuilder == nullptr, "Operation '{0}' doesn't implement TilingBuilderOpInterface",
-                    op->getName());
-    VPUX_THROW_WHEN(tilingMode != TilingMode::ISOLATED,
-                    "Only supporting isolated tiling for SW currently, for op {0} at '{1}'", op->getName(),
-                    op->getLoc());
-
-    const auto outputType = op->getResult(0).getType().cast<vpux::NDTypeInterface>();
-    const auto outputShape = outputType.getShape();
-
-    Shape nTilesOnDim(outputShape.size(), 1);
-
-    const auto tileDimOrder = getTileDimOrder(op, tilingMode, log);
-    log.nest(2).trace("Tile Dim order is {0}", tileDimOrder);
-
-    auto axis = axisIndAttr().getValue().getSExtValue();
-    auto tileDimIter = tileDimOrder.begin();
-    auto dimToTile = *tileDimIter;
-    if (dimToTile == Dim(axis)) {
-        dimToTile = *(++tileDimIter);
-    }
-
-    const auto isSupportedTileSize = [op, &tilingInfo, outputShape, log](ShapeRef nTilesOnDim,
-                                                                         TilingMode tilingMode) -> bool {
-        const auto tiles = fillDividedTiles(op, nTilesOnDim, outputShape);
-        return tilingInfo.isSupportedTiling(tiles, tilingMode, log);
-    };
-
-    const auto& maxNumTiles = tilingBuilder.getMaxNumTiles();
-    const auto isDimLeftToTile = [&](ShapeRef tileShape) -> bool {
-        return tileShape[dimToTile] < maxNumTiles[dimToTile.ind()];
-    };
-
-    // Get an feasible isolated tiling strategy
-    while (!isSupportedTileSize(nTilesOnDim, tilingMode)) {
-        while ((tileDimIter < tileDimOrder.end()) && (!isDimLeftToTile(nTilesOnDim))) {
-            dimToTile = *(++tileDimIter);
-            if (dimToTile == Dim(axis)) {
-                dimToTile = *(++tileDimIter);
-            }
-            if (tileDimIter == tileDimOrder.end()) {
-                VPUX_THROW_WHEN(tilingMode == TilingMode::ISOLATED, "Failed to tile {0} at '{1}'", op->getName(),
-                                op->getLoc());
-            }
-        }
-        ++nTilesOnDim[dimToTile];
-    }
-
-    log.trace("Isolated tiling strategy: {0}", nTilesOnDim);
-    return fillDividedTiles(op, nTilesOnDim, outputShape);
+mlir::FailureOr<OutputTiling> vpux::VPU::SoftMaxOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
+    return vpux::getSWLayerTilingStrategy(this->getOperation(), tilingMode, log);
 }
 
 //
 // SWOpInterface
 //
 
-Dim getHighestDim(vpux::VPU::SoftMaxOp sofmaxOp) {
-    const auto input = sofmaxOp.input();
-    const auto inputType = input.getType().cast<vpux::NDTypeInterface>();
-    const auto inOrder = inputType.getDimsOrder();
-    const auto inShape = inputType.getShape();
-    for (auto i : irange(inOrder.numDims())) {
-        auto dim = inOrder.dimAt(i);
-        if (inShape[dim] > 1) {
-            return dim;
-        }
-    }
-    return inOrder.dimAt(0);
-};
-
 bool vpux::VPU::SoftMaxOp::checkStrategyCompatibility(VPU::MultiClusterStrategy strategy) {
     const auto inputType = input().getType().cast<vpux::NDTypeInterface>();
     const auto inShape = inputType.getShape();
-    const auto highestDim = getHighestDim(*this);
 
     if (strategy == VPU::MultiClusterStrategy::Clustering) {
         return true;
     }
 
-    // MC strategy should be segmented on highest dimension to prevent DDR2DDR copy in act Shave kernel tiling.
-    // This limitation can be removed when stride access is supported.
-    // TODO:[E76529]Softmax kernel support stride access.
-
-    // Split input/output by H dim when axisInd is not point to H and H is the highest dimension
+    // Split input/output by H dim when axisInd is not point to H
     if (strategy == VPU::MultiClusterStrategy::SplitOverHeight && axisInd() != Dims4D::Act::H.ind() &&
-        highestDim == Dims4D::Act::H && inShape[Dims4D::Act::H] > 1) {
+        inShape[Dims4D::Act::H] > 1) {
         return true;
     }
 
-    // Split input/output by C dim when axisInd is not point to C and C is the highest dimension
+    // Split input/output by C dim when axisInd is not point to C
     if (strategy == VPU::MultiClusterStrategy::SplitOverKernel && axisInd() != Dims4D::Act::C.ind() &&
-        highestDim == Dims4D::Act::C && inShape[Dims4D::Act::C] > 1) {
+        inShape[Dims4D::Act::C] > 1) {
+        return true;
+    }
+
+    // Split input/output by W dim when axisInd is not point to W
+    if (strategy == VPU::MultiClusterStrategy::SplitOverWidth && axisInd() != Dims4D::Act::W.ind() &&
+        inShape[Dims4D::Act::W] > 1) {
         return true;
     }
 
     return false;
 }
 
+vpux::VPU::DistributedTensorAttr vpux::VPU::SoftMaxOp::getExplicitDistributedTensorAttr(
+        vpux::ShapeRef shape, vpux::VPU::DistributionMode distributionMode, mlir::ArrayAttr numTiles,
+        mlir::IntegerAttr numClusters, mlir::ArrayAttr alignment, mlir::ArrayAttr /*kernel*/,
+        vpux::VPU::PaddingAttr /*pad*/, mlir::ArrayAttr /*stride*/, mlir::UnitAttr uniformDistributedSegments) {
+    return VPU::getSWExplicitDistributedTensorAttr(mlir::dyn_cast<VPU::SWOpInterface>(getOperation()), shape,
+                                                   distributionMode, numTiles, numClusters, alignment,
+                                                   uniformDistributedSegments);
+}
+
 void vpux::VPU::SoftMaxOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, ::mlir::Value input,
-                                 ::mlir::IntegerAttr axisInd) {
-    build(odsBuilder, odsState, input.getType(), input, axisInd, {});
+                                 ::mlir::IntegerAttr axisInd, ::mlir::IntegerAttr padSize) {
+    build(odsBuilder, odsState, input.getType(), input, axisInd, padSize, {});
 }
 
 bool vpux::VPU::SoftMaxOp::fitIntoCMX(llvm::ArrayRef<vpux::NDTypeInterface> buffers, Byte reservedMem) {
@@ -179,11 +122,10 @@ bool vpux::VPU::SoftMaxOp::fitIntoCMX(llvm::ArrayRef<vpux::NDTypeInterface> buff
     return fitIntoCMX(buffers, Byte(0));
 }
 
-// Cost model might assign SOK for SoftMax in below:
-// VPU.SoftMax(%arg0) {axisInd = 3} : tensor<1x8x4x76xf16, {order = #NHWC}> -> tensor<1x8x4x76xf16, {order = #NHWC}>
-// Cost model strategy is not used because MC strategy should be segmented on highest dimension to prevent DDR2DDR copy
-// in act Shave kernel tiling. This limitation can be removed when stride access is supported.
-// TODO:[E76529]Softmax kernel support stride access.
+// Cost model now compare SOH and SOK, but not include SOW.
+// After stride access was supported in kernel, softmax can use all them,
+// the only limitation is choosing dim not point to axisInd.
+// So that use default strategy with order SOH->SOK->SOW
 
 bool vpux::VPU::SoftMaxOp::supportCycleCostCalculation() {
     return false;

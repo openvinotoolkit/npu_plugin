@@ -1,10 +1,10 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "common/functions.h"
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 #include <ngraph_functions/builders.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -14,7 +14,7 @@ namespace {
 
 typedef std::tuple<InferenceEngine::Precision, InferenceEngine::Precision, InferenceEngine::SizeVector> SwishTestParams;
 class VPUXSwishSingleInputTest_VPU3700 :
-        public LayerTestsUtils::KmbLayerTestsCommon,
+        public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<SwishTestParams> {
     void SetUp() override {
         auto prms = GetParam();
@@ -34,7 +34,7 @@ class VPUXSwishSingleInputTest_VPU3700 :
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(swish)};
         function = std::make_shared<ngraph::Function>(swish, params, "VPUXSwishSingleInputTest");
 
-        targetDevice = LayerTestsUtils::testPlatformTargetDevice;
+        targetDevice = LayerTestsUtils::testPlatformTargetDevice();
         threshold = 0.1f;
     }
 

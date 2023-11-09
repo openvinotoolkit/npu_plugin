@@ -6,6 +6,7 @@
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 
 #include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/distributed_tensor_utils.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 
@@ -33,10 +34,15 @@ mlir::LogicalResult vpux::VPU::MVNOp::inferReturnTypes(mlir::MLIRContext* ctx, m
     return mlir::success();
 }
 
-void vpux::VPU::MVNOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
-    // [Track number: E#56050]
-    VPU::inferLayoutInfoSameInOutSpecificDimsOrder(
-            info, {DimsOrder::NCHW, DimsOrder::NCWH, DimsOrder::NHWC, DimsOrder::NWHC});
+// Return a list with all dims that are not normalized
+DimArr vpux::VPU::MVNOp::getNonNormDims() {
+    const auto rank = input().getType().cast<vpux::NDTypeInterface>().getRank();
+    VPUX_THROW_UNLESS(rank == 4, "Function valid only for 4D shape, got {0}D", rank);
+    DimArr dims = {Dims4D::Act::N};
+    if (!across_channels()) {
+        dims.push_back(Dims4D::Act::C);
+    }
+    return dims;
 }
 
 //
@@ -53,6 +59,15 @@ bool vpux::VPU::MVNOp::checkStrategyCompatibility(VPU::MultiClusterStrategy stra
         return true;
     }
     return false;
+}
+
+vpux::VPU::DistributedTensorAttr vpux::VPU::MVNOp::getExplicitDistributedTensorAttr(
+        vpux::ShapeRef shape, vpux::VPU::DistributionMode distributionMode, mlir::ArrayAttr numTiles,
+        mlir::IntegerAttr numClusters, mlir::ArrayAttr alignment, mlir::ArrayAttr /*kernel*/,
+        vpux::VPU::PaddingAttr /*pad*/, mlir::ArrayAttr /*stride*/, mlir::UnitAttr uniformDistributedSegments) {
+    return VPU::getSWExplicitDistributedTensorAttr(mlir::dyn_cast<VPU::SWOpInterface>(getOperation()), shape,
+                                                   distributionMode, numTiles, numClusters, alignment,
+                                                   uniformDistributedSegments);
 }
 
 //

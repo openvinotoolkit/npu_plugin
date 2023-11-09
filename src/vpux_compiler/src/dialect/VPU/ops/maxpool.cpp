@@ -73,7 +73,7 @@ void vpux::VPU::MaxPoolOp::adjustAttrs(const TilingInfo& inputTiling, const Tile
     IE::adjustPaddings(this, inputTiling);
 }
 
-OutputTiling vpux::VPU::MaxPoolOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
+mlir::FailureOr<OutputTiling> vpux::VPU::MaxPoolOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
     return vpux::getSWLayerTilingStrategy(this->getOperation(), tilingMode, log);
 }
 

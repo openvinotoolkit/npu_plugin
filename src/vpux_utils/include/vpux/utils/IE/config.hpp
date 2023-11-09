@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/utils/core/enums.hpp"
@@ -276,6 +274,8 @@ OptionConcept makeOptionModel() {
 class OptionsDesc final {
 public:
     OptionsDesc() = default;
+    OptionsDesc(const OptionsDesc&) = default;
+    OptionsDesc& operator=(const OptionsDesc&) = default;
 
     // Destructor preserves unload order of implementation object and reference to library.
     // To preserve destruction order inside default generated assignment operator we store `_impl` before `_so`.
@@ -367,7 +367,7 @@ typename Opt::ValueType Config::get() const {
         const Optional<ValueType> optional = Opt::defaultValue();
         log.nest().trace("The option was not set by user, try default value");
 
-        VPUX_THROW_UNLESS(optional.hasValue(), "Option '{0}' was not provided, no default value is available",
+        VPUX_THROW_UNLESS(optional.has_value(), "Option '{0}' was not provided, no default value is available",
                           Opt::key());
         return optional.getValue();
     }

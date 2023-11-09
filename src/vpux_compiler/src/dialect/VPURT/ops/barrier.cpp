@@ -14,7 +14,7 @@ using namespace vpux;
 //
 
 VPUIP::BlobWriter::SpecificTask vpux::VPURT::ConfigureBarrierOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto barrier = writer.createBarrier(this->barrier(), this->id());
+    const auto barrier = writer.createBarrier(this->getBarrier(), this->getId());
 
     MVCNN::BarrierConfigurationTaskBuilder subBuilder(writer);
     subBuilder.add_target(barrier);

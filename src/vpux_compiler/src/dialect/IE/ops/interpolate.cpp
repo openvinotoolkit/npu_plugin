@@ -36,7 +36,7 @@ mlir::LogicalResult vpux::IE::InterpolateOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    inferredReturnShapes.emplace_back(outShape.getValue(), inType.getElementType());
+    inferredReturnShapes.emplace_back(outShape.value(), inType.getElementType());
     return mlir::success();
 }
 
@@ -56,8 +56,8 @@ public:
 
 mlir::LogicalResult ConvertInputsToAttr::matchAndRewrite(IE::InterpolateOp InterpolateOp,
                                                          mlir::PatternRewriter& rewriter) const {
-    if (InterpolateOp.sizes_attr().hasValue() || InterpolateOp.scales_attr().hasValue() ||
-        InterpolateOp.axes_attr().hasValue()) {
+    if (InterpolateOp.sizes_attr().has_value() || InterpolateOp.scales_attr().has_value() ||
+        InterpolateOp.axes_attr().has_value()) {
         return mlir::failure();
     }
 
@@ -67,7 +67,7 @@ mlir::LogicalResult ConvertInputsToAttr::matchAndRewrite(IE::InterpolateOp Inter
     if (mlir::failed(sizes)) {
         return mlir::failure();
     }
-    const auto sizesAttr = getIntArrayAttr(InterpolateOp.getContext(), sizes.getValue());
+    const auto sizesAttr = getIntArrayAttr(InterpolateOp.getContext(), sizes.value());
 
     // convert scales
     auto scales = IE::extractFPVector(InterpolateOp.getLoc(), InterpolateOp.scales(), None);
@@ -75,7 +75,7 @@ mlir::LogicalResult ConvertInputsToAttr::matchAndRewrite(IE::InterpolateOp Inter
     if (mlir::failed(scales)) {
         return mlir::failure();
     }
-    const auto scalesAttr = getFPArrayAttr(InterpolateOp.getContext(), scales.getValue());
+    const auto scalesAttr = getFPArrayAttr(InterpolateOp.getContext(), scales.value());
 
     // convert axes
     auto axes = (InterpolateOp.axes() == nullptr)
@@ -85,7 +85,7 @@ mlir::LogicalResult ConvertInputsToAttr::matchAndRewrite(IE::InterpolateOp Inter
     if (mlir::failed(axes)) {
         return mlir::failure();
     }
-    const auto axesAttr = getIntArrayAttr(InterpolateOp.getContext(), axes.getValue());
+    const auto axesAttr = getIntArrayAttr(InterpolateOp.getContext(), axes.value());
 
     // rewrite layer
     rewriter.replaceOpWithNewOp<IE::InterpolateOp>(

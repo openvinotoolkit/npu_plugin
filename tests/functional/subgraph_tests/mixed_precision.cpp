@@ -1,9 +1,10 @@
-// Copyright (C) Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
-#include "kmb_layer_test.hpp"
 #include "subgraph_tests/nce_tasks.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 #include <ngraph_functions/builders.hpp>
 
@@ -32,7 +33,7 @@ enum MixedMode {
 typedef std::tuple<MixedMode, NCETasksHelpers::NCEOpType> MixedPrecisionParams;
 
 class VPUXNCEMixedPrecisionTest_VPU3720 :
-        public LayerTestsUtils::KmbLayerTestsCommon,
+        public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<MixedPrecisionParams> {
     void GenerateInputs() override {
         inputs.clear();
@@ -57,7 +58,7 @@ class VPUXNCEMixedPrecisionTest_VPU3720 :
         cnnNetwork.getOutputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NHWC);
     }
     void SetUp() override {
-        targetDevice = LayerTestsUtils::testPlatformTargetDevice;
+        targetDevice = LayerTestsUtils::testPlatformTargetDevice();
         const auto mixedMode = std::get<0>(GetParam());
         const bool isOutputQuantized = (mixedMode == FP16toU8);
         const auto nceOpType = std::get<1>(GetParam());

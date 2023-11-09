@@ -72,8 +72,8 @@ bool hasRangeWithoutZero(IE::FakeQuantizeOp fqOp) {
     auto outLowConst = fqOp.output_low().getDefiningOp<Const::DeclareOp>();
     auto outHighConst = fqOp.output_high().getDefiningOp<Const::DeclareOp>();
 
-    if (!containsValueZero(inLowConst.contentAttr(), inHighConst.contentAttr(), fqOp.auto_broadcast()) ||
-        !containsValueZero(outLowConst.contentAttr(), outHighConst.contentAttr(), fqOp.auto_broadcast())) {
+    if (!containsValueZero(inLowConst.getContentAttr(), inHighConst.getContentAttr(), fqOp.auto_broadcast()) ||
+        !containsValueZero(outLowConst.getContentAttr(), outHighConst.getContentAttr(), fqOp.auto_broadcast())) {
         return true;
     }
 
@@ -90,7 +90,7 @@ bool isScalar(IE::FakeQuantizeOp fqOp) {
         return std::fabs(high - low) < std::numeric_limits<double>::epsilon();
     };
 
-    return checkRange(inLowConst.contentAttr(), inHighConst.contentAttr(), fqOp.auto_broadcast(), isScalarLambda);
+    return checkRange(inLowConst.getContentAttr(), inHighConst.getContentAttr(), fqOp.auto_broadcast(), isScalarLambda);
 }
 
 //
@@ -133,11 +133,11 @@ mlir::LogicalResult UseQuantDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
     const auto realElemType = realType.getElementType().cast<mlir::FloatType>();
 
     const auto inQuantizeElemType =
-            getQuantizedType(inLowConst.contentAttr(), inHighConst.contentAttr(), origOp.levels(), realElemType, false,
-                             origOp.getLoc(), origOp.auto_broadcast());
+            getQuantizedType(inLowConst.getContentAttr(), inHighConst.getContentAttr(), origOp.levels(), realElemType,
+                             false, origOp.getLoc(), origOp.auto_broadcast());
 
     const auto outQuantizeElemType =
-            getQuantizedType(outLowConst.contentAttr(), outHighConst.contentAttr(), origOp.levels(), realElemType,
+            getQuantizedType(outLowConst.getContentAttr(), outHighConst.getContentAttr(), origOp.levels(), realElemType,
                              false, origOp.getLoc(), origOp.auto_broadcast());
 
     innerLog.trace("Insert Quantize op '{0}' -> '{1}'", realElemType, inQuantizeElemType);
@@ -219,22 +219,22 @@ mlir::LogicalResult UseConstDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
         return matchFailed(innerLog, rewriter, origOp, "Got non constant parameters");
     }
 
-    const auto inConstAttr = inConst.contentAttr();
+    const auto inConstAttr = inConst.getContentAttr();
     const auto inBaseVals = inConstAttr.getBaseContent();
     const auto inBaseElemType = inBaseVals.getType().getElementType();
 
     // TODO: make this check more reliable
     if (!inBaseElemType.isa<mlir::IntegerType>()) {
-        const auto inLowContent = inLowConst.content();
-        const auto inHighContent = inHighConst.content();
+        const auto inLowContent = inLowConst.getContent();
+        const auto inHighContent = inHighConst.getContent();
 
         if (!inLowContent.isSplat() || !inHighContent.isSplat()) {
             innerLog.warning("Legacy model, original input values are not integer");
 
             // Workaround for Float weights, it lacks generality but is ok for old networks
             // Check if FQ can be removed for float weights
-            const auto outLowContent = outLowConst.content();
-            const auto outHighContent = outHighConst.content();
+            const auto outLowContent = outLowConst.getContent();
+            const auto outHighContent = outHighConst.getContent();
 
             const auto ratioLow = getCommonRatio(inLowContent, outLowContent);
             const auto ratioHigh = getCommonRatio(inHighContent, outHighContent);
@@ -242,19 +242,19 @@ mlir::LogicalResult UseConstDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
             if (mlir::failed(ratioLow) || mlir::failed(ratioHigh)) {
                 return matchFailed(innerLog, rewriter, origOp,
                                    "In and out limits differ and has per channel ratio, do not support");
-            } else if (!isFloatEqual(ratioLow.getValue(), ratioHigh.getValue())) {
+            } else if (!isFloatEqual(ratioLow.value(), ratioHigh.value())) {
                 return matchFailed(innerLog, rewriter, origOp, "Unsupported case, ratioHigh={0} != ratioLow={1}",
                                    ratioHigh, ratioLow);
             }
 
-            if (ratioHigh.getValue() == 1.0f) {
+            if (ratioHigh.value() == 1.0f) {
                 // FQ input and output ranges are equal, only remove FQ
-                rewriter.replaceOpWithNewOp<Const::DeclareOp>(origOp, origOp.getType(), inConst.contentAttr())
+                rewriter.replaceOpWithNewOp<Const::DeclareOp>(origOp, origOp.getType(), inConst.getContentAttr())
                         ->setLoc(inConst->getLoc());
             } else {
                 // FQ input and output ranges are NOT equal, rescale weights
                 innerLog.trace("Rescale weights");
-                const auto newConstAttr = inConst.contentAttr().rescale(ratioHigh.getValue());
+                const auto newConstAttr = inConst.getContentAttr().rescale(ratioHigh.value());
                 rewriter.replaceOpWithNewOp<Const::DeclareOp>(origOp, origOp.getType(), newConstAttr)
                         ->setLoc(inConst->getLoc());
             }
@@ -268,9 +268,9 @@ mlir::LogicalResult UseConstDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
     const auto realType = inConstAttr.getType().cast<vpux::NDTypeInterface>();
     const auto realElemType = realType.getElementType().cast<mlir::FloatType>();
 
-    const auto lowContent = inLowConst.contentAttr().fold();
+    const auto lowContent = inLowConst.getContentAttr().fold();
     const auto qElemType =
-            getQuantizedType(outLowConst.contentAttr(), outHighConst.contentAttr(), origOp.levels(), realElemType,
+            getQuantizedType(outLowConst.getContentAttr(), outHighConst.getContentAttr(), origOp.levels(), realElemType,
                              hasNegativeValues(lowContent), origOp.getLoc(), origOp.auto_broadcast());
     if (qElemType == nullptr) {
         return mlir::failure();
@@ -283,7 +283,7 @@ mlir::LogicalResult UseConstDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
     const auto newInConstAttr = inConstAttr.convertElemType(normalizeQuantStorageType(qElemType)).quantCast(qElemType);
     auto newInOp = rewriter.create<Const::DeclareOp>(inConst->getLoc(), qType, newInConstAttr);
 
-    rewriter.replaceOpWithNewOp<IE::DequantizeOp>(origOp, newInOp.output(), realElemType);
+    rewriter.replaceOpWithNewOp<IE::DequantizeOp>(origOp, newInOp.getOutput(), realElemType);
     return mlir::success();
 }
 
@@ -321,12 +321,12 @@ void SplitFakeQuantPass::safeRunOnFunc() {
         const auto realElemType = realType.getElementType().cast<mlir::FloatType>();
 
         const auto inQuantizeElemType =
-                getQuantizedType(inLowConst.contentAttr(), inHighConst.contentAttr(), fqOp.levels(), realElemType,
+                getQuantizedType(inLowConst.getContentAttr(), inHighConst.getContentAttr(), fqOp.levels(), realElemType,
                                  false, fqOp.getLoc(), fqOp.auto_broadcast());
 
         const auto outQuantizeElemType =
-                getQuantizedType(outLowConst.contentAttr(), outHighConst.contentAttr(), fqOp.levels(), realElemType,
-                                 false, fqOp.getLoc(), fqOp.auto_broadcast());
+                getQuantizedType(outLowConst.getContentAttr(), outHighConst.getContentAttr(), fqOp.levels(),
+                                 realElemType, false, fqOp.getLoc(), fqOp.auto_broadcast());
 
         return inQuantizeElemType == nullptr || outQuantizeElemType == nullptr;
     });

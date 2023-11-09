@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2022 Intel Corporation.
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 #include "vpux/compiler/core/aliases_info.hpp"
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/EMU/passes.hpp"
@@ -20,12 +21,12 @@ llvm::unique_function<int32_t(size_t)> getMultShiftFunc(EMU::NCEClusterTaskOp op
     SmallVector<int64_t> ppeQuantMult = {1};
     SmallVector<int64_t> ppeQuantShift = {0};
 
-    for (auto ppeOp : op.ppe().getOps<EMU::PPETaskOp>()) {
-        if (ppeOp.quant_mult().hasValue()) {
-            ppeQuantMult = parseIntArrayAttr<int64_t>(ppeOp.quant_mult().getValue());
+    for (auto ppeOp : op.getPpe().getOps<EMU::PPETaskOp>()) {
+        if (ppeOp.getQuantMult().has_value()) {
+            ppeQuantMult = parseIntArrayAttr<int64_t>(ppeOp.getQuantMult().value());
         }
-        if (ppeOp.quant_shift().hasValue()) {
-            ppeQuantShift = parseIntArrayAttr<int64_t>(ppeOp.quant_shift().getValue());
+        if (ppeOp.getQuantShift().has_value()) {
+            ppeQuantShift = parseIntArrayAttr<int64_t>(ppeOp.getQuantShift().value());
         }
     }
 
@@ -34,8 +35,9 @@ llvm::unique_function<int32_t(size_t)> getMultShiftFunc(EMU::NCEClusterTaskOp op
 
     const auto ppeConverter = VPU::NCESparsity::ppeConvertersMap.at(arch);
 
-    auto inElemType = op.input().getType().cast<vpux::NDTypeInterface>().getElementType();
-    return [ppeConverter, ppeQuantMult, ppeQuantShift, inElemType](size_t oc) {
+    auto inElemType = op.getInput().getType().cast<vpux::NDTypeInterface>().getElementType();
+    return [ppeConverter, ppeQuantMult = std::move(ppeQuantMult), ppeQuantShift = std::move(ppeQuantShift),
+            inElemType](size_t oc) {
         auto multShift = ppeConverter(checked_cast<uint8_t>(ppeQuantShift[oc]),
                                       checked_cast<uint16_t>(ppeQuantMult[oc]), 1, inElemType);
         return multShift;
@@ -80,7 +82,7 @@ private:
 mlir::LogicalResult AddWeightsTable::matchAndRewrite(EMU::NCEClusterTaskOp origOp,
                                                      mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got '{1}' at '{2}'", getDebugName(), origOp->getName(), origOp->getLoc());
-    const auto outputShape = getShape(origOp.output());
+    const auto outputShape = getShape(origOp.getOutput());
     const auto OC = outputShape[Dims4D::Act::C];
 
     SmallVector<int64_t> weightTableShape{OC, 1, 1, VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC};
@@ -93,13 +95,13 @@ mlir::LogicalResult AddWeightsTable::matchAndRewrite(EMU::NCEClusterTaskOp origO
             rewriter.create<Const::DeclareOp>(origOp->getLoc(), dataType, Const::ContentAttr::get(dataAttr));
 
     auto nceOp = rewriter.create<EMU::NCEClusterTaskOp>(
-            origOp->getLoc(), origOp.getType(), origOp.input(), origOp.weights(), weightsTableConstOp.output(),
-            origOp.task_type(), origOp.kernel_sizeAttr(), origOp.kernel_stridesAttr(), origOp.kernel_paddingAttr(),
-            origOp.rawFilterShapeAttr());
+            origOp->getLoc(), origOp.getType(), origOp.getInput(), origOp.getWeights(), weightsTableConstOp.getOutput(),
+            origOp.getTaskType(), origOp.getKernelSizeAttr(), origOp.getKernelStridesAttr(),
+            origOp.getKernelPaddingAttr(), origOp.getRawFilterShapeAttr());
 
     nceOp.addPPETask(rewriter, origOp);
 
-    rewriter.replaceOp(origOp, nceOp.output());
+    rewriter.replaceOp(origOp, nceOp.getOutput());
     return mlir::success();
 }
 
@@ -133,8 +135,8 @@ void AddWeightsTableToEmuPass::safeRunOnFunc() {
                       "Failed to map PPE converter to target arch");
 
     const auto isLegalOp = [&](EMU::NCEClusterTaskOp op) {
-        return (op.task_type() != VPUIP::NCETaskType::ELTWISE && op.task_type() != VPUIP::NCETaskType::AVEPOOL) ||
-               op.weight_table() != nullptr;
+        return (op.getTaskType() != VPUIP::NCETaskType::ELTWISE && op.getTaskType() != VPUIP::NCETaskType::AVEPOOL) ||
+               op.getWeightTable() != nullptr;
     };
 
     mlir::ConversionTarget target(ctx);

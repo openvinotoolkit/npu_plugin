@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_VPUREGMAPPED_OPS_INTERFACES
 #define VPUX_COMPILER_DIALECT_VPUREGMAPPED_OPS_INTERFACES
 
@@ -20,14 +18,14 @@ def VPURegMapped_TaskOpInterface : OpInterface<"TaskOpInterface"> {
         >,
         InterfaceMethod<
             "Get index",
-            "vpux::VPURegMapped::IndexType", "getIndex", (ins), [{}], [{
+            "vpux::VPURegMapped::IndexType", "getIndexType", (ins), [{}], [{
                 return $_op.getType();
             }]
         >,
         InterfaceMethod<
             "Set task location",
             "void", "setTaskLocation", (ins "mlir::Value":$location), [{}], [{
-                $_op.taskLocationMutable().assign(location);
+                $_op.getTaskLocationMutable().assign(location);
             }]
         >
     ];

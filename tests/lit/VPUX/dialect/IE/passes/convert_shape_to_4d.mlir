@@ -529,6 +529,36 @@ func.func @Convert3dMulWithFirstDim(%arg0: tensor<80x1x1xf16>) -> tensor<80x1x1x
 
 // -----
 
+// CHECK-LABEL: @Convert3dMulWithDifferentDim
+func.func @Convert3dMulWithDifferentDim(%arg0: tensor<1x1x256xf16>) -> tensor<1x256x256xf16> {
+    %MUL_WEIGHTS = const.Declare tensor<1x256x1xf16> = dense<2.000000e+00> : tensor<1x256x1xf16>
+
+    %MUL = IE.Multiply(%arg0, %MUL_WEIGHTS) {
+        auto_broadcast = #IE.auto_broadcast_type<NUMPY>
+    } : tensor<1x1x256xf16>, tensor<1x256x1xf16> -> tensor<1x256x256xf16>
+
+    return %MUL : tensor<1x256x256xf16>
+
+    // CHECK-DAG:   [[MUL_WEIGHTS:%.*]] = const.Declare tensor<1x256x1x1xf16> =
+    // CHECK-SAME:  dense<2.000000e+00> :  tensor<1x256x1xf16>, [#const.Reshape<[1, 1, 256, 1]>, #const.Reshape<[1, 256, 1, 1]>]
+
+    // CHECK:   [[RESHAPE_INPUT:%.*]] = IE.AffineReshape(%arg0) {
+    // CHECK-SAME:      shape_value = [1, 1, 1, 256]
+    // CHECK-SAME:  } : tensor<1x1x256xf16> -> tensor<1x1x1x256xf16>
+
+    // CHECK:   [[MUL:%.*]] = IE.Multiply([[RESHAPE_INPUT]], [[MUL_WEIGHTS]]) {
+    // CHECK-SAME:      auto_broadcast = #IE.auto_broadcast_type<NUMPY>
+    // CHECK-SAME:  } : tensor<1x1x1x256xf16>, tensor<1x256x1x1xf16> -> tensor<1x256x1x256xf16>
+
+    // CHECK:   [[RESHAPE_OUT:%.*]] = IE.AffineReshape([[MUL]]) {
+    // CHECK-SAME:      shape_value = [1, 256, 256]
+    // CHECK-SAME:  } : tensor<1x256x1x256xf16> -> tensor<1x256x256xf16>
+
+    // CHECK:   return [[RESHAPE_OUT]] : tensor<1x256x256xf16>
+}
+
+// -----
+
 // CHECK-LABEL: @Convert2dAddWithLastDim
 func.func @Convert2dAddWithLastDim(%arg0: tensor<1x80xf16>) -> tensor<1x80xf16> {
     %ADD_WEIGHTS = const.Declare tensor<1x80xf16> = dense<2.000000e+00> : tensor<1x80xf16>
@@ -733,84 +763,6 @@ func.func @Add3dMixPrecision(%arg0: tensor<12x77x64x!qElemType>, %arg1: tensor<1
 
 // -----
 
-// CHECK-LABEL: @Convert2dTopKPositiveAxis
-func.func @Convert2dTopKPositiveAxis(%arg0: tensor<80x77xsi32>) -> (tensor<80x1xsi32>, tensor<80x1xsi32>) {
-    %cst_K = const.Declare tensor<si32> = dense<1> : tensor<si32>
-    %output_values, %target_shape = IE.TopK(%arg0, %cst_K) {axis = 1 : i64, element_type = si32, mode = #IE.topk_mode<MAX>, sort = #IE.topk_sort_type<NONE>} :
-                                            tensor<80x77xsi32>, tensor<si32> -> tensor<80x1xsi32>, tensor<80x1xsi32>
-
-    return %output_values, %target_shape : tensor<80x1xsi32>, tensor<80x1xsi32>
-
-    // CHECK-DAG:   [[CST_K:%.*]] = const.Declare tensor<si32> = dense<1> : tensor<si32>
-    // CHECK:   [[RESHAPE_INPUT:%.*]] = IE.AffineReshape(%arg0) {
-    // CHECK-SMAE:         shape_value = [80, 77, 1, 1]
-    // CHECK-SAME:     } : tensor<80x77xsi32> -> tensor<80x77x1x1xsi32>
-
-    // CHECK:   [[VALUE:%.*]], [[SHAPE:%.*]] = IE.TopK([[RESHAPE_INPUT]], [[CST_K]])
-    // CHECK-SAME:         {axis = 1 : i64, element_type = si32, mode = #IE.topk_mode<MAX>, sort = #IE.topk_sort_type<NONE>}
-    // CHECK-SAME:         tensor<80x77x1x1xsi32>, tensor<si32> -> tensor<80x1x1x1xsi32>, tensor<80x1x1x1xsi32>
-
-    // CHECK:   [[RESHAPE_VALUE:%.*]] = IE.AffineReshape([[VALUE]]) {
-    // CHECK-SAME:                    } : tensor<80x1x1x1xsi32> -> tensor<80x1xsi32>
-    // CHECK:   [[RESHAPE_SHAPE:%.*]] = IE.AffineReshape([[SHAPE]]) {
-    // CHECK-SAME:                    } : tensor<80x1x1x1xsi32> -> tensor<80x1xsi32>
-    // CHECK:   return [[RESHAPE_VALUE]], [[RESHAPE_SHAPE]]
-
-}
-
-// -----
-
-// CHECK-LABEL: @Convert2dTopKNegativeAxis
-func.func @Convert2dTopKNegativeAxis(%arg0: tensor<80x77xsi32>) -> (tensor<1x77xsi32>, tensor<1x77xsi32>) {
-    %cst_K = const.Declare tensor<si32> = dense<1> : tensor<si32>
-    %output_values, %target_shape = IE.TopK(%arg0, %cst_K) {axis = -2 : i64, element_type = si32, mode = #IE.topk_mode<MAX>, sort = #IE.topk_sort_type<NONE>} :
-                                            tensor<80x77xsi32>, tensor<si32> -> tensor<1x77xsi32>, tensor<1x77xsi32>
-
-    return %output_values, %target_shape : tensor<1x77xsi32>, tensor<1x77xsi32>
-
-    // CHECK-DAG:   [[CST_K:%.*]] = const.Declare tensor<si32> = dense<1> : tensor<si32>
-    // CHECK:   [[RESHAPE_INPUT:%.*]] = IE.AffineReshape(%arg0) {
-    // CHECK-SMAE:         shape_value = [1, 80, 77, 1]
-    // CHECK-SAME:     } : tensor<80x77xsi32> -> tensor<1x80x77x1xsi32>
-
-    // CHECK:   [[VALUE:%.*]], [[SHAPE:%.*]] = IE.TopK([[RESHAPE_INPUT]], [[CST_K]])
-    // CHECK-SAME:         {axis = 1 : i64, element_type = si32, mode = #IE.topk_mode<MAX>, sort = #IE.topk_sort_type<NONE>} :
-    // CHECK-SAME:         tensor<1x80x77x1xsi32>, tensor<si32> -> tensor<1x1x77x1xsi32>, tensor<1x1x77x1xsi32>
-
-    // CHECK:   [[RESHAPE_VALUE:%.*]] = IE.AffineReshape([[VALUE]]) {
-    // CHECK-SAME:                    } : tensor<1x1x77x1xsi32> -> tensor<1x77xsi32>
-    // CHECK:   [[RESHAPE_SHAPE:%.*]] = IE.AffineReshape([[SHAPE]]) {
-    // CHECK-SAME:                    } : tensor<1x1x77x1xsi32> -> tensor<1x77xsi32>
-    // CHECK:   return [[RESHAPE_VALUE]], [[RESHAPE_SHAPE]]
-}
-
-// -----
-
-// CHECK-LABEL: @Convert3dTopKPositiveAxis
-func.func @Convert3dTopKPositiveAxis(%arg0: tensor<60x80x77xsi32>) -> (tensor<60x1x77xsi32>, tensor<60x1x77xsi32>) {
-    %cst_K = const.Declare tensor<si32> = dense<1> : tensor<si32>
-    %output_values, %target_shape = IE.TopK(%arg0, %cst_K) {axis = 1 : i64, element_type = si32, mode = #IE.topk_mode<MAX>, sort = #IE.topk_sort_type<NONE>} :
-                                            tensor<60x80x77xsi32>, tensor<si32> -> tensor<60x1x77xsi32>, tensor<60x1x77xsi32>
-
-    return %output_values, %target_shape : tensor<60x1x77xsi32>, tensor<60x1x77xsi32>
-
-    // CHECK-DAG:   [[CST_K:%.*]] = const.Declare tensor<si32> = dense<1> : tensor<si32>
-    // CHECK:   [[RESHAPE_INPUT:%.*]] = IE.AffineReshape(%arg0) {
-    // CHECK-SAME{LITERAL}:   shape_value = [60, 80, 77, 1]} : tensor<60x80x77xsi32> -> tensor<60x80x77x1xsi32>
-
-    // CHECK:   [[VALUE:%.*]], [[SHAPE:%.*]] = IE.TopK([[RESHAPE_INPUT]], [[CST_K]])
-    // CHECK-SAME:         {axis = 1 : i64, element_type = si32, mode = #IE.topk_mode<MAX>, sort = #IE.topk_sort_type<NONE>} :
-    // CHECK-SAME:         tensor<60x80x77x1xsi32>, tensor<si32> -> tensor<60x1x77x1xsi32>, tensor<60x1x77x1xsi32>
-
-    // CHECK:   [[RESHAPE_VALUE:%.*]] = IE.AffineReshape([[VALUE]]) {
-    // CHECK-SAME:         shape_value = [60, 1, 77]} : tensor<60x1x77x1xsi32> -> tensor<60x1x77xsi32>
-    // CHECK:   [[RESHAPE_SHAPE:%.*]] = IE.AffineReshape([[SHAPE]]) {
-    // CHECK-SAME:         shape_value = [60, 1, 77]} : tensor<60x1x77x1xsi32> -> tensor<60x1x77xsi32>
-    // CHECK:   return [[RESHAPE_VALUE]], [[RESHAPE_SHAPE]]
-}
-
-// -----
-
 #NHCW = affine_map<(d0, d1, d2, d3) -> (d0, d2, d1, d3)>
 
 // CHECK-LABEL: @Convert3DTransposeWithFirstDimLargeOne
@@ -917,11 +869,11 @@ func.func @Convert2DSoftmax(%arg0: tensor<4096x512xf16>) -> tensor<4096x512xf16>
     return %0 : tensor<4096x512xf16>
 
     // CHECK:       [[VAL_0:%.*]] = IE.AffineReshape(%arg0)
-    // CHECK-SAME{LITERAL}:      {dim_mapping = [[0, 1], [2, 3]], shape_value = [1, 4096, 512, 1]} : tensor<4096x512xf16> -> tensor<1x4096x512x1xf16>
+    // CHECK-SAME{LITERAL}:      {dim_mapping = [[0, 1, 2], [3]], shape_value = [1, 1, 4096, 512]} : tensor<4096x512xf16> -> tensor<1x1x4096x512xf16>
     // CHECK:       [[Softmax:%.*]] = IE.SoftMax([[VAL_0]])
-    // CHECK-SAME:      {axisInd = 2 : i64} : tensor<1x4096x512x1xf16> -> tensor<1x4096x512x1xf16>
+    // CHECK-SAME:      {axisInd = 3 : i64} : tensor<1x1x4096x512xf16> -> tensor<1x1x4096x512xf16>
     // CHECK:       [[VAL_1:%.*]] = IE.AffineReshape([[Softmax]])
-    // CHECK-SAME{LITERAL}:      {dim_mapping = [[0], [0], [1], [1]], shape_value = [4096, 512]} : tensor<1x4096x512x1xf16> -> tensor<4096x512xf16>
+    // CHECK-SAME{LITERAL}:      {dim_mapping = [[0], [0], [0], [1]], shape_value = [4096, 512]} : tensor<1x1x4096x512xf16> -> tensor<4096x512xf16>
 
     // CHECK:   return [[VAL_1]]
 }

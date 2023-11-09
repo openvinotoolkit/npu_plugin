@@ -142,40 +142,40 @@ def VPUIP_DMATypeOpInterface : OpInterface<"DMATypeOpInterface"> {
     let methods = [
         InterfaceMethod<
             "Sets DMA hardware profiling id",
-            "void", "setDmaHwpId", (ins "mlir::IntegerAttr":$dmaIdAttr),
+            "void", "setDmaHwpIdAttr", (ins "mlir::IntegerAttr":$dmaIdAttr),
             [{}],
-            [{$_op->setAttr($_op.dma_hwp_idAttrName(), (dmaIdAttr));}]
+            [{$_op->setAttr($_op.getDmaHwpIdAttrName(), (dmaIdAttr));}]
         >,
         InterfaceMethod<
             "Returns DMA hardware profiling id",
-            "mlir::IntegerAttr", "getDmaHwpId", (ins),
+            "mlir::IntegerAttr", "getDmaHwpIdAttr", (ins),
             [{}],
-            [{ 
-                return $_op.dma_hwp_idAttr();
+            [{
+                return $_op.getDmaHwpIdAttr();
             }]
         >,
         InterfaceMethod<
             "Get DMA port attr",
-            "mlir::IntegerAttr", "getPortAttr", (ins),
+            "mlir::IntegerAttr", "getPortAttribute", (ins),
             [{}],
             [{
-                return $_op.portAttr();
+                return $_op.getPortAttr();
             }]
         >,
         InterfaceMethod<
             "Get DMA port value",
-            "int64_t", "getPort", (ins),
+            "int64_t", "getPortVal", (ins),
             [{}],
             [{
-                return $_op.port();
+                return $_op.getPort();
             }]
         >,
         InterfaceMethod<
             "Set DMA port attr",
-            "void", "setPortAttr", (ins "mlir::IntegerAttr":$portAttr),
+            "void", "setPortAttribute", (ins "mlir::IntegerAttr":$portAttr),
             [{}],
             [{
-                return $_op.portAttr(portAttr);
+                return $_op.setPortAttr(portAttr);
             }]
         >,
         InterfaceMethod<
@@ -183,7 +183,7 @@ def VPUIP_DMATypeOpInterface : OpInterface<"DMATypeOpInterface"> {
             "VPUIP::DmaChannelTypeAttr", "getChannelTypeAttr", (ins),
             [{}],
             [{
-                return $_op.channelTypeAttr();
+                return $_op.getChannelTypeAttr();
             }]
         >,
         InterfaceMethod<
@@ -191,7 +191,7 @@ def VPUIP_DMATypeOpInterface : OpInterface<"DMATypeOpInterface"> {
             "::llvm::Optional<VPUIP::DmaChannelType>", "getChannelType", (ins),
             [{}],
             [{
-                return $_op.channelType();
+                return $_op.getChannelType();
             }]
         >,
         InterfaceMethod<
@@ -199,7 +199,15 @@ def VPUIP_DMATypeOpInterface : OpInterface<"DMATypeOpInterface"> {
             "void", "setChannelTypeAttr", (ins "VPUIP::DmaChannelTypeAttr":$channelTypeAttr),
             [{}],
             [{
-                return $_op.channelTypeAttr(channelTypeAttr);
+                return $_op.setChannelTypeAttr(channelTypeAttr);
+            }]
+        >,
+        InterfaceMethod<
+            "Get DMA input value",
+            "mlir::Value", "getInput", (ins),
+            [{}],
+            [{
+                return $_op.getInput();
             }]
         >
     ];

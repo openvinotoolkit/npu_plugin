@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation.
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -29,7 +29,8 @@ const char* IS_OUT_OF_ORDER_ATTR_NAME = "is_out_of_order";
 class DMATaskProfilingAfterBarrierSchedPass final :
         public VPUIP::DMATaskProfilingAfterBarrierSchedBase<DMATaskProfilingAfterBarrierSchedPass> {
 public:
-    explicit DMATaskProfilingAfterBarrierSchedPass(Logger log) {
+    explicit DMATaskProfilingAfterBarrierSchedPass(Logger log)
+            : _timerType(), _Cmx0MemKind(), _timestampSize(), _profOutputId(), _hwAddr() {
         Base::initLogger(log, Base::getArgumentName());
     }
 
@@ -40,7 +41,7 @@ private:
     bool isDmaTask(VPURT::TaskOp taskOp);
     int64_t getDMAPortValue(VPURT::TaskOp taskOp);
     uint32_t getHwProfAddress(VPU::ArchKind arch);
-    vpux::NDTypeInterface getTimestampType(mlir::MLIRContext* ctx, VPU::ArchKind arch);
+    mlir::Type getTimestampType(mlir::MLIRContext* ctx, VPU::ArchKind arch);
     mlir::Location getProfBeginLoc(mlir::Location taskOpLoc);
     mlir::Location getProfEndLoc(mlir::Location taskOpLoc, unsigned dmaId);
     VPURT::TaskOp createProfTask(mlir::OpBuilder& builder, mlir::ValueRange updateBarriers,
@@ -50,40 +51,32 @@ private:
     void createCmx2DdrProfDma(mlir::OpBuilder& builder, mlir::ValueRange updateBarriers, int64_t port,
                               size_t srcCmxAddr, size_t dstDdrAddr, size_t sizeBytes);
 
-    vpux::NDTypeInterface _timestampTypeSingleSlot = nullptr;
-    vpux::NDTypeInterface _profilingBufferType = nullptr;
-    vpux::NDTypeInterface _hwTimerType = nullptr;
-    VPURT::BufferSection _profBufSection = VPURT::BufferSection::DDR;
-    int64_t _profBufSectionIndex = 0;
-    uint32_t _hwAddr = 0;
-    int64_t _profOutputId = 0;
+    mlir::Type _timerType;
+    IndexedSymbolAttr _Cmx0MemKind;
+    int64_t _timestampSize;
+    int64_t _profOutputId;
+    uint32_t _hwAddr;
 };
 
 uint32_t DMATaskProfilingAfterBarrierSchedPass::getHwProfAddress(VPU::ArchKind arch) {
     switch (arch) {
     case VPU::ArchKind::VPUX30XX:
-    case VPU::ArchKind::VPUX311X:
         return VPUIP::HW_TIMER_ABSOLUTE_ADDR_30XX;
     case VPU::ArchKind::VPUX37XX:
         return VPUIP::HW_TIMER_ABSOLUTE_ADDR_37XX;
     default:
-        VPUX_THROW("Unsuported architecture for TimestampRewrite");
+        VPUX_THROW("Unsuported architecture");
     }
 }
 
-vpux::NDTypeInterface DMATaskProfilingAfterBarrierSchedPass::getTimestampType(mlir::MLIRContext* ctx,
-                                                                              VPU::ArchKind arch) {
-    // DMA profiling data is stored in CMX slice 0
-    auto memKindAttr = IndexedSymbolAttr::get(ctx, stringifyEnum(VPU::MemoryKind::CMX_NN), 0);
-
+mlir::Type DMATaskProfilingAfterBarrierSchedPass::getTimestampType(mlir::MLIRContext* ctx, VPU::ArchKind arch) {
     switch (arch) {
     case VPU::ArchKind::VPUX30XX:
-    case VPU::ArchKind::VPUX311X:
-        return getMemRefType(ShapeRef({1}), getUInt32Type(ctx), DimsOrder::C, memKindAttr);
+        return getUInt32Type(ctx);
     case VPU::ArchKind::VPUX37XX:
-        return getMemRefType(ShapeRef({1}), getUInt64Type(ctx), DimsOrder::C, memKindAttr);
+        return getUInt64Type(ctx);
     default:
-        VPUX_THROW("Not supported architecture");
+        VPUX_THROW("Unsuported architecture");
     }
 }
 
@@ -121,16 +114,17 @@ VPURT::TaskOp DMATaskProfilingAfterBarrierSchedPass::createProfTask(mlir::OpBuil
     _log.trace("createProfTask: port '{0}' cmxAddress '{1}' loc '{2}'", port, address, loc);
 
     // Create declaration for source buffer which corresponds to HW register with free-running counter
-    auto hwRegOp = builder.create<VPURT::DeclareBufferOp>(loc, _hwTimerType, VPURT::BufferSection::Register, _hwAddr);
+    auto hwRegType = getMemRefType(ShapeRef({1}), _timerType, DimsOrder::C, VPU::MemoryKind::Register);
+    auto hwRegOp = builder.create<VPURT::DeclareBufferOp>(loc, hwRegType, VPURT::BufferSection::Register, _hwAddr);
 
     // Create declaration for destination buffer in CMX where timestamp is to be stored
-    auto profBufOp = builder.create<VPURT::DeclareBufferOp>(loc, _timestampTypeSingleSlot, _profBufSection,
-                                                            makeArrayRef(_profBufSectionIndex), address);
+    auto profBufType = getMemRefType(ShapeRef({1}), _timerType, DimsOrder::C, _Cmx0MemKind);
+    auto profBufOp = builder.create<VPURT::DeclareBufferOp>(loc, profBufType, VPURT::BufferSection::CMX_NN, 0, address);
 
     // Insert profiling DMA wrapped in TaskOp with proper barriers settings
-    const auto profDMA = VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(builder, waitBarriers, updateBarriers, loc,
-                                                               hwRegOp.buffer(), profBufOp.buffer(), port, isOutOfOrder,
-                                                               /*is_critical=*/false, /*spillId=*/nullptr);
+    const auto profDMA = VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
+            builder, waitBarriers, updateBarriers, loc, hwRegOp.getBuffer(), profBufOp.getBuffer(), port, isOutOfOrder,
+            /*is_critical=*/false, /*spillId=*/nullptr);
 
     return profDMA->getParentOfType<VPURT::TaskOp>();
 }
@@ -147,22 +141,21 @@ void DMATaskProfilingAfterBarrierSchedPass::createCmx2DdrProfDma(mlir::OpBuilder
                "size '{3}' loc '{4}'",
                port, srcCmxAddr, dstDdrAddr, sizeBytes, loc);
 
-    auto numOfElements = static_cast<int64_t>(sizeBytes / Byte(_timestampTypeSingleSlot.getElemTypeSize()).count());
-    auto profilingBufferType = _timestampTypeSingleSlot.changeShape(ShapeRef({numOfElements}));
+    auto numOfElements = static_cast<int64_t>(sizeBytes / _timestampSize);
+    auto profilingBufferType = getMemRefType({numOfElements}, _timerType, DimsOrder::C, _Cmx0MemKind);
 
-    // Create declaration for source buffer which corresponds to HW register with free-running counter
-    auto srcBufProfCmxOp = builder.create<VPURT::DeclareBufferOp>(loc, profilingBufferType, _profBufSection,
-                                                                  makeArrayRef(_profBufSectionIndex), srcCmxAddr);
-
+    // Create declaration for source CMX buffer
+    auto srcBufProfCmxOp = builder.create<VPURT::DeclareBufferOp>(loc, profilingBufferType,
+                                                                  VPURT::BufferSection::CMX_NN, 0, srcCmxAddr);
     // Create declaration for destination in profiling output
     auto profilingOutputType =
-            mlir::MemRefType::get(profilingBufferType.getShape().raw(), profilingBufferType.getElementType());
+            mlir::MemRefType::get(profilingBufferType.getShape(), profilingBufferType.getElementType());
     auto dstBufProfResultOp = builder.create<VPURT::DeclareBufferOp>(
             loc, profilingOutputType, VPURT::BufferSection::ProfilingOutput, _profOutputId, dstDdrAddr);
 
-    // // Insert DMA wrapped in TaskOp with proper barriers settings
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(builder, {}, updateBarriers, loc, srcBufProfCmxOp.buffer(),
-                                          dstBufProfResultOp.buffer(), port);
+    // Insert DMA wrapped in TaskOp with proper barriers settings
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(builder, {}, updateBarriers, loc, srcBufProfCmxOp.getBuffer(),
+                                          dstBufProfResultOp.getBuffer(), port);
 }
 
 bool isOutOfOrderSupported(mlir::Operation* dmaOp) {
@@ -178,7 +171,6 @@ void DMATaskProfilingAfterBarrierSchedPass::safeRunOnModule() {
     const auto isOooOptimizationAppliable =
             (arch == VPU::ArchKind::VPUX37XX);  // For 37XX PROFBEGIN and profiled DMA may be proceeded by different
                                                 // channels, which allow such DMAs issued  out of order
-
     IE::CNNNetworkOp netOp;
     mlir::func::FuncOp func;
     IE::CNNNetworkOp::getFromModule(module, netOp, func);
@@ -191,8 +183,8 @@ void DMATaskProfilingAfterBarrierSchedPass::safeRunOnModule() {
     int64_t dmaProfMemOffset = 0;
     if (auto dmaProfMem = IE::getDmaProfilingReservedMemory(module, VPU::MemoryKind::CMX_NN)) {
         dmaProfReservedMemSize = dmaProfMem.byteSize();
-        VPUX_THROW_UNLESS(dmaProfMem.offset().hasValue(), "No offset setting provided");
-        dmaProfMemOffset = dmaProfMem.offset().getValue();
+        VPUX_THROW_UNLESS(dmaProfMem.offset().has_value(), "No offset setting provided");
+        dmaProfMemOffset = dmaProfMem.offset().value();
     }
 
     VPUX_THROW_UNLESS(dmaProfReservedMemSize > 0, "No reserved memory for DMA profiling");
@@ -200,7 +192,7 @@ void DMATaskProfilingAfterBarrierSchedPass::safeRunOnModule() {
                       "Reserved memory for DMA profiling ('{0}') cannot be equally split between ports",
                       dmaProfReservedMemSize);
 
-    const int64_t dmaProfReservedMemSizePerPort = static_cast<int64_t>(dmaProfReservedMemSize / dmaPortCount);
+    const int64_t dmaProfReservedMemSizePerPort = dmaProfReservedMemSize / dmaPortCount;
 
     // Traverse IR and store information about DMA tasks on each port
     SmallVector<SmallVector<VPURT::TaskOp>> dmaTasksPerPort(dmaPortCount);
@@ -222,32 +214,32 @@ void DMATaskProfilingAfterBarrierSchedPass::safeRunOnModule() {
         dmaTasksPerPort[portNumber].push_back(taskOp);
     });
 
-    size_t totalNumberOfDmas = 0;
-    size_t ddrProfilingBufferOffset = 0;
-    SmallVector<size_t> cmxProfilingBaseAddress(dmaPortCount);
-    SmallVector<size_t> cmxProfilingBufferOffset(dmaPortCount);
+    int64_t totalNumberOfDmas = 0;
+    int64_t ddrProfilingBufferOffset = 0;
+    SmallVector<int64_t> cmxProfilingBaseAddress(dmaPortCount);
+    SmallVector<int64_t> cmxProfilingBufferOffset(dmaPortCount);
 
     for (int64_t port = 0; port < dmaPortCount; port++) {
         cmxProfilingBaseAddress[port] = dmaProfMemOffset + port * dmaProfReservedMemSizePerPort;
         totalNumberOfDmas += dmaTasksPerPort[port].size();
     }
+    if (totalNumberOfDmas == 0) {
+        return;
+    }
 
     // Initialize some common variables which are used when inserting profiling DMAs
-    _timestampTypeSingleSlot = getTimestampType(ctx, arch);
+    _timerType = getTimestampType(ctx, arch);
+    _timestampSize = _timerType.getIntOrFloatBitWidth() / 8;
     _hwAddr = getHwProfAddress(arch);
-    _hwTimerType = _timestampTypeSingleSlot.changeMemSpace(VPU::MemoryKind::Register);
-    _profBufSection = VPURT::getBufferSection(_timestampTypeSingleSlot.getMemoryKind());
-    auto sectionIndex = _timestampTypeSingleSlot.getMemSpace().getIndex();
-    VPUX_THROW_UNLESS(sectionIndex.hasValue(), "Destination buffer without section index value");
-    _profBufSectionIndex = sectionIndex.getValue();
     _profOutputId = static_cast<int64_t>(netOp.getProfilingOutputsCount());
 
-    const unsigned timestampSingleSlotSize = Byte(_timestampTypeSingleSlot.getElemTypeSize()).count();
-    const auto outputResult = mlir::MemRefType::get({static_cast<unsigned>(2 * totalNumberOfDmas)},
-                                                    _timestampTypeSingleSlot.getElementType());
+    // DMA profiling data is stored in CMX slice 0
+    _Cmx0MemKind = IndexedSymbolAttr::get(ctx, stringifyEnum(VPU::MemoryKind::CMX_NN), 0);
+
+    const auto outputResult = mlir::MemRefType::get({2 * totalNumberOfDmas}, _timerType);
 
     // Update network output information to have also new dma profiling result
-    auto profilingResult = addNewProfilingOutput(ctx, func, netOp, outputResult, "dma");
+    auto profilingResult = addNewProfilingOutput(ctx, func, netOp, outputResult, profiling::ExecutorType::DMA_SW);
     auto returnOp = mlir::dyn_cast_or_null<mlir::func::ReturnOp>(func.getBody().front().getTerminator());
     VPUX_THROW_UNLESS(returnOp != nullptr, "No ReturnOp was found");
     builder.setInsertionPoint(returnOp);
@@ -278,13 +270,13 @@ void DMATaskProfilingAfterBarrierSchedPass::safeRunOnModule() {
             _log.trace("DMA task to profile: '{0}'", taskOp->getLoc());
             _log = _log.nest();
 
-            auto waitBarriers = taskOp.waitBarriers();
-            auto updateBarriers = taskOp.updateBarriers();
+            auto waitBarriers = taskOp.getWaitBarriers();
+            auto updateBarriers = taskOp.getUpdateBarriers();
 
             // First check if after this task CMX2DDR profiling buffer copy will be needed
             // due to buffer geting full after this task
-            auto insertProfCmx2DdrFlag = (dmaProfReservedMemSizePerPort - cmxProfilingBufferOffset[portNumber] ==
-                                          2 * timestampSingleSlotSize);
+            auto insertProfCmx2DdrFlag =
+                    (dmaProfReservedMemSizePerPort - cmxProfilingBufferOffset[portNumber] == 2 * _timestampSize);
             // Also if this is last DMA to profile on this port then such copy should be done too
             insertProfCmx2DdrFlag = (insertProfCmx2DdrFlag || (i == (dmaTasksPerPort[portNumber].size() - 1)));
 
@@ -298,7 +290,7 @@ void DMATaskProfilingAfterBarrierSchedPass::safeRunOnModule() {
             createProfTask(builder, waitBarriers, {}, portNumber, cmxAddress, profTaskLoc, isOooOptimizationAppliable);
             _log = _log.unnest();
 
-            cmxProfilingBufferOffset[portNumber] += timestampSingleSlotSize;
+            cmxProfilingBufferOffset[portNumber] += _timestampSize;
 
             // Handle end time profiling task
             builder.setInsertionPointAfter(taskOp);
@@ -316,14 +308,14 @@ void DMATaskProfilingAfterBarrierSchedPass::safeRunOnModule() {
             }
             dmaId++;
             _log = _log.unnest();
-            cmxProfilingBufferOffset[portNumber] += timestampSingleSlotSize;
+            cmxProfilingBufferOffset[portNumber] += _timestampSize;
 
-            VPUX_THROW_WHEN(static_cast<int64_t>(cmxProfilingBufferOffset[portNumber]) > dmaProfReservedMemSizePerPort,
+            VPUX_THROW_WHEN(cmxProfilingBufferOffset[portNumber] > dmaProfReservedMemSizePerPort,
                             "Profiling buffer beyond allowed space");
 
             if (insertProfCmx2DdrFlag) {
                 // Once profiling buffer instance is full or there are no more tasks to profile
-                // insert DMA which copies buffer to ProfilingOutput at proper offset
+                // insert DMA which copies buffer to ProfilingOutput at a proper offset
                 auto size = cmxProfilingBufferOffset[portNumber];
 
                 createCmx2DdrProfDma(builder, updateBarriers, portNumber, cmxProfilingBaseAddress[portNumber],
@@ -335,8 +327,8 @@ void DMATaskProfilingAfterBarrierSchedPass::safeRunOnModule() {
 
             // Remove barriers from profiled task as its execution will be guarded by
             // newly inserted profiling DMAs before and after the task
-            taskOp.waitBarriersMutable().clear();
-            taskOp.updateBarriersMutable().clear();
+            taskOp.getWaitBarriersMutable().clear();
+            taskOp.getUpdateBarriersMutable().clear();
 
             _log = _log.unnest();
         }

@@ -103,6 +103,23 @@ void vpux::AliasesInfo::addAlias(mlir::Value source, mlir::Value alias) {
     }
 }
 
+void vpux::AliasesInfo::removeAlias(mlir::Value val) {
+    _log.trace("Remove all info of a value '{0}''", getValueForLog(val));
+
+    const auto roots = getRoots(val);
+
+    for (const auto& root : roots) {
+        _allAliases[root].erase(val);
+        if (_allAliases[root].empty()) {
+            _allAliases.erase(root);
+        }
+    }
+
+    _allAliases.erase(val);
+    _roots.erase(val);
+    _sources.erase(val);
+}
+
 void vpux::AliasesInfo::traverse(OpRange ops) {
     std::function<bool(mlir::Type)> isBufferizedType = [&](mlir::Type type) -> bool {
         if (const auto asyncType = type.dyn_cast<mlir::async::ValueType>()) {
@@ -226,8 +243,8 @@ void vpux::AliasesInfo::traverse(OpRange ops) {
                                 auto successorOperands =
                                         mlir::getRegionBranchSuccessorOperands(block.getTerminator(), regionIndex);
 
-                                if (successorOperands.hasValue()) {
-                                    const auto innerResults = successorOperands.getValue();
+                                if (successorOperands.has_value()) {
+                                    const auto innerResults = successorOperands.value();
                                     const auto outerResults = successor.getSuccessorInputs();
 
                                     VPUX_THROW_UNLESS(

@@ -13,12 +13,16 @@ def ELF_Dialect : Dialect {
     let name = "ELF";
 
     let cppNamespace = "::vpux::ELF";
+    
+    let extraClassDeclaration = [{
+        void registerTypes();
+        void registerAttributes();
+    }];
 
-    let dependentDialects = [
-      "vpux::IERT::IERTDialect",
-    ];
-
+    let useDefaultAttributePrinterParser = 1;
     let useDefaultTypePrinterParser = 1;
+
+    let emitAccessorPrefix = kEmitAccessorPrefix_Prefixed;
 }
 
 #endif

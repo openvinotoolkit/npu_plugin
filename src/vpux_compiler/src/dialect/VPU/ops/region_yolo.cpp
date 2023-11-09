@@ -4,6 +4,7 @@
 //
 
 #include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPU/utils/sw_utils.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 
@@ -52,17 +53,6 @@ mlir::LogicalResult vpux::VPU::RegionYoloOp::inferReturnTypes(mlir::MLIRContext*
     return mlir::success();
 }
 
-void vpux::VPU::RegionYoloOp::inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) {
-    auto regionYoloOp = mlir::dyn_cast<IE::RegionYoloOp>(origOp);
-    VPUX_THROW_UNLESS(regionYoloOp != nullptr, "Operation '{0}' is not a RegionYolo", origOp->getName());
-
-    if (regionYoloOp.do_softmax()) {
-        IE::fillDefaultLayoutInfo(info);
-    } else {
-        VPU::inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NCHW});
-    }
-}
-
 //
 // serialize
 //
@@ -74,7 +64,7 @@ EMU::BlobWriter::SpecificTask vpux::VPU::RegionYoloOp::serialize(EMU::BlobWriter
     MVCNN::RegionYOLOParamsBuilder builder(writer);
     builder.add_coords(checked_cast<int32_t>(coords()));
     builder.add_classes(checked_cast<int32_t>(classes()));
-    builder.add_num(checked_cast<int32_t>(regions()));
+    builder.add_num(checked_cast<int32_t>(num_regions()));
     builder.add_do_softmax(do_softmax());
     builder.add_mask(serializedMask);
 

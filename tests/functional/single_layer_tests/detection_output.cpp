@@ -1,6 +1,6 @@
 //
-// Copyright (C) 2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include <algorithm>
@@ -11,7 +11,7 @@
 #include <openvino/core/type/element_type.hpp>
 #include <ratio>
 #include <type_traits>
-#include <vpux_layer_test.hpp>
+#include <vpu_ov2_layer_test.hpp>
 
 #include "common/random_generator.hpp"
 #include "ngraph_functions/builders.hpp"
@@ -569,7 +569,7 @@ using MetaParams = std::tuple<NumDetectedClasses, NumDetectionsPerClass>;
 using DetectionOutputParams = std::tuple<NormalizationParams, TensorShapeParams, DetectionOutputAttributes,
                                          AdditionalInputsParams, MetaParams, Device>;
 
-class VPUXDetectionOutputLayerTest : public testing::WithParamInterface<DetectionOutputParams>, public VPUXLayerTest {
+class VPUXDetectionOutputLayerTest : public testing::WithParamInterface<DetectionOutputParams>, public VpuOv2LayerTest {
 public:
     void generate_inputs(const std::vector<ngraph::Shape>& inputShapes) override {
         const auto& funcInputs = function->inputs();
@@ -778,6 +778,7 @@ const auto normalizationParams = std::vector<NormalizationParams>{
 // NumClasses = {1, 20224}[1] / 10112 = 2
 //
 const auto tensorShapeParams = std::vector<TensorShapeParams>{
+        // face-detection-adas-0001
         {NumPriors(10112), NumClasses(2), NumBatches(1), PriorBatchSizeOne(true), BackgroundLabelId(0)},
 };
 
@@ -800,19 +801,155 @@ const auto additionalInputsParams = std::vector<AdditionalInputsParams>{
 const auto metaParams = std::vector<MetaParams>{{NumDetectedClasses(5), NumDetectionsPerClass(20)}};
 
 //
-// 3 Inputs tests
+// Platform test definition
 //
-
-const auto detectionOutputParams = ::testing::Combine(
-        ::testing::ValuesIn(normalizationParams), ::testing::ValuesIn(tensorShapeParams), detectionOutputAttributes,
-        ::testing::ValuesIn(additionalInputsParams), ::testing::ValuesIn(metaParams), ::testing::Values(targetDevice));
 
 TEST_P(VPUXDetectionOutputLayerTest, VPU3720_HW) {
     setDefaultHardwareMode();
     run(VPUXPlatform::VPU3720);
 }
 
-INSTANTIATE_TEST_SUITE_P(precommit_smoke_DetectionOutput, VPUXDetectionOutputLayerTest, detectionOutputParams,
+//
+// 3 Inputs tests, all permutations
+//
+
+const auto detectionOutputParams = ::testing::Combine(
+        ::testing::ValuesIn(normalizationParams), ::testing::ValuesIn(tensorShapeParams), detectionOutputAttributes,
+        ::testing::ValuesIn(additionalInputsParams), ::testing::ValuesIn(metaParams), ::testing::Values(targetDevice));
+
+INSTANTIATE_TEST_SUITE_P(smoke_DetectionOutput, VPUXDetectionOutputLayerTest, detectionOutputParams,
                          PrintTestCaseName());
+
+//
+// ssdlite_mobilenet_v2
+//
+
+const auto normalizedWithNonEncodedVariance =
+        NormalizationParams{Normalized(true), InputHeight(0), InputWidth(0), VarianceEncodedInTarget(false)};
+
+const auto ssdliteMobilenetV2ShapeParams = TensorShapeParams{NumPriors(1917), NumClasses(91), NumBatches(1),
+                                                             PriorBatchSizeOne(true), BackgroundLabelId(0)};
+
+const auto ssdliteMobilenetV2Attributes = ::testing::Combine(  //
+        ::testing::Values(ShareLocation(true)),                //
+        ::testing::Values(TopK(100)),                          //
+        ::testing::Values(KeepTopK(100)),                      //
+        ::testing::Values(CodeType(CodeType::CENTER_SIZE)),    //
+        ::testing::Values(NmsThreshold(0.6f)),                 //
+        ::testing::Values(ConfidenceThreshold(0.3f)),          //
+        ::testing::Values(ClipAfterNms(true)),                 //
+        ::testing::Values(ClipBeforeNms(false)),               //
+        ::testing::Values(DecreaseLabelId(false))              //
+);
+
+const auto ssdliteMobilenetV2Params = ::testing::Combine(
+        ::testing::Values(normalizedWithNonEncodedVariance), ::testing::Values(ssdliteMobilenetV2ShapeParams),
+        ssdliteMobilenetV2Attributes, ::testing::ValuesIn(additionalInputsParams), ::testing::ValuesIn(metaParams),
+        ::testing::Values(targetDevice));
+
+INSTANTIATE_TEST_SUITE_P(precommit_smoke_DetectionOutput_ssdlite_mobilenet_v2, VPUXDetectionOutputLayerTest,
+                         ssdliteMobilenetV2Params, PrintTestCaseName());
+
+//
+// efficientdet-d0
+//
+
+// [Track number: E#84757]
+#ifndef _WIN32
+const auto efficientdetD0ShapeParams = TensorShapeParams{NumPriors(49104), NumClasses(90), NumBatches(1),
+                                                         PriorBatchSizeOne(true), BackgroundLabelId(91)};
+
+const auto efficientdetD0Attributes = ::testing::Combine(    //
+        ::testing::Values(ShareLocation(true)),              //
+        ::testing::Values(TopK(100)),                        //
+        ::testing::Values(KeepTopK(100)),                    //
+        ::testing::Values(CodeType(CodeType::CENTER_SIZE)),  //
+        ::testing::Values(NmsThreshold(0.6f)),               //
+        ::testing::Values(ConfidenceThreshold(0.2f)),        //
+        ::testing::Values(ClipAfterNms(false)),              //
+        ::testing::Values(ClipBeforeNms(false)),             //
+        ::testing::Values(DecreaseLabelId(false))            //
+);
+
+const auto efficientdetD0Params = ::testing::Combine(
+        ::testing::Values(normalizedWithNonEncodedVariance), ::testing::Values(efficientdetD0ShapeParams),
+        efficientdetD0Attributes, ::testing::ValuesIn(additionalInputsParams), ::testing::ValuesIn(metaParams),
+        ::testing::Values(targetDevice));
+
+INSTANTIATE_TEST_SUITE_P(precommit_smoke_DetectionOutput_efficientdet_d0, VPUXDetectionOutputLayerTest,
+                         efficientdetD0Params, PrintTestCaseName());
+
+//
+// efficientdet-d1
+//
+
+const auto efficientdetD1ShapeParams = TensorShapeParams{NumPriors(76725), NumClasses(90), NumBatches(1),
+                                                         PriorBatchSizeOne(true), BackgroundLabelId(91)};
+
+const auto efficientdetD1Params = ::testing::Combine(
+        ::testing::Values(normalizedWithNonEncodedVariance), ::testing::Values(efficientdetD1ShapeParams),
+        efficientdetD0Attributes, ::testing::ValuesIn(additionalInputsParams), ::testing::ValuesIn(metaParams),
+        ::testing::Values(targetDevice));
+
+INSTANTIATE_TEST_SUITE_P(precommit_smoke_DetectionOutput_efficientdet_d1, VPUXDetectionOutputLayerTest,
+                         efficientdetD1Params, PrintTestCaseName());
+#endif
+
+//
+// faster_rcnn_inception_resnet_v2_atrous_oid_v4
+//
+
+const auto normalizedWithEncodedVariance =
+        NormalizationParams{Normalized(true), InputHeight(0), InputWidth(0), VarianceEncodedInTarget(true)};
+
+const auto fasterRcnnShapeParams = TensorShapeParams{NumPriors(100), NumClasses(602), NumBatches(1),
+                                                     PriorBatchSizeOne(true), BackgroundLabelId(0)};
+
+const auto fasterRcnnAttributes = ::testing::Combine(        //
+        ::testing::Values(ShareLocation(false)),             //
+        ::testing::Values(TopK(100)),                        //
+        ::testing::Values(KeepTopK(100)),                    //
+        ::testing::Values(CodeType(CodeType::CENTER_SIZE)),  //
+        ::testing::Values(NmsThreshold(0.6f)),               //
+        ::testing::Values(ConfidenceThreshold(0.3f)),        //
+        ::testing::Values(ClipAfterNms(false)),              //
+        ::testing::Values(ClipBeforeNms(true)),              //
+        ::testing::Values(DecreaseLabelId(false))            //
+);
+
+const auto fasterRcnnParams =
+        ::testing::Combine(::testing::Values(normalizedWithEncodedVariance), ::testing::Values(fasterRcnnShapeParams),
+                           fasterRcnnAttributes, ::testing::ValuesIn(additionalInputsParams),
+                           ::testing::ValuesIn(metaParams), ::testing::Values(targetDevice));
+
+INSTANTIATE_TEST_SUITE_P(precommit_smoke_DetectionOutput_faster_rcnn, VPUXDetectionOutputLayerTest, fasterRcnnParams,
+                         PrintTestCaseName());
+
+// ssd-resnet101-fpn-oid
+
+const auto ssdResnet101ShapeParams = TensorShapeParams{NumPriors(131040), NumClasses(602), NumBatches(1),
+                                                       PriorBatchSizeOne(true), BackgroundLabelId(0)};
+
+const auto ssdResnet101Attributes = ::testing::Combine(      //
+        ::testing::Values(ShareLocation(true)),              //
+        ::testing::Values(TopK(100)),                        //
+        ::testing::Values(KeepTopK(100)),                    //
+        ::testing::Values(CodeType(CodeType::CENTER_SIZE)),  //
+        ::testing::Values(NmsThreshold(0.6f)),               //
+        ::testing::Values(ConfidenceThreshold(0.3f)),        //
+        ::testing::Values(ClipAfterNms(true)),               //
+        ::testing::Values(ClipBeforeNms(false)),             //
+        ::testing::Values(DecreaseLabelId(false))            //
+);
+
+const auto ssdResnet101Params = ::testing::Combine(::testing::Values(normalizedWithNonEncodedVariance),
+                                                   ::testing::Values(ssdResnet101ShapeParams), ssdResnet101Attributes,
+                                                   ::testing::ValuesIn(additionalInputsParams),
+                                                   ::testing::ValuesIn(metaParams), ::testing::Values(targetDevice));
+
+// Unexpected application crash with code: 14
+// Inputs: {1, 524160}, {1, 78886080}, {1, 2, 524160}
+INSTANTIATE_TEST_SUITE_P(DISABLED_precommit_smoke_DetectionOutput_ssd_resnet101, VPUXDetectionOutputLayerTest,
+                         ssdResnet101Params, PrintTestCaseName());
 
 }  // namespace ov::test::subgraph

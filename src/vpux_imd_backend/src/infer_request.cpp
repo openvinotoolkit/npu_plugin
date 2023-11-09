@@ -24,7 +24,7 @@
 #include "vpux/al/config/runtime.hpp"
 
 #include <device_helpers.hpp>
-#include "vpux/utils/IE/blob.hpp"
+#include "vpux/utils/IE/data_attributes_check.hpp"
 #include "vpux/utils/IE/itt.hpp"
 #include "vpux/utils/IE/prefix.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
@@ -35,26 +35,25 @@
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Program.h>
 
-namespace IE = InferenceEngine;
-using namespace vpux;
+namespace ie = InferenceEngine;
 using namespace InferenceEngine;
 
-//------------------------------------------------------------------------------
-//      Helpers
-//------------------------------------------------------------------------------
-static void checkNetworkPrecision(const IE::Precision& precision) {
-    if (precision != IE::Precision::FP32 && precision != IE::Precision::FP16 && precision != IE::Precision::U8 &&
-        precision != IE::Precision::I8 && precision != IE::Precision::I32 && precision != IE::Precision::U32) {
+namespace vpux {
+
+namespace {
+void checkNetworkPrecision(const ie::Precision& precision) {
+    if (precision != ie::Precision::FP32 && precision != ie::Precision::FP16 && precision != ie::Precision::U8 &&
+        precision != ie::Precision::I8 && precision != ie::Precision::I32 && precision != ie::Precision::U32) {
         IE_THROW(ParameterMismatch) << "Unsupported input precision: " << precision
                                     << "! Supported precisions: FP32, FP16, U8, I8, I32, U32";
     }
 }
 
-static IE::Blob::Ptr allocateLocalBlob(const IE::TensorDesc& tensorDesc,
-                                       const std::shared_ptr<InferenceEngine::IAllocator>& allocator) {
+ie::Blob::Ptr allocateLocalBlob(const ie::TensorDesc& tensorDesc,
+                                const std::shared_ptr<InferenceEngine::IAllocator>& allocator) {
     checkNetworkPrecision(tensorDesc.getPrecision());
 
-    IE::Blob::Ptr blob;
+    ie::Blob::Ptr blob;
     if (allocator == nullptr) {
         blob = make_blob_with_precision(tensorDesc);
     } else {
@@ -66,12 +65,9 @@ static IE::Blob::Ptr allocateLocalBlob(const IE::TensorDesc& tensorDesc,
     blob->allocate();
     return blob;
 }
+}  // namespace
 
-//
-// createTempWorkDir
-//
-
-SmallString vpux::IMD::IMDInferRequest::createTempWorkDir() {
+SmallString IMD::IMDInferRequest::createTempWorkDir() {
     _logger.trace("Create unique temporary working directory...");
 
     SmallString workDir;
@@ -83,11 +79,7 @@ SmallString vpux::IMD::IMDInferRequest::createTempWorkDir() {
     return workDir;
 }
 
-//
-// storeNetworkBlob
-//
-
-void vpux::IMD::IMDInferRequest::storeNetworkBlob(StringRef workDir) {
+void IMD::IMDInferRequest::storeNetworkBlob(StringRef workDir) {
     _logger.trace("Store the network blob...");
 
     const auto& compiledBlob = static_cast<ExecutorImpl*>(_executorPtr.get())->getNetworkDesc().getCompiledNetwork();
@@ -101,45 +93,38 @@ void vpux::IMD::IMDInferRequest::storeNetworkBlob(StringRef workDir) {
     _logger.nest().trace("{0}", modelFilePath);
 }
 
-//
-// storeNetworkInputs
-//
-
-void vpux::IMD::IMDInferRequest::storeNetworkInputs(StringRef workDir, const BlobMap& inputs) {
+void IMD::IMDInferRequest::storeNetworkInputs(StringRef workDir, const BlobMap& inputs) {
     _logger.trace("Store the network inputs...");
 
-    const auto& deviceInputsInfo =
-            static_cast<ExecutorImpl*>(_executorPtr.get())->getNetworkDesc().getDeviceInputsInfo();
+    const auto& networkDescriptor = static_cast<ExecutorImpl*>(_executorPtr.get())->getNetworkDesc();
+    const auto& deviceInputsInfo = networkDescriptor.getDeviceInputsInfo();
 
-    for (const auto& p : inputs | indexed) {
+    for (const auto& p : deviceInputsInfo | indexed) {
         const auto& blobName = p.value().first;
+        const auto& inputData = inputs.at(blobName);
         const auto ind = p.index();
 
-        const auto& devInfo = deviceInputsInfo.at(blobName);
+        const TensorDesc& inputDataAttributes = inputData->getTensorDesc();
+        const TensorDesc& deviceDataAttributes = p.value().second->getTensorDesc();
+        checkDataAttributesMatch(inputDataAttributes, deviceDataAttributes);
 
-        const auto& userBlob = as<MemoryBlob>(p.value().second);
-        VPUX_THROW_UNLESS(userBlob != nullptr, "Got non MemoryBlob");
+        const auto& dataMemoryBlob = as<MemoryBlob>(inputData);
+        VPUX_THROW_UNLESS(dataMemoryBlob != nullptr, "Got non MemoryBlob");
 
-        const auto devBlob = toLayout(toPrecision(userBlob, devInfo->getPrecision()), devInfo->getLayout());
-
-        const auto mem = devBlob->rmap();
+        const auto mem = dataMemoryBlob->rmap();
         const auto ptr = mem.as<const char*>();
         VPUX_THROW_UNLESS(ptr != nullptr, "Blob was not allocated");
 
         const auto inputFilePath = printToString("{0}/input-{1}.bin", workDir, ind);
         std::ofstream file(inputFilePath, std::ios_base::binary | std::ios_base::out);
         VPUX_THROW_UNLESS(file.is_open(), "Can't open file '{0}' for write", inputFilePath);
-        file.write(ptr, devBlob->byteSize());
+        file.write(ptr, dataMemoryBlob->byteSize());
 
         _logger.nest().trace("{0} - {1}", blobName, inputFilePath);
     }
 }
 
-//
-// runApp
-//
-
-void vpux::IMD::IMDInferRequest::runApp(StringRef workDir) {
+void IMD::IMDInferRequest::runApp(StringRef workDir) {
     _logger.trace("Run the application...");
 
     SmallString curPath;
@@ -188,58 +173,64 @@ void vpux::IMD::IMDInferRequest::runApp(StringRef workDir) {
     VPUX_THROW_WHEN(procErr != 0, "Failed to run InferenceManagerDemo : {0}", errMsg);
 }
 
-//
-// loadNetworkOutputs
-//
+void IMD::IMDInferRequest::readFromFile(const std::string& path, const MemoryBlob::Ptr& dataMemoryBlob) {
+    const auto mem = dataMemoryBlob->rwmap();
+    const auto ptr = mem.as<char*>();
+    VPUX_THROW_UNLESS(ptr != nullptr, "Blob was not allocated");
 
-void vpux::IMD::IMDInferRequest::loadNetworkOutputs(StringRef workDir, const BlobMap& outputs) {
+    std::ifstream file(path, std::ios_base::binary | std::ios_base::ate);
+    VPUX_THROW_UNLESS(file.is_open(), "Can't open file '{0}' for reading", path);
+
+    const auto fileSize = static_cast<size_t>(file.tellg());
+    file.seekg(0, std::ios_base::beg);
+    VPUX_THROW_UNLESS(fileSize == dataMemoryBlob->byteSize(), "File '{0}' contains {1} bytes, but {2} expected", path,
+                      fileSize, dataMemoryBlob->byteSize());
+
+    file.read(ptr, static_cast<std::streamsize>(dataMemoryBlob->byteSize()));
+}
+
+void IMD::IMDInferRequest::loadNetworkOutputs(StringRef workDir, const BlobMap& outputs) {
     _logger.trace("Load the network outputs...");
 
-    const auto& deviceOutputsInfo =
-            static_cast<ExecutorImpl*>(_executorPtr.get())->getNetworkDesc().getDeviceOutputsInfo();
+    const auto& networkDescriptor = static_cast<ExecutorImpl*>(_executorPtr.get())->getNetworkDesc();
+    const auto& deviceOutputsInfo = networkDescriptor.getDeviceOutputsInfo();
 
-    for (const auto& p : outputs | indexed) {
+    for (const auto& p : deviceOutputsInfo | indexed) {
         const auto& blobName = p.value().first;
+        const auto& outputData = outputs.at(blobName);
         const auto ind = p.index();
 
-        const auto& devInfo = deviceOutputsInfo.at(blobName);
-
-        const auto devBlob = as<MemoryBlob>(make_blob_with_precision(devInfo->getTensorDesc()));
-        devBlob->allocate();
-
-        const auto mem = devBlob->wmap();
-        const auto ptr = mem.as<char*>();
-        VPUX_THROW_UNLESS(ptr != nullptr, "Blob was not allocated");
+        const TensorDesc& outputDataAttributes = outputData->getTensorDesc();
+        const TensorDesc& deviceDataAttributes = p.value().second->getTensorDesc();
+        checkDataAttributesMatch(outputDataAttributes, deviceDataAttributes);
 
         const auto outputFilePath = printToString("{0}/output-{1}.bin", workDir, ind);
-        std::ifstream file(outputFilePath, std::ios_base::binary | std::ios_base::ate);
-        VPUX_THROW_UNLESS(file.is_open(), "Can't open file '{0}' for READ", outputFilePath);
-
-        const auto fileSize = static_cast<size_t>(file.tellg());
-        file.seekg(0, std::ios_base::beg);
-        VPUX_THROW_UNLESS(fileSize == devBlob->byteSize(),
-                          "File '{0}' contains {1} bytes, but {2} expected for blob {3}", outputFilePath, fileSize,
-                          devBlob->byteSize(), blobName);
-
-        file.read(ptr, static_cast<std::streamsize>(devBlob->byteSize()));
-
-        const auto& userBlob = as<MemoryBlob>(p.value().second);
-        VPUX_THROW_UNLESS(userBlob != nullptr, "Got non MemoryBlob");
-
-        cvtBlobLayout(toPrecision(devBlob, userBlob->getTensorDesc().getPrecision()), userBlob);
+        const MemoryBlob::Ptr& dataMemoryBlob = as<MemoryBlob>(outputData);
+        readFromFile(outputFilePath, dataMemoryBlob);
 
         _logger.nest().trace("{0} - {1}", blobName, outputFilePath);
+    }
+
+    const auto& profOutputsInfo = networkDescriptor.getDeviceProfilingOutputsInfo();
+    if (profOutputsInfo.size()) {
+        _logger.warning("Load profiling output");
+        IE_ASSERT(profOutputsInfo.size() == 1);
+        const auto& devProfInfo = profOutputsInfo.begin()->second;
+        const auto& devProfMemoryBlob = as<MemoryBlob>(make_blob_with_precision(devProfInfo->getTensorDesc()));
+        devProfMemoryBlob->allocate();
+        readFromFile(printToString("{0}/profiling-0.bin", workDir), devProfMemoryBlob);
+        _rawProfilingData = devProfMemoryBlob;
     }
 }
 
 //------------------------------------------------------------------------------
-vpux::IMD::IMDInferRequest::IMDInferRequest(const IE::InputsDataMap& networkInputs,
-                                            const IE::OutputsDataMap& networkOutputs, const Executor::Ptr& executor,
-                                            const Config& config, const std::string& /*netName*/,
-                                            const std::vector<std::shared_ptr<const ov::Node>>& parameters,
-                                            const std::vector<std::shared_ptr<const ov::Node>>& results,
-                                            const vpux::DataMap& networkStatesInfo,
-                                            const std::shared_ptr<InferenceEngine::IAllocator>& allocator)
+IMD::IMDInferRequest::IMDInferRequest(const ie::InputsDataMap& networkInputs, const ie::OutputsDataMap& networkOutputs,
+                                      const Executor::Ptr& executor, const Config& config,
+                                      const std::string& /*netName*/,
+                                      const std::vector<std::shared_ptr<const ov::Node>>& parameters,
+                                      const std::vector<std::shared_ptr<const ov::Node>>& results,
+                                      const NetworkIOVector& networkStatesInfo,
+                                      const std::shared_ptr<InferenceEngine::IAllocator>& allocator)
         : IInferRequest(networkInputs, networkOutputs),
           _executorPtr(executor),
           _config(config),
@@ -255,20 +246,20 @@ vpux::IMD::IMDInferRequest::IMDInferRequest(const IE::InputsDataMap& networkInpu
 
     for (const auto& networkInput : _networkInputs) {
         const std::string& inputName = networkInput.first;
-        const IE::TensorDesc inputTensorDesc = networkInput.second->getTensorDesc();
+        const ie::TensorDesc inputTensorDesc = networkInput.second->getTensorDesc();
 
         _inputs[inputName] = allocateLocalBlob(inputTensorDesc, _allocator);
     }
 
     for (const auto& networkOutput : _networkOutputs) {
         const std::string& outputName = networkOutput.first;
-        const IE::TensorDesc outputTensorDesc = networkOutput.second->getTensorDesc();
+        const ie::TensorDesc outputTensorDesc = networkOutput.second->getTensorDesc();
 
         _outputs[outputName] = allocateLocalBlob(outputTensorDesc, _allocator);
     }
 }
 
-void vpux::IMD::IMDInferRequest::pull(const BlobMap& inputs, BlobMap& outputs) {
+void IMD::IMDInferRequest::pull(const BlobMap& inputs, BlobMap& outputs) {
     _logger.info("Run inference using InferenceManagerDemo application...");
     _logger = _logger.nest();
     VPUX_SCOPE_EXIT {
@@ -291,19 +282,28 @@ void vpux::IMD::IMDInferRequest::pull(const BlobMap& inputs, BlobMap& outputs) {
     loadNetworkOutputs(workDir.str(), outputs);
 }
 
-void vpux::IMD::IMDInferRequest::InferImpl() {
+void IMD::IMDInferRequest::InferImpl() {
     InferAsync();
     GetResult();
 }
 
-void vpux::IMD::IMDInferRequest::InferAsync() {
+void IMD::IMDInferRequest::InferAsync() {
     _logger.debug("InferRequest::InferAsync started");
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "InferAsync");
 
     execDataPreprocessing(_inputs);
 }
 
-std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> vpux::IMD::IMDInferRequest::QueryState() {
+IMD::LayerStatistics IMD::IMDInferRequest::GetPerformanceCounts() const {
+    const auto mem = _rawProfilingData->rmap();
+    const auto rawBytes = mem.as<const uint8_t*>();
+    IE_ASSERT(rawBytes != nullptr);
+    auto executorPtr = static_cast<ExecutorImpl*>(_executorPtr.get());
+    const auto& compiledBlob = executorPtr->getNetworkDesc().getCompiledNetwork();
+    return getLayerStatistics(rawBytes, _rawProfilingData->byteSize(), compiledBlob);
+}
+
+std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> IMD::IMDInferRequest::QueryState() {
     for (auto& stateInfo : _statesInfo) {
         const auto readValueName = READVALUE_PREFIX + stateInfo.first;
 
@@ -315,8 +315,10 @@ std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> vpux::IMD:
     return _states;
 }
 
-void vpux::IMD::IMDInferRequest::GetResult() {
+void IMD::IMDInferRequest::GetResult() {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "GetResult");
     pull(_inputs, _outputs);
     _logger.debug("InferRequest::GetResult finished");
 }
+
+}  // namespace vpux

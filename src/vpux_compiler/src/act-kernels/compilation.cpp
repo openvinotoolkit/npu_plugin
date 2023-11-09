@@ -31,10 +31,18 @@ flatbuffers::Offset<MVCNN::KernelData> buildKernelData(flatbuffers::FlatBufferBu
     return builder.Finish();
 }
 
-ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc, VPU::ArchKind /*archKind*/) {
+ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc, VPU::ArchKind archKind) {
     auto& kernelInfo = ShaveBinaryResources::getInstance();
 
-    const std::string cpu = "3720xx";
+    std::string cpu;
+
+    switch (archKind) {
+    case VPU::ArchKind::VPUX37XX:
+        cpu = "3720xx";
+        break;
+    default:
+        VPUX_THROW("Unsupported VPU arch type: '{0}'", archKind);
+    }
 
     auto textBinary = kernelInfo.getText(unitDesc.entry, cpu);
     auto dataBinary = kernelInfo.getData(unitDesc.entry, cpu);

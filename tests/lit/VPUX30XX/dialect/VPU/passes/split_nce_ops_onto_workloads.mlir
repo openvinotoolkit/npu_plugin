@@ -21,7 +21,7 @@ func.func @ConvRewriter(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>) -> tenso
     %2 = VPU.Copy(%wt) {out_mem_space = @CMX_NN} : tensor<16x1x1x4xsi32, {order = #NHWC}>
         -> tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NHWC}>
     %3 = VPU.NCE.Convolution(%0, %1, %2) {
-            pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             rawFilterShape = [16, 16, 1, 1],
             strides = [1, 1]
         } : tensor<1x16x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>,
@@ -45,13 +45,13 @@ func.func @ConvRewriter(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>) -> tenso
     // CHECK-SAME:      -> tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NHWC}>
 
     // CHECK:       [[VAL3:%.+]] = VPU.NCE.Convolution([[VAL0]], [[VAL1]], [[VAL2]]) {
-    // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+    // CHECK-SAME:      pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
     // CHECK-SAME:      strides = [1, 1]}
     // CHECK-SAME:      -> tensor<1x16x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:               DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 16, 4, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               DPU.Workload outOffsets [0, 0, 4, 0] outSizes [1, 16, 4, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 16, 4, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               DPU.Workload outOffsets [0, 0, 12, 0] outSizes [1, 16, 4, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
+    // CHECK:               DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 16, 4, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               DPU.Workload outOffsets [0, 0, 4, 0] outSizes [1, 16, 4, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 16, 4, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               DPU.Workload outOffsets [0, 0, 12, 0] outSizes [1, 16, 4, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
     // CHECK:           }
 
     // CHECK:       [[VAL4:%.+]] = VPU.Copy([[VAL3]])
@@ -84,7 +84,7 @@ func.func @DepthConvRewriter(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>) -> 
 
     %4 = VPU.NCE.DepthConvolution(%0, %1, %2, %3) {
             activation_window_channel_length = 44 : i64,
-            pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             rawFilterShape = [16, 1, 4, 8],
             strides = [1, 1]
         } -> tensor<1x16x37x73xf16, {mem_space = @CMX_NN, order = #NHWC}>
@@ -108,47 +108,47 @@ func.func @DepthConvRewriter(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>) -> 
     // CHECK-SAME:      -> tensor<1x1x1x16xui8, {mem_space = @CMX_NN, order = #NHWC}>
 
     // CHECK:       [[VAL4:%.+]] = VPU.NCE.DepthConvolution([[VAL0]], [[VAL1]], [[VAL2]], [[VAL3]]) {
-    // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+    // CHECK-SAME:      pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
     // CHECK-SAME:      strides = [1, 1]}
     // CHECK-SAME:      -> tensor<1x16x37x73xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 16, 2, 40] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 0, 40] outSizes [1, 16, 2, 33] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 2, 0] outSizes [1, 16, 2, 40] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 2, 40] outSizes [1, 16, 2, 33] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 4, 0] outSizes [1, 16, 2, 40] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 4, 40] outSizes [1, 16, 2, 33] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 6, 0] outSizes [1, 16, 2, 40] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 6, 40] outSizes [1, 16, 2, 33] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 16, 2, 40] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 8, 40] outSizes [1, 16, 2, 33] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 10, 0] outSizes [1, 16, 2, 40] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 10, 40] outSizes [1, 16, 2, 33] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 12, 0] outSizes [1, 16, 2, 40] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 12, 40] outSizes [1, 16, 2, 33] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 14, 0] outSizes [1, 16, 2, 40] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 14, 40] outSizes [1, 16, 2, 33] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 16, 0] outSizes [1, 16, 2, 40] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 16, 40] outSizes [1, 16, 2, 33] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 18, 0] outSizes [1, 16, 2, 40] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 18, 40] outSizes [1, 16, 2, 33] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 20, 0] outSizes [1, 16, 2, 40] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 20, 40] outSizes [1, 16, 2, 33] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 22, 0] outSizes [1, 16, 2, 40] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 22, 40] outSizes [1, 16, 2, 33] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 24, 0] outSizes [1, 16, 2, 40] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 24, 40] outSizes [1, 16, 2, 33] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 26, 0] outSizes [1, 16, 2, 40] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 26, 40] outSizes [1, 16, 2, 33] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 28, 0] outSizes [1, 16, 2, 40] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 28, 40] outSizes [1, 16, 2, 33] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 30, 0] outSizes [1, 16, 2, 40] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 30, 40] outSizes [1, 16, 2, 33] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 32, 0] outSizes [1, 16, 2, 40] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 32, 40] outSizes [1, 16, 2, 33] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 34, 0] outSizes [1, 16, 2, 40] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 34, 40] outSizes [1, 16, 2, 33] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 36, 0] outSizes [1, 16, 1, 40] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 36, 40] outSizes [1, 16, 1, 33] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 16, 2, 40] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 0, 40] outSizes [1, 16, 2, 33] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 2, 0] outSizes [1, 16, 2, 40] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 2, 40] outSizes [1, 16, 2, 33] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 4, 0] outSizes [1, 16, 2, 40] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 4, 40] outSizes [1, 16, 2, 33] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 6, 0] outSizes [1, 16, 2, 40] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 6, 40] outSizes [1, 16, 2, 33] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 16, 2, 40] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 8, 40] outSizes [1, 16, 2, 33] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 10, 0] outSizes [1, 16, 2, 40] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 10, 40] outSizes [1, 16, 2, 33] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 12, 0] outSizes [1, 16, 2, 40] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 12, 40] outSizes [1, 16, 2, 33] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 14, 0] outSizes [1, 16, 2, 40] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 14, 40] outSizes [1, 16, 2, 33] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 16, 0] outSizes [1, 16, 2, 40] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 16, 40] outSizes [1, 16, 2, 33] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 18, 0] outSizes [1, 16, 2, 40] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 18, 40] outSizes [1, 16, 2, 33] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 20, 0] outSizes [1, 16, 2, 40] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 20, 40] outSizes [1, 16, 2, 33] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 22, 0] outSizes [1, 16, 2, 40] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 22, 40] outSizes [1, 16, 2, 33] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 24, 0] outSizes [1, 16, 2, 40] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 24, 40] outSizes [1, 16, 2, 33] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 26, 0] outSizes [1, 16, 2, 40] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 26, 40] outSizes [1, 16, 2, 33] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 28, 0] outSizes [1, 16, 2, 40] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 28, 40] outSizes [1, 16, 2, 33] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 30, 0] outSizes [1, 16, 2, 40] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 30, 40] outSizes [1, 16, 2, 33] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 32, 0] outSizes [1, 16, 2, 40] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 32, 40] outSizes [1, 16, 2, 33] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 34, 0] outSizes [1, 16, 2, 40] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 34, 40] outSizes [1, 16, 2, 33] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 36, 0] outSizes [1, 16, 1, 40] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               VPU.DPU.Workload outOffsets [0, 0, 36, 40] outSizes [1, 16, 1, 33] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
     // CHECK:           }
 
     // CHECK:       [[VAL5:%.+]] = VPU.Copy([[VAL4]])
@@ -177,7 +177,7 @@ func.func @MaxPoolRewriter(%arg0: tensor<1x16x1x4xf16, {order = #NHWC}>) -> tens
 
     %3 = VPU.NCE.MaxPool(%0, %1, %2) {
             activation_window_channel_length = 4 : i64,
-            pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             strides = [1, 1],
             kernel_size = [1, 1]
         } -> tensor<1x16x1x4xf16, {mem_space = @CMX_NN, order = #NHWC}>
@@ -199,10 +199,10 @@ func.func @MaxPoolRewriter(%arg0: tensor<1x16x1x4xf16, {order = #NHWC}>) -> tens
 
     // CHECK:       [[VAL3:%.+]] = VPU.NCE.MaxPool([[VAL0]], [[VAL1]], [[VAL2]]) {
     // CHECK-SAME:      kernel_size = [1, 1],
-    // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+    // CHECK-SAME:      pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
     // CHECK-SAME:      strides = [1, 1]}
     // CHECK-SAME:      -> tensor<1x16x1x4xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:               DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 16, 1, 4] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
+    // CHECK:               DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 16, 1, 4] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
     // CHECK:           }
 
     // CHECK:       [[VAL4:%.+]] = VPU.Copy([[VAL3]])
@@ -223,7 +223,7 @@ func.func @EltwiseAddRewriter(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>, %a
     %1 = VPU.Copy(%arg1) {out_mem_space = @CMX_NN} : tensor<1x64x28x28xf16, {order = #NHWC}>
         -> tensor<1x64x28x28xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
-    %2 = VPU.NCE.Eltwise(%0, %1) { op_type = "ADD" } :
+    %2 = VPU.NCE.Eltwise(%0, %1) { op_type = #VPU.eltwise_type<ADD> } :
         tensor<1x64x28x28xf16, {mem_space = @CMX_NN, order = #NHWC}>, tensor<1x64x28x28xf16, {mem_space = @CMX_NN, order = #NHWC}>
         -> tensor<1x64x28x28xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
@@ -239,11 +239,11 @@ func.func @EltwiseAddRewriter(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>, %a
 
     // CHECK:       [[VAL2:%.+]] = VPU.NCE.Eltwise([[VAL0]], [[VAL1]])
     // CHECK-SAME:      -> tensor<1x64x28x28xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:               DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 6, 28] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               DPU.Workload outOffsets [0, 0, 6, 0] outSizes [1, 64, 6, 28] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               DPU.Workload outOffsets [0, 0, 12, 0] outSizes [1, 64, 6, 28] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               DPU.Workload outOffsets [0, 0, 18, 0] outSizes [1, 64, 5, 28] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               DPU.Workload outOffsets [0, 0, 23, 0] outSizes [1, 64, 5, 28] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
+    // CHECK:               DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 6, 28] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               DPU.Workload outOffsets [0, 0, 6, 0] outSizes [1, 64, 6, 28] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               DPU.Workload outOffsets [0, 0, 12, 0] outSizes [1, 64, 6, 28] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               DPU.Workload outOffsets [0, 0, 18, 0] outSizes [1, 64, 5, 28] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
+    // CHECK:               DPU.Workload outOffsets [0, 0, 23, 0] outSizes [1, 64, 5, 28] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
     // CHECK:           }
 
     // CHECK:       [[VAL3:%.+]] = VPU.Copy([[VAL2]])
@@ -262,7 +262,7 @@ func.func @EltwiseAddRewriter(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>, %a
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 4, 1],
     kernel = [3, 3],
-    pads = {bottom = 1, left = 1, right = 1, top = 1},
+    pads = #VPU.Padding<left = 1 , right = 1, top = 1, bottom = 1>,
     strides = [1, 1],
     num_clusters = 4
 }>
@@ -323,7 +323,7 @@ func.func @ConvolutionWithDistributedTensor(%arg0: !Input_DDR) -> !Output_DDR {
               -> !OutputDistributed {
         // Generate different workloads due to different pads on each cluster
         %0 = VPU.NCE.Convolution(%arg1, %arg2, %arg3) {
-                pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+                pad = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>,
                 rawFilterShape = [64, 32, 3, 3],
                 strides = [1, 1]
             } -> !OutputStub_CMX
@@ -339,7 +339,7 @@ func.func @ConvolutionWithDistributedTensor(%arg0: !Input_DDR) -> !Output_DDR {
     //CHECK:        [[WEIGHTS:%.*]] = const.Declare tensor<64x32x3x3xf16, {mem_space = @DDR, order = #NHWC}> = dense<1.000000e+00> : tensor<64x32x3x3xf16, {mem_space = @DDR}>, [#const.Reorder<#NHWC>]
     //CHECK:        [[WEIGHTS_TABLE:%.*]] = const.Declare tensor<64x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
 
-    //CHECK:        [[INPUT_CMX:%.*]] = VPU.NCE.ClusterTiling (%arg0 as %arg1: tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}>) -> !VPU.DistributedTensor<1x32x16x16xf16, #NHWC, @CMX_NN, {mode = "OVERLAPPED", num_tiles = [1, 1, 4, 1], kernel = [3, 3], pads = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, strides = [1, 1], num_clusters = 4 : i64}> {
+    //CHECK:        [[INPUT_CMX:%.*]] = VPU.NCE.ClusterTiling (%arg0 as %arg1: tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}>) -> !VPU.DistributedTensor<1x32x16x16xf16, #NHWC, @CMX_NN, {mode = "OVERLAPPED", num_tiles = [1, 1, 4, 1], kernel = [3, 3], pads = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>, strides = [1, 1], num_clusters = 4 : i64}> {
     //CHECK:            [[RES0:%.*]] = VPU.Copy(%arg1) {out_mem_space = @CMX_NN} : tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}> -> tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
     //CHECK:            VPU.Yield [[RES0]]
     //CHECK:        }
@@ -360,25 +360,25 @@ func.func @ConvolutionWithDistributedTensor(%arg0: !Input_DDR) -> !Output_DDR {
     //CHECK-SAME:             [[WEIGHTS_TABLE_CMX]] as %arg3: tensor<64x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>)
     //CHECK-SAME:             -> !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 4, 1], num_clusters = 4 : i64}> {
     //CHECK:                [[RES4:%.*]] = VPU.NCE.Convolution(%arg1, %arg2, %arg3)
-    //CHECK-SAME:                            pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+    //CHECK-SAME:                            pad = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>,
     //CHECK-SAME:                            strides = [1, 1]
     //CHECK-SAME:             } -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
-    //CHECK:                    VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 16, 4, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64} "VECTOR_FP16" attributes {cluster_id = 0 : i64}
-    //CHECK:                    VPU.DPU.Workload outOffsets [0, 16, 0, 0] outSizes [1, 16, 4, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64} "VECTOR_FP16" attributes {cluster_id = 0 : i64}
-    //CHECK:                    VPU.DPU.Workload outOffsets [0, 32, 0, 0] outSizes [1, 16, 4, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64} "VECTOR_FP16" attributes {cluster_id = 0 : i64}
-    //CHECK:                    VPU.DPU.Workload outOffsets [0, 48, 0, 0] outSizes [1, 16, 4, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64} "VECTOR_FP16" attributes {cluster_id = 0 : i64}
-    //CHECK:                    VPU.DPU.Workload outOffsets [0, 0, 4, 0] outSizes [1, 16, 4, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 1 : i64}
-    //CHECK:                    VPU.DPU.Workload outOffsets [0, 16, 4, 0] outSizes [1, 16, 4, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 1 : i64}
-    //CHECK:                    VPU.DPU.Workload outOffsets [0, 32, 4, 0] outSizes [1, 16, 4, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 1 : i64}
-    //CHECK:                    VPU.DPU.Workload outOffsets [0, 48, 4, 0] outSizes [1, 16, 4, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 1 : i64}
-    //CHECK:                    VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 16, 4, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 2 : i64}
-    //CHECK:                    VPU.DPU.Workload outOffsets [0, 16, 8, 0] outSizes [1, 16, 4, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 2 : i64}
-    //CHECK:                    VPU.DPU.Workload outOffsets [0, 32, 8, 0] outSizes [1, 16, 4, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 2 : i64}
-    //CHECK:                    VPU.DPU.Workload outOffsets [0, 48, 8, 0] outSizes [1, 16, 4, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 2 : i64}
-    //CHECK:                    VPU.DPU.Workload outOffsets [0, 0, 12, 0] outSizes [1, 16, 4, 16] {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 3 : i64}
-    //CHECK:                    VPU.DPU.Workload outOffsets [0, 16, 12, 0] outSizes [1, 16, 4, 16] {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 3 : i64}
-    //CHECK:                    VPU.DPU.Workload outOffsets [0, 32, 12, 0] outSizes [1, 16, 4, 16] {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 3 : i64}
-    //CHECK:                    VPU.DPU.Workload outOffsets [0, 48, 12, 0] outSizes [1, 16, 4, 16] {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 3 : i64}
+    //CHECK:                    VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 16, 4, 16] <left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 0 : i64> <VECTOR_FP16> attributes {cluster_id = 0 : i64}
+    //CHECK:                    VPU.DPU.Workload outOffsets [0, 16, 0, 0] outSizes [1, 16, 4, 16] <left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 0 : i64> <VECTOR_FP16> attributes {cluster_id = 0 : i64}
+    //CHECK:                    VPU.DPU.Workload outOffsets [0, 32, 0, 0] outSizes [1, 16, 4, 16] <left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 0 : i64> <VECTOR_FP16> attributes {cluster_id = 0 : i64}
+    //CHECK:                    VPU.DPU.Workload outOffsets [0, 48, 0, 0] outSizes [1, 16, 4, 16] <left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 0 : i64> <VECTOR_FP16> attributes {cluster_id = 0 : i64}
+    //CHECK:                    VPU.DPU.Workload outOffsets [0, 0, 4, 0] outSizes [1, 16, 4, 16] <left = 1 : i64, right = 1 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16> attributes {cluster_id = 1 : i64}
+    //CHECK:                    VPU.DPU.Workload outOffsets [0, 16, 4, 0] outSizes [1, 16, 4, 16] <left = 1 : i64, right = 1 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16> attributes {cluster_id = 1 : i64}
+    //CHECK:                    VPU.DPU.Workload outOffsets [0, 32, 4, 0] outSizes [1, 16, 4, 16] <left = 1 : i64, right = 1 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16> attributes {cluster_id = 1 : i64}
+    //CHECK:                    VPU.DPU.Workload outOffsets [0, 48, 4, 0] outSizes [1, 16, 4, 16] <left = 1 : i64, right = 1 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16> attributes {cluster_id = 1 : i64}
+    //CHECK:                    VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 16, 4, 16] <left = 1 : i64, right = 1 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16> attributes {cluster_id = 2 : i64}
+    //CHECK:                    VPU.DPU.Workload outOffsets [0, 16, 8, 0] outSizes [1, 16, 4, 16] <left = 1 : i64, right = 1 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16> attributes {cluster_id = 2 : i64}
+    //CHECK:                    VPU.DPU.Workload outOffsets [0, 32, 8, 0] outSizes [1, 16, 4, 16] <left = 1 : i64, right = 1 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16> attributes {cluster_id = 2 : i64}
+    //CHECK:                    VPU.DPU.Workload outOffsets [0, 48, 8, 0] outSizes [1, 16, 4, 16] <left = 1 : i64, right = 1 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16> attributes {cluster_id = 2 : i64}
+    //CHECK:                    VPU.DPU.Workload outOffsets [0, 0, 12, 0] outSizes [1, 16, 4, 16] <left = 1 : i64, right = 1 : i64, top = 0 : i64, bottom = 1 : i64> <VECTOR_FP16> attributes {cluster_id = 3 : i64}
+    //CHECK:                    VPU.DPU.Workload outOffsets [0, 16, 12, 0] outSizes [1, 16, 4, 16] <left = 1 : i64, right = 1 : i64, top = 0 : i64, bottom = 1 : i64> <VECTOR_FP16> attributes {cluster_id = 3 : i64}
+    //CHECK:                    VPU.DPU.Workload outOffsets [0, 32, 12, 0] outSizes [1, 16, 4, 16] <left = 1 : i64, right = 1 : i64, top = 0 : i64, bottom = 1 : i64> <VECTOR_FP16> attributes {cluster_id = 3 : i64}
+    //CHECK:                    VPU.DPU.Workload outOffsets [0, 48, 12, 0] outSizes [1, 16, 4, 16] <left = 1 : i64, right = 1 : i64, top = 0 : i64, bottom = 1 : i64> <VECTOR_FP16> attributes {cluster_id = 3 : i64}
     //CHECK:            VPU.Yield [[RES4]]
     //CHECK:        }
 
@@ -407,7 +407,7 @@ func.func @ConvWithMixedPrecision(%arg0: tensor<1x16x1x1x!qElemType, {order = #N
     %2 = VPU.Copy(%wt) {out_mem_space = @CMX_NN} : tensor<16x1x1x4xsi32, {order = #NHWC}>
         -> tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NHWC}>
     %3 = VPU.NCE.Convolution(%0, %1, %2) {
-            pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             rawFilterShape = [16, 16, 1, 1],
             strides = [1, 1]
         } : tensor<1x16x1x1x!qElemType, {mem_space = @CMX_NN, order = #NHWC}>,
@@ -431,10 +431,10 @@ func.func @ConvWithMixedPrecision(%arg0: tensor<1x16x1x1x!qElemType, {order = #N
     // CHECK-SAME:      -> tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NHWC}>
 
     // CHECK:       [[VAL3:%.+]] = VPU.NCE.Convolution([[VAL0]], [[VAL1]], [[VAL2]]) {
-    // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+    // CHECK-SAME:      pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
     // CHECK-SAME:      strides = [1, 1]}
     // CHECK-SAME:      -> tensor<1x16x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:               DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 16, 1, 1] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
+    // CHECK:               DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 16, 1, 1] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <VECTOR_FP16>
     // CHECK:           }
     // CHECK:       [[VAL4:%.+]] = VPU.Copy([[VAL3]])
     // CHECK-SAME:      -> tensor<1x16x1x1xf16, {order = #NHWC}>

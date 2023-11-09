@@ -19,7 +19,7 @@ func.func @ParsePrintClusterTiling(%arg0: tensor<1x32x16x16xf16, {mem_space = @C
             %wt as %arg3: tensor<64x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>)
                 -> tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}> {
       %1 = VPU.NCE.Convolution(%arg1, %arg2, %arg3) {
-                pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+                pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
                 rawFilterShape = [64, 32, 3, 3],
                 strides = [1, 1]
             } -> tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}>
@@ -37,7 +37,7 @@ func.func @ParsePrintClusterTiling(%arg0: tensor<1x32x16x16xf16, {mem_space = @C
     //CHECK-SAME:                   [[CST0]] as %arg3: tensor<64x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>)
     //CHECK-SAME:                   -> tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}> {
     //CHECK:                [[VAL1:%.*]] = VPU.NCE.Convolution(%arg1, %arg2, %arg3)
-    //CHECK-SAME:                            pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+    //CHECK-SAME:                            pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
     //CHECK-SAME:                            strides = [1, 1]
     //CHECK-SAME:                } -> tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}>
     //CHECK:                VPU.Yield [[VAL1]]
@@ -56,7 +56,7 @@ func.func @ParsePrintClusterTiling(%arg0: tensor<1x32x16x16xf16, {mem_space = @C
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 4, 1],
     kernel = [3, 3],
-    pads = {bottom = 1, left = 1, right = 1, top = 1},
+    pads = #VPU.Padding<left = 1 , right = 1, top = 1, bottom = 1>,
     strides = [1, 1],
     num_clusters = 4
 }>
@@ -115,7 +115,7 @@ func.func @ParsePrintDistributedTensor(%arg0: !Input_DDR) -> !Output_DDR {
               %wt_cmx as %arg3: !WeightsTableStub_CMX)
               -> !OutputDistributed {
         %0 = VPU.NCE.Convolution(%arg1, %arg2, %arg3) {
-                  pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+                  pad = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>,
                   rawFilterShape = [64, 32, 3, 3],
                   strides = [1, 1]
               } -> !OutputStub_CMX
@@ -132,7 +132,7 @@ func.func @ParsePrintDistributedTensor(%arg0: !Input_DDR) -> !Output_DDR {
     //CHECK-DAG:        [[WEIGHTS_TABLE:%.*]] = const.Declare tensor<64x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
     //CHECK-DAG:        [[WEIGHTS:%.*]] = const.Declare tensor<64x32x3x3xf16, {mem_space = @DDR, order = #NHWC}> = dense<1.000000e+00> : tensor<64x32x3x3xf16, {mem_space = @DDR}>, [#const.Reorder<#NHWC>]
 
-    //CHECK:        [[INPUT_CMX:%.*]] = VPU.NCE.ClusterTiling (%arg0 as %arg1: tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}>) -> !VPU.DistributedTensor<1x32x16x16xf16, #NHWC, @CMX_NN, {mode = "OVERLAPPED", num_tiles = [1, 1, 4, 1], kernel = [3, 3], pads = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, strides = [1, 1], num_clusters = 4 : i64}> {
+    //CHECK:        [[INPUT_CMX:%.*]] = VPU.NCE.ClusterTiling (%arg0 as %arg1: tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}>) -> !VPU.DistributedTensor<1x32x16x16xf16, #NHWC, @CMX_NN, {mode = "OVERLAPPED", num_tiles = [1, 1, 4, 1], kernel = [3, 3], pads = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>, strides = [1, 1], num_clusters = 4 : i64}> {
     //CHECK:            [[RES0:%.*]] = VPU.Copy(%arg1) {out_mem_space = @CMX_NN} : tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}> -> tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
     //CHECK:            VPU.Yield [[RES0]]
     //CHECK:        }
@@ -153,7 +153,7 @@ func.func @ParsePrintDistributedTensor(%arg0: !Input_DDR) -> !Output_DDR {
     //CHECK-SAME:             [[WEIGHTS_TABLE_CMX]] as %arg3: tensor<64x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>)
     //CHECK-SAME:             -> !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 4, 1], num_clusters = 4 : i64}> {
     //CHECK:                [[RES4:%.*]] = VPU.NCE.Convolution(%arg1, %arg2, %arg3)
-    //CHECK-SAME:                            pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+    //CHECK-SAME:                            pad = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>,
     //CHECK-SAME:                            strides = [1, 1]
     //CHECK-SAME:             } -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
     //CHECK:            VPU.Yield [[RES4]]
@@ -405,7 +405,7 @@ func.func @DontEraseSOKtoSOHCopySequence(%arg0: !CopyOutTensorDistributed) -> !C
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 4, 1],
     kernel = [3, 3],
-    pads = {bottom = 1, left = 1, right = 1, top = 1},
+    pads = #VPU.Padding<left = 1 , right = 1, top = 1, bottom = 1>,
     num_clusters = 4,
     strides = [1, 1]
 }>
@@ -496,7 +496,7 @@ func.func @CanonicalizeTwoConvs(%arg0: !Input_DDR) -> !Output_DDR {
               %weights_first_cmx as %arg2: !WeightsFirstStub_CMX,
               %wt_first_cmx as %arg3: !WeightsTableFirstStub_CMX) -> !IntermediateDistributed {
         %0 = VPU.NCE.Convolution(%arg1, %arg2, %arg3) {
-                  pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+                  pad = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>,
                   rawFilterShape = [64, 32, 3, 3],
                   strides = [1, 1]
               } -> !IntermediateStub_CMX
@@ -532,7 +532,7 @@ func.func @CanonicalizeTwoConvs(%arg0: !Input_DDR) -> !Output_DDR {
               %weights_second_cmx as %arg2: !WeightsSecondStub_CMX,
               %wt_second_cmx as %arg3: !WeightsTableSecondStub_CMX) -> !OutputDistributed {
         %0 = VPU.NCE.Convolution(%arg1, %arg2, %arg3) {
-                  pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+                  pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
                   rawFilterShape = [16, 64, 1, 1],
                   strides = [1, 1]
               } -> !OutputStub_CMX

@@ -73,10 +73,9 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           mlir::IntegerAttr output_se_size, mlir::UnitAttr isPermuteQuantize) {
     build(builder, state, output_buff.getType(), nullptr, nullptr, input, nullptr, nullptr, weights, nullptr,
           weight_table, instruction_list_table, activation_window, parent_input, nullptr, nullptr, parent_output,
-          nullptr, output_buff, nullptr, nullptr, task_type, kernel_size, kernel_strides,
-          kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern, is_segmented,
-          out_channel_offset, input_channels_compression, is_superdense, is_inplace, input_se_size, output_se_size,
-          isPermuteQuantize);
+          nullptr, output_buff, nullptr, nullptr, task_type, kernel_size, kernel_strides, kernel_padding,
+          activation_window_channel_length, is_continued, cm_sp_pattern, is_segmented, out_channel_offset,
+          input_channels_compression, is_superdense, is_inplace, input_se_size, output_se_size, isPermuteQuantize);
 }
 
 void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type output,
@@ -110,10 +109,10 @@ void vpux::VPUIP::NCEClusterTaskOp::build(
         mlir::UnitAttr isPermuteQuantize) {
     build(builder, state, output_buff.getType(), nullptr, profiling_data ? profiling_data.getType() : nullptr, input,
           nullptr, nullptr, weights, nullptr, weight_table, instruction_list_table, activation_window, parent_input,
-          nullptr, nullptr, parent_output, nullptr, output_buff, nullptr, profiling_data, task_type,
-          kernel_size, kernel_strides, kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern,
-          is_segmented, out_channel_offset, input_channels_compression, is_superdense, is_inplace, input_se_size,
-          output_se_size, isPermuteQuantize);
+          nullptr, nullptr, parent_output, nullptr, output_buff, nullptr, profiling_data, task_type, kernel_size,
+          kernel_strides, kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern, is_segmented,
+          out_channel_offset, input_channels_compression, is_superdense, is_inplace, input_se_size, output_se_size,
+          isPermuteQuantize);
 }
 
 void vpux::VPUIP::NCEClusterTaskOp::build(
@@ -128,10 +127,9 @@ void vpux::VPUIP::NCEClusterTaskOp::build(
         mlir::IntegerAttr input_se_size, mlir::IntegerAttr output_se_size, mlir::UnitAttr isPermuteQuantize) {
     build(builder, state, output, nullptr, profiling_output, input, nullptr, nullptr, weights, nullptr, weight_table,
           instruction_list_table, activation_window, parent_input, nullptr, nullptr, parent_output, nullptr,
-          output_buff, nullptr, profiling_data, task_type, kernel_size, kernel_strides,
-          kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern, is_segmented,
-          out_channel_offset, input_channels_compression, is_superdense, is_inplace, input_se_size, output_se_size,
-          isPermuteQuantize);
+          output_buff, nullptr, profiling_data, task_type, kernel_size, kernel_strides, kernel_padding,
+          activation_window_channel_length, is_continued, cm_sp_pattern, is_segmented, out_channel_offset,
+          input_channels_compression, is_superdense, is_inplace, input_se_size, output_se_size, isPermuteQuantize);
 }
 
 void vpux::VPUIP::NCEClusterTaskOp::build(
@@ -151,10 +149,9 @@ void vpux::VPUIP::NCEClusterTaskOp::build(
           profiling_data ? profiling_data.getType() : nullptr, input, input_sparsity_map, input_storage_element_table,
           weights, weights_sparsity_map, weight_table, instruction_list_table, activation_window, parent_input,
           parent_input_sparsity_map, parent_input_storage_element_table, parent_output, parent_output_sparsity_map,
-          output_buff, output_sparsity_map_buff, profiling_data, task_type, kernel_size,
-          kernel_strides, kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern, is_segmented,
-          out_channel_offset, input_channels_compression, is_superdense, is_inplace, input_se_size, output_se_size,
-          isPermuteQuantize);
+          output_buff, output_sparsity_map_buff, profiling_data, task_type, kernel_size, kernel_strides, kernel_padding,
+          activation_window_channel_length, is_continued, cm_sp_pattern, is_segmented, out_channel_offset,
+          input_channels_compression, is_superdense, is_inplace, input_se_size, output_se_size, isPermuteQuantize);
 }
 
 void vpux::VPUIP::NCEClusterTaskOp::build(
@@ -163,14 +160,13 @@ void vpux::VPUIP::NCEClusterTaskOp::build(
         mlir::Value input_storage_element_table, mlir::Value weights, mlir::Value weights_sparsity_map,
         mlir::Value weight_table, mlir::Value instruction_list_table, mlir::Value activation_window,
         mlir::Value parent_input, mlir::Value parent_input_sparsity_map, mlir::Value parent_input_storage_element_table,
-        mlir::Value parent_output, mlir::Value parent_output_sparsity_map,
-        mlir::Value output_buff, mlir::Value output_sparsity_map_buff, mlir::Value profiling_data,
-        vpux::VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size, mlir::ArrayAttr kernel_strides,
-        vpux::VPU::PaddingAttr kernel_padding, mlir::IntegerAttr activation_window_channel_length,
-        mlir::UnitAttr is_continued, mlir::IntegerAttr cm_sp_pattern, mlir::UnitAttr is_segmented,
-        mlir::IntegerAttr out_channel_offset, mlir::UnitAttr input_channels_compression, mlir::UnitAttr is_superdense,
-        mlir::BoolAttr is_inplace, mlir::IntegerAttr input_se_size, mlir::IntegerAttr output_se_size,
-        mlir::UnitAttr isPermuteQuantize) {
+        mlir::Value parent_output, mlir::Value parent_output_sparsity_map, mlir::Value output_buff,
+        mlir::Value output_sparsity_map_buff, mlir::Value profiling_data, vpux::VPUIP::NCETaskType task_type,
+        mlir::ArrayAttr kernel_size, mlir::ArrayAttr kernel_strides, vpux::VPU::PaddingAttr kernel_padding,
+        mlir::IntegerAttr activation_window_channel_length, mlir::UnitAttr is_continued,
+        mlir::IntegerAttr cm_sp_pattern, mlir::UnitAttr is_segmented, mlir::IntegerAttr out_channel_offset,
+        mlir::UnitAttr input_channels_compression, mlir::UnitAttr is_superdense, mlir::BoolAttr is_inplace,
+        mlir::IntegerAttr input_se_size, mlir::IntegerAttr output_se_size, mlir::UnitAttr isPermuteQuantize) {
     state.addOperands(input);
     if (input_sparsity_map)
         state.addOperands(input_sparsity_map);
@@ -205,8 +201,8 @@ void vpux::VPUIP::NCEClusterTaskOp::build(
                                       (weights ? 1 : 0), (weights_sparsity_map ? 1 : 0), (weight_table ? 1 : 0),
                                       (instruction_list_table ? 1 : 0), (activation_window ? 1 : 0), 1,
                                       (parent_input_sparsity_map ? 1 : 0), (parent_input_storage_element_table ? 1 : 0),
-                                      1, (parent_output_sparsity_map ? 1 : 0), 1,
-                                      (output_sparsity_map_buff ? 1 : 0), (profiling_data ? 1 : 0)}));
+                                      1, (parent_output_sparsity_map ? 1 : 0), 1, (output_sparsity_map_buff ? 1 : 0),
+                                      (profiling_data ? 1 : 0)}));
     state.addAttribute(result_segment_sizesAttrName(state.name),
                        builder.getI32VectorAttr({1, (output_sparsity_map ? 1 : 0), (profiling_output ? 1 : 0)}));
     state.addAttribute(task_typeAttrName(state.name),
@@ -306,59 +302,6 @@ int64_t vpux::VPUIP::NCEClusterTaskOp::getNumVariants() {
 }
 
 //
-// NCEClusterTaskOp::inferLayoutInfo
-//
-
-void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) {
-    llvm::TypeSwitch<mlir::Operation*, void>(origOp)
-            .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp convOp) {
-                const auto arch = VPU::getArch(convOp);
-
-                const auto canUseCMajor = VPU::NCEInvariant::isChannelMajorCompatible(
-                        arch, convOp.input().getType().cast<vpux::NDTypeInterface>());
-
-                if (info.getInput(0) == DimsOrder::NCHW && canUseCMajor) {
-                    info.setInput(0, DimsOrder::NCHW);
-                } else {
-                    info.setInput(0, DimsOrder::NHWC);
-                }
-
-                info.setInput(1, DimsOrder::OYXI);
-
-                info.setOutput(0, DimsOrder::NHWC);
-            })
-            .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp) {
-                info.setInput(0, DimsOrder::NHWC);
-                info.setInput(1, DimsOrder::OYXI);
-                info.setOutput(0, DimsOrder::NHWC);
-            })
-            .Case<IE::MaxPoolOp>([&](IE::MaxPoolOp) {
-                info.fill(DimsOrder::NHWC);
-            })
-            .Case<IE::AvgPoolOp>([&](IE::AvgPoolOp) {
-                info.fill(DimsOrder::NHWC);
-            })
-            .Case<IE::AddOp>([&](IE::AddOp) {
-                info.fill(DimsOrder::NHWC);
-            })
-            .Case<IE::MultiplyOp>([&](IE::MultiplyOp) {
-                info.fill(DimsOrder::NHWC);
-            })
-            .Case<IE::SubtractOp>([&](IE::SubtractOp) {
-                info.fill(DimsOrder::NHWC);
-            })
-            .Case<IE::AndOp>([&](IE::AndOp) {
-                info.fill(DimsOrder::NHWC);
-            })
-            .Case<IE::InterpolateOp>([&](IE::InterpolateOp) {
-                info.fill(DimsOrder::NHWC);
-            })
-            .Default([](mlir::Operation* unknownOp) {
-                VPUX_THROW("Operation '{0}' is not supported by the DPU", unknownOp->getName());
-            });
-}
-
-//
 // NCEClusterTaskOp::inferReturnTypes
 //
 
@@ -433,10 +376,10 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op, VPU::ArchKind arch
     const auto SX = kernelStrides[1];
 
     const auto kernelPadding = op.kernel_paddingAttr();
-    const auto padLeft = kernelPadding.left().getInt();
-    const auto padRight = kernelPadding.right().getInt();
-    const auto padTop = kernelPadding.top().getInt();
-    const auto padBottom = kernelPadding.bottom().getInt();
+    const auto padLeft = kernelPadding.getLeft().getInt();
+    const auto padRight = kernelPadding.getRight().getInt();
+    const auto padTop = kernelPadding.getTop().getInt();
+    const auto padBottom = kernelPadding.getBottom().getInt();
 
     if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft,
                                                        padRight, arch))) {
@@ -511,10 +454,10 @@ mlir::LogicalResult verifyNCEPool(VPUIP::NCEClusterTaskOp op, VPU::ArchKind arch
     const auto SX = kernelStrides[1];
 
     const auto kernelPadding = op.kernel_paddingAttr();
-    const auto padLeft = kernelPadding.left().getInt();
-    const auto padRight = kernelPadding.right().getInt();
-    const auto padTop = kernelPadding.top().getInt();
-    const auto padBottom = kernelPadding.bottom().getInt();
+    const auto padLeft = kernelPadding.getLeft().getInt();
+    const auto padRight = kernelPadding.getRight().getInt();
+    const auto padTop = kernelPadding.getTop().getInt();
+    const auto padBottom = kernelPadding.getBottom().getInt();
 
     if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft,
                                                        padRight, arch))) {
@@ -528,10 +471,10 @@ bool hasZeroPadding(const VPU::PaddingAttr padAttr) {
     if (padAttr == nullptr) {
         return true;
     }
-    const auto top = padAttr.top().getInt();
-    const auto bottom = padAttr.bottom().getInt();
-    const auto left = padAttr.left().getInt();
-    const auto right = padAttr.right().getInt();
+    const auto top = padAttr.getTop().getInt();
+    const auto bottom = padAttr.getBottom().getInt();
+    const auto left = padAttr.getLeft().getInt();
+    const auto right = padAttr.getRight().getInt();
     return top == 0 && bottom == 0 && left == 0 && right == 0;
 }
 
@@ -592,10 +535,10 @@ mlir::LogicalResult verifyNCEDWConv(VPUIP::NCEClusterTaskOp op, VPU::ArchKind ar
     const auto SX = kernelStrides[1];
 
     const auto kernelPadding = op.kernel_paddingAttr();
-    const auto padLeft = kernelPadding.left().getInt();
-    const auto padRight = kernelPadding.right().getInt();
-    const auto padTop = kernelPadding.top().getInt();
-    const auto padBottom = kernelPadding.bottom().getInt();
+    const auto padLeft = kernelPadding.getLeft().getInt();
+    const auto padRight = kernelPadding.getRight().getInt();
+    const auto padTop = kernelPadding.getTop().getInt();
+    const auto padBottom = kernelPadding.getBottom().getInt();
 
     if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft,
                                                        padRight, arch))) {
@@ -633,13 +576,12 @@ mlir::LogicalResult vpux::VPUIP::DPUTaskOp::verify() {
     if (outEnd().size() != NUM_WORKLOAD_DIMS) {
         return errorAt(op, "output end coords should {0}-D, but got {1}-D", NUM_WORKLOAD_DIMS, outEnd().size());
     }
-    if (inStart().hasValue() && inStart().getValue().size() != NUM_WORKLOAD_DIMS) {
+    if (inStart().has_value() && inStart().value().size() != NUM_WORKLOAD_DIMS) {
         return errorAt(op, "input start coords should {0}-D, but got {1}-D", NUM_WORKLOAD_DIMS,
-                       inStart().getValue().size());
+                       inStart().value().size());
     }
-    if (inEnd().hasValue() && inEnd().getValue().size() != NUM_WORKLOAD_DIMS) {
-        return errorAt(op, "input end coords should {0}-D, but got {1}-D", NUM_WORKLOAD_DIMS,
-                       inEnd().getValue().size());
+    if (inEnd().has_value() && inEnd().value().size() != NUM_WORKLOAD_DIMS) {
+        return errorAt(op, "input end coords should {0}-D, but got {1}-D", NUM_WORKLOAD_DIMS, inEnd().value().size());
     }
 
     return mlir::success();
@@ -928,17 +870,18 @@ vpux::VPUIP::BlobWriter::TensorReference getTensorReferenceWithUpdatedQuantParam
     if (operandSparsityMap != nullptr) {
         auto sparsityMapBufferOp = operandSparsityMap.getDefiningOp<VPURT::DeclareBufferOp>();
         VPUX_THROW_UNLESS(sparsityMapBufferOp != nullptr, "Unable to find DeclareBufferOp for sparsity map");
-        sparsityMapOffset = sparsityMapBufferOp.byteOffset();
+        sparsityMapOffset = sparsityMapBufferOp.getByteOffset();
     }
     if (operandSETable != nullptr) {
         auto seTableBufferOp = operandSETable.getDefiningOp<VPURT::DeclareBufferOp>();
         VPUX_THROW_UNLESS(seTableBufferOp != nullptr, "Unable to find DeclareBufferOp for storage element table");
-        seTableOffset = seTableBufferOp.byteOffset();
+        seTableOffset = seTableBufferOp.getByteOffset();
     }
 
-    return writer.createTensorRef("tensor_scale_updated", type, bufferOp.section(), sectionIndex, bufferOp.byteOffset(),
-                                  ppeQuantMult, ppeQuantShift, ppeQuantPostShift, quantZeroPoints, sparsityMapOffset,
-                                  seTableOffset, storageElementSize, bufferOp.swizzlingKey());
+    return writer.createTensorRef("tensor_scale_updated", type, bufferOp.getSection(), sectionIndex,
+                                  bufferOp.getByteOffset(), ppeQuantMult, ppeQuantShift, ppeQuantPostShift,
+                                  quantZeroPoints, sparsityMapOffset, seTableOffset, storageElementSize,
+                                  bufferOp.getSwizzlingKey());
 }
 
 // This is a helper routine to build new TensorReference of individual variant with profiling data
@@ -957,8 +900,8 @@ vpux::VPUIP::BlobWriter::TensorReference getTensorReferenceForVariantProfiling(V
     const auto refMeta = llvm::formatv("_{0}_dpu_{1}", tempTensorId, variantId).str();
     tempTensorId++;
 
-    return writer.createTensorRef(refMeta, outputType, bufferOp.section(), sectionIndex,
-                                  bufferOp.byteOffset() + workloadSize * variantId);
+    return writer.createTensorRef(refMeta, outputType, bufferOp.getSection(), sectionIndex,
+                                  bufferOp.getByteOffset() + workloadSize * variantId);
 }
 
 }  // namespace
@@ -973,7 +916,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     const uint16_t wlSize = VPUIP::getProfWorkloadSize(module);
     int32_t profBufferBaseAddress = -1;
     if (isProfEnabled && !isSwProfiling) {
-        profBufferBaseAddress = profiling_data().getDefiningOp<VPURT::DeclareBufferOp>().byteOffset();
+        profBufferBaseAddress = profiling_data().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
     }
 
     SmallVector<flatbuffers::Offset<MVCNN::NCEVariantFields>> variantList;
@@ -995,19 +938,19 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
             } else {
                 // Hardware profiling used. Invariant uses CMX base address and variant needs a workload_id
                 // (calculated per NCE cluster task + shift per variant) which is obtained from the DPU task attribute
-                VPUX_THROW_WHEN(!dpuTaskOp.workload_id().hasValue(), "workload_id value has not been assigned");
+                VPUX_THROW_WHEN(!dpuTaskOp.workload_id().has_value(), "workload_id value has not been assigned");
             }
         }
 
         // workload_start_X/Y/Z and workload_end_X/Y/Z are used to serialize the values for the te_beg_x/y/z and
         // te_end_x/y/z registers, which are defining the start and end of the output workload.
         const auto variant = MVCNN::CreateNCEVariantFields(writer,
-                                                           0,                                            // Barriers
-                                                           getMPEMode(dpuTaskOp.mpe_mode()),             // MPE mode
-                                                           static_cast<int16_t>(pad.left().getInt()),    // padLeft
-                                                           static_cast<int16_t>(pad.right().getInt()),   // padRight
-                                                           static_cast<int16_t>(pad.top().getInt()),     // padTop
-                                                           static_cast<int16_t>(pad.bottom().getInt()),  // padBottom
+                                                           0,                                               // Barriers
+                                                           getMPEMode(dpuTaskOp.mpe_mode()),                // MPE mode
+                                                           static_cast<int16_t>(pad.getLeft().getInt()),    // padLeft
+                                                           static_cast<int16_t>(pad.getRight().getInt()),   // padRight
+                                                           static_cast<int16_t>(pad.getTop().getInt()),     // padTop
+                                                           static_cast<int16_t>(pad.getBottom().getInt()),  // padBottom
                                                            static_cast<int16_t>(outStart[0]),     // workload_start_X
                                                            static_cast<int16_t>(outStart[1]),     // workload_start_Y
                                                            static_cast<int16_t>(outStart[2]),     // workload_start_Z
@@ -1051,42 +994,42 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
         if (type != MVCNN::PPELayerType_NOOP) {
             ppeList.push_back(type);
         }
-        if (ppeOp.clamp_low().hasValue()) {
-            clampLow = checked_cast<int32_t>(ppeOp.clamp_low().getValue());
+        if (ppeOp.clamp_low().has_value()) {
+            clampLow = checked_cast<int32_t>(ppeOp.clamp_low().value());
         }
-        if (ppeOp.clamp_high().hasValue()) {
-            clampHigh = checked_cast<int32_t>(ppeOp.clamp_high().getValue());
+        if (ppeOp.clamp_high().has_value()) {
+            clampHigh = checked_cast<int32_t>(ppeOp.clamp_high().value());
         }
-        if (ppeOp.lrelu_mult().hasValue()) {
-            LreluMult = checked_cast<int32_t>(ppeOp.lrelu_mult().getValue());
+        if (ppeOp.lrelu_mult().has_value()) {
+            LreluMult = checked_cast<int32_t>(ppeOp.lrelu_mult().value());
         }
-        if (ppeOp.lrelu_shift().hasValue()) {
-            LreluShift = checked_cast<uint32_t>(ppeOp.lrelu_shift().getValue());
+        if (ppeOp.lrelu_shift().has_value()) {
+            LreluShift = checked_cast<uint32_t>(ppeOp.lrelu_shift().value());
         }
-        if (ppeOp.quant_mult().hasValue()) {
-            ppeQuantMult = parseIntArrayAttr<int64_t>(ppeOp.quant_mult().getValue());
+        if (ppeOp.quant_mult().has_value()) {
+            ppeQuantMult = parseIntArrayAttr<int64_t>(ppeOp.quant_mult().value());
         }
-        if (ppeOp.quant_shift().hasValue()) {
-            ppeQuantShift = parseIntArrayAttr<int64_t>(ppeOp.quant_shift().getValue());
+        if (ppeOp.quant_shift().has_value()) {
+            ppeQuantShift = parseIntArrayAttr<int64_t>(ppeOp.quant_shift().value());
         }
-        if (ppeOp.quant_post_shift().hasValue()) {
-            ppeQuantPostShift = checked_cast<int64_t>(ppeOp.quant_post_shift().getValue());
+        if (ppeOp.quant_post_shift().has_value()) {
+            ppeQuantPostShift = checked_cast<int64_t>(ppeOp.quant_post_shift().value());
         }
-        if (ppeOp.quant_scale().hasValue()) {
+        if (ppeOp.quant_scale().has_value()) {
             auto floatScaleAttr = ppeOp.quant_scaleAttr().getValue()[0];
             ppeQuantScale = static_cast<float>(floatScaleAttr.dyn_cast_or_null<mlir::FloatAttr>().getValueAsDouble());
         }
-        if (ppeOp.in1_quant_mult().hasValue()) {
-            in1QuantMult = parseIntArrayAttr<int64_t>(ppeOp.in1_quant_mult().getValue());
+        if (ppeOp.in1_quant_mult().has_value()) {
+            in1QuantMult = parseIntArrayAttr<int64_t>(ppeOp.in1_quant_mult().value());
         }
-        if (ppeOp.in2_quant_mult().hasValue()) {
-            in2QuantMult = parseIntArrayAttr<int64_t>(ppeOp.in2_quant_mult().getValue());
+        if (ppeOp.in2_quant_mult().has_value()) {
+            in2QuantMult = parseIntArrayAttr<int64_t>(ppeOp.in2_quant_mult().value());
         }
-        if (ppeOp.fp_prelu_alpha().hasValue()) {
+        if (ppeOp.fp_prelu_alpha().has_value()) {
             // For values like prelu_alpha=0.1, checked_cast fails, due to loss in precision when converting
             // from double to float and back, due to the static_cast<double>(static_cast<float>(value)) == value check
             // Use static_cast instead
-            fpPReluAlpha = static_cast<float>(ppeOp.fp_prelu_alpha().getValue().convertToDouble());
+            fpPReluAlpha = static_cast<float>(ppeOp.fp_prelu_alpha().value().convertToDouble());
         }
     }
     VPUX_THROW_UNLESS(ppeList.size() <= 1, "Cannot set more than one PPE task");
@@ -1127,10 +1070,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
 
     if (kernel_paddingAttr() != nullptr) {
         const auto kernelPadding = kernel_paddingAttr();
-        kernelPadL = checked_cast<int16_t>(kernelPadding.left().getInt());
-        kernelPadR = checked_cast<int16_t>(kernelPadding.right().getInt());
-        kernelPadT = checked_cast<int16_t>(kernelPadding.top().getInt());
-        kernelPadB = checked_cast<int16_t>(kernelPadding.bottom().getInt());
+        kernelPadL = checked_cast<int16_t>(kernelPadding.getLeft().getInt());
+        kernelPadR = checked_cast<int16_t>(kernelPadding.getRight().getInt());
+        kernelPadT = checked_cast<int16_t>(kernelPadding.getTop().getInt());
+        kernelPadB = checked_cast<int16_t>(kernelPadding.getBottom().getInt());
     }
 
     is_continued = (is_continuedAttr() != nullptr);
@@ -1162,24 +1105,24 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     // output TensorReference. This is required for Eltwise operation which doesn't have weights table
     // and PPE quantization settings (Mult, Shift) need to be provided for NN runtime in output tensor descriptor
     const auto isQuantizationProvided =
-            ppeQuantMult.hasValue() && ppeQuantShift.hasValue() && ppeQuantPostShift.hasValue();
+            ppeQuantMult.has_value() && ppeQuantShift.has_value() && ppeQuantPostShift.has_value();
     const auto isQuantizationNotProvided =
-            !ppeQuantMult.hasValue() && !ppeQuantShift.hasValue() && !ppeQuantPostShift.hasValue();
-    const auto isInputQuantizationProvided = in1QuantMult.hasValue() && in2QuantMult.hasValue();
+            !ppeQuantMult.has_value() && !ppeQuantShift.has_value() && !ppeQuantPostShift.has_value();
+    const auto isInputQuantizationProvided = in1QuantMult.has_value() && in2QuantMult.has_value();
     VPUX_THROW_WHEN(!isQuantizationProvided && !isQuantizationNotProvided, "Missing quantization scale settings.");
 
     if (isQuantizationProvided) {
         outputData = getTensorReferenceWithUpdatedQuantParams(
-                writer, ppeQuantMult.getValue(), ppeQuantShift.getValue(), ppeQuantPostShift.getValue(), output_buff(),
+                writer, ppeQuantMult.value(), ppeQuantShift.value(), ppeQuantPostShift.value(), output_buff(),
                 output_sparsity_map_buff(), /*operandSETable=*/nullptr, output_se_size());
     }
     if (isInputQuantizationProvided) {
         // Shifts must be set 0 for VPUX37XX runtime to be considered, otherwise runtime will ignore inputs
         // MULT.
-        inputData = getTensorReferenceWithUpdatedQuantParams(writer, in1QuantMult.getValue(), {0}, 0, input(),
+        inputData = getTensorReferenceWithUpdatedQuantParams(writer, in1QuantMult.value(), {0}, 0, input(),
                                                              input_sparsity_map(), input_storage_element_table(),
                                                              input_se_size());
-        weightsData = getTensorReferenceWithUpdatedQuantParams(writer, in2QuantMult.getValue(), {0}, 0, weights(),
+        weightsData = getTensorReferenceWithUpdatedQuantParams(writer, in2QuantMult.value(), {0}, 0, weights(),
                                                                weights_sparsity_map(), /*operandSETable=*/nullptr);
     }
 

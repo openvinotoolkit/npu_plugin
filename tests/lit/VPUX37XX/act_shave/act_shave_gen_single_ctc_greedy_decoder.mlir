@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-// RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" %s | vpux-translate --export-VPUIP -o %t
+// RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" %s | vpux-translate --vpu-arch=VPUX37XX --export-VPUIP -o %t
 // RUN: flatc --raw-binary --json %vpuip_schema_file% -- %t
 // RUN: FileCheck %s --input-file %basename_t.json
 // RUN: rm %basename_t.json
@@ -52,9 +52,9 @@ module @VPU.SW {
 
 func.func @main(%0: memref<10x1x16xf16>, %2: memref<1x10x1x1xf16>) -> memref<1x10x1x1xf16> {
     %cst = const.Declare memref<10x1xf16> = dense<[[1.000000e+00], [1.000000e+00], [1.000000e+00], [1.000000e+00], [1.000000e+00], [0.000000e+00], [0.000000e+00], [0.000000e+00], [0.000000e+00], [0.000000e+00]]> : tensor<10x1xf32>, [#const.ConvertElemType<f16>]
-    %in0_tile0_cmx = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<10x1x16xf16, [@CMX_NN, 0]>
-    %in1_tile0_cmx = VPURT.DeclareBuffer "CMX_NN" [0] <320> -> memref<10x1xf16, [@CMX_NN, 0]>
-    %out_tile0_cmx = VPURT.DeclareBuffer "CMX_NN" [0] <340> -> memref<1x10x1x1xf16, [@CMX_NN, 0]>
+    %in0_tile0_cmx = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<10x1x16xf16, [@CMX_NN, 0]>
+    %in1_tile0_cmx = VPURT.DeclareBuffer <CMX_NN> [0] <320> -> memref<10x1xf16, [@CMX_NN, 0]>
+    %out_tile0_cmx = VPURT.DeclareBuffer <CMX_NN> [0] <340> -> memref<1x10x1x1xf16, [@CMX_NN, 0]>
 
     %b0 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     %b1 = VPURT.ConfigureBarrier<1> -> !VPURT.Barrier

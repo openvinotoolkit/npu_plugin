@@ -11,4 +11,4 @@ using namespace vpux;
 // Generated
 //
 
-#include <vpux/compiler/core/generated/ops_interfaces.cpp.inc>
+#include <vpux/compiler/core/ops_interfaces.cpp.inc>

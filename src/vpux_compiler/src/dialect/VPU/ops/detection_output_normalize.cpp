@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
+#include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
@@ -16,8 +17,14 @@ using namespace vpux;
 mlir::LogicalResult vpux::VPU::DetectionOutputNormalizeOp::verify() {
     const auto inType = prior_boxes().getType().cast<NDTypeInterface>();
     const auto inputShape = inType.getShape();
-    if (inputShape.size() != 3 && inputShape[Dim(1)] != 1) {
-        return errorAt(*this, "Input shape must be 3D with height == 1, got {0}", inputShape);
+
+    if (inputShape.size() != 4) {
+        return errorAt(*this, "Input shape tensor must be 4D, got {0}", inputShape);
+    }
+
+    const auto nonNormalizedBoxWithPadding = 5;
+    if (inputShape[Dims4D::Act::W] != nonNormalizedBoxWithPadding) {
+        return errorAt(*this, "Input shape tensor must have width == 5, got {0}", inputShape);
     }
 
     return mlir::success();
@@ -39,7 +46,13 @@ mlir::LogicalResult VPU::DetectionOutputNormalizeOp::inferReturnTypes(
     }
 
     const auto inputType = normalize.prior_boxes().getType().cast<NDTypeInterface>();
-    inferredReturnTypes.push_back(inputType);
+
+    const auto normalizedBoxSize = 4;
+    auto outputShape = inputType.getShape().toValues();
+    outputShape[Dims4D::Act::W] = normalizedBoxSize;
+
+    const auto outputType = inputType.changeShape(outputShape);
+    inferredReturnTypes.push_back(outputType);
 
     return mlir::success();
 }

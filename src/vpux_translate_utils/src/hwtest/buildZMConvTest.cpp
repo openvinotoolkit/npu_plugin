@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <numeric>
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
@@ -245,7 +243,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
         weightsCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, weightsCMXShape, weightsType,
                                            vpux::DimsOrder::OYXI, weightsStrides, 0, WEIGHTS_CMX_OFFSET,
                                            swizzlingSchemeAttr);
-        weightsCMX.swizzlingKeyAttr(vpux::getIntAttr(builder.getContext(), nb::to_underlying(weightsSwizzlingKey)));
+        weightsCMX.setSwizzlingKeyAttr(vpux::getIntAttr(builder.getContext(), nb::to_underlying(weightsSwizzlingKey)));
     } else {
         weightsCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, weightsCMXShape, weightsType,
                                            vpux::DimsOrder::OYXI, weightsStrides, 0, WEIGHTS_CMX_OFFSET);
@@ -320,9 +318,9 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
         weightsTableCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, weightsTableShape, int32,
                                                 DimsOrder::NHWC, weightsTableStrides, 0, WEIGHTSTABLE_CMX_OFFSET,
                                                 swizzlingSchemeAttr);
-        weightsTableCMX.swizzlingKeyAttr(
+        weightsTableCMX.setSwizzlingKeyAttr(
                 vpux::getIntAttr(builder.getContext(), nb::to_underlying(weightsSwizzlingKey)));
-        paddedWeightsCMX.swizzlingKeyAttr(
+        paddedWeightsCMX.setSwizzlingKeyAttr(
                 vpux::getIntAttr(builder.getContext(), nb::to_underlying(weightsSwizzlingKey)));
         weightsTableContentAttr = weightsTableContentAttr.swizzleConstant(nb::to_underlying(weightsSwizzlingKey),
                                                                           static_cast<uint64_t>(architecture));
@@ -336,16 +334,16 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     auto barrier0 = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 0);
     auto barrier1 = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 1);
 
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
                                           builder.getUnknownLoc(), functionInput,
                                           inputCMX.getOperation()->getResult(0));
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
                                           builder.getUnknownLoc(), weightsDDR.getOperation()->getResult(0),
                                           weightsCMX.getOperation()->getResult(0));
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
                                           builder.getUnknownLoc(), weightsTableDDR.getOperation()->getResult(0),
                                           weightsTableCMX.getOperation()->getResult(0));
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(barrier1.getBarrier()), mlir::ValueRange(),
                                           builder.getUnknownLoc(), outputCMX.getOperation()->getResult(0),
                                           functionOutput);
 
@@ -358,9 +356,10 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     const auto sparsityPattern = isInputPaddingRequired ? ((1 << inputChannels) - 1) : 0;
 
     auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
-            functionBuilder, barrier0.barrier(), barrier1.barrier(), builder.getUnknownLoc(), paddedInputCMX.buffer(),
-            paddedWeightsCMX.buffer(), weightsTableCMX.buffer(), /*instruction_table_list*/ nullptr,
-            /*activation_window=*/nullptr, paddedInputCMX.buffer(), outputCMX.buffer(), outputCMX.buffer(),
+            functionBuilder, barrier0.getBarrier(), barrier1.getBarrier(), builder.getUnknownLoc(),
+            paddedInputCMX.getBuffer(), paddedWeightsCMX.getBuffer(), weightsTableCMX.getBuffer(),
+            /*instruction_table_list*/ nullptr,
+            /*activation_window=*/nullptr, paddedInputCMX.getBuffer(), outputCMX.getBuffer(), outputCMX.getBuffer(),
             vpux::VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings, nullptr, nullptr,
             vpux::getIntAttr(builder.getContext(), sparsityPattern), nullptr, nullptr, inputChannelsCompression);
 
@@ -406,8 +405,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     module.dump();
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, None,
-                                           log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsBTCPass(log));
     }

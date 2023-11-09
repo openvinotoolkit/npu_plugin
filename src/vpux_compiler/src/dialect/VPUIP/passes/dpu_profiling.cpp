@@ -53,7 +53,7 @@ void DPUProfilingPass::setWorkloadIds(VPUIP::NCEClusterTaskOp nceClusterTaskOp) 
     int32_t workloadId = 0;
     int32_t prevClusterId = -1;
     nceClusterTaskOp.walk([&](VPUIP::DPUTaskOp dpuTaskOp) {
-        if (dpuTaskOp.cluster_id().hasValue()) {
+        if (dpuTaskOp.cluster_id().has_value()) {
             int32_t clusterId = dpuTaskOp.cluster_id().value();
             if (prevClusterId != clusterId) {
                 workloadId = 0;
@@ -84,11 +84,11 @@ void DPUProfilingPass::safeRunOnModule() {
     auto* ctx = module->getContext();
 
     auto maybeMemKind = _memKindCb("");
-    if (!maybeMemKind.hasValue()) {
+    if (!maybeMemKind.has_value()) {
         _log.trace("Memory Space is not defined");
         return;
     }
-    auto memKind = maybeMemKind.getValue();
+    auto memKind = maybeMemKind.value();
 
     IE::CNNNetworkOp netOp;
     mlir::func::FuncOp netFunc;
@@ -125,13 +125,12 @@ void DPUProfilingPass::safeRunOnModule() {
     }
 
     const auto outputResult = mlir::MemRefType::get({totalDpuDdrProfilingOutputSize}, getUInt64Type(ctx));
-    auto profilingResult = addNewProfilingOutput(ctx, netFunc, netOp, outputResult, "dpu");
+    auto profilingResult = addNewProfilingOutput(ctx, netFunc, netOp, outputResult, profiling::ExecutorType::DPU);
 
     SmallVector<mlir::Value> concatResults;
     unsigned currentDDROffset = 0;
-    int nceId = 0;
     for (auto& clusterScheduler : clusterSchedulers) {
-        clusterScheduler.second->addProfilingOps(currentDDROffset, concatResults, profilingResult, nceId);
+        clusterScheduler.second->addProfilingOps(currentDDROffset, concatResults, profilingResult);
     }
 
     mlir::func::ReturnOp returnOp =
@@ -142,6 +141,8 @@ void DPUProfilingPass::safeRunOnModule() {
     auto concatview = builder.create<VPUIP::ConcatViewOp>(
             mlir::NameLoc::get(mlir::StringAttr::get(ctx, "dpuDDRProfiling")), concatResults, profilingResult);
     returnOp.operandsMutable().append(concatview.output());
+
+    BaseClusterBufferScheduler::resetBufferIdCounter();
 }
 
 }  // namespace

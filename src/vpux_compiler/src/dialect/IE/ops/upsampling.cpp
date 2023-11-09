@@ -21,9 +21,9 @@ mlir::LogicalResult vpux::IE::UpsamplingOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    auto padChannelVector = parseIntArrayAttr<int32_t>(upsampling.padAttr().pads_channel());
-    auto padHeightVector = parseIntArrayAttr<int32_t>(upsampling.padAttr().pads_height());
-    auto padWidthVector = parseIntArrayAttr<int32_t>(upsampling.padAttr().pads_width());
+    auto padChannelVector = parseIntArrayAttr<int32_t>(upsampling.padAttr().getPadsChannel());
+    auto padHeightVector = parseIntArrayAttr<int32_t>(upsampling.padAttr().getPadsHeight());
+    auto padWidthVector = parseIntArrayAttr<int32_t>(upsampling.padAttr().getPadsWidth());
     auto upsamplingFactorVector = parseIntArrayAttr<int32_t>(upsampling.upsampling_factor());
 
     const auto inType = upsampling.input().getType().cast<mlir::ShapedType>();

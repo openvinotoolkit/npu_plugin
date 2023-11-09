@@ -78,6 +78,36 @@ VPURT.SW.Runtime entryPoint : @VPU.SW::@runtime stack_configuration : [4096, 409
     func.func private @runtime() attributes {VPU.kernel_code = "nnActEntry"}
   }
 
+// CHECK-LABEL: @ConvertSWDepthToSpaceToDMA_BLOCKS_FIRST_LARGE_HEIGHT
+func.func @ConvertSWDepthToSpaceToDMA_BLOCKS_FIRST_LARGE_HEIGHT(%arg0: memref<1x8x800x3xf16, #NHWC, [@CMX_NN, 0]>) -> memref<1x2x1600x6xf16, #NHWC, [@CMX_NN, 0]> {
+    %outBuffer = memref.alloc() : memref<1x2x1600x6xf16, #NHWC, [@CMX_NN, 0]>
+    %depthToSpace = VPUIP.SW.Kernel {result_segment_sizes = dense<[1, 0]> : vector<2xi32>} @VPU.SW::@builtin_DepthToSpace
+                        inputs(%arg0 as %arg1: memref<1x8x800x3xf16, #NHWC, [@CMX_NN, 0]>)
+                        outputs(%outBuffer as %arg2: memref<1x2x1600x6xf16, #NHWC, [@CMX_NN, 0]>) on tile 0 -> memref<1x2x1600x6xf16, #NHWC, [@CMX_NN, 0]>{
+                    VPUIP.SW.Kernel.run {attrs = [2, 0]}(%arg1, %arg2) : memref<1x8x800x3xf16, #NHWC, [@CMX_NN, 0]>, memref<1x2x1600x6xf16, #NHWC, [@CMX_NN, 0]>
+    }
+
+    return %depthToSpace : memref<1x2x1600x6xf16, #NHWC, [@CMX_NN, 0]>
+
+    //CHECK:    [[OUTBUFFER:%.*]] = memref.alloc() : memref<1x2x1600x6xf16, #NHWC, [@CMX_NN, 0]>
+
+    //CHECK:    [[DepthToSpaceDMAOUT:%.*]] = VPUIP.DepthToSpaceDMA {block_size = 2 : i64, mode = #IE.depth_to_space_mode<BLOCKS_FIRST>, port = 0 : i64}
+    //CHECK:            inputs(%arg0 : memref<1x8x800x3xf16, #NHWC, [@CMX_NN, 0]>)
+    //CHECK:            outputs([[OUTBUFFER]] : memref<1x2x1600x6xf16, #NHWC, [@CMX_NN, 0]>) -> memref<1x2x1600x6xf16, #NHWC, [@CMX_NN, 0]>
+
+    //CHECK:    return [[DepthToSpaceDMAOUT]] : memref<1x2x1600x6xf16, #NHWC, [@CMX_NN, 0]>
+}
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+VPURT.SW.Runtime entryPoint : @VPU.SW::@runtime stack_configuration : [4096, 4096, 4096, 4096]
+  module @VPU.SW {
+    func.func private @builtin_DepthToSpace(memref<*xf16, [@CMX_NN, 0]>, memref<*xf16, [@CMX_NN, 0]>, none) attributes {VPU.kernel_code = "single_shave_depth_to_space.cpp", VPU.kernel_entry = "single_shave_depth_to_space"}
+    func.func private @runtime() attributes {VPU.kernel_code = "nnActEntry"}
+  }
+
 // CHECK-LABEL: @ConvertSWDepthToSpaceToDMA_DEPTH_FIRST
 func.func @ConvertSWDepthToSpaceToDMA_DEPTH_FIRST(%arg0: memref<1x8x2x3xf16, #NHWC, [@CMX_NN, 0]>) -> memref<1x2x4x6xf16, #NHWC, [@CMX_NN, 0]> {
     %outBuffer = memref.alloc() : memref<1x2x4x6xf16, #NHWC, [@CMX_NN, 0]>
@@ -96,6 +126,37 @@ func.func @ConvertSWDepthToSpaceToDMA_DEPTH_FIRST(%arg0: memref<1x8x2x3xf16, #NH
     //CHECK:            outputs([[OUTBUFFER]] : memref<1x2x4x6xf16, #NHWC, [@CMX_NN, 0]>) -> memref<1x2x4x6xf16, #NHWC, [@CMX_NN, 0]>
 
     //CHECK:    return [[DepthToSpaceDMAOUT]] : memref<1x2x4x6xf16, #NHWC, [@CMX_NN, 0]>
+}
+
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+VPURT.SW.Runtime entryPoint : @VPU.SW::@runtime stack_configuration : [4096, 4096, 4096, 4096]
+  module @VPU.SW {
+    func.func private @builtin_DepthToSpace(memref<*xf16, [@CMX_NN, 0]>, memref<*xf16, [@CMX_NN, 0]>, none) attributes {VPU.kernel_code = "single_shave_depth_to_space.cpp", VPU.kernel_entry = "single_shave_depth_to_space"}
+    func.func private @runtime() attributes {VPU.kernel_code = "nnActEntry"}
+  }
+
+// CHECK-LABEL: @ConvertSWDepthToSpaceToDMA_DEPTH_FIRST_LARGE_HEIGHT
+func.func @ConvertSWDepthToSpaceToDMA_DEPTH_FIRST_LARGE_HEIGHT(%arg0: memref<1x8x800x3xf16, #NHWC, [@CMX_NN, 0]>) -> memref<1x2x1600x6xf16, #NHWC, [@CMX_NN, 0]> {
+    %outBuffer = memref.alloc() : memref<1x2x1600x6xf16, #NHWC, [@CMX_NN, 0]>
+    %depthToSpace = VPUIP.SW.Kernel {result_segment_sizes = dense<[1, 0]> : vector<2xi32>} @VPU.SW::@builtin_DepthToSpace
+                        inputs(%arg0 as %arg1: memref<1x8x800x3xf16, #NHWC, [@CMX_NN, 0]>)
+                        outputs(%outBuffer as %arg2: memref<1x2x1600x6xf16, #NHWC, [@CMX_NN, 0]>) on tile 0 -> memref<1x2x1600x6xf16, #NHWC, [@CMX_NN, 0]>{
+                    VPUIP.SW.Kernel.run {attrs = [2, 1]}(%arg1, %arg2) : memref<1x8x800x3xf16, #NHWC, [@CMX_NN, 0]>, memref<1x2x1600x6xf16, #NHWC, [@CMX_NN, 0]>
+    }
+
+    return %depthToSpace : memref<1x2x1600x6xf16, #NHWC, [@CMX_NN, 0]>
+
+    //CHECK:    [[OUTBUFFER:%.*]] = memref.alloc() : memref<1x2x1600x6xf16, #NHWC, [@CMX_NN, 0]>
+
+    //CHECK:    [[DepthToSpaceDMAOUT:%.*]] = VPUIP.DepthToSpaceDMA {block_size = 2 : i64, mode = #IE.depth_to_space_mode<DEPTH_FIRST>, port = 0 : i64}
+    //CHECK:            inputs(%arg0 : memref<1x8x800x3xf16, #NHWC, [@CMX_NN, 0]>)
+    //CHECK:            outputs([[OUTBUFFER]] : memref<1x2x1600x6xf16, #NHWC, [@CMX_NN, 0]>) -> memref<1x2x1600x6xf16, #NHWC, [@CMX_NN, 0]>
+
+    //CHECK:    return [[DepthToSpaceDMAOUT]] : memref<1x2x1600x6xf16, #NHWC, [@CMX_NN, 0]>
 }
 
 // -----
@@ -420,7 +481,7 @@ func.func @ConvertTileToDMAWithThreeAxisExpansion(%arg0: memref<1x2x3x4xf16, #NH
 
 func.func @convertUpsamping2DMACopyWithNHWC(%arg0: memref<1x256x16x32xf16, #NHWC>) -> memref<1x256x32x64xf16, #NHWC> {
     %0 = memref.alloc() : memref<1x256x32x64xf16, #NHWC>
-    %1 = VPUIP.UpsamplingUPA {pad = {pads_channel = [0, 0], pads_height = [0, 1], pads_width = [0, 1]}, upsampling_factor = [2, 2, 1]} inputs(%arg0 : memref<1x256x16x32xf16, #NHWC>) outputs(%0 : memref<1x256x32x64xf16, #NHWC>) -> memref<1x256x32x64xf16, #NHWC>
+    %1 = VPUIP.UpsamplingUPA {pad = #IE.UpsamplingPad<pads_channel = [0, 0], pads_height = [0, 1], pads_width = [0, 1]>, upsampling_factor = [2, 2, 1]} inputs(%arg0 : memref<1x256x16x32xf16, #NHWC>) outputs(%0 : memref<1x256x32x64xf16, #NHWC>) -> memref<1x256x32x64xf16, #NHWC>
     return %1 : memref<1x256x32x64xf16, #NHWC>
 
     // CHECK-DAG:   [[OUTPUT_BUFF:%.*]] = memref.alloc() : memref<1x256x32x64xf16, #NHWC>
@@ -443,7 +504,7 @@ func.func @convertUpsamping2DMACopyWithNHWC(%arg0: memref<1x256x16x32xf16, #NHWC
 
 func.func @convertUpsamping2DMACopyWithNCHW(%arg0: memref<1x256x16x32xf16>) -> memref<1x256x32x64xf16> {
     %0 = memref.alloc() : memref<1x256x32x64xf16>
-    %1 = VPUIP.UpsamplingUPA {pad = {pads_channel = [0, 0], pads_height = [0, 1], pads_width = [0, 1]}, upsampling_factor = [2, 2, 1]} inputs(%arg0 : memref<1x256x16x32xf16>) outputs(%0 : memref<1x256x32x64xf16>) -> memref<1x256x32x64xf16>
+    %1 = VPUIP.UpsamplingUPA {pad = #IE.UpsamplingPad<pads_channel = [0, 0], pads_height = [0, 1], pads_width = [0, 1]>, upsampling_factor = [2, 2, 1]} inputs(%arg0 : memref<1x256x16x32xf16>) outputs(%0 : memref<1x256x32x64xf16>) -> memref<1x256x32x64xf16>
     return %1 : memref<1x256x32x64xf16>
 
     // CHECK-DAG:   [[OUTPUT_BUFF:%.*]] = memref.alloc() : memref<1x256x32x64xf16>

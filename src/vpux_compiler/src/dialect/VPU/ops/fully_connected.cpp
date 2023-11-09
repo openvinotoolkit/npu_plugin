@@ -39,10 +39,6 @@ mlir::LogicalResult vpux::VPU::FullyConnectedOp::inferReturnTypes(
     return mlir::success();
 }
 
-void vpux::VPU::FullyConnectedOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
-    IE::fillDefaultLayoutInfo(info);
-}
-
 //
 // serialize
 //

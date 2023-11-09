@@ -4,6 +4,7 @@
 //
 
 #include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPU/utils/layout_utils.hpp"
 
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -20,49 +21,6 @@
 using namespace vpux;
 
 namespace {
-
-//
-// inferOutputLayout
-//
-
-mlir::FailureOr<DimsOrder> inferOutputLayout(const DimArr& inPerm, mlir::ArrayAttr dimMapAttr) {
-    const auto dimMapping = parseIntArrayOfArrayAttr<int64_t>(dimMapAttr);
-    SmallVector<vpux::Dim> perm;
-
-    // Iterate over input dims in the given order and push back corresponding output dims as indicated by the op's
-    // dim_mapping. The result is the permutation of output dims.
-    bool layoutInferFail = false;
-    for (auto pIt = inPerm.begin(); pIt != inPerm.end(); ++pIt) {
-        const auto outputDims = dimMapping[pIt->ind()];
-        for (const auto& dim : outputDims) {
-            const auto outDim = vpux::Dim(dim);
-
-            // Ensure input dim order is not switched.
-            // E.g. nchw -> c'h'w', with n = c', c = h', h * w = w'
-            // Layouts 0123 and 0132 would both produce 012 output layout, but
-            // the content of w' would not be the same.
-            if (!perm.empty() && perm.back() == outDim) {
-                layoutInferFail = std::prev(pIt)->ind() > pIt->ind();
-                if (layoutInferFail == true) {
-                    return mlir::failure();
-                }
-
-                continue;
-            }
-            perm.push_back(outDim);
-        }
-    }
-
-    // Check that the resulting output permutation does not have duplicate dims
-    SmallVector<vpux::Dim> temp(perm);
-    llvm::sort(temp.begin(), temp.end(), [](const vpux::Dim& dim0, const vpux::Dim& dim1) {
-        return dim0.ind() < dim1.ind();
-    });
-
-    if (std::adjacent_find(temp.begin(), temp.end()) != temp.end())
-        return mlir::failure();
-    return DimsOrder::fromPermutation(makeArrayRef(perm));
-}
 
 mlir::FailureOr<mlir::Type> inferElemType(VPU::AffineReshapeOpAdaptor affineReshapeOp, mlir::Type inputElemType) {
     const auto perAxisQType = inputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>();
@@ -128,12 +86,12 @@ mlir::LogicalResult vpux::VPU::AffineReshapeOp::inferReturnTypes(
     const auto ndInType = inType.cast<vpux::NDTypeInterface>();
     const auto inOrder = DimsOrder::fromValue(input);
 
-    const auto outputLayout = inferOutputLayout(inOrder.toPermutation(), affineReshape.dim_mapping());
+    const auto outputLayout = inferAffineReshapeOutputLayout(inOrder.toPermutation(), affineReshape.dim_mapping());
     if (mlir::failed(outputLayout)) {
         return mlir::failure();
     }
 
-    const auto typeComponents = TypeComponents().setShape(outShape).setDimsOrder(outputLayout.getValue());
+    const auto typeComponents = TypeComponents().setShape(outShape).setDimsOrder(outputLayout.value());
     vpux::NDTypeInterface outType;
     // placeholder to enable sparsity, follow E#48483
     if (auto sparseInputType = ndInType.dyn_cast<VPU::SparseTensorType>()) {
@@ -145,7 +103,7 @@ mlir::LogicalResult vpux::VPU::AffineReshapeOp::inferReturnTypes(
 
     const auto elemTypeInferResult = inferElemType(affineReshape, ndInType.getElementType());
     if (mlir::succeeded(elemTypeInferResult)) {
-        outType = outType.changeElemType(elemTypeInferResult.getValue());
+        outType = outType.changeElemType(elemTypeInferResult.value());
     }
     inferredReturnTypes.push_back(outType);
 
@@ -163,7 +121,7 @@ void vpux::VPU::AffineReshapeOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir:
     }
 
     for (size_t outputInd = 0; outputInd < info.getNumOutputs(); ++outputInd) {
-        info.setOutput(outputInd, outputElemType.getValue());
+        info.setOutput(outputInd, outputElemType.value());
     }
 }
 
@@ -178,23 +136,6 @@ void vpux::VPU::AffineReshapeOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mli
     for (size_t inputInd = 0; inputInd < info.getNumInputs(); ++inputInd) {
         info.setInput(inputInd, outputElemType);
     }
-}
-
-//
-// inferLayoutInfo
-//
-
-void vpux::VPU::AffineReshapeOp::inferLayoutInfo(vpux::IE::LayerLayoutInfo& info) {
-    const auto inOrder = info.getInput(0);
-    const auto inPermutation = inOrder.toPermutation();
-    const auto outPermutation = inferOutputLayout(inPermutation, dim_mapping());
-    if (mlir::failed(outPermutation)) {
-        IE::fillDefaultLayoutInfo(info);
-        return;
-    }
-
-    info.setInput(0, inOrder);
-    info.setOutput(0, outPermutation.getValue());
 }
 
 //

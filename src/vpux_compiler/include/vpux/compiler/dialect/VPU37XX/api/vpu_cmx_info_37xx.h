@@ -3,13 +3,15 @@
  * Copyright (c) 2023, Intel Corporation.
  */
 
+// clang-format off
+
 // Current file does not contain all CMX addresses used by the firmware,
 // the code locations will be adjusted/extended to align with the Runtime view of memory locators"
 
 #ifndef VPU_CMX_INFO_37XX_H_
 #define VPU_CMX_INFO_37XX_H_
 
-#include "vpu_nnrt_api.h"
+#include "vpu_nnrt_api_37xx.h"
 
 namespace nn_public {
 
@@ -34,7 +36,7 @@ constexpr uint32_t VPU_KERNEL_RANGE_COUNT = 32;
 constexpr uint32_t VPU_KERNEL_INVO_COUNT = 64;
 
 constexpr uint32_t METADATA_OFFSET =
-        VPU_SNN_DATA_SIZE + VPU_SNN_STACK_SIZE + VPU_ACTSHV_SCRATCH_SIZE + VPU_ACTSHV_STACKS_SIZE;
+    VPU_SNN_DATA_SIZE + VPU_SNN_STACK_SIZE + VPU_ACTSHV_SCRATCH_SIZE + VPU_ACTSHV_STACKS_SIZE;
 constexpr uint32_t METADATA0_STORAGE_ADDR = VPU_NN_SLICE0_CMX_BASE + METADATA_OFFSET;
 constexpr uint32_t METADATA1_STORAGE_ADDR = VPU_NN_SLICE1_CMX_BASE + METADATA_OFFSET;
 
@@ -69,6 +71,8 @@ struct VpuMetadataMapDual1 {
 };
 static_assert(sizeof(VpuMetadataMapDual1) <= VPU_METADATA_SIZE, "Metadata storage exceeded");
 
-}  // namespace nn_public
+} // namespace nn_public
 
 #endif
+
+// clang-format on

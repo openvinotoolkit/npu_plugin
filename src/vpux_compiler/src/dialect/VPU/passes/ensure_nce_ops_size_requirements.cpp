@@ -60,7 +60,10 @@ mlir::LogicalResult EnsureNCEOpSizeRequirements::matchAndRewrite(VPU::TilingBuil
 
     const auto isSupportedTileSize = [&](ShapeRef nTilesOnDim, int32_t dimToTile) -> bool {
         const auto tiles = fillDividedTiles(op, nTilesOnDim, outputShape);
-        for (auto tile : tiles) {
+        if (mlir::failed(tiles)) {
+            return false;
+        }
+        for (auto tile : tiles.value()) {
             if (tile.shape.raw()[dimToTile] > VPU::NCEInvariant::VPU_DIMENSION_LIMIT) {
                 return false;
             }
@@ -89,8 +92,11 @@ mlir::LogicalResult EnsureNCEOpSizeRequirements::matchAndRewrite(VPU::TilingBuil
     }
 
     const auto tilesNew = fillDividedTiles(op, nTilesOnDim, outputShape);
+    if (mlir::failed(tilesNew)) {
+        return mlir::failure();
+    }
 
-    return VPU::applyTileStrategy(origOp, tilesNew, rewriter, log.nest());
+    return VPU::applyTileStrategy(origOp, tilesNew.value(), rewriter, log.nest());
 }
 
 //
@@ -147,7 +153,7 @@ mlir::LogicalResult EnsureConvICRequirements::matchAndRewrite(VPU::NCEConvolutio
         _log.trace("Could not extract constant from weights table.");
         return mlir::failure();
     }
-    auto weightsTableContent = weightsTableConst.content();
+    auto weightsTableContent = weightsTableConst.getContent();
     auto weightsTableValues = weightsTableContent.getValues<int32_t>();
     auto weightsTableVecSize = weightsTableValues.size();
     std::vector<int32_t> weightsTableVec(weightsTableVecSize);
@@ -229,7 +235,7 @@ mlir::LogicalResult EnsureConvICRequirements::matchAndRewrite(VPU::NCEConvolutio
 
         addResult = rewriter.create<VPU::NCEEltwiseOp>(
                 origOp->getLoc(), targetEltwiseOutputType, addOperand, convOps[index + 1].output(), opType,
-                ((index == (convOps.size() - 2) && origOp.ppe().hasValue()) ? origOp.ppeAttr() : ppeTaskAttr), nullptr,
+                ((index == (convOps.size() - 2) && origOp.ppe().has_value()) ? origOp.ppeAttr() : ppeTaskAttr), nullptr,
                 nullptr);
         addOps.push_back(addResult);
     }

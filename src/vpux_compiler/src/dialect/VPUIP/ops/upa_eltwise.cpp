@@ -24,7 +24,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LogicalNotUPAOp::serialize(VPUIP::B
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EltwiseUPAOp::serialize(VPUIP::BlobWriter& writer) {
     VPUIP::BlobWriter::String type;
-    switch (this->type()) {
+    switch (this->task_type()) {
     case VPU::EltwiseType::ADD:
         type = writer.createString("sum");
         break;
@@ -77,7 +77,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EltwiseUPAOp::serialize(VPUIP::Blob
         type = writer.createString("logicalxor");
         break;
     default:
-        VPUX_THROW("Unsupported EltwiseType {0}", this->type());
+        VPUX_THROW("Unsupported EltwiseType {0}", this->task_type());
     }
 
     MVCNN::EltwiseParamsBuilder builder(writer);

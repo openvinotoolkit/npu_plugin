@@ -33,13 +33,13 @@ def RewriteConvert :
 
 def createSoftMaxOp :
         NativeCodeCall<[{
-            $_builder.create<vpux::VPU::SoftMaxOp>($_loc, $0, $1)
+            $_builder.create<vpux::VPU::SoftMaxOp>($_loc, $0, $1, $2)
         }]>;
 
 def RewriteSoftMax :
         Pat<
-            (IE_SoftMaxOp $input, $axisInd),
-            (createSoftMaxOp $input, $axisInd)
+            (IE_SoftMaxOp $input, $axisInd, $padSize),
+            (createSoftMaxOp $input, $axisInd, $padSize)
         >;
 
 //
@@ -197,56 +197,56 @@ class createReduceOp<string type> :
 
 def RewriteReduceMax :
         Pat<
-            (IE_ReduceMaxOp $input, $axes, $keep_dims),
-            (createReduceOp<"Max"> $input, $axes, $keep_dims)
+            (IE_ReduceMaxOp $input, $axes, $axes_value, $keep_dims),
+            (createReduceOp<"Max"> $input, $axes_value, $keep_dims)
         >;
 
 def RewriteReduceMean :
         Pat<
-            (IE_ReduceMeanOp $input, $axes, $keep_dims),
-            (createReduceOp<"Mean"> $input, $axes, $keep_dims)
+            (IE_ReduceMeanOp $input, $axes, $axes_value, $keep_dims),
+            (createReduceOp<"Mean"> $input, $axes_value, $keep_dims)
         >;
 
 def RewriteReduceProd :
         Pat<
-            (IE_ReduceProdOp $input, $axes, $keep_dims),
-            (createReduceOp<"Prod"> $input, $axes, $keep_dims)
+            (IE_ReduceProdOp $input, $axes, $axes_value, $keep_dims),
+            (createReduceOp<"Prod"> $input, $axes_value, $keep_dims)
         >;
 
 def RewriteReduceSum :
         Pat<
-            (IE_ReduceSumOp $input, $axes, $keep_dims),
-            (createReduceOp<"Sum"> $input, $axes, $keep_dims)
+            (IE_ReduceSumOp $input, $axes, $axes_value, $keep_dims),
+            (createReduceOp<"Sum"> $input, $axes_value, $keep_dims)
         >;
 
 def RewriteReduceMin :
         Pat<
-            (IE_ReduceMinOp $input, $axes, $keep_dims),
-            (createReduceOp<"Min"> $input, $axes, $keep_dims)
+            (IE_ReduceMinOp $input, $axes, $axes_value, $keep_dims),
+            (createReduceOp<"Min"> $input, $axes_value, $keep_dims)
         >;
 
 def RewriteReduceL1 :
         Pat<
-            (IE_ReduceL1Op $input, $axes, $keep_dims),
-            (createReduceOp<"L1"> $input, $axes, $keep_dims)
+            (IE_ReduceL1Op $input, $axes, $axes_value, $keep_dims),
+            (createReduceOp<"L1"> $input, $axes_value, $keep_dims)
         >;
 
 def RewriteReduceLogicalOr :
         Pat<
-            (IE_ReduceLogicalOrOp $input, $axes, $keep_dims),
-            (createReduceOp<"LogicalOr"> $input, $axes, $keep_dims)
+            (IE_ReduceLogicalOrOp $input, $axes, $axes_value, $keep_dims),
+            (createReduceOp<"LogicalOr"> $input, $axes_value, $keep_dims)
         >;
 
 def RewriteReduceLogicalAnd :
         Pat<
-            (IE_ReduceLogicalAndOp $input, $axes, $keep_dims),
-            (createReduceOp<"LogicalAnd"> $input, $axes, $keep_dims)
+            (IE_ReduceLogicalAndOp $input, $axes, $axes_value, $keep_dims),
+            (createReduceOp<"LogicalAnd"> $input, $axes_value, $keep_dims)
         >;
 
 def RewriteReduceL2 :
         Pat<
-            (IE_ReduceL2Op $input, $axes, $keep_dims),
-            (createReduceOp<"L2"> $input, $axes, $keep_dims)
+            (IE_ReduceL2Op $input, $axes, $axes_value, $keep_dims),
+            (createReduceOp<"L2"> $input, $axes_value, $keep_dims)
         >;
 
 //
@@ -404,22 +404,6 @@ def RewriteGridSample :
             (IE_GridSampleOp $input, $grip, $align_corners, $mode, $padding_mode),
             (VPU_GridSampleOp $input, $grip, $align_corners, $mode, $padding_mode)
         >;
-
-//
-// IE.EmbeddingBagOffsetsSum -> VPU.EmbeddingBagOffsetsSum
-//
-
-def createEmbeddingBagOffsetsSumOp :
-        NativeCodeCall<[{
-            $_builder.create<vpux::VPU::EmbeddingBagOffsetsSumOp> ($_loc, $0, $1, $2, $3, $4)
-        }]>;
-
-def RewriteEmbeddingBagOffsetsSum :
-        Pat<
-            (IE_EmbeddingBagOffsetsSumOp $input, $indices, $offsets, $default_index, $weights, $indices_value, $offsets_value, $default_index_value, $weights_value),
-            (createEmbeddingBagOffsetsSumOp $input, $indices_value, $offsets_value, $default_index_value, $weights_value)
-        >;
-
 
 //
 // IE.Clamp -> VPU.Clamp
@@ -1426,26 +1410,6 @@ def RewriteExpandDilated :
         >;
 
 //
-// IE.Interpolate -> VPU.Interpolate
-//
-
-def createInterpolateOp :
-        NativeCodeCall<[{
-            $_builder.create<vpux::VPU::InterpolateOp>(
-                $_loc, $0,
-                $1.size() == 1 ? $1[0] : nullptr,
-                $2.size() == 1 ? $2[0] : nullptr,
-                $3.size() == 1 ? $3[0] : nullptr,
-                $4, $5, $6, $7, $8, $9, $10)
-        }]>;
-
-def RewriteInterpolate :
-        Pat<
-            (IE_InterpolateOp $input, $sizes, $scales, $axes, $sizes_attr, $scales_attr, $axes_attr, $tile_offset_attr, $initial_input_dims_attr, $initial_output_dims_attr, $attr),
-            (createInterpolateOp $input, $sizes, $scales, $axes, $sizes_attr, $scales_attr, $axes_attr, $tile_offset_attr, $initial_input_dims_attr, $initial_output_dims_attr, $attr)
-        >;
-
-//
 // IE.RegionYolo -> VPU.RegionYolo
 //
 
@@ -1670,6 +1634,22 @@ def RewriteScatterUpdate :
         >;
 
 //
+// IE.ScatterElementsUpdate -> VPU.ScatterElementsUpdate
+//
+
+def createScatterElementsUpdateOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPU::ScatterElementsUpdateOp>(
+                $_loc, $0, $1, $2, $3)
+        }]>;
+
+def RewriteScatterElementsUpdate :
+        Pat<
+            (IE_ScatterElementsUpdateOp $input, $indices, $updates, $axis, $axis_value),
+            (createScatterElementsUpdateOp $input, $indices, $updates, $axis_value)
+        >;
+
+//
 // IE.MemPermute -> VPU.MemPermute
 //
 
@@ -1856,17 +1836,6 @@ def RewriteLSTMGates :
             (VPU_LSTMGatesOp $inputData, $initialCellState)
         >;
 
-
-//
-// IE.TopK -> VPU.TopK
-//
-
-def RewriteTopK :
-        Pat<
-            (IE_TopKOp $input, $k, $axis, $mode, $sort, $element_type),
-            (VPU_TopKOp $input, $k, $axis, $mode, $sort, $element_type)
-        >;
-
 //
 // IE.AdaptiveAvgPool -> VPU.AdaptiveAvgPool
 //
@@ -1963,12 +1932,12 @@ def RewriteLayoutCast :
 
 def createDFTOp :
         NativeCodeCall<[{
-            $_builder.create<vpux::VPU::DFTOp>($_loc, $0, $1, $2)
+            $_builder.create<vpux::VPU::DFTOp>($_loc, $0, nullptr, $1, $2)
         }]>;
 
 def RewriteDFT :
         Pat<
-            (IE_DFTOp $input, $axes_attr, $signal_size_attr),
+            (IE_DFTOp $input, $axes, $signal_size, $axes_attr, $signal_size_attr),
             (createDFTOp $input, $axes_attr, $signal_size_attr)
         >;
 
@@ -1978,13 +1947,43 @@ def RewriteDFT :
 
 def createIDFTOp :
         NativeCodeCall<[{
-            $_builder.create<vpux::VPU::IDFTOp>($_loc, $0, $1, $2)
+            $_builder.create<vpux::VPU::IDFTOp>($_loc, $0, nullptr, $1, $2)
         }]>;
 
 def RewriteIDFT :
         Pat<
-            (IE_IDFTOp $input, $axes_attr, $signal_size_attr),
+            (IE_IDFTOp $input, $axes, $signal_size, $axes_attr, $signal_size_attr),
             (createIDFTOp $input, $axes_attr, $signal_size_attr)
+        >;
+
+//
+// IE.RDFT -> VPU.RDFT
+//
+
+def createRDFTOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPU::RDFTOp>($_loc, $0, nullptr, $1, $2)
+        }]>;
+
+def RewriteRDFT :
+        Pat<
+            (IE_RDFTOp $input, $axes, $signal_size, $axes_attr, $signal_size_attr),
+            (createRDFTOp $input, $axes_attr, $signal_size_attr)
+        >;
+
+//
+// IE.IRDFT -> VPU.IRDFT
+//
+
+def createIRDFTOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPU::IRDFTOp>($_loc, $0, nullptr, $1, $2)
+        }]>;
+
+def RewriteIRDFT :
+        Pat<
+            (IE_IRDFTOp $input, $axes, $signal_size, $axes_attr, $signal_size_attr),
+            (createIRDFTOp $input, $axes_attr, $signal_size_attr)
         >;
 
 #endif

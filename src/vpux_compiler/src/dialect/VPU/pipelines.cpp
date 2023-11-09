@@ -18,8 +18,8 @@ VPU::ActivationSparsityProfile getActSparsityProfile(const StrOption& actProfile
                       "Activation sparsity profile is not provided. Please try 'act-sparsity-profile=S1'");
     const auto actProfileStr = actProfile.getValue();
     const auto parsed = VPU::symbolizeActivationSparsityProfile(actProfileStr);
-    VPUX_THROW_UNLESS(parsed.hasValue(), "Unsupported activation sparsity profile '{0}'", actProfileStr);
-    return parsed.getValue();
+    VPUX_THROW_UNLESS(parsed.has_value(), "Unsupported activation sparsity profile '{0}'", actProfileStr);
+    return parsed.value();
 }
 
 template <VPU::ActivationSparsityProfile PROFILE>
@@ -43,8 +43,8 @@ VPU::WeightsSparsityHeuristic getWeightsSparsityHeuristic(const StrOption& weigh
                       "Weights sparsity heuristic is not provided. Please try 'weights-sparsity-heuristic=RATIO'");
     const auto weightsSparsityHeuristicStr = weightsSparsityHeuristic.getValue();
     const auto parsed = VPU::symbolizeWeightsSparsityHeuristic(weightsSparsityHeuristicStr);
-    VPUX_THROW_UNLESS(parsed.hasValue(), "Unsupported weights sparsity heuristic '{0}'", weightsSparsityHeuristicStr);
-    return parsed.getValue();
+    VPUX_THROW_UNLESS(parsed.has_value(), "Unsupported weights sparsity heuristic '{0}'", weightsSparsityHeuristicStr);
+    return parsed.value();
 }
 
 Optional<double> getWeightsSparsityThreshold(const DoubleOption& weightsSparsityThreshold) {
@@ -57,7 +57,7 @@ Optional<double> getWeightsSparsityThreshold(const DoubleOption& weightsSparsity
     return None;
 }
 
-};  // namespace
+}  // namespace
 
 //
 // buildActivationSparsityPipeline
@@ -95,24 +95,6 @@ void vpux::VPU::buildWeightsSparsityPipeline(mlir::OpPassManager& pm, const VPU:
     pm.addPass(VPU::createRecomputeSparsityPtrsPass(log));
 }
 
-void vpux::VPU::buildTilingPipeline(mlir::OpPassManager& pm, const VPU::TilingOptions& options, Logger log) {
-    const auto grc = getDefaultGreedyRewriteConfig();
-
-    pm.addPass(VPU::createTilingStrategyAssignmentPass(options.enablePrefetchTiling, log));
-
-    if (options.enableVerticalFusion) {
-        pm.addPass(VPU::createWrapVerticalFusionRegionPass(log));
-        pm.addPass(VPU::createMergeVfSubgraphsPass(log));
-        pm.addPass(VPU::createUnrollUnusedVerticalFusionRegionPass(log));
-        pm.addPass(VPU::createAdjustVFTilingStrategyPass(log));
-        pm.addPass(VPU::createVfTilingPass(log));
-    }
-
-    pm.addPass(VPU::createApplyTilingPass(log));
-
-    pm.addPass(mlir::createCanonicalizerPass(grc));
-}
-
 void VPU::registerVPUPipelines() {
     mlir::PassPipelineRegistration<VPU::ActivationSparsityOptions>(
             "enable-act-sparsity", "Enable activation sparsity",
@@ -128,4 +110,47 @@ void VPU::registerVPUPipelines() {
                                                        [](mlir::OpPassManager& pm, const VPU::TilingOptions& options) {
                                                            VPU::buildTilingPipeline(pm, options);
                                                        });
+
+    mlir::PassPipelineRegistration<VPU::TilingOptions>("sm-pipeline", "Apply SM Pipeline",
+                                                       [](mlir::OpPassManager& pm, const VPU::TilingOptions& options) {
+                                                           VPU::buildSMPipeline(pm, options);
+                                                       });
+}
+
+void vpux::VPU::buildTilingPipeline(mlir::OpPassManager& pm, const VPU::TilingOptions& options, Logger log) {
+    const auto grc = getDefaultGreedyRewriteConfig();
+
+    pm.addPass(VPU::createTilingStrategyAssignmentPass(options.enablePrefetchTiling, log));
+    if (options.enableVerticalFusion) {
+        VPU::buildVFPipeline(pm, options, log);
+    }
+    pm.addPass(VPU::createApplyTilingPass(log));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+}
+
+//
+// Strategy Pipeline
+//
+
+void vpux::VPU::buildVFPipeline(mlir::OpPassManager& pm, const VPU::TilingOptions& options, Logger log) {
+    pm.addPass(VPU::createTileOverHForVFPass(options.enablePrefetchTiling, log));
+    pm.addPass(VPU::createWrapVerticalFusionRegionPass(log));
+    pm.addPass(VPU::createMergeVfSubgraphsPass(log));
+    pm.addPass(VPU::createUnrollUnusedVerticalFusionRegionPass(log));
+    pm.addPass(VPU::createRollBackTilingStrategyPass(options.enablePrefetchTiling, log));
+    pm.addPass(VPU::createAdjustVFTilingStrategyPass(log));
+    pm.addPass(VPU::createVfTilingPass(log));
+}
+
+void vpux::VPU::buildSMPipeline(mlir::OpPassManager& pm, const VPU::TilingOptions& options, Logger log) {
+    // TO DO - SM Assignment Optimization Pass
+    // Keep enableSMpipleline Option - false till SM pipeline is built
+
+    pm.addPass(VPU::createStrategyManagerImplPass(options.enablePrefetchTiling, log));
+    if (options.enableVerticalFusion) {
+        VPU::buildVFPipeline(pm, options, log);
+    }
+    pm.addPass(VPU::createApplyTilingPass(log));
+    pm.addPass(VPU::createAdjustTilingForPermuteQuantizePass(log));
+    pm.addPass(VPU::createWrapVPUOpsInNCEClusterTilingPass(options.enableExplicitDistributedTensorAttr, log));
 }

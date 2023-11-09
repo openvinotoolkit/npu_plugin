@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/type_interfaces.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
@@ -15,6 +13,8 @@
 #include "vpux/utils/core/mem_size.hpp"
 #include "vpux/utils/core/numeric.hpp"
 #include "vpux/utils/core/small_vector.hpp"
+
+#include "common/utils.hpp"
 
 #include <mlir/IR/MLIRContext.h>
 #include <mlir/Parser/Parser.h>
@@ -27,10 +27,9 @@ using namespace vpux;
 constexpr StringRef CMX_NAME = "CMX_NN";
 constexpr StringRef DDR_NAME = "DDR";
 
-TEST(MLIR_NDTypeInterface, RankedTensorType) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
+using MLIR_NDTypeInterface = MLIR_UnitBase;
 
+TEST_F(MLIR_NDTypeInterface, RankedTensorType) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<Const::ConstDialect>();
 
@@ -117,10 +116,7 @@ TEST(MLIR_NDTypeInterface, RankedTensorType) {
     EXPECT_EQ(paddedOutput.getShape(), ShapeRef(paddedShape));
 }
 
-TEST(MLIR_NDTypeInterface, UnrankedTensorType) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
+TEST_F(MLIR_NDTypeInterface, UnrankedTensorType) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<Const::ConstDialect>();
 
@@ -179,10 +175,7 @@ TEST(MLIR_NDTypeInterface, UnrankedTensorType) {
     EXPECT_ANY_THROW(ndType.pad(ShapeRef(padBefore), ShapeRef(padAfter)));
 }
 
-TEST(MLIR_NDTypeInterface, MemRefType) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
+TEST_F(MLIR_NDTypeInterface, MemRefType) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<Const::ConstDialect>();
 
@@ -273,10 +266,7 @@ TEST(MLIR_NDTypeInterface, MemRefType) {
     EXPECT_EQ(paddedOutput.getShape(), ShapeRef(paddedShape));
 }
 
-TEST(MLIR_NDTypeInterface, UnrankedMemRefType) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
+TEST_F(MLIR_NDTypeInterface, UnrankedMemRefType) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<Const::ConstDialect>();
 
@@ -340,10 +330,7 @@ TEST(MLIR_NDTypeInterface, UnrankedMemRefType) {
     EXPECT_ANY_THROW(ndType.pad(ShapeRef(padBefore), ShapeRef(padAfter)));
 }
 
-TEST(MLIR_NDTypeInterface, CompressedMemRefType) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
+TEST_F(MLIR_NDTypeInterface, CompressedMemRefType) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<Const::ConstDialect>();
     ctx.loadDialect<VPUIP::VPUIPDialect>();
@@ -387,10 +374,7 @@ TEST(MLIR_NDTypeInterface, CompressedMemRefType) {
     EXPECT_EQ(tiledNumElems.size(), tileShape[compressionAxis]);
 }
 
-TEST(MLIR_NDTypeInterface, ExplicitSizeMemRefType) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
+TEST_F(MLIR_NDTypeInterface, ExplicitSizeMemRefType) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<Const::ConstDialect>();
     ctx.loadDialect<VPUIP::VPUIPDialect>();

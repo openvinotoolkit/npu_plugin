@@ -1,6 +1,6 @@
 //
-// Copyright (C) 2022 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include <vpux/compiler/dialect/VPUIP/nce_invariant.hpp>
@@ -115,7 +115,7 @@ void OptimizeUnalignedQDQSeqPass::safeRunOnFunc() {
             return true;
         }
         const auto axis = IE::getQuantAxisIndex(fakeQuantize);
-        if (axis.hasValue()) {
+        if (axis.has_value()) {
             return true;
         }
         auto affineReshape = fakeQuantize.input().getDefiningOp<IE::AffineReshapeOp>();

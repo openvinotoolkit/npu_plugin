@@ -15,4 +15,4 @@
 // Generated
 //
 
-#include <vpux/compiler/dialect/VPU/generated/dialect.hpp.inc>
+#include <vpux/compiler/dialect/VPU/dialect.hpp.inc>

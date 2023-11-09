@@ -11,4 +11,4 @@ using namespace vpux;
 // Generated
 //
 
-#include <vpux/compiler/dialect/VPURT/generated/ops_interfaces.cpp.inc>
+#include <vpux/compiler/dialect/VPURT/ops_interfaces.cpp.inc>

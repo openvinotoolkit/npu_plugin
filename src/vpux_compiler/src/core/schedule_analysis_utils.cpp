@@ -78,7 +78,9 @@ StallCycles vpux::getStallsOnAllExecutorPipelines(ScheduledOpInfoVec& scheduledO
             // move to the next stall
             ++stall;
             // target next stall
-            targetStall = *stall;
+            if (stall != minStallSizeExecutor->second.end()) {
+                targetStall = *stall;
+            }
         }
     }
 
@@ -98,7 +100,7 @@ void vpux::verifyDependenciesPreservedInCycles(AsyncDepsInfo& depsInfo, Schedule
     }
 }
 
-StringRef vpux::getTaskType(ScheduledOpInfo op) {
+StringRef vpux::getTaskType(const ScheduledOpInfo& op) {
     StringRef taskType = "DPU";
     if (op.isOriginalSpillReadOp()) {
         taskType = "DMA-spill-in";
@@ -293,19 +295,18 @@ void vpux::createTracingJSON(mlir::func::FuncOp& netFunc, StringRef fileName) {
     std::ofstream out_stream(fileName.str());
     VPUX_THROW_UNLESS(out_stream.good(), "File with manual strategy not created correctly");
 
-    profiling::TracingEventDesc ted;
+    profiling::TraceEventDesc ted;
     ted.pid = 0;
 
     out_stream << std::setprecision(0) << "{\"traceEvents\":[" << std::endl;
 
     // store all operation info in struct
     for (auto execOp : netFunc.getOps<mlir::async::ExecuteOp>()) {
-        auto location = vpux::stringifyLocation(execOp->getLoc());
         auto executor = VPUIP::VPUIPDialect::getExecutor(execOp).getLeafName().str();
         auto cycleBegin = getAsyncExecuteCycleBegin(execOp);
         auto cycleEnd = getAsyncExecuteCycleEnd(execOp);
 
-        ted.name = location;
+        ted.name = vpux::stringifyLocation(execOp->getLoc());
         ted.category = executor;
         ted.tid = executorStrToId.at(executor);
         ted.timestamp = cycleBegin;

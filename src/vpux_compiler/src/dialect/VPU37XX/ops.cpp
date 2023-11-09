@@ -20,4 +20,4 @@ void vpux::VPU37XX::VPU37XXDialect::initialize() {
 // Generated
 //
 
-#include <vpux/compiler/dialect/VPU37XX/generated/dialect.cpp.inc>
+#include <vpux/compiler/dialect/VPU37XX/dialect.cpp.inc>

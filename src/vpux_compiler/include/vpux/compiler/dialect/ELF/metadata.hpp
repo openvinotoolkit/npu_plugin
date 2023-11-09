@@ -6,8 +6,6 @@
 #pragma once
 
 #include "vpux/utils/core/logger.hpp"
-#include "vpux/utils/core/preprocessing.hpp"
-#include "vpux_compiler.hpp"
 
 #include <vpux_elf/writer.hpp>
 
@@ -44,26 +42,8 @@ const EnumMap<ov::element::Type_t, elf::OVNodeType> mapElementType = {
         {ov::element::Type_t::u64, elf::OVNodeType::OVNodeType_U64},
 };
 
-const EnumMap<vpux::PreProcessColorSpace, elf::PreProcessColorSpace> mapPreProcessColorFormat = {
-        {vpux::PreProcessColorSpace::BGR, elf::PreProcessColorSpace::PreProcessColorSpace_BGR},
-        {vpux::PreProcessColorSpace::RGB, elf::PreProcessColorSpace::PreProcessColorSpace_RGB},
-        {vpux::PreProcessColorSpace::NV12, elf::PreProcessColorSpace::PreProcessColorSpace_NV12},
-        {vpux::PreProcessColorSpace::I420, elf::PreProcessColorSpace::PreProcessColorSpace_I420},
-        {vpux::PreProcessColorSpace::NONE, elf::PreProcessColorSpace::PreProcessColorSpace_DEFAULT},
-};
-
-const EnumMap<vpux::PreProcessResizeAlgorithm, elf::PreProcessResizeAlgorithm> mapPreProcessResizeAlgorithm = {
-        {vpux::PreProcessResizeAlgorithm::RESIZE_BILINEAR,
-         elf::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_BILINEAR},
-        {vpux::PreProcessResizeAlgorithm::RESIZE_AREA,
-         elf::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_AREA},
-        {vpux::PreProcessResizeAlgorithm::NO_RESIZE,
-         elf::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_NO_RESIZE},
-};
-
 std::unique_ptr<elf::NetworkMetadata> constructMetadata(mlir::ModuleOp module, IE::CNNNetworkOp netOp,
                                                         mlir::func::FuncOp netFunc,
-                                                        const std::vector<vpux::PreProcessInfo>& preprocessInfo,
                                                         const std::vector<std::shared_ptr<const ov::Node>>& parameters,
                                                         const std::vector<std::shared_ptr<const ov::Node>>& results);
 

@@ -1,26 +1,16 @@
-// Copyright (C) 2019-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) 2019-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "single_layer_tests/conversion.hpp"
 #include <vector>
 #include "common_test_utils/test_constants.hpp"
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
-class VPUXConversionLayerTest : public ConversionLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-    void SetUp() override {
-        std::tie(std::ignore /*conversionOpType*/, std::ignore /*shape*/, inPrc, outPrc, std::ignore /*inLayout*/,
-                 std::ignore /*outLayout*/, std::ignore /*deviceName*/
-                 ) = GetParam();
-
-        ConversionLayerTest::SetUp();
-    }
-
-    void SkipBeforeLoad() override {
-    }
-};
+class VPUXConversionLayerTest : public ConversionLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
 class VPUXConversionLayerTest_VPU3700 : public VPUXConversionLayerTest {};
 class VPUXConversionLayerTest_VPU3720 : public VPUXConversionLayerTest {};
@@ -70,7 +60,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_NoReshape, VPUXConversionLayerTest_V
                                             ::testing::ValuesIn(netPrecisions), ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Layout::NHWC),
                                             ::testing::Values(InferenceEngine::Layout::NHWC),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          ConversionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_precommit_Conversion_NoReshape, VPUXConversionLayerTest_VPU3720,
@@ -79,7 +69,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_precommit_Conversion_NoReshape, VPUXConversionLay
                                             ::testing::ValuesIn(netPrecisions_VPU3720),
                                             ::testing::Values(InferenceEngine::Layout::NHWC),
                                             ::testing::Values(InferenceEngine::Layout::NHWC),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          ConversionLayerTest::getTestCaseName);
 
 // ------ ELF ------
@@ -90,7 +80,7 @@ INSTANTIATE_TEST_SUITE_P(NoReshape, VPUXConversionLayerTest_VPU3720_ELF,
                                             ::testing::ValuesIn(netPrecisions_VPU3720),
                                             ::testing::Values(InferenceEngine::Layout::NHWC),
                                             ::testing::Values(InferenceEngine::Layout::NHWC),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          ConversionLayerTest::getTestCaseName);
 
 }  // namespace

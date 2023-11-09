@@ -3,9 +3,11 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/utils/allocate_buffers.hpp"
+#include "vpux/compiler/utils/permute_utils.hpp"
 
 #include "vpux/compiler/utils/rewriter.hpp"
 
@@ -125,8 +127,7 @@ mlir::LogicalResult LayerRewriterBase::matchAndRewrite(mlir::ViewLikeOpInterface
                    VPU::bitEnumContains(mode, VPU::DistributionMode::MULTICASTED);
         };
         const auto isSupportSegmented = [&](const VPU::DistributionMode& mode) {
-            if (mode != VPU::DistributionMode::SEGMENTED ||
-                !VPUIP::isSegmentedOverH(distributedType.getDistribution())) {
+            if (mode != VPU::DistributionMode::SEGMENTED || !VPU::isSegmentedOverH(distributedType.getDistribution())) {
                 return false;
             }
             if (mlir::isa<VPUIP::QuantizeCastOp>(origOp)) {
@@ -147,13 +148,24 @@ mlir::LogicalResult LayerRewriterBase::matchAndRewrite(mlir::ViewLikeOpInterface
             }
             if (mlir::isa<VPUIP::ShapeCastOp, VPUIP::GenericReshapeOp>(origOp)) {
                 const auto arch = VPU::getArch(origOp.getOperation());
+                const auto newDistributionAttr =
+                        getSOHDistAttrWithNewShape(rewriter.getContext(), distributedType, viewOpOutputShape, arch);
+                const auto tilingScheme = parseIntArrayAttr<int64_t>(newDistributionAttr.getNumTiles());
+                const auto axis = vpux::VPU::getDistributedTilingAxis(tilingScheme);
+                const auto alignmentAttr = newDistributionAttr.getAlignment();
+                if (alignmentAttr != nullptr) {
+                    if (viewOpOutputShape[Dim(axis)] < parseIntArrayAttr<int64_t>(alignmentAttr)[axis]) {
+                        return false;
+                    }
+                }
                 return VPUIP::isDistributedCompatibleAfterShapeChange(distributedType, viewOpOutputShape, arch);
             }
             return false;
         };
         const auto isSupportedOverlapping = [](const VPUIP::DistributedBufferType distType,
                                                const mlir::ViewLikeOpInterface viewOp, const mlir::Value copyInput) {
-            const auto mode = distType.getDistribution().mode().getValue();
+            auto distribution = distType.getDistribution();
+            const auto mode = distribution.getMode().getValue();
             if (mode != VPU::DistributionMode::OVERLAPPED) {
                 return false;
             }
@@ -171,9 +183,26 @@ mlir::LogicalResult LayerRewriterBase::matchAndRewrite(mlir::ViewLikeOpInterface
                     return true;
                 }
             }
+
+            if (auto permuteCast = mlir::dyn_cast<VPUIP::PermuteCastOp>(*viewOp)) {
+                auto inOrder = permuteCast->getOperand(0).getType().cast<vpux::NDTypeInterface>().getDimsOrder();
+                auto outOrder = permuteCast->getResult(0).getType().cast<vpux::NDTypeInterface>().getDimsOrder();
+
+                auto numTilesAttr = distribution.getNumTiles();
+                const auto numTilesVec = parseIntArrayAttr<int64_t>(numTilesAttr);
+                const auto numTilesInMemOrder = inOrder.toMemoryOrder(Shape(numTilesVec));
+                const auto numTilesPermutedInMemOrder = applyPerm(numTilesInMemOrder, permuteCast.mem_perm());
+                const auto permutedNumTiles = outOrder.toLogicalOrder(numTilesPermutedInMemOrder).raw();
+
+                // Clustering axis will not be H or W after PermuteCast and will fail in OVERLAPPED distributed attr
+                // check
+                if (permutedNumTiles[Dims4D::Act::H.ind()] == 1 && permutedNumTiles[Dims4D::Act::W.ind()] == 1) {
+                    return false;
+                }
+            }
             return false;
         };
-        const auto mode = distributedType.getDistribution().mode().getValue();
+        const auto mode = distributedType.getDistribution().getMode().getValue();
         if (!isDuplicated(mode) && !isSupportSegmented(mode) &&
             !isSupportedOverlapping(distributedType, origOp, copyOpInput)) {
             _log.trace("Not supported distributed type");
@@ -199,17 +228,31 @@ mlir::LogicalResult LayerRewriterBase::matchAndRewrite(mlir::ViewLikeOpInterface
 
     vpux::NDTypeInterface newViewOpOutputType;
 
+    auto getDistributionForViewOpOutput = [&]() -> VPU::DistributedTensorAttr {
+        auto ctx = origOp->getContext();
+        const auto arch = VPU::getArch(origOp.getOperation());
+        const auto mode = distributedType.getDistribution().getMode().getValue();
+        const auto origDistribution = distributedType.getDistribution();
+
+        if (auto permuteCast = mlir::dyn_cast<VPUIP::PermuteCastOp>(*origOp)) {
+            auto inOrder = permuteCast->getOperand(0).getType().cast<vpux::NDTypeInterface>().getDimsOrder();
+            auto outOrder = permuteCast->getResult(0).getType().cast<vpux::NDTypeInterface>().getDimsOrder();
+
+            return applyPermutationOnDistributedTensorAttr(origDistribution, permuteCast.mem_perm(), inOrder, outOrder);
+        }
+
+        return (mode == VPU::DistributionMode::SEGMENTED)
+                       ? VPUIP::getSOHDistAttrWithNewShape(ctx, distributedType, viewOpOutputShape, arch)
+                       : origDistribution;
+    };
+
     if (distributedType != nullptr) {
         auto ctx = origOp->getContext();
-        const auto mode = distributedType.getDistribution().mode().getValue();
         const auto order = mlir::AffineMapAttr::get(viewOpOutputType.getDimsOrder().toAffineMap(ctx));
-        const auto arch = VPU::getArch(origOp.getOperation());
-        const auto distribution =
-                mode == VPU::DistributionMode::SEGMENTED
-                        ? VPUIP::getSOHDistAttrWithNewShape(ctx, distributedType, viewOpOutputShape, arch)
-                        : distributedType.getDistribution();
-        newViewOpOutputType = VPUIP::DistributedBufferType::get(ctx, viewOpOutputShape.raw(), viewOpOutputElemType,
-                                                                order, distributedType.getMemSpace(), distribution);
+
+        newViewOpOutputType =
+                VPUIP::DistributedBufferType::get(ctx, viewOpOutputShape.raw(), viewOpOutputElemType, order,
+                                                  distributedType.getMemSpace(), getDistributionForViewOpOutput());
     } else {
         newViewOpOutputType = viewOpOutputType.changeMemSpace(copyOpInputType.getMemSpace());
     }
@@ -284,6 +327,25 @@ private:
     Logger _log;
 };
 
+// SubView is not compatible with distributed buffer when:
+// 1. Distributed buffer is segmented
+// 2. SubView shrinks segmented axis
+bool isSubViewCompatibleWithDistributedBuffer(VPUIP::SubViewOp subViewOp,
+                                              VPUIP::DistributedBufferType distributedType) {
+    const auto tileIndex = VPUIP::getTilingDimIndex(distributedType);
+    if (!tileIndex.has_value()) {
+        // DUPLICATED | MULTICASTED
+        return true;
+    }
+
+    auto tileIndexVal = tileIndex.value();
+    auto origShape = getShape(subViewOp.source());
+    auto subShape = getShape(subViewOp.result());
+
+    // Be compatible if SubView does not shrink segmented axis
+    return origShape[Dim(tileIndexVal)] == subShape[Dim(tileIndexVal)];
+}
+
 mlir::LogicalResult MoveSubviewToTheFrontOfCopyBase::matchAndRewrite(VPUIP::CopyOp copyOp,
                                                                      mlir::PatternRewriter& rewriter) const {
     auto subViewOp = copyOp.input().getDefiningOp<VPUIP::SubViewOp>();
@@ -307,12 +369,16 @@ mlir::LogicalResult MoveSubviewToTheFrontOfCopyBase::matchAndRewrite(VPUIP::Copy
         return mlir::failure();
     }
 
+    // perform this optimization only when distributed buffer is compatible with subview
+    // otherwise an accuracy degradation may occur
     auto originOperand = parentCopyOp->getOperand(0);
-    if (!originOperand.hasOneUse()) {
-        return mlir::failure();
+    if (auto distributedType = originOperand.getType().dyn_cast<VPUIP::DistributedBufferType>()) {
+        if (!isSubViewCompatibleWithDistributedBuffer(subViewOp, distributedType)) {
+            return mlir::failure();
+        }
     }
 
-    _log.trace("Move subview in front of copy {0}", copyOp->getLoc());
+    _log.trace("Move subview {0} in front of copy {1}", subViewOp->getLoc(), parentCopyOp->getLoc());
 
     if (auto arg = originOperand.dyn_cast<mlir::BlockArgument>()) {
         rewriter.setInsertionPointToStart(arg.getParentBlock());
@@ -324,7 +390,6 @@ mlir::LogicalResult MoveSubviewToTheFrontOfCopyBase::matchAndRewrite(VPUIP::Copy
     auto newSubViewOp =
             rewriter.create<VPUIP::SubViewOp>(subViewOp->getLoc(), originOperand, subViewOp.static_offsetsAttr(),
                                               subViewOp.static_sizesAttr(), subViewOp.static_stridesAttr());
-    originOperand.replaceAllUsesExcept(newSubViewOp.result(), llvm::SmallPtrSet<mlir::Operation*, 1>{newSubViewOp});
 
     auto subViewOpShape = getShape(newSubViewOp);
     auto allocOp = VPUIP::getRootAlloc<mlir::memref::AllocOp>(parentCopyOp.getOutputs()[0]);

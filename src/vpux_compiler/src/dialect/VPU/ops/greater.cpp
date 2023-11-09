@@ -29,7 +29,7 @@ mlir::LogicalResult vpux::VPU::GreaterOp::inferReturnTypes(mlir::MLIRContext* ct
                                                        greater.auto_broadcast(), loc);
 
     if (mlir::succeeded(outShapeRes)) {
-        const auto outType = in1Type.changeShape(Shape(outShapeRes.getValue()));
+        const auto outType = in1Type.changeShape(Shape(outShapeRes.value()));
         inferredReturnTypes.push_back(outType);
     }
 

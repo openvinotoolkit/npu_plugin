@@ -16,7 +16,7 @@
 using namespace vpux;
 
 mlir::Operation* vpux::VPURT::TaskOp::getInnerTaskOp() {
-    return &body().front().front();
+    return &getBody().front().front();
 }
 
 void vpux::VPURT::TaskOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState,
@@ -44,22 +44,22 @@ VPU::ExecutorKind vpux::VPURT::TaskOp::getExecutorKind() {
 
 mlir::LogicalResult vpux::VPURT::TaskOp::verify() {
     const auto task = getOperation();
-    if (body().getBlocks().size() != 1) {
+    if (getBody().getBlocks().size() != 1) {
         return errorAt(task, "The task body should contain exactly one block");
     }
 
-    auto numOps = body().front().getOperations().size();
+    auto numOps = getBody().front().getOperations().size();
     if (numOps != 1) {
         return errorAt(task, "The task body should contain exactly one operation. Got: {0}", numOps);
     }
 
-    auto& innerOp = body().front().front();
+    auto& innerOp = getBody().front().front();
     if (!mlir::isa<mlir::MemoryEffectOpInterface>(innerOp)) {
         return errorAt(task, "The task body should contain operation with memory effects");
     }
 
-    if (isTrailingSWLayer()) {
-        for (auto updateBarrier : updateBarriers()) {
+    if (getIsTrailingSWLayer()) {
+        for (auto updateBarrier : getUpdateBarriers()) {
             for (auto* depOp : updateBarrier.getUsers()) {
                 auto depTask = mlir::dyn_cast<VPURT::TaskOp>(depOp);
 
@@ -77,11 +77,11 @@ mlir::LogicalResult vpux::VPURT::TaskOp::verify() {
 }
 
 void vpux::VPURT::TaskOp::getEffects(SmallVectorImpl<MemoryEffect>& effects) {
-    for (const auto waitBarrier : waitBarriers()) {
+    for (const auto waitBarrier : getWaitBarriers()) {
         effects.emplace_back(mlir::MemoryEffects::Read::get(), waitBarrier, VPURT::BarrierResource::get());
     }
 
-    for (const auto updateBarrier : updateBarriers()) {
+    for (const auto updateBarrier : getUpdateBarriers()) {
         effects.emplace_back(mlir::MemoryEffects::Write::get(), updateBarrier, VPURT::BarrierResource::get());
     }
 
@@ -118,9 +118,9 @@ SmallVector<int64_t> vpux::VPURT::getDMATaskPorts(TaskOp task) {
             }
             const auto distributionAttr = distType.getDistribution();
             VPUX_THROW_WHEN(distributionAttr == nullptr, "Failed to get distribution attribute.");
-            const auto mode = distributionAttr.mode().getValue();
+            const auto mode = distributionAttr.getMode().getValue();
             if (mode == VPU::DistributionMode::SEGMENTED || mode == VPU::DistributionMode::OVERLAPPED) {
-                numClusters = distributionAttr.num_clusters().getInt();
+                numClusters = distributionAttr.getNumClusters().getInt();
                 return true;
             }
             return false;
@@ -137,17 +137,36 @@ SmallVector<int64_t> vpux::VPURT::getDMATaskPorts(TaskOp task) {
     ports.push_back(vpux::getDMAPortValue(wrappedTaskOp));
     return ports;
 }
+// Encode DMA port and channel setting into a single integer for convenient usage during barrier scheduling
+int64_t vpux::VPURT::getDMAQueueIdEncoding(int64_t port, int64_t channelIdx) {
+    return port * (VPUIP::getMaxEnumValForDmaChannelType() + 1) + channelIdx;
+}
+int64_t vpux::VPURT::getDMAQueueIdEncoding(int64_t port, llvm::Optional<vpux::VPUIP::DmaChannelType> channel) {
+    return VPURT::getDMAQueueIdEncoding(port, static_cast<int64_t>(channel.value_or(VPUIP::DmaChannelType::DDR)));
+}
 
 Optional<SmallVector<VPURT::TaskQueueType>> vpux::VPURT::getDMATaskQueueType(TaskOp taskOp) {
     if (taskOp.getExecutorKind() != VPU::ExecutorKind::DMA_NN) {
         return None;
     }
     SmallVector<VPURT::TaskQueueType> queueTypes;
+
+    mlir::Operation* innerOp = taskOp.getInnerTaskOp();
+
+    if (auto clusterTilingOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(taskOp.getInnerTaskOp())) {
+        innerOp = clusterTilingOp.getInnerTaskOp();
+    }
+
     auto ports = VPURT::getDMATaskPorts(taskOp);
+    auto dmaTask = mlir::dyn_cast<VPUIP::DMATypeOpInterface>(innerOp);
+    VPUX_THROW_WHEN(dmaTask == nullptr, "Not a DMA task");
+
+    const auto channelType = dmaTask.getChannelType();
+
     for (auto port : ports) {
         TaskQueueType queueType;
         queueType.type = VPU::ExecutorKind::DMA_NN;
-        queueType.index = port;
+        queueType.id = VPURT::getDMAQueueIdEncoding(port, channelType);
         queueTypes.push_back(queueType);
     }
     return queueTypes;
@@ -165,15 +184,18 @@ VPURT::TaskQueueType vpux::VPURT::getTaskQueueType(TaskOp taskOp, bool ignoreInd
         VPUX_THROW_WHEN(nceTask == nullptr || nceTask.variants().getOps<VPUIP::DPUTaskOp>().empty(),
                         "Could not get DPU task");
         auto dpuTask = *(nceTask.variants().getOps<VPUIP::DPUTaskOp>().begin());
-        queueType.index = dpuTask.cluster_id().value_or(0);
+        queueType.id = dpuTask.cluster_id().value_or(0);
     } else if (queueType.type == VPU::ExecutorKind::DMA_NN) {
         auto* wrappedTaskOp = taskOp.getInnerTaskOp();
         if (auto clusterTilingOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(wrappedTaskOp)) {
             wrappedTaskOp = clusterTilingOp.getInnerTaskOp();
         }
-        queueType.index = vpux::getDMAPortValue(wrappedTaskOp);
+
+        auto dmaTask = mlir::dyn_cast<VPUIP::DMATypeOpInterface>(wrappedTaskOp);
+        VPUX_THROW_WHEN(dmaTask == nullptr, "Not a DMA task");
+        queueType.id = getDMAQueueIdEncoding(vpux::getDMAPortValue(wrappedTaskOp), dmaTask.getChannelType());
     } else {
-        queueType.index = 0;
+        queueType.id = 0;
     }
     return queueType;
 }

@@ -74,7 +74,7 @@ mlir::LogicalResult LegalizeAxisInd::matchAndRewrite(IE::SoftMaxOp softmaxOp, ml
     int64_t legalizeAxis = vpux::getPositiveAxisInd(softmaxOp.axisIndAttr(), inputType.getRank());
     const auto legalizeAxisAttr = getIntAttr(rewriter.getContext(), legalizeAxis);
 
-    rewriter.replaceOpWithNewOp<IE::SoftMaxOp>(softmaxOp, softmaxOp.input(), legalizeAxisAttr);
+    rewriter.replaceOpWithNewOp<IE::SoftMaxOp>(softmaxOp, softmaxOp.input(), legalizeAxisAttr, nullptr);
     return mlir::success();
 }
 

@@ -22,14 +22,14 @@ def VPUMI37XX_ExecutableTaskOpInterface : OpInterface<"ExecutableTaskOpInterface
             "Barriers that will free this task to run",
             "mlir::ValueRange", "waitBarriers", (ins),
             [{
-                return $_op.waitBarriers();
+                return $_op.getWaitBarriers();
             }]
         >,
         InterfaceMethod<
             "Barriers that will free this task to run",
             "mlir::MutableOperandRange", "waitBarriersMutable", (ins),
             [{
-                return $_op.waitBarriersMutable();
+                return $_op.getWaitBarriersMutable();
             }]
         >,
 
@@ -37,14 +37,14 @@ def VPUMI37XX_ExecutableTaskOpInterface : OpInterface<"ExecutableTaskOpInterface
             "Barriers that will be at least partially unlocked when this task is complete",
             "mlir::ValueRange", "updateBarriers", (ins),
             [{
-                return $_op.updateBarriers();
+                return $_op.getUpdateBarriers();
             }]
         >,
         InterfaceMethod<
             "Barriers that will be at least partially unlocked when this task is complete",
             "mlir::MutableOperandRange", "updateBarriersMutable", (ins),
             [{
-                return $_op.updateBarriersMutable();
+                return $_op.getUpdateBarriersMutable();
             }]
         >,
         InterfaceMethod<

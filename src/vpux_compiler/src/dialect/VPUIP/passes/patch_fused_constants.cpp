@@ -219,7 +219,7 @@ void PatchFusedConstants::safeRunOnFunc() {
         auto weightsTable = vpux::ConstantFusing::getConstAndCopyOp(nceOp, weightTable, constCopyOp);
         VPUX_THROW_UNLESS(weightsTable != nullptr, "Couldn't find Weight Table Declare Op");
 
-        auto contentAttr = weightsTable.contentAttr();
+        auto contentAttr = weightsTable.getContentAttr();
 
         Const::ContentAttr newContentAttr;
         auto baseContent = contentAttr.getBaseContent();
@@ -263,7 +263,7 @@ void PatchFusedConstants::safeRunOnFunc() {
         if (auto staticAllocOp = rootBuffer.getDefiningOp<VPUIP::StaticAllocOp>()) {
             baseOffset = static_cast<uint32_t>(staticAllocOp.offset());
         } else if (auto declareBuffer = rootBuffer.getDefiningOp<VPURT::DeclareBufferOp>()) {
-            baseOffset = static_cast<uint32_t>(declareBuffer.byteOffset());
+            baseOffset = static_cast<uint32_t>(declareBuffer.getByteOffset());
         } else {
             VPUX_THROW("Unsupported declare op for buffer- '{0}'", rootBuffer);
         }

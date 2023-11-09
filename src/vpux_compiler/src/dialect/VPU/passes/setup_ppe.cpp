@@ -128,21 +128,21 @@ void applyPpeRewriter(VPU::NCEOpInterface origOp, Logger log) {
     mlir::ArrayAttr rhsQuantMult = nullptr;
 
     const auto maybePpeTask = origOp.getPPE();
-    if (maybePpeTask.hasValue()) {
-        const auto ppeTask = maybePpeTask.getValue();
-        ppeModeAttr = ppeTask.mode();
+    if (maybePpeTask.has_value()) {
+        const auto ppeTask = maybePpeTask.value();
+        ppeModeAttr = ppeTask.getMode();
 
-        clampLowAttr = ppeTask.clamp_low();
-        clampHighAttr = ppeTask.clamp_high();
-        lreluMultAttr = ppeTask.lrelu_mult();
-        lreluShiftAttr = ppeTask.lrelu_shift();
+        clampLowAttr = ppeTask.getClampLow();
+        clampHighAttr = ppeTask.getClampHigh();
+        lreluMultAttr = ppeTask.getLreluMult();
+        lreluShiftAttr = ppeTask.getLreluShift();
 
-        quantScaleAttr = ppeTask.quant_scale();
-        quantMultAttr = ppeTask.quant_mult();
-        quantShiftAttr = ppeTask.quant_shift();
-        quantPostShiftAttr = ppeTask.quant_post_shift();
-        lhsQuantMult = ppeTask.in1_quant_mult();
-        rhsQuantMult = ppeTask.in2_quant_mult();
+        quantScaleAttr = ppeTask.getQuantScale();
+        quantMultAttr = ppeTask.getQuantMult();
+        quantShiftAttr = ppeTask.getQuantShift();
+        quantPostShiftAttr = ppeTask.getQuantPostShift();
+        lhsQuantMult = ppeTask.getIn1QuantMult();
+        rhsQuantMult = ppeTask.getIn2QuantMult();
 
         clampLow = checked_cast<int32_t>(clampLowAttr.getValue().getSExtValue());
         clampHigh = checked_cast<int32_t>(clampHighAttr.getValue().getSExtValue());
@@ -188,9 +188,9 @@ void applyPpeRewriter(VPU::NCEOpInterface origOp, Logger log) {
 
     auto ctx = origOp.getContext();
     auto ppeTaskAttr = VPU::PPETaskAttr::get(
-            VPU::PPEModeAttr::get(ctx, ppeMode), getIntAttr(ctx, newClampLow), getIntAttr(ctx, newClampHigh),
+            ctx, VPU::PPEModeAttr::get(ctx, ppeMode), getIntAttr(ctx, newClampLow), getIntAttr(ctx, newClampHigh),
             getIntAttr(ctx, lreluMult), getIntAttr(ctx, lreluShift), quantScaleAttr, quantMultAttr, quantShiftAttr,
-            quantPostShiftAttr, lhsQuantMult, rhsQuantMult, getFPAttr(ctx, rescaledAlpha), ctx);
+            quantPostShiftAttr, lhsQuantMult, rhsQuantMult, getFPAttr(ctx, rescaledAlpha));
 
     origOp.setPPE(ppeTaskAttr);
 }

@@ -278,7 +278,7 @@ def IERT_MaxPoolOp :
         I64ArrayAttr:$pads_begin,
         I64ArrayAttr:$pads_end,
 
-        OptionalAttr<IE_PostOp>:$post_op
+        OptionalAttr<IE_PostOpAttr>:$post_op
     );
 
     let results = (outs
@@ -382,7 +382,7 @@ def IERT_ConvolutionOp :
         I64ArrayAttr:$pads_end,
         I64ArrayAttr:$dilations,
 
-        OptionalAttr<IE_PostOp>:$post_op
+        OptionalAttr<IE_PostOpAttr>:$post_op
     );
 
     let results = (outs
@@ -421,7 +421,7 @@ def IERT_GroupConvolutionOp :
         I64ArrayAttr:$dilations,
         OptionalAttr<IntAttr>:$groups,
 
-        OptionalAttr<IE_PostOp>:$post_op
+        OptionalAttr<IE_PostOpAttr>:$post_op
     );
 
     let results = (outs
@@ -2139,7 +2139,7 @@ def IERT_AddOp :
         MemRefOf<[F16, F32, quant_QuantizedType]>:$input2,
         MemRefOf<[F16, F32, quant_QuantizedType]>:$output_buff,
 
-        OptionalAttr<IE_PostOp>:$post_op
+        OptionalAttr<IE_PostOpAttr>:$post_op
     );
 
     let results = (outs
@@ -2171,7 +2171,7 @@ def IERT_MultiplyOp :
         MemRefOf<[F16, F32, quant_QuantizedType]>:$input2,
         MemRefOf<[F16, F32, quant_QuantizedType]>:$output_buff,
 
-        OptionalAttr<IE_PostOp>:$post_op
+        OptionalAttr<IE_PostOpAttr>:$post_op
     );
 
     let results = (outs
@@ -2203,7 +2203,7 @@ def IERT_AndOp :
         MemRefOf<[F16, F32, quant_QuantizedType]>:$input2,
         MemRefOf<[F16, F32, quant_QuantizedType]>:$output_buff,
 
-        OptionalAttr<IE_PostOp>:$post_op
+        OptionalAttr<IE_PostOpAttr>:$post_op
     );
 
     let results = (outs
@@ -2961,7 +2961,7 @@ def IERT_ProposalOp :
         MemRefOf<[F16, F32]>:$output_buff,
         MemRefOf<[F16, F32]>:$probs_buff,
 
-        IE_ProposalAttrs:$proposal_attrs
+        IE_ProposalAttr:$proposal_attrs
     );
 
     let results = (outs
@@ -3148,7 +3148,7 @@ def IERT_ConcatViewOp :
 
     let extraClassDeclaration = [{
         mlir::Value getViewSource() {
-            return output_buff();
+            return getOutputBuff();
         }
     }] # VPUIP_InferLayerReturnTypes<1>.impl;
 }
@@ -3540,7 +3540,7 @@ def IERT_RegionYoloOp :
 
         IntAttr:$coords,
         IntAttr:$classes,
-        IntAttr:$regions,
+        IntAttr:$num_regions,
         BoolAttr:$do_softmax,
         I64ArrayAttr:$mask,
         IntAttr:$axis,
@@ -3781,7 +3781,7 @@ def IERT_SubtractOp :
         MemRefOf<[F16, F32]>:$input2,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        OptionalAttr<IE_PostOp>:$post_op
+        OptionalAttr<IE_PostOpAttr>:$post_op
     );
 
     let results = (outs
@@ -4622,13 +4622,13 @@ def ExtractParamOp : IERT_Op<"ExtractParam",
 		operand a MemRef with a certain index.
     }];
 
-    let arguments = (ins IERT_PackedParams:$operands,
+    let arguments = (ins IERT_PackedParams:$inputs,
                          IntAttr:$idx
                     );
     let results = (outs AnyMemRef);
 
     let assemblyFormat = [{
-        `(` $operands `:` type($operands) `,` $idx `)`
+        `(` $inputs `:` type($inputs) `,` $idx `)`
         attr-dict
         `->` type(results)
     }];
@@ -4646,12 +4646,12 @@ def SpecialCastOp : IERT_Op<"SpecialCast",
 	  llvm.struct to memref.
     }];
 
-    let arguments = (ins AnyType:$operands);
+    let arguments = (ins AnyType:$inputs);
 
     let results = (outs AnyMemRef);
 
     let assemblyFormat = [{
-        `(` $operands `:` type($operands) `)`
+        `(` $inputs `:` type($inputs) `)`
         attr-dict
         `->` type(results)
     }];

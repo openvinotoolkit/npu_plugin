@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -26,5 +26,19 @@ SmallVector<Factors> vpux::getFactorsListWithLimitation(int64_t n, int64_t limit
             factors.emplace_back(i, n / i);  // larger, smaller
         }
     }
+    return factors;
+}
+
+SmallVector<int64_t> vpux::getPrimeFactors(int64_t n) {
+    SmallVector<int64_t> factors;
+    for (int64_t i = 2; i < n;) {
+        if (n % i == 0) {
+            factors.push_back(i);
+            n = n / i;
+        } else {
+            i++;
+        }
+    }
+    factors.push_back(n);
     return factors;
 }

@@ -104,7 +104,7 @@ void vpux::VPU::MemPermuteOp::adjustAttrs(const TilingInfo& /*inputTiling*/, con
     // Do nothing
 }
 
-OutputTiling vpux::VPU::MemPermuteOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
+mlir::FailureOr<OutputTiling> vpux::VPU::MemPermuteOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
     return vpux::getSWLayerTilingStrategy(this->getOperation(), tilingMode, log);
 }
 

@@ -1,14 +1,12 @@
 //
-// Copyright (C) 2022 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "behavior/ov_executable_network/properties.hpp"
-#include "common/functions.h"
-#include "functional_test_utils/plugin_cache.hpp"
+#include "vpu_test_env_cfg.hpp"
 #include "vpux/al/config/common.hpp"
 
-#include <openvino/runtime/device_id_parser.hpp>
 #include <vpux/properties.hpp>
 
 #include <vector>
@@ -17,33 +15,19 @@ using namespace ov::test::behavior;
 
 namespace {
 
-std::string getDeviceName() {
-    auto* env_val = std::getenv("IE_KMB_TESTS_DEVICE_NAME");
-    return (env_val != nullptr) ? env_val : "VPUX.3700";
-}
-
-std::string getDeviceNameID(const std::string& str) {
-    ov::DeviceIDParser parser = ov::DeviceIDParser(str);
-    return parser.get_device_id();
-}
-
-std::string getDeviceNameTestCase(const std::string& str) {
-    ov::DeviceIDParser parser = ov::DeviceIDParser(str);
-    return parser.get_device_name().substr(0, parser.get_device_name().size() - 1) + parser.get_device_id();
-}
-
 std::vector<std::pair<std::string, ov::Any>> exe_network_supported_properties = {
         {ov::intel_vpux::print_profiling.name(), ov::Any(ov::intel_vpux::ProfilingOutputTypeArg::JSON)},
         {ov::intel_vpux::profiling_output_file.name(), ov::Any("some/file")},
         {ov::intel_vpux::vpux_platform.name(), ov::Any(ov::intel_vpux::VPUXPlatform::EMULATOR)},
-        {ov::intel_vpux::ddr_heap_size_mb.name(), ov::Any(500)},
         {ov::hint::model_priority.name(), ov::Any(ov::hint::Priority::HIGH)},
         {ov::hint::num_requests.name(), ov::Any(8)},
         {ov::hint::performance_mode.name(), ov::Any(ov::hint::PerformanceMode::THROUGHPUT)},
         {ov::enable_profiling.name(), ov::Any(true)},
-        {ov::device::id.name(), ov::Any(getDeviceNameID(getDeviceName()))},
+        {ov::device::id.name(), ov::Any(LayerTestsUtils::getDeviceNameID(LayerTestsUtils::getDeviceName()))},
         {ov::intel_vpux::use_elf_compiler_backend.name(), ov::Any(ov::intel_vpux::ElfCompilerBackend::YES)},
-        {ov::intel_vpux::create_executor.name(), ov::Any(0)}};
+        {ov::intel_vpux::create_executor.name(), ov::Any(0)},
+        {ov::optimal_number_of_infer_requests.name(), ov::Any(2)},
+};
 
 std::vector<std::pair<std::string, ov::Any>> exe_network_immutable_properties = {
         {std::make_pair(ov::optimal_number_of_infer_requests.name(), ov::Any(2))},
@@ -75,7 +59,7 @@ public:
         std::tie(targetDevice, configuration) = obj.param;
         std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
         std::ostringstream result;
-        result << "targetDevice=" << getDeviceNameTestCase(targetDevice) << "_";
+        result << "targetDevice=" << LayerTestsUtils::getDeviceNameTestCase(targetDevice) << "_";
         result << "config=(" << configuration.first << "=" << configuration.second.as<std::string>() << ")";
         return result.str();
     }
@@ -97,7 +81,7 @@ TEST_P(VPUXClassExecutableNetworkTestSuite1, PropertyIsSupportedAndImmutableAndG
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_VPUXClassExecutableNetworkGetPropertiesTest, VPUXClassExecutableNetworkTestSuite1,
-                         ::testing::Combine(::testing::Values(getDeviceName()),
+                         ::testing::Combine(::testing::Values(LayerTestsUtils::getDeviceName()),
                                             ::testing::ValuesIn(exe_network_supported_properties)),
                          VPUXClassExecutableNetworkGetPropertiesTest::getTestCaseName);
 
@@ -117,7 +101,7 @@ TEST_P(VPUXClassExecutableNetworkTestSuite2, PropertyIsSupportedAndImmutableAndC
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_VPUXClassExecutableNetworkTestSuite2, VPUXClassExecutableNetworkTestSuite2,
-                         ::testing::Combine(::testing::Values(getDeviceName()),
+                         ::testing::Combine(::testing::Values(LayerTestsUtils::getDeviceName()),
                                             ::testing::ValuesIn(exe_network_immutable_properties)),
                          VPUXClassExecutableNetworkGetPropertiesTest::getTestCaseName);
 
@@ -126,13 +110,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_VPUXClassExecutableNetworkTestSuite2, VPUXClassEx
 namespace {
 
 std::vector<std::pair<std::string, ov::Any>> plugin_mutable_properties = {
-        {ov::intel_vpux::force_host_precision_layout_conversion.name(), ov::Any(true)},
         {ov::hint::num_requests.name(), ov::Any(5)},
         {ov::intel_vpux::profiling_output_file.name(), ov::Any("some/file")},
         {ov::enable_profiling.name(), ov::Any(true)},
         {ov::hint::performance_mode.name(), ov::Any(ov::hint::PerformanceMode::THROUGHPUT)},
         {ov::log::level.name(), ov::Any(ov::log::Level::DEBUG)},
-        {ov::device::id.name(), ov::Any(getDeviceNameID(getDeviceName()))},
+        {ov::device::id.name(), ov::Any(LayerTestsUtils::getDeviceNameID(LayerTestsUtils::getDeviceName()))},
         {ov::intel_vpux::print_profiling.name(), ov::Any(ov::intel_vpux::ProfilingOutputTypeArg::JSON)},
         {ov::intel_vpux::compiler_type.name(), ov::Any(ov::intel_vpux::CompilerType::MLIR)},
         {ov::intel_vpux::vpux_platform.name(), ov::Any(ov::intel_vpux::VPUXPlatform::AUTO_DETECT)},
@@ -151,7 +134,9 @@ std::vector<std::pair<std::string, ov::Any>> plugin_immutable_properties = {
         {ov::range_for_async_infer_requests.name(),
          ov::Any(std::tuple<unsigned int, unsigned int, unsigned int>{0, 10, 1})},
         {ov::range_for_streams.name(), ov::Any(std::tuple<unsigned int, unsigned int>{0, 10})},
-        {ov::caching_properties.name(), ov::Any("deadbeef")}};
+        {ov::caching_properties.name(), ov::Any("deadbeef")},
+        {ov::optimal_number_of_infer_requests.name(), ov::Any(4)},
+};
 
 class VPUXClassPluginPropertiesTest :
         public OVCompiledModelPropertiesBase,
@@ -176,7 +161,7 @@ public:
         std::tie(targetDevice, configuration) = obj.param;
         std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
         std::ostringstream result;
-        result << "targetDevice=" << getDeviceNameTestCase(targetDevice) << "_";
+        result << "targetDevice=" << LayerTestsUtils::getDeviceNameTestCase(targetDevice) << "_";
         result << "config=(" << configuration.first << "=" << configuration.second.as<std::string>() << ")";
         return result.str();
     }
@@ -202,7 +187,7 @@ TEST_P(VPUXClassPluginPropertiesTestSuite1, CanSetGetMutableProperty) {
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_VPUXClassPluginPropertiesTest, VPUXClassPluginPropertiesTestSuite1,
-                         ::testing::Combine(::testing::Values(getDeviceName()),
+                         ::testing::Combine(::testing::Values(LayerTestsUtils::getDeviceName()),
                                             ::testing::ValuesIn(plugin_mutable_properties)),
                          VPUXClassPluginPropertiesTest::getTestCaseName);
 
@@ -228,9 +213,38 @@ TEST_P(VPUXClassPluginPropertiesTestSuite2, CanNotSetImmutableProperty) {
     ASSERT_EQ(orig_value.as<std::string>(), after_value.as<std::string>());
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_VPUXClassPluginPropertiesTest, VPUXClassPluginPropertiesTestSuite2,
-                         ::testing::Combine(::testing::Values(getDeviceName()),
+using VPUXClassPluginPropertiesTestSuite3 = VPUXClassPluginPropertiesTest;
+
+TEST_P(VPUXClassPluginPropertiesTestSuite3, CanGetPropertyWithOptionsNotAffectingCore) {
+    std::vector<ov::PropertyName> properties;
+
+    ASSERT_NO_THROW(properties = ie.get_property(deviceName, ov::supported_properties));
+
+    auto it = find(properties.cbegin(), properties.cend(), configKey);
+    ASSERT_TRUE(it != properties.cend());
+
+    ov::Any retrieved_value;
+    ASSERT_NO_THROW(retrieved_value = ie.get_property(deviceName, configKey));
+
+    ov::Any retrieved_value_with_options;
+    ASSERT_NO_THROW(retrieved_value_with_options = ie.get_property(
+                            deviceName, configKey,
+                            {{ov::hint::performance_mode.name(), ov::Any(ov::hint::PerformanceMode::THROUGHPUT)}}));
+
+    ov::Any retrieved_value2;
+    ASSERT_NO_THROW(retrieved_value2 = ie.get_property(deviceName, configKey));
+
+    ASSERT_EQ(retrieved_value.as<std::string>(), retrieved_value2.as<std::string>());
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_VPUXClassPluginPropertiesOptsTest1, VPUXClassPluginPropertiesTestSuite3,
+                         ::testing::Combine(::testing::Values(LayerTestsUtils::getDeviceName()),
                                             ::testing::ValuesIn(plugin_immutable_properties)),
+                         VPUXClassPluginPropertiesTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_VPUXClassPluginPropertiesOptsTest2, VPUXClassPluginPropertiesTestSuite3,
+                         ::testing::Combine(::testing::Values(LayerTestsUtils::getDeviceName()),
+                                            ::testing::ValuesIn(plugin_mutable_properties)),
                          VPUXClassPluginPropertiesTest::getTestCaseName);
 
 }  // namespace

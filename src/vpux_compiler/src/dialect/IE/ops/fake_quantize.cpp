@@ -35,7 +35,7 @@ mlir::LogicalResult vpux::IE::FakeQuantizeOp::inferReturnTypeComponents(
                                       autob, loc);
 
     if (mlir::succeeded(outShapeOrResult)) {
-        inferredReturnShapes.emplace_back(outShapeOrResult.getValue(), inputType.getElementType());
+        inferredReturnShapes.emplace_back(outShapeOrResult.value(), inputType.getElementType());
     }
 
     return outShapeOrResult;

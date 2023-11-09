@@ -88,13 +88,13 @@ VPU::PPEModeAttr ClampConverter::getPPEMode(const VPU::PPEModeAttr mode, mlir::T
 
 mlir::LogicalResult ClampConverter::matchAndRewrite(VPU::ClampOp clampOp, mlir::PatternRewriter& rewriter) const {
     auto nceOp = mlir::cast<VPU::NCEOpInterface>(clampOp.input().getDefiningOp());
-    const auto ppeTask = nceOp.getPPE().getValue();
+    const auto ppeTask = nceOp.getPPE().value();
 
     const auto clampMin = clampOp.min().convertToDouble();
     const auto clampMax = clampOp.max().convertToDouble();
 
-    const auto ppeClampLowAttr = ppeTask.clamp_low();
-    const auto ppeClampHighAttr = ppeTask.clamp_high();
+    const auto ppeClampLowAttr = ppeTask.getClampLow();
+    const auto ppeClampHighAttr = ppeTask.getClampHigh();
     const auto ppeClampLow = checked_cast<int32_t>(ppeClampLowAttr.getValue().getSExtValue());
     const auto ppeClampHigh = checked_cast<int32_t>(ppeClampHighAttr.getValue().getSExtValue());
 
@@ -103,13 +103,13 @@ mlir::LogicalResult ClampConverter::matchAndRewrite(VPU::ClampOp clampOp, mlir::
     const auto targetClampLow = targetClamp.first;
     const auto targetClampHigh = targetClamp.second;
 
-    const auto ppeMode = getPPEMode(ppeTask.mode(), outElemType);
+    const auto ppeMode = getPPEMode(ppeTask.getMode(), outElemType);
     auto ctx = clampOp.getContext();
     auto ppeTaskAttr =
-            VPU::PPETaskAttr::get(ppeMode, getIntAttr(ctx, targetClampLow), getIntAttr(ctx, targetClampHigh),
-                                  ppeTask.lrelu_mult(), ppeTask.lrelu_shift(), ppeTask.quant_scale(),
-                                  ppeTask.quant_mult(), ppeTask.quant_shift(), ppeTask.quant_post_shift(),
-                                  ppeTask.in1_quant_mult(), ppeTask.in2_quant_mult(), ppeTask.fp_prelu_alpha(), ctx);
+            VPU::PPETaskAttr::get(ctx, ppeMode, getIntAttr(ctx, targetClampLow), getIntAttr(ctx, targetClampHigh),
+                                  ppeTask.getLreluMult(), ppeTask.getLreluShift(), ppeTask.getQuantScale(),
+                                  ppeTask.getQuantMult(), ppeTask.getQuantShift(), ppeTask.getQuantPostShift(),
+                                  ppeTask.getIn1QuantMult(), ppeTask.getIn2QuantMult(), ppeTask.getFpPreluAlpha());
 
     auto newOp = mlir::dyn_cast_or_null<VPU::NCEOpInterface>(rewriter.clone(*nceOp));
     newOp.setPPE(ppeTaskAttr);
@@ -129,7 +129,7 @@ bool isLegalClamp(VPU::ClampOp clampOp) {
     }
 
     // NCE producers without PPE attributes are covered in FusePostOps pass.
-    if (!nceOp.getPPE().hasValue()) {
+    if (!nceOp.getPPE().has_value()) {
         return true;
     }
 

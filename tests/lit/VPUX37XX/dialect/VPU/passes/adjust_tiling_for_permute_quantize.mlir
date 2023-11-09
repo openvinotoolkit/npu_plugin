@@ -11,8 +11,10 @@
 !qElemType = !quant.uniform<u8:f16, 1.000000e+00>
 
 // CHECK-LABEL: module @PermuteQuantize
-module @PermuteQuantize attributes {VPU.arch = "VPUX37XX"} {
-  IE.MemoryResource 1982464 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
+module @PermuteQuantize attributes {VPU.arch = #VPU.arch_kind<VPUX37XX>} {
+    IE.ExecutorResource 2 of @NCE at 1.300000e+03 MHz {
+        IE.MemoryResource 1982464 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
+    }
 
     func.func @main(%arg0: tensor<1x3x640x640xf16>) -> tensor<1x16x640x640x!qElemType, {order = #NHWC}> {
         %0 = VPU.Reshape(%arg0) {
@@ -29,21 +31,16 @@ module @PermuteQuantize attributes {VPU.arch = "VPUX37XX"} {
         %3 = VPU.NCE.PermuteQuantize(%2) {
             dstElemType = !qElemType,
             dstOrder = #NWCH,
-            multiClusterStrategy = "SplitOverWidth",
-            pad = {
-                bottom = 13 : i64,
-                left = 0 : i64,
-                right = 0 : i64,
-                top = 0 : i64
-            },
-            ppe = {
+            multiClusterStrategy = #VPU.multi_cluster_strategy<SplitOverWidth>,
+            pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 13 : i64>,
+            ppe = #VPU.PPETask<
                 clamp_high = 255 : i64,
                 clamp_low = 0 : i64,
                 fp_prelu_alpha = 1.000000e+00 : f64,
                 lrelu_mult = 1 : i64,
                 lrelu_shift = 0 : i64,
-                mode = "NOOP"
-            },
+                mode = <NOOP>
+            >,
             tilingStrategy = [1, 1, 1, 3]
         } -> tensor<1x640x16x214x!qElemType, {order = #NWCH}>
 
@@ -53,21 +50,16 @@ module @PermuteQuantize attributes {VPU.arch = "VPUX37XX"} {
         %5 = VPU.NCE.PermuteQuantize(%4) {
             dstElemType = !qElemType,
             dstOrder = #NWCH,
-            multiClusterStrategy = "SplitOverWidth",
-            pad = {
-                bottom = 13 : i64,
-                left = 0 : i64,
-                right = 0 : i64,
-                top = 0 : i64
-            },
-            ppe = {
+            multiClusterStrategy = #VPU.multi_cluster_strategy<SplitOverWidth>,
+            pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 13 : i64>,
+            ppe = #VPU.PPETask<
                 clamp_high = 255 : i64,
                 clamp_low = 0 : i64,
                 fp_prelu_alpha = 1.000000e+00 : f64,
                 lrelu_mult = 1 : i64,
                 lrelu_shift = 0 : i64,
-                mode = "NOOP"
-            },
+                mode = <NOOP>
+            >,
             tilingStrategy = [1, 1, 1, 3]
         } -> tensor<1x640x16x213x!qElemType, {order = #NWCH}>
 
@@ -77,21 +69,16 @@ module @PermuteQuantize attributes {VPU.arch = "VPUX37XX"} {
         %7 = VPU.NCE.PermuteQuantize(%6) {
             dstElemType = !qElemType,
             dstOrder = #NWCH,
-            multiClusterStrategy = "SplitOverWidth",
-            pad = {
-                bottom = 13 : i64,
-                left = 0 : i64,
-                right = 0 : i64,
-                top = 0 : i64
-            },
-            ppe = {
+            multiClusterStrategy = #VPU.multi_cluster_strategy<SplitOverWidth>,
+            pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 13 : i64>,
+            ppe = #VPU.PPETask<
                 clamp_high = 255 : i64,
                 clamp_low = 0 : i64,
                 fp_prelu_alpha = 1.000000e+00 : f64,
                 lrelu_mult = 1 : i64,
                 lrelu_shift = 0 : i64,
-                mode = "NOOP"
-            },
+                mode = <NOOP>
+            >,
             tilingStrategy = [1, 1, 1, 3]
         } -> tensor<1x640x16x213x!qElemType, {order = #NWCH}>
 
@@ -128,21 +115,16 @@ module @PermuteQuantize attributes {VPU.arch = "VPUX37XX"} {
     // CHECK:   [[PERMUTE_QUANTIZE_1:%.*]] = VPU.NCE.PermuteQuantize([[IN_LAYOUT_CAST_1]]) {
     // CHECK-SAME:      dstElemType = !qElemType,
     // CHECK-SAME:      dstOrder = #NWCH,
-    // CHECK-SAME:      multiClusterStrategy = "SplitOverWidth",
-    // CHECK-SAME:      pad = {
-    // CHECK-SAME:          bottom = 13 : i64,
-    // CHECK-SAME:          left = 0 : i64,
-    // CHECK-SAME:          right = 0 : i64,
-    // CHECK-SAME:          top = 0 : i64
-    // CHECK-SAME:      },
-    // CHECK-SAME:      ppe = {
-    // CHECK-SAME:          clamp_high = 255 : i64,
+    // CHECK-SAME:      multiClusterStrategy = #VPU.multi_cluster_strategy<SplitOverWidth>,
+    // CHECK-SAME:      pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 13 : i64>,
+    // CHECK-SAME:      ppe = #VPU.PPETask<
+    // CHECK-SAME:          mode = <NOOP>,
     // CHECK-SAME:          clamp_low = 0 : i64,
-    // CHECK-SAME:          fp_prelu_alpha = 1.000000e+00 : f64,
+    // CHECK-SAME:          clamp_high = 255 : i64,
     // CHECK-SAME:          lrelu_mult = 1 : i64,
     // CHECK-SAME:          lrelu_shift = 0 : i64,
-    // CHECK-SAME:          mode = "NOOP"
-    // CHECK-SAME:      }
+    // CHECK-SAME:          fp_prelu_alpha = 1.000000e+00 : f64
+    // CHECK-SAME:      >
     // CHECK-SAME:  } -> tensor<1x640x16x214x!qElemType, {order = #NWCH}>
 
     // CHECK:   [[OUT_LAYOUT_CAST_1:%.*]] = VPU.LayoutCast([[PERMUTE_QUANTIZE_1]]) {
@@ -170,21 +152,16 @@ module @PermuteQuantize attributes {VPU.arch = "VPUX37XX"} {
     // CHECK:   [[PERMUTE_QUANTIZE_2:%.*]] = VPU.NCE.PermuteQuantize([[IN_LAYOUT_CAST_2]]) {
     // CHECK-SAME:      dstElemType = !qElemType,
     // CHECK-SAME:      dstOrder = #NWCH,
-    // CHECK-SAME:      multiClusterStrategy = "SplitOverWidth",
-    // CHECK-SAME:      pad = {
-    // CHECK-SAME:          bottom = 13 : i64,
-    // CHECK-SAME:          left = 0 : i64,
-    // CHECK-SAME:          right = 0 : i64,
-    // CHECK-SAME:          top = 0 : i64
-    // CHECK-SAME:      },
-    // CHECK-SAME:      ppe = {
-    // CHECK-SAME:          clamp_high = 255 : i64,
+    // CHECK-SAME:      multiClusterStrategy = #VPU.multi_cluster_strategy<SplitOverWidth>,
+    // CHECK-SAME:      pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 13 : i64>,
+    // CHECK-SAME:      ppe = #VPU.PPETask<
+    // CHECK-SAME:          mode = <NOOP>,
     // CHECK-SAME:          clamp_low = 0 : i64,
-    // CHECK-SAME:          fp_prelu_alpha = 1.000000e+00 : f64,
+    // CHECK-SAME:          clamp_high = 255 : i64,
     // CHECK-SAME:          lrelu_mult = 1 : i64,
     // CHECK-SAME:          lrelu_shift = 0 : i64,
-    // CHECK-SAME:          mode = "NOOP"
-    // CHECK-SAME:      }
+    // CHECK-SAME:          fp_prelu_alpha = 1.000000e+00 : f64
+    // CHECK-SAME:      >
     // CHECK-SAME:  } -> tensor<1x640x16x213x!qElemType, {order = #NWCH}>
 
     // CHECK:   [[OUT_LAYOUT_CAST_2:%.*]] = VPU.LayoutCast([[PERMUTE_QUANTIZE_2]]) {
@@ -212,21 +189,16 @@ module @PermuteQuantize attributes {VPU.arch = "VPUX37XX"} {
     // CHECK:   [[PERMUTE_QUANTIZE_3:%.*]] = VPU.NCE.PermuteQuantize([[IN_LAYOUT_CAST_3]]) {
     // CHECK-SAME:      dstElemType = !qElemType,
     // CHECK-SAME:      dstOrder = #NWCH,
-    // CHECK-SAME:      multiClusterStrategy = "SplitOverWidth",
-    // CHECK-SAME:      pad = {
-    // CHECK-SAME:          bottom = 13 : i64,
-    // CHECK-SAME:          left = 0 : i64,
-    // CHECK-SAME:          right = 0 : i64,
-    // CHECK-SAME:          top = 0 : i64
-    // CHECK-SAME:      },
-    // CHECK-SAME:      ppe = {
-    // CHECK-SAME:          clamp_high = 255 : i64,
+    // CHECK-SAME:      multiClusterStrategy = #VPU.multi_cluster_strategy<SplitOverWidth>,
+    // CHECK-SAME:      pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 13 : i64>,
+    // CHECK-SAME:      ppe = #VPU.PPETask<
+    // CHECK-SAME:          mode = <NOOP>,
     // CHECK-SAME:          clamp_low = 0 : i64,
-    // CHECK-SAME:          fp_prelu_alpha = 1.000000e+00 : f64,
+    // CHECK-SAME:          clamp_high = 255 : i64,
     // CHECK-SAME:          lrelu_mult = 1 : i64,
     // CHECK-SAME:          lrelu_shift = 0 : i64,
-    // CHECK-SAME:          mode = "NOOP"
-    // CHECK-SAME:      }
+    // CHECK-SAME:          fp_prelu_alpha = 1.000000e+00 : f64
+    // CHECK-SAME:      >
     // CHECK-SAME:  } -> tensor<1x640x16x213x!qElemType, {order = #NWCH}>
 
     // CHECK:   [[OUT_LAYOUT_CAST_3:%.*]] = VPU.LayoutCast([[PERMUTE_QUANTIZE_3]]) {

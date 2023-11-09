@@ -43,10 +43,6 @@ mlir::LogicalResult vpux::VPU::CTCGreedyDecoderSeqLenOp::inferReturnTypes(
     return mlir::success();
 }
 
-void vpux::VPU::CTCGreedyDecoderSeqLenOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
-    IE::fillDefaultLayoutInfo(info);
-}
-
 //
 // serialize
 //

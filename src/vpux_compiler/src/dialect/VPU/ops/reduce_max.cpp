@@ -26,22 +26,22 @@ mlir::LogicalResult vpux::VPU::ReduceMaxOp::inferReturnTypes(mlir::MLIRContext* 
 
     const auto input = reduceMax.input();
     const auto keepDims = reduceMax.keep_dims();
-    auto axes = IE::constInputToData(loc, reduceMax.axes());
-    if (mlir::failed(axes)) {
-        return mlir::failure();
-    }
 
-    auto axesValue = axes.getValue();
+    auto axesValue = parseIntArrayAttr<int64_t>(reduceMax.axes_value());
 
     return VPU::inferReduceReturnTypes(loc, input, keepDims, axesValue, inferredReturnTypes);
 }
 
 //
-// inferLayoutInfo
+// fold
 //
 
-void vpux::VPU::ReduceMaxOp::inferLayoutInfo(mlir::Operation* op, vpux::IE::LayerLayoutInfo& info) {
-    vpux::IE::inferReduceLayoutInfo(op, info);
+mlir::OpFoldResult vpux::VPU::ReduceMaxOp::fold(ArrayRef<mlir::Attribute>) {
+    if (input().getType() == output().getType()) {
+        return input();
+    }
+
+    return nullptr;
 }
 
 //
@@ -51,10 +51,12 @@ void vpux::VPU::ReduceMaxOp::inferLayoutInfo(mlir::Operation* op, vpux::IE::Laye
 EMU::BlobWriter::SpecificTask vpux::VPU::ReduceMaxOp::serialize(EMU::BlobWriter& writer) {
     EMU::BlobWriter::String type;
     type = writer.createString("max");
+    const auto axes = writer.createVector(parseIntArrayAttr<int64_t>(axes_value()));
 
     MVCNN::ReduceParamsBuilder builder(writer);
     builder.add_keep_dims(checked_cast<bool>(keep_dims()));
     builder.add_operation(type);
+    builder.add_axes_value(axes);
 
     const auto paramsOff = builder.Finish();
 

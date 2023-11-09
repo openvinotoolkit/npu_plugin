@@ -27,8 +27,8 @@ SmallVector<mlir::Attribute> kernelArgsRange(VPUIP::SwKernelOp swKernelOp) {
     SmallVector<mlir::Attribute> attrStorage;
 
     for (auto&& kernelRun : swKernelOp.body().getOps<VPUIP::SwKernelRun>()) {
-        if (kernelRun.attrs().hasValue()) {
-            const mlir::ArrayAttr arrayAttrs = kernelRun.attrs().getValue();
+        if (kernelRun.attrs().has_value()) {
+            const mlir::ArrayAttr arrayAttrs = kernelRun.attrs().value();
             const auto& attrs = arrayAttrs.getValue();
             for (const auto& attr : attrs) {
                 attrStorage.push_back(attr);
@@ -36,7 +36,7 @@ SmallVector<mlir::Attribute> kernelArgsRange(VPUIP::SwKernelOp swKernelOp) {
         }
     }
     return attrStorage;
-};
+}
 
 Dim convertKernelAxisToDim(mlir::Value tensorArg, int64_t kernelAxis) {
     const auto inOrder = DimsOrder::fromValue(tensorArg);
@@ -71,6 +71,14 @@ bool isSoftmaxAxis(VPUIP::SwKernelOp swKernelOp, Dim axis) {
     return false;
 }
 
+bool isTopKAxis(VPUIP::SwKernelOp swKernelOp, Dim axis) {
+    auto taskArgs = kernelArgsRange(swKernelOp);
+    const auto kernelAxis = taskArgs.front().cast<mlir::IntegerAttr>().getInt();
+    auto topKAxis = convertKernelAxisToDim(swKernelOp.getResult(0), kernelAxis);
+
+    return topKAxis == axis;
+}
+
 Dim getHighestDim(VPUIP::SwKernelOp swKernelOp) {
     const auto output = swKernelOp->getResult(0);
     const auto outputType = output.getType().cast<vpux::NDTypeInterface>();
@@ -85,11 +93,32 @@ Dim getHighestDim(VPUIP::SwKernelOp swKernelOp) {
     return outOrder.dimAt(0);
 }
 
+Dim getHighestDimOfSoftmax(VPUIP::SwKernelOp swKernelOp) {
+    const auto output = swKernelOp->getResult(0);
+    const auto outputType = output.getType().cast<vpux::NDTypeInterface>();
+    const auto outOrder = outputType.getDimsOrder();
+    const auto outShape = outputType.getShape();
+
+    auto taskArgs = kernelArgsRange(swKernelOp);
+    const auto kernelAxis = taskArgs.front().cast<mlir::IntegerAttr>().getInt();
+    auto softmaxAxis = convertKernelAxisToDim(swKernelOp.getResult(0), kernelAxis);
+
+    for (auto i : irange(outOrder.numDims())) {
+        auto dim = outOrder.dimAt(i);
+        if (outShape[dim] > 1 && dim != softmaxAxis) {
+            return dim;
+        }
+    }
+    return outOrder.dimAt(0);
+}
+
 bool doesSwKernelSupportTiling(VPUIP::SwKernelOp swKernelOp, vpux::Logger log) {
-    if (swKernelOp.getOutputs().size() != 1) {
-        // SwKernel is tiled by dividing output into several small outputs. So tiling is disabled for SwKernel with
-        // mulit outputs. The pass doesn't know how to divide correctly on all outputs.
-        log.trace("SW kernel op has more than one output at '{0}'", swKernelOp->getLoc());
+    auto isAllOutputShapeEqual = llvm::all_of(swKernelOp.getOutputs(), [&](auto output) {
+        return getShape(output) == getShape(*swKernelOp.getOutputs().begin());
+    });
+
+    if (swKernelOp.getOutputs().size() > 2 || !isAllOutputShapeEqual) {
+        log.trace("SW kernel op has outputs with different shapes at '{0}'", swKernelOp->getLoc());
         return false;
     }
 
@@ -112,11 +141,34 @@ bool doesSwKernelSupportTiling(VPUIP::SwKernelOp swKernelOp, vpux::Logger log) {
                                                             coordMode == IE::InterpolateCoordMode::ALIGN_CORNERS ||
                                                             coordMode == IE::InterpolateCoordMode::PYTORCH_HALF_PIXEL);
     } else if (kernelEntryName == "singleShaveSoftmax") {
-        // Softmax Kernel can not support stride access.
-        // Softmax act kernel tiling is on the highest dim to guarentee continuous input buffer.
-        // So if softmaxAxis is the highest dimension, we can not supported for now.
-        auto highestDim = getHighestDim(swKernelOp);
+        auto highestDim = getHighestDimOfSoftmax(swKernelOp);
         if (isSoftmaxAxis(swKernelOp, highestDim)) {
+            return false;
+        }
+    } else if (kernelEntryName == "single_shave_convert") {
+        // E#83794 Case with aligned tiling not supported
+        // Offsets for the inputs and outputs needs to be adjusted based on aligned shapes
+        if (auto clusterTilingOp = swKernelOp->getParentOfType<VPUIP::NCEClusterTilingOp>()) {
+            auto ndType = clusterTilingOp->getOperand(0).getType().cast<VPUIP::DistributedBufferType>();
+            if (ndType != nullptr && ndType.getDistribution().getAlignment() != nullptr) {
+                return false;
+            }
+        }
+    } else if (kernelEntryName == "single_shave_topk") {
+        auto highestDim = getHighestDim(swKernelOp);
+        if (isTopKAxis(swKernelOp, highestDim)) {
+            return false;
+        }
+    } else if (kernelEntryName == "single_shave_gather") {
+        const auto outputShape = getShape(swKernelOp.getResult(0));
+        const auto nonTrivialDimPredicate = [](const int64_t dim) -> bool {
+            return dim > 1;
+        };
+
+        const auto nonTrivialInputDims =
+                std::count_if(outputShape.raw().begin(), outputShape.raw().end(), nonTrivialDimPredicate);
+
+        if (nonTrivialInputDims == 1) {
             return false;
         }
     }
@@ -130,8 +182,8 @@ Dim getSwKernelTileDim(VPUIP::SwKernelOp swKernelOp) {
         // buffer
         auto outType = clusterTilingOp.getResult(0).getType();
         auto dimIdx = VPUIP::getTilingDimIndex(outType);
-        if (dimIdx.hasValue()) {
-            return Dim(dimIdx.getValue());
+        if (dimIdx.has_value()) {
+            return Dim(dimIdx.value());
         }
     }
     auto kernelEntryName = getSwKernelEntryName(swKernelOp);
@@ -140,16 +192,23 @@ Dim getSwKernelTileDim(VPUIP::SwKernelOp swKernelOp) {
         return Dims4D::Act::C;
     } else if (kernelEntryName == "singleShaveInterpolate") {
         return Dims4D::Act::H;
+    } else if (kernelEntryName == "singleShaveSoftmax") {
+        return getHighestDimOfSoftmax(swKernelOp);
     } else {
         // get highest dim by default
         return getHighestDim(swKernelOp);
     }
 }
 
-OutputTiling getSwKernelOutputTiling(VPUIP::SwKernelOp swKernelOp, ShapeRef outputShape, int64_t maxNumTiles,
-                                     vpux::Logger log) {
-    VPUX_THROW_UNLESS(outputShape.size() == 4, "Unsupported operation '{0}' at '{1}', it has non 4D result",
-                      swKernelOp->getName(), swKernelOp->getLoc());
+mlir::FailureOr<OutputTiling> getSwKernelOutputTiling(VPUIP::SwKernelOp swKernelOp, ShapeRef outputShape,
+                                                      int64_t maxNumTiles, vpux::Logger log) {
+    auto kernelEntryName = getSwKernelEntryName(swKernelOp);
+    // Gather op's output always is non-4D and Gather's backInfer has it's own logic later, skip the check here.
+    if (kernelEntryName != "single_shave_gather") {
+        VPUX_THROW_UNLESS(outputShape.size() == 4, "Unsupported operation '{0}' at '{1}', it has non 4D result",
+                          swKernelOp->getName(), swKernelOp->getLoc());
+    }
+
     Shape nTilesOnDim(outputShape.size(), 1);
     const auto tileDim = getSwKernelTileDim(swKernelOp);
     log.trace("Tile Dim is {0}", tileDim);
@@ -182,24 +241,24 @@ VPUIP::NCEClusterTilingOp createNewTilingCopyOp(mlir::PatternRewriter& rewriter,
     return rewriter.create<VPUIP::NCEClusterTilingOp>(loc, outType, operands, bodyBuilder);
 }
 
-bool checkSwKernelTilingAlignment(VPUIP::SwKernelOp swKernelOp, size_t nTiles, vpux::Logger log) {
+bool checkSwKernelTilingAlignment(VPUIP::SwKernelOp swKernelOp, size_t nTiles, const vpux::NDTypeInterface valueType,
+                                  const std::function<mlir::Value(VPUIP::NCEClusterTilingOp)>& getParentValue,
+                                  vpux::Logger log) {
     auto clusterOp = swKernelOp->getParentOfType<VPUIP::NCEClusterTilingOp>();
     if (clusterOp == nullptr) {
         return true;
     }
 
-    auto parentOutput = *clusterOp.getOutputs().begin();
-    auto parentOutputType = parentOutput.getType().dyn_cast<VPUIP::DistributedBufferType>();
-    VPUX_THROW_UNLESS(parentOutputType != nullptr, "Output type must have distributed type. Got: outT={0}",
-                      parentOutputType);
-    auto outDistribution = parentOutputType.getDistribution();
-    auto alignAttr = outDistribution.alignment();
+    auto parentValue = getParentValue(clusterOp);
+    auto parentValueType = parentValue.getType().dyn_cast<VPUIP::DistributedBufferType>();
+    VPUX_THROW_UNLESS(parentValueType != nullptr, "Operand must have distributed type. Got: {0}", parentValueType);
+    auto distribution = parentValueType.getDistribution();
+    auto alignAttr = distribution.getAlignment();
     if (alignAttr == nullptr) {
         return true;
     }
-    auto numClustersAttr = outDistribution.num_clusters();
-    VPUX_THROW_UNLESS(numClustersAttr != nullptr, "Distribution must have num_cluster() attribute. {0}",
-                      outDistribution);
+    auto numClustersAttr = distribution.getNumClusters();
+    VPUX_THROW_UNLESS(numClustersAttr != nullptr, "Distribution must have num_cluster() attribute. {0}", distribution);
 
     const auto alignmentPerTile = parseIntArrayAttr<int64_t>(alignAttr);
     const auto tileDim = getSwKernelTileDim(swKernelOp);
@@ -207,31 +266,20 @@ bool checkSwKernelTilingAlignment(VPUIP::SwKernelOp swKernelOp, size_t nTiles, v
         return true;
     }
 
-    const auto output = swKernelOp->getResult(0);
-    const auto outputType = output.getType().cast<vpux::NDTypeInterface>();
-    const auto outputShape = outputType.getShape();
-    int64_t totalAlignment;
-    if (outDistribution.mode().getValue() == VPU::DistributionMode::DUPLICATED) {
+    const auto valueShape = valueType.getShape();
+    int64_t totalAlignment = 0;
+    if (distribution.getMode().getValue() == VPU::DistributionMode::DUPLICATED) {
         totalAlignment = alignmentPerTile[tileDim.ind()] * static_cast<int64_t>(nTiles);
     } else {
         totalAlignment = alignmentPerTile[tileDim.ind()] * numClustersAttr.getInt() * static_cast<int64_t>(nTiles);
     }
-    if (outputShape[tileDim] % totalAlignment) {
-        log.info("Skip tiling for swKernelOp {0}, output shape is not aliged. Out shape '{1}', "
-                 "outDistribution '{2}'",
-                 swKernelOp->getLoc(), outputShape, outDistribution);
+    if (valueShape[tileDim] % totalAlignment) {
+        log.info("Skip tiling for swKernelOp {0}, shape is not aliged. Shape '{1}', distribution '{2}'",
+                 swKernelOp->getLoc(), valueShape, distribution);
         return false;
     }
 
     return true;
-}
-
-// TODO #67988 currently kernels like MVN whith strided access support has accuracy issue when tiled shape size is
-// odd number on tile dim
-bool allTileDimValuesAreEven(const OutputTiling& outTiles, const Dim& tileDim) {
-    return llvm::all_of(outTiles, [&](const auto& tile) {
-        return tile.shape[tileDim] % 2 == 0;
-    });
 }
 
 // Output tiles for each shave on all clusters
@@ -254,13 +302,13 @@ public:
     virtual bool needInsertSubviewOnly(VPUIP::SwKernelOp swKernelOp) const;
     virtual Optional<OutShaveTiles> calculateOutputTiles(VPUIP::SwKernelOp swKernelOp) const = 0;
     virtual Optional<InShaveTiles> calculateInputTiles(VPUIP::SwKernelOp swKernelOp) const = 0;
-    virtual bool tilesSupportStrideAccess(VPUIP::SwKernelOp swKernelOp) const = 0;
 
     virtual SmallVector<mlir::Value> createNewInputs(VPUIP::SwKernelOp swKernelOp, mlir::ValueRange operands,
                                                      bool insertSubview, int64_t outTileIndex,
                                                      mlir::PatternRewriter& rewriter) const = 0;
-    virtual mlir::Value createNewOutBuff(VPUIP::SwKernelOp swKernelOp, mlir::Value operand, bool insertSubview,
-                                         int64_t outTileIndex, mlir::PatternRewriter& rewriter) const = 0;
+    virtual SmallVector<mlir::Value> createNewOutBuffs(VPUIP::SwKernelOp swKernelOp, mlir::ValueRange operands,
+                                                       bool insertSubview, int64_t outTileIndex,
+                                                       mlir::PatternRewriter& rewriter) const = 0;
     virtual VPUIP::SwKernelOp createNewSwKernelOp(VPUIP::SwKernelOp swKernelOp, ArrayRef<mlir::Value> newInputs,
                                                   ArrayRef<mlir::Value> newOutBufs, bool insertSubview,
                                                   mlir::PatternRewriter& rewriter) const = 0;
@@ -304,13 +352,13 @@ mlir::LogicalResult SwKernelRewriterBase::matchAndRewrite(VPUIP::SwKernelOp swKe
 
     // check output tiles on all shaves
     auto outTiles = calculateOutputTiles(swKernelOp);
-    if (!outTiles.hasValue()) {
+    if (!outTiles.has_value()) {
         return mlir::failure();
     }
 
     // check input tiles on all shaves
     auto inTiles = calculateInputTiles(swKernelOp);
-    if (!inTiles.hasValue()) {
+    if (!inTiles.has_value()) {
         return mlir::failure();
     }
 
@@ -327,16 +375,14 @@ mlir::LogicalResult SwKernelRewriterBase::matchAndRewrite(VPUIP::SwKernelOp swKe
 
     // Get tile num on each cluster, since all clusters have same tile nums, so we only need get it from the first
     // cluster
-    auto tileSize = outTiles.getValue().front().size();
+    auto tileSize = outTiles.value().front().size();
     SmallVector<SmallVector<mlir::Attribute>> newAttrs;
     for (auto tileIndex : irange(tileSize)) {
         auto inputs = getOuterMappingOperand(swKernelOp, swKernelOp.inputs());
         auto outBuffs = getOuterMappingOperand(swKernelOp, swKernelOp.output_buffs());
-        VPUX_THROW_UNLESS(outBuffs.size() == 1, "Expect one output buffer, but get {0} at '{1}'", outBuffs.size(),
-                          swKernelOp->getLoc());
 
         newInputs.append(createNewInputs(swKernelOp, inputs, insertSubview, tileIndex, rewriter));
-        newOutBuffs.push_back(createNewOutBuff(swKernelOp, outBuffs.front(), insertSubview, tileIndex, rewriter));
+        newOutBuffs.append(createNewOutBuffs(swKernelOp, outBuffs, insertSubview, tileIndex, rewriter));
         newAttrs.push_back(updateSwKernelAttrs(swKernelOp, tileIndex));
     }
 
@@ -361,19 +407,19 @@ bool SwKernelRewriterBase::needInsertSubviewOnly(VPUIP::SwKernelOp swKernelOp) c
     }
     // If swkernel doesn't support strided data access, the tiling input has to be created by subview and copy to make
     // sure the new input is continuous
-    return isStridedDataAccessSupported(swKernelOp) && tilesSupportStrideAccess(swKernelOp);
+    return isStridedDataAccessSupported(swKernelOp);
 }
 
 SmallVector<mlir::Attribute> SwKernelRewriterBase::updateSwKernelAttrs(VPUIP::SwKernelOp swKernelOp,
                                                                        int64_t outTileIndexInsideCluster) const {
     auto swKernelRun = *swKernelOp.body().getOps<VPUIP::SwKernelRun>().begin();
-    if (!swKernelRun.attrs().hasValue()) {
+    if (!swKernelRun.attrs().has_value()) {
         return {};
     }
 
     const auto outTiles = getOuterMostOutputTiling(swKernelOp);
     const auto inputTiles = getOuterMostInputTiling(swKernelOp, outTileIndexInsideCluster);
-    auto origAttr = swKernelRun.attrs().getValue();
+    auto origAttr = swKernelRun.attrs().value();
     SmallVector<mlir::Attribute> attrs(origAttr.begin(), origAttr.end());
     return VPUIP::getSwkernelNewAttrsAfterTiling(swKernelOp, attrs, inputTiles, outTiles[outTileIndexInsideCluster],
                                                  _log);
@@ -392,12 +438,12 @@ public:
     bool checkTilePattern(VPUIP::SwKernelOp swKernelOp, bool insertSubview) const override;
     Optional<OutShaveTiles> calculateOutputTiles(VPUIP::SwKernelOp swKernelOp) const override;
     Optional<InShaveTiles> calculateInputTiles(VPUIP::SwKernelOp swKernelOp) const override;
-    bool tilesSupportStrideAccess(VPUIP::SwKernelOp swKernelOp) const override;
     SmallVector<mlir::Value> createNewInputs(VPUIP::SwKernelOp swKernelOp, mlir::ValueRange operands,
                                              bool insertSubview, int64_t outTileIndex,
                                              mlir::PatternRewriter& rewriter) const override;
-    mlir::Value createNewOutBuff(VPUIP::SwKernelOp swKernelOp, mlir::Value operand, bool insertSubview,
-                                 int64_t outTileIndex, mlir::PatternRewriter& rewriter) const override;
+    SmallVector<mlir::Value> createNewOutBuffs(VPUIP::SwKernelOp swKernelOp, mlir::ValueRange operands,
+                                               bool insertSubview, int64_t outTileIndex,
+                                               mlir::PatternRewriter& rewriter) const override;
 
     VPUIP::SwKernelOp createNewSwKernelOp(VPUIP::SwKernelOp swKernelOp, ArrayRef<mlir::Value> newInputs,
                                           ArrayRef<mlir::Value> newOutBufs, bool insertSubview,
@@ -458,36 +504,32 @@ bool SwKernelRewriter::checkTilePattern(VPUIP::SwKernelOp swKernelOp, bool inser
 }
 
 Optional<OutShaveTiles> SwKernelRewriter::calculateOutputTiles(VPUIP::SwKernelOp swKernelOp) const {
-    auto outTiles = getSwKernelOutputTiling(swKernelOp, getShape(swKernelOp.getResult(0)), _shaveCount, _log);
+    auto tiles = getSwKernelOutputTiling(swKernelOp, getShape(swKernelOp.getResult(0)), _shaveCount, _log);
+    if (mlir::failed(tiles)) {
+        return Optional<OutShaveTiles>{None};
+    }
+
+    auto outTiles = tiles.value();
     return outTiles.size() == 1 ? Optional<OutShaveTiles>{None} : OutShaveTiles{outTiles};
 }
 
 Optional<InShaveTiles> SwKernelRewriter::calculateInputTiles(VPUIP::SwKernelOp swKernelOp) const {
     auto outTilesOnAllClusters = calculateOutputTiles(swKernelOp);
-    if (!outTilesOnAllClusters.hasValue()) {
+    if (!outTilesOnAllClusters.has_value()) {
         return None;
     }
     SmallVector<InputTiling> inTiles;
-    auto outTilesValues = outTilesOnAllClusters.getValue();
+    auto outTilesValues = outTilesOnAllClusters.value();
     for (const auto& outTile : outTilesValues.front()) {
         inTiles.push_back(VPUIP::backInferSwKernelInputTile(swKernelOp, outTile, _log));
     }
     return InShaveTiles{inTiles};
 }
 
-bool SwKernelRewriter::tilesSupportStrideAccess(VPUIP::SwKernelOp swKernelOp) const {
-    const auto tileDim = getSwKernelTileDim(swKernelOp);
-    const auto outShaveTiles = calculateOutputTiles(swKernelOp);
-    if (!outShaveTiles.hasValue()) {
-        return false;
-    }
-    return allTileDimValuesAreEven(outShaveTiles.getValue().front(), tileDim);
-}
-
 SmallVector<mlir::Value> SwKernelRewriter::createNewInputs(VPUIP::SwKernelOp swKernelOp, mlir::ValueRange operands,
                                                            bool insertSubview, int64_t outTileIndex,
                                                            mlir::PatternRewriter& rewriter) const {
-    const auto inShaveTiles = calculateInputTiles(swKernelOp).getValue().front();
+    const auto inShaveTiles = calculateInputTiles(swKernelOp).value().front();
     const auto& inTiles = inShaveTiles[outTileIndex];
     SmallVector<mlir::Value> newInputs;
     for (const auto& p : operands | indexed) {
@@ -513,17 +555,27 @@ SmallVector<mlir::Value> SwKernelRewriter::createNewInputs(VPUIP::SwKernelOp swK
     return newInputs;
 }
 
-mlir::Value SwKernelRewriter::createNewOutBuff(VPUIP::SwKernelOp swKernelOp, mlir::Value operand, bool insertSubview,
-                                               int64_t outTileIndex, mlir::PatternRewriter& rewriter) const {
-    const auto outTiles = calculateOutputTiles(swKernelOp).getValue().front();
+SmallVector<mlir::Value> SwKernelRewriter::createNewOutBuffs(VPUIP::SwKernelOp swKernelOp, mlir::ValueRange operands,
+                                                             bool insertSubview, int64_t outTileIndex,
+                                                             mlir::PatternRewriter& rewriter) const {
+    const auto outTiles = calculateOutputTiles(swKernelOp).value().front();
     const auto& tiledShape = outTiles[outTileIndex].shape;
     const auto& offset = outTiles[outTileIndex].offsets;
-    if (insertSubview) {
-        return rewriter.create<VPUIP::SubViewOp>(operand.getLoc(), operand, offset, tiledShape);
+
+    SmallVector<mlir::Value> newOutputs;
+    for (auto operand : operands) {
+        if (insertSubview) {
+            auto outputSubview = rewriter.create<VPUIP::SubViewOp>(operand.getLoc(), operand, offset, tiledShape);
+            newOutputs.push_back(outputSubview);
+        } else {
+            auto allocType = operand.getType().cast<vpux::NDTypeInterface>();
+            auto newAllocType = allocType.changeShape(tiledShape);
+            auto newOutputAllocOp =
+                    rewriter.create<mlir::memref::AllocOp>(operand.getLoc(), newAllocType.cast<mlir::MemRefType>());
+            newOutputs.push_back(newOutputAllocOp);
+        }
     }
-    auto allocType = operand.getType().dyn_cast<vpux::NDTypeInterface>();
-    auto newAllocType = allocType.changeShape(tiledShape);
-    return rewriter.create<mlir::memref::AllocOp>(operand.getLoc(), newAllocType.cast<mlir::MemRefType>());
+    return newOutputs;
 }
 
 VPUIP::SwKernelOp SwKernelRewriter::createNewSwKernelOp(VPUIP::SwKernelOp swKernelOp, ArrayRef<mlir::Value> newInputs,
@@ -545,7 +597,7 @@ void SwKernelRewriter::replaceOpWithConcatView(VPUIP::SwKernelOp origOp, VPUIP::
         return;
     }
 
-    const auto outTiles = calculateOutputTiles(origOp).getValue().front();
+    const auto outTiles = calculateOutputTiles(origOp).value().front();
     // create concat op
     VPUX_THROW_UNLESS(outTiles.size() == newSwKernelOp.getNumResults(), "Invalid result number at {0}",
                       newSwKernelOp->getLoc());
@@ -575,11 +627,11 @@ void SwKernelRewriter::replaceOpWithConcatView(VPUIP::SwKernelOp origOp, VPUIP::
 }
 
 OutputTiling SwKernelRewriter::getOuterMostOutputTiling(VPUIP::SwKernelOp swKernelOp) const {
-    return calculateOutputTiles(swKernelOp).getValue().front();
+    return calculateOutputTiles(swKernelOp).value().front();
 }
 
 InputTiling SwKernelRewriter::getOuterMostInputTiling(VPUIP::SwKernelOp swKernelOp, int64_t outTileIndx) const {
-    const auto inTiles = calculateInputTiles(swKernelOp).getValue().front();
+    const auto inTiles = calculateInputTiles(swKernelOp).value().front();
     return inTiles[outTileIndx];
 }
 
@@ -598,12 +650,12 @@ public:
     bool needInsertSubviewOnly(VPUIP::SwKernelOp swKernelOp) const override;
     Optional<OutShaveTiles> calculateOutputTiles(VPUIP::SwKernelOp swKernelOp) const override;
     Optional<InShaveTiles> calculateInputTiles(VPUIP::SwKernelOp swKernelOp) const override;
-    bool tilesSupportStrideAccess(VPUIP::SwKernelOp swKernelOp) const override;
     SmallVector<mlir::Value> createNewInputs(VPUIP::SwKernelOp swKernelOp, mlir::ValueRange operands,
                                              bool insertSubview, int64_t outTileIndex,
                                              mlir::PatternRewriter& rewriter) const override;
-    mlir::Value createNewOutBuff(VPUIP::SwKernelOp swKernelOp, mlir::Value operand, bool insertSubview,
-                                 int64_t outTileIndex, mlir::PatternRewriter& rewriter) const override;
+    SmallVector<mlir::Value> createNewOutBuffs(VPUIP::SwKernelOp swKernelOp, mlir::ValueRange operands,
+                                               bool insertSubview, int64_t outTileIndex,
+                                               mlir::PatternRewriter& rewriter) const override;
     VPUIP::SwKernelOp createNewSwKernelOp(VPUIP::SwKernelOp swKernelOp, ArrayRef<mlir::Value> newInputs,
                                           ArrayRef<mlir::Value> newOutBufs, bool insertSubview,
                                           mlir::PatternRewriter& rewriter) const override;
@@ -626,10 +678,19 @@ bool ClusterSwKernelRewriter::checkTilePattern(VPUIP::SwKernelOp swKernelOp, boo
     if (clusterTilingOp == nullptr) {
         return false;
     }
-    auto outShaveTiles = calculateOutputTiles(swKernelOp).getValue();
+    auto outShaveTiles = calculateOutputTiles(swKernelOp).value();
     auto tileSizeOnEachCluster = outShaveTiles.size();
 
-    if (!checkSwKernelTilingAlignment(swKernelOp, tileSizeOnEachCluster, _log)) {
+    const auto getParentInput = [](VPUIP::NCEClusterTilingOp parent) -> mlir::Value {
+        return parent->getOperand(0);
+    };
+    const auto getParentOutput = [](VPUIP::NCEClusterTilingOp parent) -> mlir::Value {
+        return *parent.getOutputs().begin();
+    };
+    const auto inputType = swKernelOp->getOperand(0).getType().cast<vpux::NDTypeInterface>();
+    const auto outputType = swKernelOp->getResult(0).getType().cast<vpux::NDTypeInterface>();
+    if (!checkSwKernelTilingAlignment(swKernelOp, tileSizeOnEachCluster, outputType, getParentOutput, _log) ||
+        !checkSwKernelTilingAlignment(swKernelOp, tileSizeOnEachCluster, inputType, getParentInput, _log)) {
         return false;
     }
 
@@ -688,12 +749,25 @@ Optional<OutShaveTiles> ClusterSwKernelRewriter::calculateOutputTiles(VPUIP::SwK
     auto perClusterShapes = distributedType.getPerClusterComputeShapes();
 
     // Get output tiles on each cluster
+    SmallVector<mlir::FailureOr<OutputTiling>> tiles;
+    std::transform(perClusterShapes.begin(), perClusterShapes.end(), std::back_inserter(tiles), [&](const auto& shape) {
+        return getSwKernelOutputTiling(swKernelOp, shape, _shaveCount, _log);
+    });
+    if (tiles.empty()) {
+        return None;
+    }
+
+    auto hasInvalidTiles = llvm::any_of(tiles, [&](const auto& tile) {
+        return mlir::failed(tile);
+    });
+    if (hasInvalidTiles) {
+        return None;
+    }
+
     OutShaveTiles outTiles;
-    std::transform(perClusterShapes.begin(), perClusterShapes.end(), std::back_inserter(outTiles),
-                   [&](const auto& shape) {
-                       return getSwKernelOutputTiling(swKernelOp, shape, _shaveCount, _log);
-                   });
-    VPUX_THROW_WHEN(outTiles.empty(), "Cannot get output tiles at '{0}'", swKernelOp->getLoc());
+    for (auto& tile : tiles) {
+        outTiles.push_back(tile.value());
+    }
 
     // For each cluster, the output tile size should be equal and greater than one
     int64_t tileSize = outTiles[0].size();
@@ -738,17 +812,15 @@ Optional<OutShaveTiles> ClusterSwKernelRewriter::calculateOutputTiles(VPUIP::SwK
                 Shape offset(outShape.size(), 0);
                 outShape[tileDim] = minTileVal;
                 offset[tileDim] = offsetVal;
-                TileInfo outTile(outShape, offset, outTilePerCluster.front().axis);
                 offsetVal = offsetVal + outShape[tileDim];
-                outTilePerCluster[i] = outTile;
+                outTilePerCluster[i] = TileInfo(outShape, offset, outTilePerCluster.front().axis);
             }
-            // Recalculte the last tile value
+            // Recalculate the last tile value
             Shape lastTileShape(outTilePerCluster.front().shape);
             lastTileShape[tileDim] = perClusterShapes[clusterId][tileDim] - (tileSize - 1) * minTileVal;
             Shape lastTileOffset(lastTileShape.size(), 0);
             lastTileOffset[tileDim] = offsetVal;
-            TileInfo outTile(lastTileShape, lastTileOffset, outTilePerCluster.front().axis);
-            outTilePerCluster[tileSize - 1] = outTile;
+            outTilePerCluster[tileSize - 1] = TileInfo(lastTileShape, lastTileOffset, outTilePerCluster.front().axis);
         }
     }
     return outTiles;
@@ -756,10 +828,10 @@ Optional<OutShaveTiles> ClusterSwKernelRewriter::calculateOutputTiles(VPUIP::SwK
 
 Optional<InShaveTiles> ClusterSwKernelRewriter::calculateInputTiles(VPUIP::SwKernelOp swKernelOp) const {
     const auto outTilesOnAllClusters = calculateOutputTiles(swKernelOp);
-    if (!outTilesOnAllClusters.hasValue()) {
+    if (!outTilesOnAllClusters.has_value()) {
         return None;
     }
-    const auto outTiles = outTilesOnAllClusters.getValue();
+    const auto outTiles = outTilesOnAllClusters.value();
 
     InShaveTiles inTiles;
     for (auto clusterId : irange(outTiles.size())) {
@@ -770,15 +842,6 @@ Optional<InShaveTiles> ClusterSwKernelRewriter::calculateInputTiles(VPUIP::SwKer
         inTiles.push_back(inTilesPerCluster);
     }
     return inTiles;
-}
-
-bool ClusterSwKernelRewriter::tilesSupportStrideAccess(VPUIP::SwKernelOp swKernelOp) const {
-    const auto outShaveTiles = calculateOutputTiles(swKernelOp).getValue();
-    const auto tileDim = getSwKernelTileDim(swKernelOp);
-    auto tilesOnAllClusterAreEven = llvm::all_of(outShaveTiles, [&](const auto& outTilePerCluster) {
-        return allTileDimValuesAreEven(outTilePerCluster, tileDim);
-    });
-    return tilesOnAllClusterAreEven;
 }
 
 SmallVector<mlir::Value> ClusterSwKernelRewriter::createNewInputs(VPUIP::SwKernelOp swKernelOp,
@@ -843,22 +906,34 @@ SmallVector<mlir::Value> ClusterSwKernelRewriter::createNewInputs(VPUIP::SwKerne
     return newInputs;
 }
 
-mlir::Value ClusterSwKernelRewriter::createNewOutBuff(VPUIP::SwKernelOp swKernelOp, mlir::Value operand,
-                                                      bool insertSubview, int64_t outTileIndex,
-                                                      mlir::PatternRewriter& rewriter) const {
+SmallVector<mlir::Value> ClusterSwKernelRewriter::createNewOutBuffs(VPUIP::SwKernelOp swKernelOp,
+                                                                    mlir::ValueRange operands, bool insertSubview,
+                                                                    int64_t outTileIndex,
+                                                                    mlir::PatternRewriter& rewriter) const {
     const auto outTiles = getOuterMostOutputTiling(swKernelOp);
 
     const auto& tiledShape = outTiles[outTileIndex].shape;
     const auto& offset = outTiles[outTileIndex].offsets;
-    // handle swkernel's output buf
-    mlir::OpBuilder::InsertionGuard guard(rewriter);
-    rewriter.setInsertionPointAfterValue(operand);
-    if (insertSubview) {
-        return rewriter.create<VPUIP::SubViewOp>(operand.getLoc(), operand, offset, tiledShape);
+
+    SmallVector<mlir::Value> newOutputs;
+    for (auto operand : operands) {
+        // handle swkernel's output buf
+        mlir::OpBuilder::InsertionGuard guard(rewriter);
+        rewriter.setInsertionPointAfterValue(operand);
+
+        if (insertSubview) {
+            auto outputSubview = rewriter.create<VPUIP::SubViewOp>(operand.getLoc(), operand, offset, tiledShape);
+            newOutputs.push_back(outputSubview);
+        } else {
+            auto allocType = operand.getType().cast<vpux::NDTypeInterface>();
+            auto newAllocType = allocType.changeShape(tiledShape);
+            auto newOutputAllocType =
+                    rewriter.create<VPURT::AllocDistributed>(operand.getLoc(), newAllocType, nullptr, nullptr);
+            newOutputs.push_back(newOutputAllocType);
+        }
     }
-    auto allocType = operand.getType().dyn_cast<vpux::NDTypeInterface>();
-    auto newAllocType = allocType.changeShape(tiledShape);
-    return rewriter.create<VPURT::AllocDistributed>(operand.getLoc(), newAllocType, nullptr, nullptr);
+
+    return newOutputs;
 }
 
 VPUIP::SwKernelOp ClusterSwKernelRewriter::createNewSwKernelOp(VPUIP::SwKernelOp swKernelOp,
@@ -904,29 +979,48 @@ void ClusterSwKernelRewriter::replaceOpWithConcatView(VPUIP::SwKernelOp origOp, 
         }
     }
 
-    auto outBufOp = origClusterTilingOp.output_buffs()[0].getDefiningOp();
+    const auto origClusterTilingResults = origClusterTilingOp.getResults();
+    const auto resultsNum = origClusterTilingResults.size();
     if (insertSubview) {
-        rewriter.replaceOpWithNewOp<VPUIP::ConcatViewOp>(origClusterTilingOp, newClusterTilingOp->getResults(),
-                                                         outBufOp->getResult(0));
+        llvm::SmallVector<mlir::Value> newConcats;
+        for (auto p : origClusterTilingResults | indexed) {
+            const auto index = p.index();
+            const auto newResults = newClusterTilingOp->getResults();
+            auto concatInputs = llvm::SmallVector<mlir::Value>{newResults[index], newResults[resultsNum + index]};
+            auto outBufOp = origClusterTilingOp.output_buffs()[index].getDefiningOp();
+            auto concatOp = rewriter.create<VPUIP::ConcatViewOp>(newClusterTilingOp->getLoc(), concatInputs,
+                                                                 outBufOp->getResult(0));
+            newConcats.push_back(concatOp.getResult());
+        }
+        rewriter.replaceOp(origClusterTilingOp, mlir::ValueRange{newConcats});
         return;
     }
 
     auto outTiles = getOuterMostOutputTiling(origOp);
-    VPUX_THROW_UNLESS(outTiles.size() == newClusterTilingOp.getNumResults(), "Invalid result number at {0}",
-                      newClusterTilingOp->getLoc());
-
     const auto hasCopyUser = onlyHasCopyOpUser(origOp);
-    mlir::memref::AllocOp newAllocDDROp;
-    auto userCopyOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(*origClusterTilingOp->getUsers().begin());
+    mlir::DenseMap<int64_t, mlir::memref::AllocOp> newAllocDDROpsMap;
     if (hasCopyUser) {
-        rewriter.setInsertionPointAfter(userCopyOp);
-        newAllocDDROp = mlir::dyn_cast<mlir::memref::AllocOp>(userCopyOp.output_buffs()[0].getDefiningOp());
+        for (auto user : origClusterTilingOp->getUsers()) {
+            if (auto userCopyOp = mlir::cast<VPUIP::NCEClusterTilingOp>(*user)) {
+                rewriter.setInsertionPointAfter(userCopyOp);
+                auto newAllocDDROp =
+                        mlir::cast<mlir::memref::AllocOp>(userCopyOp.output_buffs().front().getDefiningOp());
+                auto operandIt = std::find(origClusterTilingResults.begin(), origClusterTilingResults.end(),
+                                           userCopyOp.getOperand(0));
+                if (operandIt != origClusterTilingResults.end()) {
+                    newAllocDDROpsMap[operandIt - origClusterTilingResults.begin()] = newAllocDDROp;
+                }
+            }
+        }
     } else {
         rewriter.setInsertionPointAfter(newClusterTilingOp);
-        auto origType = origOp->getResult(0).getType().dyn_cast<vpux::NDTypeInterface>();
-        auto newDDRType = origType.changeMemSpace(VPU::MemoryKind::DDR);
-        newAllocDDROp = rewriter.create<mlir::memref::AllocOp>(newClusterTilingOp->getLoc(),
-                                                               newDDRType.cast<mlir::MemRefType>());
+        for (auto result : origOp.getResults() | indexed) {
+            auto newDDRType =
+                    result.value().getType().cast<vpux::NDTypeInterface>().changeMemSpace(VPU::MemoryKind::DDR);
+            auto newAllocDDROp = rewriter.create<mlir::memref::AllocOp>(newClusterTilingOp->getLoc(),
+                                                                        newDDRType.cast<mlir::MemRefType>());
+            newAllocDDROpsMap[result.index()] = newAllocDDROp;
+        }
     }
 
     SmallVector<mlir::Value> results;
@@ -935,25 +1029,49 @@ void ClusterSwKernelRewriter::replaceOpWithConcatView(VPUIP::SwKernelOp origOp, 
         const auto& index = item.index();
         auto outShape = to_small_vector(outTile.shape);
         auto outOffset = to_small_vector(outTile.offsets);
-        auto outSubview =
-                rewriter.create<VPUIP::SubViewOp>(newClusterTilingOp->getLoc(), newAllocDDROp, outOffset, outShape);
-        auto copyOp = createNewTilingCopyOp(rewriter, newClusterTilingOp->getLoc(), outSubview.getType(),
-                                            {newClusterTilingOp.getResult(index), outSubview});
-        results.push_back(copyOp->getResult(0));
+
+        for (auto p : origClusterTilingResults | indexed) {
+            const auto result = p.value();
+            const auto resultIdx = p.index();
+            if (!result.getUsers().empty()) {
+                auto it = newAllocDDROpsMap.find(resultIdx);
+                auto outSubview = rewriter.create<VPUIP::SubViewOp>(newClusterTilingOp->getLoc(), it->second, outOffset,
+                                                                    outShape);
+                auto copyOp = createNewTilingCopyOp(
+                        rewriter, newClusterTilingOp->getLoc(), outSubview.getType(),
+                        {newClusterTilingOp.getResult(index * resultsNum + resultIdx), outSubview});
+                results.push_back(copyOp->getResult(0));
+            }
+        }
     }
 
     if (hasCopyUser) {
-        rewriter.replaceOpWithNewOp<VPUIP::ConcatViewOp>(userCopyOp, results, newAllocDDROp);
+        for (auto user : llvm::make_early_inc_range(origClusterTilingOp->getUsers())) {
+            if (auto userCopyOp = mlir::cast<VPUIP::NCEClusterTilingOp>(*user)) {
+                auto operandIt = std::find(origClusterTilingResults.begin(), origClusterTilingResults.end(),
+                                           userCopyOp.getOperand(0));
+                auto it = newAllocDDROpsMap.find(operandIt - origClusterTilingResults.begin());
+                rewriter.replaceOpWithNewOp<VPUIP::ConcatViewOp>(userCopyOp, results, it->second);
+            }
+        }
         rewriter.eraseOp(origClusterTilingOp);
     } else {
-        auto concatOp = rewriter.create<VPUIP::ConcatViewOp>(newClusterTilingOp->getLoc(), results, newAllocDDROp);
+        llvm::SmallVector<mlir::Value> newTilingCopys;
+        for (auto p : origClusterTilingResults | indexed) {
+            const auto index = p.index();
+            auto concatInputs = llvm::SmallVector<mlir::Value>{results[index], results[resultsNum + index]};
+            auto it = newAllocDDROpsMap.find(index);
+            auto concatOp =
+                    rewriter.create<VPUIP::ConcatViewOp>(newClusterTilingOp->getLoc(), concatInputs, it->second);
+            auto outType = origClusterTilingOp->getResult(index).getType().cast<vpux::NDTypeInterface>();
+            auto newAllocCMXOp =
+                    rewriter.create<VPURT::AllocDistributed>(origClusterTilingOp->getLoc(), outType, nullptr, nullptr);
 
-        auto outType = origClusterTilingOp->getResult(0).getType().dyn_cast<vpux::NDTypeInterface>();
-        auto newAllocCMXOp =
-                rewriter.create<VPURT::AllocDistributed>(origClusterTilingOp->getLoc(), outType, nullptr, nullptr);
-        auto newTilingCopyToCMXOp =
-                createNewTilingCopyOp(rewriter, newClusterTilingOp->getLoc(), outType, {concatOp, newAllocCMXOp});
-        rewriter.replaceOp(origClusterTilingOp, newTilingCopyToCMXOp->getResults());
+            auto newTilingCopyToCMXOp =
+                    createNewTilingCopyOp(rewriter, newClusterTilingOp->getLoc(), outType, {concatOp, newAllocCMXOp});
+            newTilingCopys.push_back(newTilingCopyToCMXOp.getResult(0));
+        }
+        rewriter.replaceOp(origClusterTilingOp, mlir::ValueRange{newTilingCopys});
     }
 
     for (auto originInputOp : inputDefingOps) {
@@ -961,18 +1079,15 @@ void ClusterSwKernelRewriter::replaceOpWithConcatView(VPUIP::SwKernelOp origOp, 
             rewriter.eraseOp(originInputOp);
         }
     }
-    if (outBufOp->use_empty()) {
-        rewriter.eraseOp(outBufOp);
-    }
 }
 
 OutputTiling ClusterSwKernelRewriter::getOuterMostOutputTiling(VPUIP::SwKernelOp swKernelOp) const {
-    auto outShaveTiles = calculateOutputTiles(swKernelOp).getValue();
+    auto outShaveTiles = calculateOutputTiles(swKernelOp).value();
 
     auto clusterTilingOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(swKernelOp->getParentOp());
     VPUX_THROW_WHEN(clusterTilingOp == nullptr, "Unexpected parent op type at '{0}'", swKernelOp->getLoc());
     auto distributedType = clusterTilingOp.getResult(0).getType().dyn_cast<VPUIP::DistributedBufferType>();
-    auto mode = distributedType.getDistribution().mode().getValue();
+    auto mode = distributedType.getDistribution().getMode().getValue();
     if (mode == VPU::DistributionMode::DUPLICATED) {
         return outShaveTiles.front();
     }
@@ -1025,8 +1140,8 @@ vpux::NDTypeInterface ClusterSwKernelRewriter::getNewTiledDistributedType(VPUIP:
                                                                           int64_t outTileIndex,
                                                                           ShapeRef tiledShape) const {
     auto distributionAttr = outerOperand.getType().dyn_cast<VPUIP::DistributedBufferType>().getDistribution();
-    auto shapes = distributionAttr.compute_shapes();
-    auto offsets = distributionAttr.compute_offsets();
+    auto shapes = distributionAttr.getComputeShapes();
+    auto offsets = distributionAttr.getComputeOffsets();
     if (shapes == nullptr && offsets == nullptr) {
         return outerOperand.getType().dyn_cast<VPUIP::DistributedBufferType>().changeShape(tiledShape);
     }
@@ -1034,11 +1149,12 @@ vpux::NDTypeInterface ClusterSwKernelRewriter::getNewTiledDistributedType(VPUIP:
     auto outTiles = getOuterMostOutputTiling(swKernelOp);
     auto inTiles = getOuterMostInputTiling(swKernelOp, outTileIndex);
     auto subOutTile = getSwKernelOutputTiling(swKernelOp, outTiles[outTileIndex].shape, numCluster, _log);
+    VPUX_THROW_WHEN(mlir::failed(subOutTile), "Invalid output tiling for {0}", swKernelOp.getLoc());
 
     SmallVector<SmallVector<int64_t>> newTiledShape;
     SmallVector<SmallVector<int64_t>> newTiledOffset;
     auto baseOutOffset = to_small_vector(outTiles[outTileIndex].offsets);
-    for (auto& tile : subOutTile) {
+    for (auto& tile : subOutTile.value()) {
         // Adjust the offset against the original output
         auto offset = to_small_vector(tile.offsets);
         SmallVector<int64_t> adjustedOffset;
@@ -1058,17 +1174,19 @@ vpux::NDTypeInterface ClusterSwKernelRewriter::getNewTiledDistributedType(VPUIP:
         SmallVector<int64_t> adjustedOffset;
         std::transform(tileOffset.begin(), tileOffset.end(), baseInOffset.begin(), std::back_inserter(adjustedOffset),
                        std::minus<int64_t>());
-        tileOffset = adjustedOffset;
+        tileOffset = std::move(adjustedOffset);
     }
 
     // create new input distributed type with updated shape and offset
     auto distributedType = outerOperand.getType().dyn_cast<VPUIP::DistributedBufferType>();
     auto ctx = swKernelOp->getContext();
+    auto shapesAttr = vpux::getIntArrayOfArray(ctx, newTiledShape);
+    auto offsetsAttr = vpux::getIntArrayOfArray(ctx, newTiledOffset);
     auto newDistribution = VPU::DistributedTensorAttr::get(
-            distributionAttr.mode(), distributionAttr.num_tiles(), distributionAttr.kernel(), distributionAttr.pads(),
-            distributionAttr.strides(), distributionAttr.num_clusters(), distributionAttr.alignment(),
-            distributionAttr.uniform_distributed_segments(), vpux::getIntArrayOfArray(ctx, newTiledShape),
-            vpux::getIntArrayOfArray(ctx, newTiledOffset), nullptr, ctx);
+            ctx, distributionAttr.getMode(), distributionAttr.getNumTiles(), distributionAttr.getKernel(),
+            distributionAttr.getPads(), distributionAttr.getStrides(), distributionAttr.getNumClusters(),
+            distributionAttr.getAlignment(), distributionAttr.getUniformDistributedSegments(), shapesAttr, offsetsAttr,
+            shapesAttr, offsetsAttr, nullptr);
     return VPUIP::DistributedBufferType::get(ctx, tiledShape.raw(), distributedType.getElementType(),
                                              distributedType.getLayout(), distributedType.getMemSpace(),
                                              newDistribution, distributedType.getCompressionScheme());
@@ -1124,7 +1242,8 @@ void TileActShaveKernelTaskPass::safeRunOnFunc() {
     auto func = getOperation();
     auto module = func->getParentOfType<mlir::ModuleOp>();
 
-    auto shaveActCount = IE::getAvailableExecutor(module, VPU::ExecutorKind::SHAVE_ACT).count();
+    auto nceTile = IE::getAvailableExecutor(module, VPU::ExecutorKind::NCE);
+    auto shaveActCount = nceTile.getSubExecutor(VPU::ExecutorKind::SHAVE_ACT).count();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<SwKernelRewriter>(&ctx, shaveActCount, _log);

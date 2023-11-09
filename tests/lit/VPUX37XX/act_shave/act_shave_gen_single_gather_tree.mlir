@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-// RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" %s | vpux-translate --export-VPUIP -o %t
+// RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" %s | vpux-translate --vpu-arch=VPUX37XX --export-VPUIP -o %t
 // RUN: flatc --raw-binary --json %vpuip_schema_file% -- %t
 // RUN: FileCheck %s --input-file %basename_t.json
 // RUN: rm %basename_t.json
@@ -41,11 +41,11 @@ module @VPU.SW {
 
 func.func @main(%0: memref<10x1x10xf32>, %1: memref<10x1x10xf32>, %2: memref<1xf32>, %3: memref<1xf32>, %4: memref<10x1x10xf32>) -> memref<10x1x10xf32> {
 
-    %in_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<10x1x10xf32, [@CMX_NN, 0]>
-    %in_tile1_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <400> -> memref<10x1x10xf32, [@CMX_NN, 0]>
-    %in_tile2_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <800> -> memref<1xf32, [@CMX_NN, 0]>
-    %in_tile3_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <1200> -> memref<1xf32, [@CMX_NN, 0]>
-    %out_tile0_cmx = VPURT.DeclareBuffer "CMX_NN" [0] <1600> -> memref<10x1x10xf32, [@CMX_NN, 0]>
+    %in_tile0_cmx  = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<10x1x10xf32, [@CMX_NN, 0]>
+    %in_tile1_cmx  = VPURT.DeclareBuffer <CMX_NN> [0] <400> -> memref<10x1x10xf32, [@CMX_NN, 0]>
+    %in_tile2_cmx  = VPURT.DeclareBuffer <CMX_NN> [0] <800> -> memref<1xf32, [@CMX_NN, 0]>
+    %in_tile3_cmx  = VPURT.DeclareBuffer <CMX_NN> [0] <1200> -> memref<1xf32, [@CMX_NN, 0]>
+    %out_tile0_cmx = VPURT.DeclareBuffer <CMX_NN> [0] <1600> -> memref<10x1x10xf32, [@CMX_NN, 0]>
 
     %b0 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     %b1 = VPURT.ConfigureBarrier<1> -> !VPURT.Barrier
@@ -68,7 +68,7 @@ func.func @main(%0: memref<10x1x10xf32>, %1: memref<10x1x10xf32>, %2: memref<1xf
     VPURT.Task waits(%b3 : !VPURT.Barrier) updates(%b2 : !VPURT.Barrier) {
         VPUIP.NNDMA inputs(%3 : memref<1xf32>) outputs(%in_tile3_cmx : memref<1xf32, [@CMX_NN, 0]>) -> memref<1xf32, [@CMX_NN, 0]>
     }
-
+    
     // Genetic Kernel information for the scheduler.
     VPURT.Task waits(%b4  : !VPURT.Barrier) updates(%b3  : !VPURT.Barrier) {
         VPUIP.SW.Kernel {result_segment_sizes = dense<[1, 0]> : vector<2xi32>}

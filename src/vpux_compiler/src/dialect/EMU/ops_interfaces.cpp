@@ -11,4 +11,4 @@ using namespace vpux;
 // Generated
 //
 
-#include <vpux/compiler/dialect/EMU/generated/ops_interfaces.cpp.inc>
+#include <vpux/compiler/dialect/EMU/ops_interfaces.cpp.inc>

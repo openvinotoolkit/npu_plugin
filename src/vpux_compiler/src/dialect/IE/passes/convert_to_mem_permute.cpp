@@ -88,13 +88,13 @@ private:
 mlir::LogicalResult ConvertToMemPermutePass::TransposeOpConverter::matchAndRewrite(
         IE::TransposeOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Found IE::Transpose Operation '{0}'", origOp->getLoc());
-    VPUX_THROW_UNLESS(origOp.order_value().hasValue(), "IE::Transpose Operation doesn't have order_value attribute");
+    VPUX_THROW_UNLESS(origOp.order_value().has_value(), "IE::Transpose Operation doesn't have order_value attribute");
 
     auto outputOrder = DimsOrder::fromValue(origOp.output());
     auto dstOrder = mlir::AffineMapAttr::get(outputOrder.toAffineMap(origOp.getContext()));
     auto inputOrder = DimsOrder::fromValue(origOp.input());
     auto inPerm = inputOrder.toAffineMap(origOp.getContext());
-    auto memPerm = inPerm.compose(origOp.order_value().getValue());
+    auto memPerm = inPerm.compose(origOp.order_value().value());
     auto memPermAttr = mlir::AffineMapAttr::get(memPerm);
 
     rewriter.replaceOpWithNewOp<IE::MemPermuteOp>(origOp, origOp.input(), dstOrder, memPermAttr);

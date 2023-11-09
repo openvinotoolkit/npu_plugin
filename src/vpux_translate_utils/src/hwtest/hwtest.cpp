@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/hwtest/hwtest.hpp"
 
 #include <llvm/Support/ToolOutputFile.h>
@@ -13,6 +11,7 @@
 #include <mlir/Support/DebugStringHelper.h>
 #include <mlir/Support/FileUtilities.h>
 
+#include "vpux/compiler/VPU37XX/conversion.hpp"
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/export.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
@@ -44,9 +43,6 @@ void serialize(const uint8_t* data, size_t size, const vpux::Logger& log, mlir::
 namespace vpux {
 
 mlir::OwningOpRef<mlir::ModuleOp> importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext* ctx) {
-    mlir::DialectRegistry registry;
-    registerDialects(registry);
-    ctx->appendDialectRegistry(registry);
     ctx->loadDialect<VPUIP::VPUIPDialect>();
     ctx->loadDialect<VPURT::VPURTDialect>();
     ctx->loadDialect<VPUMI37XX::VPUMI37XXDialect>();
@@ -234,22 +230,22 @@ mlir::OwningOpRef<mlir::ModuleOp> importHWTEST(llvm::StringRef sourceJson, mlir:
     if (jsonDesc.getCompilerBackend() == nb::CompilerBackend::Flatbuffer) {
         mlir::DefaultTimingManager tm;
         auto timing = tm.getRootScope();
-        auto blob = VPUIP::exportToBlob(module, timing, {}, params, results, log);
+        auto blob = VPUIP::exportToBlob(module, timing, params, results, log);
 
         serialize(blob.data(), blob.size(), log);
     } else if (jsonDesc.getCompilerBackend() == nb::CompilerBackend::ELF) {
         mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
 
-        auto getLoweringPipeline = [](vpux::VPU::ArchKind /*arch*/) {
-            return buildLowerVPUIP2ELFPipeline;
+        auto getLoweringPipeline = [](vpux::VPU::ArchKind /* arch */) {
+            return vpux::arch37xx::buildLowerVPUIP2ELFPipeline;
         };
-        auto getExportToELFfunc = [](vpux::VPU::ArchKind /*arch*/) {
+        auto getExportToELFfunc = [](vpux::VPU::ArchKind /* arch */) {
             return ELF::exportToELF;
         };
 
         getLoweringPipeline(jsonDesc.getArchitecture())(pm, log);
         VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Failed to lower test model to ELF");
-        auto blob = getExportToELFfunc(jsonDesc.getArchitecture())(module, {}, params, results, log);
+        auto blob = getExportToELFfunc(jsonDesc.getArchitecture())(module, params, results, log);
 
         serialize(blob.data(), blob.size(), log);
     } else {

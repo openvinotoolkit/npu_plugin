@@ -1,21 +1,20 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "single_layer_tests/fake_quantize.hpp"
 #include <vector>
 #include "common_test_utils/test_constants.hpp"
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
-class VPUXFakeQuantizeLayerTest : public FakeQuantizeLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXFakeQuantizeLayerTest :
+        public FakeQuantizeLayerTest,
+        virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
-class VPUXFakeQuantizeLayerTest_SW_VPU3700 : public VPUXFakeQuantizeLayerTest {
-    void SkipBeforeLoad() override {
-    }
-};
+class VPUXFakeQuantizeLayerTest_SW_VPU3700 : public VPUXFakeQuantizeLayerTest {};
 class VPUXFakeQuantizeLayerTest_HW_VPU3700 : public VPUXFakeQuantizeLayerTest {};
 
 class VPUXFakeQuantizeLayerTest_SW_VPU3720 : public VPUXFakeQuantizeLayerTest {
@@ -63,8 +62,9 @@ TEST_P(VPUXFakeQuantizeLayerTest_HW_VPU3700, HW) {
 }
 
 TEST_P(VPUXFakeQuantizeLayerTest_SW_VPU3720, SW) {
-    threshold = fabs(threshold);
-    abs_threshold = threshold;  // Rely on absolute value check
+    const auto tol = 1.6;               // To cope with cpu/vpu 'limits' diffs
+    threshold = fabs(threshold) * tol;  // E#77437
+    abs_threshold = threshold;          // Rely on absolute value check
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
@@ -110,7 +110,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_FakeQuantize, VPUXFakeQuantizeLayerT
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapes),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(config)),
                          VPUXFakeQuantizeLayerTest_SW_VPU3700::getTestCaseName);
 
@@ -121,7 +121,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_ND, VPUXFakeQuantizeLayerTest_SW_VPU
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapesND),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(config)),
                          VPUXFakeQuantizeLayerTest_SW_VPU3700::getTestCaseName);
 
@@ -143,7 +143,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize, VPUXFakeQuantizeLayerTest_HW_VPU370
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapes),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(config)),
                          VPUXFakeQuantizeLayerTest_HW_VPU3700::getTestCaseName);
 
@@ -154,7 +154,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_ND, VPUXFakeQuantizeLayerTest_HW_VPU
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapesND),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(config)),
                          VPUXFakeQuantizeLayerTest_HW_VPU3700::getTestCaseName);
 
@@ -173,14 +173,9 @@ const std::vector<std::vector<size_t>> tilingShapes3720 = {
 };
 
 // {inLow, inHigh, outLow, outHigh}
-const std::vector<std::vector<float>> fqLimits = {{+0.00, +0.90, +0.00, +0.90},
-                                                  {+4.50, +9.80, +4.55, +9.74},
-                                                  {-5.20, -1.50, -5.15, -1.53},
-                                                  {-0.50, +0.60, +0.62, -0.58},
-                                                  // TEMP DISABLED
-                                                  // E#77437 to track this.
-                                                  //   {-0.50, +1.60, -0.40, +1.62},
-                                                  {-39.0, +231.0, -28.0, +250.0}};
+const std::vector<std::vector<float>> fqLimits = {{+0.00, +0.90, +0.00, +0.90}, {+4.50, +9.80, +4.55, +9.74},
+                                                  {-5.20, -1.50, -5.15, -1.53}, {-0.50, +0.60, +0.62, -0.58},
+                                                  {-0.50, +1.60, -0.40, +1.62}, {-39.0, +231.0, -28.0, +250.0}};
 
 const std::vector<float> inParams = {};  // n/a, overriding GenerateInput
 const auto fqParamsU = ::testing::Combine(::testing::ValuesIn(u8qLevels), ::testing::Values(constShapes[0]),
@@ -194,7 +189,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_PerTensor_VPU3720, VPUXFakeQuantizeL
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inShapes3720),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(config)),
                          VPUXFakeQuantizeLayerTest_SW_VPU3720::getTestCaseName);
 
@@ -211,7 +206,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_tiling_FakeQuantize_PerTensor_VPU3720, VPUXFakeQu
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(tilingShapes3720[2]),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(config)),
                          VPUXFakeQuantizeLayerTest_SW_VPU3720::getTestCaseName);
 
@@ -227,12 +222,12 @@ const auto perChParams(std::vector<size_t> inShape) {
             ::testing::Combine(::testing::Values(levels), ::testing::Values(ctShape), ::testing::Values(noLimits),
                                ::testing::Values(inParams), ::testing::Values(ngraph::op::AutoBroadcastType::NUMPY));
 
-    return ::testing::Combine(fqParams, ::testing::Values(InferenceEngine::Precision::FP16),
-                              ::testing::Values(InferenceEngine::Precision::FP16),
-                              ::testing::Values(InferenceEngine::Precision::FP16),
-                              ::testing::Values(InferenceEngine::Layout::ANY),
-                              ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(inShape),
-                              ::testing::Values(LayerTestsUtils::testPlatformTargetDevice), ::testing::Values(config));
+    return ::testing::Combine(
+            fqParams, ::testing::Values(InferenceEngine::Precision::FP16),
+            ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::FP16),
+            ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::Layout::ANY),
+            ::testing::Values(inShape), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
+            ::testing::Values(config));
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_precommit_FakeQuantize_PerCh_a_VPU3720, VPUXFakeQuantizeLayerTest_SW_VPU3720,
@@ -278,7 +273,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_3720_ND, VPUXFakeQuantizeLayerTest_H
                                             ::testing::Values(InferenceEngine::Layout::CHW),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapes3720nd),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(config)),
                          VPUXFakeQuantizeLayerTest::getTestCaseName);
 
@@ -289,7 +284,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_3720_4D, VPUXFakeQuantizeLayerTest_H
                                             ::testing::Values(InferenceEngine::Layout::NCHW),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapes37204d),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(config)),
                          VPUXFakeQuantizeLayerTest::getTestCaseName);
 

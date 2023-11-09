@@ -80,14 +80,14 @@ std::function<bool(ngraph::Output<ngraph::Node>)> value_is_equal_to(const std::v
 ConvertLayerNormToMVN::ConvertLayerNormToMVN() {
     // Detect MVN decomposition pattern:
     // (x - ReduceMean(x, axes)) / (Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps)
-    auto x = pattern::any_input();
+    const auto& x = pattern::any_input();
     // (x - Reshape(ReduceMean(Unsqueeze(x), axes)))
     //     `-------------reshape1------------'
 
     auto unsqueeze1 = pattern::wrap_type<opset6::Reshape>({x, ngraph::pattern::any_input()});
 
-    auto mean1Axes = pattern::wrap_type<opset6::Constant>();
-    auto mean1 = pattern::wrap_type<opset6::ReduceMean>({unsqueeze1, mean1Axes});
+    const auto& mean1Axes = pattern::wrap_type<opset6::Constant>();
+    const auto& mean1 = pattern::wrap_type<opset6::ReduceMean>({unsqueeze1, mean1Axes});
 
     auto shape1 = pattern::wrap_type<opset6::Constant>();
     auto reshape1 = pattern::wrap_type<opset6::Reshape>({mean1, shape1});
@@ -96,22 +96,22 @@ ConvertLayerNormToMVN::ConvertLayerNormToMVN() {
 
     // (x - ReduceMean(x, axes))
     // `-sub1------------------'
-    auto sub1 = pattern::wrap_type<opset6::Subtract>({x, hasReshape1OrNot});
+    const auto& sub1 = pattern::wrap_type<opset6::Subtract>({x, hasReshape1OrNot});
 
-    auto cast = pattern::wrap_type<opset6::Convert>({sub1});
+    const auto& cast = pattern::wrap_type<opset6::Convert>({sub1});
     const auto hasConvertOrNot = std::make_shared<pattern::op::Or>(OutputVector{cast, sub1});
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     //                 `---------------------power--'
     auto const_2 = pattern::wrap_type<opset6::Constant>(value_is_equal_to<float>({2.0}));
-    auto power = pattern::wrap_type<opset6::Power>({hasConvertOrNot, const_2});
+    const auto& power = pattern::wrap_type<opset6::Power>({hasConvertOrNot, const_2});
 
     // Sqrt(Reshape(ReduceMean(Unsqueeze((x - ReduceMean(x, axes)) ^ 2))))
     //     `---mean2---------------------------------------------------'
     auto unsqueeze2 = pattern::wrap_type<opset6::Reshape>({power, ngraph::pattern::any_input()});
 
-    auto mean2Axes = pattern::wrap_type<opset6::Constant>();
-    auto mean2 = pattern::wrap_type<opset6::ReduceMean>({unsqueeze2, mean2Axes});
+    const auto& mean2Axes = pattern::wrap_type<opset6::Constant>();
+    const auto& mean2 = pattern::wrap_type<opset6::ReduceMean>({unsqueeze2, mean2Axes});
 
     auto shape2 = pattern::wrap_type<opset6::Constant>();
     auto reshape2 = pattern::wrap_type<opset6::Reshape>({mean2, shape2});
@@ -119,39 +119,39 @@ ConvertLayerNormToMVN::ConvertLayerNormToMVN() {
     auto hasReshape2OrNot = std::make_shared<pattern::op::Or>(OutputVector{mean2, reshape2});
 
     auto const_0_5 = pattern::wrap_type<ngraph::opset6::Constant>(value_is_equal_to<float>({0.5}));
-    auto eps = pattern::wrap_type<opset6::Constant>();
+    const auto& eps = pattern::wrap_type<opset6::Constant>();
     // ------------------- OUTSIDE_SQRT ----------------------
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     // `--Power--------------------------------------'
-    auto powerSqrtOs = pattern::wrap_type<opset6::Power>({hasReshape2OrNot, const_0_5});
-    auto sqrtOs = pattern::wrap_type<opset6::Sqrt>({hasReshape2OrNot});
+    const auto& powerSqrtOs = pattern::wrap_type<opset6::Power>({hasReshape2OrNot, const_0_5});
+    const auto& sqrtOs = pattern::wrap_type<opset6::Sqrt>({hasReshape2OrNot});
     const auto powerOrSqrtOs = std::make_shared<pattern::op::Or>(OutputVector{powerSqrtOs, sqrtOs});
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps
     // `----------------------------------------------Add---'
-    auto addEpsOs = pattern::wrap_type<opset6::Add>({powerOrSqrtOs, eps});
+    const auto& addEpsOs = pattern::wrap_type<opset6::Add>({powerOrSqrtOs, eps});
 
     // // ------------------- INSIDE_SQRT ----------------------
 
     // (Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps))
     // `-----------------------------------------------Add---'
-    auto addEpsIs = pattern::wrap_type<opset6::Add>({hasReshape2OrNot, eps});
+    const auto& addEpsIs = pattern::wrap_type<opset6::Add>({hasReshape2OrNot, eps});
 
     // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     // `--Power--------------------------------------'
-    auto powerSqrtIs = pattern::wrap_type<opset6::Power>({addEpsIs, const_0_5});
-    auto sqrtIs = pattern::wrap_type<opset6::Sqrt>({addEpsIs});
+    const auto& powerSqrtIs = pattern::wrap_type<opset6::Power>({addEpsIs, const_0_5});
+    const auto& sqrtIs = pattern::wrap_type<opset6::Sqrt>({addEpsIs});
     const auto powerOrSqrtIs = std::make_shared<pattern::op::Or>(OutputVector{powerSqrtIs, sqrtIs});
 
     auto outsideOrInside = std::make_shared<pattern::op::Or>(OutputVector{addEpsOs, powerOrSqrtIs});
 
     // Final Divide
     auto const_neg_1 = pattern::wrap_type<opset6::Constant>(value_is_equal_to<float>({-1}));
-    auto powerDiv = pattern::wrap_type<opset6::Power>({outsideOrInside, const_neg_1});
-    auto div = pattern::wrap_type<opset6::Multiply>({sub1, powerDiv});
+    const auto& powerDiv = pattern::wrap_type<opset6::Power>({outsideOrInside, const_neg_1});
+    const auto& div = pattern::wrap_type<opset6::Multiply>({sub1, powerDiv});
 
-    auto divAlt = pattern::wrap_type<opset6::Divide>({sub1, outsideOrInside});
+    const auto& divAlt = pattern::wrap_type<opset6::Divide>({sub1, outsideOrInside});
     const auto powerMulOrDiv = std::make_shared<pattern::op::Or>(OutputVector{div, divAlt});
 
     ngraph::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
@@ -264,49 +264,49 @@ ConvertLayerNormToMVN::ConvertLayerNormToMVN() {
 ConvertInstanceNormToMVN::ConvertInstanceNormToMVN() {
     // Detect MVN decomposition pattern:
     // (x - ReduceMean(x, axes)) * gamma / (Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps) + beta
-    auto x = pattern::any_input();
+    const auto& x = pattern::any_input();
 
     // (x - ReduceMean(x, axes))^2
     //     `------mean1-------'
-    auto mean1Axis = pattern::wrap_type<opset6::Constant>();
-    auto mean1 = pattern::wrap_type<opset6::ReduceMean>({x, mean1Axis});
+    const auto& mean1Axis = pattern::wrap_type<opset6::Constant>();
+    const auto& mean1 = pattern::wrap_type<opset6::ReduceMean>({x, mean1Axis});
 
     // (x - ReduceMean(x, axes))^2
     // `-squared_difference------'
-    auto sqDiff = pattern::wrap_type<opset6::SquaredDifference>({x, mean1});
+    const auto& sqDiff = pattern::wrap_type<opset6::SquaredDifference>({x, mean1});
 
     // 1 / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps)
     //         `---mean2--------------------------------'
-    auto mean2Axis = pattern::wrap_type<opset6::Constant>();
-    auto mean2 = pattern::wrap_type<opset6::ReduceMean>({sqDiff, mean2Axis});
+    const auto& mean2Axis = pattern::wrap_type<opset6::Constant>();
+    const auto& mean2 = pattern::wrap_type<opset6::ReduceMean>({sqDiff, mean2Axis});
 
     // 1 / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps)
     //         `------------------------------------------add--'
-    auto eps = pattern::wrap_type<opset6::Constant>();
-    auto addEps = pattern::wrap_type<opset6::Add>({mean2, eps});
+    const auto& eps = pattern::wrap_type<opset6::Constant>();
+    const auto& addEps = pattern::wrap_type<opset6::Add>({mean2, eps});
 
     // 1 / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps)
     // `-power-------------------------------------------------'
-    auto const_0_5 = pattern::wrap_type<opset6::Constant>(value_is_equal_to<float>({-0.5}));
-    auto power = pattern::wrap_type<opset6::Power>({addEps, const_0_5});
+    const auto& const_0_5 = pattern::wrap_type<opset6::Constant>(value_is_equal_to<float>({-0.5}));
+    const auto& power = pattern::wrap_type<opset6::Power>({addEps, const_0_5});
 
     // gamma / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps)
     // `---mul1----------------------------------------------------'
-    auto gamma = pattern::wrap_type<opset6::Constant>();
-    auto mul1 = pattern::wrap_type<opset6::Multiply>({power, gamma});
+    const auto& gamma = pattern::wrap_type<opset6::Constant>();
+    const auto& mul1 = pattern::wrap_type<opset6::Multiply>({power, gamma});
 
     // x * gamma / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps)
     // `---mul2--------------------------------------------------------'
-    auto mulLeft = pattern::wrap_type<opset6::Multiply>({x, mul1});
+    const auto& mulLeft = pattern::wrap_type<opset6::Multiply>({x, mul1});
 
     // ReduceMean(x, axes) * gamma / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps) - beta
     // `-------------------mul3----------------------------------------------------------'
-    auto mulRight = pattern::wrap_type<opset6::Multiply>({mul1, mean1});
+    const auto& mulRight = pattern::wrap_type<opset6::Multiply>({mul1, mean1});
 
     // beta - ReduceMean(x, axes) * gamma / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps)
     // `---sub-----------------------------------------------------------------------------------'
-    auto beta = pattern::wrap_type<opset6::Constant>();
-    auto sub = pattern::wrap_type<opset6::Subtract>({beta, mulRight});
+    const auto& beta = pattern::wrap_type<opset6::Constant>();
+    const auto& sub = pattern::wrap_type<opset6::Subtract>({beta, mulRight});
 
     // Final Add
     // x * gamma / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps) +

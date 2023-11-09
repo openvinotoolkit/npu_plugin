@@ -3,9 +3,7 @@
 # SPDX-License-Identifier: Apache 2.0
 #
 
-#
-
-set(TARGET_NAME "vpux-lsp-server")
+set(TARGET_NAME "npu-lsp-server")
 
 add_tool_target(
     NAME ${TARGET_NAME}
@@ -14,5 +12,5 @@ add_tool_target(
     ENABLE_WARNINGS_AS_ERRORS
     LINK_LIBRARIES
          MLIRLspServerLib
-         vpux_mlir_compiler_static
+         npu_mlir_compiler_static
 )

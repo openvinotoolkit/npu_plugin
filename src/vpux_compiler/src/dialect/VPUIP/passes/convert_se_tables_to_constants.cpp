@@ -50,13 +50,30 @@ void ConvertSETablesToConstantsPass::safeRunOnFunc() {
                                                          })));
         const auto elemByteSize = getElemTypeSize(seTableOp.dataElemType()).to<Byte>();
         const auto seSize = seTableOp.seSize();
-        const auto seOffsets = seAttr.value().computeSEOffsets(dataShape, dataStrides, elemByteSize, seSize);
+        auto seOffsets = seAttr.value().computeSEOffsets(dataShape, dataStrides, elemByteSize, seSize);
 
         std::vector<int32_t> basePtrs(seOffsets.size(), 0);
         if (seTableOp.basePtrs().has_value()) {
             basePtrs = to_std_vector(seTableOp.basePtrs().value().getValues<int32_t>());
             VPUX_THROW_UNLESS(seOffsets.size() == basePtrs.size(), "Expected {0} base pointers, got {1}",
                               seOffsets.size(), basePtrs.size());
+        }
+
+        // Reset offsets when the base pointer value changes
+        // This can happen for SOH strategy, when the offset refers to a new cluster
+        int32_t prevBasePtr = -1;
+        int32_t baseOffset = 0;
+        for (auto p : zip(seOffsets, basePtrs) | indexed) {
+            const auto offset = std::get<0>(p.value());
+            const auto basePtr = std::get<1>(p.value());
+            if (basePtr != prevBasePtr) {
+                VPUX_THROW_UNLESS(basePtr > prevBasePtr,
+                                  "Expected incremental base pointer values, got previous value {0}, current value {1}",
+                                  prevBasePtr, basePtr);
+                prevBasePtr = basePtr;
+                baseOffset = offset;
+            }
+            seOffsets[p.index()] = offset - baseOffset;
         }
 
         // SE pointers have the following format:
@@ -72,7 +89,7 @@ void ConvertSETablesToConstantsPass::safeRunOnFunc() {
         // The DATA_PTR will store:
         //    0000 0000 0000 0000 0011
         std::vector<int32_t> sePtrs(seOffsets.size(), 0);
-        for (auto p : zip(seOffsets, basePtrs) | indexed) {
+        for (const auto& p : zip(seOffsets, basePtrs) | indexed) {
             const auto offset = std::get<0>(p.value());
             const auto basePtr = std::get<1>(p.value());
             sePtrs[p.index()] = (offset >> 4) << VPU::NCESparsity::BASE_PTR_SIZE | basePtr;
@@ -87,7 +104,7 @@ void ConvertSETablesToConstantsPass::safeRunOnFunc() {
         auto constantOp = builder.create<Const::DeclareOp>(seTableOp.getLoc(), seTableType,
                                                            Const::ContentAttr::get(seTableContent));
 
-        seTableOp.replaceAllUsesWith(constantOp.output());
+        seTableOp.replaceAllUsesWith(constantOp.getOutput());
         seTableOp.erase();
     });
 }

@@ -53,7 +53,7 @@ mlir::LogicalResult getAttrValue(mlir::Value attr, float& attrValue) {
         return mlir::failure();
     }
 
-    const auto attrContent = attrOp.content();
+    const auto attrContent = attrOp.getContent();
     if (!attrContent.isSplat()) {
         return mlir::failure();
     }

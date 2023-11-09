@@ -45,7 +45,7 @@ mlir::LogicalResult FuseSparsityOpsPass::initialize(mlir::MLIRContext* ctx) {
     if (!fuseSparsify.hasValue()) {
         return mlir::success();
     }
-    if (_fuseSparsify.hasValue()) {
+    if (_fuseSparsify.has_value()) {
         _log.trace("Overloading C++  createFuseSparsityOpsPass argument by MLIR variable");
     }
     _fuseSparsify = fuseSparsify;

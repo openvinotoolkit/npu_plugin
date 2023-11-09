@@ -236,12 +236,12 @@ private:
 
             const auto spillCandidate = getSpillCandidate();
 
-            if (!spillCandidate.hasValue()) {
+            if (!spillCandidate.has_value()) {
                 rollback(allocatedAddrs);
                 return false;
             }
 
-            spillCandidates.push_back(spillCandidate.getValue());
+            spillCandidates.push_back(spillCandidate.value());
         }
 
         if (!performActualSpill(spillCandidates, newRangeAddr, newRangeSize)) {
@@ -279,12 +279,12 @@ private:
 
             const auto spillCandidate = getSpillCandidate();
 
-            if (!spillCandidate.hasValue()) {
+            if (!spillCandidate.has_value()) {
                 rollback(allocatedAddrs);
                 return false;
             }
 
-            spillCandidates.push_back(spillCandidate.getValue());
+            spillCandidates.push_back(spillCandidate.value());
         }
 
         if (!performActualSpill(spillCandidates, newRangeAddr, newRangeSize)) {

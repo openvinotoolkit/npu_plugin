@@ -37,6 +37,10 @@ static constexpr double LARGE_CONST_THRESHOLD_RATIO = 0.25;
 // The purpose is to avoid excessive tiling.
 static constexpr int MAX_PREFETCH_TILING_TIME = 3;
 
+// Track [E#87286]
+// Experimental number to avoid spilling in vertical fusion
+static constexpr double VF_WEIGHTS_RATIO = 0.5;
+
 //
 // Tiling Mode
 //
@@ -111,8 +115,9 @@ using OutputTiling = SmallVector<TileInfo>;
 // helper function to generate a set of tiles from dividing a shape. A shape divided across multiple
 // dimensions will generate a set of tiles, each having its own size and offsets. Additionally an alignment
 // can be specified per each dimension.
-OutputTiling fillDividedTiles(ShapeRef divisors, ShapeRef orig, Optional<ArrayRef<int64_t>> alignment = None);
-OutputTiling fillDividedTiles(mlir::Operation* op, ShapeRef divisors, ShapeRef shape);
+mlir::FailureOr<OutputTiling> fillDividedTiles(ShapeRef divisors, ShapeRef orig,
+                                               Optional<ArrayRef<int64_t>> alignment = None);
+mlir::FailureOr<OutputTiling> fillDividedTiles(mlir::Operation* op, ShapeRef divisors, ShapeRef shape);
 
 //
 // PadInfo
@@ -182,7 +187,8 @@ InputTiling backInferConvTile(const TileInfo& outputTile, ShapeRef origInputShap
                               ShapeRef origBiasShape, mlir::ArrayAttr strides, const PadInfo& origPadding);
 
 InputTiling backInferGroupConvTile(const TileInfo& outputTile, ShapeRef origInputShape, ShapeRef origFilterShape,
-                                   ShapeRef origBiasShape, mlir::ArrayAttr strides, const PadInfo& origPadding);
+                                   ShapeRef origBiasShape, mlir::ArrayAttr strides, const PadInfo& origPadding,
+                                   int64_t groups);
 
 //
 // Pooling tiling
@@ -199,6 +205,14 @@ InputTiling backInferInterpolateTile(const vpux::TileInfo& outputTile, ArrayRef<
                                      ArrayRef<int64_t> initialOutputDims, ArrayRef<int64_t> initialInputOffsets,
                                      ArrayRef<int64_t> initialOutputOffsets, vpux::IE::InterpolateCoordMode coordMode,
                                      vpux::Logger log);
+
+//
+// Gather tiling
+//
+
+InputTiling backInferGatherTile(const vpux::TileInfo& outputTile, const ShapeRef& origInputShape,
+                                const ShapeRef& origIndicesShape, int64_t axisValue, int64_t batchDims,
+                                bool hasAxisTensor, vpux::Logger log);
 
 //
 // DimRange
@@ -243,6 +257,10 @@ struct DimRange final {
     }
 };
 
+std::pair<int64_t, int64_t> spatialOutputForInputWindowSize(const std::pair<int64_t, int64_t>& inputHW,
+                                                            const mlir::ArrayAttr& kernel,
+                                                            const mlir::ArrayAttr& strides, const PadInfo& pads);
+
 //
 // Tiling utils
 //
@@ -254,10 +272,10 @@ std::tuple<DimRange, int64_t, int64_t> inputForOutputDim(const DimRange& output,
 template <typename AlignFunc>
 SmallVector<int64_t> alignShape(ArrayRef<int64_t> shape, Optional<ArrayRef<int64_t>> alignment, AlignFunc alignFunc) {
     auto alignedShape = to_small_vector(shape);
-    if (!alignment.hasValue()) {
+    if (!alignment.has_value()) {
         return alignedShape;
     }
-    std::transform(shape.begin(), shape.end(), alignment.getValue().begin(), alignedShape.begin(), alignFunc);
+    std::transform(shape.begin(), shape.end(), alignment.value().begin(), alignedShape.begin(), alignFunc);
     return alignedShape;
 }
 SmallVector<Strides> adaptStrides(ShapeRef origShape, StridesRef origStrides, ArrayRef<Shape> adaptedShapes,
@@ -272,14 +290,20 @@ InputTiling backInferEltwiseTile(mlir::Operation* op, const vpux::TileInfo& outp
 
 // SWLayer
 
-OutputTiling getSWLayerTilingStrategy(mlir::Operation* op, TilingMode tilingMode, Logger log);
-OutputTiling getSWLayerTilingStrategyWithAxesExclusion(mlir::Operation* op, TilingMode tilingMode, Logger log,
-                                                       SmallVector<int64_t> axes);
+mlir::FailureOr<OutputTiling> getSWLayerTilingStrategyWithTileDimOrder(mlir::Operation* op, TilingMode tilingMode,
+                                                                       DimArrRef tileDimOrder, Logger log,
+                                                                       ArrayRef<int64_t> maxTilesPerDim = {});
+mlir::FailureOr<OutputTiling> getSWLayerTilingStrategy(mlir::Operation* op, TilingMode tilingMode, Logger log,
+                                                       ArrayRef<int64_t> maxTilesPerDim = {});
+
 InputTiling getSWLayerInputTiles(mlir::Operation* op, const vpux::TileInfo& outputTile);
+SmallVector<int64_t> getMaxNumTilesWithAxesExclusion(mlir::Operation* op, ArrayRef<int64_t> axes);
 
 // HWLayer
 
-OutputTiling getHWLayerTilingStrategy(mlir::Operation* op, TilingMode tilingMode, Logger log);
+mlir::FailureOr<OutputTiling> getHWLayerTilingStrategyWithTileDimOrder(mlir::Operation* op, TilingMode tilingMode,
+                                                                       DimArrRef tileDimOrder, Logger log);
+mlir::FailureOr<OutputTiling> getHWLayerTilingStrategy(mlir::Operation* op, TilingMode tilingMode, Logger log);
 
 DimArr getTileDimOrder(mlir::Operation* op, TilingMode tilingMode, Logger log);
 DimArr getTileDimOrderND(MemShape memShape, DimsOrder dimOrder);

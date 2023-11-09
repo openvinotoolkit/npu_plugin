@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -10,6 +10,8 @@
 #include "vpux/utils/core/mem_size.hpp"
 #include "vpux/utils/core/numeric.hpp"
 #include "vpux/utils/core/small_vector.hpp"
+
+#include "common/utils.hpp"
 
 #include <mlir/IR/MLIRContext.h>
 
@@ -24,10 +26,9 @@ constexpr vpux::StringRef CMX_NAME = "CMX_NN";
 
 }  // namespace
 
-TEST(MLIR_NDTypeInterface, SparseTensorType_Weights) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
+using MLIR_NDTypeInterface = MLIR_UnitBase;
 
+TEST_F(MLIR_NDTypeInterface, SparseTensorType_Weights) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPU::VPUDialect>();
 
@@ -165,10 +166,7 @@ TEST(MLIR_NDTypeInterface, SparseTensorType_Weights) {
     EXPECT_EQ(sparsePaddedType.getSparsityMap().cast<NDTypeInterface>().getShape(), ShapeRef(paddedSMShape));
 }
 
-TEST(MLIR_NDTypeInterface, SparseTensorType_Activation) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
+TEST_F(MLIR_NDTypeInterface, SparseTensorType_Activation) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPU::VPUDialect>();
 
@@ -311,10 +309,7 @@ TEST(MLIR_NDTypeInterface, SparseTensorType_Activation) {
               ShapeRef(paddedSETableShape));
 }
 
-TEST(MLIR_NDTypeInterface, SparseTensorType_SETable_Interp_BILINEAR) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
+TEST_F(MLIR_NDTypeInterface, SparseTensorType_SETable_Interp_BILINEAR) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPU::VPUDialect>();
 
@@ -340,10 +335,11 @@ TEST(MLIR_NDTypeInterface, SparseTensorType_SETable_Interp_BILINEAR) {
     const auto setType = mlir::RankedTensorType::get(seTableShape.raw(), mlir::IntegerType::get(&ctx, 32));
 
     auto modeAttr = VPU::NCEInterpolateModeAttr::get(&ctx, VPU::NCEInterpolateMode::BILINEAR);
-    const auto coordTransformModeAttr =
-            VPU::NCEInterpolateCoordModeAttr::get(&ctx, VPU::NCEInterpolateCoordMode::ASYMMETRIC);
-    const auto SEInterpolateAttr = VPU::SEInterpolateAttr::get(&ctx, modeAttr, nullptr, coordTransformModeAttr,
-                                                               scaleAttr, offsetsAttr, sizesAttr);
+    const auto coordTransformModeAttr = IE::InterpolateCoordModeAttr::get(&ctx, IE::InterpolateCoordMode::ASYMMETRIC);
+    const auto SEInterpolateAttr =
+            VPU::SEInterpolateAttr::get(&ctx, modeAttr, coordTransformModeAttr, scaleAttr,
+                                        /*nearestMode=*/nullptr, offsetsAttr, sizesAttr,
+                                        /*initialInputShapeAttr=*/nullptr, /*initialOutputShapeAttr=*/nullptr);
     const auto sparseTensorType =
             VPU::SparseTensorType::get(dataType, sparsityMapType, setType, nullptr, nullptr, SEInterpolateAttr);
 
@@ -515,10 +511,7 @@ TEST(MLIR_NDTypeInterface, SparseTensorType_SETable_Interp_BILINEAR) {
     EXPECT_EQ(ndType.eraseTiledInfo(), ndType);
 }
 
-TEST(MLIR_NDTypeInterface, SparseTensorType_SETable_Interp_NEAREST_PREFER_FLOOR) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
+TEST_F(MLIR_NDTypeInterface, SparseTensorType_SETable_Interp_NEAREST_PREFER_FLOOR) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPU::VPUDialect>();
 
@@ -544,12 +537,12 @@ TEST(MLIR_NDTypeInterface, SparseTensorType_SETable_Interp_NEAREST_PREFER_FLOOR)
     const auto setType = mlir::RankedTensorType::get(seTableShape.raw(), mlir::IntegerType::get(&ctx, 32));
 
     const auto modeAttr = VPU::NCEInterpolateModeAttr::get(&ctx, VPU::NCEInterpolateMode::NEAREST);
-    const auto coordTransformModeAttr =
-            VPU::NCEInterpolateCoordModeAttr::get(&ctx, VPU::NCEInterpolateCoordMode::ASYMMETRIC);
+    const auto coordTransformModeAttr = IE::InterpolateCoordModeAttr::get(&ctx, IE::InterpolateCoordMode::ASYMMETRIC);
     const auto nearestModeAttr =
-            VPU::NCEInterpolateNearestModeAttr::get(&ctx, VPU::NCEInterpolateNearestMode::ROUND_PREFER_FLOOR);
-    const auto SEInterpolateAttr = VPU::SEInterpolateAttr::get(&ctx, modeAttr, nearestModeAttr, coordTransformModeAttr,
-                                                               scaleAttr, offsetsAttr, sizesAttr);
+            IE::InterpolateNearestModeAttr::get(&ctx, IE::InterpolateNearestMode::ROUND_PREFER_FLOOR);
+    const auto SEInterpolateAttr = VPU::SEInterpolateAttr::get(
+            &ctx, modeAttr, coordTransformModeAttr, scaleAttr, nearestModeAttr, offsetsAttr, sizesAttr,
+            /*initialInputShapeAttr=*/nullptr, /*initialOutputShapeAttr=*/nullptr);
     const auto sparseTensorType =
             VPU::SparseTensorType::get(dataType, sparsityMapType, setType, nullptr, nullptr, SEInterpolateAttr);
 
@@ -704,10 +697,7 @@ TEST(MLIR_NDTypeInterface, SparseTensorType_SETable_Interp_NEAREST_PREFER_FLOOR)
     EXPECT_EQ(ndType.eraseTiledInfo(), ndType);
 }
 
-TEST(MLIR_NDTypeInterface, SparseTensorType_SETable_Interp_NEAREST_FLOOR) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
+TEST_F(MLIR_NDTypeInterface, SparseTensorType_SETable_Interp_NEAREST_FLOOR) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPU::VPUDialect>();
 
@@ -733,11 +723,11 @@ TEST(MLIR_NDTypeInterface, SparseTensorType_SETable_Interp_NEAREST_FLOOR) {
     const auto setType = mlir::RankedTensorType::get(seTableShape.raw(), mlir::IntegerType::get(&ctx, 32));
 
     const auto modeAttr = VPU::NCEInterpolateModeAttr::get(&ctx, VPU::NCEInterpolateMode::NEAREST);
-    const auto coordTransformModeAttr =
-            VPU::NCEInterpolateCoordModeAttr::get(&ctx, VPU::NCEInterpolateCoordMode::ASYMMETRIC);
-    const auto nearestModeAttr = VPU::NCEInterpolateNearestModeAttr::get(&ctx, VPU::NCEInterpolateNearestMode::FLOOR);
-    const auto SEInterpolateAttr = VPU::SEInterpolateAttr::get(&ctx, modeAttr, nearestModeAttr, coordTransformModeAttr,
-                                                               scaleAttr, offsetsAttr, sizesAttr);
+    const auto coordTransformModeAttr = IE::InterpolateCoordModeAttr::get(&ctx, IE::InterpolateCoordMode::ASYMMETRIC);
+    const auto nearestModeAttr = IE::InterpolateNearestModeAttr::get(&ctx, IE::InterpolateNearestMode::FLOOR);
+    const auto SEInterpolateAttr = VPU::SEInterpolateAttr::get(
+            &ctx, modeAttr, coordTransformModeAttr, scaleAttr, nearestModeAttr, offsetsAttr, sizesAttr,
+            /*initialInputShapeAttr=*/nullptr, /*initialOutputShapeAttr=*/nullptr);
     const auto sparseTensorType =
             VPU::SparseTensorType::get(dataType, sparsityMapType, setType, nullptr, nullptr, SEInterpolateAttr);
 
@@ -765,10 +755,7 @@ TEST(MLIR_NDTypeInterface, SparseTensorType_SETable_Interp_NEAREST_FLOOR) {
     EXPECT_EQ(parseIntArrayAttr<int64_t>(seInterpAttrUpdated.getOffsets()), outputTileRelOffsets);
 }
 
-TEST(MLIR_NDTypeInterface, SparseTensorType_SETable_Interp_BILINEAR_OFFSETS) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
+TEST_F(MLIR_NDTypeInterface, SparseTensorType_SETable_Interp_BILINEAR_OFFSETS) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPU::VPUDialect>();
 
@@ -794,10 +781,11 @@ TEST(MLIR_NDTypeInterface, SparseTensorType_SETable_Interp_BILINEAR_OFFSETS) {
     const auto setType = mlir::RankedTensorType::get(seTableShape.raw(), mlir::IntegerType::get(&ctx, 32));
 
     const auto modeAttr = VPU::NCEInterpolateModeAttr::get(&ctx, VPU::NCEInterpolateMode::BILINEAR);
-    const auto coordTransformModeAttr =
-            VPU::NCEInterpolateCoordModeAttr::get(&ctx, VPU::NCEInterpolateCoordMode::ASYMMETRIC);
-    const auto SEInterpolateAttr = VPU::SEInterpolateAttr::get(&ctx, modeAttr, nullptr, coordTransformModeAttr,
-                                                               scaleAttr, offsetsAttr, sizesAttr);
+    const auto coordTransformModeAttr = IE::InterpolateCoordModeAttr::get(&ctx, IE::InterpolateCoordMode::ASYMMETRIC);
+    const auto SEInterpolateAttr =
+            VPU::SEInterpolateAttr::get(&ctx, modeAttr, coordTransformModeAttr, scaleAttr,
+                                        /*nearestModeAttr=*/nullptr, offsetsAttr, sizesAttr,
+                                        /*initialInputShapeAttr=*/nullptr, /*initialOutputShapeAttr=*/nullptr);
     const auto sparseTensorType =
             VPU::SparseTensorType::get(dataType, sparsityMapType, setType, nullptr, nullptr, SEInterpolateAttr);
 
@@ -825,10 +813,7 @@ TEST(MLIR_NDTypeInterface, SparseTensorType_SETable_Interp_BILINEAR_OFFSETS) {
     EXPECT_EQ(parseIntArrayAttr<int64_t>(seInterpAttrUpdated.getOffsets()), outputTileRelOffsets);
 }
 
-TEST(MLIR_NDTypeInterface, SparseTensorType_SETable_Interp_NEAREST_PREFER_FLOOR_OFFSETS) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
+TEST_F(MLIR_NDTypeInterface, SparseTensorType_SETable_Interp_NEAREST_PREFER_FLOOR_OFFSETS) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPU::VPUDialect>();
 
@@ -854,11 +839,11 @@ TEST(MLIR_NDTypeInterface, SparseTensorType_SETable_Interp_NEAREST_PREFER_FLOOR_
     const auto setType = mlir::RankedTensorType::get(seTableShape.raw(), mlir::IntegerType::get(&ctx, 32));
 
     const auto modeAttr = VPU::NCEInterpolateModeAttr::get(&ctx, VPU::NCEInterpolateMode::NEAREST);
-    const auto coordTransformModeAttr =
-            VPU::NCEInterpolateCoordModeAttr::get(&ctx, VPU::NCEInterpolateCoordMode::ASYMMETRIC);
-    const auto nearestModeAttr = VPU::NCEInterpolateNearestModeAttr::get(&ctx, VPU::NCEInterpolateNearestMode::FLOOR);
-    const auto SEInterpolateAttr = VPU::SEInterpolateAttr::get(&ctx, modeAttr, nearestModeAttr, coordTransformModeAttr,
-                                                               scaleAttr, offsetsAttr, sizesAttr);
+    const auto coordTransformModeAttr = IE::InterpolateCoordModeAttr::get(&ctx, IE::InterpolateCoordMode::ASYMMETRIC);
+    const auto nearestModeAttr = IE::InterpolateNearestModeAttr::get(&ctx, IE::InterpolateNearestMode::FLOOR);
+    const auto SEInterpolateAttr = VPU::SEInterpolateAttr::get(
+            &ctx, modeAttr, coordTransformModeAttr, scaleAttr, nearestModeAttr, offsetsAttr, sizesAttr,
+            /*initialInputShapeAttr=*/nullptr, /*initialOutputShapeAttr=*/nullptr);
     const auto sparseTensorType =
             VPU::SparseTensorType::get(dataType, sparsityMapType, setType, nullptr, nullptr, SEInterpolateAttr);
 

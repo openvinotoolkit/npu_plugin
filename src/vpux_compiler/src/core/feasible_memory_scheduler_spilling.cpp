@@ -72,12 +72,12 @@ void FeasibleMemorySchedulerSpilling::removeComputeOpRelocationSpills(
             // Search for corresponding ORIGINAL op and check
             // if it is at closest previous time
             for (size_t i = opIndex - 1; i < scheduledOps.size(); i--) {
-                if (!prevTime.hasValue() && scheduledOps[i].cycleBegin_ < scheduledOps[spillWriteIndex].cycleBegin_) {
+                if (!prevTime.has_value() && scheduledOps[i].cycleBegin_ < scheduledOps[spillWriteIndex].cycleBegin_) {
                     // Identified previous time value
                     prevTime = scheduledOps[i].cycleBegin_;
                 }
 
-                if (prevTime.hasValue()) {
+                if (prevTime.has_value()) {
                     if (scheduledOps[i].cycleBegin_ < prevTime) {
                         // Time of op in given iteration is smaller than closest previous time
                         // In such case break early as that means that COMPUTEOP -> SPILL_WRITE
@@ -94,18 +94,18 @@ void FeasibleMemorySchedulerSpilling::removeComputeOpRelocationSpills(
             }
 
             // Original operation just before SPILL_WRITE was no located. Stop analysis for given operation index
-            if (!origOpIndex.hasValue()) {
+            if (!origOpIndex.has_value()) {
                 continue;
             }
 
             // Search for matching SPILL_READ op and check
             // if it is at closest next time
             for (size_t i = opIndex + 1; i < scheduledOps.size(); i++) {
-                if (!nextTime.hasValue() && scheduledOps[i].cycleBegin_ > scheduledOps[spillWriteIndex].cycleBegin_) {
+                if (!nextTime.has_value() && scheduledOps[i].cycleBegin_ > scheduledOps[spillWriteIndex].cycleBegin_) {
                     nextTime = scheduledOps[i].cycleBegin_;
                 }
 
-                if (nextTime.hasValue()) {
+                if (nextTime.has_value()) {
                     if (scheduledOps[i].cycleBegin_ > nextTime) {
                         // Time of op in given iteration is larger than closest next time
                         // In such case break early as that means that SPILL_WRITE -> SPILL_READ
@@ -122,16 +122,16 @@ void FeasibleMemorySchedulerSpilling::removeComputeOpRelocationSpills(
             }
 
             // SPILL_READ does not appear right after SPILL_WRITE. Stop analysis for given op
-            if (!spillReadIndex.hasValue()) {
+            if (!spillReadIndex.has_value()) {
                 continue;
             }
 
             // Check if no operation depends on range assigned later to SPILL_READ output between
             // scheduled ops at index starting from prevTimeFirstOpIndex to spillReadIndex
-            auto resBegin = scheduledOps[spillReadIndex.getValue()].beginOutputResource(0);
-            auto resEnd = scheduledOps[spillReadIndex.getValue()].endOutputResource(0) - 1;
+            auto resBegin = scheduledOps[spillReadIndex.value()].beginOutputResource(0);
+            auto resEnd = scheduledOps[spillReadIndex.value()].endOutputResource(0) - 1;
             bool rangeUsed = false;
-            for (size_t i = prevTimeFirstOpIndex; i < spillReadIndex.getValue(); i++) {
+            for (size_t i = prevTimeFirstOpIndex; i < spillReadIndex.value(); i++) {
                 // Skip check for SPILL_WRITE
                 if (i == spillWriteIndex) {
                     continue;
@@ -156,9 +156,9 @@ void FeasibleMemorySchedulerSpilling::removeComputeOpRelocationSpills(
 
                 if (scheduledOps[i].hasActiveOutputResource()) {
                     for (size_t r = 0; r < scheduledOps[i].numOfOutputResources(); r++) {
-                        if (i == origOpIndex.getValue() &&
-                            scheduledOps[origOpIndex.getValue()].getOutputBuffer(r) ==
-                                    scheduledOps[spillReadIndex.getValue()].getOutputBuffer(0)) {
+                        if (i == origOpIndex.value() &&
+                            scheduledOps[origOpIndex.value()].getOutputBuffer(r) ==
+                                    scheduledOps[spillReadIndex.value()].getOutputBuffer(0)) {
                             // Skip check for buffer that is planned for relocation
                             continue;
                         }
@@ -181,13 +181,13 @@ void FeasibleMemorySchedulerSpilling::removeComputeOpRelocationSpills(
             // Range is used by other operation. Optimization cannot be performed
             if (rangeUsed) {
                 _log.trace("Range is used, cannot relocate output of op - '{0}'",
-                           scheduledOps[origOpIndex.getValue()].op_);
+                           scheduledOps[origOpIndex.value()].op_);
                 continue;
             }
 
-            auto& origOp = scheduledOps[origOpIndex.getValue()];
+            auto& origOp = scheduledOps[origOpIndex.value()];
             auto& spillWriteOp = scheduledOps[spillWriteIndex];
-            auto& spillReadOp = scheduledOps[spillReadIndex.getValue()];
+            auto& spillReadOp = scheduledOps[spillReadIndex.value()];
 
             // Check if operation writes just to part of buffer. In that case optimization cannot
             // be performed as operation is not a sole owner of full buffer
@@ -259,7 +259,7 @@ void FeasibleMemorySchedulerSpilling::removeComputeOpRelocationSpills(
 
             // SPILL_WRITE and SPILL_READ operations can be removed
             operationIndexesToRemove.push_back(spillWriteIndex);
-            operationIndexesToRemove.push_back(spillReadIndex.getValue());
+            operationIndexesToRemove.push_back(spillReadIndex.value());
         }
     }
 
@@ -551,8 +551,8 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillWriteCopyOp(m
         }
 
         auto secondLvlMemAttr =
-                _secondLvlMemKind.hasValue()
-                        ? IndexedSymbolAttr::get(spillType.getContext(), stringifyEnum(_secondLvlMemKind.getValue()))
+                _secondLvlMemKind.has_value()
+                        ? IndexedSymbolAttr::get(spillType.getContext(), stringifyEnum(_secondLvlMemKind.value()))
                         : nullptr;
         return spillType.changeMemSpace(secondLvlMemAttr);
     };
@@ -568,9 +568,9 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillWriteCopyOp(m
 
     mlir::IntegerAttr swizzlingKeyAttr;
     if (auto allocOp = bufferToSpill.getDefiningOp<VPURT::Alloc>()) {
-        swizzlingKeyAttr = allocOp.swizzlingKeyAttr();
+        swizzlingKeyAttr = allocOp.getSwizzlingKeyAttr();
     } else if (auto distAllocOp = bufferToSpill.getDefiningOp<VPURT::AllocDistributed>()) {
-        swizzlingKeyAttr = distAllocOp.swizzlingKeyAttr();
+        swizzlingKeyAttr = distAllocOp.getSwizzlingKeyAttr();
     }
 
     mlir::Operation* newBufferOp;
@@ -654,12 +654,13 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillReadCopyOp(ml
     builder.setInsertionPoint(_allocOpInsertionPoint);
     mlir::Operation* newBufferOp;
     if (auto distAllocOp = bufferToSpill.getDefiningOp<VPURT::AllocDistributed>()) {
-        newBufferOp = builder.create<VPURT::AllocDistributed>(
-                spillReadNameLoc, bufferToSpill.getType(), distAllocOp.alignmentAttr(), distAllocOp.swizzlingKeyAttr());
+        newBufferOp = builder.create<VPURT::AllocDistributed>(spillReadNameLoc, bufferToSpill.getType(),
+                                                              distAllocOp.getAlignmentAttr(),
+                                                              distAllocOp.getSwizzlingKeyAttr());
     } else if (auto allocOp = bufferToSpill.getDefiningOp<VPURT::Alloc>()) {
         // In case original spilled buffer had swizzling attribute, populate it to newly allocated buffer
-        newBufferOp = builder.create<VPURT::Alloc>(spillReadNameLoc, bufferToSpill.getType(), allocOp.alignmentAttr(),
-                                                   allocOp.swizzlingKeyAttr());
+        newBufferOp = builder.create<VPURT::Alloc>(spillReadNameLoc, bufferToSpill.getType(),
+                                                   allocOp.getAlignmentAttr(), allocOp.getSwizzlingKeyAttr());
     } else {
         newBufferOp = builder.create<mlir::memref::AllocOp>(spillReadNameLoc,
                                                             bufferToSpill.getType().cast<mlir::MemRefType>());

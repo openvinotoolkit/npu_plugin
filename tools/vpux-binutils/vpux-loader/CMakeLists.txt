@@ -3,9 +3,7 @@
 # SPDX-License-Identifier: Apache 2.0
 #
 
-#
-
-set(TARGET_NAME "vpux-loader")
+set(TARGET_NAME "npu-loader")
 
 add_tool_target(
     NAME ${TARGET_NAME}
@@ -14,7 +12,7 @@ add_tool_target(
     ADD_CLANG_FORMAT
     LINK_LIBRARIES
          vpux_elf
-         vpux_utils
-         vpux_mlir_compiler_static
-         vpux_translate_utils_static
+         npu_utils
+         npu_mlir_compiler_static
+         npu_translate_utils_static
 )

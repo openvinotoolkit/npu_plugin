@@ -39,18 +39,18 @@ mlir::LogicalResult generalFusion(mlir::Operation* origOp, mlir::ArrayAttr kerne
     }
 
     auto padsBegin = vpux::IE::extractPads(origPadOp.pads_begin_attrAttr(), log);
-    if (mlir::failed(padsBegin) || padsBegin.getValue().size() != 4) {
+    if (mlir::failed(padsBegin) || padsBegin.value().size() != 4) {
         return mlir::failure();
     }
 
     auto padsEnd = vpux::IE::extractPads(origPadOp.pads_end_attrAttr(), log);
-    if (mlir::failed(padsEnd) || padsEnd.getValue().size() != 4) {
+    if (mlir::failed(padsEnd) || padsEnd.value().size() != 4) {
         return mlir::failure();
     }
 
-    VPUX_THROW_UNLESS(origPadOp.pad_value_attr().hasValue(), "IE::PadOp has pad_value_attr() == nullptr {0}",
+    VPUX_THROW_UNLESS(origPadOp.pad_value_attr().has_value(), "IE::PadOp has pad_value_attr() == nullptr {0}",
                       origPadOp->getLoc());
-    const double padsValue = origPadOp.pad_value_attr().getValue().convertToDouble();
+    const double padsValue = origPadOp.pad_value_attr().value().convertToDouble();
     if (!isDoubleEqual(padsValue, 0.f)) {
         return mlir::failure();
     }
@@ -61,13 +61,12 @@ mlir::LogicalResult generalFusion(mlir::Operation* origOp, mlir::ArrayAttr kerne
     auto newPadsBegin = getIntArrayAttr(
             origOp->getContext(),
             ngraph::CoordinateDiff{
-                    origPadBegin[Dims4D::PadsBegin::Top.ind()] + padsBegin.getValue()[Dims4D::Act::H.ind()],
-                    origPadBegin[Dims4D::PadsBegin::Left.ind()] + padsBegin.getValue()[Dims4D::Act::W.ind()]});
+                    origPadBegin[Dims4D::PadsBegin::Top.ind()] + padsBegin.value()[Dims4D::Act::H.ind()],
+                    origPadBegin[Dims4D::PadsBegin::Left.ind()] + padsBegin.value()[Dims4D::Act::W.ind()]});
     auto newPadsEnd = getIntArrayAttr(
             origOp->getContext(),
-            ngraph::CoordinateDiff{
-                    origPadEnd[Dims4D::PadsEnd::Bottom.ind()] + padsEnd.getValue()[Dims4D::Act::H.ind()],
-                    origPadEnd[Dims4D::PadsEnd::Right.ind()] + padsEnd.getValue()[Dims4D::Act::W.ind()]});
+            ngraph::CoordinateDiff{origPadEnd[Dims4D::PadsEnd::Bottom.ind()] + padsEnd.value()[Dims4D::Act::H.ind()],
+                                   origPadEnd[Dims4D::PadsEnd::Right.ind()] + padsEnd.value()[Dims4D::Act::W.ind()]});
 
     if (!VPU::NCEInvariant::verifyPads(kernelSizeAttr, newPadsBegin, newPadsEnd)) {
         return mlir::failure();

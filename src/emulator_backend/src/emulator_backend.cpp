@@ -45,6 +45,7 @@ const std::vector<std::string> EmulatorBackend::getDeviceNames() const {
 
 }  // namespace vpux
 
-INFERENCE_PLUGIN_API(void) CreateVPUXEngineBackend(std::shared_ptr<vpux::IEngineBackend>& obj) {
+INFERENCE_PLUGIN_API(void)
+CreateVPUXEngineBackend(std::shared_ptr<vpux::IEngineBackend>& obj, const vpux::Config&) {
     obj = std::make_shared<vpux::EmulatorBackend>();
 }

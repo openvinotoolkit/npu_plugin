@@ -99,7 +99,7 @@ TEST_P(VPUXActivationLayerTest_VPU3720, HW) {
 In case of the OV2.0 test framework define a base single layer test:
 
 ```cpp
-class VPUXSoftMaxLayerTest : public SoftMaxLayerTest, virtual public VPUXLayerTest {};
+class VPUXSoftMaxLayerTest : public SoftMaxLayerTest, virtual public VpuOv2LayerTest {};
 ```
 
 Set the environment with helper functions and provide the platform to the `run()` method explicitly:
@@ -186,7 +186,7 @@ VPUIP::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
             .Case<VPU::SoftMaxOp>([&](VPU::SoftMaxOp softmax) {
                 return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{softmax.axisIndAttr()},
                                         {"singleShaveSoftmax"},
-                                        {"single_shave_softmax.cpp"}};
+                                        {"singleShaveSoftmax.cpp"}};
             })
             .Default([](mlir::Operation* unknownOp) -> VPUIP::KernelInfo {
                 VPUX_THROW("Operation '{0}' is not supported by the act-shaves", unknownOp->getName());

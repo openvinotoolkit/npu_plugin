@@ -6,20 +6,22 @@
 #ifndef VPUX_COMPILER_DIALECT_IE_ATTRIBUTES
 #define VPUX_COMPILER_DIALECT_IE_ATTRIBUTES
 
+include "mlir/IR/OpBase.td"
 include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/dialect/IE/dialect.td"
+include "vpux/compiler/core/type_interfaces.td"
 
 //
 // Base classes
 //
 
-class IE_I64EnumAttr <string name, string summary, list<I64EnumAttrCase> cases> : 
+class IE_I64EnumAttr <string name, string summary, list<I64EnumAttrCase> cases> :
         I64EnumAttr<name, summary, cases> {
     let cppNamespace = "vpux::IE";
     let genSpecializedAttr = 0;
 }
 
-class IE_EnumAttr <EnumAttrInfo enumInfo, string name = "", list <Trait> traits = []> : 
+class IE_EnumAttr <EnumAttrInfo enumInfo, string name = "", list <Trait> traits = []> :
         EnumAttr<IE_Dialect, enumInfo, name, traits> {
     let assemblyFormat = "`<`$value`>`";
 }
@@ -57,20 +59,6 @@ def IE_TypeComparisonMode :
     let cppNamespace = "vpux::IE";
     let genSpecializedAttr = 1;
 }
-
-//
-// TensorAttr
-//
-
-def IE_TensorAttr :
-        StructAttr<
-            "TensorAttr",
-            IE_Dialect,
-            [
-                StructFieldAttr<"order", OptionalAttr<AffineMapAttr>>,
-                StructFieldAttr<"mem_space", OptionalAttr<IndexedSymbolAttr>>
-            ]
-        >;
 
 //
 // EpsMode
@@ -285,28 +273,25 @@ def IE_LRN_IERegionAttr : IE_EnumAttr<IE_LRN_IERegion, "lrn_ieregion">;
 // Proposal
 //
 
-def IE_ProposalAttrs :
-        StructAttr<
-            "ProposalAttr",
-            IE_Dialect,
-            [
-                StructFieldAttr<"baseSize",           IntAttr>,
-                StructFieldAttr<"preNmsTopN",         IntAttr>,
-                StructFieldAttr<"postNmsTopN",        IntAttr>,
-                StructFieldAttr<"nmsThresh",          F64Attr>,
-                StructFieldAttr<"featStride",         IntAttr>,
-                StructFieldAttr<"minSize",            IntAttr>,
-                StructFieldAttr<"ratio",              F64ArrayAttr>,
-                StructFieldAttr<"scale",              F64ArrayAttr>,
-                StructFieldAttr<"clipBeforeNms",      BoolAttr>,
-                StructFieldAttr<"clipAfterNms",       BoolAttr>,
-                StructFieldAttr<"normalize",          BoolAttr>,
-                StructFieldAttr<"boxSizeScale",       F64Attr>,
-                StructFieldAttr<"boxCoordinateScale", F64Attr>,
-                StructFieldAttr<"framework",          StrAttr>,
-                StructFieldAttr<"inferProbs",         BoolAttr>,
-            ]
-        >;
+def IE_ProposalAttr : IE_Attr<"Proposal"> {
+    let parameters = (ins
+        "mlir::IntegerAttr":$baseSize,
+        "mlir::IntegerAttr":$preNmsTopN,
+        "mlir::IntegerAttr":$postNmsTopN,
+        "mlir::FloatAttr":$nmsThresh,
+        "mlir::IntegerAttr":$featStride,
+        "mlir::IntegerAttr":$minSize,
+        "mlir::ArrayAttr":$ratio,
+        "mlir::ArrayAttr":$scale,
+        "mlir::BoolAttr":$clipBeforeNms,
+        "mlir::BoolAttr":$clipAfterNms,
+        "mlir::BoolAttr":$normalize,
+        "mlir::FloatAttr":$boxSizeScale,
+        "mlir::FloatAttr":$boxCoordinateScale,
+        "mlir::StringAttr":$framework,
+        "mlir::BoolAttr":$inferProbs
+    );
+}
 
 //
 // Interpolate
@@ -409,21 +394,21 @@ def IE_DetectionOutputCodeTypeAttr : IE_EnumAttr<IE_DetectionOutputCodeType, "de
 
 def IE_DetectionOutputAttr : IE_Attr<"DetectionOutput"> {
     let parameters = (ins
-        "mlir::IntegerAttr":$num_classes,                
-        "mlir::IntegerAttr":$background_label_id,        
-        "mlir::IntegerAttr":$top_k,                      
-        "mlir::BoolAttr":$variance_encoded_in_target, 
-        "mlir::ArrayAttr":$keep_top_k,                 
-        "vpux::IE::DetectionOutputCodeTypeAttr":$code_type,                  
-        "mlir::BoolAttr":$share_location,             
-        "mlir::FloatAttr":$nms_threshold,              
-        "mlir::FloatAttr":$confidence_threshold,       
-        "mlir::BoolAttr":$clip_after_nms,             
-        "mlir::BoolAttr":$clip_before_nms,            
-        "mlir::BoolAttr":$decrease_label_id,          
-        "mlir::BoolAttr":$normalized,                 
-        "mlir::IntegerAttr":$input_height,               
-        "mlir::IntegerAttr":$input_width,                
+        "mlir::IntegerAttr":$num_classes,
+        "mlir::IntegerAttr":$background_label_id,
+        "mlir::IntegerAttr":$top_k,
+        "mlir::BoolAttr":$variance_encoded_in_target,
+        "mlir::ArrayAttr":$keep_top_k,
+        "vpux::IE::DetectionOutputCodeTypeAttr":$code_type,
+        "mlir::BoolAttr":$share_location,
+        "mlir::FloatAttr":$nms_threshold,
+        "mlir::FloatAttr":$confidence_threshold,
+        "mlir::BoolAttr":$clip_after_nms,
+        "mlir::BoolAttr":$clip_before_nms,
+        "mlir::BoolAttr":$decrease_label_id,
+        "mlir::BoolAttr":$normalized,
+        "mlir::IntegerAttr":$input_height,
+        "mlir::IntegerAttr":$input_width,
         "mlir::FloatAttr":$objectness_score
     );
 }
@@ -486,32 +471,24 @@ def IE_RNNSequenceDirectionAttr : IE_EnumAttr<IE_RNNSequenceDirection, "rnn_seq_
 // PostOp
 //
 
-def IE_PostOp :
-        StructAttr<
-            "PostOp",
-            IE_Dialect,
-            [
-                StructFieldAttr<"name",     StrAttr>,
-                StructFieldAttr<"attrs",    DictionaryAttr>,
-            ]
-        > {
-    let cppNamespace = "vpux::IE";
+def IE_PostOpAttr : IE_Attr<"PostOp"> {
+    let parameters = (ins
+        "mlir::StringAttr":$name,
+        "mlir::DictionaryAttr":$attrs
+    );
 }
 
 //
-// ConcatAttrs
+// ConcatAttr
 //
 
-def IE_ConcatAttrs :
-        StructAttr<
-            "ConcatAttrs",
-            IE_Dialect,
-            [
-                StructFieldAttr<"axis",     IntAttr>,
-                StructFieldAttr<"offset",   OptionalAttr<IntAttr>>,
-                StructFieldAttr<"stride",   OptionalAttr<IntAttr>>
-            ]
-        >;
+def IE_ConcatAttr : IE_Attr<"Concat"> {
+    let parameters = (ins
+        "mlir::IntegerAttr":$axis,
+        OptionalParameter<"mlir::IntegerAttr">:$offset,
+        OptionalParameter<"mlir::IntegerAttr">:$stride
+    );
+}
 
 //
 // IE_DepthToSpaceMode
@@ -548,18 +525,15 @@ def IE_SpaceToDepthMode :
 def IE_SpaceToDepthModeAttr : IE_EnumAttr<IE_SpaceToDepthMode, "space_to_depth_mode">;
 
 //
-// ChannelPadding
+// ChannelPaddingAttr
 //
 
-def IE_ChannelPadding :
-        StructAttr<
-            "ChannelPadding",
-            IE_Dialect,
-            [
-                StructFieldAttr<"input", IntAttr>,
-                StructFieldAttr<"output", IntAttr>
-            ]
-        >;
+def IE_ChannelPaddingAttr : IE_Attr<"ChannelPadding"> {
+    let parameters = (ins
+        "mlir::IntegerAttr":$input,
+        "mlir::IntegerAttr":$output
+    );
+}
 
 //
 // Color Formats
@@ -612,7 +586,7 @@ def IE_PSROIPoolingMode :
         > {
 }
 
-def IE_PSROIPoolingModeAttr : IE_EnumAttr<IE_PSROIPoolingMode, "psroi_poolong_mode">;
+def IE_PSROIPoolingModeAttr : IE_EnumAttr<IE_PSROIPoolingMode, "psroi_pooling_mode">;
 
 //
 // PadType
@@ -653,16 +627,12 @@ def IE_DeformablePSROIPoolingModeAttr : IE_EnumAttr<IE_DeformablePSROIPoolingMod
 // UpsamplingPadAttr
 //
 
-def IE_UpsamplingPadAttr :
-        StructAttr<
-            "UpsamplingPadAttr",
-            IE_Dialect,
-            [
-                StructFieldAttr<"pads_channel",       I64ArrayAttr>,
-                StructFieldAttr<"pads_height",        I64ArrayAttr>,
-                StructFieldAttr<"pads_width",         I64ArrayAttr>
-            ]
-        >;
-
+def IE_UpsamplingPadAttr : IE_Attr<"UpsamplingPad"> {
+    let parameters = (ins
+        "mlir::ArrayAttr":$pads_channel,
+        "mlir::ArrayAttr":$pads_height,
+        "mlir::ArrayAttr":$pads_width
+    );
+}
 
 #endif

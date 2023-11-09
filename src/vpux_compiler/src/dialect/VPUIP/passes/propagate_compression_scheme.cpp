@@ -168,7 +168,7 @@ void PropagateCompressionScheme::safeRunOnFunc() {
     auto func = getOperation();
 
     func.walk([&](Const::DeclareOp constOp) {
-        const auto contentAttr = constOp.contentAttr();
+        const auto contentAttr = constOp.getContentAttr();
         const auto transformations = contentAttr.getTransformations();
         if (transformations.empty()) {
             return;
@@ -193,9 +193,9 @@ void PropagateCompressionScheme::safeRunOnFunc() {
                 outputType.getShape(), outputType.getElementType(), outputType.getDimsOrder(), outputType.getMemSpace(),
                 outputType.getStrides(), vpux::getSwizzlingSchemeAttr(outputType), compressionSchemeAttr);
 
-        constOp.output().setType(newOutputType);
+        constOp.getOutput().setType(newOutputType);
 
-        for (auto userOp : constOp.output().getUsers()) {
+        for (auto userOp : constOp.getOutput().getUsers()) {
             auto groupOp = mlir::dyn_cast<VPUIP::GroupSparseBufferOp>(userOp);
             VPUX_THROW_UNLESS(groupOp != nullptr, "Expected weights user to be a VPUIP.GroupSparseBuffer op, got {0}",
                               userOp);

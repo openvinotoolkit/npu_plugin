@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
@@ -271,6 +269,9 @@ public:
     std::size_t getClusterNumber() const {
         return clusterNumber_;
     }
+    std::size_t getNumClusters() const {
+        return numClusters_;
+    }
     SwizzlingKey getWeightsSwizzlingKey() const {
         return weightsSwizzlingKey_;
     }
@@ -310,6 +311,7 @@ private:
     MultiClusterDPUParams loadMultiClusterDPUParams(llvm::json::Object* obj);
     std::size_t loadIterationCount(llvm::json::Object* obj);
     std::size_t loadClusterNumber(llvm::json::Object* obj);
+    std::size_t loadNumClusters(llvm::json::Object* obj);
     SETablePattern loadSETablePattern(llvm::json::Object* obj);
     SwizzlingKey loadSwizzlingKey(llvm::json::Object* obj, std::string keyType);
 
@@ -330,6 +332,7 @@ private:
     MVCNN::Permutation odu_permutation_ = MVCNN::Permutation::Permutation_ZXY;
     std::size_t iterationCount_ = 0;
     std::size_t clusterNumber_ = 0;
+    std::size_t numClusters_ = 0;
     std::shared_ptr<TestCaseJsonDescriptor> underlyingOp_;
     SwizzlingKey weightsSwizzlingKey_ = SwizzlingKey::key0;
     SwizzlingKey activationSwizzlingKey_ = SwizzlingKey::key0;

@@ -6,9 +6,8 @@
 
 Aids the generation of release notes
 
-- [ ] VPUX3011
-- [ ] VPUX3011
-- [ ] VPUX3110
+- [ ] VPUX30XX
+- [ ] VPUX31XX
 - [ ] VPUX37XX
 - [ ] NONE (Not included in release notes)
 

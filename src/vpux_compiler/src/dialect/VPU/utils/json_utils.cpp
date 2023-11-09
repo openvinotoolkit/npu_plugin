@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -35,9 +35,8 @@ void writeManualStrategyJSON(StringRef fileName, const Json& json) {
 }
 
 Json convertAttrToJSON(mlir::Attribute attr) {
-    if (attr.isa<mlir::StringAttr>()) {
-        Json clusteringStrategy = attr.cast<mlir::StringAttr>().getValue().str();
-        return clusteringStrategy;
+    if (attr.isa<VPU::MultiClusterStrategyAttr>()) {
+        return stringifyMultiClusterStrategy(attr.cast<VPU::MultiClusterStrategyAttr>().getValue());
     } else if (attr.isa<mlir::ArrayAttr>()) {
         auto values = Shape(parseIntArrayAttr<int64_t>(attr.cast<mlir::ArrayAttr>()));
         VPUX_THROW_UNLESS(values.size() == 4, "Shape has fewer dimensions than expected (4), got '{0}'", values.size());
@@ -53,9 +52,9 @@ Json convertAttrToJSON(mlir::Attribute attr) {
 }
 
 mlir::Attribute convertJSONToAttr(mlir::Attribute oldAttr, const Json& newAttrVal) {
-    if (oldAttr.isa<mlir::StringAttr>()) {
-        // cast to std::string so it can be compared with std::string
-        return mlir::StringAttr::get(oldAttr.getContext(), newAttrVal.get<std::string>());
+    if (oldAttr.isa<VPU::MultiClusterStrategyAttr>()) {
+        return VPU::MultiClusterStrategyAttr::get(oldAttr.getContext(),
+                                                  symbolizeMultiClusterStrategy(newAttrVal.get<std::string>()).value());
     } else if (oldAttr.isa<mlir::ArrayAttr>()) {
         Shape newShape(4, 1);
         newShape[Dims4D::Act::N] = static_cast<int64_t>(std::stoi(newAttrVal.at("N").begin().value().dump()));
@@ -85,7 +84,7 @@ void createStrategyJSONFromOperations(Json& json, llvm::MapVector<mlir::Location
                 // currently no default strategy, set NONE
                 strategyAsJSON = defaultNoStrategy.str();
             }
-            json[opName][attribute.str()] = strategyAsJSON;
+            json[opName][attribute.str()] = std::move(strategyAsJSON);
         }
     }
 }
@@ -102,11 +101,13 @@ void overwriteManualStrategy(Json& manualStrategy, llvm::MapVector<mlir::Locatio
             // replace attributes of the operation (skip NONE) using it.value()
             if (it.value() != defaultNoStrategy.str()) {
                 if (it.key() == multiClusterStrategy) {
-                    auto dummyAttr = mlir::StringAttr::get(op.second->getContext(), "");
+                    // Clustering is set as placeholder to be replaced with provided strategy
+                    auto dummyAttr = VPU::MultiClusterStrategyAttr::get(op.second->getContext(),
+                                                                        VPU::MultiClusterStrategy::Clustering);
                     auto manualAttribute = convertJSONToAttr(dummyAttr, it.value());
                     if (auto clusteredOp = mlir::dyn_cast<ClusteredOpInterface>(op.second)) {
-                        clusteredOp.setMultiClusterStrategyAttr(
-                                manualAttribute.cast<vpux::VPU::MultiClusterStrategyAttr>().getValue());
+                        auto manualStratAttr = manualAttribute.cast<VPU::MultiClusterStrategyAttr>();
+                        clusteredOp.setMultiClusterStrategy(manualStratAttr.getValue());
                     }
                 } else if (it.key() == tilingStrategy) {
                     // tiling case, where strategy selection and IR modification occurs in a single pass

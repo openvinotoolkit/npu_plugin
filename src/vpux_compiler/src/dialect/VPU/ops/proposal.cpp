@@ -24,9 +24,10 @@ mlir::LogicalResult vpux::VPU::ProposalOp::inferReturnTypes(mlir::MLIRContext* c
     const auto inType = proposal.class_probs().getType().cast<vpux::NDTypeInterface>();
 
     // out shape must be [batch_size * post_nms_topn, 5]
-    const SmallVector<int64_t> outShape{inType.getShape().front() * proposal.proposal_attrs().postNmsTopN().getInt(),
+    const SmallVector<int64_t> outShape{inType.getShape().front() * proposal.proposal_attrs().getPostNmsTopN().getInt(),
                                         5};
-    const SmallVector<int64_t> probsShape{inType.getShape().front() * proposal.proposal_attrs().postNmsTopN().getInt()};
+    const SmallVector<int64_t> probsShape{inType.getShape().front() *
+                                          proposal.proposal_attrs().getPostNmsTopN().getInt()};
 
     const auto outType = inType.changeShape(Shape(outShape));
     const auto probsType = inType.changeShape(Shape(probsShape));
@@ -42,28 +43,28 @@ mlir::LogicalResult vpux::VPU::ProposalOp::inferReturnTypes(mlir::MLIRContext* c
 
 EMU::BlobWriter::SpecificTask vpux::VPU::ProposalOp::serialize(EMU::BlobWriter& writer) {
     IE::ProposalAttr attr = proposal_attrs();
-    EMU::BlobWriter::String framework = writer.createString(attr.framework().getValue());
+    EMU::BlobWriter::String framework = writer.createString(attr.getFramework().getValue());
 
-    auto ratio_fb = writer.createVector(parseFPArrayAttr<float>(attr.ratio()));
-    auto scale_fb = writer.createVector(parseFPArrayAttr<float>(attr.scale()));
+    auto ratio_fb = writer.createVector(parseFPArrayAttr<float>(attr.getRatio()));
+    auto scale_fb = writer.createVector(parseFPArrayAttr<float>(attr.getScale()));
 
     MVCNN::ProposalParamsBuilder builder(writer);
     builder.add_ratio(ratio_fb);
     builder.add_scale(scale_fb);
-    builder.add_min_size(checked_cast<uint32_t>(attr.minSize().getValue().getSExtValue()));
-    builder.add_base_size(checked_cast<uint32_t>(attr.baseSize().getValue().getSExtValue()));
+    builder.add_min_size(checked_cast<uint32_t>(attr.getMinSize().getValue().getSExtValue()));
+    builder.add_base_size(checked_cast<uint32_t>(attr.getBaseSize().getValue().getSExtValue()));
     builder.add_framework(framework);
-    builder.add_normalize(attr.normalize().getValue());
-    builder.add_nms_thresh(static_cast<float>(attr.nmsThresh().getValueAsDouble()));
-    builder.add_feat_stride(checked_cast<uint32_t>(attr.featStride().getValue().getSExtValue()));
-    builder.add_pre_nms_topn(checked_cast<uint32_t>(attr.preNmsTopN().getValue().getSExtValue()));
-    builder.add_post_nms_topn(checked_cast<uint32_t>(attr.postNmsTopN().getValue().getSExtValue()));
-    builder.add_box_size_scale(static_cast<float>(attr.boxSizeScale().getValueAsDouble()));
-    builder.add_clip_after_nms(attr.clipAfterNms().getValue());
+    builder.add_normalize(attr.getNormalize().getValue());
+    builder.add_nms_thresh(static_cast<float>(attr.getNmsThresh().getValueAsDouble()));
+    builder.add_feat_stride(checked_cast<uint32_t>(attr.getFeatStride().getValue().getSExtValue()));
+    builder.add_pre_nms_topn(checked_cast<uint32_t>(attr.getPreNmsTopN().getValue().getSExtValue()));
+    builder.add_post_nms_topn(checked_cast<uint32_t>(attr.getPostNmsTopN().getValue().getSExtValue()));
+    builder.add_box_size_scale(static_cast<float>(attr.getBoxSizeScale().getValueAsDouble()));
+    builder.add_clip_after_nms(attr.getClipAfterNms().getValue());
     builder.add_for_deformable(false);  // ngraph doesn't have this parameter
     builder.add_pre_nms_thresh(0.0);    // ngraph doesn't have this parameter
-    builder.add_clip_before_nms(attr.clipBeforeNms().getValue());
-    builder.add_box_coordinate_scale(static_cast<float>(attr.boxCoordinateScale().getValueAsDouble()));
+    builder.add_clip_before_nms(attr.getClipBeforeNms().getValue());
+    builder.add_box_coordinate_scale(static_cast<float>(attr.getBoxCoordinateScale().getValueAsDouble()));
 
     const auto paramsOff = builder.Finish();
 

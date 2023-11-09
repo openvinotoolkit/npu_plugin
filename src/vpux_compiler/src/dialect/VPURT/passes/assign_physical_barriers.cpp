@@ -37,7 +37,7 @@ mlir::LogicalResult VirtualBarrierRewrite::matchAndRewrite(VPURT::DeclareVirtual
                                                            mlir::PatternRewriter& rewriter) const {
     _log.trace("Found DeclareVirtualBarrierOp Operation '{0}'", origOp->getLoc());
 
-    const auto& conf = _barrierSim.getConfig(origOp.barrier());
+    const auto& conf = _barrierSim.getConfig(origOp.getBarrier());
     _log.nest().trace("Use physical barrier ID '{0}'", conf.realId);
 
     rewriter.replaceOpWithNewOp<VPURT::ConfigureBarrierOp>(origOp, conf.realId);

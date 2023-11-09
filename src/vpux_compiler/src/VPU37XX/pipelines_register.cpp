@@ -4,8 +4,10 @@
 //
 
 #include "vpux/compiler/VPU37XX/pipelines_register.hpp"
+#include "vpux/compiler/VPU37XX/conversion.hpp"
+#include "vpux/compiler/VPU37XX/dialect/IE/passes.hpp"
+#include "vpux/compiler/VPU37XX/dialect/VPU/passes.hpp"
 #include "vpux/compiler/VPU37XX/pipelines.hpp"
-
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
 
@@ -15,10 +17,10 @@
 using namespace vpux;
 
 //
-// PipelineRegister37XX::registerPipelines
+// PipelineRegistry37XX::registerPipelines
 //
 
-void PipelineRegister37XX::registerPipelines() {
+void PipelineRegistry37XX::registerPipelines() {
     mlir::PassPipelineRegistration<>("ShaveCodeGen", "Compile both from IE to VPUIP and from IERT to LLVM for VPU37XX",
                                      [](mlir::OpPassManager& pm) {
                                          buildShaveCodeGenPipeline37XX(pm);
@@ -53,13 +55,7 @@ void PipelineRegister37XX::registerPipelines() {
 
                 buildDefaultHWModePipeline(pm, options);
             });
-
-    mlir::PassPipelineRegistration<ReferenceSWOptions37XX>(
-            "emu-reference-sw-mode",
-            "Compile IE Network in EMU Reference Software mode (SW only execution) for VPU37XX",
-            [](mlir::OpPassManager& pm, const ReferenceSWOptions37XX& options) {
-                pm.addPass(VPU::createInitCompilerPass(VPU::ArchKind::VPUX37XX, VPU::CompilationMode::ReferenceSW));
-
-                buildEMUReferenceSWModePipeline(pm, options);
-            });
+    vpux::IE::arch37xx::registerIEPipelines();
+    vpux::VPU::arch37xx::registerVPUPipelines();
+    vpux::arch37xx::registerConversionPipeline37XX();
 }

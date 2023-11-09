@@ -90,25 +90,25 @@ void buildActShave(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mo
     for (std::size_t idx = 0; idx < inputList.size(); idx++) {
         //  Build main function: DMA func input -> CMX input
         vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(),
-                                                    mlir::ValueRange(barrier0.barrier()), builder.getUnknownLoc(),
+                                                    mlir::ValueRange(barrier0.getBarrier()), builder.getUnknownLoc(),
                                                     funcinputs[idx], getTensorResult(inputcmxVec[idx]));
     }
 
     //  Build main function: Call operation builder
     buildActShaveTask(testDesc, module, funcbuilder, log, makeArrayRef(funcInputTypes), inputcmxVec, outputcmx,
-                      mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()));
+                      mlir::ValueRange(barrier0.getBarrier()), mlir::ValueRange(barrier1.getBarrier()));
 
     //  Build main function: DMA CMX output -> func output
-    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(),
-                                                builder.getUnknownLoc(), getTensorResult(outputcmx), funcoutput);
+    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.getBarrier()),
+                                                mlir::ValueRange(), builder.getUnknownLoc(), getTensorResult(outputcmx),
+                                                funcoutput);
 
     //  Build main function: returnOp
     funcbuilder.create<mlir::func::ReturnOp>(builder.getUnknownLoc(), funcoutput);
 
     //  Pass Manager
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::ReferenceHW, 1, 1, None,
-                                           log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::ReferenceHW, 1, 1, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 

@@ -27,14 +27,14 @@ using namespace vpux;
 namespace {
 
 //
-// ClusterUpsamplingDMARewriter
+// UpsamplingDMARewriter
 //
 
-class ClusterUpsamplingDMARewriter final : public mlir::OpRewritePattern<VPUIP::UpsamplingDMAOp> {
+class UpsamplingDMARewriter final : public mlir::OpRewritePattern<VPUIP::UpsamplingDMAOp> {
 public:
-    ClusterUpsamplingDMARewriter(mlir::MLIRContext* ctx, int64_t dmaPortCount, Logger log)
+    UpsamplingDMARewriter(mlir::MLIRContext* ctx, int64_t dmaPortCount, Logger log)
             : mlir::OpRewritePattern<VPUIP::UpsamplingDMAOp>(ctx), _log(log), _dmaPortCount(dmaPortCount) {
-        setDebugName("ClusterUpsamplingDMARewriter");
+        setDebugName("UpsamplingDMARewriter");
 
         _cmxNameAttr = mlir::FlatSymbolRefAttr::get(ctx, stringifyEnum(VPU::MemoryKind::CMX_NN));
     }
@@ -48,9 +48,9 @@ private:
     mlir::FlatSymbolRefAttr _cmxNameAttr;
 };
 
-static VPUIP::DmaDescriptorAttr generateUpsampingDmaDescriptor(mlir::MLIRContext* ctx, vpux::ShapeRef inShape,
-                                                               mlir::ArrayAttr factor, Byte inElemTypeSize,
-                                                               int64_t expandChannel) {
+static VPUIP::DMADescriptorAttr generateUpsamplingDmaDescriptor(mlir::MLIRContext* ctx, vpux::ShapeRef inShape,
+                                                                mlir::ArrayAttr factor, Byte inElemTypeSize,
+                                                                int64_t expandChannel) {
     auto upsampleFactor = parseIntArrayAttr<int64_t>(factor);
     auto elemTypeSize = inElemTypeSize.count();
 
@@ -67,14 +67,14 @@ static VPUIP::DmaDescriptorAttr generateUpsampingDmaDescriptor(mlir::MLIRContext
             vpux::getIntAttr(ctx, W * (IC + expandChannel) * elemTypeSize * upsampleFactor[Dims4D::Act::H.ind()] *
                                           upsampleFactor[Dims4D::Act::W.ind()]);
     auto numPlanes = vpux::getIntAttr(ctx, H);
-    return VPUIP::DmaDescriptorAttr::get(numPlanes, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
-                                         dstPlaneStride, ctx);
+    return VPUIP::DMADescriptorAttr::get(ctx, numPlanes, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
+                                         dstPlaneStride);
 }
 
-mlir::LogicalResult ClusterUpsamplingDMARewriter::matchAndRewrite(VPUIP::UpsamplingDMAOp upsamplingDMAOp,
-                                                                  mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult UpsamplingDMARewriter::matchAndRewrite(VPUIP::UpsamplingDMAOp upsamplingDMAOp,
+                                                           mlir::PatternRewriter& rewriter) const {
     _log.trace("Process UpsamplingDMA op: {0}", upsamplingDMAOp);
-    if (upsamplingDMAOp.dma_descriptor().hasValue()) {
+    if (upsamplingDMAOp.dma_descriptor().has_value()) {
         return mlir::failure();
     }
 
@@ -110,20 +110,20 @@ mlir::LogicalResult ClusterUpsamplingDMARewriter::matchAndRewrite(VPUIP::Upsampl
     SmallVector<Shape> subInputShapes(numberDMAs - 1, subShape);
     subShape[Dims4D::Act::H] = totalNumPlane - (VPUIP::DMA_MAX_NUMBER_PLANES * (numberDMAs - 1));
     subInputShapes.push_back(subShape);
-    auto srcOffset = srcDeclBuff.byteOffset();
-    auto dstOffset = dstDeclBuff.byteOffset();
-    auto contex = upsamplingDMAOp.getContext();
-    auto upsampingFactor = parseIntArrayAttr<int64_t>(upsamplingDMAOp.upsampling_factor());
-    auto hasExpandAttr = upsamplingDMAOp.expand().hasValue();
+    auto srcOffset = srcDeclBuff.getByteOffset();
+    auto dstOffset = dstDeclBuff.getByteOffset();
+    auto context = upsamplingDMAOp.getContext();
+    auto upsamplingFactor = parseIntArrayAttr<int64_t>(upsamplingDMAOp.upsampling_factor());
+    auto hasExpandAttr = upsamplingDMAOp.expand().has_value();
     SmallVector<int64_t, 4> expand;
     if (hasExpandAttr) {
         expand = extractFromI64ArrayAttr(upsamplingDMAOp.expandAttr());
     }
 
-    auto getOutShape = [&upsampingFactor, &hasExpandAttr, &expand](ShapeRef inShape) {
+    auto getOutShape = [&upsamplingFactor, &hasExpandAttr, &expand](ShapeRef inShape) {
         auto outShape = Shape(inShape.raw());
         for (size_t i = 0; i < outShape.size(); i++) {
-            outShape[Dim(i)] *= upsampingFactor[i];
+            outShape[Dim(i)] *= upsamplingFactor[i];
             if (hasExpandAttr) {
                 outShape[Dim(i)] += expand[i];
             }
@@ -140,18 +140,19 @@ mlir::LogicalResult ClusterUpsamplingDMARewriter::matchAndRewrite(VPUIP::Upsampl
         auto newDstMemRef = vpux::getMemRefType(outShape, dstType.getElementType(), inOrder, dstType.getMemSpace());
         auto newDstBuff = VPUIP::createNewDeclareBuffer(rewriter, dstDeclBuff, dstDeclBuff, newDstMemRef, dstOffset);
         auto descriptorAttr =
-                hasExpandAttr ? generateUpsampingDmaDescriptor(contex, inputShape, upsamplingDMAOp.upsampling_factor(),
-                                                               inType.getElemTypeSize(), expand[1])
-                              : generateUpsampingDmaDescriptor(contex, inputShape, upsamplingDMAOp.upsampling_factor(),
-                                                               inType.getElemTypeSize(), 0);
+                hasExpandAttr
+                        ? generateUpsamplingDmaDescriptor(context, inputShape, upsamplingDMAOp.upsampling_factor(),
+                                                          inType.getElemTypeSize(), expand[1])
+                        : generateUpsamplingDmaDescriptor(context, inputShape, upsamplingDMAOp.upsampling_factor(),
+                                                          inType.getElemTypeSize(), 0);
 
         auto nextOffset = srcOffset + inputShape.totalSize() * elemTypeSize.count();
         const auto newLoc =
-                appendLoc(upsamplingDMAOp->getLoc(), "_unroll_upsampingDMA[{0},{1}]", srcOffset, nextOffset);
+                appendLoc(upsamplingDMAOp->getLoc(), "_unroll_upsamplingDMA[{0},{1}]", srcOffset, nextOffset);
         const auto newUpsamplingDMA = VPURT::wrapIntoTaskOp<VPUIP::UpsamplingDMAOp>(
-                rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), newLoc, newSrcBuff, newDstBuff,
+                rewriter, vpurtTask.getWaitBarriers(), vpurtTask.getUpdateBarriers(), newLoc, newSrcBuff, newDstBuff,
                 upsamplingDMAOp.upsampling_factorAttr(), descriptorAttr, upsamplingDMAOp.expandAttr(), dmaPort,
-                upsamplingDMAOp.channelTypeAttr(), nullptr);
+                upsamplingDMAOp.channelTypeAttr(), upsamplingDMAOp.dma_hwp_idAttr());
 
         auto newVpurtTask = newUpsamplingDMA->getParentOfType<VPURT::TaskOp>();
         if (cycleBeginAttr) {
@@ -190,7 +191,7 @@ void UnrollUpsamplingDMAPass::safeRunOnFunc() {
     auto dmaPortCount = dmaOp.count();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<ClusterUpsamplingDMARewriter>(&ctx, dmaPortCount, _log);
+    patterns.insert<UpsamplingDMARewriter>(&ctx, dmaPortCount, _log);
 
     if (mlir::failed(
                 mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), vpux::getDefaultGreedyRewriteConfig()))) {

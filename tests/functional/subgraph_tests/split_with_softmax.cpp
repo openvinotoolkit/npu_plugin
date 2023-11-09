@@ -1,6 +1,6 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "shared_test_classes/single_layer/split.hpp"
@@ -8,11 +8,13 @@
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
-class VPUXSplitSoftmaxLayerTest_VPU3700 : public SplitLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXSplitSoftmaxLayerTest_VPU3700 :
+        public SplitLayerTest,
+        virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void SetUp() override {
         int64_t axis;
         size_t numSplits;
@@ -68,6 +70,6 @@ INSTANTIATE_TEST_SUITE_P(
                            ::testing::Values(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC),
                            ::testing::Values(InferenceEngine::SizeVector({1, 6, 12, 24})),
                            ::testing::Values(InferenceEngine::SizeVector({})),
-                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
         SplitLayerTest::getTestCaseName);
 }  // namespace

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/hwtest/hwtest_utils.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
@@ -205,10 +203,10 @@ void buildCNNOp(mlir::OpBuilder& builder, llvm::StringRef mainFuncName, llvm::Ar
                 llvm::ArrayRef<mlir::Type> outputs) {
     const auto mainFuncNameAttr = mlir::SymbolRefAttr::get(builder.getContext(), mainFuncName);
     auto cnnOp = builder.create<IE::CNNNetworkOp>(builder.getUnknownLoc(), mainFuncNameAttr, false);
-    cnnOp.inputsInfo().emplaceBlock();
-    cnnOp.outputsInfo().emplaceBlock();
+    cnnOp.getInputsInfo().emplaceBlock();
+    cnnOp.getOutputsInfo().emplaceBlock();
 
-    auto inputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.inputsInfo().front(), builder.getListener());
+    auto inputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.getInputsInfo().front(), builder.getListener());
     for (auto input : enumerate(inputs)) {
         auto inputType = input.value().cast<mlir::ShapedType>();
         if (auto quantized = inputType.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedType>()) {
@@ -218,10 +216,11 @@ void buildCNNOp(mlir::OpBuilder& builder, llvm::StringRef mainFuncName, llvm::Ar
         const auto inputName = printToString("input_{0}", input.index());
         const auto nameAttr = builder.getStringAttr(inputName);
         const auto userTypeAttr = mlir::TypeAttr::get(inputType);
-        inputsInfoBuilder.create<IE::DataInfoOp>(builder.getUnknownLoc(), nameAttr, userTypeAttr);
+        inputsInfoBuilder.create<IE::DataInfoOp>(builder.getUnknownLoc(), nameAttr, userTypeAttr,
+                                                 /*profilingSectionsCount=*/0);
     }
 
-    auto outputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.outputsInfo().front(), builder.getListener());
+    auto outputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.getOutputsInfo().front(), builder.getListener());
     for (auto output : enumerate(outputs)) {
         auto outputType = output.value().cast<mlir::ShapedType>();
         if (auto quantized = outputType.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedType>()) {
@@ -231,7 +230,8 @@ void buildCNNOp(mlir::OpBuilder& builder, llvm::StringRef mainFuncName, llvm::Ar
         const auto resultName = printToString("output_{0}", output.index());
         const auto nameAttr = builder.getStringAttr(resultName);
         const auto userTypeAttr = mlir::TypeAttr::get(outputType);
-        outputsInfoBuilder.create<IE::DataInfoOp>(builder.getUnknownLoc(), nameAttr, userTypeAttr);
+        outputsInfoBuilder.create<IE::DataInfoOp>(builder.getUnknownLoc(), nameAttr, userTypeAttr,
+                                                  /*profilingSectionsCount=*/0);
     }
 }
 
@@ -437,27 +437,29 @@ VPU::PaddingAttr getMulticlusteringPaddings(mlir::MLIRContext* ctx, const int64_
     switch (segmentationType) {
     case nb::SegmentationType::SOH: {
         if (cluster == 0) {
-            return VPU::PaddingAttr::get(globalPadding.left(), globalPadding.right(), globalPadding.top(), noPad, ctx);
+            return VPU::PaddingAttr::get(ctx, globalPadding.getLeft(), globalPadding.getRight(), globalPadding.getTop(),
+                                         noPad);
         }
 
         if (cluster == numClusters - 1) {
-            return VPU::PaddingAttr::get(globalPadding.left(), globalPadding.right(), noPad, globalPadding.bottom(),
-                                         ctx);
+            return VPU::PaddingAttr::get(ctx, globalPadding.getLeft(), globalPadding.getRight(), noPad,
+                                         globalPadding.getBottom());
         }
 
-        return VPU::PaddingAttr::get(globalPadding.left(), globalPadding.right(), noPad, noPad, ctx);
+        return VPU::PaddingAttr::get(ctx, globalPadding.getLeft(), globalPadding.getRight(), noPad, noPad);
     }
     case nb::SegmentationType::SOW: {
         if (cluster == 0) {
-            return VPU::PaddingAttr::get(globalPadding.left(), noPad, globalPadding.top(), globalPadding.bottom(), ctx);
+            return VPU::PaddingAttr::get(ctx, globalPadding.getLeft(), noPad, globalPadding.getTop(),
+                                         globalPadding.getBottom());
         }
 
         if (cluster == numClusters - 1) {
-            return VPU::PaddingAttr::get(noPad, globalPadding.right(), globalPadding.top(), globalPadding.bottom(),
-                                         ctx);
+            return VPU::PaddingAttr::get(ctx, noPad, globalPadding.getRight(), globalPadding.getTop(),
+                                         globalPadding.getBottom());
         }
 
-        return VPU::PaddingAttr::get(noPad, noPad, globalPadding.top(), globalPadding.bottom(), ctx);
+        return VPU::PaddingAttr::get(ctx, noPad, noPad, globalPadding.getTop(), globalPadding.getBottom());
     }
     case nb::SegmentationType::SOK:
         return globalPadding;
@@ -471,12 +473,12 @@ VPU::PaddingAttr getMulticlusteringPaddings(mlir::MLIRContext* ctx, const int64_
         const auto idxH = cluster / widthNumClusters;
         const auto idxW = cluster % widthNumClusters;
 
-        const auto top = (idxH == 0) ? globalPadding.top() : noPad;
-        const auto bottom = (idxH == heightNumClusters - 1) ? globalPadding.bottom() : noPad;
-        const auto left = (idxW == 0) ? globalPadding.left() : noPad;
-        const auto right = (idxW == widthNumClusters - 1) ? globalPadding.right() : noPad;
+        const auto top = (idxH == 0) ? globalPadding.getTop() : noPad;
+        const auto bottom = (idxH == heightNumClusters - 1) ? globalPadding.getBottom() : noPad;
+        const auto left = (idxW == 0) ? globalPadding.getLeft() : noPad;
+        const auto right = (idxW == widthNumClusters - 1) ? globalPadding.getRight() : noPad;
 
-        return VPU::PaddingAttr::get(left, right, top, bottom, ctx);
+        return VPU::PaddingAttr::get(ctx, left, right, top, bottom);
     }
     case nb::SegmentationType::SOHK: {
         if (clustersPerDim.size() != 2) {
@@ -488,10 +490,10 @@ VPU::PaddingAttr getMulticlusteringPaddings(mlir::MLIRContext* ctx, const int64_
 
         const auto idxH = cluster / channelsNumClusters;
 
-        const auto top = (idxH == 0) ? globalPadding.top() : noPad;
-        const auto bottom = (idxH == heightNumClusters - 1) ? globalPadding.top() : noPad;
+        const auto top = (idxH == 0) ? globalPadding.getTop() : noPad;
+        const auto bottom = (idxH == heightNumClusters - 1) ? globalPadding.getTop() : noPad;
 
-        return VPU::PaddingAttr::get(globalPadding.left(), globalPadding.right(), top, bottom, ctx);
+        return VPU::PaddingAttr::get(ctx, globalPadding.getLeft(), globalPadding.getRight(), top, bottom);
     }
     default:
         VPUX_THROW("Segmentation type unsupported {0}", nb::to_string(segmentationType));

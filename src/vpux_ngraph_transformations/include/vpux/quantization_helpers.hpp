@@ -40,7 +40,7 @@ std::vector<int64_t> quantizeData(const ngraph::Shape& outShape, const ngraph::e
                                   const std::vector<double>& scales, const std::vector<int64_t>& zeroPoints,
                                   const ngraph::Shape& scalesShape);
 
-std::vector<std::shared_ptr<ngraph::Node>> getInputsFQ(std::shared_ptr<ngraph::Node> node);
+std::vector<std::shared_ptr<ngraph::Node>> getInputsFQ(const std::shared_ptr<ngraph::Node>& node);
 
 bool all_fqs_have_same_io_params(std::set<std::shared_ptr<ngraph::Node>>& fqs);
 bool all_fqs_are_equal(std::vector<std::shared_ptr<ngraph::Node>>& fqs);

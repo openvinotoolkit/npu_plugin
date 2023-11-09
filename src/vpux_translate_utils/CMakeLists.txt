@@ -3,9 +3,7 @@
 # SPDX-License-Identifier: Apache 2.0
 #
 
-#
-
-set(TARGET_NAME "vpux_translate_utils_static")
+set(TARGET_NAME "npu_translate_utils_static")
 
 file(GLOB_RECURSE SOURCES "*.cpp" "*.hpp")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
@@ -22,6 +20,6 @@ target_include_directories(${TARGET_NAME}
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE
-        vpux_utils
-        vpux_mlir_compiler_static
+        npu_utils
+        npu_mlir_compiler_static
 )

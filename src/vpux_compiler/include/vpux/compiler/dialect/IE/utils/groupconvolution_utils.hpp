@@ -11,6 +11,7 @@ namespace vpux {
 namespace IE {
 
 mlir::LogicalResult canConvertGroupConvToConv(IE::GroupConvolutionOp groupconv);
+bool groupConvIsEltwise(IE::GroupConvolutionOp convOp);
 
 }  // namespace IE
 }  // namespace vpux

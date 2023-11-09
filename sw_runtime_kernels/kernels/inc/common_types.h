@@ -1,6 +1,7 @@
 //
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
+//
 
 #ifndef COMMON_TYPES_H_
 #define COMMON_TYPES_H_

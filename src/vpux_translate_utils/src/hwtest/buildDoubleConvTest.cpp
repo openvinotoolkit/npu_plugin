@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <numeric>
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
@@ -308,7 +306,7 @@ void buildDoubleConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
                 getMemRefType(VPURT::BufferSection::CMX_NN, 0, output0CMXShape, smElemType, DimsOrder::NHWC);
         auto output0SMCmx = createDeclareTensorOp(functionBuilder, output0SMCmxType, VPURT::BufferSection::CMX_NN, 0,
                                                   INPUT_SM_CMX_OFFSET_CONV1);
-        output0SMBuffer = output0SMCmx.buffer();
+        output0SMBuffer = output0SMCmx.getBuffer();
     }
 
     // Tensors - NCE_1
@@ -358,22 +356,22 @@ void buildDoubleConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
     auto barrier1 = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 1);
     auto barrier2 = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 2);
 
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
                                           builder.getUnknownLoc(), functionInput,
                                           inputCMX.getOperation()->getResult(0));
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
                                           builder.getUnknownLoc(), weightsDDR0.getOperation()->getResult(0),
                                           weights0CMX.getOperation()->getResult(0));
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier1.barrier()),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier1.getBarrier()),
                                           builder.getUnknownLoc(), weightsDDR1.getOperation()->getResult(0),
                                           weights1CMX.getOperation()->getResult(0));
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
                                           builder.getUnknownLoc(), weights0TableDDR.getOperation()->getResult(0),
                                           weights0TableCMX.getOperation()->getResult(0));
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier1.barrier()),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier1.getBarrier()),
                                           builder.getUnknownLoc(), weights1TableDDR.getOperation()->getResult(0),
                                           weights1TableCMX.getOperation()->getResult(0));
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(barrier2.barrier()), mlir::ValueRange(),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(barrier2.getBarrier()), mlir::ValueRange(),
                                           builder.getUnknownLoc(), output1CMX.getOperation()->getResult(0),
                                           functionOutput);
 
@@ -386,22 +384,22 @@ void buildDoubleConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
 
     // NCE Task 0
     auto nceTask_0 = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
-            functionBuilder, mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()),
+            functionBuilder, mlir::ValueRange(barrier0.getBarrier()), mlir::ValueRange(barrier1.getBarrier()),
             builder.getUnknownLoc(),
-            /*input=*/paddedInputCMX.buffer(),
+            /*input=*/paddedInputCMX.getBuffer(),
             /*input_sparsity_map=*/nullptr,
             /*input_storage_element_table=*/nullptr,
-            /*weights=*/paddedWeights0CMX.buffer(),
+            /*weights=*/paddedWeights0CMX.getBuffer(),
             /*weights_sparsity_map=*/nullptr,
-            /*weightsTable=*/weights0TableCMX.buffer(),
+            /*weightsTable=*/weights0TableCMX.getBuffer(),
             /*instruction_table_list=*/nullptr,
             /*activation_window=*/nullptr,
-            /*parent_input=*/paddedInputCMX.buffer(),
+            /*parent_input=*/paddedInputCMX.getBuffer(),
             /*parent_input_sparsity_map=*/nullptr,
             /*parent_input_storage_element_table=*/nullptr,
-            /*parent_output=*/output0CMX.buffer(),
+            /*parent_output=*/output0CMX.getBuffer(),
             /*parent_output_sparsity_map=*/output0SMBuffer,
-            /*output_buff=*/output0CMX.buffer(),
+            /*output_buff=*/output0CMX.getBuffer(),
             /*output_sparsity_map_buff=*/output0SMBuffer,
             /*profiling_data=*/nullptr, VPUIP::NCETaskType::CONV,
             /*kernel_size=*/kernelSize, /*kernel_strides*/ strides,
@@ -433,22 +431,22 @@ void buildDoubleConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
     // NCE Task 1
 
     auto nceTask_1 = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
-            functionBuilder, mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(barrier2.barrier()),
+            functionBuilder, mlir::ValueRange(barrier1.getBarrier()), mlir::ValueRange(barrier2.getBarrier()),
             builder.getUnknownLoc(),
-            /*input=*/input1CMX.buffer(),
+            /*input=*/input1CMX.getBuffer(),
             /*input_sparsity_map=*/output0SMBuffer,
             /*input_storage_element_table=*/nullptr,
-            /*weights=*/weights1CMX.buffer(),
+            /*weights=*/weights1CMX.getBuffer(),
             /*weights_sparsity_map=*/nullptr,
-            /*weightsTable=*/weights1TableCMX.buffer(),
+            /*weightsTable=*/weights1TableCMX.getBuffer(),
             /*instruction_table_list=*/nullptr,
             /*activation_window=*/nullptr,
-            /*parent_input=*/input1CMX.buffer(),
+            /*parent_input=*/input1CMX.getBuffer(),
             /*parent_input_sparsity_map=*/output0SMBuffer,
             /*parent_input_storage_element_table=*/nullptr,
-            /*parent_output=*/output1CMX.buffer(),
+            /*parent_output=*/output1CMX.getBuffer(),
             /*parent_output_sparsity_map=*/nullptr,
-            /*output_buff=*/output1CMX.buffer(),
+            /*output_buff=*/output1CMX.getBuffer(),
             /*output_sparsity_map_buff=*/nullptr,
             /*profiling_data=*/nullptr, VPUIP::NCETaskType::CONV,
             /*kernel_size=*/kernelSize, /*kernel_strides*/ strides,
@@ -468,8 +466,7 @@ void buildDoubleConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
     module.dump();
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, None,
-                                           log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsBTCPass(log));
     }

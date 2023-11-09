@@ -13,7 +13,7 @@
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 1, 2],
     kernel = [7, 7],
-    pads = {bottom = 2, left = 3, right = 2, top = 3},
+    pads = #VPU.Padding<left = 3 , right = 2, top = 3, bottom = 2>,
     strides = [2, 2],
     num_clusters = 2
 }>
@@ -23,7 +23,7 @@
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 1, 2],
     kernel = [7, 7],
-    pads = {bottom = 2, left = 3, right = 2, top = 3},
+    pads = #VPU.Padding<left = 3 , right = 2, top = 3, bottom = 2>,
     strides = [2, 2],
     num_clusters = 2,
     equal_memory_and_compute_view
@@ -33,7 +33,7 @@
 !InputStub_CMX = tensor<1x224x3x224xf16, {mem_space = @CMX_NN, order = #NHWC}>
 !OutputStub_CMX = tensor<1x224x4x224xf16, {mem_space = @CMX_NN, order = #NWCH}>
 
-module @PermuteQuantize attributes {VPU.arch = "VPUX37XX", VPU.compilationMode = "DefaultHW"} {
+module @PermuteQuantize attributes {VPU.arch = #VPU.arch_kind<VPUX37XX>, VPU.compilationMode = #VPU.compilation_mode<DefaultHW>} {
 
 // CHECK-LABEL: @PermuteQuantizeClustered
 func.func @PermuteQuantizeClustered(%arg0: !Input_DDR) -> !Output_CMX {
@@ -46,12 +46,12 @@ func.func @PermuteQuantizeClustered(%arg0: !Input_DDR) -> !Output_CMX {
         %0 = VPU.NCE.PermuteQuantize(%arg2) {
                 dstElemType = !quant.uniform<u8:f16, 1.000000e+00>,
                 dstOrder = #NWCH,
-                pad = {bottom = 1 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
+                pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 1 : i64>
             } -> !OutputStub_CMX {
-                VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 224, 4, 57] {bottom = 1 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16" attributes {cluster_id = 0 : i64}
-                VPU.DPU.Workload outOffsets [0, 0, 0, 57] outSizes [1, 224, 4, 57] {bottom = 1 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16" attributes {cluster_id = 0 : i64}
-                VPU.DPU.Workload outOffsets [0, 0, 0, 109] outSizes [1, 224, 4, 58] {bottom = 1 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16" attributes {cluster_id = 1 : i64}
-                VPU.DPU.Workload outOffsets [0, 0, 0, 167] outSizes [1, 224, 4, 57] {bottom = 1 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16" attributes {cluster_id = 1 : i64}
+                VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 224, 4, 57] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 1 : i64> #VPU.mpe_mode<CUBOID_16x16> attributes {cluster_id = 0 : i64}
+                VPU.DPU.Workload outOffsets [0, 0, 0, 57] outSizes [1, 224, 4, 57] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 1 : i64> #VPU.mpe_mode<CUBOID_16x16> attributes {cluster_id = 0 : i64}
+                VPU.DPU.Workload outOffsets [0, 0, 0, 109] outSizes [1, 224, 4, 58] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 1 : i64> #VPU.mpe_mode<CUBOID_16x16> attributes {cluster_id = 1 : i64}
+                VPU.DPU.Workload outOffsets [0, 0, 0, 167] outSizes [1, 224, 4, 57] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 1 : i64> #VPU.mpe_mode<CUBOID_16x16> attributes {cluster_id = 1 : i64}
             }
         VPU.Yield %0
     }
@@ -59,27 +59,27 @@ func.func @PermuteQuantizeClustered(%arg0: !Input_DDR) -> !Output_CMX {
     return %output : !Output_CMX
 
     // CHECK:       VPU.NCE.PermuteQuantize
-    // CHECK-SAME:      pad = {bottom = 1 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
+    // CHECK-SAME:      pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 1 : i64>
     // CHECK-SAME:      -> tensor<1x224x4x224xf16, {mem_space = @CMX_NN, order = #NWCH}> {
 
     // CHECK:       VPU.DPU.Workload
     // CHECK-SAME:      outOffsets [0, 0, 0, 0] outSizes [1, 224, 3, 57]
-    // CHECK-SAME:      {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
+    // CHECK-SAME:      <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>
     // CHECK-SAME:      cluster_id = 0
 
     // CHECK:       VPU.DPU.Workload
     // CHECK-SAME:      outOffsets [0, 0, 0, 57] outSizes [1, 224, 3, 57]
-    // CHECK-SAME:      {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
+    // CHECK-SAME:      <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>
     // CHECK-SAME:      cluster_id = 0
 
     // CHECK:       VPU.DPU.Workload
     // CHECK-SAME:      outOffsets [0, 0, 0, 0] outSizes [1, 224, 3, 58]
-    // CHECK-SAME:      {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
+    // CHECK-SAME:      <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>
     // CHECK-SAME:      cluster_id = 1
 
     // CHECK:       VPU.DPU.Workload
     // CHECK-SAME:      outOffsets [0, 0, 0, 58] outSizes [1, 224, 3, 57]
-    // CHECK-SAME:      {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
+    // CHECK-SAME:      <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>
     // CHECK-SAME:      cluster_id = 1
 
 }

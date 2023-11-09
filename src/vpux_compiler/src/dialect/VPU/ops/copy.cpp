@@ -29,8 +29,8 @@ mlir::LogicalResult vpux::VPU::CopyOp::inferReturnTypes(mlir::MLIRContext* ctx, 
     }
 
     IndexedSymbolAttr outMemSpace = nullptr;
-    if (copyOp.out_mem_space().hasValue()) {
-        outMemSpace = copyOp.out_mem_space().getValue();
+    if (copyOp.out_mem_space().has_value()) {
+        outMemSpace = copyOp.out_mem_space().value();
     }
     const auto outType = ndInType.changeMemSpace(outMemSpace);
 

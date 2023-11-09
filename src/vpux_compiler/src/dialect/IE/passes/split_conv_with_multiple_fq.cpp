@@ -98,7 +98,7 @@ bool checkPost(mlir::Operation* postOp, Logger log) {
     log.nest().trace("Got producer IE::Convolution Operation at '{0}'", producerOp->getLoc());
 
     auto mainOp = mlir::dyn_cast<IE::LayerWithPostOpInterface>(producerOp);
-    if (mainOp == nullptr || !mainOp.isSupportedPostOp(postOp) || mainOp.getPostOp().hasValue()) {
+    if (mainOp == nullptr || !mainOp.isSupportedPostOp(postOp) || mainOp.getPostOp().has_value()) {
         return false;
     }
     log.nest().trace("Got supported Post Operation at '{0}' ", postOp->getLoc());

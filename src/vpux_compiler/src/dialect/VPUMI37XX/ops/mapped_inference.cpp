@@ -6,9 +6,10 @@
 #include <mlir/IR/BuiltinTypes.h>
 #include "vpux/compiler/act_kernels/shave_binary_resources.h"
 #include "vpux/compiler/dialect/ELF/utils.hpp"
-#include "vpux/compiler/dialect/VPU37XX/api/vpu_nnrt_api.h"
 #include "vpux/compiler/dialect/VPUMI37XX/ops.hpp"
 #include "vpux/utils/core/mem_size.hpp"
+
+#include <vpu_nnrt_api_37xx.h>
 
 using namespace vpux;
 
@@ -61,18 +62,18 @@ void vpux::VPUMI37XX::MappedInferenceOp::serialize(elf::writer::BinaryDataSectio
     nn_public::VpuMappedInference mi;
     memset(reinterpret_cast<void*>(&mi), 0, getBinarySize());
 
-    mi.vpu_nnrt_api_ver = VPU_NNRT_API_VER;
+    mi.vpu_nnrt_api_ver = VPU_NNRT_37XX_API_VER;
 
-    auto dmaCountVec = parseIntArrayAttr<int64_t>(dmaCount());
+    auto dmaCountVec = parseIntArrayAttr<int64_t>(getDmaCount());
     VPUX_THROW_WHEN(dmaCountVec.size() > nn_public::VPU_MAX_DMA_ENGINES, "Too many DMA lists");
     for (size_t listIdx = 0; listIdx < dmaCountVec.size(); ++listIdx) {
         mi.dma_tasks[listIdx].count = dmaCountVec[listIdx];
     }
-    mi.invariants.count = invariantCount();
-    mi.variants.count = variantCount();
-    mi.act_kernel_ranges.count = actKernelRangesCount();
-    mi.act_kernel_invocations.count = actKernelInvocationsCount();
-    mi.barrier_configs.count = barrierCount();
+    mi.invariants.count = getInvariantCount();
+    mi.variants.count = getVariantCount();
+    mi.act_kernel_ranges.count = getActKernelRangesCount();
+    mi.act_kernel_invocations.count = getActKernelInvocationsCount();
+    mi.barrier_configs.count = getBarrierCount();
 
     mi.shv_rt_configs.dpu_perf_mode = nn_public::VpuHWPStatMode::MODE0;
     if (mi.act_kernel_invocations.count) {
@@ -83,7 +84,7 @@ void vpux::VPUMI37XX::MappedInferenceOp::serialize(elf::writer::BinaryDataSectio
         mi.shv_rt_configs.runtime_entry = VPUMI37XX::defaultActRtEntry;
         mi.shv_rt_configs.perf_metrics_mask = VPUMI37XX::defaultPerfMetricsMask;
 
-        auto actShvRtOp = mlir::dyn_cast<VPUMI37XX::ActShaveRtOp>(actShaveRt().getDefiningOp());
+        auto actShvRtOp = mlir::dyn_cast<VPUMI37XX::ActShaveRtOp>(getActShaveRt().getDefiningOp());
         if (actShvRtOp) {
             mi.shv_rt_configs.use_schedule_embedded_rt = true;
             mi.shv_rt_configs.code_window_buffer_size = actShvRtOp.getBinarySize();
@@ -92,7 +93,7 @@ void vpux::VPUMI37XX::MappedInferenceOp::serialize(elf::writer::BinaryDataSectio
         }
 
         mi.shv_rt_configs.stack_size = 0;
-        for (auto actShaveStack : actShaveStacks()) {
+        for (auto actShaveStack : getActShaveStacks()) {
             mi.shv_rt_configs.stack_size +=
                     actShaveStack.getType().cast<vpux::NDTypeInterface>().getTotalAllocSize().count();
         }
@@ -123,26 +124,26 @@ vpux::VPURT::BufferSection vpux::VPUMI37XX::MappedInferenceOp::getMemorySpace() 
 }
 
 mlir::FailureOr<uint64_t> vpux::VPUMI37XX::MappedInferenceOp::getOffsetOfWithinOperation(mlir::Value val) {
-    if (val == barrierTasks()) {
+    if (val == getBarrierTasks()) {
         return offsetof(nn_public::VpuMappedInference, barrier_configs) +
                offsetof(nn_public::VpuTaskReference<nn_public::VpuBarrierCountConfig>, address);
-    } else if (val == actKernelInvocations()) {
+    } else if (val == getActKernelInvocations()) {
         return offsetof(nn_public::VpuMappedInference, act_kernel_invocations) +
                offsetof(nn_public::VpuTaskReference<nn_public::VpuActKernelInvocation>, address);
-    } else if (val == actKernelRanges()) {
+    } else if (val == getActKernelRanges()) {
         return offsetof(nn_public::VpuMappedInference, act_kernel_ranges) +
                offsetof(nn_public::VpuTaskReference<nn_public::VpuActKernelRange>, address);
-    } else if (val == variantTasks()) {
+    } else if (val == getVariantTasks()) {
         return offsetof(nn_public::VpuMappedInference, variants) +
                offsetof(nn_public::VpuTaskReference<nn_public::VpuDPUVariant>, address);
-    } else if (val == invariantTasks()) {
+    } else if (val == getInvariantTasks()) {
         return offsetof(nn_public::VpuMappedInference, invariants) +
                offsetof(nn_public::VpuTaskReference<nn_public::VpuDPUInvariant>, address);
-    } else if (val == actShaveRt()) {
+    } else if (val == getActShaveRt()) {
         return offsetof(nn_public::VpuMappedInference, shv_rt_configs) +
                offsetof(nn_public::VpuNNShaveRuntimeConfigs, act_rt_window_base);
     }
-    for (auto actShaveStack : actShaveStacks() | indexed) {
+    for (auto actShaveStack : getActShaveStacks() | indexed) {
         if (val == actShaveStack.value()) {
             const auto index = actShaveStack.index();
             return offsetof(nn_public::VpuMappedInference, shv_rt_configs) +
@@ -150,8 +151,8 @@ mlir::FailureOr<uint64_t> vpux::VPUMI37XX::MappedInferenceOp::getOffsetOfWithinO
                    index * sizeof(nn_public::VpuNNShaveRuntimeConfigs::stack_frames[0]);
         }
     }
-    for (auto listHead : dmaTasks()) {
-        auto listIdx = mlir::cast<VPUMI37XX::NNDMAOp>(listHead.getDefiningOp()).port();
+    for (auto listHead : getDmaTasks()) {
+        auto listIdx = mlir::cast<VPUMI37XX::NNDMAOp>(listHead.getDefiningOp()).getPort();
         if (listHead == val) {
             return offsetof(nn_public::VpuMappedInference, dma_tasks) +
                    (sizeof(nn_public::VpuTaskReference<nn_public::VpuDMATask>) * listIdx) +

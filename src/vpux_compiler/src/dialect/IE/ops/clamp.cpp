@@ -4,6 +4,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/propagate_quantize_dequantize_utils.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
@@ -49,29 +50,13 @@ mlir::LogicalResult vpux::IE::ClampOp::inferReturnTypeComponents(
 //
 
 void vpux::IE::ClampOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    const auto inputElemType = info.getInput(0);
-
-    if (inputElemType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
-        // Do not propagate element type down in per channel case.
-        return;
-    }
-
-    for (size_t outputInd = 0; outputInd < info.getNumOutputs(); ++outputInd) {
-        info.setOutput(outputInd, inputElemType);
-    }
+    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
+    propagateElementTypeDown(info);
 }
 
 void vpux::IE::ClampOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    const auto outputElemType = info.getOutput(0);
-
-    if (outputElemType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
-        // Do not propagate element type up in per channel case.
-        return;
-    }
-
-    for (size_t inputInd = 0; inputInd < info.getNumInputs(); ++inputInd) {
-        info.setInput(inputInd, outputElemType);
-    }
+    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
+    propagateElementTypeUp(info);
 }
 
 //

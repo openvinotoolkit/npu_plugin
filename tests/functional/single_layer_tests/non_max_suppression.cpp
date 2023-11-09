@@ -3,11 +3,9 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <vector>
 
-#include "shared_tests_instances/kmb_layer_test.hpp"
+#include "shared_tests_instances/vpu_ov1_layer_test.hpp"
 #include "single_layer_tests/non_max_suppression.hpp"
 
 namespace LayerTestsDefinitions {
@@ -16,7 +14,7 @@ using namespace ngraph;
 using namespace InferenceEngine;
 using namespace FuncTestUtils::PrecisionUtils;
 
-class VPUXNmsLayerTest : public NmsLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXNmsLayerTest : public NmsLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
 private:
     void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
                  const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) override;
@@ -183,7 +181,7 @@ const auto nmsParams = ::testing::Combine(
                            ::testing::ValuesIn(thrPrec)),
         ::testing::ValuesIn(maxOutBoxPerClass), ::testing::ValuesIn(iouThreshold), ::testing::ValuesIn(scoreThreshold),
         ::testing::ValuesIn(sigmaThreshold), ::testing::ValuesIn(encodType), ::testing::ValuesIn(sortResDesc),
-        ::testing::ValuesIn(outType), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        ::testing::ValuesIn(outType), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_NmsLayerTest, VPUXNmsLayerTest_VPU3700, nmsParams,
                         NmsLayerTest::getTestCaseName);
@@ -204,6 +202,6 @@ INSTANTIATE_TEST_CASE_P(
                         op::v5::NonMaxSuppression::BoxEncodingType::CORNER}),
                 testing::ValuesIn(std::vector<bool>{false}),
                 testing::ValuesIn(std::vector<element::Type>{element::i32}),
-                testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
         NmsLayerTest::getTestCaseName);
 }  // namespace

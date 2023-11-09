@@ -19,10 +19,10 @@ TilingStorage vpux::VPU::restoreTilingRegions(VPU::VerticalFusionOp vfOp, Logger
     VPUX_THROW_WHEN(mlir::failed(storage), "Restored tiling {0} of operation {1} is incorrect", vfOp.tilingStrategy(),
                     vfOp);
 
-    return storage.getValue();
+    return storage.value();
 }
 
-mlir::FailureOr<TilingStorage> vpux::VPU::calculateTilingRegions(VPU::VerticalFusionOp vfOp, OutputTiling tiles,
+mlir::FailureOr<TilingStorage> vpux::VPU::calculateTilingRegions(VPU::VerticalFusionOp vfOp, const OutputTiling& tiles,
                                                                  Logger log,
                                                                  const TilingOperationStorage::UPtr& opStorage) {
     auto termination = vfOp.getBody()->getTerminator();
@@ -41,7 +41,7 @@ mlir::FailureOr<TilingStorage> vpux::VPU::calculateTilingRegions(VPU::VerticalFu
 }
 
 mlir::FailureOr<TilingStorage> vpux::VPU::calculateTilingRegions(VPU::TilingBuilderOpInterface tilingBuilderOp,
-                                                                 OutputTiling tiles, Logger log,
+                                                                 const OutputTiling& tiles, Logger log,
                                                                  const TilingOperationStorage::UPtr& opStorage,
                                                                  mlir::Optional<size_t> numTile) {
     TilingStorage storage;
@@ -85,7 +85,7 @@ mlir::FailureOr<TilingStorage> vpux::VPU::calculateTilingRegions(VPU::TilingBuil
                 return mlir::failure();
             }
 
-            storage.merge(innerStorage.getValue());
+            storage.merge(innerStorage.value());
         }
     }
 
@@ -99,8 +99,11 @@ mlir::FailureOr<TilingStorage> vpux::VPU::calculateTilingRegions(VPU::VerticalFu
     const auto strategy = Shape(tilingStrategy);
 
     const auto tiles = fillDividedTiles(vfOp, strategy, outputShape);
+    if (mlir::failed(tiles)) {
+        return mlir::failure();
+    }
 
-    return calculateTilingRegions(vfOp, tiles, log, opStorage);
+    return calculateTilingRegions(vfOp, tiles.value(), log, opStorage);
 }
 
 int64_t vpux::VPU::getTilingLimit(Dim axis, ArrayRef<mlir::Operation*> operations) {

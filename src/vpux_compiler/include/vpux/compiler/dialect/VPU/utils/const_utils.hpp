@@ -15,9 +15,9 @@ mlir::Value createActivationWindowTensor(mlir::OpBuilder& builder, mlir::Locatio
 
 std::vector<int32_t> createWeightsTableData(mlir::Value opInput, mlir::Value opOutput, mlir::Value weights,
                                             Const::ContentAttr bias, int64_t OC, vpux::VPU::PPETaskAttr ppeTaskAttr,
-                                            VPU::ArchKind _arch, vpux::IE::PostOp postOpAttr);
+                                            VPU::ArchKind _arch, vpux::IE::PostOpAttr postOpAttr);
 mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location loc, ArrayRef<int32_t> weightsTable);
-Optional<SmallVector<int32_t>> createInstructionListTableData(mlir::Value opOutput, vpux::IE::PostOp postOp,
+Optional<SmallVector<int32_t>> createInstructionListTableData(mlir::Value opOutput, vpux::IE::PostOpAttr postOp,
                                                               VPU::ArchKind _arch);
 mlir::Value createInstructionListTableTensor(mlir::OpBuilder& builder, mlir::Location loc,
                                              const Optional<SmallVector<int32_t>>& instructionListTable);
@@ -26,6 +26,8 @@ mlir::Value alignDepthWiseWeightsTensor(mlir::OpBuilder& builder, mlir::Location
 mlir::Value alignConvWeightsTensor(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value origFilter,
                                    const bool isCMajorConv);
 mlir::Value getZerosConst(mlir::PatternRewriter& rewriter, Shape constShape, mlir::Value input, mlir::Location loc);
+mlir::Value buildWeightsConst(vpux::ShapeRef weightsShape, DimsOrder weightsOrder, ArrayRef<float> weightsValue,
+                              mlir::Value activation, mlir::PatternRewriter& rewriter);
 /**
  * @brief calculate memory requirement for given buffer sizes and architecture-dependent allocation requirements
  *
@@ -39,7 +41,10 @@ mlir::Value getZerosConst(mlir::PatternRewriter& rewriter, Shape constShape, mli
  *
  * NOTE: see also vpux::calculateAlignedBuffersMemoryRequirement
  */
-Byte calculateAlignedBuffersMemoryRequirement(VPU::ArchKind arch, mlir::SmallVector<Byte> bufferSizes);
+Byte calculateAlignedBuffersMemoryRequirement(VPU::ArchKind arch, mlir::SmallVector<Byte>& bufferSizes);
+
+Const::DeclareOp declareFloatConst(mlir::OpBuilder& builder, mlir::Location loc, float val,
+                                   mlir::RankedTensorType argType);
 
 }  // namespace VPU
 }  // namespace vpux

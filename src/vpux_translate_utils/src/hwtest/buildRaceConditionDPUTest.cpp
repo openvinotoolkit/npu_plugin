@@ -1,6 +1,7 @@
 //
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
+//
 
 #include <numeric>
 
@@ -50,6 +51,7 @@ void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
     const auto conv = testDesc.getConvLayer();
     const auto output = testDesc.getOutputLayers().front();
     const auto iterationCount = testDesc.getIterationCount();
+    const auto numClusters = testDesc.getNumClusters();
 
     const SmallVector<std::int64_t> inputShape{input.shape.begin(), input.shape.end()};
     const SmallVector<std::int64_t> outputShape{output.shape.begin(), output.shape.end()};
@@ -97,9 +99,12 @@ void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
     const auto outputParamType =
             getMemRefType(vpux::VPURT::BufferSection::NetworkOutput, outputShape, outputType, DimsOrder::NHWC);
 
-    const auto funcType =
-            builder.getFunctionType(SmallVector<mlir::Type>{inputParamType, outputParamType, outputParamType},
-                                    SmallVector<mlir::Type>{outputParamType, outputParamType});
+    SmallVector<mlir::Type> inputTypes(numClusters, outputParamType);
+    inputTypes.insert(inputTypes.begin(), inputParamType);
+
+    SmallVector<mlir::Type> outputTypes(numClusters, outputParamType);
+
+    const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), makeArrayRef(outputTypes));
 
     auto function = builder.create<mlir::func::FuncOp>(
             loc, printToString("race_condition_dpu_{0}_{1}_{2}", inputType, weightsType, outputType), funcType,
@@ -108,8 +113,11 @@ void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
     auto functionBuilder = mlir::OpBuilder::atBlockBegin(function.addEntryBlock(), builder.getListener());
 
     auto functionInput = function.getArgument(0);
-    auto functionOutput_0 = function.getArgument(1);
-    auto functionOutput_1 = function.getArgument(2);
+
+    SmallVector<mlir::BlockArgument> functionOutputs;
+    for (std::size_t idx = 1; idx <= numClusters; ++idx) {
+        functionOutputs.push_back(function.getArgument(idx));
+    }
 
     const auto weightsValues = generateWeights(weightsShape, weightsType, ctx, weightsFileName);
     auto weightsAttribute = vpux::Const::ContentAttr::get(weightsValues);
@@ -129,22 +137,25 @@ void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
     auto weightsStrides = weightsDDRType.cast<vpux::NDTypeInterface>().getStrides();
     auto inputStrides = vpux::getStrides(functionInput);
 
-    auto weightsCMX_0 = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, weightsShape, weightsType,
-                                              vpux::DimsOrder::OYXI, weightsStrides, 0, WEIGHTS_CMX_OFFSET);
-    auto inputCMX_0 = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, inputShape, inputType,
-                                            vpux::DimsOrder::NHWC, inputStrides, 0, INPUT_CMX_OFFSET);
+    SmallVector<VPURT::DeclareBufferOp> weightsCMX;
+    SmallVector<VPURT::DeclareBufferOp> inputsCMX;
+    SmallVector<VPURT::DeclareBufferOp> outputsCMX;
+    SmallVector<VPURT::DeclareBufferOp> weightsTablesCMX;
 
-    auto weightsCMX_1 = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, weightsShape, weightsType,
-                                              vpux::DimsOrder::OYXI, weightsStrides, 1, WEIGHTS_CMX_OFFSET);
-    auto inputCMX_1 = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, inputShape, inputType,
-                                            vpux::DimsOrder::NHWC, inputStrides, 1, INPUT_CMX_OFFSET);
+    for (std::size_t idx = 0; idx < numClusters; ++idx) {
+        weightsCMX.push_back(createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, weightsShape,
+                                                   weightsType, vpux::DimsOrder::OYXI, weightsStrides, idx,
+                                                   WEIGHTS_CMX_OFFSET));
+        inputsCMX.push_back(createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, inputShape, inputType,
+                                                  vpux::DimsOrder::NHWC, inputStrides, idx, INPUT_CMX_OFFSET));
+        outputsCMX.push_back(createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, outputShape,
+                                                   outputType, DimsOrder::NHWC, idx, OUTPUT_CMX_OFFSET));
+        weightsTablesCMX.push_back(createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN,
+                                                         weightsTableShape, int32, DimsOrder::NHWC, idx,
+                                                         WEIGHTSTABLE_CMX_OFFSET));
+    }
 
     auto weightsDDR = functionBuilder.create<vpux::Const::DeclareOp>(loc, weightsDDRType, weightsAttribute);
-
-    auto outputCMX_0 = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, outputShape, outputType,
-                                             DimsOrder::NHWC, 0, OUTPUT_CMX_OFFSET);
-    auto outputCMX_1 = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, outputShape, outputType,
-                                             DimsOrder::NHWC, 1, OUTPUT_CMX_OFFSET);
 
     auto& weightsOutputChannelsStrideInBits = weightsStrides[vpux::Dims4D::Filter::OC];
 
@@ -164,94 +175,75 @@ void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
             loc, weightsTableDDRMemRef,
             vpux::Const::ContentAttr::get(weightsTableValues).reorder(vpux::DimsOrder::NHWC));
 
-    auto weightsTableCMX_0 = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, weightsTableShape,
-                                                   int32, DimsOrder::NHWC, 0, WEIGHTSTABLE_CMX_OFFSET);
-    auto weightsTableCMX_1 = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, weightsTableShape,
-                                                   int32, DimsOrder::NHWC, 1, WEIGHTSTABLE_CMX_OFFSET);
-
     auto updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, 0);
     VPURT::ConfigureBarrierOp waitBarrier;
 
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(),
-                                          mlir::ValueRange(updateBarrier.barrier()), loc, functionInput,
-                                          inputCMX_0.getOperation()->getResult(0));
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
-            functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.barrier()), loc,
-            weightsDDR.getOperation()->getResult(0), weightsCMX_0.getOperation()->getResult(0));
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
-            functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.barrier()), loc,
-            weightsTableDDR.getOperation()->getResult(0), weightsTableCMX_0.getOperation()->getResult(0));
-
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(),
-                                          mlir::ValueRange(updateBarrier.barrier()), loc, functionInput,
-                                          inputCMX_1.getOperation()->getResult(0));
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
-            functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.barrier()), loc,
-            weightsDDR.getOperation()->getResult(0), weightsCMX_1.getOperation()->getResult(0));
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
-            functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.barrier()), loc,
-            weightsTableDDR.getOperation()->getResult(0), weightsTableCMX_1.getOperation()->getResult(0));
+    for (std::size_t idx = 0; idx < numClusters; ++idx) {
+        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(),
+                                              mlir::ValueRange(updateBarrier.getBarrier()), loc, functionInput,
+                                              inputsCMX[idx].getOperation()->getResult(0));
+        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
+                functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.getBarrier()), loc,
+                weightsDDR.getOperation()->getResult(0), weightsCMX[idx].getOperation()->getResult(0));
+        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
+                functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.getBarrier()), loc,
+                weightsTableDDR.getOperation()->getResult(0), weightsTablesCMX[idx].getOperation()->getResult(0));
+    }
 
     waitBarrier = updateBarrier;
 
     const auto strides = getIntArrayAttr(ctx, conv.stride);
     std::vector<std::int64_t> paddings = convertNBPadtoNCETaskPad(conv.pad);
-    const auto kernelPaddings = VPU::getPaddingAttr(ctx, paddings[PAD_NCETASK_LEFT], paddings[PAD_NCETASK_RIGHT],
-                                                    paddings[PAD_NCETASK_TOP], paddings[PAD_NCETASK_BOTTOM]);
-    llvm::SmallVector<std::int64_t> kernel = {weightsShape[2], weightsShape[3]};
+    SmallVector<std::int64_t> kernel = {weightsShape[2], weightsShape[3]};
     const auto kernelSize = getIntArrayAttr(ctx, kernel);
+
+    const auto start = getIntArrayAttr(ctx, std::vector<std::int64_t>{0, 0, 0});
+    const auto outEnd =
+            getIntArrayAttr(ctx, std::vector<std::int64_t>{outputShape[3] - 1, outputShape[2] - 1, outputShape[1] - 1});
+    const auto inEnd =
+            getIntArrayAttr(ctx, std::vector<std::int64_t>{inputShape[3] - 1, inputShape[2] - 1, inputShape[1] - 1});
+    const auto pad = VPU::getPaddingAttr(ctx, paddings[PAD_NCETASK_LEFT], paddings[PAD_NCETASK_RIGHT],
+                                         paddings[PAD_NCETASK_TOP], paddings[PAD_NCETASK_BOTTOM]);
 
     for (std::size_t i = 1; i < iterationCount; ++i) {
         updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, i);
-        auto nceTask_0 = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
-                functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()),
-                loc, inputCMX_0.buffer(), weightsCMX_0.buffer(), weightsTableCMX_0.buffer(), nullptr, nullptr,
-                inputCMX_0.buffer(), outputCMX_0.buffer(), outputCMX_0.buffer(), vpux::VPUIP::NCETaskType::CONV,
-                kernelSize, strides, kernelPaddings, nullptr, nullptr);
 
-        auto nceTask_1 = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
-                functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()),
-                loc, inputCMX_1.buffer(), weightsCMX_1.buffer(), weightsTableCMX_1.buffer(), nullptr, nullptr,
-                inputCMX_1.buffer(), outputCMX_1.buffer(), outputCMX_1.buffer(), vpux::VPUIP::NCETaskType::CONV,
-                kernelSize, strides, kernelPaddings, nullptr, nullptr);
-
-        const auto start = getIntArrayAttr(ctx, std::vector<std::int64_t>{0, 0, 0});
-        const auto outEnd = getIntArrayAttr(
-                ctx, std::vector<std::int64_t>{outputShape[3] - 1, outputShape[2] - 1, outputShape[1] - 1});
-        const auto inEnd = getIntArrayAttr(
-                ctx, std::vector<std::int64_t>{inputShape[3] - 1, inputShape[2] - 1, inputShape[1] - 1});
-        const auto pad = VPU::getPaddingAttr(ctx, paddings[PAD_NCETASK_LEFT], paddings[PAD_NCETASK_RIGHT],
-                                             paddings[PAD_NCETASK_TOP], paddings[PAD_NCETASK_BOTTOM]);
-
-        nceTask_0.addDPUTask(functionBuilder, start, outEnd, start, inEnd, pad, conv.cube_mode);
-        nceTask_1.addDPUTask(functionBuilder, start, outEnd, start, inEnd, pad, conv.cube_mode);
+        for (std::size_t idx = 0; idx < numClusters; ++idx) {
+            auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
+                    functionBuilder, mlir::ValueRange(waitBarrier.getBarrier()),
+                    mlir::ValueRange(updateBarrier.getBarrier()), loc, inputsCMX[idx].getBuffer(),
+                    weightsCMX[idx].getBuffer(), weightsTablesCMX[idx].getBuffer(), nullptr, nullptr,
+                    inputsCMX[idx].getBuffer(), outputsCMX[idx].getBuffer(), outputsCMX[idx].getBuffer(),
+                    vpux::VPUIP::NCETaskType::CONV, kernelSize, strides, pad, nullptr, nullptr);
+            nceTask.addDPUTask(functionBuilder, start, outEnd, start, inEnd, pad, conv.cube_mode);
+        }
         waitBarrier = updateBarrier;
     }
 
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(),
-                                          loc, outputCMX_0.getOperation()->getResult(0), functionOutput_0);
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(),
-                                          loc, outputCMX_1.getOperation()->getResult(0), functionOutput_1);
-
-    functionBuilder.create<mlir::func::ReturnOp>(loc, mlir::ValueRange{functionOutput_0, functionOutput_1});
+    for (std::size_t idx = 0; idx < numClusters; ++idx) {
+        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.getBarrier()),
+                                              mlir::ValueRange(), loc, outputsCMX[idx].getOperation()->getResult(0),
+                                              functionOutputs[idx]);
+    }
+    auto outputsRef = makeArrayRef(functionOutputs);
+    functionBuilder.create<mlir::func::ReturnOp>(loc, mlir::ValueRange{outputsRef});
 
     module.dump();
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    Optional<int> numTiles = None;
-
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, numTiles, None,
-                                           None, log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW,
+                                           /*numOfDPUGroups=*/numClusters, None, log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsBTCPass(log));
     }
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 
+    SmallVector<mlir::Type> userOutputs(numClusters,
+                                        getTensorType(ShapeRef(outputShape), outputType, DimsOrder::NHWC, nullptr));
     buildCNNOp(builder, function.getName(),
                {getTensorType(ShapeRef(inputShape), inputType, vpux::DimsOrder::NHWC, nullptr)},
-               {getTensorType(ShapeRef(outputShape), outputType, vpux::DimsOrder::NHWC, nullptr),
-                getTensorType(ShapeRef(outputShape), outputType, vpux::DimsOrder::NHWC, nullptr)});
+               makeArrayRef(userOutputs));
 }
 
 }  // namespace hwtest

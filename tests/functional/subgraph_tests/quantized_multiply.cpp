@@ -1,8 +1,9 @@
-// Copyright (C) Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 #include <ngraph_functions/builders.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -30,7 +31,7 @@ using QuantizedMulTestParams = std::tuple<InferenceEngine::Precision,  // inPrc
                                           LayerTestsUtils::TargetDevice>;
 
 class VPUXQuantizedMulSubGraphTest_VPU3700 :
-        public LayerTestsUtils::KmbLayerTestsCommon,
+        public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<QuantizedMulTestParams> {
     void SetUp() override {
         std::vector<float> data0FQRanges, data1FQRanges;
@@ -107,7 +108,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::
 const auto basicCases =
         ::testing::Combine(::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::Precision::FP32),
                            ::testing::ValuesIn(fqRanges), ::testing::ValuesIn(fqRanges),
-                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_QuantizedMul, VPUXQuantizedMulSubGraphTest_VPU3700, basicCases);
 

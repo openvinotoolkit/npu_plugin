@@ -9,11 +9,6 @@ namespace vpux {
 
 #define CONTEXT_ERROR_str std::string("[INVALID REMOTE CONTEXT] ")
 
-///  Context
-#define FAILED_CAST_CONTEXT               \
-    std::string("Context is incorrect.\n" \
-                "Please make sure you are using VPUXRemoteContext.")
-
 ///  Infer request
 #define NO_EXECUTOR_FOR_INFERENCE               \
     std::string("Can't create infer request!\n" \

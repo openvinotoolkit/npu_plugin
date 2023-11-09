@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -23,11 +23,10 @@ public:
     using Ptr = std::shared_ptr<VPUXBackends>;
     using CPtr = std::shared_ptr<const VPUXBackends>;
 
-    explicit VPUXBackends(const std::vector<std::string>& backendRegistry);
+    explicit VPUXBackends(const std::vector<std::string>& backendRegistry, const Config& config);
 
     std::shared_ptr<Device> getDevice(const std::string& specificName = "") const;
     std::shared_ptr<Device> getDevice(const InferenceEngine::ParamMap& paramMap) const;
-    std::shared_ptr<Device> getDevice(const std::shared_ptr<InferenceEngine::RemoteContext>& context) const;
     std::vector<std::string> getAvailableDevicesNames() const;
     std::string getBackendName() const;
     void registerOptions(OptionsDesc& options) const;

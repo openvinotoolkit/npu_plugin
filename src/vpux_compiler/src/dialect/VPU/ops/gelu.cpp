@@ -5,6 +5,7 @@
 
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/distributed_tensor_utils.hpp"
 
 using namespace vpux;
 
@@ -34,6 +35,15 @@ bool vpux::VPU::GeluOp::checkStrategyCompatibility(VPU::MultiClusterStrategy str
            strategy == VPU::MultiClusterStrategy::SplitOverKernel ||
            strategy == VPU::MultiClusterStrategy::SplitOverHeight ||
            strategy == VPU::MultiClusterStrategy::SplitOverWidth;
+}
+
+vpux::VPU::DistributedTensorAttr vpux::VPU::GeluOp::getExplicitDistributedTensorAttr(
+        vpux::ShapeRef shape, vpux::VPU::DistributionMode distributionMode, mlir::ArrayAttr numTiles,
+        mlir::IntegerAttr numClusters, mlir::ArrayAttr alignment, mlir::ArrayAttr /*kernel*/,
+        vpux::VPU::PaddingAttr /*pad*/, mlir::ArrayAttr /*stride*/, mlir::UnitAttr uniformDistributedSegments) {
+    return VPU::getSWExplicitDistributedTensorAttr(mlir::dyn_cast<VPU::SWOpInterface>(getOperation()), shape,
+                                                   distributionMode, numTiles, numClusters, alignment,
+                                                   uniformDistributedSegments);
 }
 
 //
@@ -77,7 +87,7 @@ void vpux::VPU::GeluOp::adjustAttrs(const TilingInfo& /*inputTiling*/, const Til
     // Do nothing
 }
 
-OutputTiling vpux::VPU::GeluOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
+mlir::FailureOr<OutputTiling> vpux::VPU::GeluOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
     return vpux::getSWLayerTilingStrategy(this->getOperation(), tilingMode, log);
 }
 

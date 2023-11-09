@@ -9,10 +9,23 @@
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 #include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPU/utils/layout_utils.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
 using namespace vpux;
+
+//
+// LayerOpInterface
+//
+
+mlir::LogicalResult vpux::VPU::verifyLayer(mlir::Operation* op) {
+    if (VPU::verifyOpLayout(op).failed()) {
+        return mlir::failure();
+    }
+
+    return IE::verifyLayer(op);
+}
 
 //
 // SparseOpInterface
@@ -198,119 +211,6 @@ mlir::LogicalResult vpux::VPU::verifyNCEOp(mlir::Operation* op) {
 }
 
 //
-// SameInOutDefaultDimsOrder
-//
-
-mlir::LogicalResult vpux::VPU::verifySameInOutDefaultDimsOrder(mlir::Operation* op) {
-    auto layer = mlir::dyn_cast<VPU::LayerOpInterface>(op);
-    VPUX_THROW_UNLESS(layer != nullptr, "Operation {0} does not implement VPU::LayerOpInterface", op->getName());
-
-    const auto input = layer.getInputs()[0];
-    const auto output = layer.getOutputs()[0];
-
-    const auto inOrder = DimsOrder::fromValue(input);
-    const auto outOrder = DimsOrder::fromValue(output);
-
-    if (inOrder != outOrder) {
-        return errorAt(op->getLoc(), "Operation must have the same input and output order. inL={0}, outL={1}", inOrder,
-                       outOrder);
-    }
-
-    return mlir::success();
-}
-
-void vpux::VPU::inferLayoutInfoSameInOutDefaultDimsOrder(IE::LayerLayoutInfo& info) {
-    const auto filter = [](size_t ind) {
-        return ind != 0;
-    };
-    IE::fillDefaultLayoutInfo(info, filter, filter);
-
-    info.setOutput(0, info.getInput(0));
-}
-
-//
-// SameAnyDimsOrder
-//
-
-mlir::LogicalResult vpux::VPU::verifySameAnyDimsOrder(mlir::Operation* op) {
-    auto layer = mlir::dyn_cast<VPU::LayerOpInterface>(op);
-    if (layer == nullptr) {
-        return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
-    }
-
-    auto inputs = layer.getInputs();
-
-    const auto firstInput = inputs.front();
-    const auto mainOrder = DimsOrder::fromValue(firstInput);
-
-    for (const auto& val : layer->getOpOperands()) {
-        const auto order = DimsOrder::fromValue(val.get());
-
-        if (order != mainOrder) {
-            return errorAt(op, "Operation's input/output layout mismatch");
-        }
-    }
-
-    return mlir::success();
-}
-
-void vpux::VPU::inferLayoutInfoSameAnyDimsOrder(IE::LayerLayoutInfo& info) {
-    const auto inOrder = info.getInput(0);
-    info.fill(inOrder);
-}
-
-//
-// SameInOutSpecificDimsOrder
-//
-
-mlir::LogicalResult vpux::VPU::verifySameInOutSpecificDimsOrder(mlir::Operation* op,
-                                                                ArrayRef<DimsOrder> supportedLayouts) {
-    if (verifySameInOutDefaultDimsOrder(op).failed()) {
-        return mlir::failure();
-    }
-
-    auto layerOp = mlir::dyn_cast<VPU::LayerOpInterface>(op);
-    VPUX_THROW_UNLESS(layerOp != nullptr, "Operation {0} does not implement VPU::LayerOpInterface", op->getName());
-
-    const auto input = layerOp.getInputs()[0];
-    const auto inOrder = DimsOrder::fromValue(input);
-
-    const auto isSupported = std::count(supportedLayouts.begin(), supportedLayouts.end(), inOrder);
-    if (!isSupported) {
-        return errorAt(op->getLoc(), "Operation does not support {0} layout", inOrder);
-    }
-
-    return mlir::success();
-}
-
-void vpux::VPU::inferLayoutInfoSameInOutSpecificDimsOrder(IE::LayerLayoutInfo& info,
-                                                          ArrayRef<DimsOrder> supportedLayouts) {
-    const auto filter = [](size_t ind) {
-        return ind != 0;
-    };
-    IE::fillDefaultLayoutInfo(info, filter, filter);
-
-    const auto mainOrder = info.getInput(0);
-
-    if (llvm::is_contained(supportedLayouts, mainOrder)) {
-        info.setOutput(0, mainOrder);
-        return;
-    }
-
-    const auto supportedOrderIt = llvm::find_if(supportedLayouts, [mainOrder](DimsOrder order) {
-        return order.numDims() == mainOrder.numDims();
-    });
-
-    VPUX_THROW_UNLESS(supportedOrderIt != supportedLayouts.end(),
-                      "Layouts supported by the operation '{0}' do not match the rank '{1}' of the input shape",
-                      supportedLayouts, mainOrder.numDims());
-
-    const auto supportedOrder = *supportedOrderIt;
-    info.setInput(0, supportedOrder);
-    info.setOutput(0, supportedOrder);
-}
-
-//
 // isPureViewLike
 //
 
@@ -323,4 +223,4 @@ bool vpux::VPU::isPureViewOp(mlir::Operation* op) {
 // Generated
 //
 
-#include <vpux/compiler/dialect/VPU/generated/ops_interfaces.cpp.inc>
+#include <vpux/compiler/dialect/VPU/ops_interfaces.cpp.inc>

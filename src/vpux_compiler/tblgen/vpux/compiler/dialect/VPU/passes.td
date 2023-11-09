@@ -86,8 +86,42 @@ def WrapVPUOpsInNCEClusterTiling : PassBase<"wrap-vpu-ops-in-ncecluster-tiling",
 
     let constructor = "vpux::VPU::createWrapVPUOpsInNCEClusterTilingPass()";
 
+    let options = [
+        Option<
+            "enableExplicitDistributedTensorAttr", "enable-explicit-distributed-attr",
+            "bool", "false",
+            "Flag to enable generating explicit DistributedTensorAttr for Distributed data type."
+        >
+    ];
+
     let dependentDialects = [
         "vpux::VPU::VPUDialect"
+    ];
+}
+
+//
+// Tile over H for the following vertical fusion
+//
+
+def TileOverHForVF : PassBase<"tile-over-h-for-vf", "vpux::FunctionPass"> {
+    let summary = "Assign tiling strategy over H for the following vertical fusion";
+
+    let description = [{
+        This pass tiles candidate vertical fusion operations over H for the following vertical fusion passes.
+    }];
+
+    let constructor = "vpux::VPU::createTileOverHForVFPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+
+    let options = [
+        Option<
+            "tilingMode", "tiling-mode",
+            "std::string", "",
+            "[Optional] Set tiling mode as `ISOLATED` or `PREFETCH`"
+        >
     ];
 }
 
@@ -121,14 +155,14 @@ def MergeVfSubgraphs : PassBase<"merge-vertical-fusion-subgraphs", "vpux::Functi
     let summary = "Build subgraph from VF single regions";
 
     let description = [{
-        Merge VF blocks and add operations to them recalculating tiling information
-        and in following cases:
+        Merge VF blocks and add operations to them recalculating tiling information in following cases:
         1. Number of operations which might increase computational cost does not exceed limit
         2. All operations have same multicluster strategy or don't have them at all
         3. Region which is supposed to be added doesn't have any other users except current region or
         all its users point to current region too.
-        4. All operations in new region after merging fit in CMX when they are tiled for VF. In case they don't, number of tiles 
+        4. All operations in new region after merging fit in CMX when they are tiled for VF. In case they don't, number of tiles
         increases.
+        5. Required CMX memory by constant weights shouldn't exceed the threshold to avoid spilling.
     }];
 
     let constructor = "vpux::VPU::createMergeVfSubgraphsPass()";
@@ -171,6 +205,33 @@ def UnrollUnusedVerticalFusionRegion : PassBase<"unroll-unused-vertical-fusion",
 
     let dependentDialects = [
         "vpux::VPU::VPUDialect"
+    ];
+}
+
+//
+// Roll back the H-prioritized tiling strategy if unused
+//
+
+def RollBackTilingStrategy : PassBase<"roll-back-tiling-strategy", "vpux::FunctionPass"> {
+    let summary = "Roll back the H-prioritized tiling strategy if unused";
+
+    let description = [{
+        If the tiling strategy is changed to H dimension to enable vertical fusion but at last not vertical-fused
+        roll back to the original tiling strategy
+    }];
+
+    let constructor = "vpux::VPU::createRollBackTilingStrategyPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+
+    let options = [
+        Option<
+            "tilingMode", "tiling-mode",
+            "std::string", "",
+            "[Optional] Set tiling mode as `ISOLATED` or `PREFETCH`"
+        >
     ];
 }
 
@@ -280,6 +341,34 @@ def CorrectNCEWorkloads : PassBase<"correct-NCE-workloads", "vpux::FunctionPass"
 
     let dependentDialects = [
         "vpux::VPU::VPUDialect"
+    ];
+}
+
+//
+// Strategy manager pass
+//
+
+def StrategyManagerImpl : PassBase<"strategy-manager", "vpux::FunctionPass"> {
+    let summary = "Assignment and optimization multi-cluster strategies to operations";
+
+    let description = [{
+        Pass consists of two parts:
+        1. Assignment of multicluster strategies and tiling strategies to each operation based on vpunn cost of each strategy.
+        2. Optimization/adjustment of strategies based on one of common optimization algorithm.
+    }];
+
+    let constructor = "vpux::VPU::createStrategyManagerImplPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+
+    let options = [
+        Option<
+            "tilingMode", "tiling-mode",
+            "std::string", [{"PREFETCH"}],
+            "[Optional] Set tiling mode as `ISOLATED` or `PREFETCH`. `PREFETCH` is set by default"
+        >
     ];
 }
 
@@ -624,7 +713,7 @@ def LowerOpsToSENCE : PassBase<"lower-ops-to-se-nce", "vpux::FunctionPass"> {
         The list of supported operations:
         - Interpolate - mode: NEAREST
                         axes: H, W
-                        coordinate_transformation_mode: ASYMMETRIC
+                        coordinate_transformation_mode: all (except ALIGN_CORNERS)
                         nearest_mode: all
                         scale: integer only
                         padding: none
@@ -637,6 +726,29 @@ def LowerOpsToSENCE : PassBase<"lower-ops-to-se-nce", "vpux::FunctionPass"> {
     }];
 
     let constructor = "vpux::VPU::createLowerOpsToSENCEPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}
+
+//
+// FuseNCEInterpolateConsumers
+//
+
+def FuseNCEInterpolateConsumers : PassBase<"fuse-nce-interpolate-consumers", "vpux::FunctionPass"> {
+    let summary = "Fuses NCE.Interpolate into consumer NCE.Convolution";
+
+    let description = [{
+        Fuses NCE.Interpolate with consumer NCE.Convolution.
+
+        NCE.Interpolate with mode "nearest" is lowered to a dummy NCE.Convolution with
+        SE table that upsamples tensor.
+
+        We can simply pass the SE table to this consumer and avoid the dummy convolution.
+    }];
+
+    let constructor = "vpux::VPU::createFuseNCEInterpolateConsumersPass()";
 
     let dependentDialects = [
         "vpux::VPU::VPUDialect"
@@ -819,11 +931,30 @@ def AdjustTilingForPermuteQuantizePass : PassBase<"adjust-tiling-for-permute-qua
 
     let description = [{
         This pass rewrites the operation sequence for `VPU.NCE.PermuteQuantize`.
-        After `ApplyTilingPass` `VPU.Slice` and `VPU.Concat` operations will be inserted next to `VPU.NCE.PermuteQuantize`, 
+        After `ApplyTilingPass` `VPU.Slice` and `VPU.Concat` operations will be inserted next to `VPU.NCE.PermuteQuantize`,
         but we want to slice and concatenate all the sequence (Reshape -> LayoutCast -> PermuteQuantize -> LayoutCast -> [optional Reshape]).
     }];
 
     let constructor = "vpux::VPU::createAdjustTilingForPermuteQuantizePass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}
+
+//
+// OptimizeConcat
+//
+
+def OptimizeConcat : PassBase<"optimize-concat", "vpux::FunctionPass"> {
+    let summary = "Try to eliminate Concat for Concat-Slice pattern";
+
+    let description = [{
+        After `ApplyTilingPass` lots of `VPU.Concat`-`VPU.Slice` are introduced, `VPU.Concat` can be eliminated only if all its users are `VPU.Slice` and
+        input tensor of each `VPU.Slice` is actually sub-tensor of one of input tensors of Concat.
+    }];
+
+    let constructor = "vpux::VPU::createOptimizeConcatPass()";
 
     let dependentDialects = [
         "vpux::VPU::VPUDialect"

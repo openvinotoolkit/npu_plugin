@@ -17,19 +17,17 @@ using namespace vpux;
 void vpux::VPUMI37XX::NetworkMetadataOp::serialize(elf::writer::BinaryDataSection<uint8_t>& binDataSection,
                                                    elf::NetworkMetadata& metadata) {
     auto operation = getOperation();
+    auto mainModule = operation->getParentOfType<mlir::ModuleOp>();
 
     auto nBarrs = VPUIP::getNumAvailableBarriers(operation);
     metadata.resource_requirements.nn_barriers_ = nBarrs;
-    metadata.resource_requirements.nn_slice_count_ =
-            VPUIP::getNumClusterUsed(operation->getParentOfType<mlir::ModuleOp>());
+    metadata.resource_requirements.nn_slice_count_ = VPUIP::getNumClusterUsed(mainModule);
 
-    metadata.resource_requirements.ddr_scratch_length_ = checked_cast<uint32_t>(
-            IE::getAvailableMemory(operation->getParentOfType<mlir::ModuleOp>(), vpux::VPU::MemoryKind::DDR)
-                    .byteSize());
+    metadata.resource_requirements.ddr_scratch_length_ =
+            checked_cast<uint32_t>(IE::getAvailableMemory(mainModule, vpux::VPU::MemoryKind::DDR).byteSize());
 
-    metadata.resource_requirements.nn_slice_length_ = checked_cast<uint32_t>(
-            IE::getAvailableMemory(operation->getParentOfType<mlir::ModuleOp>(), vpux::VPU::MemoryKind::CMX_NN)
-                    .byteSize());
+    metadata.resource_requirements.nn_slice_length_ =
+            checked_cast<uint32_t>(IE::getAvailableMemory(mainModule, vpux::VPU::MemoryKind::CMX_NN).byteSize());
 
     auto ptrCharTmp = reinterpret_cast<uint8_t*>(&metadata);
     binDataSection.appendData(ptrCharTmp, getBinarySize());

@@ -10,14 +10,14 @@
 
 !qElemType = !quant.uniform<u8:f16, 1.000000e+00>
 
-module @PermuteQuantize attributes {VPU.arch = "VPUX37XX", VPU.compilationMode = "DefaultHW"} {
+module @PermuteQuantize attributes {VPU.arch = #VPU.arch_kind<VPUX37XX>, VPU.compilationMode = #VPU.compilation_mode<DefaultHW>} {
   IE.ExecutorResource 2 of @NCE at 1.300000e+03 MHz {
+    IE.ExecutorResource 2 of @SHAVE_ACT
+    IE.ExecutorResource 1 of @SHAVE_NN
+    IE.MemoryResource 1982464 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
     IE.ExecutorResource 1 of @DPU
   }
-  IE.ExecutorResource 2 of @SHAVE_ACT
-  IE.ExecutorResource 1 of @SHAVE_NN
   IE.ExecutorResource 2 of @DMA_NN
-  IE.MemoryResource 1982464 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
   IE.MemoryResource 524288000 bytes of @DDR {VPU.bandwidth = 8 : i64, VPU.derateFactor = 6.000000e-01 : f64}
 
 func.func @NCEPermuteQuantize3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x4x224x224x!qElemType, {order = #NHWC}> {
@@ -32,21 +32,16 @@ func.func @NCEPermuteQuantize3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor
     %2 = VPU.NCE.PermuteQuantize(%1) {
         dstElemType = !qElemType,
         dstOrder = #NWCH,
-        multiClusterStrategy = "SplitOverWidth",
-        pad = {
-            bottom = 1 : i64,
-            left = 0 : i64,
-            right = 0 : i64,
-            top = 0 : i64
-        },
-        ppe = {
+        multiClusterStrategy = #VPU.multi_cluster_strategy<SplitOverWidth>,
+        pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 1 : i64>,
+        ppe = #VPU.PPETask<
             clamp_high = 255 : i64,
             clamp_low = 0 : i64,
             fp_prelu_alpha = 1.000000e+00 : f64,
             lrelu_mult = 1 : i64,
             lrelu_shift = 0 : i64,
-            mode = "NOOP"
-        }
+            mode = <NOOP>
+        >
     } -> tensor<1x224x4x224x!qElemType, {order = #NWCH}>
 
     %3 = VPU.LayoutCast(%2) {
@@ -80,14 +75,6 @@ func.func @NCEPermuteQuantize3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor
     // CHECK-SAME:  -> !VPU.DistributedTensor<1x224x3x224xf16, #NHWC, @CMX_NN, {
     // CHECK-SAME:      mode = "SEGMENTED",
     // CHECK-SAME:      num_tiles = [1, 1, 1, 2],
-    // CHECK-SAME:      kernel = [1, 1],
-    // CHECK-SAME:      pads = {
-    // CHECK-SAME:          bottom = 0 : i64,
-    // CHECK-SAME:          left = 0 : i64,
-    // CHECK-SAME:          right = 0 : i64,
-    // CHECK-SAME:          top = 0 : i64
-    // CHECK-SAME:      },
-    // CHECK-SAME:      strides = [1, 1],
     // CHECK-SAME:      num_clusters = 2 : i64
     // CHECK-SAME:  }
 
@@ -95,14 +82,6 @@ func.func @NCEPermuteQuantize3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor
     // CHECK-SAME:  -> !VPU.DistributedTensor<1x224x4x224x!qElemType, #NWCH, @CMX_NN, {
     // CHECK-SAME:      mode = "SEGMENTED",
     // CHECK-SAME:      num_tiles = [1, 1, 1, 2],
-    // CHECK-SAME:      kernel = [1, 1],
-    // CHECK-SAME:      pads = {
-    // CHECK-SAME:          bottom = 0 : i64,
-    // CHECK-SAME:          left = 0 : i64,
-    // CHECK-SAME:          right = 0 : i64,
-    // CHECK-SAME:          top = 0 : i64
-    // CHECK-SAME:      },
-    // CHECK-SAME:      strides = [1, 1],
     // CHECK-SAME:      num_clusters = 2 : i64
     // CHECK-SAME:  }
 
@@ -113,27 +92,11 @@ func.func @NCEPermuteQuantize3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor
     // CHECK-SAME:  : !VPU.DistributedTensor<1x224x4x224x!qElemType, #NWCH, @CMX_NN, {
     // CHECK-SAME:      mode = "SEGMENTED",
     // CHECK-SAME:      num_tiles = [1, 1, 1, 2],
-    // CHECK-SAME:      kernel = [1, 1],
-    // CHECK-SAME:      pads = {
-    // CHECK-SAME:          bottom = 0 : i64,
-    // CHECK-SAME:          left = 0 : i64,
-    // CHECK-SAME:          right = 0 : i64,
-    // CHECK-SAME:          top = 0 : i64
-    // CHECK-SAME:      },
-    // CHECK-SAME:      strides = [1, 1],
     // CHECK-SAME:      num_clusters = 2 : i64
     // CHECK-SAME:  }
     // CHECK-SAME:  -> !VPU.DistributedTensor<1x4x224x224x!qElemType, #NHWC, @CMX_NN, {
     // CHECK-SAME:      mode = "SEGMENTED",
     // CHECK-SAME:      num_tiles = [1, 1, 2, 1],
-    // CHECK-SAME:      kernel = [1, 1],
-    // CHECK-SAME:      pads = {
-    // CHECK-SAME:          bottom = 0 : i64,
-    // CHECK-SAME:          left = 0 : i64,
-    // CHECK-SAME:          right = 0 : i64,
-    // CHECK-SAME:          top = 0 : i64
-    // CHECK-SAME:      },
-    // CHECK-SAME:      strides = [1, 1],
     // CHECK-SAME:      num_clusters = 2 : i64
     // CHECK-SAME:  }
 
@@ -155,14 +118,14 @@ func.func @NCEPermuteQuantize3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor
 
 !qElemType = !quant.uniform<u8:f16, 1.000000e+00>
 
-module @DepthwiseConv attributes {VPU.arch = "VPUX37XX", VPU.compilationMode = "DefaultHW"} {
+module @DepthwiseConv attributes {VPU.arch = #VPU.arch_kind<VPUX37XX>, VPU.compilationMode = #VPU.compilation_mode<DefaultHW>} {
   IE.ExecutorResource 2 of @NCE at 1.300000e+03 MHz {
+    IE.ExecutorResource 2 of @SHAVE_ACT
+    IE.ExecutorResource 1 of @SHAVE_NN
+    IE.MemoryResource 1982464 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
     IE.ExecutorResource 1 of @DPU
   }
-  IE.ExecutorResource 2 of @SHAVE_ACT
-  IE.ExecutorResource 1 of @SHAVE_NN
   IE.ExecutorResource 2 of @DMA_NN
-  IE.MemoryResource 1982464 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
   IE.MemoryResource 524288000 bytes of @DDR {VPU.bandwidth = 8 : i64, VPU.derateFactor = 6.000000e-01 : f64}
 
 func.func @DWCONV3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x16x224x224x!qElemType, {order = #NHWC}> {
@@ -186,21 +149,16 @@ func.func @DWCONV3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x16x224x22
     %2 = VPU.NCE.PermuteQuantize(%1) {
         dstElemType = !qElemType,
         dstOrder = #NWCH,
-        multiClusterStrategy = "SplitOverWidth",
-        pad = {
-            bottom = 13 : i64,
-            left = 0 : i64,
-            right = 0 : i64,
-            top = 0 : i64
-        },
-        ppe = {
+        multiClusterStrategy = #VPU.multi_cluster_strategy<SplitOverWidth>,
+        pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 13 : i64>,
+        ppe = #VPU.PPETask<
             clamp_high = 255 : i64,
             clamp_low = 0 : i64,
             fp_prelu_alpha = 1.000000e+00 : f64,
             lrelu_mult = 1 : i64,
             lrelu_shift = 0 : i64,
-            mode = "NOOP"
-        }
+            mode = <NOOP>
+        >
     } -> tensor<1x224x16x224x!qElemType, {order = #NWCH}>
 
     %3 = VPU.LayoutCast(%2) {
@@ -214,21 +172,16 @@ func.func @DWCONV3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x16x224x22
 
     %5 = VPU.NCE.DepthConvolution(%4, %WEIGHTS, %WEIGHT_TABLE, %cst) {
         activation_window_channel_length = 16 : i64,
-        multiClusterStrategy = "SplitOverHeight",
-        pad = {
-            bottom = 0 : i64,
-            left = 0 : i64,
-            right = 0 : i64,
-            top = 0 : i64
-        },
-        ppe = {
+        multiClusterStrategy = #VPU.multi_cluster_strategy<SplitOverHeight>,
+        pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
+        ppe = #VPU.PPETask<
             clamp_high = 255 : i64,
             clamp_low = 0 : i64,
             fp_prelu_alpha = 1.000000e+00 : f64,
             lrelu_mult = 1 : i64,
             lrelu_shift = 0 : i64,
-            mode = "NOOP"
-        },
+            mode = <NOOP>
+        >,
         rawFilterShape = [16, 1, 1, 1],
         strides = [1, 1]
     } -> tensor<1x16x224x224x!qElemType, {order = #NHWC}>
@@ -255,14 +208,6 @@ func.func @DWCONV3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x16x224x22
     // CHECK-SAME:  -> !VPU.DistributedTensor<1x224x3x224xf16, #NHWC, @CMX_NN, {
     // CHECK-SAME:      mode = "SEGMENTED",
     // CHECK-SAME:      num_tiles = [1, 1, 1, 2],
-    // CHECK-SAME:      kernel = [1, 1],
-    // CHECK-SAME:      pads = {
-    // CHECK-SAME:          bottom = 0 : i64,
-    // CHECK-SAME:          left = 0 : i64,
-    // CHECK-SAME:          right = 0 : i64,
-    // CHECK-SAME:          top = 0 : i64
-    // CHECK-SAME:      },
-    // CHECK-SAME:      strides = [1, 1],
     // CHECK-SAME:      num_clusters = 2 : i64
     // CHECK-SAME:  }
 
@@ -270,14 +215,6 @@ func.func @DWCONV3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x16x224x22
     // CHECK-SAME:  -> !VPU.DistributedTensor<1x224x16x224x!qElemType, #NWCH, @CMX_NN,  {
     // CHECK-SAME:      mode = "SEGMENTED",
     // CHECK-SAME:      num_tiles = [1, 1, 1, 2],
-    // CHECK-SAME:      kernel = [1, 1],
-    // CHECK-SAME:      pads = {
-    // CHECK-SAME:          bottom = 0 : i64,
-    // CHECK-SAME:          left = 0 : i64,
-    // CHECK-SAME:          right = 0 : i64,
-    // CHECK-SAME:          top = 0 : i64
-    // CHECK-SAME:      },
-    // CHECK-SAME:      strides = [1, 1],
     // CHECK-SAME:      num_clusters = 2 : i64
     // CHECK-SAME:  }
 
@@ -288,27 +225,11 @@ func.func @DWCONV3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x16x224x22
     // CHECK-SAME:  : !VPU.DistributedTensor<1x224x16x224x!qElemType, #NWCH, @CMX_NN, {
     // CHECK-SAME:      mode = "SEGMENTED",
     // CHECK-SAME:      num_tiles = [1, 1, 1, 2],
-    // CHECK-SAME:      kernel = [1, 1],
-    // CHECK-SAME:      pads = {
-    // CHECK-SAME:          bottom = 0 : i64,
-    // CHECK-SAME:          left = 0 : i64,
-    // CHECK-SAME:          right = 0 : i64,
-    // CHECK-SAME:          top = 0 : i64
-    // CHECK-SAME:      },
-    // CHECK-SAME:      strides = [1, 1],
     // CHECK-SAME:      num_clusters = 2 : i64
     // CHECK-SAME:  }
     // CHECK-SAME:  -> !VPU.DistributedTensor<1x16x224x224x!qElemType, #NHWC, @CMX_NN, {
     // CHECK-SAME:      mode = "SEGMENTED",
     // CHECK-SAME:      num_tiles = [1, 1, 2, 1],
-    // CHECK-SAME:      kernel = [1, 1],
-    // CHECK-SAME:      pads = {
-    // CHECK-SAME:          bottom = 0 : i64,
-    // CHECK-SAME:          left = 0 : i64,
-    // CHECK-SAME:          right = 0 : i64,
-    // CHECK-SAME:          top = 0 : i64
-    // CHECK-SAME:      },
-    // CHECK-SAME:      strides = [1, 1],
     // CHECK-SAME:      num_clusters = 2 : i64
     // CHECK-SAME:  }
 
@@ -330,14 +251,14 @@ func.func @DWCONV3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x16x224x22
 
 !qElemType = !quant.uniform<u8:f16, 1.000000e+00>
 
-module @DepthwiseConv attributes {VPU.arch = "VPUX37XX", VPU.compilationMode = "DefaultHW"} {
+module @CompressConv attributes {VPU.arch = #VPU.arch_kind<VPUX37XX>, VPU.compilationMode = #VPU.compilation_mode<DefaultHW>} {
   IE.ExecutorResource 2 of @NCE at 1.300000e+03 MHz {
+    IE.ExecutorResource 2 of @SHAVE_ACT
+    IE.ExecutorResource 1 of @SHAVE_NN
+    IE.MemoryResource 1982464 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
     IE.ExecutorResource 1 of @DPU
   }
-  IE.ExecutorResource 2 of @SHAVE_ACT
-  IE.ExecutorResource 1 of @SHAVE_NN
   IE.ExecutorResource 2 of @DMA_NN
-  IE.MemoryResource 1982464 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
   IE.MemoryResource 524288000 bytes of @DDR {VPU.bandwidth = 8 : i64, VPU.derateFactor = 6.000000e-01 : f64}
 
 func.func @CONV3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x16x112x112xf16, {order = #NHWC}> {
@@ -360,21 +281,16 @@ func.func @CONV3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x16x112x112x
     %2 = VPU.NCE.PermuteQuantize(%1) {
         dstElemType = !qElemType,
         dstOrder = #NWCH,
-        multiClusterStrategy = "SplitOverWidth",
-        pad = {
-            bottom = 1 : i64,
-            left = 0 : i64,
-            right = 0 : i64,
-            top = 0 : i64
-        },
-        ppe = {
+        multiClusterStrategy = #VPU.multi_cluster_strategy<SplitOverWidth>,
+        pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 1 : i64>,
+        ppe = #VPU.PPETask<
             clamp_high = 255 : i64,
             clamp_low = 0 : i64,
             fp_prelu_alpha = 1.000000e+00 : f64,
             lrelu_mult = 1 : i64,
             lrelu_shift = 0 : i64,
-            mode = "NOOP"
-        }
+            mode = <NOOP>
+        >
     } -> tensor<1x224x4x224x!qElemType, {order = #NWCH}>
 
     %3 = VPU.LayoutCast(%2) {
@@ -386,22 +302,18 @@ func.func @CONV3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x16x112x112x
         shape_value = [1, 4, 224, 224]
     } : tensor<1x224x4x224x!qElemType, {order = #NHWC}> -> tensor<1x4x224x224x!qElemType, {order = #NHWC}>
 
-    %5 = VPU.NCE.Convolution(%4, %WEIGHTS, %WEIGHT_TABLE) {
-        multiClusterStrategy = "SplitOverHeightOverlapped",
-        pad = {
-            bottom = 1 : i64,
-            left = 0 : i64,
-            right = 1 : i64,
-            top = 0 : i64
-        },
-        ppe = {
+    %5 = VPU.NCE.CompressConvolution(%4, %WEIGHTS, %WEIGHT_TABLE) {
+        cm_sp_pattern = 7 : i64,
+        multiClusterStrategy = #VPU.multi_cluster_strategy<SplitOverHeightOverlapped>,
+        pad = #VPU.Padding<left = 0 : i64, right = 1 : i64, top = 0 : i64, bottom = 1 : i64>,
+        ppe = #VPU.PPETask<
             clamp_high = 2147483647 : i64,
             clamp_low = -2147483648 : i64,
             fp_prelu_alpha = 1.000000e+00 : f64,
             lrelu_mult = 1 : i64,
             lrelu_shift = 0 : i64,
-            mode = "NOOP"
-        },
+            mode = <NOOP>
+        >,
         rawFilterShape = [16, 4, 3, 3],
         strides = [2, 2]
     } -> tensor<1x16x112x112xf16, {order = #NHWC}>
@@ -429,12 +341,7 @@ func.func @CONV3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x16x112x112x
     // CHECK-SAME:      mode = "OVERLAPPED",
     // CHECK-SAME:      num_tiles = [1, 1, 1, 2],
     // CHECK-SAME:      kernel = [3, 3],
-    // CHECK-SAME:      pads = {
-    // CHECK-SAME:          bottom = 1 : i64,
-    // CHECK-SAME:          left = 0 : i64,
-    // CHECK-SAME:          right = 1 : i64,
-    // CHECK-SAME:          top = 0 : i64
-    // CHECK-SAME:      },
+    // CHECK-SAME:      pads = #VPU.Padding<left = 0 : i64, right = 1 : i64, top = 0 : i64, bottom = 1 : i64>,
     // CHECK-SAME:      strides = [2, 2],
     // CHECK-SAME:      num_clusters = 2 : i64
     // CHECK-NOT:      equal_memory_and_compute_view
@@ -445,12 +352,7 @@ func.func @CONV3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x16x112x112x
     // CHECK-SAME:      mode = "OVERLAPPED",
     // CHECK-SAME:      num_tiles = [1, 1, 1, 2],
     // CHECK-SAME:      kernel = [3, 3],
-    // CHECK-SAME:      pads = {
-    // CHECK-SAME:          bottom = 1 : i64,
-    // CHECK-SAME:          left = 0 : i64,
-    // CHECK-SAME:          right = 1 : i64,
-    // CHECK-SAME:          top = 0 : i64
-    // CHECK-SAME:      },
+    // CHECK-SAME:      pads = #VPU.Padding<left = 0 : i64, right = 1 : i64, top = 0 : i64, bottom = 1 : i64>,
     // CHECK-SAME:      strides = [2, 2],
     // CHECK-SAME:      num_clusters = 2 : i64
     // CHECK-SAME:      equal_memory_and_compute_view
@@ -464,12 +366,7 @@ func.func @CONV3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x16x112x112x
     // CHECK-SAME:      mode = "OVERLAPPED",
     // CHECK-SAME:      num_tiles = [1, 1, 1, 2],
     // CHECK-SAME:      kernel = [3, 3],
-    // CHECK-SAME:      pads = {
-    // CHECK-SAME:          bottom = 1 : i64,
-    // CHECK-SAME:          left = 0 : i64,
-    // CHECK-SAME:          right = 1 : i64,
-    // CHECK-SAME:          top = 0 : i64
-    // CHECK-SAME:      },
+    // CHECK-SAME:      pads = #VPU.Padding<left = 0 : i64, right = 1 : i64, top = 0 : i64, bottom = 1 : i64>,
     // CHECK-SAME:      strides = [2, 2],
     // CHECK-SAME:      num_clusters = 2 : i64
     // CHECK-SAME:      equal_memory_and_compute_view
@@ -478,12 +375,7 @@ func.func @CONV3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x16x112x112x
     // CHECK-SAME:      mode = "OVERLAPPED",
     // CHECK-SAME:      num_tiles = [1, 1, 2, 1],
     // CHECK-SAME:      kernel = [3, 3],
-    // CHECK-SAME:      pads = {
-    // CHECK-SAME:          bottom = 1 : i64,
-    // CHECK-SAME:          left = 0 : i64,
-    // CHECK-SAME:          right = 1 : i64,
-    // CHECK-SAME:          top = 0 : i64
-    // CHECK-SAME:      },
+    // CHECK-SAME:      pads = #VPU.Padding<left = 0 : i64, right = 1 : i64, top = 0 : i64, bottom = 1 : i64>,
     // CHECK-SAME:      strides = [2, 2],
     // CHECK-SAME:      num_clusters = 2 : i64
     // CHECK-NOT:       equal_memory_and_compute_view
@@ -506,14 +398,14 @@ func.func @CONV3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x16x112x112x
 
 !qElemType = !quant.uniform<u8:f16, 1.000000e+00>
 
-module @NoAffineReshape attributes {VPU.arch = "VPUX37XX", VPU.compilationMode = "DefaultHW"} {
+module @NoAffineReshape attributes {VPU.arch = #VPU.arch_kind<VPUX37XX>, VPU.compilationMode = #VPU.compilation_mode<DefaultHW>} {
   IE.ExecutorResource 2 of @NCE at 1.300000e+03 MHz {
+    IE.ExecutorResource 2 of @SHAVE_ACT
+    IE.ExecutorResource 1 of @SHAVE_NN
+    IE.MemoryResource 1982464 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
     IE.ExecutorResource 1 of @DPU
   }
-  IE.ExecutorResource 2 of @SHAVE_ACT
-  IE.ExecutorResource 1 of @SHAVE_NN
   IE.ExecutorResource 2 of @DMA_NN
-  IE.MemoryResource 1982464 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
   IE.MemoryResource 524288000 bytes of @DDR {VPU.bandwidth = 8 : i64, VPU.derateFactor = 6.000000e-01 : f64}
 
 func.func @NCEPermuteQuantize1x3x16x16(%arg0: tensor<1x3x16x16xf16>) -> tensor<1x16x16x16x!qElemType, {order = #NHWC}> {
@@ -528,21 +420,16 @@ func.func @NCEPermuteQuantize1x3x16x16(%arg0: tensor<1x3x16x16xf16>) -> tensor<1
     %2 = VPU.NCE.PermuteQuantize(%1) {
         dstElemType = !qElemType,
         dstOrder = #NWCH,
-        multiClusterStrategy = "SplitOverWidth",
-        pad = {
-            bottom = 13 : i64,
-            left = 0 : i64,
-            right = 0 : i64,
-            top = 0 : i64
-        },
-        ppe = {
+        multiClusterStrategy = #VPU.multi_cluster_strategy<SplitOverWidth>,
+        pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 13 : i64>,
+        ppe = #VPU.PPETask<
             clamp_high = 255 : i64,
             clamp_low = 0 : i64,
             fp_prelu_alpha = 1.000000e+00 : f64,
             lrelu_mult = 1 : i64,
             lrelu_shift = 0 : i64,
-            mode = "NOOP"
-        }
+            mode = <NOOP>
+        >
     } -> tensor<1x16x16x16x!qElemType, {order = #NWCH}>
 
     %3 = VPU.LayoutCast(%2) {
@@ -571,14 +458,6 @@ func.func @NCEPermuteQuantize1x3x16x16(%arg0: tensor<1x3x16x16xf16>) -> tensor<1
     // CHECK-SAME:  -> !VPU.DistributedTensor<1x16x3x16xf16, #NHWC, @CMX_NN, {
     // CHECK-SAME:      mode = "SEGMENTED",
     // CHECK-SAME:      num_tiles = [1, 1, 1, 2],
-    // CHECK-SAME:      kernel = [1, 1],
-    // CHECK-SAME:      pads = {
-    // CHECK-SAME:          bottom = 0 : i64,
-    // CHECK-SAME:          left = 0 : i64,
-    // CHECK-SAME:          right = 0 : i64,
-    // CHECK-SAME:          top = 0 : i64
-    // CHECK-SAME:      },
-    // CHECK-SAME:      strides = [1, 1],
     // CHECK-SAME:      num_clusters = 2 : i64
     // CHECK-SAME:  }
 
@@ -586,14 +465,6 @@ func.func @NCEPermuteQuantize1x3x16x16(%arg0: tensor<1x3x16x16xf16>) -> tensor<1
     // CHECK-SAME:  -> !VPU.DistributedTensor<1x16x16x16x!qElemType, #NWCH, @CMX_NN, {
     // CHECK-SAME:      mode = "SEGMENTED",
     // CHECK-SAME:      num_tiles = [1, 1, 1, 2],
-    // CHECK-SAME:      kernel = [1, 1],
-    // CHECK-SAME:      pads = {
-    // CHECK-SAME:          bottom = 0 : i64,
-    // CHECK-SAME:          left = 0 : i64,
-    // CHECK-SAME:          right = 0 : i64,
-    // CHECK-SAME:          top = 0 : i64
-    // CHECK-SAME:      },
-    // CHECK-SAME:      strides = [1, 1],
     // CHECK-SAME:      num_clusters = 2 : i64
     // CHECK-SAME:  }
 
@@ -604,27 +475,11 @@ func.func @NCEPermuteQuantize1x3x16x16(%arg0: tensor<1x3x16x16xf16>) -> tensor<1
     // CHECK-SAME:  : !VPU.DistributedTensor<1x16x16x16x!qElemType, #NWCH, @CMX_NN, {
     // CHECK-SAME:      mode = "SEGMENTED",
     // CHECK-SAME:      num_tiles = [1, 1, 1, 2],
-    // CHECK-SAME:      kernel = [1, 1],
-    // CHECK-SAME:      pads = {
-    // CHECK-SAME:          bottom = 0 : i64,
-    // CHECK-SAME:          left = 0 : i64,
-    // CHECK-SAME:          right = 0 : i64,
-    // CHECK-SAME:          top = 0 : i64
-    // CHECK-SAME:      },
-    // CHECK-SAME:      strides = [1, 1],
     // CHECK-SAME:      num_clusters = 2 : i64
     // CHECK-SAME:  }
     // CHECK-SAME:  -> !VPU.DistributedTensor<1x16x16x16x!qElemType, #NHWC, @CMX_NN, {
     // CHECK-SAME:      mode = "SEGMENTED",
     // CHECK-SAME:      num_tiles = [1, 1, 2, 1],
-    // CHECK-SAME:      kernel = [1, 1],
-    // CHECK-SAME:      pads = {
-    // CHECK-SAME:          bottom = 0 : i64,
-    // CHECK-SAME:          left = 0 : i64,
-    // CHECK-SAME:          right = 0 : i64,
-    // CHECK-SAME:          top = 0 : i64
-    // CHECK-SAME:      },
-    // CHECK-SAME:      strides = [1, 1],
     // CHECK-SAME:      num_clusters = 2 : i64
     // CHECK-SAME:  }
 

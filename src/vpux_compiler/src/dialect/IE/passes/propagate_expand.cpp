@@ -5,10 +5,17 @@
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
+#include <mlir/IR/BlockAndValueMapping.h>
+#include <mlir/Pass/PassManager.h>
+#include <ngraph/coordinate_diff.hpp>
+#include <ngraph/strides.hpp>
+#include <ngraph/validation_util.hpp>
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/utils/const_attributes.hpp"
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
+#include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/empty_node.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
@@ -22,9 +29,11 @@ using namespace vpux;
 
 namespace {
 
-const int64_t UNEXPANDED_CHANNELS = 3;
-const int64_t EXPANDED_CHANNELS = 4;
-
+constexpr int64_t UNEXPANDED_CHANNELS = 3;
+constexpr int64_t EXPANDED_CHANNELS = 4;
+// E-69860 - Implement D2S on DPU - Supported values for DPU implementation.
+constexpr int64_t D2SCHANNEL_CUTOFF = 16;
+constexpr int64_t BLOCK_SIZE = 2;
 //
 // EltwiseShapeCastRewriter
 //
@@ -184,9 +193,9 @@ mlir::LogicalResult EltwiseShapeCastRewriter::matchAndRewrite(IE::ExpandOp expan
         return mlir::failure();
     }
 
-    auto expandedInput1 = getExpandedInput(rewriter, firstInput, expandOp, expandedShape.getValue());
+    auto expandedInput1 = getExpandedInput(rewriter, firstInput, expandOp, expandedShape.value());
     auto expandedInput2 =
-            !equalInputs ? getExpandedInput(rewriter, secondInput, expandOp, expandedShape.getValue()) : expandedInput1;
+            !equalInputs ? getExpandedInput(rewriter, secondInput, expandOp, expandedShape.value()) : expandedInput1;
     rewriter.setInsertionPoint(expandOp);
 
     auto outputType = expandedInput1.getType().cast<vpux::NDTypeInterface>().changeElemType(
@@ -211,7 +220,13 @@ public:
         setDebugName("DepthToSpaceSliceRewriter");
     }
 
-    mlir::LogicalResult matchAndRewrite(IE::ExpandOp mulOp, mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(IE::ExpandOp expandOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    mlir::Value getConcatResult(mlir::PatternRewriter& rewriter, mlir::Value input, int64_t blockSize) const;
+    mlir::Value createConvforD2S(mlir::PatternRewriter& rewriter, mlir::Value input, int64_t blockSize,
+                                 IE::ExpandOp expandOp) const;
+    mlir::Value createConvFilter(mlir::PatternRewriter& rewriter, mlir::Value inputTensor, int64_t blockSize) const;
 
 private:
     Logger _log;
@@ -232,7 +247,6 @@ mlir::LogicalResult DepthToSpaceSliceRewriter::matchAndRewrite(IE::ExpandOp expa
     if (slice == nullptr) {
         return mlir::failure();
     }
-
     auto sliceOffsets = parseIntArrayAttr<int64_t>(slice.static_offsets());
     auto hasNonZeroOffsets = llvm::any_of(sliceOffsets, [](auto offset) {
         return offset != 0;
@@ -244,24 +258,185 @@ mlir::LogicalResult DepthToSpaceSliceRewriter::matchAndRewrite(IE::ExpandOp expa
     if (!mlir::isa_and_nonnull<IE::AlignedChannelsOpInterface>(slice.source().getDefiningOp())) {
         return mlir::failure();
     }
-
-    auto blockSizeSquare = depthToSpace.block_size() * depthToSpace.block_size();
-    if (getShape(slice.source())[Dims4D::Act::C] / blockSizeSquare != getShape(expandOp)[Dims4D::Act::C]) {
+    const auto sliceElemType = slice.source().getType().cast<vpux::NDTypeInterface>().getElementType();
+    if (sliceElemType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
         return mlir::failure();
     }
 
-    auto paddedIC = getShape(slice.source())[Dims4D::Act::C] - getShape(slice.result())[Dims4D::Act::C];
-    auto paddedOC = paddedIC / blockSizeSquare;
+    auto blockSizeSquare = depthToSpace.block_size() * depthToSpace.block_size();
+    auto sliceInChannels = getShape(slice.source())[Dims4D::Act::C];
+    if (sliceInChannels / blockSizeSquare != getShape(expandOp)[Dims4D::Act::C]) {
+        return mlir::failure();
+    }
 
-    auto paddedChannels = IE::ChannelPadding::get(getIntAttr(expandOp.getContext(), paddedIC),
-                                                  getIntAttr(expandOp.getContext(), paddedOC), expandOp.getContext());
+    if (sliceInChannels < D2SCHANNEL_CUTOFF || depthToSpace.block_size() != BLOCK_SIZE) {
+        auto paddedIC = sliceInChannels - getShape(slice.result())[Dims4D::Act::C];
+        auto paddedOC = paddedIC / blockSizeSquare;
 
-    rewriter.replaceOpWithNewOp<IE::DepthToSpaceOp>(expandOp, slice.source(), depthToSpace.block_size(),
-                                                    depthToSpace.mode(), paddedChannels);
+        auto paddedChannels =
+                IE::ChannelPaddingAttr::get(expandOp.getContext(), getIntAttr(expandOp.getContext(), paddedIC),
+                                            getIntAttr(expandOp.getContext(), paddedOC));
+
+        rewriter.replaceOpWithNewOp<IE::DepthToSpaceOp>(expandOp, slice.source(), depthToSpace.block_size(),
+                                                        depthToSpace.mode(), paddedChannels);
+    } else {
+        auto paddedInput = getConcatResult(rewriter, slice.source(), depthToSpace.block_size());
+        auto d2sTensor = createConvforD2S(rewriter, paddedInput, depthToSpace.block_size(), expandOp);
+        auto outputShape = getShape(d2sTensor);
+        Shape newOutShape(outputShape.size(), 1);
+
+        newOutShape[Dims4D::Act::N] = outputShape[Dims4D::Act::N];
+        newOutShape[Dims4D::Act::C] = outputShape[Dims4D::Act::C] / blockSizeSquare;
+        newOutShape[Dims4D::Act::H] = outputShape[Dims4D::Act::H];
+        newOutShape[Dims4D::Act::W] = outputShape[Dims4D::Act::W] * blockSizeSquare;
+
+        SmallVector<SmallVector<int64_t>> reassociationMap(newOutShape.size());
+        for (size_t dimIdx = 0; dimIdx < newOutShape.size(); dimIdx++) {
+            reassociationMap[dimIdx].push_back(dimIdx);
+        }
+        auto outputDimAttr = getIntArrayOfArray(getContext(), reassociationMap);
+
+        const auto outShapeAttr = getIntArrayAttr(getContext(), newOutShape);
+
+        rewriter.replaceOpWithNewOp<IE::AffineReshapeOp>(expandOp, d2sTensor, outputDimAttr, outShapeAttr);
+    }
 
     return mlir::success();
 }
+/*
+Convert the following subgraph in case no of channels to the input of D2S are > 16.
+   Conv (1x16x256x256)                         Input(1x16x256x256)     Const (1x16x256x256)
+      |                                                 \        /
+Slice (1x12x256x256)                                    Concat (H-axis) (1x16x512x256)
+      |                                                       |         Weights (16x16x2x2)
+DepthToSpace (1x3x512x512)                                    |         /
+      |                                                  Conv (Top pad = 1) (1x16x512x128)
+Expand (1x4x512x512)                                        |
+                                                        AffineReshape (1x4x512x512)
 
+    */
+
+mlir::Value DepthToSpaceSliceRewriter::getConcatResult(mlir::PatternRewriter& rewriter, mlir::Value input,
+                                                       int64_t blockSize) const {
+    auto loc = input.getLoc();
+    auto inputType = input.getType();
+    auto inputShape = getShape(input);
+    SmallVector<float> zeroTensor(inputShape.totalSize());
+
+    const auto elemType = inputType.cast<vpux::NDTypeInterface>().getElementType();
+
+    if (auto qInputElemType = elemType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
+        const auto zeroPoint = qInputElemType.getZeroPoint();
+        std::fill(zeroTensor.begin(), zeroTensor.end(), static_cast<float>(zeroPoint));
+    } else if (elemType.isa<mlir::Float16Type>()) {
+        std::fill(zeroTensor.begin(), zeroTensor.end(), 0.0f);
+    }
+
+    auto filterTensorAttr = vpux::getTensorAttr(getContext(), DimsOrder::NHWC, nullptr);
+    auto filterType =
+            mlir::RankedTensorType::get(inputShape.raw(), elemType, filterTensorAttr).cast<vpux::NDTypeInterface>();
+    auto dataStorageType =
+            mlir::RankedTensorType::get(inputShape.raw(), mlir::Float32Type::get(filterType.getContext()));
+
+    auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(zeroTensor));
+    auto contentAttr = Const::ContentAttr::get(dataAttr);
+
+    if (auto qElemType = elemType.dyn_cast<mlir::quant::QuantizedType>()) {
+        contentAttr = contentAttr.convertElemType(getUInt8Type(filterType.getContext()));
+        contentAttr = contentAttr.quantCast(qElemType);
+    } else if (elemType.isa<mlir::Float16Type>()) {
+        contentAttr = contentAttr.convertElemType(mlir::Float16Type::get(filterType.getContext()));
+    } else {
+        VPUX_THROW("Unsupported type {0}", elemType);
+    }
+    contentAttr = contentAttr.reorder(filterType.getDimsOrder());
+    auto constTensor = rewriter.create<Const::DeclareOp>(loc, filterType, contentAttr).getOutput();
+    // Concat along H axis and blockSize as stride
+    auto axis = Dims4D::Act::H;
+    auto offset = 1;
+    SmallVector<mlir::Value> interlacedInputs;
+    interlacedInputs.push_back(input);
+    interlacedInputs.push_back(constTensor);
+    return rewriter.create<IE::ConcatOp>(loc, mlir::ValueRange(interlacedInputs), axis, offset, blockSize).output();
+}
+/*
+Creates filter with following patter for each channel :
+- non-zero bits are incremented per nth channel, along Z axis. i.e in 0th weight set bit[2] and bit[24] =1. In 1st
+weight set, bit[6] and bit[30]= 1.
+- Every 3,4,7,11, and 15th weight sets (sets corresponding to the padded zero descriptor in input tensor after conv) are
+set to 0. For the rest of set :
+- For the first half :
+        | bit0    | bit1 | ///////  |bit24 =1 | bit25 |  ///////
+        | bit2 =1 | bit3 | ///////  |bit26     | bit27 |  ///////
+- For the second half :
+        | bit0 | bit1    | ////////  |bit24 | bit25=1 | ///////
+        | bit2 | bit3 =1 | ///////   |bit26 | bit27   |  ///////
+*/
+mlir::Value DepthToSpaceSliceRewriter::createConvFilter(mlir::PatternRewriter& rewriter, mlir::Value inputTensor,
+                                                        int64_t blockSize) const {
+    const auto IC = getShape(inputTensor)[Dims4D::Act::C];
+    const auto KX = blockSize;
+    const auto KY = blockSize;
+    const auto OC = IC;
+    const Shape weightShape = {OC, IC, KX, KY};
+
+    SmallVector<float> weights(weightShape.totalSize(), .0f);
+
+    auto channelStride = KX * KY;
+    const auto dimsOrder = inputTensor.getType().cast<vpux::NDTypeInterface>().getDimsOrder();
+    auto outMemShape = dimsOrder.toMemoryOrder(ShapeRef(weightShape.raw()));
+    const auto halfOC = OC / 2;
+    for (auto i = 0; i < OC; ++i) {
+        const auto outMemIndND = dimsOrder.toMemoryOrder(ShapeRef({i, 0, 0, 0}));
+        const auto outMemInd1D = getMemIndex1D(outMemIndND, outMemShape);
+        const auto check = i % halfOC;
+        const auto offset = (check < 4) ? channelStride * check : channelStride * (check - 1);
+        const auto index = outMemInd1D + offset;
+        if (i % channelStride == 3) {
+            // Condition : All elements are zero for O = 3, 7, 11, 15
+            continue;
+        }
+        if (i < halfOC && i % channelStride != 3) {
+            // Condition : 2nd bit and 24th bit of each tensor in first half is 1
+            weights[index + 2] = 1.0f;
+            weights[index + 24] = 1.0f;
+        } else if (i >= halfOC && i % channelStride != 3) {
+            // Condition : 3rd bit and 25th bit of each tensor in second half is 1
+            weights[index + 3] = 1.0f;
+            weights[index + 25] = 1.0f;
+        }
+    }
+
+    const DimsOrder weighOrder = DimsOrder::OYXI;
+
+    return VPU::buildWeightsConst(ShapeRef(weightShape), weighOrder, makeArrayRef(weights), inputTensor, rewriter);
+}
+
+mlir::Value DepthToSpaceSliceRewriter::createConvforD2S(mlir::PatternRewriter& rewriter, mlir::Value input,
+                                                        int64_t blockSize, IE::ExpandOp expandOp) const {
+    const auto convFilter = createConvFilter(rewriter, input, blockSize);
+    auto newStrides = getIntArrayAttr(
+            getContext(), ngraph::Strides{checked_cast<size_t>(blockSize) / 2, checked_cast<size_t>(blockSize)});
+    auto newPadsBegin = getIntArrayAttr(getContext(), ngraph::CoordinateDiff{1, 0});  // Top Pad = 1
+    auto newPadsEnd = getIntArrayAttr(getContext(), ngraph::CoordinateDiff{0, 0});
+    auto newDilations = getIntArrayAttr(getContext(), ngraph::Strides{1, 1});
+    auto outputType = expandOp.getType().cast<NDTypeInterface>();
+    auto newInputShape = input.getType().cast<NDTypeInterface>().getShape().toValues().raw();
+    auto filterShape = convFilter.getType().cast<mlir::ShapedType>().getShape();
+
+    const auto outputShape = ngraph::infer_convolution_forward(
+            EmptyNode::instance(), ngraph::Shape(newInputShape.begin(), newInputShape.end()), ngraph::Strides{1, 1},
+            ngraph::CoordinateDiff{1, 0}, ngraph::CoordinateDiff{0, 0},
+            ngraph::Shape(filterShape.begin(), filterShape.end()),
+            ngraph::Strides{checked_cast<size_t>(blockSize) / 2, checked_cast<size_t>(blockSize)},
+            ngraph::Strides{1, 1});
+    const auto shapeI64 = to_small_vector(outputShape.get_shape() | transformed([](size_t val) {
+                                              return checked_cast<int64_t>(val);
+                                          }));
+    auto output = outputType.changeShape(ShapeRef(shapeI64)).changeDimsOrder(DimsOrder::NHWC);
+    return rewriter.create<IE::ConvolutionOp>(input.getLoc(), output, input, convFilter, nullptr, newStrides,
+                                              newPadsBegin, newPadsEnd, newDilations, nullptr);
+}
 //
 // SpaceToDepthSliceRewriter
 //
@@ -286,26 +461,12 @@ private:
 
 mlir::Value SpaceToDepthSliceRewriter::createConvFilter(mlir::PatternRewriter& rewriter, mlir::Value activation,
                                                         int64_t blockSize) const {
-    const auto IC = getShape(activation)[Dims4D::Act::C];
-    const auto KX = blockSize;
-    const auto KY = blockSize;
-    const auto OC = IC * blockSize * blockSize;
+    const auto IC = getShape(activation)[Dims4D::Act::C];  // 16
+    const auto KX = blockSize;                             // 4
+    const auto KY = blockSize;                             // 4
+    const auto OC = IC * blockSize * blockSize;            // 256
 
-    const auto origElemType = activation.getType().cast<vpux::NDTypeInterface>().getElementType();
     const Shape weightShape = {OC, IC, KX, KY};
-
-    mlir::Type filterElemType = mlir::Float16Type::get(getContext());
-    if (auto qInputElemType = origElemType.dyn_cast<mlir::quant::QuantizedType>()) {
-        const auto scale = 1.0f;
-        const auto zeroPoint = 0;
-        filterElemType = mlir::quant::UniformQuantizedType::get(
-                0, getUInt8Type(getContext()), mlir::Float16Type::get(getContext()), scale, zeroPoint,
-                std::numeric_limits<uint8_t>::min(), std::numeric_limits<uint8_t>::max());
-    }
-
-    auto filterTensorAttr = IE::getTensorAttr(getContext(), DimsOrder::OYXI, nullptr);
-    auto filterType = mlir::RankedTensorType::get(weightShape.raw(), filterElemType, filterTensorAttr)
-                              .cast<vpux::NDTypeInterface>();
 
     SmallVector<float> weights(weightShape.totalSize(), .0f);
 
@@ -318,24 +479,13 @@ mlir::Value SpaceToDepthSliceRewriter::createConvFilter(mlir::PatternRewriter& r
     for (auto i = 0; i < OC; ++i) {
         const auto index = i * outChannelStride + (i % IC) * inChannelStride + (i / (KY * IC)) * heightStride +
                            ((i % (KY * IC)) / IC);
+
         weights[index] = 1.0f;
     }
-    auto dataStorageType =
-            mlir::RankedTensorType::get(weightShape.raw(), mlir::Float32Type::get(filterType.getContext()));
-    auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(weights));
 
-    auto contentAttr = Const::ContentAttr::get(dataAttr);
-    if (auto qElemType = filterElemType.dyn_cast<mlir::quant::QuantizedType>()) {
-        contentAttr = contentAttr.convertElemType(getUInt8Type(filterType.getContext()));
-        contentAttr = contentAttr.quantCast(qElemType);
-    } else if (origElemType.isa<mlir::Float16Type>()) {
-        contentAttr = contentAttr.convertElemType(mlir::Float16Type::get(filterType.getContext()));
-    } else {
-        VPUX_THROW("Unsupported type {0}", origElemType);
-    }
-    contentAttr = contentAttr.reorder(filterType.getDimsOrder());
+    const DimsOrder weighOrder = DimsOrder::OYXI;
 
-    return rewriter.create<Const::DeclareOp>(activation.getLoc(), filterType, contentAttr);
+    return VPU::buildWeightsConst(ShapeRef(weightShape), weighOrder, makeArrayRef(weights), activation, rewriter);
 }
 
 mlir::Value SpaceToDepthSliceRewriter::createDPUOperation(mlir::PatternRewriter& rewriter, mlir::Value input,
@@ -345,7 +495,6 @@ mlir::Value SpaceToDepthSliceRewriter::createDPUOperation(mlir::PatternRewriter&
     const auto s2dOutShape = getShape(s2dOp.output());
 
     const auto convFilter = createConvFilter(rewriter, input, blockSize);
-
     auto newStrides = getIntArrayAttr(
             getContext(), ngraph::Strides{checked_cast<size_t>(blockSize), checked_cast<size_t>(blockSize)});
     auto newPadsBegin = getIntArrayAttr(getContext(), ngraph::CoordinateDiff{0, 0});
@@ -376,7 +525,7 @@ void SpaceToDepthSliceRewriter::createPaddedConvolution(mlir::PatternRewriter& r
     const auto newFilterShape = Shape({filterShape[Dims4D::Filter::OC], getShape(input)[Dims4D::Act::C],
                                        filterShape[Dims4D::Filter::KX], filterShape[Dims4D::Filter::KY]});
     auto newContentAttr =
-            filterConst.contentAttr()
+            filterConst.getContentAttr()
                     .reshape({filterShape[Dims4D::Filter::OC], filterShape[Dims4D::Filter::IC] / channelsPad,
                               filterShape[Dims4D::Filter::KX] * channelsPad, filterShape[Dims4D::Filter::KY]})
                     .padWithZero({0, 0, 0, 0}, {0, 1, 0, 0})
@@ -390,7 +539,7 @@ void SpaceToDepthSliceRewriter::createPaddedConvolution(mlir::PatternRewriter& r
     auto paddedFilter = rewriter.create<Const::DeclareOp>(filterConst.getLoc(), outAllocTypeNHWC, newContentAttr);
 
     mlir::BlockAndValueMapping mapper;
-    mapper.map(origConv.getOperands(), makeArrayRef({input, paddedFilter.output()}));
+    mapper.map(origConv.getOperands(), makeArrayRef({input, paddedFilter.getOutput()}));
     auto* newOperand = rewriter.clone(*origConv, mapper);
 
     rewriter.replaceOp(origConv, newOperand->getResult(0));
@@ -494,13 +643,12 @@ private:
 
 void PropagateExpandPass::safeRunOnFunc() {
     auto& ctx = getContext();
-
+    auto func = getOperation();
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<EltwiseShapeCastRewriter>(&ctx, _log);
     patterns.add<DepthToSpaceSliceRewriter>(&ctx, _log);
     patterns.add<SpaceToDepthSliceRewriter>(&ctx, _log);
 
-    auto func = getOperation();
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }

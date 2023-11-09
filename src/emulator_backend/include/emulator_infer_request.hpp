@@ -20,7 +20,7 @@ public:
                                   const Config& config, const std::string& netName,
                                   const std::vector<std::shared_ptr<const ov::Node>>& parameters,
                                   const std::vector<std::shared_ptr<const ov::Node>>& results,
-                                  const vpux::DataMap& networkStatesInfo,
+                                  const vpux::NetworkIOVector& networkStatesInfo,
                                   const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr);
 
     void InferImpl() override;
@@ -30,8 +30,6 @@ public:
     void GetResult() override;
 
 private:
-    InferenceEngine::Blob::Ptr repackTensor(const InferenceEngine::Blob::Ptr&, const InferenceEngine::TensorDesc&);
-
     void push(const InferenceEngine::BlobMap& inputs);
     void pull(InferenceEngine::BlobMap& outputs);
 

@@ -39,11 +39,11 @@ func.func @UnrollSWOpInterface(%input0: !Input_DDR, %output: !Output_DDR) -> !Ou
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     %bar1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
-    %395 = VPURT.DeclareBuffer "DDR" <4096> -> !Input_DDR
-    %302 = VPURT.DeclareBuffer "DDR" <0> -> !Output_DDR
+    %395 = VPURT.DeclareBuffer <DDR> <4096> -> !Input_DDR
+    %302 = VPURT.DeclareBuffer <DDR> <0> -> !Output_DDR
 
-    %300 = VPURT.DeclareBuffer "CMX_NN" <0> -> !typeCmxDistributed
-    %301 = VPURT.DeclareBuffer "CMX_NN" <4096> -> !typeCmxDistributed
+    %300 = VPURT.DeclareBuffer <CMX_NN> <0> -> !typeCmxDistributed
+    %301 = VPURT.DeclareBuffer <CMX_NN> <4096> -> !typeCmxDistributed
 
 
     VPURT.Task updates(%bar0 : !VPURT.Barrier) attributes {cycleBegin = 1907728 : i64, cycleEnd = 1907899 : i64, isTrailingSWLayer = false} {

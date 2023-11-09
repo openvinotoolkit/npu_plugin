@@ -1,17 +1,17 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
-#include "kmb_layer_test.hpp"
 #include "single_layer_tests/transpose.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
-class VPUXTransposeLayerTest : public TransposeLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXTransposeLayerTest : public TransposeLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 class VPUXTransposeLayerTest_VPU3700 : public VPUXTransposeLayerTest {};
 class VPUXTransposeLayerTest_VPU3720 : public VPUXTransposeLayerTest {};
 
@@ -47,12 +47,12 @@ const std::vector<std::vector<size_t>> inputOrder2D = {
         std::vector<size_t>{},
 };
 
-const auto params2D =
-        testing::Combine(testing::ValuesIn(inputOrder2D), testing::ValuesIn(netPrecisions),
-                         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                         testing::Values(InferenceEngine::Layout::ANY), testing::Values(InferenceEngine::Layout::ANY),
-                         testing::ValuesIn(inputShapes2D), testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+const auto params2D = testing::Combine(testing::ValuesIn(inputOrder2D), testing::ValuesIn(netPrecisions),
+                                       testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                       testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                       testing::Values(InferenceEngine::Layout::ANY),
+                                       testing::Values(InferenceEngine::Layout::ANY), testing::ValuesIn(inputShapes2D),
+                                       testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 // [Track number: W#7312]
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Transpose2D, VPUXTransposeLayerTest_VPU3700, params2D,
@@ -64,19 +64,17 @@ const std::vector<std::vector<size_t>> inputShapes4D = {
         std::vector<size_t>{1, 3, 100, 100},
 };
 
+// Tracking number [E#85137]
 const std::vector<std::vector<size_t>> inputOrder4D = {
         std::vector<size_t>{0, 3, 2, 1},
-
-        // [Track number: W#7311]
-        // std::vector<size_t>{},
 };
 
-const auto params4D =
-        testing::Combine(testing::ValuesIn(inputOrder4D), testing::ValuesIn(netPrecisions),
-                         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                         testing::Values(InferenceEngine::Layout::ANY), testing::Values(InferenceEngine::Layout::ANY),
-                         testing::ValuesIn(inputShapes4D), testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+const auto params4D = testing::Combine(testing::ValuesIn(inputOrder4D), testing::ValuesIn(netPrecisions),
+                                       testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                       testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                       testing::Values(InferenceEngine::Layout::ANY),
+                                       testing::Values(InferenceEngine::Layout::ANY), testing::ValuesIn(inputShapes4D),
+                                       testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Transpose4D, VPUXTransposeLayerTest_VPU3700, params4D,
                          VPUXTransposeLayerTest_VPU3700::getTestCaseName);
@@ -95,7 +93,7 @@ const auto paramsMemPermNCHWtoNHWC = testing::Combine(
         testing::ValuesIn(inputOrderMemPerm), testing::ValuesIn(netPrecisions),
         testing::Values(InferenceEngine::Precision::FP16), testing::Values(InferenceEngine::Precision::FP16),
         testing::Values(InferenceEngine::Layout::NCHW), testing::Values(InferenceEngine::Layout::NHWC),
-        testing::ValuesIn(inputShapesMemPerm), testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        testing::ValuesIn(inputShapesMemPerm), testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_CASE_P(smoke_TransposeMemPermNCHW, VPUXTransposeLayerTest_VPU3700, paramsMemPermNCHWtoNHWC,
                         VPUXTransposeLayerTest_VPU3700::getTestCaseName);
@@ -105,7 +103,7 @@ const auto paramsMemPermInNHWC = testing::Combine(
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Precision::UNSPECIFIED), testing::Values(InferenceEngine::Layout::NHWC),
         testing::Values(InferenceEngine::Layout::ANY), testing::ValuesIn(inputShapesMemPerm),
-        testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_CASE_P(smoke_TransposeMemPermNHWC, VPUXTransposeLayerTest_VPU3700, paramsMemPermInNHWC,
                         VPUXTransposeLayerTest_VPU3700::getTestCaseName);
@@ -120,7 +118,7 @@ const auto paramsVPU3720 = testing::Combine(
         testing::ValuesIn(inputOrderVPU3720), testing::ValuesIn(netPrecisions),
         testing::Values(InferenceEngine::Precision::FP16), testing::Values(InferenceEngine::Precision::FP16),
         testing::Values(InferenceEngine::Layout::ANY), testing::Values(InferenceEngine::Layout::ANY),
-        testing::ValuesIn(inputShapesMemPerm), testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        testing::ValuesIn(inputShapesMemPerm), testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_CASE_P(smoke_precommit_TransposeVPU3720, VPUXTransposeLayerTest_VPU3720, paramsVPU3720,
                         VPUXTransposeLayerTest_VPU3720::getTestCaseName);
@@ -136,7 +134,7 @@ const auto paramsVPU3720_5D = testing::Combine(
         testing::ValuesIn(reorder_5D), testing::ValuesIn(netPrecisions),
         testing::Values(InferenceEngine::Precision::FP16), testing::Values(InferenceEngine::Precision::FP16),
         testing::Values(InferenceEngine::Layout::ANY), testing::Values(InferenceEngine::Layout::ANY),
-        testing::ValuesIn(shape_5D), testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        testing::ValuesIn(shape_5D), testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_CASE_P(smoke_TransposeVPU3720_5D, VPUXTransposeLayerTest_VPU3720, paramsVPU3720_5D,
                         VPUXTransposeLayerTest_VPU3720::getTestCaseName);

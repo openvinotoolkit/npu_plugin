@@ -356,3 +356,213 @@ func.func @NotAdjustGroupConvToShapeCastGroupConv(%arg0: tensor<1x3x32x32xf16>) 
     // CHECK:       [[GROUP_CONV:%.+]] = IE.GroupConvolution([[EXPAND]], [[FILTER]], [[BIAS]]) {dilations = [1, 1], groups = 16 : i64, pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<1x16x32x32xf16>, tensor<16x1x2x2xf32>, tensor<1x16x1x1xf32> -> tensor<1x16x31x31xf16>
     // CHECK:       return [[GROUP_CONV]] : tensor<1x16x31x31xf16>
 }
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+!qElemType0 = !quant.uniform<u8:f16, 0.5>
+!qElemType1 = !quant.uniform<u8:f16, 0.25>
+
+// CHECK-LABEL: @ExpandWithQuantizeDequantizeSequence
+// CHECK-SAME:        [[INPUT1:%arg[0-9]]]: tensor<1x1x44x44xf16, {order = #NHWC}>
+func.func @ExpandWithQuantizeDequantizeSequence(%arg0: tensor<1x1x44x44xf16, {order = #NHWC}>) -> tensor<1x1x44x44xf16, {order = #NHWC}> {
+    %0 = IE.Expand(%arg0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 15, 0, 0]} : tensor<1x1x44x44xf16, {order = #NHWC}> -> tensor<1x16x44x44xf16, {order = #NHWC}>
+    %1 = IE.Add(%0, %0) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} : tensor<1x16x44x44xf16, {order = #NHWC}>, tensor<1x16x44x44xf16, {order = #NHWC}> -> tensor<1x16x44x44x!qElemType0, {order = #NHWC}>
+    %2 = IE.QuantizeCast(%1) {dstElemType = !qElemType1} : tensor<1x16x44x44x!qElemType0, {order = #NHWC}> -> tensor<1x16x44x44x!qElemType1, {order = #NHWC}>
+    %3 = IE.Add(%2, %2) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} : tensor<1x16x44x44x!qElemType1, {order = #NHWC}>, tensor<1x16x44x44x!qElemType1, {order = #NHWC}> -> tensor<1x16x44x44xf16, {order = #NHWC}>
+    %4 = IE.Slice %3 [0, 0, 0, 0] [1, 1, 44, 44] : tensor<1x16x44x44xf16, {order = #NHWC}> to tensor<1x1x44x44xf16, {order = #NHWC}>
+    return %4 : tensor<1x1x44x44xf16, {order = #NHWC}>
+
+
+    // CHECK-NOT:   IE.Expand
+    // CHECK-DAG:   [[CAST1:%.+]] = IE.ShapeCast {shape = [1, 16, 11, 11]} inputs(%arg0 : tensor<1x1x44x44xf16, {order = #NHWC}>) -> tensor<1x16x11x11xf16, {order = #NHWC}>
+    // CHECK-DAG:   [[ADD1:%.+]] = IE.Add([[CAST1]], [[CAST1]]) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} : tensor<1x16x11x11xf16, {order = #NHWC}>, tensor<1x16x11x11xf16, {order = #NHWC}> -> tensor<1x16x11x11x!qElemType0, {order = #NHWC}>
+    // CHECK-DAG:   [[QUANTIZE:%.+]] = IE.QuantizeCast([[ADD1]]) {dstElemType = !qElemType1} : tensor<1x16x11x11x!qElemType0, {order = #NHWC}> -> tensor<1x16x11x11x!qElemType1, {order = #NHWC}>
+    // CHECK:       [[ADD2:%.+]] = IE.Add([[QUANTIZE]], [[QUANTIZE]]) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} : tensor<1x16x11x11x!qElemType1, {order = #NHWC}>, tensor<1x16x11x11x!qElemType1, {order = #NHWC}> -> tensor<1x16x11x11xf16, {order = #NHWC}>
+    // CHECK:       [[CAST2:%.+]] = IE.ShapeCast {shape = [1, 1, 44, 44]} inputs([[ADD2]] : tensor<1x16x11x11xf16, {order = #NHWC}>) -> tensor<1x1x44x44xf16, {order = #NHWC}>
+    // CHECK:       [[EXPAND:%.+]] = IE.Expand([[CAST2]]) {pads_begin = [0, 0, 0, 0], pads_end = [0, 15, 0, 0]} : tensor<1x1x44x44xf16, {order = #NHWC}> -> tensor<1x16x44x44xf16, {order = #NHWC}>
+    // CHECK:       [[SLICE:%.+]] = IE.Slice [[EXPAND]] [0, 0, 0, 0] [1, 1, 44, 44] : tensor<1x16x44x44xf16, {order = #NHWC}> to tensor<1x1x44x44xf16, {order = #NHWC}>
+    // CHECK:       return [[SLICE]]
+}
+
+// -----
+
+// CHECK-LABEL: @AdjustAvgPoolingToShapeCastAvgPooling
+// CHECK-SAME:        [[INPUT:%arg[0-9]]]: tensor<1x1x1x2048xf16>
+func.func @AdjustAvgPoolingToShapeCastAvgPooling(%arg0: tensor<1x1x1x2048xf16>) -> tensor<1x1x1x2048xf16> {
+    %0 = IE.Expand(%arg0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 15, 0, 0]} : tensor<1x1x1x2048xf16> -> tensor<1x16x1x2048xf16>
+    %1 = IE.AvgPool(%0) {exclude_pads, kernel_size = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], post_op = #IE.PostOp<name = "IE.LeakyRelu", attrs = {negative_slope = 0.10000000149011612 : f64}>, rounding_type = #IE.rounding_type<FLOOR>, strides = [1, 1]} : tensor<1x16x1x2048xf16> -> tensor<1x16x1x2048xf16>
+    %2 = IE.Slice %1 [0, 0, 0, 0] [1, 1, 1, 2048] : tensor<1x16x1x2048xf16> to tensor<1x1x1x2048xf16>
+    return %2 : tensor<1x1x1x2048xf16>
+
+    // CHECK:   [[SHAPECAST0:%.+]] = IE.ShapeCast {shape = [1, 16, 16, 8]} inputs(%arg0 : tensor<1x1x1x2048xf16>) -> tensor<1x16x16x8xf16>
+    // CHECK:   [[POOLING:%.+]] = IE.AvgPool([[SHAPECAST0]])
+    // CHECK:   [[SHAPECAST0:%.+]] = IE.ShapeCast {shape = [1, 1, 1, 2048]} inputs([[POOLING]] : tensor<1x16x16x8xf16>) -> tensor<1x1x1x2048xf16>
+    // CHECK:   [[EXPAND:%.+]] = IE.Expand([[SHAPECAST0]]) {pads_begin = [0, 0, 0, 0], pads_end = [0, 15, 0, 0]} : tensor<1x1x1x2048xf16> -> tensor<1x16x1x2048xf16>
+    // CHECK:   [[SLICE:%.+]] = IE.Slice [[EXPAND]] [0, 0, 0, 0] [1, 1, 1, 2048] : tensor<1x16x1x2048xf16> to tensor<1x1x1x2048xf16>
+    // CHECK:       return [[SLICE]] : tensor<1x1x1x2048xf16>
+}
+
+// -----
+
+// CHECK-LABEL: @NotAdjustAvgPoolingWrongKernel
+// CHECK-SAME:        [[INPUT:%arg[0-9]]]: tensor<1x1x1x2048xf16>
+func.func @NotAdjustAvgPoolingWrongKernel(%arg0: tensor<1x1x1x2048xf16>) -> tensor<1x1x1x2047xf16> {
+    %0 = IE.Expand(%arg0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 15, 0, 0]} : tensor<1x1x1x2048xf16> -> tensor<1x16x1x2048xf16>
+    %1 = IE.AvgPool(%0) {exclude_pads, kernel_size = [1, 2], pads_begin = [0, 0], pads_end = [0, 0], post_op = #IE.PostOp<name = "IE.LeakyRelu", attrs = {negative_slope = 0.10000000149011612 : f64}>, rounding_type = #IE.rounding_type<FLOOR>, strides = [1, 1]} : tensor<1x16x1x2048xf16> -> tensor<1x16x1x2047xf16>
+    %2 = IE.Slice %1 [0, 0, 0, 0] [1, 1, 1, 2047] : tensor<1x16x1x2047xf16> to tensor<1x1x1x2047xf16>
+    return %2 : tensor<1x1x1x2047xf16>
+
+    // CHECK:   [[EXPAND:%.+]] = IE.Expand
+    // CHECK:   [[POOLING:%.+]] = IE.AvgPool
+    // CHECK:   [[SLICE:%.+]] = IE.Slice
+    // CHECK:       return [[SLICE]] : tensor<1x1x1x2047xf16>
+}
+
+
+// -----
+
+// CHECK-LABEL: @NotAdjustAvgPoolingWrongPad
+// CHECK-SAME:        [[INPUT:%arg[0-9]]]: tensor<1x1x1x2048xf16>
+func.func @NotAdjustAvgPoolingWrongPad(%arg0: tensor<1x1x1x2048xf16>) -> tensor<1x1x2x2049xf16> {
+    %0 = IE.Expand(%arg0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 15, 0, 0]} : tensor<1x1x1x2048xf16> -> tensor<1x16x1x2048xf16>
+    %1 = IE.AvgPool(%0) {exclude_pads, kernel_size = [1, 1], pads_begin = [1, 0], pads_end = [0, 1], post_op = #IE.PostOp<name = "IE.LeakyRelu", attrs = {negative_slope = 0.10000000149011612 : f64}>, rounding_type = #IE.rounding_type<FLOOR>, strides = [1, 1]} : tensor<1x16x1x2048xf16> -> tensor<1x16x2x2049xf16>
+    %2 = IE.Slice %1 [0, 0, 0, 0] [1, 1, 2, 2049] : tensor<1x16x2x2049xf16> to tensor<1x1x2x2049xf16>
+    return %2 : tensor<1x1x2x2049xf16>
+
+    // CHECK:   [[EXPAND:%.+]] = IE.Expand
+    // CHECK:   [[POOLING:%.+]] = IE.AvgPool
+    // CHECK:   [[SLICE:%.+]] = IE.Slice
+    // CHECK:       return [[SLICE]] : tensor<1x1x2x2049xf16>
+}
+
+
+// -----
+
+// CHECK-LABEL: @NotAdjustAvgPoolingWrongStride
+// CHECK-SAME:        [[INPUT:%arg[0-9]]]: tensor<1x1x1x2048xf16>
+func.func @NotAdjustAvgPoolingWrongStride(%arg0: tensor<1x1x1x2048xf16>) -> tensor<1x1x1x1024xf16> {
+    %0 = IE.Expand(%arg0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 15, 0, 0]} : tensor<1x1x1x2048xf16> -> tensor<1x16x1x2048xf16>
+    %1 = IE.AvgPool(%0) {exclude_pads, kernel_size = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], post_op = #IE.PostOp<name = "IE.LeakyRelu", attrs = {negative_slope = 0.10000000149011612 : f64}>, rounding_type = #IE.rounding_type<FLOOR>, strides = [1, 2]} : tensor<1x16x1x2048xf16> -> tensor<1x16x1x1024xf16>
+    %2 = IE.Slice %1 [0, 0, 0, 0] [1, 1, 1, 1024] : tensor<1x16x1x1024xf16> to tensor<1x1x1x1024xf16>
+    return %2 : tensor<1x1x1x1024xf16>
+
+    // CHECK:   [[EXPAND:%.+]] = IE.Expand
+    // CHECK:   [[POOLING:%.+]] = IE.AvgPool
+    // CHECK:   [[SLICE:%.+]] = IE.Slice
+    // CHECK:       return [[SLICE]] : tensor<1x1x1x1024xf16>
+}
+
+
+// -----
+
+// CHECK-LABEL: @AdjustMaxPoolingToShapeCastMaxPooling
+// CHECK-SAME:        [[INPUT:%arg[0-9]]]: tensor<1x1x1x2048xf16>
+func.func @AdjustMaxPoolingToShapeCastMaxPooling(%arg0: tensor<1x1x1x2048xf16>) -> tensor<1x1x1x2048xf16> {
+    %0 = IE.Expand(%arg0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 15, 0, 0]} : tensor<1x1x1x2048xf16> -> tensor<1x16x1x2048xf16>
+    %1 = IE.MaxPool(%0) {exclude_pads, kernel_size = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], post_op = #IE.PostOp<name = "IE.LeakyRelu", attrs = {negative_slope = 0.10000000149011612 : f64}>, rounding_type = #IE.rounding_type<FLOOR>, strides = [1, 1]} : tensor<1x16x1x2048xf16> -> tensor<1x16x1x2048xf16>
+    %2 = IE.Slice %1 [0, 0, 0, 0] [1, 1, 1, 2048] : tensor<1x16x1x2048xf16> to tensor<1x1x1x2048xf16>
+    return %2 : tensor<1x1x1x2048xf16>
+
+    // CHECK:   [[SHAPECAST0:%.+]] = IE.ShapeCast {shape = [1, 16, 16, 8]} inputs(%arg0 : tensor<1x1x1x2048xf16>) -> tensor<1x16x16x8xf16>
+    // CHECK:   [[POOLING:%.+]] = IE.MaxPool([[SHAPECAST0]])
+    // CHECK:   [[SHAPECAST0:%.+]] = IE.ShapeCast {shape = [1, 1, 1, 2048]} inputs([[POOLING]] : tensor<1x16x16x8xf16>) -> tensor<1x1x1x2048xf16>
+    // CHECK:   [[EXPAND:%.+]] = IE.Expand([[SHAPECAST0]]) {pads_begin = [0, 0, 0, 0], pads_end = [0, 15, 0, 0]} : tensor<1x1x1x2048xf16> -> tensor<1x16x1x2048xf16>
+    // CHECK:   [[SLICE:%.+]] = IE.Slice [[EXPAND]] [0, 0, 0, 0] [1, 1, 1, 2048] : tensor<1x16x1x2048xf16> to tensor<1x1x1x2048xf16>
+    // CHECK:       return [[SLICE]] : tensor<1x1x1x2048xf16>
+}
+
+
+// -----
+
+// CHECK-LABEL: @NotAdjustMaxPoolingWrongKernel
+// CHECK-SAME:        [[INPUT:%arg[0-9]]]: tensor<1x1x1x2048xf16>
+func.func @NotAdjustMaxPoolingWrongKernel(%arg0: tensor<1x1x1x2048xf16>) -> tensor<1x1x1x2047xf16> {
+    %0 = IE.Expand(%arg0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 15, 0, 0]} : tensor<1x1x1x2048xf16> -> tensor<1x16x1x2048xf16>
+    %1 = IE.MaxPool(%0) {exclude_pads, kernel_size = [1, 2], pads_begin = [0, 0], pads_end = [0, 0], post_op = #IE.PostOp<name = "IE.LeakyRelu", attrs = {negative_slope = 0.10000000149011612 : f64}>, rounding_type = #IE.rounding_type<FLOOR>, strides = [1, 1]} : tensor<1x16x1x2048xf16> -> tensor<1x16x1x2047xf16>
+    %2 = IE.Slice %1 [0, 0, 0, 0] [1, 1, 1, 2047] : tensor<1x16x1x2047xf16> to tensor<1x1x1x2047xf16>
+    return %2 : tensor<1x1x1x2047xf16>
+
+    // CHECK:   [[EXPAND:%.+]] = IE.Expand
+    // CHECK:   [[POOLING:%.+]] = IE.MaxPool
+    // CHECK:   [[SLICE:%.+]] = IE.Slice
+    // CHECK:       return [[SLICE]] : tensor<1x1x1x2047xf16>
+}
+
+
+// -----
+
+// CHECK-LABEL: @NotAdjustMaxPoolingWrongPad
+// CHECK-SAME:        [[INPUT:%arg[0-9]]]: tensor<1x1x1x2048xf16>
+func.func @NotAdjustMaxPoolingWrongPad(%arg0: tensor<1x1x1x2048xf16>) -> tensor<1x1x2x2049xf16> {
+    %0 = IE.Expand(%arg0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 15, 0, 0]} : tensor<1x1x1x2048xf16> -> tensor<1x16x1x2048xf16>
+    %1 = IE.MaxPool(%0) {exclude_pads, kernel_size = [1, 1], pads_begin = [1, 0], pads_end = [0, 1], post_op = #IE.PostOp<name = "IE.LeakyRelu", attrs = {negative_slope = 0.10000000149011612 : f64}>, rounding_type = #IE.rounding_type<FLOOR>, strides = [1, 1]} : tensor<1x16x1x2048xf16> -> tensor<1x16x2x2049xf16>
+    %2 = IE.Slice %1 [0, 0, 0, 0] [1, 1, 2, 2049] : tensor<1x16x2x2049xf16> to tensor<1x1x2x2049xf16>
+    return %2 : tensor<1x1x2x2049xf16>
+
+    // CHECK:   [[EXPAND:%.+]] = IE.Expand
+    // CHECK:   [[POOLING:%.+]] = IE.MaxPool
+    // CHECK:   [[SLICE:%.+]] = IE.Slice
+    // CHECK:       return [[SLICE]] : tensor<1x1x2x2049xf16>
+}
+
+
+// -----
+
+// CHECK-LABEL: @NotAdjustMaxPoolingWrongStride
+// CHECK-SAME:        [[INPUT:%arg[0-9]]]: tensor<1x1x1x2048xf16>
+func.func @NotAdjustMaxPoolingWrongStride(%arg0: tensor<1x1x1x2048xf16>) -> tensor<1x1x1x1024xf16> {
+    %0 = IE.Expand(%arg0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 15, 0, 0]} : tensor<1x1x1x2048xf16> -> tensor<1x16x1x2048xf16>
+    %1 = IE.MaxPool(%0) {exclude_pads, kernel_size = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], post_op = #IE.PostOp<name = "IE.LeakyRelu", attrs = {negative_slope = 0.10000000149011612 : f64}>, rounding_type = #IE.rounding_type<FLOOR>, strides = [1, 2]} : tensor<1x16x1x2048xf16> -> tensor<1x16x1x1024xf16>
+    %2 = IE.Slice %1 [0, 0, 0, 0] [1, 1, 1, 1024] : tensor<1x16x1x1024xf16> to tensor<1x1x1x1024xf16>
+    return %2 : tensor<1x1x1x1024xf16>
+
+    // CHECK:   [[EXPAND:%.+]] = IE.Expand
+    // CHECK:   [[POOLING:%.+]] = IE.MaxPool
+    // CHECK:   [[SLICE:%.+]] = IE.Slice
+    // CHECK:       return [[SLICE]] : tensor<1x1x1x1024xf16>
+}
+
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+// CHECK-LABEL: @NotAdjustMaxPoolingDifferentLayout
+// CHECK-SAME:        [[INPUT:%arg[0-9]]]: tensor<1x3x8x8xf16, {order = #NHWC}>
+func.func @NotAdjustMaxPoolingDifferentLayout(%arg0: tensor<1x3x8x8xf16, {order = #NHWC}>) -> tensor<1x3x8x8xf16> {
+    %0 = IE.Expand(%arg0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 13, 0, 0]} : tensor<1x3x8x8xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>}> -> tensor<1x16x8x8xf16, {order = #NHWC}>
+    %1 = IE.MaxPool(%0) {exclude_pads, kernel_size = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], post_op = #IE.PostOp<name = "IE.LeakyRelu", attrs = {negative_slope = 0.10000000149011612 : f64}>, rounding_type = #IE.rounding_type<FLOOR>, strides = [1, 1]} : tensor<1x16x8x8xf16, {order = #NHWC}> -> tensor<1x16x8x8xf16>
+    %2 = IE.Slice %1 [0, 0, 0, 0] [1, 3, 8, 8] : tensor<1x16x8x8xf16> to tensor<1x3x8x8xf16>
+    return %2 : tensor<1x3x8x8xf16>
+
+    // CHECK:   [[EXPAND:%.+]] = IE.Expand
+    // CHECK:   [[POOLING:%.+]] = IE.MaxPool
+    // CHECK:   [[SLICE:%.+]] = IE.Slice
+    // CHECK:       return [[SLICE]] : tensor<1x3x8x8xf16>
+}
+
+// -----
+
+// CHECK-LABEL: @NotAdjustNonEltwiseGroupConv
+// CHECK-SAME:        [[INPUT:%arg[0-9]]]: tensor<1x3x32x32xf16>
+func.func @NotAdjustNonEltwiseGroupConv(%arg0: tensor<1x3x32x32xf16>) -> tensor<1x16x16x32xf16> {
+    %filters = const.Declare tensor<16x1x1x1xf32> = dense<1.0> : tensor<1x1x1x1xf32>, [#const.Broadcast<0 : i64, 16 : i64>]
+    %bias = const.Declare tensor<1x16x1x1xf32> = dense<0.0> : tensor<1x1x1x1xf32>, [#const.Broadcast<1 : i64, 16 : i64>]
+    %0 = IE.Expand(%arg0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 13, 0, 0]} : tensor<1x3x32x32xf16> -> tensor<1x16x32x32xf16>
+    %2 = IE.GroupConvolution(%0, %filters, %bias) {dilations = [1, 1], groups = 16 : i64, pads_begin = [0, 0], pads_end = [0, 0], strides = [2, 1]} : tensor<1x16x32x32xf16>, tensor<16x1x1x1xf32>, tensor<1x16x1x1xf32> -> tensor<1x16x16x32xf16>
+    return %2 : tensor<1x16x16x32xf16>
+
+    // CHECK-DAG:   [[FILTER:%.+]] = const.Declare tensor<16x1x1x1xf32> = dense<1.000000e+00> : tensor<1x1x1x1xf32>, [#const.Broadcast<0 : i64, 16 : i64>]
+    // CHECK-DAG:   [[BIAS:%.+]] = const.Declare tensor<1x16x1x1xf32> = dense<0.000000e+00> : tensor<1x1x1x1xf32>, [#const.Broadcast<1 : i64, 16 : i64>]
+    // CHECK:       [[EXPAND:%.+]] = IE.Expand(%arg0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 13, 0, 0]} : tensor<1x3x32x32xf16> -> tensor<1x16x32x32xf16>
+    // CHECK:       [[GROUP_CONV:%.+]] = IE.GroupConvolution([[EXPAND]], [[FILTER]], [[BIAS]]) {
+    // CHECK-SAME:      dilations = [1, 1],
+    // CHECK-SAME:      groups = 16 : i64, pads_begin = [0, 0],
+    // CHECK-SAME:      pads_end = [0, 0], strides = [2, 1]
+    // CHECK-SAME:      } : tensor<1x16x32x32xf16>, tensor<16x1x1x1xf32>, tensor<1x16x1x1xf32>
+    // CHECK-SAME:          -> tensor<1x16x16x32xf16>
+
+    // CHECK:       return [[GROUP_CONV]] : tensor<1x16x16x32xf16>
+}

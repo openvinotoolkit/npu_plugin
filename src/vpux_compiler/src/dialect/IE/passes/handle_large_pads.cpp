@@ -37,14 +37,15 @@ mlir::Value getZerosConst(mlir::PatternRewriter& rewriter, const mlir::Value inp
     VPUX_THROW_UNLESS(denseElementVal != nullptr,
                       "input has incompatible data type {0}, only float16 or float32 are supported", elemType);
 
-    return rewriter.create<Const::DeclareOp>(loc, dataStorageType, Const::ContentAttr::get(denseElementVal)).output();
+    return rewriter.create<Const::DeclareOp>(loc, dataStorageType, Const::ContentAttr::get(denseElementVal))
+            .getOutput();
 }
 
 // The function will move the padding from layer parameter to its input
 // for example, top pad is 5, but what HW can support is 2, we will update the layer's
 // top pad to 2, and concat the input with 3 lines zero constant.
 std::tuple<mlir::Value, Shape, Shape> getInputConcatAndPadding(mlir::PatternRewriter& rewriter, mlir::Operation* origOp,
-                                                               Shape padStart, Shape padEnd,
+                                                               ShapeRef padStart, ShapeRef padEnd,
                                                                ArrayRef<int64_t> kernelShape) {
     const auto KY = kernelShape[Dims4D::Kernel::Y.ind()];
     const auto KX = kernelShape[Dims4D::Kernel::X.ind()];
@@ -52,8 +53,8 @@ std::tuple<mlir::Value, Shape, Shape> getInputConcatAndPadding(mlir::PatternRewr
     const auto padLeft = padStart[Dims4D::PadsBegin::Left];
     const auto padBottom = padEnd[Dims4D::PadsEnd::Bottom];
     const auto padRight = padEnd[Dims4D::PadsEnd::Right];
-    auto newPadStart = padStart;
-    auto newPadEnd = padEnd;
+    auto newPadStart = Shape(padStart.raw());
+    auto newPadEnd = Shape(padEnd.raw());
     auto input = origOp->getOperand(0);
     const auto inputShape = getShape(input);
     Shape zeroConstShape(inputShape.size());

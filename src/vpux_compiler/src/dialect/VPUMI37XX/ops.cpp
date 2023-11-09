@@ -9,24 +9,8 @@
 using namespace vpux;
 
 //
-// initialize
-//
-
-void vpux::VPUMI37XX::VPUMI37XXDialect::initialize() {
-    addOperations<
-#define GET_OP_LIST
-#include <vpux/compiler/dialect/VPUMI37XX/generated/ops.cpp.inc>
-            >();
-
-    registerTypes();
-    registerAttributes();
-}
-
-//
 // Generated
 //
 
-#include <vpux/compiler/dialect/VPUMI37XX/generated/dialect.cpp.inc>
-
 #define GET_OP_CLASSES
-#include <vpux/compiler/dialect/VPUMI37XX/generated/ops.cpp.inc>
+#include <vpux/compiler/dialect/VPUMI37XX/ops.cpp.inc>

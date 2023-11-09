@@ -1,17 +1,19 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include <ngraph/opsets/opset3.hpp>
 #include <vector>
 
-#include "kmb_layer_test.hpp"
 #include "single_layer_tests/depth_to_space.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
-class VPUXDepthToSpaceLayerTest : public DepthToSpaceLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXDepthToSpaceLayerTest :
+        public DepthToSpaceLayerTest,
+        virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 class VPUXDepthToSpaceLayerTest_VPU3700 : public VPUXDepthToSpaceLayerTest {};
 class VPUXDepthToSpaceLayerTest_VPU3720 : public VPUXDepthToSpaceLayerTest {};
 
@@ -35,7 +37,7 @@ using namespace ngraph::opset3;
 namespace {
 const std::vector<InferenceEngine::Precision> inputPrecisions = {
         InferenceEngine::Precision::FP32, InferenceEngine::Precision::U8,
-        InferenceEngine::Precision::FP16,  // CPU-plugin has parameter I16, but KMB does not
+        InferenceEngine::Precision::FP16,  // CPU-plugin has parameter I16, but VPU3700 does not
 };                                         // support it. So I16 is changed to FP16.
 
 const std::vector<DepthToSpace::DepthToSpaceMode> modes = {DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
@@ -50,7 +52,7 @@ const std::vector<std::vector<size_t>> inputShapesBS2 = {
 
 const auto DepthToSpaceBS2 = ::testing::Combine(
         ::testing::ValuesIn(inputShapesBS2), ::testing::ValuesIn(inputPrecisions), ::testing::ValuesIn(modes),
-        ::testing::Values(2), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        ::testing::Values(2), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_DepthToSpaceBS2, VPUXDepthToSpaceLayerTest_VPU3700, DepthToSpaceBS2,
                          VPUXDepthToSpaceLayerTest_VPU3700::getTestCaseName);
@@ -64,22 +66,30 @@ const std::vector<std::vector<size_t>> inputShapesBS3 = {
 
 const auto DepthToSpaceBS3 = ::testing::Combine(
         ::testing::ValuesIn(inputShapesBS3), ::testing::ValuesIn(inputPrecisions), ::testing::ValuesIn(modes),
-        ::testing::Values(3), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        ::testing::Values(3), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_DepthToSpaceBS3, VPUXDepthToSpaceLayerTest_VPU3700, DepthToSpaceBS3,
                          VPUXDepthToSpaceLayerTest_VPU3700::getTestCaseName);
 
-const auto DepthToSpaceBS2_PRECOMMIT = ::testing::Combine(
-        ::testing::Values(std::vector<size_t>{1, 4, 3, 3}), ::testing::ValuesIn(inputPrecisions),
-        ::testing::ValuesIn(modes), ::testing::Values(2), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+const auto DepthToSpaceBS2_PRECOMMIT =
+        ::testing::Combine(::testing::Values(std::vector<size_t>{1, 4, 3, 3}), ::testing::ValuesIn(inputPrecisions),
+                           ::testing::ValuesIn(modes), ::testing::Values(2),
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-const auto DepthToSpaceBS3_PRECOMMIT = ::testing::Combine(
-        ::testing::Values(std::vector<size_t>{1, 9, 3, 3}), ::testing::ValuesIn(inputPrecisions),
-        ::testing::ValuesIn(modes), ::testing::Values(3), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+const auto DepthToSpaceBS3_PRECOMMIT =
+        ::testing::Combine(::testing::Values(std::vector<size_t>{1, 9, 3, 3}), ::testing::ValuesIn(inputPrecisions),
+                           ::testing::ValuesIn(modes), ::testing::Values(3),
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-const auto smoke_DepthToSpaceBS4_with_tiling = ::testing::Combine(
-        ::testing::Values(std::vector<size_t>{1, 48, 80, 80}), ::testing::Values(InferenceEngine::Precision::FP16),
-        ::testing::ValuesIn(modes), ::testing::Values(4), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+const auto smoke_DepthToSpaceBS4_with_tiling =
+        ::testing::Combine(::testing::Values(std::vector<size_t>{1, 48, 80, 80}),
+                           ::testing::Values(InferenceEngine::Precision::FP16), ::testing::ValuesIn(modes),
+                           ::testing::Values(4), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
+
+const auto DepthToSpaceBS5_with_large_height =
+        ::testing::Combine(::testing::Values(std::vector<size_t>{1, 4, 300, 3}), ::testing::ValuesIn(inputPrecisions),
+                           ::testing::ValuesIn(modes), ::testing::Values(2),
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 /* ============= VPU 3720 ============= */
 
@@ -91,5 +101,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_precommit_DepthToSpaceBS3_VPU3720, VPUXDepthToSpa
 
 INSTANTIATE_TEST_SUITE_P(smoke_DepthToSpace_with_tiling_VPU3720, VPUXDepthToSpaceLayerTest_VPU3720,
                          smoke_DepthToSpaceBS4_with_tiling, VPUXDepthToSpaceLayerTest_VPU3720::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_DepthToSpace_with_large_height_VPU3720, VPUXDepthToSpaceLayerTest_VPU3720,
+                         DepthToSpaceBS5_with_large_height, VPUXDepthToSpaceLayerTest_VPU3720::getTestCaseName);
 
 }  // namespace

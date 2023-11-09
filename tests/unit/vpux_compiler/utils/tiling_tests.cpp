@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <gtest/gtest.h>
 #include "vpux/compiler/core/tiling.hpp"
 
@@ -84,6 +82,7 @@ TEST_F(MLIR_TilingTest_FillDividedTiles, NoAlignmentSingleAxisTiling) {
     Shape shape({1, 8, 8, 17});
     Shape divisor({1, 1, 1, 4});
     const auto dividedTiles = fillDividedTiles(divisor, shape, None);
+    ASSERT_NE(mlir::failed(dividedTiles), true);
 
     const auto expectedTiles =
             SmallVector<TileInfo>({TileInfo{Shape({1, 8, 8, 5}), Shape({0, 0, 0, 0}), Shape({1, 1, 1, 4})},
@@ -91,7 +90,7 @@ TEST_F(MLIR_TilingTest_FillDividedTiles, NoAlignmentSingleAxisTiling) {
                                    TileInfo{Shape({1, 8, 8, 4}), Shape({0, 0, 0, 9}), Shape({1, 1, 1, 4})},
                                    TileInfo{Shape({1, 8, 8, 4}), Shape({0, 0, 0, 13}), Shape({1, 1, 1, 4})}});
 
-    for (auto tileInfo : zip(dividedTiles, expectedTiles)) {
+    for (auto tileInfo : zip(dividedTiles.value(), expectedTiles)) {
         EXPECT_EQ(std::get<0>(tileInfo), std::get<1>(tileInfo));
     }
 }
@@ -100,6 +99,8 @@ TEST_F(MLIR_TilingTest_FillDividedTiles, NoAlignmentMultiAxisTiling) {
     Shape shape({1, 8, 8, 17});
     Shape divisor({1, 2, 3, 2});
     const auto dividedTiles = fillDividedTiles(divisor, shape, None);
+    ASSERT_NE(mlir::failed(dividedTiles), true);
+
     const auto expectedTiles =
             SmallVector<TileInfo>({TileInfo{Shape({1, 4, 3, 9}), Shape({0, 0, 0, 0}), Shape({1, 2, 3, 2})},
                                    TileInfo{Shape({1, 4, 3, 8}), Shape({0, 0, 0, 9}), Shape({1, 2, 3, 2})},
@@ -114,7 +115,7 @@ TEST_F(MLIR_TilingTest_FillDividedTiles, NoAlignmentMultiAxisTiling) {
                                    TileInfo{Shape({1, 4, 2, 9}), Shape({0, 4, 6, 0}), Shape({1, 2, 3, 2})},
                                    TileInfo{Shape({1, 4, 2, 8}), Shape({0, 4, 6, 9}), Shape({1, 2, 3, 2})}});
 
-    for (auto tileInfo : zip(dividedTiles, expectedTiles)) {
+    for (auto tileInfo : zip(dividedTiles.value(), expectedTiles)) {
         EXPECT_EQ(std::get<0>(tileInfo), std::get<1>(tileInfo));
     }
 }
@@ -125,6 +126,8 @@ TEST_F(MLIR_TilingTest_FillDividedTiles, DummyAlignmentMultiAxisTiling) {
     auto alignment = SmallVector<int64_t>({1, 1, 1, 1});
     auto optionalAlignment = Optional<ArrayRef<int64_t>>(makeArrayRef(alignment));
     const auto dividedTiles = fillDividedTiles(divisor, shape, optionalAlignment);
+    ASSERT_NE(mlir::failed(dividedTiles), true);
+
     const auto expectedTiles =
             SmallVector<TileInfo>({TileInfo{Shape({1, 4, 3, 9}), Shape({0, 0, 0, 0}), Shape({1, 2, 3, 2})},
                                    TileInfo{Shape({1, 4, 3, 8}), Shape({0, 0, 0, 9}), Shape({1, 2, 3, 2})},
@@ -139,7 +142,7 @@ TEST_F(MLIR_TilingTest_FillDividedTiles, DummyAlignmentMultiAxisTiling) {
                                    TileInfo{Shape({1, 4, 2, 9}), Shape({0, 4, 6, 0}), Shape({1, 2, 3, 2})},
                                    TileInfo{Shape({1, 4, 2, 8}), Shape({0, 4, 6, 9}), Shape({1, 2, 3, 2})}});
 
-    for (auto tileInfo : zip(dividedTiles, expectedTiles)) {
+    for (auto tileInfo : zip(dividedTiles.value(), expectedTiles)) {
         EXPECT_EQ(std::get<0>(tileInfo), std::get<1>(tileInfo));
     }
 }
@@ -150,6 +153,7 @@ TEST_F(MLIR_TilingTest_FillDividedTiles, SingleAlignmentSingleAxisTiling) {
     auto alignment = SmallVector<int64_t>({1, 1, 1, 5});
     auto optionalAlignment = Optional<ArrayRef<int64_t>>(makeArrayRef(alignment));
     const auto dividedTiles = fillDividedTiles(divisor, shape, optionalAlignment);
+    ASSERT_NE(mlir::failed(dividedTiles), true);
 
     const auto expectedTiles =
             SmallVector<TileInfo>({TileInfo{Shape({1, 8, 8, 5}), Shape({0, 0, 0, 0}), Shape({1, 1, 1, 4})},
@@ -157,7 +161,7 @@ TEST_F(MLIR_TilingTest_FillDividedTiles, SingleAlignmentSingleAxisTiling) {
                                    TileInfo{Shape({1, 8, 8, 5}), Shape({0, 0, 0, 10}), Shape({1, 1, 1, 4})},
                                    TileInfo{Shape({1, 8, 8, 2}), Shape({0, 0, 0, 15}), Shape({1, 1, 1, 4})}});
 
-    for (auto tileInfo : zip(dividedTiles, expectedTiles)) {
+    for (auto tileInfo : zip(dividedTiles.value(), expectedTiles)) {
         EXPECT_EQ(std::get<0>(tileInfo), std::get<1>(tileInfo));
     }
 }
@@ -168,6 +172,7 @@ TEST_F(MLIR_TilingTest_FillDividedTiles, SingleAlignmentMultiAxisTiling) {
     auto alignment = SmallVector<int64_t>({1, 1, 1, 5});
     auto optionalAlignment = Optional<ArrayRef<int64_t>>(makeArrayRef(alignment));
     const auto dividedTiles = fillDividedTiles(divisor, shape, optionalAlignment);
+    ASSERT_NE(mlir::failed(dividedTiles), true);
 
     const auto expectedTiles =
             SmallVector<TileInfo>({TileInfo{Shape({1, 4, 3, 5}), Shape({0, 0, 0, 0}), Shape({1, 2, 3, 4})},
@@ -195,7 +200,7 @@ TEST_F(MLIR_TilingTest_FillDividedTiles, SingleAlignmentMultiAxisTiling) {
                                    TileInfo{Shape({1, 4, 2, 5}), Shape({0, 4, 6, 10}), Shape({1, 2, 3, 4})},
                                    TileInfo{Shape({1, 4, 2, 2}), Shape({0, 4, 6, 15}), Shape({1, 2, 3, 4})}});
 
-    for (auto tileInfo : zip(dividedTiles, expectedTiles)) {
+    for (auto tileInfo : zip(dividedTiles.value(), expectedTiles)) {
         EXPECT_EQ(std::get<0>(tileInfo), std::get<1>(tileInfo));
     }
 }
@@ -206,6 +211,7 @@ TEST_F(MLIR_TilingTest_FillDividedTiles, MultiAlignmentMultiAxisTiling) {
     auto alignment = SmallVector<int64_t>({1, 6, 1, 5});
     auto optionalAlignment = Optional<ArrayRef<int64_t>>(makeArrayRef(alignment));
     const auto dividedTiles = fillDividedTiles(divisor, shape, optionalAlignment);
+    ASSERT_NE(mlir::failed(dividedTiles), true);
 
     const auto expectedTiles =
             SmallVector<TileInfo>({TileInfo{Shape({1, 6, 3, 5}), Shape({0, 0, 0, 0}), Shape({1, 2, 3, 4})},
@@ -233,7 +239,7 @@ TEST_F(MLIR_TilingTest_FillDividedTiles, MultiAlignmentMultiAxisTiling) {
                                    TileInfo{Shape({1, 2, 2, 5}), Shape({0, 6, 6, 10}), Shape({1, 2, 3, 4})},
                                    TileInfo{Shape({1, 2, 2, 2}), Shape({0, 6, 6, 15}), Shape({1, 2, 3, 4})}});
 
-    for (auto tileInfo : zip(dividedTiles, expectedTiles)) {
+    for (auto tileInfo : zip(dividedTiles.value(), expectedTiles)) {
         EXPECT_EQ(std::get<0>(tileInfo), std::get<1>(tileInfo));
     }
 }
@@ -242,6 +248,7 @@ TEST_F(MLIR_TilingTest_FillDividedTiles, NoAlignmentSingleAxisTiling5D) {
     Shape shape({1, 1, 8, 8, 17});
     Shape divisor({1, 1, 1, 1, 4});
     const auto dividedTiles = fillDividedTiles(divisor, shape, None);
+    ASSERT_NE(mlir::failed(dividedTiles), true);
 
     const auto expectedTiles =
             SmallVector<TileInfo>({TileInfo{Shape({1, 1, 8, 8, 5}), Shape({0, 0, 0, 0, 0}), Shape({1, 1, 1, 1, 4})},
@@ -249,7 +256,16 @@ TEST_F(MLIR_TilingTest_FillDividedTiles, NoAlignmentSingleAxisTiling5D) {
                                    TileInfo{Shape({1, 1, 8, 8, 4}), Shape({0, 0, 0, 0, 9}), Shape({1, 1, 1, 1, 4})},
                                    TileInfo{Shape({1, 1, 8, 8, 4}), Shape({0, 0, 0, 0, 13}), Shape({1, 1, 1, 1, 4})}});
 
-    for (auto tileInfo : zip(dividedTiles, expectedTiles)) {
+    for (auto tileInfo : zip(dividedTiles.value(), expectedTiles)) {
         EXPECT_EQ(std::get<0>(tileInfo), std::get<1>(tileInfo));
     }
+}
+
+TEST_F(MLIR_TilingTest_FillDividedTiles, InValidTiling) {
+    Shape shape({1, 320, 8, 8});
+    Shape divisor({1, 6, 1, 1});
+    auto alignment = SmallVector<int64_t>({1, 16, 1, 1});
+    auto optionalAlignment = Optional<ArrayRef<int64_t>>(makeArrayRef(alignment));
+    const auto dividedTiles = fillDividedTiles(divisor, shape, optionalAlignment);
+    EXPECT_EQ(mlir::failed(dividedTiles), true);
 }

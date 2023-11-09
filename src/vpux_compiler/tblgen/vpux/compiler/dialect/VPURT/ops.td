@@ -77,7 +77,7 @@ def VPURT_DeclareBufferOp :
     let summary = "Declare VPU run-time buffer";
 
     let arguments = (ins
-        VPURT_BufferSection:$section,
+        VPURT_BufferSectionAttr:$section,
         OptionalAttr<I64ArrayAttr>:$sectionIndex,
         IntAttr:$byteOffset,
         OptionalAttr<IntAttr>:$swizzlingKey
@@ -170,7 +170,7 @@ def VPURT_ConfigureBarrierOp :
         }
 
         bool printAttributes(llvm::raw_ostream& os) {
-            os << "id: " << id();
+            os << "id: " << getId();
             return true;
         }
     }];

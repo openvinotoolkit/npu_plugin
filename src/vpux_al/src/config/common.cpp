@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -19,6 +19,7 @@ void vpux::registerCommonOptions(OptionsDesc& desc) {
     desc.add<LOG_LEVEL>();
     desc.add<PLATFORM>();
     desc.add<DEVICE_ID>();
+    desc.add<CACHE_DIR>();
 }
 
 //
@@ -86,44 +87,25 @@ StringLiteral InferenceEngine::VPUXConfigParams::stringifyEnum(VPUXPlatform val)
     switch (val) {
     case VPUXPlatform::AUTO_DETECT:
         return "AUTO_DETECT";
-    case VPUXPlatform::VPU3400_A0:
-        return "VPU3400_A0";
-    case VPUXPlatform::VPU3400:
-        return "VPU3400";
-    case VPUXPlatform::VPU3700:
-        return "VPU3700";
-    case VPUXPlatform::VPU3800:
-        return "VPU3800";
-    case VPUXPlatform::VPU3900:
-        return "VPU3900";
-    case VPUXPlatform::VPU3720:
-        return "VPU3720";
     case VPUXPlatform::EMULATOR:
         return "EMULATOR";
+    case VPUXPlatform::VPU3700:
+        return "VPU3700";
+    case VPUXPlatform::VPU3720:
+        return "VPU3720";
     default:
         return "<UNKNOWN>";
     }
 }
 
 InferenceEngine::VPUXConfigParams::VPUXPlatform vpux::PLATFORM::parse(StringRef val) {
-    // TODO: Remove deprecated platform names with VPU prefix in future releases
-
     if (val == "AUTO_DETECT") {
         return ov::intel_vpux::cvtVPUXPlatform(ov::intel_vpux::VPUXPlatform::AUTO_DETECT);
-    } else if (val == "3400_A0" || val == "VPU3400_A0") {
-        return ov::intel_vpux::cvtVPUXPlatform(ov::intel_vpux::VPUXPlatform::VPU3400_A0);
-    } else if (val == "3400" || val == "VPU3400") {
-        return ov::intel_vpux::cvtVPUXPlatform(ov::intel_vpux::VPUXPlatform::VPU3400);
-    } else if (val == "3700" || val == "VPU3700") {
+    } else if (val == "3700" || val == "VPU3700" || val == "NPU3700") {
         return ov::intel_vpux::cvtVPUXPlatform(ov::intel_vpux::VPUXPlatform::VPU3700);
-    } else if (val == "3800" || val == "VPU3800") {
-        return ov::intel_vpux::cvtVPUXPlatform(ov::intel_vpux::VPUXPlatform::VPU3800);
-    } else if (val == "3900" || val == "VPU3900") {
-        return ov::intel_vpux::cvtVPUXPlatform(ov::intel_vpux::VPUXPlatform::VPU3900);
-    } else if (val == "3720" || val == "VPU3720") {
+    } else if (val == "3720" || val == "VPU3720" || val == "NPU3720") {
         return ov::intel_vpux::cvtVPUXPlatform(ov::intel_vpux::VPUXPlatform::VPU3720);
-    } else if (val == "3400_A0_EMU" || val == "3400_EMU" || val == "3700_EMU" || val == "3800_EMU" ||
-               val == "3900_EMU" || val == "3720_EMU") {
+    } else if (val == "3700_EMU" || val == "3720_EMU") {
         return ov::intel_vpux::cvtVPUXPlatform(ov::intel_vpux::VPUXPlatform::EMULATOR);
     }
 

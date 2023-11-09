@@ -21,5 +21,5 @@
 //
 
 #define GET_TYPEDEF_CLASSES
-#include <vpux/compiler/dialect/VPUIP/generated/types.hpp.inc>
+#include <vpux/compiler/dialect/VPUIP/types.hpp.inc>
 #undef GET_TYPEDEF_CLASSES

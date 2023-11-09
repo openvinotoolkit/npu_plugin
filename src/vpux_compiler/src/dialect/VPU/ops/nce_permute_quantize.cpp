@@ -10,6 +10,7 @@
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/distributed_tensor_utils.hpp"
 #include "vpux/compiler/dialect/VPU/utils/generate_tiling.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -40,10 +41,10 @@ bool checkQuantization(const mlir::Type outputType) {
 }
 
 std::vector<int64_t> expandShape(const ShapeRef shape, const VPU::PaddingAttr pads) {
-    const auto& top = pads.top().getInt();
-    const auto& bottom = pads.bottom().getInt();
-    const auto& left = pads.left().getInt();
-    const auto& right = pads.right().getInt();
+    const auto& top = pads.getTop().getInt();
+    const auto& bottom = pads.getBottom().getInt();
+    const auto& left = pads.getLeft().getInt();
+    const auto& right = pads.getRight().getInt();
 
     const std::vector<int64_t> targetShape = {shape[Dims4D::Act::N], shape[Dims4D::Act::C],
                                               shape[Dims4D::Act::H] + top + bottom,
@@ -248,15 +249,6 @@ mlir::LogicalResult vpux::VPU::NCEPermuteQuantizeOp::inferReturnTypes(
 }
 
 //
-// LayoutInfoOpInterface
-//
-
-void vpux::VPU::NCEPermuteQuantizeOp::inferLayoutInfo(IE::LayerLayoutInfo& info) {
-    info.setInput(0, DimsOrder::NHWC);
-    info.setOutput(0, DimsOrder::NWCH);
-}
-
-//
 // TilingBuilderOpInterface
 //
 
@@ -264,8 +256,8 @@ vpux::InputTiling vpux::VPU::NCEPermuteQuantizeOp::backInferTileInfo(const vpux:
                                                                      vpux::Logger log) {
     const auto origInputShape = getShape(input());
     const auto origPadding = toPadInfo(pad());
-    const auto kernelSize = getIntArrayAttr(getContext(), getKernelSize());
-    const auto strides = getIntArrayAttr(getContext(), getStrides());
+    const auto kernelSize = getIntArrayAttr(getContext(), getKernelSizeVal());
+    const auto strides = getIntArrayAttr(getContext(), getStridesVal());
 
     // backInferPoolTile satisfies NCEPermuteQuantizeOp demands, let's use it instead of some dedicated tiling.
     auto inputTiling = vpux::backInferPoolTile(outputTile, origInputShape, kernelSize, strides, origPadding);
@@ -280,7 +272,7 @@ void vpux::VPU::NCEPermuteQuantizeOp::adjustAttrs(const TilingInfo& inputTiling,
     VPU::adjustPaddings(this, inputTiling);
 }
 
-OutputTiling vpux::VPU::NCEPermuteQuantizeOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
+mlir::FailureOr<OutputTiling> vpux::VPU::NCEPermuteQuantizeOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
     return vpux::getHWLayerTilingStrategy(this->getOperation(), tilingMode, log);
 }
 
@@ -288,22 +280,52 @@ OutputTiling vpux::VPU::NCEPermuteQuantizeOp::getTilingStrategy(TilingMode tilin
 // NCEOpInterface
 //
 
-SmallVector<int64_t> vpux::VPU::NCEPermuteQuantizeOp::getKernelSize() {
+SmallVector<int64_t> vpux::VPU::NCEPermuteQuantizeOp::getKernelSizeVal() {
     return {1, 1};
 }
 
-SmallVector<int64_t> vpux::VPU::NCEPermuteQuantizeOp::getStrides() {
+SmallVector<int64_t> vpux::VPU::NCEPermuteQuantizeOp::getStridesVal() {
     return {1, 1};
-}
-
-vpux::VPU::PaddingAttr vpux::VPU::NCEPermuteQuantizeOp::getPad() {
-    return padAttr();
 }
 
 bool vpux::VPU::NCEPermuteQuantizeOp::checkStrategyCompatibility(VPU::MultiClusterStrategy strategy) {
     return strategy == VPU::MultiClusterStrategy::Clustering || strategy == VPU::MultiClusterStrategy::SplitOverWidth ||
            strategy == VPU::MultiClusterStrategy::SplitOverHeight ||
            strategy == VPU::MultiClusterStrategy::SplitOverHeightOverlapped;
+}
+
+vpux::VPU::DistributedTensorAttr vpux::VPU::NCEPermuteQuantizeOp::getExplicitDistributedTensorAttr(
+        vpux::ShapeRef shape, vpux::VPU::DistributionMode distributionMode, mlir::ArrayAttr numTiles,
+        mlir::IntegerAttr numClusters, mlir::ArrayAttr alignment, mlir::ArrayAttr kernel, vpux::VPU::PaddingAttr pad,
+        mlir::ArrayAttr stride, mlir::UnitAttr uniformDistributedSegments) {
+    const auto actTensorDistrModeAttr = DistributionModeAttr::get(getContext(), distributionMode);
+    DistributedTensorAttr distributedActivationTensorAttr = DistributedTensorAttr::get(
+            getContext(), actTensorDistrModeAttr, numTiles, kernel, pad, stride, numClusters, alignment,
+            uniformDistributedSegments, nullptr, nullptr, nullptr, nullptr, nullptr);
+
+    auto perClusterMemoryShapes = vpux::getIntArrayOfArray(
+            getContext(), VPU::getPerClusterMemoryShapes(shape, distributedActivationTensorAttr));
+    auto perClusterMemoryOffsets = vpux::getIntArrayOfArray(
+            getContext(), VPU::getPerClusterMemoryShapeOffsets(shape, distributedActivationTensorAttr));
+
+    // Unlike other NCE ops, PermuteQuantize needs to compute the overlap section in both neighbouring clusters
+    // when it has overlapped distribution mode for the op to produce the correct output.
+    if (distributionMode == DistributionMode::OVERLAPPED) {
+        return vpux::VPU::DistributedTensorAttr::get(getContext(), actTensorDistrModeAttr, numTiles, nullptr, nullptr,
+                                                     nullptr, numClusters, alignment, uniformDistributedSegments,
+                                                     perClusterMemoryShapes, perClusterMemoryOffsets,
+                                                     perClusterMemoryShapes, perClusterMemoryOffsets, nullptr);
+    }
+
+    auto perClusterComputeShapes = vpux::getIntArrayOfArray(
+            getContext(), VPU::getPerClusterComputeShapes(shape, distributedActivationTensorAttr));
+    auto perClusterComputeOffsets = vpux::getIntArrayOfArray(
+            getContext(), VPU::getPerClusterComputeShapeOffsets(shape, distributedActivationTensorAttr));
+
+    return vpux::VPU::DistributedTensorAttr::get(getContext(), actTensorDistrModeAttr, numTiles, nullptr, nullptr,
+                                                 nullptr, numClusters, alignment, uniformDistributedSegments,
+                                                 perClusterComputeShapes, perClusterComputeOffsets,
+                                                 perClusterMemoryShapes, perClusterMemoryOffsets, nullptr);
 }
 
 mlir::LogicalResult vpux::VPU::NCEPermuteQuantizeOp::verifyInputType(vpux::NDTypeInterface inputType) {
@@ -335,7 +357,6 @@ vpux::VPU::SparsitySupport vpux::VPU::NCEPermuteQuantizeOp::sparsitySupport() {
 
     switch (arch) {
     case VPU::ArchKind::VPUX30XX:
-    case VPU::ArchKind::VPUX311X:
         VPUX_THROW("NCEPermuteQuantizeOp is not supported for {0}", arch);
     case VPU::ArchKind::VPUX37XX:
         return VPU::SparsitySupport::SPARSE_OUTPUTS & excludeMode;

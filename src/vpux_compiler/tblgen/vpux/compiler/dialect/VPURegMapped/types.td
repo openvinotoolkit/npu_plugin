@@ -1,14 +1,6 @@
 //
 // Copyright Intel Corporation.
-//
-// LEGAL NOTICE: Your use of this software and any required dependent software
-// (the "Software Package") is subject to the terms and conditions of
-// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
-// which may also include notices, disclaimers, or license terms for
-// third party or open source software included in or with the Software Package,
-// and your use indicates your acceptance of all such terms. Please refer
-// to the "third-party-programs.txt" or other similarly-named text file
-// included with the Software Package for additional details.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #ifndef VPUX_COMPILER_DIALECT_VPUREGMAPPED_TYPES
@@ -167,9 +159,9 @@ class VPURegMapped_RegisterWrapper<Dialect dialect, string regDialectStr, string
         constexpr auto shiftValue = REG_FIELD::getRegFieldPos() + REG_FIELD::getRegFieldWidth();
         static_assert(shiftValue <= 64, "extractFieldValueFromRegValue: Incorrect shiftValue");
         if (shiftValue < 64) {
-            return (}] # resetValue # [{ & (( 1ull << shiftValue) - 1)) >> REG_FIELD::getRegFieldPos();
+            return (((long long int)}] # resetValue # [{) & (( 1ull << shiftValue) - 1)) >> REG_FIELD::getRegFieldPos();
         }
-        return }] # resetValue # [{ >> REG_FIELD::getRegFieldPos();
+        return ((long long int)}] # resetValue # [{) >> REG_FIELD::getRegFieldPos();
     }
     static std::map<std::string, uint64_t> getZeroInitilizationValues() {
         return { }] # regFieldStrZeroValues # [{ };

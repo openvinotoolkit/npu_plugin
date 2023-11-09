@@ -1,10 +1,10 @@
 //
-// Copyright (C) 2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
-#include "kmb_layer_test.hpp"
-#include "vpux_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
+#include "vpu_ov2_layer_test.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/generated/schema/graphfile_generated.h"
 
@@ -57,7 +57,7 @@ protected:
     }
 };  // namespace ov::test::subgraph
 
-class CompressWeightsTest_VPU3720 : public CompressWeightsTest, virtual public VPUXLayerTest {};
+class CompressWeightsTest_VPU3720 : public CompressWeightsTest, virtual public VpuOv2LayerTest {};
 
 TEST_P(CompressWeightsTest_VPU3720, MLIR_HW) {
     setSkipInferenceCallback([](std::stringstream& skip) {
@@ -124,6 +124,6 @@ using namespace ov::test::subgraph;
 namespace {
 
 INSTANTIATE_TEST_CASE_P(precommit, CompressWeightsTest_VPU3720,
-                        ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                         CompressWeightsTest::getTestCaseName);
 }  // namespace

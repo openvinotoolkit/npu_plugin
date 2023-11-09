@@ -22,21 +22,21 @@ public:
 
 public:
     // get dma descirptor for dma ops with non distributed output type
-    VPUIP::DmaDescriptorAttr generate(ShapeRef mergedInputShape, ShapeRef mergedOutputShape, Byte elemTypeSize) const;
+    VPUIP::DMADescriptorAttr generate(ShapeRef mergedInputShape, ShapeRef mergedOutputShape, Byte elemTypeSize) const;
     // get dma descirptor for dma ops with distributed output type
-    SmallVector<VPUIP::DmaDescriptorAttr> generate(ShapeRef mergedInputShape, ShapeRef mergedOutputShape,
+    SmallVector<VPUIP::DMADescriptorAttr> generate(ShapeRef mergedInputShape, ShapeRef mergedOutputShape,
                                                    ArrayRef<Shape> mergedSubOutputShapes, Dim tileDim,
                                                    Byte elemTypeSize) const;
 
 private:
-    VPUIP::DmaDescriptorAttr generateWithTwoAxis(ShapeRef mergedInputShape, ShapeRef mergedOutputShape,
+    VPUIP::DMADescriptorAttr generateWithTwoAxis(ShapeRef mergedInputShape, ShapeRef mergedOutputShape,
                                                  Byte elemTypeSize) const;
-    SmallVector<VPUIP::DmaDescriptorAttr> generateWithTwoAxis(ShapeRef mergedInputShape, ShapeRef mergedOutputShape,
+    SmallVector<VPUIP::DMADescriptorAttr> generateWithTwoAxis(ShapeRef mergedInputShape, ShapeRef mergedOutputShape,
                                                               ArrayRef<Shape> mergedSubOutputShapes, Dim tileDim,
                                                               Byte elemTypeSize) const;
 
-    VPUIP::DmaDescriptorAttr generateWithSwapFront(ShapeRef mergedInputShape, Byte elemTypeSize) const;
-    VPUIP::DmaDescriptorAttr generateWithSwapBack(ShapeRef mergedInputShape, Byte elemTypeSize) const;
+    VPUIP::DMADescriptorAttr generateWithSwapFront(ShapeRef mergedInputShape, Byte elemTypeSize) const;
+    VPUIP::DMADescriptorAttr generateWithSwapBack(ShapeRef mergedInputShape, Byte elemTypeSize) const;
 
     mlir::MLIRContext* _ctx;
     mlir::AffineMap _mergedMemPerm;
@@ -49,9 +49,9 @@ public:
     virtual ~DepthToSpaceDmaDescriptorGenerator() = default;
 
 public:
-    VPUIP::DmaDescriptorAttr generate(vpux::NDTypeInterface inType, vpux::NDTypeInterface outType,
-                                      vpux::IE::DepthToSpaceMode mode, int64_t blockSize, mlir::IntegerAttr paddedIC,
-                                      mlir::IntegerAttr paddedOC) const;
+    VPUIP::DMADescriptorAttr generate(vpux::NDTypeInterface inType, vpux::NDTypeInterface outType, ShapeRef inShape,
+                                      ShapeRef outShape, vpux::IE::DepthToSpaceMode mode, int64_t blockSize,
+                                      mlir::IntegerAttr paddedIC, mlir::IntegerAttr paddedOC) const;
 
 private:
     mlir::MLIRContext* _ctx;
@@ -64,21 +64,21 @@ public:
     virtual ~SpaceToDepthDmaDescriptorGenerator() = default;
 
 public:
-    VPUIP::DmaDescriptorAttr generate(vpux::NDTypeInterface inType, vpux::NDTypeInterface outType,
+    VPUIP::DMADescriptorAttr generate(vpux::NDTypeInterface inType, vpux::NDTypeInterface outType,
                                       vpux::IE::SpaceToDepthMode mode, int64_t blockSize) const;
 
 private:
-    VPUIP::DmaDescriptorAttr generateBlocksFirstNCHW2NCHW(vpux::ShapeRef inShape, vpux::ShapeRef outShape,
+    VPUIP::DMADescriptorAttr generateBlocksFirstNCHW2NCHW(vpux::ShapeRef inShape, vpux::ShapeRef outShape,
                                                           int64_t elemTypeSize, int64_t blockSize) const;
-    VPUIP::DmaDescriptorAttr generateBlocksFirstNHWC2NHWC(vpux::ShapeRef inShape, vpux::ShapeRef outShape,
+    VPUIP::DMADescriptorAttr generateBlocksFirstNHWC2NHWC(vpux::ShapeRef inShape, vpux::ShapeRef outShape,
                                                           int64_t elemTypeSize, int64_t blockSize) const;
-    VPUIP::DmaDescriptorAttr generateBlocksFirstNCHW2NHWC(vpux::ShapeRef inShape, vpux::ShapeRef outShape,
+    VPUIP::DMADescriptorAttr generateBlocksFirstNCHW2NHWC(vpux::ShapeRef inShape, vpux::ShapeRef outShape,
                                                           int64_t elemTypeSize, int64_t blockSize) const;
-    VPUIP::DmaDescriptorAttr generateDepthFirstNCHW2NCHW(vpux::ShapeRef inShape, vpux::ShapeRef outShape,
+    VPUIP::DMADescriptorAttr generateDepthFirstNCHW2NCHW(vpux::ShapeRef inShape, vpux::ShapeRef outShape,
                                                          int64_t elemTypeSize, int64_t blockSize) const;
-    VPUIP::DmaDescriptorAttr generateDepthFirstNHWC2NHWC(vpux::ShapeRef inShape, vpux::ShapeRef outShape,
+    VPUIP::DMADescriptorAttr generateDepthFirstNHWC2NHWC(vpux::ShapeRef inShape, vpux::ShapeRef outShape,
                                                          int64_t elemTypeSize, int64_t blockSize) const;
-    VPUIP::DmaDescriptorAttr generateDepthFirstNCHW2NHWC(vpux::ShapeRef inShape, vpux::ShapeRef outShape,
+    VPUIP::DMADescriptorAttr generateDepthFirstNCHW2NHWC(vpux::ShapeRef inShape, vpux::ShapeRef outShape,
                                                          int64_t elemTypeSize, int64_t blockSize) const;
 
 private:
@@ -92,7 +92,7 @@ public:
     virtual ~PerAxisTileDmaDescriptorGenerator() = default;
 
 public:
-    VPUIP::DmaDescriptorAttr generate(vpux::ShapeRef inShape, vpux::ShapeRef outShape, int64_t repeats,
+    VPUIP::DMADescriptorAttr generate(vpux::ShapeRef inShape, vpux::ShapeRef outShape, int64_t repeats,
                                       int64_t elemTypeSize) const;
 
 private:
@@ -106,7 +106,7 @@ public:
     virtual ~ExpandDmaDescriptorGenerator() = default;
 
 public:
-    VPUIP::DmaDescriptorAttr generate(vpux::NDTypeInterface inType, vpux::NDTypeInterface outType,
+    VPUIP::DMADescriptorAttr generate(vpux::NDTypeInterface inType, vpux::NDTypeInterface outType,
                                       mlir::ArrayAttr padsBegin, mlir::ArrayAttr padsEnd, int64_t elemTypeSize) const;
 
 private:

@@ -38,11 +38,11 @@ mlir::LogicalResult vpux::IE::PadOp::inferReturnTypeComponents(
     if (mlir::failed(padEnd)) {
         return mlir::failure();
     }
-    if (pad.mode() == IE::PadMode::CONSTANT && pad.pad_value() == nullptr && !pad.pad_value_attr().hasValue()) {
+    if (pad.mode() == IE::PadMode::CONSTANT && pad.pad_value() == nullptr && !pad.pad_value_attr().has_value()) {
         return errorAt(loc, "pad_mode is CONSTANT but pad_value hasn't provided");
     }
 
-    const auto newType = inType.pad(ShapeRef(padBegin.getValue()), ShapeRef(padEnd.getValue()));
+    const auto newType = inType.pad(ShapeRef(padBegin.value()), ShapeRef(padEnd.value()));
     const auto newTensorType = newType.cast<mlir::RankedTensorType>();
     inferredReturnShapes.emplace_back(newTensorType.getShape(), newTensorType.getElementType());
 
@@ -64,7 +64,8 @@ public:
 };
 
 mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::PadOp padOp, mlir::PatternRewriter& rewriter) const {
-    if (padOp.pads_begin_attr().hasValue() || padOp.pads_end_attr().hasValue() || padOp.pad_value_attr().hasValue()) {
+    if (padOp.pads_begin_attr().has_value() || padOp.pads_end_attr().has_value() ||
+        padOp.pad_value_attr().has_value()) {
         return mlir::failure();
     }
 
@@ -77,7 +78,7 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::PadOp padOp, mlir::P
     if (mlir::failed(padsBegin)) {
         return mlir::failure();
     }
-    const auto padsBeginAttr = getIntArrayAttr(padOp.getContext(), padsBegin.getValue());
+    const auto padsBeginAttr = getIntArrayAttr(padOp.getContext(), padsBegin.value());
 
     // convert pads_end
 
@@ -85,7 +86,7 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::PadOp padOp, mlir::P
     if (mlir::failed(padsEnd)) {
         return mlir::failure();
     }
-    const auto padsEndAttr = getIntArrayAttr(padOp.getContext(), padsEnd.getValue());
+    const auto padsEndAttr = getIntArrayAttr(padOp.getContext(), padsEnd.value());
 
     // convert pad_value
 
@@ -101,7 +102,7 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::PadOp padOp, mlir::P
             return errorAt(padOp.getLoc(), "Only constant input is supported for 'pad_value'");
         }
 
-        const auto padValueContent = padValueConst.content();
+        const auto padValueContent = padValueConst.getContent();
         if (!padValueContent.isSplat()) {
             return errorAt(padOp.getLoc(), "Only splat input is supported for 'pad_value'");
         }
@@ -141,10 +142,10 @@ mlir::OpFoldResult vpux::IE::PadOp::fold(ArrayRef<mlir::Attribute> operands) {
 
     if (const auto attr = operands[0].dyn_cast_or_null<Const::ContentAttr>()) {
         if (mode() == IE::PadMode::CONSTANT) {
-            if (pads_begin_attr().hasValue() && pads_end_attr().hasValue() && pad_value_attr().hasValue()) {
+            if (pads_begin_attr().has_value() && pads_end_attr().has_value() && pad_value_attr().has_value()) {
                 if (pad_value_attr()->convertToDouble() == 0.0) {
-                    const auto padsBefore = Shape(parseIntArrayAttr<int64_t>(pads_begin_attr().getValue()));
-                    const auto padsAfter = Shape(parseIntArrayAttr<int64_t>(pads_end_attr().getValue()));
+                    const auto padsBefore = Shape(parseIntArrayAttr<int64_t>(pads_begin_attr().value()));
+                    const auto padsAfter = Shape(parseIntArrayAttr<int64_t>(pads_end_attr().value()));
 
                     return attr.padWithZero(padsBefore, padsAfter);
                 }

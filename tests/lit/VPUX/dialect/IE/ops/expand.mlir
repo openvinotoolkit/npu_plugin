@@ -30,3 +30,17 @@ func.func @ConstantFolding() -> tensor<1x11x12x12xf16> {
     // CHECK-SAME:      dense<1.000000e+00> : tensor<1x5x10x11xf16>, [#const.PadWithZero<[0, 3, 0, 1], [0, 3, 2, 0]>]
     // CHECK:       return %[[CST]] : tensor<1x11x12x12xf16>
 }
+
+func.func @KeepExpandForEltwiseToBenefitFromAdjustInputShape(%arg0: tensor<1x80x56x56xf16>) -> tensor<1x80x56x56xf16> {
+    %cst = const.Declare tensor<1x80x56x56xf16> = dense<1.0> : tensor<1x80x56x56xf16>
+    %slice = IE.Slice %arg0 [0, 0, 0, 0] [1, 72, 56, 56] : tensor<1x80x56x56xf16> to tensor<1x72x56x56xf16>
+    %expand = IE.Expand(%slice) {pads_begin = [0, 0, 0, 0], pads_end = [0, 8, 0, 0]} : tensor<1x72x56x56xf16> -> tensor<1x80x56x56xf16>
+    %add = IE.Add(%expand, %cst) { auto_broadcast = #IE.auto_broadcast_type<NUMPY> } : tensor<1x80x56x56xf16>, tensor<1x80x56x56xf16> -> tensor<1x80x56x56xf16>
+    return %add : tensor<1x80x56x56xf16>
+
+    // CHECK-DAG: %[[CST:.*]] = const.Declare tensor<1x80x56x56xf16> = dense<1.000000e+00> : tensor<1x80x56x56xf16> 
+    // CHECK:     %[[SLICE:.*]] = IE.Slice %arg0 [0, 0, 0, 0] [1, 72, 56, 56] : tensor<1x80x56x56xf16> to tensor<1x72x56x56xf16>
+    // CHECK:     %[[EXPAND:.*]] = IE.Expand(%[[SLICE]]) {pads_begin = [0, 0, 0, 0], pads_end = [0, 8, 0, 0]} : tensor<1x72x56x56xf16> -> tensor<1x80x56x56xf16>
+    // CHECK:     %[[ADD:.*]] = IE.Add(%[[EXPAND]], %[[CST]]) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>} : tensor<1x80x56x56xf16>, tensor<1x80x56x56xf16> -> tensor<1x80x56x56xf16>
+    // CHECK: return %[[ADD]] : tensor<1x80x56x56xf16>
+}

@@ -18,7 +18,7 @@ mlir::LogicalResult vpux::VPU::RollOp::inferReturnTypes(mlir::MLIRContext* ctx, 
         return mlir::failure();
     }
 
-    const auto shiftContent = roll.shift().getDefiningOp<Const::DeclareOp>().content();
+    const auto shiftContent = roll.shift().getDefiningOp<Const::DeclareOp>().getContent();
     const auto inShapeShift = getShape(roll.shift());
 
     if (!shiftContent.isSplat() && inShapeShift.size() == 1) {
@@ -32,8 +32,8 @@ mlir::LogicalResult vpux::VPU::RollOp::inferReturnTypes(mlir::MLIRContext* ctx, 
             return mlir::failure();
         }
 
-        auto shiftShape = shiftData.getValue();
-        auto axesShape = axesData.getValue();
+        auto shiftShape = shiftData.value();
+        auto axesShape = axesData.value();
 
         if (shiftShape.size() != axesShape.size()) {
             return errorAt(loc,

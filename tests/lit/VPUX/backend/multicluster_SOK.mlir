@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-// RUN: vpux-opt --init-compiler="vpu-arch=%arch%" %s | vpux-translate --export-VPUIP -o %t
+// RUN: vpux-opt --init-compiler="vpu-arch=%arch% allow-custom-values=true" %s | vpux-translate --vpu-arch=%arch% --export-VPUIP -o %t
 // RUN: flatc --raw-binary --json %vpuip_schema_file% -- %t
 // RUN: FileCheck %s --input-file %basename_t.json
 // RUN: rm %basename_t.json
@@ -39,9 +39,13 @@ module @TestMultiClusterSOK {
 
 module @UsedMemory {
     IE.MemoryResource 2048 bytes of @DDR
-    IE.MemoryResource 1048576 bytes of @CMX_NN
 }
 
+IE.ExecutorResource 1 of @NCE at 1.300000e+03 MHz {
+    builtin.module @UsedMemory {
+        IE.MemoryResource 1048576 bytes of @CMX_NN
+    }
+}
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
@@ -68,19 +72,19 @@ func.func @main(%arg0: memref<1x16x32x32xf16, #NHWC, @DDR>, %arg1: memref<1x32x3
     %bar10 = VPURT.ConfigureBarrier<4> -> !VPURT.Barrier
 
     // CMX buffers
-    %parent_input_cmx = VPURT.DeclareBuffer "CMX_NN" [0, 1] <0> -> !ParentInputDistributed
-    %input_1 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 0]>
-    %input_2 = VPURT.DeclareBuffer "CMX_NN" [1] <0> -> memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 1]>
+    %parent_input_cmx = VPURT.DeclareBuffer <CMX_NN> [0, 1] <0> -> !ParentInputDistributed
+    %input_1 = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 0]>
+    %input_2 = VPURT.DeclareBuffer <CMX_NN> [1] <0> -> memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 1]>
 
-    %parent_out_cmx = VPURT.DeclareBuffer "CMX_NN" [0, 1] <32768> -> !ParentOutputDistributed
-    %parent_out_cmx_compact = VPURT.DeclareBuffer "CMX_NN" [0] <32768> -> memref<1x32x32x32xf16, #NHWC, [@CMX_NN, 0]>
-    %output1 = VPURT.DeclareBuffer "CMX_NN" [0, 1] <32768> -> !OutputDistributed
-    %output2 = VPURT.DeclareBuffer "CMX_NN" [0, 1] <32768> -> !OutputDistributed
+    %parent_out_cmx = VPURT.DeclareBuffer <CMX_NN> [0, 1] <32768> -> !ParentOutputDistributed
+    %parent_out_cmx_compact = VPURT.DeclareBuffer <CMX_NN> [0] <32768> -> memref<1x32x32x32xf16, #NHWC, [@CMX_NN, 0]>
+    %output1 = VPURT.DeclareBuffer <CMX_NN> [0, 1] <32768> -> !OutputDistributed
+    %output2 = VPURT.DeclareBuffer <CMX_NN> [0, 1] <32768> -> !OutputDistributed
 
-    %weights1 = VPURT.DeclareBuffer "CMX_NN" [0] <98304> -> memref<16x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
-    %weights2 = VPURT.DeclareBuffer "CMX_NN" [1] <98304> -> memref<16x16x1x1xf16, #NHWC, [@CMX_NN, 1]>
-    %weight_table1 = VPURT.DeclareBuffer "CMX_NN" [0] <98816> -> memref<16x1x1x4xsi32, [@CMX_NN, 0]>
-    %weight_table2 = VPURT.DeclareBuffer "CMX_NN" [1] <98816> -> memref<16x1x1x4xsi32, [@CMX_NN, 1]>
+    %weights1 = VPURT.DeclareBuffer <CMX_NN> [0] <98304> -> memref<16x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
+    %weights2 = VPURT.DeclareBuffer <CMX_NN> [1] <98304> -> memref<16x16x1x1xf16, #NHWC, [@CMX_NN, 1]>
+    %weight_table1 = VPURT.DeclareBuffer <CMX_NN> [0] <98816> -> memref<16x1x1x4xsi32, [@CMX_NN, 0]>
+    %weight_table2 = VPURT.DeclareBuffer <CMX_NN> [1] <98816> -> memref<16x1x1x4xsi32, [@CMX_NN, 1]>
 
 
     // Upload weights and weights table
@@ -126,10 +130,10 @@ func.func @main(%arg0: memref<1x16x32x32xf16, #NHWC, @DDR>, %arg1: memref<1x32x3
 
     VPURT.Task waits(%bar1, %bar10: !VPURT.Barrier, !VPURT.Barrier) updates(%bar2: !VPURT.Barrier) {
         VPUIP.NCEClusterTask {
-                kernel_padding = {bottom = 0, left = 0, right = 0, top = 0},
+                kernel_padding = #VPU.Padding<left = 0 , right = 0, top = 0, bottom = 0>,
                 kernel_size = [1, 1],
                 kernel_strides = [1, 1],
-                task_type = "CONV",
+                task_type = #VPUIP.nce_task_type<CONV>,
                 out_channel_offset = 0
             }
             input(%input_1: memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 0]>)
@@ -143,8 +147,8 @@ func.func @main(%arg0: memref<1x16x32x32xf16, #NHWC, @DDR>, %arg1: memref<1x32x3
                 DPUTask {
                     outStart = [0, 0, 0],
                     outEnd = [31, 31, 15],
-                    pad = {bottom = 0, left = 0, right = 0, top = 0},
-                    mpe_mode = "VECTOR_FP16"
+                    pad = #VPU.Padding<left = 0 , right = 0, top = 0, bottom = 0>,
+                    mpe_mode = #VPU.mpe_mode<VECTOR_FP16>
                 }
             } PPE : {
             }
@@ -154,10 +158,10 @@ func.func @main(%arg0: memref<1x16x32x32xf16, #NHWC, @DDR>, %arg1: memref<1x32x3
 
     VPURT.Task waits(%bar1, %bar10: !VPURT.Barrier, !VPURT.Barrier) updates(%bar2: !VPURT.Barrier) {
         VPUIP.NCEClusterTask {
-                kernel_padding = {bottom = 0, left = 0, right = 0, top = 0},
+                kernel_padding = #VPU.Padding<left = 0 , right = 0, top = 0, bottom = 0>,
                 kernel_size = [1, 1],
                 kernel_strides = [1, 1],
-                task_type = "CONV",
+                task_type = #VPUIP.nce_task_type<CONV>,
                 out_channel_offset = 16
             }
             input(%input_2: memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 1]>)
@@ -171,8 +175,8 @@ func.func @main(%arg0: memref<1x16x32x32xf16, #NHWC, @DDR>, %arg1: memref<1x32x3
                 DPUTask {
                     outStart = [0, 0, 16],
                     outEnd = [31, 31, 31],
-                    pad = {bottom = 0, left = 0, right = 0, top = 0},
-                    mpe_mode = "VECTOR_FP16"
+                    pad = #VPU.Padding<left = 0 , right = 0, top = 0, bottom = 0>,
+                    mpe_mode = #VPU.mpe_mode<VECTOR_FP16>
                 }
             } PPE : {
             }
@@ -567,3 +571,4 @@ func.func @main(%arg0: memref<1x16x32x32xf16, #NHWC, @DDR>, %arg1: memref<1x32x3
 // CHECK:               workload_end_X: 31,
 // CHECK:               workload_end_Y: 31,
 // CHECK:               workload_end_Z: 31
+

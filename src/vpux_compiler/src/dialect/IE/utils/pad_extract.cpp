@@ -20,8 +20,8 @@ mlir::FailureOr<SmallVector<int64_t>> extractPads(mlir::ArrayAttr padValue, Logg
 
 mlir::FailureOr<SmallVector<int64_t>> extractPads(mlir::Location loc, const mlir::Value& padValue,
                                                   const Optional<mlir::ArrayAttr>& padAttr, vpux::ShapeRef inputShape) {
-    if (padAttr.hasValue()) {
-        return parseIntArrayAttr<int64_t>(padAttr.getValue());
+    if (padAttr.has_value()) {
+        return parseIntArrayAttr<int64_t>(padAttr.value());
     } else if (padValue != nullptr) {
         auto padsConst = padValue.getDefiningOp<Const::DeclareOp>();
         if (padsConst == nullptr) {
@@ -34,7 +34,7 @@ mlir::FailureOr<SmallVector<int64_t>> extractPads(mlir::Location loc, const mlir
                                 "The length of the list must be equal to the number of dimensions in the input tensor");
         }
 
-        const auto padContent = padsConst.content();
+        const auto padContent = padsConst.getContent();
         return to_small_vector(padContent.getValues<int64_t>());
     }
 

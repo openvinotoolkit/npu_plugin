@@ -274,7 +274,7 @@ public:
 
 bool MoveTransposeBeforeSlice::doesSliceAndLayerOpModifySameAxis(IE::SliceOp, ArrayRef<uint64_t> sliceAxes,
                                                                  IE::TransposeOp layerOp) const {
-    const auto perm = DimsOrder::fromAffineMap(layerOp.order_value().getValue());
+    const auto perm = DimsOrder::fromAffineMap(layerOp.order_value().value());
     return doesSliceAndPermutationModifySameAxis(perm, sliceAxes, _log);
 }
 
@@ -283,7 +283,7 @@ bool MoveTransposeBeforeSlice::sameAttributes(IE::TransposeOp layerOp, IE::Trans
 }
 
 SmallVector<int64_t> MoveTransposeBeforeSlice::getNewSizes(IE::SliceOp sliceOp, IE::TransposeOp layerOp) const {
-    const auto perm = DimsOrder::fromAffineMap(layerOp.order_value().getValue());
+    const auto perm = DimsOrder::fromAffineMap(layerOp.order_value().value());
     auto originOrder = to_small_vector(irange(perm.numDims()) | transformed([&](uint64_t idx) {
                                            return checked_cast<uint64_t>(perm.dimAt(idx).ind());
                                        }));

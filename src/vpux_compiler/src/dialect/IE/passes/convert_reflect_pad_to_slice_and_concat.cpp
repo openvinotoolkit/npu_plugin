@@ -59,8 +59,8 @@ mlir::LogicalResult ConvertReflectPadToSliceAndConcatPass::PadOpConverter::match
 
     const auto loc = padOp.getLoc();
     const auto ctx = padOp.getContext();
-    auto const padBegin = parseIntArrayAttr<int64_t>(padOp.pads_begin_attr().getValue());
-    auto const padEnd = parseIntArrayAttr<int64_t>(padOp.pads_end_attr().getValue());
+    auto const padBegin = parseIntArrayAttr<int64_t>(padOp.pads_begin_attr().value());
+    auto const padEnd = parseIntArrayAttr<int64_t>(padOp.pads_end_attr().value());
 
     SmallVector<mlir::Value> subSlices;
 

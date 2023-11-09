@@ -36,7 +36,7 @@ def ELF_SectionInterface : OpInterface<"ElfSectionInterface"> {
             "Get the name of the section",
             "llvm::StringRef",
             "getName", (ins), [{}], [{
-                return $_op.secName();
+                return $_op.getSecName();
             }]
         >
     ];

@@ -45,7 +45,7 @@ mlir::LogicalResult DequantizeConst::matchAndRewrite(IE::DequantizeOp dCastOp, m
 
     const auto outType = dCastOp.getType().cast<vpux::NDTypeInterface>();
     const auto newConstType = outType.changeElemType(qElemType.getExpressedType());
-    const auto newConstAttr = inputConst.contentAttr().dequantize();
+    const auto newConstAttr = inputConst.getContentAttr().dequantize();
     rewriter.replaceOpWithNewOp<Const::DeclareOp>(dCastOp, newConstType, newConstAttr)->setLoc(inputConst->getLoc());
 
     return mlir::success();

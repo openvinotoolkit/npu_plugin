@@ -1,16 +1,16 @@
 //
-// Copyright (C) 2018-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2018-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "single_layer_tests/random_uniform.hpp"
 #include <ie_precision.hpp>
 #include "common_test_utils/test_constants.hpp"
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
-class VPUXRandomLayerTest : public RandomUniformLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXRandomLayerTest : public RandomUniformLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void ConfigureNetwork() override {
         cnnNetwork.getOutputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
     }
@@ -93,7 +93,7 @@ const std::vector<ov::Shape> output_shapes = {{1, 200}, {1, 4, 64, 64}};
 const auto randParams =
         ::testing::Combine(::testing::ValuesIn(output_shapes), ::testing::ValuesIn(random_uniform_type_specific_params),
                            ::testing::ValuesIn(global_seeds), ::testing::ValuesIn(op_seeds),
-                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_RandomUniform, VPUXRandomLayerTest_VPU3720, randParams,
                          VPUXRandomLayerTest_VPU3720::getTestCaseName);

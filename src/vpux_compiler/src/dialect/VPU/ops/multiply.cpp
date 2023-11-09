@@ -6,6 +6,7 @@
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/distributed_tensor_utils.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 
@@ -30,7 +31,7 @@ mlir::LogicalResult vpux::VPU::MultiplyOp::inferReturnTypes(mlir::MLIRContext* c
                                                        multiply.auto_broadcast(), loc);
 
     if (mlir::succeeded(outShapeRes)) {
-        const auto outType = in1Type.changeShape(Shape(outShapeRes.getValue()));
+        const auto outType = in1Type.changeShape(Shape(outShapeRes.value()));
         inferredReturnTypes.push_back(outType);
     }
 
@@ -48,13 +49,22 @@ bool vpux::VPU::MultiplyOp::checkStrategyCompatibility(VPU::MultiClusterStrategy
            strategy == VPU::MultiClusterStrategy::SplitOverWidth;
 }
 
+vpux::VPU::DistributedTensorAttr vpux::VPU::MultiplyOp::getExplicitDistributedTensorAttr(
+        vpux::ShapeRef shape, vpux::VPU::DistributionMode distributionMode, mlir::ArrayAttr numTiles,
+        mlir::IntegerAttr numClusters, mlir::ArrayAttr alignment, mlir::ArrayAttr /*kernel*/,
+        vpux::VPU::PaddingAttr /*pad*/, mlir::ArrayAttr /*stride*/, mlir::UnitAttr uniformDistributedSegments) {
+    return VPU::getSWExplicitDistributedTensorAttr(mlir::dyn_cast<VPU::SWOpInterface>(getOperation()), shape,
+                                                   distributionMode, numTiles, numClusters, alignment,
+                                                   uniformDistributedSegments);
+}
+
 //
 // SWOpInterface
 //
 
 void vpux::VPU::MultiplyOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, ::mlir::Value input1,
                                   ::mlir::Value input2, vpux::IE::AutoBroadcastTypeAttr auto_broadcast,
-                                  /*optional*/ vpux::IE::PostOp post_op) {
+                                  /*optional*/ vpux::IE::PostOpAttr post_op) {
     build(odsBuilder, odsState, input1, input2, auto_broadcast.getValue(), post_op, nullptr);
 }
 

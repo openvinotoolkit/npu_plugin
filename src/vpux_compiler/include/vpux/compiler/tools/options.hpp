@@ -6,9 +6,10 @@
 #pragma once
 
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/utils/core/string_ref.hpp"
 
 namespace vpux {
 
-vpux::VPU::ArchKind parseArchKind(int argc, char* argv[]);
+vpux::VPU::ArchKind parseArchKind(int argc, char* argv[], StringRef helpHeader = "");
 
 }  // namespace vpux

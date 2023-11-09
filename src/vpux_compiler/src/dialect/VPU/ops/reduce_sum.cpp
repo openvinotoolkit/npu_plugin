@@ -15,16 +15,14 @@
 
 using namespace vpux;
 namespace {
-llvm::SmallVector<int64_t> extractAxes(mlir::Location loc, mlir::Value axes) {
-    auto axesVec = IE::constInputToData(loc, axes);
-    VPUX_THROW_UNLESS(mlir::succeeded(axesVec), "Failed to extract axes");
-    auto axesValue = axesVec.getValue();
+llvm::SmallVector<int64_t> extractAxes(mlir::ArrayAttr axes) {
+    auto axesValue = parseIntArrayAttr<int64_t>(axes);
 
     return axesValue;
 }
 
-bool checkAxes(int64_t tileDim, mlir::Location loc, mlir::Value axes) {
-    auto axesValue = extractAxes(loc, axes);
+bool checkAxes(int64_t tileDim, mlir::ArrayAttr axes) {
+    auto axesValue = extractAxes(axes);
 
     for (auto axesInd : axesValue) {
         if (tileDim == axesInd) {
@@ -32,7 +30,7 @@ bool checkAxes(int64_t tileDim, mlir::Location loc, mlir::Value axes) {
         }
     }
     return false;
-};
+}
 }  // namespace
 
 mlir::LogicalResult vpux::VPU::ReduceSumOp::inferReturnTypes(mlir::MLIRContext* ctx,
@@ -50,17 +48,21 @@ mlir::LogicalResult vpux::VPU::ReduceSumOp::inferReturnTypes(mlir::MLIRContext* 
     const auto input = reduceSum.input();
     const auto keepDims = reduceSum.keep_dims();
 
-    auto axesValue = extractAxes(loc, reduceSum.axes());
+    auto axesValue = extractAxes(reduceSum.axes_value());
 
     return VPU::inferReduceReturnTypes(loc, input, keepDims, axesValue, inferredReturnTypes);
 }
 
 //
-// inferLayoutInfo
+// fold
 //
 
-void vpux::VPU::ReduceSumOp::inferLayoutInfo(mlir::Operation* op, vpux::IE::LayerLayoutInfo& info) {
-    vpux::IE::inferReduceLayoutInfo(op, info);
+mlir::OpFoldResult vpux::VPU::ReduceSumOp::fold(ArrayRef<mlir::Attribute>) {
+    if (input().getType() == output().getType()) {
+        return input();
+    }
+
+    return nullptr;
 }
 
 //
@@ -70,10 +72,12 @@ void vpux::VPU::ReduceSumOp::inferLayoutInfo(mlir::Operation* op, vpux::IE::Laye
 EMU::BlobWriter::SpecificTask vpux::VPU::ReduceSumOp::serialize(EMU::BlobWriter& writer) {
     EMU::BlobWriter::String type;
     type = writer.createString("sum");
+    const auto axes = writer.createVector(parseIntArrayAttr<int64_t>(axes_value()));
 
     MVCNN::ReduceParamsBuilder builder(writer);
     builder.add_keep_dims(checked_cast<bool>(keep_dims()));
     builder.add_operation(type);
+    builder.add_axes_value(axes);
 
     const auto paramsOff = builder.Finish();
 
@@ -87,7 +91,7 @@ EMU::BlobWriter::SpecificTask vpux::VPU::ReduceSumOp::serialize(EMU::BlobWriter&
 vpux::InputTiling vpux::VPU::ReduceSumOp::backInferTileInfo(const vpux::TileInfo& outputTile, vpux::Logger /*log*/) {
     SmallVector<TileInfo> inputTiles;
     auto curTile = outputTile;
-    auto axesValue = extractAxes(getLoc(), axes());
+    auto axesValue = extractAxes(axes_value());
     const auto inShape = getShape(input());
 
     for (auto ind : axesValue) {
@@ -96,18 +100,13 @@ vpux::InputTiling vpux::VPU::ReduceSumOp::backInferTileInfo(const vpux::TileInfo
 
     inputTiles.push_back(curTile);
 
-    const auto axesShape = getShape(axes());
-    auto axesTile = TileInfo(axesShape);
-
-    inputTiles.push_back(axesTile);
-
     return TilingInfo{inputTiles};
 }
 
 void vpux::VPU::ReduceSumOp::adjustAttrs(const TilingInfo& /*inputTiling*/, const TileInfo& /*outputTile*/) {
 }
 
-OutputTiling vpux::VPU::ReduceSumOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
+mlir::FailureOr<OutputTiling> vpux::VPU::ReduceSumOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
     auto baseOp = this->getOperation();
     VPUX_THROW_WHEN(tilingMode != TilingMode::ISOLATED,
                     "Only supporting isolated tiling for ReduceSum currently, for op {0} at '{1}'", baseOp->getName(),
@@ -124,13 +123,16 @@ OutputTiling vpux::VPU::ReduceSumOp::getTilingStrategy(TilingMode tilingMode, Lo
     const auto isSupportedTileSize = [baseOp, &tilingInfo, outputShape, log](ShapeRef nTilesOnDim,
                                                                              TilingMode tilingMode) -> bool {
         const auto tiles = fillDividedTiles(baseOp, nTilesOnDim, outputShape);
-        return tilingInfo.isSupportedTiling(tiles, tilingMode, log);
+        if (mlir::failed(tiles)) {
+            return false;
+        }
+        return tilingInfo.isSupportedTiling(tiles.value(), tilingMode, log);
     };
 
     int64_t tileDim = 0;
 
     while (!isSupportedTileSize(nTilesOnDim, tilingMode)) {
-        if (checkAxes(tileDim, getLoc(), axes())) {
+        if (checkAxes(tileDim, axes_value())) {
             ++tileDim;
         } else {
             if (nTilesOnDim[Dim(tileDim)] >= outputShape[Dim(tileDim)]) {

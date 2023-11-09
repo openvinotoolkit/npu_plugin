@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef PROFILING_PARSER_HPP
 #define PROFILING_PARSER_HPP
 
@@ -12,12 +10,11 @@
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/logger.hpp"
 
-#include <flatbuffers/flatbuffers.h>
 #include <schema/graphfile_generated.h>
-#include <schema/profiling_generated.h>
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <iomanip>
 #include <iterator>
 #include <limits>
@@ -65,53 +62,47 @@ struct LayerInfo {
     char name[256];
     char layer_type[50];
     enum layer_status_t { NOT_RUN, OPTIMIZED_OUT, EXECUTED };
-    layer_status_t status{NOT_RUN};
-    uint64_t start_time_ns{};   ///< Absolute start time
-    uint64_t duration_ns{};     ///< Total duration (from start time until last compute task completed)
-    uint32_t layer_id{};        ///< Not used
-    uint64_t fused_layer_id{};  ///< Not used
-
+    layer_status_t status;
+    uint64_t start_time_ns;        ///< Absolute start time
+    uint64_t duration_ns;          ///< Total duration (from start time until last compute task completed)
+    uint32_t layer_id = -1;        ///< Not used
+    uint64_t fused_layer_id = -1;  ///< Not used
     // Aggregate compute time  (aka. "CPU" time, will include DPU, SW, DMA)
-    uint64_t dpu_ns{};
-    uint64_t sw_ns{};
-    uint64_t dma_ns{};
+    uint64_t dpu_ns = 0;
+    uint64_t sw_ns = 0;
+    uint64_t dma_ns = 0;
 };
 
 struct TaskInfo {
     char name[256];
     char layer_type[50];
-    enum class ExecType {
-        NONE,
-        DPU,
-        SW,
-        DMA,
-    };
-    ExecType exec_type{ExecType::NONE};
-    uint64_t start_time_ns{};
-    uint64_t duration_ns{};
-    uint32_t active_cycles{};
-    uint32_t stall_cycles{};
-    uint32_t task_id{};
-    uint32_t parent_layer_id{};  ///< Not used
+    enum class ExecType { NONE, DPU, SW, DMA, UPA };
+    ExecType exec_type;
+    uint64_t start_time_ns;
+    uint64_t duration_ns;
+    uint32_t active_cycles = 0;
+    uint32_t stall_cycles = 0;
+    uint32_t task_id = -1;
+    uint32_t parent_layer_id = -1;  ///< Not used
 };
 
 struct ActShaveData_t {
-    uint64_t begin{};
-    uint32_t duration{};
-    uint32_t stallCycles{};
+    uint64_t begin;
+    uint32_t duration;
+    uint32_t stallCycles;
 };
 
 struct UpaData_t {
-    uint64_t begin{};
-    uint64_t end{};
-    uint32_t stallCycles{};
-    uint32_t activeCycles{};
+    uint64_t begin;
+    uint64_t end;
+    uint32_t stallCycles;
+    uint32_t activeCycles;
 };
 
 // SW DPU profiling data payload
 struct SwDpuData_t {
-    uint64_t begin{};
-    uint64_t end{};
+    uint64_t begin;
+    uint64_t end;
 };
 
 // HWP DPU profiling data payload
@@ -168,12 +159,12 @@ struct WorkpointConfiguration_t {
 };
 
 struct SummaryInfo {
-    uint64_t totalBufferSize{};
+    uint64_t totalBufferSize;
     struct SectionInfo {
-        uint32_t entrySize{};
-        uint32_t numOfTasks{};
-        uint32_t bufferOffset{};
-        uint32_t bufferSize{};
+        uint32_t entrySize;
+        uint32_t numOfTasks;
+        uint32_t bufferOffset;
+        uint32_t bufferSize;
     };
     SectionInfo dmaInfo;
     SectionInfo dpuInfo;
@@ -201,7 +192,6 @@ public:
 
 constexpr double Dma20Bandwidth = 700. / 20000.;
 constexpr double Dma27Bandwidth = 1300. / 31200.;
-constexpr double Dma40Bandwidth = 1700. / 45000.;
 
 constexpr int COL_WIDTH_32 = 11;
 constexpr int COL_WIDTH_64 = 19;
@@ -264,6 +254,19 @@ public:
         return barriersIntersection;
     }
 
+    struct ParsedTaskName {
+        std::string taskName;
+        std::string layerName;
+        std::string layerType;
+        std::string profTag;
+        int clusterId;
+    };
+
+    // Parses the full task name from GraphFile into ParsedTaskName, extracting task name, profiling marker, layer type
+    // and cluster id
+    static ParsedTaskName deserializeTaskName(const std::string& gfTaskName,
+                                              const llvm::Optional<std::string>& maybeProfPrefix);
+
 private:
     static bool isSetIntersectionEmpty(const BarriersSet& set1, const BarriersSet& set2) {
         std::vector<BarrierIdType> barriersIntersection = getBarriersIntersection(set1, set2);
@@ -283,8 +286,9 @@ protected:
         case ExecutorType::DPU:
             return TaskInfo::ExecType::DPU;
         case ExecutorType::ACTSHAVE:
-        case ExecutorType::UPA:
             return TaskInfo::ExecType::SW;
+        case ExecutorType::UPA:
+            return TaskInfo::ExecType::UPA;
         default:
             VPUX_THROW("Unknown ExecutorType value");
         }
@@ -316,31 +320,19 @@ protected:
         }
     }
 
-    struct TokenizedTaskName {
-        std::string layerName;
-        std::vector<std::string> tokens;
-        bool hasMalformedMeta;
-    };
-
-    struct ParsedTaskName {
-        std::string taskName;
-        std::string layerName;
-        std::string layerType;
-        std::string profTag;
-        int clusterId;
-    };
-
     template <class ParsedProfType>
     struct ParsedTaskNameProf {
         ParsedTaskName meta;
         ParsedProfType prof;
     };
 
-    static TokenizedTaskName tokenizeTaskName(const std::string& gfTaskName);
+    struct TokenizedTaskName {
+        std::string layerName;
+        std::vector<std::string> tokens;
+        bool hasMalformedMeta;
+    };
 
-    // Parses the full task name from GraphFile into ParsedTaskName, extracting task name, profiling marker, layer type
-    // and cluster id
-    static ParsedTaskName deserializeTaskName(const std::string& gfTaskName, const std::string& profPrefix);
+    static TokenizedTaskName tokenizeTaskName(const std::string& gfTaskName);
 
 public:
     bool isDirectPredecessor(const RawProfilingRecord& other) const {
@@ -382,22 +374,18 @@ public:
     }
 
     virtual TaskInfo getTaskInfo(FrequenciesSetup frequenciesSetup) const {
-        TaskInfo profInfoItem = TaskInfo();
-        profInfoItem.task_id = -1;
-        profInfoItem.exec_type = convertToExecEnums(_executorType);
+        TaskInfo taskInfo;
+        taskInfo.exec_type = convertToExecEnums(_executorType);
+        taskInfo.start_time_ns = static_cast<uint64_t>(getStartTime(frequenciesSetup));
+        taskInfo.duration_ns = static_cast<uint64_t>(getDuration(frequenciesSetup));
 
-        auto taskName = this->getTaskName();
-        auto length = taskName.copy(profInfoItem.name, sizeof(profInfoItem.name) - 1);
-        profInfoItem.name[length] = '\0';
+        const auto nameLen = this->getTaskName().copy(taskInfo.name, sizeof(taskInfo.name) - 1);
+        taskInfo.name[nameLen] = 0;
 
-        auto layerType = this->getLayerType();
-        length = layerType.copy(profInfoItem.layer_type, sizeof(profInfoItem.layer_type) - 1);
-        profInfoItem.layer_type[length] = '\0';
+        const auto typeLen = _layerType.copy(taskInfo.layer_type, sizeof(taskInfo.layer_type) - 1);
+        taskInfo.layer_type[typeLen] = 0;
 
-        profInfoItem.start_time_ns = static_cast<uint64_t>(getStartTime(frequenciesSetup));
-        profInfoItem.duration_ns = static_cast<uint64_t>(getDuration(frequenciesSetup));
-
-        return profInfoItem;
+        return taskInfo;
     }
 
     virtual void sanitize(vpux::Logger&, FrequenciesSetup) const {
@@ -885,8 +873,9 @@ class RawProfilingUPARecord :
         public DebugFormattableRecordMixin {
 public:
     explicit RawProfilingUPARecord(UpaData_t data, const std::string& name, const std::string& layerName,
-                                   const std::string& layerType, const MVCNN::Task* task, size_t inMemoryOffset)
-            : RawProfilingRecord(ExecutorType::UPA, name, layerName, layerType, task),
+                                   const std::string& layerType, const BarriersSet& wBarriers,
+                                   const BarriersSet& uBarriers, size_t inMemoryOffset)
+            : RawProfilingRecord(name, layerName, layerType, ExecutorType::UPA, wBarriers, uBarriers),
               DebugFormattableRecordMixin(inMemoryOffset),
               _data(data) {
     }
@@ -969,7 +958,6 @@ public:
 
     TaskInfo getTaskInfo(FrequenciesSetup frequenciesSetup) const override {
         auto profInfoItem = RawProfilingRecord::getTaskInfo(frequenciesSetup);
-        profInfoItem.active_cycles = 0;
         profInfoItem.stall_cycles = _data.stallCycles;
         return profInfoItem;
     }
@@ -1099,12 +1087,17 @@ struct RawProfilingData {
     RawProfilingRecords getTaskOfType(ExecutorType type) const;
 };
 
+struct RawDataLayout {
+    // Map of exec. type to segment offset and size
+    std::map<ExecutorType, std::pair<uint32_t, uint32_t>> offsets;
+    size_t totalPadsSize;
+};
+
 struct RawData {
     RawProfilingData rawRecords;
     MVCNN::TargetDevice device;
     llvm::Optional<double> maybe30XXNceFreq;
-    // Map of exec. type to segment offset and size
-    std::map<ExecutorType, std::pair<uint32_t, uint32_t>> offsets;
+    RawDataLayout layout;
 };
 
 /**
@@ -1117,12 +1110,14 @@ struct RawData {
  * @param type type of tasks to be profiled
  * @param verbosity amount of DPU info to print, may be LOW|MEDIUM|HIGH
  * @param fpga whether buffer was obtained from FPGA
+ * @param ignoreSanitizationErrors to ignore sanitization errors
  * @see TaskType
  * @see VerbosityLevel
  * @return std::vector of TaskInfo structures
  */
 std::vector<TaskInfo> getTaskInfo(const uint8_t* blobData, size_t blobSize, const uint8_t* profData, size_t profSize,
-                                  TaskType type, VerbosityLevel verbosity, bool fpga = false);
+                                  TaskType type, VerbosityLevel verbosity, bool fpga = false,
+                                  bool ignoreSanitizationErrors = false);
 
 /**
  * @fn getRawProfilingTasks
@@ -1132,10 +1127,11 @@ std::vector<TaskInfo> getTaskInfo(const uint8_t* blobData, size_t blobSize, cons
  * @param profData pointer to the buffer with raw profiling data
  * @param profSize raw profiling data size
  * @param type type of tasks to be profiled
+ * @param ignoreSanitizationErrors to ignore sanitization errors
  * @return RawProfilingData
  */
 RawData getRawProfilingTasks(const uint8_t* blobData, size_t blobSize, const uint8_t* profData, size_t profSize,
-                             TaskType type);
+                             TaskType type, bool ignoreSanitizationErrors = false);
 
 /**
  * @brief Helper function to parse profiling buffer name and extract buffer offsets and sizes
@@ -1145,8 +1141,6 @@ RawData getRawProfilingTasks(const uint8_t* blobData, size_t blobSize, const uin
  * @return offsets and sizes per ExecutorType in bytes
  *
  */
-std::map<ExecutorType, std::pair<uint32_t, uint32_t>> parseProfilingOffsets(const std::string& profilingOutputName,
-                                                                            uint32_t profilingOutputSize);
 
 SummaryInfo getSummary(const RawData& profData, size_t profSize);
 
@@ -1158,10 +1152,11 @@ SummaryInfo getSummary(const RawData& profData, size_t profSize);
  * @param profData pointer to the buffer with raw profiling data
  * @param profSize raw profiling data size
  * @param fpga whether buffer was obtained from FPGA
+ * @param ignoreSanitizationErrors to ignore sanitization errors
  * @return std::vector of LayerInfo structures
  */
 std::vector<LayerInfo> getLayerInfo(const uint8_t* blobData, size_t blobSize, const uint8_t* profData, size_t profSize,
-                                    bool fpga = false);
+                                    bool fpga = false, bool ignoreSanitizationErrors = true);
 
 /**
  * @fn getLayerInfo

@@ -165,8 +165,7 @@ void vpux::VPUIP::getLayerEffects(mlir::Operation* op, SmallVectorImpl<MemoryEff
 //
 
 IndexedSymbolAttr vpux::VPUIP::getExecutorAttr(mlir::Operation* op, VPU::ExecutorKind kind) {
-    const auto kindAttr = VPU::ExecutorKindAttr::get(op->getContext(), kind);
-    return IndexedSymbolAttr::get(kindAttr);
+    return IndexedSymbolAttr::get(op->getContext(), stringifyEnum(kind));
 }
 
 IndexedSymbolAttr vpux::VPUIP::getTaskOpExecutor(mlir::Operation* op) {
@@ -414,4 +413,4 @@ mlir::LogicalResult vpux::VPUIP::verifySameOperandsAndResultElementType(mlir::Op
 // Generated
 //
 
-#include <vpux/compiler/dialect/VPUIP/generated/ops_interfaces.cpp.inc>
+#include <vpux/compiler/dialect/VPUIP/ops_interfaces.cpp.inc>

@@ -57,7 +57,7 @@ mlir::LogicalResult ResolveScatterUpdateByTransposePass::TransposePlanning::matc
     const auto inType = origOp.input().getType().cast<NDTypeInterface>();
     const auto inputShape = inType.getShape();
 
-    const auto axis = origOp.axis_value().getValue();
+    const auto axis = origOp.axis_value().value();
     const unsigned int adjustedAxisValue = static_cast<unsigned int>((axis + inputShape.size()) % inputShape.size());
 
     if (adjustedAxisValue == 0) {
@@ -140,8 +140,8 @@ void ResolveScatterUpdateByTransposePass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     const auto isLegalOp = [&](IE::ScatterUpdateOp scatterOp) {
-        VPUX_THROW_UNLESS(scatterOp.axis_value().hasValue(), "axis_value is null");
-        const auto axis = scatterOp.axis_value().getValue();
+        VPUX_THROW_UNLESS(scatterOp.axis_value().has_value(), "axis_value is null");
+        const auto axis = scatterOp.axis_value().value();
         return axis == 0;
     };
 

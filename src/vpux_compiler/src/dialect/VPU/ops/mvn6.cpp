@@ -47,11 +47,6 @@ DimArr vpux::VPU::MVN6Op::getNonNormDims() {
     return dims;
 }
 
-void vpux::VPU::MVN6Op::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
-    VPU::inferLayoutInfoSameInOutSpecificDimsOrder(
-            info, {DimsOrder::NCHW, DimsOrder::NCWH, DimsOrder::NHWC, DimsOrder::NWHC});
-}
-
 //
 // serialize
 //

@@ -4,10 +4,13 @@
 //
 
 #include "vpux/compiler/dialect/ELF/attributes.hpp"
+#include "vpux/compiler/dialect/ELF/dialect.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/error.hpp"
 
 #include <llvm/ADT/StringExtras.h>
+#include <llvm/ADT/TypeSwitch.h>
 
 using namespace vpux;
 
@@ -15,4 +18,18 @@ using namespace vpux;
 // Generated
 //
 
-#include <vpux/compiler/dialect/ELF/generated/attributes/enums.cpp.inc>
+#define GET_ATTRDEF_CLASSES
+#include <vpux/compiler/dialect/ELF/attributes.cpp.inc>
+
+#include <vpux/compiler/dialect/ELF/enums.cpp.inc>
+
+//
+// Dialect hooks
+//
+
+void ELF::ELFDialect::registerAttributes() {
+    addAttributes<
+#define GET_ATTRDEF_LIST
+#include <vpux/compiler/dialect/ELF/attributes.cpp.inc>
+            >();
+}

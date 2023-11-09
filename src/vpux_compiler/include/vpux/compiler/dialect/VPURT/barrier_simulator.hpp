@@ -112,7 +112,7 @@ private:
 
 class BarrierSimulator final {
 public:
-    explicit BarrierSimulator(mlir::Operation* parentOp);
+    explicit BarrierSimulator(mlir::func::FuncOp funcOp);
 
 public:
     bool isDynamicBarriers() const {
@@ -152,7 +152,7 @@ private:
     SmallVector<BarrierConfig> _barriers;
     bool _isDynamicBarriers = false;
 
-    std::array<SmallVector<BarrierUserConfig>, MAX_DMA_ENGINES> _dmaTasks;
+    SmallVector<SmallVector<BarrierUserConfig>> _dmaTasks;
     std::unordered_map<SmallVector<DmaTaskIdx>, bool> _multiQueueDmaTaskStatus;
     SmallVector<BarrierUserConfig> _nceTasks;
     SmallVector<BarrierUserConfig> _actTasks;

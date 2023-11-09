@@ -8,6 +8,7 @@
 
 #include "vpux/compiler/utils/strings.hpp"
 
+#include "vpux/compiler/core/profiling_metadata.hpp"
 #include "vpux/compiler/profiling/generated/schema/profiling_generated.h"
 
 using namespace vpux;
@@ -61,7 +62,7 @@ elf::DType ELF::createDType(mlir::Type type) {
 }
 
 elf::TensorRef ELF::createTensorRef(vpux::NDTypeInterface type, StringRef name) {
-    elf::TensorRef out;
+    elf::TensorRef out{};
 
     copy_str(out.name, name.str());
 
@@ -110,12 +111,11 @@ elf::TensorRef ELF::createTensorRef(mlir::Value val, StringRef name) {
 
 std::unique_ptr<elf::NetworkMetadata> ELF::constructMetadata(
         mlir::ModuleOp module, IE::CNNNetworkOp netOp, mlir::func::FuncOp netFunc,
-        const std::vector<vpux::PreProcessInfo>& preprocessInfo,
         const std::vector<std::shared_ptr<const ov::Node>>& parameters,
         const std::vector<std::shared_ptr<const ov::Node>>& results) {
-    auto inputsInfo = netOp.getInputsInfo();
-    auto outputsInfo = netOp.getOutputsInfo();
-    auto profilingOutputsInfo = netOp.getProfilingOutputsInfo();
+    auto inputsInfo = netOp.getInputsDataInfo();
+    auto outputsInfo = netOp.getOutputsDataInfo();
+    auto profilingOutputsInfo = netOp.getProfilingOutputsDataInfo();
 
     // We are returning a unique_ptr to the heap allocated metadata due to its large size.
     // Returning the metadata struct by value can cause a stack overflow on certain systems.
@@ -180,13 +180,13 @@ std::unique_ptr<elf::NetworkMetadata> ELF::constructMetadata(
         auto node_val = node.value();
         auto index = node.index();
 
-        elf::OVNode tmp_node;
+        elf::OVNode tmp_node{};
         tmp_node.type = ELF::mapElementType.at(node_val->get_element_type());
 
         // name strings
         copy_str(tmp_node.friendly_name, node_val->get_friendly_name());
-
-        tmp_node.input_name[0] = '\0';
+        const auto tmpInputName = ov::op::util::create_ie_output_name(node_val->output(0));
+        copy_str(tmp_node.input_name, tmpInputName);
 
         const auto tmpTensorNames = node_val->get_output_tensor(0).get_names();
         tmp_node.tensor_names_count = tmpTensorNames.size();
@@ -212,7 +212,7 @@ std::unique_ptr<elf::NetworkMetadata> ELF::constructMetadata(
         auto node_val = node.value();
         auto index = node.index();
 
-        elf::OVNode tmp_node;
+        elf::OVNode tmp_node{};
         tmp_node.type = ELF::mapElementType.at(node_val->get_element_type());
 
         // name strings
@@ -237,23 +237,6 @@ std::unique_ptr<elf::NetworkMetadata> ELF::constructMetadata(
         metadata.ov_results[index] = tmp_node;
     }
 
-    // preprocess info
-
-    metadata.pre_process_info_count = preprocessInfo.size();
-    for (const auto& pr : preprocessInfo | indexed) {
-        auto pr_val = pr.value();
-
-        elf::PreprocessingInfo tmp_preprocessInfo;
-
-        copy_str(tmp_preprocessInfo.input_name, pr_val._inputName);
-
-        tmp_preprocessInfo.input_format = ELF::mapPreProcessColorFormat.at(pr_val._inputFormat);
-        tmp_preprocessInfo.output_format = ELF::mapPreProcessColorFormat.at(pr_val._outputFormat);
-        tmp_preprocessInfo.algorithm = ELF::mapPreProcessResizeAlgorithm.at(pr_val._algorithm);
-
-        metadata.pre_process_info[pr.index()] = tmp_preprocessInfo;
-    }
-
     return metadataPtr;
 }
 
@@ -262,7 +245,7 @@ using BarrierMap = DenseMap<mlir::Value, uint32_t>;
 BarrierMap getBarriers(mlir::func::FuncOp funcOp) {
     BarrierMap barriersIds;
     for (VPUMI37XX::ConfigureBarrierOp barrierOp : funcOp.getOps<VPUMI37XX::ConfigureBarrierOp>()) {
-        auto val = barrierOp.barrier();
+        auto val = barrierOp.getBarrier();
         VPUX_THROW_UNLESS(barriersIds.count(val) == 0, "Value {0} was already serialized", val);
         barriersIds.insert({val, checked_cast<uint32_t>(barriersIds.size())});
     }
@@ -292,86 +275,5 @@ std::pair<std::vector<uint32_t>, std::vector<uint32_t>> getOpBarriers(const Barr
 flatbuffers::DetachedBuffer ELF::constructProfilingMeta37XX(mlir::ModuleOp module, IE::CNNNetworkOp netOp,
                                                             mlir::func::FuncOp funcOp, Logger _log) {
     VPUX_UNUSED(module);
-    _log.info("Constructing Profiling Metadata");
-
-    flatbuffers::FlatBufferBuilder builder;
-
-    const auto barriers = getBarriers(funcOp);
-
-    std::vector<flatbuffers::Offset<ProfilingFB::DMATask>> dmaOffsets;
-    for (VPUMI37XX::NNDMAOp dmaTask : funcOp.getOps<VPUMI37XX::NNDMAOp>()) {
-        auto name = stringifyLocation(dmaTask->getLoc());
-
-        const auto inputType = dmaTask.input().getType().cast<vpux::NDTypeInterface>();
-        const auto sourceLocale = stringifyMemoryKind(inputType.getMemoryKind()).str();
-
-        const auto opBarriers = getOpBarriers(barriers, dmaTask.waitBarriers(), dmaTask.updateBarriers());
-        const auto nameOffset = builder.CreateString(name);
-        const auto sourceLocaleOffset = builder.CreateString(sourceLocale);
-        const auto waitBarriersOffset = builder.CreateVector(opBarriers.first);
-        const auto updateBarriersOffset = builder.CreateVector(opBarriers.second);
-        const auto taskOffset = ProfilingFB::CreateDMATask(builder, nameOffset, sourceLocaleOffset, waitBarriersOffset,
-                                                           updateBarriersOffset);
-        dmaOffsets.push_back(taskOffset);
-    }
-
-    std::vector<flatbuffers::Offset<ProfilingFB::DPUTask>> dpuOffsets;
-    for (VPUMI37XX::DPUInvariantOp dpuInvariant : funcOp.getOps<VPUMI37XX::DPUInvariantOp>()) {
-        auto name = stringifyLocation(dpuInvariant->getLoc());
-
-        const auto opBarriers = getOpBarriers(barriers, dpuInvariant.waitBarriers(), dpuInvariant.updateBarriers());
-
-        const auto nameOffset = builder.CreateString(name);
-        const auto waitBarriersOffset = builder.CreateVector(opBarriers.first);
-        const auto updateBarriersOffset = builder.CreateVector(opBarriers.second);
-        const auto taskOffset =
-                ProfilingFB::CreateDPUTask(builder, nameOffset, waitBarriersOffset, updateBarriersOffset);
-        dpuOffsets.push_back(taskOffset);
-    }
-
-    std::vector<flatbuffers::Offset<ProfilingFB::ActShaveTask>> actShaveOffsets;
-    for (VPUMI37XX::ActKernelInvocationOp actKernelInvocation : funcOp.getOps<VPUMI37XX::ActKernelInvocationOp>()) {
-        auto name = stringifyLocation(actKernelInvocation->getLoc());
-
-        const auto opBarriers =
-                getOpBarriers(barriers, actKernelInvocation.waitBarriers(), actKernelInvocation.updateBarriers());
-
-        const auto nameOffset = builder.CreateString(name);
-        const auto waitBarriersOffset = builder.CreateVector(opBarriers.first);
-        const auto updateBarriersOffset = builder.CreateVector(opBarriers.second);
-        const auto taskOffset =
-                ProfilingFB::CreateActShaveTask(builder, nameOffset, waitBarriersOffset, updateBarriersOffset);
-        actShaveOffsets.push_back(taskOffset);
-    }
-
-    auto profilingOutputsInfo = netOp.getProfilingOutputsInfo();
-    flatbuffers::Offset<ProfilingFB::ProfilingBuffer> profilingBufferOffset;
-    if (profilingOutputsInfo.size() > 0) {
-        VPUX_THROW_WHEN(profilingOutputsInfo.size() > 1, "Unexpected number of profiling outputs (expected 1, got {0})",
-                        profilingOutputsInfo.size());
-        auto profilingOutputInfo = profilingOutputsInfo.front();
-
-        const auto funcArgInd = netOp.getInputsInfo().size() + netOp.getOutputsInfo().size();
-        const auto val = funcOp.getArgument(checked_cast<uint32_t>(funcArgInd));
-        const auto shape = val.getType().cast<vpux::NDTypeInterface>().getShape();
-
-        std::vector<uint32_t> dimensions;
-        std::transform(shape.begin(), shape.end(), std::back_inserter(dimensions), [](const auto& val) {
-            return checked_cast<uint32_t>(val);
-        });
-
-        auto nameOffset = builder.CreateString(profilingOutputInfo.name().str());
-        auto dimsOffset = builder.CreateVector(dimensions);
-        profilingBufferOffset = ProfilingFB::CreateProfilingBuffer(builder, nameOffset, dimsOffset);
-    }
-
-    auto dmaOffset = builder.CreateVector(dmaOffsets);
-    auto dpuOffset = builder.CreateVector(dpuOffsets);
-    auto actShaveOffset = builder.CreateVector(actShaveOffsets);
-
-    auto metadataOffset =
-            ProfilingFB::CreateProfilingMeta(builder, profilingBufferOffset, dmaOffset, dpuOffset, actShaveOffset);
-    builder.Finish(metadataOffset);
-
-    return builder.Release();
+    return vpux::buildProfilingMetaMI37XX(netOp, funcOp, _log);
 }

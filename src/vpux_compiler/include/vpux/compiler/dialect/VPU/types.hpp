@@ -18,5 +18,5 @@
 //
 
 #define GET_TYPEDEF_CLASSES
-#include <vpux/compiler/dialect/VPU/generated/types.hpp.inc>
+#include <vpux/compiler/dialect/VPU/types.hpp.inc>
 #undef GET_TYPEDEF_CLASSES

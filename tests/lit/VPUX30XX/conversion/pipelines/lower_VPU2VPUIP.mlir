@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX30XX" --lower-VPU-to-VPUIP-30XX %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX30XX" --lower-VPU-to-VPUIP %s | FileCheck %s
 
 //
 // The 'lower-VPU-to-VPUIP' pipeline:
@@ -87,11 +87,11 @@ func.func @NCEConv(%arg0 : tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = 
     %weights_table = const.Declare tensor<64x1x1x4xsi32, {mem_space = @CMX_NN}> = dense<1> : tensor<64x1x1x4xsi32, {mem_space = @CMX_NN}>
 
     %out = VPU.NCE.Convolution(%arg0, %weights, %weights_table) {
-            pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             rawFilterShape = [64, 32, 3, 3],
             strides = [1, 1]
         } -> tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-            VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 32, 16, 16] {bottom = 0, left = 0, right = 0, top = 0} "VECTOR_FP16"
+            VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 32, 16, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<VECTOR_FP16>
         }
 
     return %out : tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}>
@@ -103,7 +103,7 @@ func.func @NCEConv(%arg0 : tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = 
 
     // CHECK:       [[OUT_BUF:%.+]] = memref.alloc() : memref<1x64x14x14xf16, #NHWC, @CMX_NN>
     // CHECK:       [[OUT:%.+]] = VPUIP.NCEClusterTask
-    // CHECK-SAME:          {kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, kernel_size = [3, 3], kernel_strides = [1, 1], task_type = "CONV"}
+    // CHECK-SAME:          {kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, kernel_size = [3, 3], kernel_strides = [1, 1], task_type = #VPUIP.nce_task_type<CONV>}
     // CHECK-SAME:          input([[ARG0]]
     // CHECK-SAME:          weights([[WEIGHTS]]
     // CHECK-SAME:          weight_table([[WEIGHTS_TABLE]]
@@ -111,7 +111,7 @@ func.func @NCEConv(%arg0 : tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = 
     // CHECK-SAME:          parent_output([[OUT_BUF]]
     // CHECK-SAME:          outputs([[OUT_BUF]]
     // CHECK-SAME:      -> memref<1x64x14x14xf16, #NHWC, @CMX_NN> variants :  {
-    // CHECK:               DPUTask {mpe_mode = "VECTOR_FP16", outEnd = [15, 15, 31], outStart = [0, 0, 0], pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}}
+    // CHECK:               DPUTask {mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, outEnd = [15, 15, 31], outStart = [0, 0, 0], pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>}
     // CHECK:           } PPE :  {
     // CHECK:           }
 
@@ -155,12 +155,12 @@ func.func @SparseNCEConv(%arg0 : tensor<1x32x16x16xf16, {order = #NHWC}>, %arg1 
             tensor<64x1x1x4xsi32> -> tensor<64x1x1x4xsi32, {mem_space = @CMX_NN}>
 
     %output_sparse_cmx = VPU.NCE.Convolution(%input_sparse_cmx, %weights_sparse_cmx, %weights_table_cmx) {
-            pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             rawFilterShape = [64, 32, 3, 3],
             strides = [1, 1]
         } -> !VPU.SparseTensor<data=tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}>,
                                sparsity_map=tensor<1x64x14x14xi1, {mem_space = @CMX_NN, order = #NHWC}>> {
-            VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 32, 16, 16] {bottom = 0, left = 0, right = 0, top = 0} "VECTOR_FP16"
+            VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 32, 16, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<VECTOR_FP16>
         }
     %output_sparse = VPU.Copy(%output_sparse_cmx) :
            !VPU.SparseTensor<data=tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}>,
@@ -214,7 +214,7 @@ func.func @SparseNCEConv(%arg0 : tensor<1x32x16x16xf16, {order = #NHWC}>, %arg1 
     // CHECK-SAME:      -> memref<64x32x3x3xf16, #NHWC, @CMX_NN>, memref<64x1x1x384xi1, @CMX_NN>
 
     // CHECK:       [[OUT:%.+]]:2 = VPUIP.NCEClusterTask
-    // CHECK-SAME:          {kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, kernel_size = [3, 3], kernel_strides = [1, 1], task_type = "CONV"}
+    // CHECK-SAME:          {kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, kernel_size = [3, 3], kernel_strides = [1, 1], task_type = #VPUIP.nce_task_type<CONV>}
     // CHECK-SAME:          input([[INPUT]]
     // CHECK-SAME:          input_sparsity_map([[INPUT_SM]]
     // CHECK-SAME:          weights([[WEIGHTS]]
@@ -227,7 +227,7 @@ func.func @SparseNCEConv(%arg0 : tensor<1x32x16x16xf16, {order = #NHWC}>, %arg1 
     // CHECK-SAME:          outputs([[OUT_BUF]]
     // CHECK-SAME:          output_sparsity_map([[OUT_SM_BUF]]
     // CHECK-SAME:      -> memref<1x64x14x14xf16, #NHWC, @CMX_NN>, memref<1x64x14x14xi1, #NHWC, @CMX_NN> variants :  {
-    // CHECK:               DPUTask {mpe_mode = "VECTOR_FP16", outEnd = [15, 15, 31], outStart = [0, 0, 0], pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}}
+    // CHECK:               DPUTask {mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, outEnd = [15, 15, 31], outStart = [0, 0, 0], pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>}
     // CHECK:           } PPE :  {
     // CHECK:           }
 
@@ -353,11 +353,11 @@ func.func @SparseNCEConvSOH(%arg0 : !Input_DDR, %arg1 : !InputSM_DDR) -> !VPU.Sp
             %weights_table_sparse_cmx as %arg4: !WeightsTable_CMX)
             -> !VPU.SparseTensor<data=!OutputDistributed, sparsity_map=!OutputSMDistributed> {
         %0 = VPU.NCE.Convolution(%arg2, %arg3, %arg4) {
-                pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+                pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
                 rawFilterShape = [64, 32, 3, 3],
                 strides = [1, 1]
             } -> !VPU.SparseTensor<data=!Output_CMX, sparsity_map=!OutputSM_CMX> {
-            VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 32, 16, 16] {bottom = 0, left = 0, right = 0, top = 0} "VECTOR_FP16"
+            VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 32, 16, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<VECTOR_FP16>
         }
         VPU.Yield %0
     }
@@ -444,7 +444,7 @@ func.func @SparseNCEConvSOH(%arg0 : !Input_DDR, %arg1 : !InputSM_DDR) -> !VPU.Sp
     // CHECK-SAME:          !VPUIP.DistributedBuffer<1x64x14x14xi1, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>) {
 
     // CHECK:           [[CONV_OUT:%.+]]:2 = VPUIP.NCEClusterTask
-    // CHECK-SAME:              {kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, kernel_size = [3, 3], kernel_strides = [1, 1], task_type = "CONV"}
+    // CHECK-SAME:              {kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, kernel_size = [3, 3], kernel_strides = [1, 1], task_type = #VPUIP.nce_task_type<CONV>}
     // CHECK-SAME:              input([[ARG9]]
     // CHECK-SAME:              input_sparsity_map([[ARG10]]
     // CHECK-SAME:              weights([[ARG11]]
@@ -457,7 +457,7 @@ func.func @SparseNCEConvSOH(%arg0 : !Input_DDR, %arg1 : !InputSM_DDR) -> !VPU.Sp
     // CHECK-SAME:              outputs([[ARG14]]
     // CHECK-SAME:              output_sparsity_map([[ARG15]]
     // CHECK-SAME:          -> memref<1x64x14x14xf16, #NHWC, @CMX_NN>, memref<1x64x14x14xi1, #NHWC, @CMX_NN> variants :  {
-    // CHECK:                   DPUTask {mpe_mode = "VECTOR_FP16", outEnd = [15, 15, 31], outStart = [0, 0, 0], pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}}
+    // CHECK:                   DPUTask {mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, outEnd = [15, 15, 31], outStart = [0, 0, 0], pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>}
     // CHECK:               } PPE :  {
     // CHECK:               }
     // CHECK:       }
@@ -509,11 +509,11 @@ func.func @SparseNCEConvSETable(%arg0 : tensor<1x32x16x16xf16, {order = #NHWC}>,
             tensor<64x1x1x4xsi32> -> tensor<64x1x1x4xsi32, {mem_space = @CMX_NN}>
 
     %output_cmx = VPU.NCE.Convolution(%input_sparse_cmx, %weights_cmx, %weights_table_cmx) {
-            pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             rawFilterShape = [64, 32, 3, 3],
             strides = [1, 1]
         } -> tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-            VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 32, 16, 16] {bottom = 0, left = 0, right = 0, top = 0} "VECTOR_FP16"
+            VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 32, 16, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<VECTOR_FP16>
         }
     %output = VPU.Copy(%output_cmx) :
            tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}>
@@ -563,8 +563,8 @@ func.func @SparseNCEConvSETable(%arg0 : tensor<1x32x16x16xf16, {order = #NHWC}>,
     // CHECK:       [[INPUT:%.+]], [[INPUT_SM:%.+]],  [[INPUT_SE:%.+]] = VPUIP.UngroupSparseBuffer([[IN_SPARSE]])
     // CHECK-SAME:      -> memref<1x32x16x16xf16, #NHWC, @CMX_NN>, memref<1x32x16x16xi1, #NHWC, @CMX_NN>, memref<1x1x16x16xi32, #NHWC, @CMX_NN>
     // CHECK:       [[RESULT_CMX:%.+]] = VPUIP.NCEClusterTask
-    // CHECK-SAME:      {kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
-    // CHECK-SAME:      kernel_size = [3, 3], kernel_strides = [1, 1], task_type = "CONV"}
+    // CHECK-SAME:      {kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
+    // CHECK-SAME:      kernel_size = [3, 3], kernel_strides = [1, 1], task_type = #VPUIP.nce_task_type<CONV>}
     // CHECK-SAME:      input([[INPUT]] : memref<1x32x16x16xf16, #NHWC, @CMX_NN>)
     // CHECK-SAME:      input_sparsity_map([[INPUT_SM]] : memref<1x32x16x16xi1, #NHWC, @CMX_NN>)
     // CHECK-SAME:      input_storage_element_table([[INPUT_SE]] : memref<1x1x16x16xi32, #NHWC, @CMX_NN>)
@@ -574,8 +574,8 @@ func.func @SparseNCEConvSETable(%arg0 : tensor<1x32x16x16xf16, {order = #NHWC}>,
     // CHECK-SAME:      parent_input_storage_element_table([[INPUT_SE]] : memref<1x1x16x16xi32, #NHWC, @CMX_NN>)
     // CHECK-SAME:      parent_output([[OUT_NCE_CLUSTER]] : memref<1x64x14x14xf16, #NHWC, @CMX_NN>)
     // CHECK-SAME:      outputs([[OUT_NCE_CLUSTER]] : memref<1x64x14x14xf16, #NHWC, @CMX_NN>) -> memref<1x64x14x14xf16, #NHWC, @CMX_NN> variants : {
-    // CHECK:           DPUTask {mpe_mode = "VECTOR_FP16", outEnd = [15, 15, 31], outStart = [0, 0, 0],
-    // CHECK-SAME:          pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}}
+    // CHECK:           DPUTask {mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, outEnd = [15, 15, 31], outStart = [0, 0, 0],
+    // CHECK-SAME:          pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>}
 
     // CHECK:       [[RESULT_ALLOC:%.+]] = memref.alloc() : memref<1x64x14x14xf16, #NHWC>
     // CHECK:       [[RESULT:%.+]] = VPUIP.Copy inputs([[RESULT_CMX]] : memref<1x64x14x14xf16, #NHWC, @CMX_NN>)

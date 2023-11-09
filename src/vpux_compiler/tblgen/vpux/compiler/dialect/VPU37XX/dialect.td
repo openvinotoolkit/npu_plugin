@@ -27,6 +27,8 @@ def VPU37XX_Dialect : Dialect {
     let extraClassDeclaration = [{
         void registerTypes();
     }];
+
+    let emitAccessorPrefix = kEmitAccessorPrefix_Both;
 }
 
 #endif

@@ -10,26 +10,5 @@
 
 #include <llvm/ADT/TypeSwitch.h>
 
-using namespace vpux;
-
-//
-// initialize
-//
-
-void vpux::VPURT::VPURTDialect::initialize() {
-    addOperations<
-#define GET_OP_LIST
-#include <vpux/compiler/dialect/VPURT/generated/ops.cpp.inc>
-            >();
-
-    registerTypes();
-}
-
-//
-// Generated
-//
-
-#include <vpux/compiler/dialect/VPURT/generated/dialect.cpp.inc>
-
 #define GET_OP_CLASSES
-#include <vpux/compiler/dialect/VPURT/generated/ops.cpp.inc>
+#include <vpux/compiler/dialect/VPURT/ops.cpp.inc>

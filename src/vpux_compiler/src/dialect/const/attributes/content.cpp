@@ -28,7 +28,7 @@ using namespace vpux;
 //
 
 #define GET_ATTRDEF_CLASSES
-#include <vpux/compiler/dialect/const/generated/attributes.cpp.inc>
+#include <vpux/compiler/dialect/const/attributes.cpp.inc>
 
 //
 // ConstDialect::initialize
@@ -37,12 +37,12 @@ using namespace vpux;
 void vpux::Const::ConstDialect::initialize() {
     addOperations<
 #define GET_OP_LIST
-#include <vpux/compiler/dialect/const/generated/ops.cpp.inc>
+#include <vpux/compiler/dialect/const/ops.cpp.inc>
             >();
 
     addAttributes<
 #define GET_ATTRDEF_LIST
-#include <vpux/compiler/dialect/const/generated/attributes.cpp.inc>
+#include <vpux/compiler/dialect/const/attributes.cpp.inc>
             >();
 }
 
@@ -52,8 +52,14 @@ void vpux::Const::ConstDialect::initialize() {
 
 void vpux::Const::ContentAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)> walkAttrsFn,
                                                         llvm::function_ref<void(mlir::Type)> walkTypesFn) const {
-    walkAttrsFn(getBaseContent());
-    walkAttrsFn(getImpl()->transformations);
+    if (auto content = getBaseContent()) {
+        walkAttrsFn(content);
+    }
+
+    if (auto transforms = getImpl()->transformations) {
+        walkAttrsFn(transforms);
+    }
+
     walkTypesFn(getType());
 }
 

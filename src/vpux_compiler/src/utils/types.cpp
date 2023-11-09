@@ -226,7 +226,7 @@ mlir::RankedTensorType vpux::getTensorType(ShapeRef shape, mlir::Type elemType, 
                                            IndexedSymbolAttr memSpace) {
     VPUX_THROW_UNLESS(order.numDims() == shape.size(), "DimsOrder '{0}' doesn't match to shape '{1}'", order, shape);
 
-    const auto tensorDesc = IE::getTensorAttr(elemType.getContext(), order, memSpace);
+    const auto tensorDesc = vpux::getTensorAttr(elemType.getContext(), order, memSpace);
     const auto newType = mlir::RankedTensorType::get(shape.raw(), elemType, tensorDesc);
 
     const auto loc = mlir::UnknownLoc::get(elemType.getContext());
@@ -370,6 +370,38 @@ bool vpux::areTypesCompatible(mlir::TypeRange lhs, mlir::TypeRange rhs, IE::Type
                 }
             }
         }
+    }
+
+    return true;
+}
+
+//
+// Quantized dimension permutation
+//
+
+bool vpux::isQuantizedDimensionPermutation(mlir::quant::UniformQuantizedPerAxisType inputElemType,
+                                           mlir::quant::UniformQuantizedPerAxisType newElemType) {
+    if (inputElemType.getExpressedType() != newElemType.getExpressedType() ||
+        inputElemType.getStorageType() != newElemType.getStorageType() ||
+        inputElemType.isSigned() != newElemType.isSigned() || inputElemType.getFlags() != newElemType.getFlags() ||
+        inputElemType.getStorageTypeMin() != newElemType.getStorageTypeMin() ||
+        inputElemType.getStorageTypeMax() != newElemType.getStorageTypeMax() ||
+        inputElemType.getQuantizedDimension() == newElemType.getQuantizedDimension()) {
+        return false;
+    }
+
+    auto inputElemTypeScales = inputElemType.getScales();
+    auto newElemTypeScales = newElemType.getScales();
+    if (inputElemTypeScales.size() != newElemTypeScales.size() ||
+        !std::equal(inputElemTypeScales.begin(), inputElemTypeScales.end(), newElemTypeScales.begin())) {
+        return false;
+    }
+
+    auto inputElemTypeZPs = inputElemType.getZeroPoints();
+    auto newElemTypeZPs = newElemType.getZeroPoints();
+    if (inputElemTypeZPs.size() != newElemTypeZPs.size() ||
+        !std::equal(inputElemTypeZPs.begin(), inputElemTypeZPs.end(), newElemTypeZPs.begin())) {
+        return false;
     }
 
     return true;

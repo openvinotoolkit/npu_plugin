@@ -4,9 +4,8 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
-#include "vpux/compiler/dialect/VPUIP/dialect.hpp"
-
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
+#include "vpux/compiler/dialect/VPUIP/dialect.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/swizzling_utils.hpp"
 
@@ -20,10 +19,10 @@
 //
 
 #define GET_ATTRDEF_CLASSES
-#include <vpux/compiler/dialect/VPUIP/generated/attributes.cpp.inc>
+#include <vpux/compiler/dialect/VPUIP/attributes.cpp.inc>
 
-#include <vpux/compiler/dialect/VPUIP/generated/attributes/enums.cpp.inc>
-#include <vpux/compiler/dialect/VPUIP/generated/attributes/structs.cpp.inc>
+#include <vpux/compiler/dialect/VPUIP/enums.cpp.inc>
+#include <vpux/compiler/dialect/VPUIP/structs.cpp.inc>
 
 using namespace vpux;
 
@@ -34,7 +33,7 @@ using namespace vpux;
 void VPUIP::VPUIPDialect::registerAttributes() {
     addAttributes<
 #define GET_ATTRDEF_LIST
-#include <vpux/compiler/dialect/VPUIP/generated/attributes.cpp.inc>
+#include <vpux/compiler/dialect/VPUIP/attributes.cpp.inc>
             >();
 }
 

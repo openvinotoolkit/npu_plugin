@@ -1,5 +1,8 @@
-# Copyright (C) 2023 Intel Corporation
+#
+# Copyright (C) 2022 Intel Corporation.
 # SPDX-License-Identifier: Apache 2.0
+#
+
 function(vpux_embed_bin_file)
     set(options APPEND)
     set(oneValueArgs SOURCE_FILE HEADER_FILE VARIABLE_NAME)

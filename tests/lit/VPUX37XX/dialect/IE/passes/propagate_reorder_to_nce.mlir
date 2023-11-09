@@ -10,16 +10,16 @@
 
 // CHECK-LABEL: @PropagateReorderToConv
 func.func @PropagateReorderToConv(%arg0: tensor<1x3x512x512xf16, {order = #NHWC}>) -> tensor<1x3x512x512xf16> {
-    %cst = const.Declare tensor<3x3x3x3xf16, {order = #NHWC}> = dense<1.0> : tensor<3x3x3x3xf16>, [#const.Reorder<#NHWC>]
+    %cst = const.Declare tensor<3x3x3x3xf16, {order = #NHWC}> = dense<1.0> : tensor<3x3x3x3xf16>, [#const.Reorder<#NHWC>]    
     %0 = IE.Convolution(%arg0, %cst) {dilations = [1, 1], pads_begin = [1, 1], pads_end = [1, 1], strides = [1, 1]} : tensor<1x3x512x512xf16, {order = #NHWC}>, tensor<3x3x3x3xf16, {order = #NHWC}> -> tensor<1x3x512x512xf16, {order = #NHWC}>
     %1 = IE.Tanh(%0) : tensor<1x3x512x512xf16, {order = #NHWC}> -> tensor<1x3x512x512xf16, {order = #NHWC}>
     %2 = IE.Reorder(%1) {dstOrder = #NCHW} : tensor<1x3x512x512xf16, {order = #NHWC}> -> tensor<1x3x512x512xf16>
     return %2 : tensor<1x3x512x512xf16>
 
-    //CHECK:      [[CONV:%.*]] = IE.Convolution
+    //CHECK:      [[CONV:%.*]] = IE.Convolution 
     //CHECK-SAME: tensor<1x3x512x512xf16, {order = #NHWC}>, tensor<3x3x3x3xf16, {order = #NHWC}> -> tensor<1x3x512x512xf16, {order = #NHWC}>
     //CHECK:      [[REORDER:%.*]] = IE.Reorder([[CONV]]) {dstOrder = #NCHW}
-    //CHECK:      [[TANH:%.*]] = IE.Tanh([[REORDER]])
+    //CHECK:      [[TANH:%.*]] = IE.Tanh([[REORDER]]) 
     //CHECK-SAME: tensor<1x3x512x512xf16> -> tensor<1x3x512x512xf16>
     //CHECK:      return [[TANH]] : tensor<1x3x512x512xf16>
 }
@@ -49,16 +49,16 @@ func.func @NoPropagateReorderWithoutNCE(%arg0: tensor<1x3x512x512xf16, {order = 
 
 // CHECK-LABEL: @NoPropagateReorderTwoBranches
 func.func @NoPropagateReorderTwoBranches(%arg0: tensor<1x3x512x512xf16, {order = #NHWC}>) -> (tensor<1x3x512x512xf16>, tensor<1x3x512x512xf16, {order = #NHWC}>) {
-    %cst = const.Declare tensor<3x3x3x3xf16, {order = #NHWC}> = dense<1.0> : tensor<3x3x3x3xf16>, [#const.Reorder<#NHWC>]
+    %cst = const.Declare tensor<3x3x3x3xf16, {order = #NHWC}> = dense<1.0> : tensor<3x3x3x3xf16>, [#const.Reorder<#NHWC>]    
     %0 = IE.Convolution(%arg0, %cst) {dilations = [1, 1], pads_begin = [1, 1], pads_end = [1, 1], strides = [1, 1]} : tensor<1x3x512x512xf16, {order = #NHWC}>, tensor<3x3x3x3xf16, {order = #NHWC}> -> tensor<1x3x512x512xf16, {order = #NHWC}>
     %1 = IE.Tanh(%0) : tensor<1x3x512x512xf16, {order = #NHWC}> -> tensor<1x3x512x512xf16, {order = #NHWC}>
     %2 = IE.Reorder(%1) {dstOrder = #NCHW} : tensor<1x3x512x512xf16, {order = #NHWC}> -> tensor<1x3x512x512xf16>
     %3 = IE.MaxPool(%0) {kernel_size = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], rounding_type = #IE.rounding_type<FLOOR>, strides = [1, 1]} : tensor<1x3x512x512xf16, {order = #NHWC}> -> tensor<1x3x512x512xf16, {order = #NHWC}>
     return %2, %3 : tensor<1x3x512x512xf16>, tensor<1x3x512x512xf16, {order = #NHWC}>
 
-    //CHECK:      [[CONV:%.*]] = IE.Convolution
+    //CHECK:      [[CONV:%.*]] = IE.Convolution 
     //CHECK-SAME: tensor<1x3x512x512xf16, {order = #NHWC}>, tensor<3x3x3x3xf16, {order = #NHWC}> -> tensor<1x3x512x512xf16, {order = #NHWC}>
-    //CHECK:      [[TANH:%.*]] = IE.Tanh([[CONV]])
+    //CHECK:      [[TANH:%.*]] = IE.Tanh([[CONV]]) 
     //CHECK-SAME: tensor<1x3x512x512xf16, {order = #NHWC}> -> tensor<1x3x512x512xf16, {order = #NHWC}>
     //CHECK:      [[REORDER:%.*]] = IE.Reorder([[TANH]]) {dstOrder = #NCHW}
     //CHECK:      [[MAXPOOL:%.*]] = IE.MaxPool([[CONV]])
@@ -72,15 +72,15 @@ func.func @NoPropagateReorderTwoBranches(%arg0: tensor<1x3x512x512xf16, {order =
 
 // CHECK-LABEL: @NoPropagateNoSupportedReorder
 func.func @NoPropagateNoSupportedReorder(%arg0: tensor<1x3x512x512xf16, {order = #NHWC}>) -> tensor<1x3x512x512xf16, {order = #map}> {
-    %cst = const.Declare tensor<3x3x3x3xf16, {order = #NHWC}> = dense<1.0> : tensor<3x3x3x3xf16>, [#const.Reorder<#NHWC>]
+    %cst = const.Declare tensor<3x3x3x3xf16, {order = #NHWC}> = dense<1.0> : tensor<3x3x3x3xf16>, [#const.Reorder<#NHWC>]    
     %0 = IE.Convolution(%arg0, %cst) {dilations = [1, 1], pads_begin = [1, 1], pads_end = [1, 1], strides = [1, 1]} : tensor<1x3x512x512xf16, {order = #NHWC}>, tensor<3x3x3x3xf16, {order = #NHWC}> -> tensor<1x3x512x512xf16, {order = #NHWC}>
     %1 = IE.MVN(%0) {across_channels = false, eps = 1.0013580322265625E-5 : f64, normalize_variance = true} : tensor<1x3x512x512xf16, {order = #NHWC}> -> tensor<1x3x512x512xf16, {order = #NHWC}>
     %2 = IE.Reorder(%1) {dstOrder = #map} : tensor<1x3x512x512xf16, {order = #NHWC}> -> tensor<1x3x512x512xf16, {order = #map}>
     return %2 : tensor<1x3x512x512xf16, {order = #map}>
 
-    //CHECK:      [[CONV:%.*]] = IE.Convolution
+    //CHECK:      [[CONV:%.*]] = IE.Convolution 
     //CHECK-SAME: tensor<1x3x512x512xf16, {order = #NHWC}>, tensor<3x3x3x3xf16, {order = #NHWC}> -> tensor<1x3x512x512xf16, {order = #NHWC}>
-    //CHECK:      [[MVN:%.*]] = IE.MVN([[CONV]])
+    //CHECK:      [[MVN:%.*]] = IE.MVN([[CONV]]) 
     //CHECK-SAME: tensor<1x3x512x512xf16, {order = #NHWC}> -> tensor<1x3x512x512xf16, {order = #NHWC}>
     //CHECK:      [[REORDER:%.*]] = IE.Reorder([[MVN]]) {dstOrder = #map}
     //CHECK:      return [[REORDER]] : tensor<1x3x512x512xf16, {order = #map}>

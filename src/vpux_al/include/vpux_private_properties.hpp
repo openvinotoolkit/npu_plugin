@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -89,13 +89,9 @@ inline std::ostream& operator<<(std::ostream& out, const ColorFormat& fmt) {
  */
 enum class VPUXPlatform : int {
     AUTO_DETECT = 0,  // Auto detection
-    VPU3400_A0 = 1,   // VPU30XX A0
-    VPU3400 = 2,      // VPU30XX B0 500 MHz
-    VPU3700 = 3,      // VPU30XX B0 700 MHz
-    VPU3800 = 4,      // VPU311X Prime
-    VPU3900 = 5,      // VPU311X Full
-    VPU3720 = 6,      // VPU3720
-    EMULATOR = 7,     // Emulator
+    EMULATOR = 1,     // Emulator
+    VPU3700 = 2,      // VPU30XX
+    VPU3720 = 3,      // VPU37XX
 };
 
 /**
@@ -108,20 +104,12 @@ inline InferenceEngine::VPUXConfigParams::VPUXPlatform cvtVPUXPlatform(VPUXPlatf
     switch (fmt) {
     case VPUXPlatform::AUTO_DETECT:
         return InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO_DETECT;
-    case VPUXPlatform::VPU3400_A0:
-        return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0;
-    case VPUXPlatform::VPU3400:
-        return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400;
-    case VPUXPlatform::VPU3700:
-        return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700;
-    case VPUXPlatform::VPU3800:
-        return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800;
-    case VPUXPlatform::VPU3900:
-        return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900;
-    case VPUXPlatform::VPU3720:
-        return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720;
     case VPUXPlatform::EMULATOR:
         return InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR;
+    case VPUXPlatform::VPU3700:
+        return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700;
+    case VPUXPlatform::VPU3720:
+        return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720;
     default:
         VPUX_THROW("Unknown VPUXPlatform {0} to convert to InferenceEngine::VPUXConfigParams::VPUXPlatform",
                    static_cast<uint32_t>(fmt));
@@ -140,26 +128,14 @@ inline std::ostream& operator<<(std::ostream& out, const VPUXPlatform& fmt) {
     case VPUXPlatform::AUTO_DETECT: {
         out << "AUTO_DETECT";
     } break;
-    case VPUXPlatform::VPU3400_A0: {
-        out << "VPU3400_A0";
-    } break;
-    case VPUXPlatform::VPU3400: {
-        out << "VPU3400";
+    case VPUXPlatform::EMULATOR: {
+        out << "EMULATOR";
     } break;
     case VPUXPlatform::VPU3700: {
         out << "VPU3700";
     } break;
-    case VPUXPlatform::VPU3800: {
-        out << "VPU3800";
-    } break;
-    case VPUXPlatform::VPU3900: {
-        out << "VPU3900";
-    } break;
     case VPUXPlatform::VPU3720: {
         out << "VPU3720";
-    } break;
-    case VPUXPlatform::EMULATOR: {
-        out << "EMULATOR";
     } break;
     default:
         out << static_cast<uint32_t>(fmt);
@@ -337,16 +313,16 @@ inline std::ostream& operator<<(std::ostream& out, const ElfCompilerBackend& fmt
  * This option allows to specify device.
  * If specified device is not available then creating infer request will throw an exception.
  */
-static constexpr ov::Property<VPUXPlatform> vpux_platform{"VPUX_PLATFORM"};
+static constexpr ov::Property<VPUXPlatform> vpux_platform{"NPU_PLATFORM"};
 
 /**
  * @brief [Only for VPUX Plugin]
  * Type: string, default is MLIR for DEVELOPER_BUILD, DRIVER otherwise.
  * Type of VPU compiler to be used for compilation of a network
  */
-static constexpr ov::Property<CompilerType> compiler_type{"VPUX_COMPILER_TYPE"};
+static constexpr ov::Property<CompilerType> compiler_type{"NPU_COMPILER_TYPE"};
 
-static constexpr ov::Property<std::string> compilation_mode{"VPUX_COMPILATION_MODE"};
+static constexpr ov::Property<std::string> compilation_mode{"NPU_COMPILATION_MODE"};
 
 /**
  * @brief [Only for VPUX compiler]
@@ -354,28 +330,21 @@ static constexpr ov::Property<std::string> compilation_mode{"VPUX_COMPILATION_MO
  * Config for HW-mode's pipeline
  * Available values: low-precision=true/low-precision=false
  */
-static constexpr ov::Property<std::string> compilation_mode_params{"VPUX_COMPILATION_MODE_PARAMS"};
+static constexpr ov::Property<std::string> compilation_mode_params{"NPU_COMPILATION_MODE_PARAMS"};
 
 /**
  * @brief [Only for VPUX Plugin]
  * Type: integer, default is None
  * Number of DPU groups
  */
-static constexpr ov::Property<int64_t> dpu_groups{"VPUX_DPU_GROUPS"};
-
-/**
- * @brief [Only for VPUX Plugin]
- * Type: integer, default is 500
- * DDR heap size in MB
- */
-static constexpr ov::Property<int64_t> ddr_heap_size_mb{"DDR_HEAP_SIZE_MB"};
+static constexpr ov::Property<int64_t> dpu_groups{"NPU_DPU_GROUPS"};
 
 /**
  * @brief [Only for VPUX Plugin]
  * Type: integer, default is None
  * Number of DMA engines
  */
-static constexpr ov::Property<int64_t> dma_engines{"VPUX_DMA_ENGINES"};
+static constexpr ov::Property<int64_t> dma_engines{"NPU_DMA_ENGINES"};
 
 /**
  * @brief [Only for VPUX Plugin]
@@ -383,7 +352,7 @@ static constexpr ov::Property<int64_t> dma_engines{"VPUX_DMA_ENGINES"};
  * NONE - do not print profiling info
  * TEXT, JSON - print detailed profiling info during inference in requested format
  */
-static constexpr ov::Property<ProfilingOutputTypeArg> print_profiling{"VPUX_PRINT_PROFILING"};
+static constexpr ov::Property<ProfilingOutputTypeArg> print_profiling{"NPU_PRINT_PROFILING"};
 
 /**
  * @brief [Only for VPUX Plugin]
@@ -391,7 +360,7 @@ static constexpr ov::Property<ProfilingOutputTypeArg> print_profiling{"VPUX_PRIN
  * File that contains profiling output.
  * std::cout is used if this string is empty
  */
-static constexpr ov::Property<std::string> profiling_output_file{"VPUX_PROFILING_OUTPUT_FILE"};
+static constexpr ov::Property<std::string> profiling_output_file{"NPU_PROFILING_OUTPUT_FILE"};
 
 /**
  * @brief
@@ -399,14 +368,14 @@ static constexpr ov::Property<std::string> profiling_output_file{"VPUX_PROFILING
  * This option is added for enabling ELF backend.
  * Possible values: "AUTO", "YES", "NO".
  */
-static constexpr ov::Property<ElfCompilerBackend> use_elf_compiler_backend{"VPUX_USE_ELF_COMPILER_BACKEND"};
+static constexpr ov::Property<ElfCompilerBackend> use_elf_compiler_backend{"NPU_USE_ELF_COMPILER_BACKEND"};
 
 /**
  * @brief [Only for VPUX Plugin]
  * Type: integer, default is 1
  * This option allows to omit creating an executor and therefore to omit running an inference when its value is 0
  */
-static constexpr ov::Property<int64_t> create_executor{"VPUX_CREATE_EXECUTOR"};
+static constexpr ov::Property<int64_t> create_executor{"NPU_CREATE_EXECUTOR"};
 
 }  // namespace intel_vpux
 }  // namespace ov

@@ -19,13 +19,8 @@ mlir::LogicalResult vpux::IE::ScatterNDUpdateOp::inferReturnTypeComponents(
     }
 
     const auto inType = scatter.input().getType().cast<mlir::RankedTensorType>();
-    const auto outDesc = IE::getTensorAttr(inType);
+    const auto outDesc = vpux::getTensorAttr(inType);
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType(), outDesc);
 
     return mlir::success();
-}
-
-void vpux::IE::ScatterNDUpdateOp::inferLayoutInfo(vpux::IE::LayerLayoutInfo& info) {
-    const auto inType = input().getType().cast<mlir::RankedTensorType>();
-    info.setInput(0, DimsOrder::fromNumDims(inType.getShape().size()));
 }

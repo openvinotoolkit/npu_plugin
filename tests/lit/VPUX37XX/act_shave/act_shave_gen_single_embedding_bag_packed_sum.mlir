@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-// RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" %s | vpux-translate --export-VPUIP -o %t
+// RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" %s | vpux-translate --vpu-arch=VPUX37XX --export-VPUIP -o %t
 // RUN: flatc --raw-binary --json %vpuip_schema_file% -- %t
 // RUN: FileCheck %s --input-file %basename_t.json
 // RUN: rm %basename_t.json
@@ -50,12 +50,12 @@ func.func @main(%arg0: memref<5x10xf16, @DDR>, %arg1: memref<3x10xf16, @DDR>) ->
     %0 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     %1 = VPURT.ConfigureBarrier<1> -> !VPURT.Barrier
 
-    %2 = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> memref<5x10xf16, @DDR>
-    %3 = VPURT.DeclareBuffer "NetworkOutput" [0] <0> -> memref<3x10xf16, @DDR>
-    %4 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<5x10xf16, [@CMX_NN, 0]>
-    %5 = VPURT.DeclareBuffer "CMX_NN" [0] <192> -> memref<3x2xsi32, [@CMX_NN, 0]>
-    %6 = VPURT.DeclareBuffer "CMX_NN" [0] <256> -> memref<3x2xf16, [@CMX_NN, 0]>
-    %7 = VPURT.DeclareBuffer "CMX_NN" [0] <128> -> memref<3x10xf16, [@CMX_NN, 0]>
+    %2 = VPURT.DeclareBuffer <NetworkInput> [0] <0> -> memref<5x10xf16, @DDR>
+    %3 = VPURT.DeclareBuffer <NetworkOutput> [0] <0> -> memref<3x10xf16, @DDR>
+    %4 = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<5x10xf16, [@CMX_NN, 0]>
+    %5 = VPURT.DeclareBuffer <CMX_NN> [0] <192> -> memref<3x2xsi32, [@CMX_NN, 0]>
+    %6 = VPURT.DeclareBuffer <CMX_NN> [0] <256> -> memref<3x2xf16, [@CMX_NN, 0]>
+    %7 = VPURT.DeclareBuffer <CMX_NN> [0] <128> -> memref<3x10xf16, [@CMX_NN, 0]>
 
     VPURT.Task updates(%0 : !VPURT.Barrier) attributes {cycleBegin = 0 : i64, cycleEnd = 955 : i64, isTrailingSWLayer = false} {
         %8 = VPUIP.NNDMA {port = 0 : i64} inputs(%2 : memref<5x10xf16, @DDR>) outputs(%4 : memref<5x10xf16, [@CMX_NN, 0]>) -> memref<5x10xf16, [@CMX_NN, 0]>

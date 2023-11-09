@@ -16,7 +16,7 @@ mlir::ArrayAttr getIntArrayAttrValue(mlir::Value operand) {
     if (constOp == nullptr) {
         return nullptr;
     }
-    const auto content = constOp.content();
+    const auto content = constOp.getContent();
     return getIntArrayAttr(operand.getContext(), content.getValues<int32_t>());
 }
 
@@ -28,7 +28,7 @@ mlir::ArrayAttr getFloatArrayAttrValue(mlir::Value operand) {
     if (constOp == nullptr) {
         return nullptr;
     }
-    const auto content = constOp.content();
+    const auto content = constOp.getContent();
     return getFPArrayAttr(operand.getContext(), content.getValues<double>());
 }
 
@@ -37,7 +37,7 @@ mlir::IntegerAttr getIntAttrValue(mlir::Value operand, mlir::PatternRewriter& re
         return nullptr;
     }
     auto constOp = operand.getDefiningOp<Const::DeclareOp>();
-    const auto content = constOp.content();
+    const auto content = constOp.getContent();
     if (!content.isSplat()) {
         return nullptr;
     }
@@ -52,6 +52,21 @@ mlir::FailureOr<Const::DeclareOp> getConstParentOp(mlir::Value input) {
     }
     if (parent && mlir::isa<Const::DeclareOp>(parent)) {
         return mlir::cast<Const::DeclareOp>(parent);
+    }
+    return mlir::failure();
+}
+
+mlir::FailureOr<int64_t> getBaseContentNumElements(Const::DeclareOp constOp) {
+    if (constOp == nullptr) {
+        return mlir::failure();
+    }
+    auto contentAttr = constOp.getContentAttr();
+    if (contentAttr == nullptr) {
+        return mlir::failure();
+    }
+    auto baseContent = contentAttr.getBaseContent();
+    if (baseContent != nullptr) {
+        return baseContent.getType().getNumElements();
     }
     return mlir::failure();
 }

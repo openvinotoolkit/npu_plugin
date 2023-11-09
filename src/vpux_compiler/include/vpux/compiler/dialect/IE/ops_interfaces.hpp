@@ -36,6 +36,7 @@ public:
     LayerDataInfo(Range1&& inputInfo, Range2&& outputInfo)
             : _inputInfo(std::forward<Range1>(inputInfo)), _outputInfo(std::forward<Range2>(outputInfo)) {
     }
+    virtual ~LayerDataInfo() = default;
 
 public:
     bool hasChanges() const {
@@ -147,7 +148,7 @@ mlir::LogicalResult inferTensorTypes(InferTypeComponentsCb componentsCb, mlir::M
 template <typename ConcreteOp>
 Optional<mlir::OperationName> getLayerPostOp(ConcreteOp mainOp) {
     if (auto postOpInfo = mainOp.post_opAttr()) {
-        return mlir::OperationName(postOpInfo.name().getValue(), mainOp->getContext());
+        return mlir::OperationName(postOpInfo.getName().getValue(), mainOp->getContext());
     }
 
     return None;
@@ -156,7 +157,7 @@ Optional<mlir::OperationName> getLayerPostOp(ConcreteOp mainOp) {
 template <typename ConcreteOp>
 mlir::DictionaryAttr getLayerPostOpAttrs(ConcreteOp mainOp) {
     if (auto postOpInfo = mainOp.post_opAttr()) {
-        return postOpInfo.attrs();
+        return postOpInfo.getAttrs();
     }
 
     return nullptr;
@@ -170,7 +171,8 @@ void setLayerPostOp(ConcreteOp mainOp, mlir::Operation* postOp) {
                       "Only single input operation can be attached as PostOp via attributes");
 
     const auto postOpName = mlir::StringAttr::get(mainOp->getContext(), postOp->getName().getStringRef());
-    const auto postOpInfo = IE::PostOp::get(postOpName, postOp->getAttrDictionary(), mainOp->getContext());
+    const auto postOpInfo = IE::PostOpAttr::get(mainOp->getContext(), postOpName, postOp->getAttrDictionary());
+
     mainOp.post_opAttr(postOpInfo);
 }
 
@@ -192,6 +194,7 @@ public:
     void setOutput(size_t ind, const DimsOrder& info) final;
 };
 
+mlir::LogicalResult verifyLayout(mlir::Operation*);
 LayerLayoutInfo getLayoutInfo(mlir::Operation* op);
 void fillDefaultLayoutInfo(LayerLayoutInfo& info);
 void fillDefaultLayoutInfo(LayerLayoutInfo& info, FuncRef<bool(size_t)> inputFilter,
@@ -232,4 +235,4 @@ bool isPureViewOp(mlir::Operation* op);
 // Generated
 //
 
-#include <vpux/compiler/dialect/IE/generated/ops_interfaces.hpp.inc>
+#include <vpux/compiler/dialect/IE/ops_interfaces.hpp.inc>

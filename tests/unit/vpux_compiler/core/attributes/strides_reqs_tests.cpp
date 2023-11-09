@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 
 #include <gtest/gtest.h>

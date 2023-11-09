@@ -84,13 +84,13 @@ module @Test  {
       ELF.PutOpInSection %17 : !ELF.Symbol
       ELF.PutOpInSection %13 : !ELF.Symbol
       ELF.PutOpInSection %14 : !ELF.Symbol
-      %49 = ELF.Symbol %1 name("MappedInference_entry") type("VPU_STT_ENTRY") : !VPURegMapped.Index<0:0:0>
+      %49 = ELF.Symbol %1 name("MappedInference_entry") type(<VPU_STT_ENTRY>) : !VPURegMapped.Index<0:0:0>
     }
     %34 = ELF.CreateRelocationSection secName(".rlt.DMA_NetInput") sourceSymbolTableSection(%20) targetSection(%2) secFlags("SHF_INFO_LINK|VPU_SHF_JIT|VPU_SHF_USERINPUT") -> !ELF.Section  {
-      ELF.RelocImmOffset baseOp(%0 : !VPURegMapped.Index<0:0:0>) offset(16) "R_VPU_64" %18 0
+      ELF.RelocImmOffset baseOp(%0 : !VPURegMapped.Index<0:0:0>) offset(16) <R_VPU_64> %18 0
     }
     %35 = ELF.CreateRelocationSection secName(".rlt.DMA_NetOutput") sourceSymbolTableSection(%21) targetSection(%2) secFlags("SHF_INFO_LINK|VPU_SHF_JIT|VPU_SHF_USEROUTPUT") -> !ELF.Section  {
-      ELF.RelocImmOffset baseOp(%0 : !VPURegMapped.Index<0:0:0>) offset(24) "R_VPU_64" %19 0
+      ELF.RelocImmOffset baseOp(%0 : !VPURegMapped.Index<0:0:0>) offset(24) <R_VPU_64> %19 0
     }
     %36 = ELF.CreateRelocationSection secName(".rlt.dmaIO_DDR") sourceSymbolTableSection(%24) targetSection(%2) secFlags(SHF_INFO_LINK) -> !ELF.Section  {
     }
@@ -106,7 +106,7 @@ module @Test  {
     }
     %42 = ELF.CreateRelocationSection secName(".rlt.ActKernelInvo") sourceSymbolTableSection(%33) targetSection(%8) secFlags(SHF_INFO_LINK) -> !ELF.Section  {
     }
-    %43 = VPURT.DeclareBuffer "DDR" <64> -> memref<262144xi32, @DDR>
+    %43 = VPURT.DeclareBuffer <DDR> <64> -> memref<262144xi32, @DDR>
     %44 = ELF.CreateLogicalSection secType(SHT_NOBITS) secFlags("SHF_NONE") {secAddrAlign = 1024 : i64, secInfo = 0 : i64, secName = ".bss.actKernelRtConfigSec"} -> !ELF.Section  {
       ELF.PutOpInSection %43 : memref<262144xi32, @DDR>
     }
@@ -115,10 +115,10 @@ module @Test  {
       ELF.PutOpInSection %45 : !ELF.Symbol
     }
     %47 = ELF.CreateRelocationSection secName(".rlt.MI_AKRtConfig") sourceSymbolTableSection(%46) targetSection(%9) secFlags(SHF_INFO_LINK) -> !ELF.Section  {
-      ELF.RelocImmOffset baseOp(%1 : !VPURegMapped.Index<0:0:0>) offset(828) "R_VPU_32" %45 0
+      ELF.RelocImmOffset baseOp(%1 : !VPURegMapped.Index<0:0:0>) offset(828) <R_VPU_32> %45 0
     }
     %48 = ELF.CreateRelocationSection secName(".rlt.MappedInference") sourceSymbolTableSection(%33) targetSection(%9) secFlags(SHF_INFO_LINK) -> !ELF.Section  {
-      ELF.RelocImmOffset baseOp(%1 : !VPURegMapped.Index<0:0:0>) offset(0) "R_VPU_64" %11 0
+      ELF.RelocImmOffset baseOp(%1 : !VPURegMapped.Index<0:0:0>) offset(0) <R_VPU_64> %11 0
     }
     return %arg1 : memref<1x1x1x1000xf16>
   }

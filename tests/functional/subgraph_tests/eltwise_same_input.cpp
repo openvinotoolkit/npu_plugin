@@ -3,14 +3,14 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux_layer_test.hpp"
+#include "vpu_ov2_layer_test.hpp"
 
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
 #include <shared_test_classes/single_layer/eltwise.hpp>
 
 namespace ov::test::subgraph {
 
-class VPUXEltwiseSameInputTest : public EltwiseLayerTest, virtual public VPUXLayerTest {};
+class VPUXEltwiseSameInputTest : public EltwiseLayerTest, virtual public VpuOv2LayerTest {};
 
 TEST_P(VPUXEltwiseSameInputTest, DISABLED_VPU3700_HW) {
     setDefaultHardwareMode();

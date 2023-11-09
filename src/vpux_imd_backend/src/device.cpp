@@ -31,3 +31,7 @@ std::string vpux::IMD::DeviceImpl::getName() const {
     VPUX_THROW_UNLESS(platformName.consume_front("VPU"), "Unsupported VPUX platform '{0}'", _platform);
     return platformName.str();
 }
+
+std::string vpux::IMD::DeviceImpl::getFullDeviceName() const {
+    return "Intel(R) NPU (IMD)";
+}

@@ -29,7 +29,7 @@ func.func @ConvToNCE(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>) -> tensor<1
     // CHECK-DAG:       [[WEIGHTS:%.+]] = const.Declare tensor<16x16x1x1xf16, {order = #NHWC}>
 
     // CHECK:       [[VAL0:%.+]] = VPU.NCE.Convolution(%arg0, [[WEIGHTS]], [[MAP]])
-    // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
+    // CHECK-SAME:      pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>
     // CHECK-SAME:      strides = [1, 1]
     // CHECK-SAME:      -> tensor<1x16x16x16xf16, {order = #NHWC}>
 
@@ -52,7 +52,7 @@ func.func @ConvWithReluRewriter(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>) 
             pads_begin = [0, 0],
             pads_end = [0, 0],
             strides = [1, 1],
-            post_op = {attrs = {}, name = "IE.ReLU"}
+            post_op = #IE.PostOp<name = "IE.ReLU", attrs = {}>
         } : tensor<1x16x16x16xf16, {order = #NHWC}>, tensor<16x16x1x1xf16, {order = #NHWC}>, tensor<1x16x1x1xf16>
             -> tensor<1x16x16x16xf16, {order = #NHWC}>
 
@@ -60,11 +60,9 @@ func.func @ConvWithReluRewriter(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>) 
 
     // CHECK-DAG:       [[MAP:%.+]] = const.Declare tensor<16x1x1x4xsi32>
     // CHECK-DAG:       [[WEIGHTS:%.+]] = const.Declare tensor<16x16x1x1xf16, {order = #NHWC}>
-
     // CHECK:       [[OUT:%.+]] = VPU.NCE.Convolution(%arg0, [[WEIGHTS]], [[MAP]])
-    // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
-    // CHECK-SAME:      ppe = {clamp_high = 2147483647 : i64, clamp_low = 0 : i64,
-    // CHECK-SAME:              lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "LRELU"},
+    // CHECK-SAME:      pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
+    // CHECK-SAME:      ppe = #VPU.PPETask<mode = <LRELU>, clamp_low = 0 : i64, clamp_high = 2147483647 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64>
     // CHECK-SAME:      strides = [1, 1]
     // CHECK-SAME:      -> tensor<1x16x16x16xf16, {order = #NHWC}>
 
@@ -84,7 +82,7 @@ func.func @MaxPoolToNCE(%arg0: tensor<1x16x1x4xf16, {order = #NHWC}>) -> tensor<
             pads_end = [0, 0],
             strides = [1, 1],
             rounding_type = #IE.rounding_type<FLOOR>,
-            post_op = {attrs = {max = 6.0, min = 0.0}, name = "IE.Clamp"}
+            post_op = #IE.PostOp<name = "IE.Clamp", attrs = {max = 6.0, min = 0.0}>
         } : tensor<1x16x1x4xf16, {order = #NHWC}> -> tensor<1x16x1x4xf16, {order = #NHWC}>
 
     return %0 : tensor<1x16x1x4xf16, {order = #NHWC}>
@@ -93,9 +91,8 @@ func.func @MaxPoolToNCE(%arg0: tensor<1x16x1x4xf16, {order = #NHWC}>) -> tensor<
     // CHECK-DAG:       [[WEIGHTS_TABLE:%.+]] = const.Declare tensor<16x1x1x4xsi32>
 
     // CHECK:       [[OUT:%.+]] = VPU.NCE.MaxPool(%arg0, [[WEIGHTS_TABLE]], [[ACTIVATION_WINDOW]])
-    // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
-    // CHECK-SAME:      ppe = {clamp_high = 393216 : i64, clamp_low = 0 : i64,
-    // CHECK-SAME:              lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "NOOP"},
+    // CHECK-SAME:      pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
+    // CHECK-SAME:      ppe = #VPU.PPETask<mode = <NOOP>, clamp_low = 0 : i64, clamp_high = 393216 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64>
     // CHECK-SAME:      strides = [1, 1]
     // CHECK-SAME:      -> tensor<1x16x1x4xf16, {order = #NHWC}>
 
@@ -116,7 +113,7 @@ func.func @EltwiseAddToNCE(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>, %arg1
     return %0 : tensor<1x64x28x28xf16, {order = #NHWC}>
 
     // CHECK:       [[OUT:%.+]] = VPU.NCE.Eltwise(%arg0, %arg1)
-    // CHECK-SAME:      op_type = "ADD"
+    // CHECK-SAME:      op_type = #VPU.eltwise_type<ADD>
     // CHECK-SAME:      -> tensor<1x64x28x28xf16, {order = #NHWC}>
 
     // CHECK:       return [[OUT]] : tensor<1x64x28x28xf16, {order = #NHWC}>
@@ -136,7 +133,7 @@ func.func @EltwiseAddSameInputsToNCE(%arg0: tensor<1x64x28x28xf16, {order = #NHW
     return %0 : tensor<1x64x28x28xf16, {order = #NHWC}>
 
     // CHECK:       [[OUT:%.+]] = VPU.NCE.Eltwise(%arg0, %arg0)
-    // CHECK-SAME:      op_type = "ADD"
+    // CHECK-SAME:      op_type = #VPU.eltwise_type<ADD>
     // CHECK-SAME:      -> tensor<1x64x28x28xf16, {order = #NHWC}>
 
     // CHECK:       return [[OUT]] : tensor<1x64x28x28xf16, {order = #NHWC}>

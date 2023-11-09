@@ -129,11 +129,11 @@ mlir::LogicalResult FusableOpRewriter::matchAndRewrite(VPU::NCEOpInterface origO
     _log.trace("[{0}] Got operation '{1}' at '{2}'", getDebugName(), origOp->getName(), origOp->getLoc());
 
     const auto ppeTask = origOp.getPPE();
-    if (!ppeTask.hasValue()) {
+    if (!ppeTask.has_value()) {
         return matchFailed(_log.nest(), rewriter, origOp, "Operation has no PPE task");
     }
 
-    const auto PPEMode = ppeTask.getValue().mode().getValue();
+    const auto PPEMode = ppeTask.value().getMode().getValue();
 
     if (PPEMode == VPU::PPEMode::SIGMOID) {
         return ensureRequantizationRange(origOp, rewriter, VPU::getPwlQuantReqs(VPU::PPEMode::SIGMOID));

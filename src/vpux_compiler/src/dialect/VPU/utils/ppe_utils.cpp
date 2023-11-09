@@ -40,8 +40,7 @@ double calculateQuantScaleVectorForEltwise(vpux::NDTypeInterface input1ShapedTyp
     // floats in the compute pipeline are represented as S16.16 values
     // In order to convert from I32 to S16.16 and back, we need to multiply/divide by 1<<16
     // Depends on target hardware
-    const double fp16_scale =
-            (VPU::ArchKind::VPUX37XX == arch) ? (1.0) : (1.0 / 65536);
+    const double fp16_scale = (VPU::ArchKind::VPUX37XX == arch) ? (1.0) : (1.0 / 65536);
 
     if (!input1ElementType.isa<mlir::quant::QuantizedType>() && !input2ElementType.isa<mlir::quant::QuantizedType>()) {
         scaleOutput = extractScalesAndZeroPoints(outputElementType).first.front();
@@ -90,8 +89,7 @@ double calculateQuantScaleVectorForAvgPool(vpux::NDTypeInterface inputShapedType
     // floats in the compute pipeline are represented as S16.16 values
     // In order to convert from I32 to S16.16 and back, we need to multiply/divide by 1<<16
     // Depends on target hardware
-    const double fp16_scale =
-            (VPU::ArchKind::VPUX37XX == arch) ? (1.0) : (1.0 / 65536);
+    const double fp16_scale = (VPU::ArchKind::VPUX37XX == arch) ? (1.0) : (1.0 / 65536);
 
     auto scaleInput = fp16_scale;
     auto scaleOutput = fp16_scale;
@@ -107,9 +105,9 @@ double calculateQuantScaleVectorForAvgPool(vpux::NDTypeInterface inputShapedType
     return scaleInput / scaleOutput / divisor;
 }
 
-VPU::PPETaskAttr getPPEAttr(VPU::PostOpParams postOpParams, mlir::MLIRContext* ctx) {
-    if (postOpParams.quantParams.hasValue()) {
-        const auto quantParams = postOpParams.quantParams.getValue();
+VPU::PPETaskAttr getPPEAttr(const VPU::PostOpParams& postOpParams, mlir::MLIRContext* ctx) {
+    if (postOpParams.quantParams.has_value()) {
+        const auto quantParams = postOpParams.quantParams.value();
         return getPPETaskAttr(ctx, postOpParams.layerType, postOpParams.clampLow, postOpParams.clampHigh,
                               postOpParams.LreluMult, postOpParams.LreluShift, quantParams.quantMult,
                               quantParams.quantShift, quantParams.postShift);
@@ -119,23 +117,24 @@ VPU::PPETaskAttr getPPEAttr(VPU::PostOpParams postOpParams, mlir::MLIRContext* c
     }
 }
 
-VPU::PPETaskAttr getPPETaskAttrFromPostOpsParams(mlir::Value opInput, mlir::Value opOutput, vpux::IE::PostOp postOpAttr,
-                                                 mlir::Location loc, mlir::MLIRContext* ctx, VPU::ArchKind arch) {
+VPU::PPETaskAttr getPPETaskAttrFromPostOpsParams(mlir::Value opInput, mlir::Value opOutput,
+                                                 vpux::IE::PostOpAttr postOpAttr, mlir::Location loc,
+                                                 mlir::MLIRContext* ctx, VPU::ArchKind arch) {
     const auto inElemType = opInput.getType().cast<vpux::NDTypeInterface>().getElementType();
     const auto outElemType = opOutput.getType().cast<vpux::NDTypeInterface>().getElementType();
 
     const auto postOpParams = VPU::parsePostOp(postOpAttr, inElemType, outElemType, arch, loc);
 
     VPU::PPETaskAttr ppeTaskAttr;
-    if (postOpParams.hasValue()) {
-        ppeTaskAttr = VPU::getPPEAttr(postOpParams.getValue(), ctx);
+    if (postOpParams.has_value()) {
+        ppeTaskAttr = VPU::getPPEAttr(postOpParams.value(), ctx);
     }
 
     return ppeTaskAttr;
 }
 
 VPU::PPETaskAttr getNCEAveragePoolPPETaskAttr(vpux::NDTypeInterface inputType, mlir::ArrayAttr kernelSizeAttr,
-                                              vpux::NDTypeInterface outputType, vpux::IE::PostOp postOpAttr,
+                                              vpux::NDTypeInterface outputType, vpux::IE::PostOpAttr postOpAttr,
                                               mlir::Location loc, mlir::MLIRContext* ctx, VPU::ArchKind arch) {
     int64_t clampLow = std::numeric_limits<int32_t>::min();
     int64_t clampHigh = std::numeric_limits<int32_t>::max();
@@ -155,7 +154,7 @@ VPU::PPETaskAttr getNCEAveragePoolPPETaskAttr(vpux::NDTypeInterface inputType, m
     }
 
     const auto postOpParams = parsePostOp(postOpAttr, inputElemType, outputElemType, arch, loc);
-    if (postOpParams.hasValue()) {
+    if (postOpParams.has_value()) {
         clampLow = postOpParams->clampLow;
         clampHigh = postOpParams->clampHigh;
         LreluMult = postOpParams->LreluMult;
@@ -171,8 +170,7 @@ VPU::PPETaskAttr getNCEAveragePoolPPETaskAttr(vpux::NDTypeInterface inputType, m
     // Input datatype entirely decides the precision of the compute pipeline.
     // Since VPU3720 we have a separation for float and integer compute pipelines
     // so it's best to make use of the correct pipeline.
-    if ((VPU::ArchKind::VPUX37XX == arch) &&
-        !inputElemType.isa<mlir::quant::QuantizedType>()) {
+    if ((VPU::ArchKind::VPUX37XX == arch) && !inputElemType.isa<mlir::quant::QuantizedType>()) {
         ppeAttr =
                 getPPETaskAttr(ctx, ppeType, clampLow, clampHigh, LreluMult, LreluShift, ArrayRef<double>{quantScale});
     } else {
@@ -186,7 +184,7 @@ VPU::PPETaskAttr getNCEAveragePoolPPETaskAttr(vpux::NDTypeInterface inputType, m
 }
 
 VPU::PPETaskAttr getNCEEltwisePPETaskAttr(vpux::NDTypeInterface input1Type, vpux::NDTypeInterface input2Type,
-                                          vpux::NDTypeInterface outputType, vpux::IE::PostOp postOpAttr,
+                                          vpux::NDTypeInterface outputType, vpux::IE::PostOpAttr postOpAttr,
                                           mlir::Location loc, VPU::EltwiseType opType, mlir::MLIRContext* ctx,
                                           VPU::ArchKind arch) {
     int64_t clampLow = std::numeric_limits<int32_t>::min();
@@ -210,7 +208,7 @@ VPU::PPETaskAttr getNCEEltwisePPETaskAttr(vpux::NDTypeInterface input1Type, vpux
     }
 
     const auto postOpParams = parsePostOp(postOpAttr, input1ElemType, outputElemType, arch, loc);
-    if (postOpParams.hasValue()) {
+    if (postOpParams.has_value()) {
         clampLow = postOpParams->clampLow;
         clampHigh = postOpParams->clampHigh;
         LreluMult = postOpParams->LreluMult;
@@ -262,43 +260,37 @@ VPU::PostOpParams getPwlPostOpParams(const mlir::Type inElemType, const mlir::Ty
     const int64_t postShift = getPwlPostShift(ppeType);
 
     // Dummy values for mult & shift, as the actual values will be computed in the weights table
-    SmallVector<int64_t> quantMult = {1};
-    SmallVector<int64_t> quantShift = {0};
-
     return PostOpParams{ppeType,   clampLow,   clampHigh,
-                        LreluMult, LreluShift, QuantizationParams{quantMult, quantShift, postShift}};
+                        LreluMult, LreluShift, QuantizationParams{/*quantMult*/ {1}, /*quantShift*/ {0}, postShift}};
 }
 
-PostOpParams getCustomPwlPostOpParams(IE::PostOp postOp, mlir::Type outElemType) {
+PostOpParams getCustomPwlPostOpParams(IE::PostOpAttr postOp, mlir::Type outElemType) {
     auto pwlTable = findCustomPWLTable(postOp, outElemType);
 
-    VPUX_THROW_UNLESS(pwlTable.hasValue(), "Custom PWL Table was not found for {0} {1}", postOp.name().getValue(),
+    VPUX_THROW_UNLESS(pwlTable.has_value(), "Custom PWL Table was not found for {0} {1}", postOp.getName().getValue(),
                       outElemType);
 
-    auto pwlTableRange = pwlTable.getValue().range;
+    auto pwlTableRange = pwlTable.value().range;
 
-    VPUX_THROW_UNLESS(!pwlTableRange.empty(), "Custom PWL Table range is empty for {0} {1}", postOp.name().getValue(),
-                      outElemType);
+    VPUX_THROW_UNLESS(!pwlTableRange.empty(), "Custom PWL Table range is empty for {0} {1}",
+                      postOp.getName().getValue(), outElemType);
 
     const int64_t clampLow = pwlTableRange[0];
     const int64_t clampHigh = pwlTableRange[pwlTableRange.size() - 1];
     const int64_t LreluMult = 1;
     const int64_t LreluShift = 0;
-    const int64_t postShift = pwlTable.getValue().postShift;
+    const int64_t postShift = pwlTable.value().postShift;
 
     // Dummy values for mult & shift, as the actual values will be computed in the weights table
-    SmallVector<int64_t> quantMult = {1};
-    SmallVector<int64_t> quantShift = {0};
-
     return PostOpParams{VPU::PPEMode::FLEXARB,
                         clampLow,
                         clampHigh,
                         LreluMult,
                         LreluShift,
-                        QuantizationParams{quantMult, quantShift, postShift}};
+                        QuantizationParams{/*quantMult=*/{1}, /*quantShift=*/{0}, postShift}};
 }
 
-llvm::Optional<VPU::PostOpParams> parsePostOp(IE::PostOp postOp, const mlir::Type inElemType,
+llvm::Optional<VPU::PostOpParams> parsePostOp(IE::PostOpAttr postOp, const mlir::Type inElemType,
                                               const mlir::Type outElemType, VPU::ArchKind arch, mlir::Location loc) {
     if (postOp == nullptr) {
         return mlir::None;
@@ -313,8 +305,8 @@ llvm::Optional<VPU::PostOpParams> parsePostOp(IE::PostOp postOp, const mlir::Typ
         clampHighQuantized = outElemQType.getStorageTypeMax() - zps.front();
     }
 
-    if (postOp.name().getValue() == IE::ReLUOp::getOperationName()) {
-        VPUX_THROW_UNLESS(postOp.attrs().empty(), "'{0}' PostOp should not have any attributes", postOp.name());
+    if (postOp.getName().getValue() == IE::ReLUOp::getOperationName()) {
+        VPUX_THROW_UNLESS(postOp.getAttrs().empty(), "'{0}' PostOp should not have any attributes", postOp.getName());
 
         int64_t clampLow = 0;
         int64_t clampHigh = (outElemQType != nullptr) ? clampHighQuantized : std::numeric_limits<int32_t>::max();
@@ -322,10 +314,10 @@ llvm::Optional<VPU::PostOpParams> parsePostOp(IE::PostOp postOp, const mlir::Typ
         const int64_t LreluShift = 0;
 
         return PostOpParams{VPU::PPEMode::LRELU, clampLow, clampHigh, LreluMult, LreluShift};
-    } else if (postOp.name().getValue() == IE::ClampOp::getOperationName()) {
-        IE::ClampOp::Adaptor clamp(None, postOp.attrs());
-        VPUX_THROW_UNLESS(clamp.verify(loc).succeeded(), "Wrong attributes '{0}' for '{1}' PostOp", postOp.attrs(),
-                          postOp.name());
+    } else if (postOp.getName().getValue() == IE::ClampOp::getOperationName()) {
+        IE::ClampOp::Adaptor clamp(None, postOp.getAttrs());
+        VPUX_THROW_UNLESS(clamp.verify(loc).succeeded(), "Wrong attributes '{0}' for '{1}' PostOp", postOp.getAttrs(),
+                          postOp.getName());
 
         int64_t clampLow = 0;
         int64_t clampHigh = 0;
@@ -343,15 +335,15 @@ llvm::Optional<VPU::PostOpParams> parsePostOp(IE::PostOp postOp, const mlir::Typ
         const int64_t LreluShift = 0;
 
         return PostOpParams{VPU::PPEMode::NOOP, clampLow, clampHigh, LreluMult, LreluShift};
-    } else if (postOp.name().getValue() == IE::LeakyReluOp::getOperationName()) {
+    } else if (postOp.getName().getValue() == IE::LeakyReluOp::getOperationName()) {
         // PWL case
         if (arch != VPU::ArchKind::VPUX37XX && outElemQType != nullptr) {
             return getCustomPwlPostOpParams(postOp, outElemType);
         }
 
-        IE::LeakyReluOp::Adaptor leakyRelu(None, postOp.attrs());
-        VPUX_THROW_UNLESS(leakyRelu.verify(loc).succeeded(), "Wrong attributes '{0}' for '{1}' PostOp", postOp.attrs(),
-                          postOp.name());
+        IE::LeakyReluOp::Adaptor leakyRelu(None, postOp.getAttrs());
+        VPUX_THROW_UNLESS(leakyRelu.verify(loc).succeeded(), "Wrong attributes '{0}' for '{1}' PostOp",
+                          postOp.getAttrs(), postOp.getName());
 
         // On some architectures negative slope is applied before the clamping, there's no need to adjust bounds.
         const bool skipAlpha = (arch == VPU::ArchKind::VPUX37XX);
@@ -374,13 +366,13 @@ llvm::Optional<VPU::PostOpParams> parsePostOp(IE::PostOp postOp, const mlir::Typ
             preluShift = alphaApproximation.shift();
         }
         return PostOpParams{VPU::PPEMode::LPRELU, static_cast<int64_t>(clampLow), clampHigh, preluMult, preluShift};
-    } else if (postOp.name().getValue() == IE::SigmoidOp::getOperationName()) {
+    } else if (postOp.getName().getValue() == IE::SigmoidOp::getOperationName()) {
         return VPU::getPwlPostOpParams(inElemType, outElemType, VPU::PPEMode::SIGMOID);
-    } else if (postOp.name().getValue() == IE::TanhOp::getOperationName()) {
+    } else if (postOp.getName().getValue() == IE::TanhOp::getOperationName()) {
         return VPU::getPwlPostOpParams(inElemType, outElemType, VPU::PPEMode::TANH);
     }
 
-    VPUX_THROW("Unsupported PostOp '{0}'", postOp.name());
+    VPUX_THROW("Unsupported PostOp '{0}'", postOp.getName());
 }
 
 bool supportsPerInputEltwiseScale(const VPU::ArchKind arch) {

@@ -26,8 +26,8 @@ func.func @TwoDMAs(%arg0: memref<10xf16>, %arg1: memref<5xf16>) -> memref<5xf16>
     %1 = async.await %f1 : !async.value<memref<5xf16>>
     return %1 : memref<5xf16>
 
-    // CHECK:       [[IN_SUBVIEW:%.+]] = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> memref<5xf16>
-    // CHECK:       [[IN_CMX:%.+]] = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<5xf16, [@CMX_NN, 0]>
+    // CHECK:       [[IN_SUBVIEW:%.+]] = VPURT.DeclareBuffer <NetworkInput> [0] <0> -> memref<5xf16>
+    // CHECK:       [[IN_CMX:%.+]] = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<5xf16, [@CMX_NN, 0]>
     // CHECK:       [[BAR:%.+]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
     // CHECK:       VPURT.Task updates([[BAR]] : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {

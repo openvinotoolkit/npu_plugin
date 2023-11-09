@@ -15,8 +15,8 @@ module @Convert {
     %0 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     // CHECK:       %[[VAL1:.*]] = VPUMI37XX.ConfigureBarrier {consumer_count = 1 : ui8, producer_count = 1 : ui8}<0, -1> -> !VPURegMapped.Index<0:0:0>
 
-    %1 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x2x3x4xf16, @DDR>
-    // CHECK:       %[[VAL2:.*]] = VPURT.DeclareBuffer "DDR" <0> -> memref<1x2x3x4xf16, @DDR>
+    %1 = VPURT.DeclareBuffer <DDR> <0> -> memref<1x2x3x4xf16, @DDR>
+    // CHECK:       %[[VAL2:.*]] = VPURT.DeclareBuffer <DDR> <0> -> memref<1x2x3x4xf16, @DDR>
 
     VPURT.Task updates(%0 : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
       %3 = VPUIP.NNDMA {port = 0 : i64} inputs(%arg0 : memref<1x2x3x4xf16, @DDR>) outputs(%1 : memref<1x2x3x4xf16, @DDR>) -> memref<1x2x3x4xf16, @DDR>
@@ -24,8 +24,8 @@ module @Convert {
     // CHECK:       %[[VAL3:.*]] = VPUMI37XX.NNDMA {port = 0 : i64} inputs(%[[VAL4:.*]] : memref<1x2x3x4xf16, @DDR>) outputs(%[[VAL2]] : memref<1x2x3x4xf16, @DDR>) updates(%[[VAL1]] : !VPURegMapped.Index<0:0:0>) start_after(1) clean_after(0) -> !VPURegMapped.Index<0:0:0>
 
 
-    %2 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x2x3x4xf16, @DDR>
-    // CHECK:       %[[VAL5:.*]] = VPURT.DeclareBuffer "DDR" <0> -> memref<1x2x3x4xf16, @DDR>
+    %2 = VPURT.DeclareBuffer <DDR> <0> -> memref<1x2x3x4xf16, @DDR>
+    // CHECK:       %[[VAL5:.*]] = VPURT.DeclareBuffer <DDR> <0> -> memref<1x2x3x4xf16, @DDR>
 
     VPURT.Task waits(%0 : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
       %3 = VPUIP.NNDMA {port = 0 : i64} inputs(%2 : memref<1x2x3x4xf16, @DDR>) outputs(%arg1 : memref<1x2x3x4xf16, @DDR>) -> memref<1x2x3x4xf16, @DDR>

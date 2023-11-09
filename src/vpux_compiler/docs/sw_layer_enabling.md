@@ -38,7 +38,7 @@ This instruction will guide you through steps of adding a new software layer to 
 > Be aware, that MLIR compiler is in a rapid development and code snippets might be out of date.
 
 # Debugging tips and tricks
-Make sure to take a look at [debugging documentation](debugging.md) to have a common knowledge of technics and tools that will help you investigate problems when developing a layer.
+Make sure to take a look at [debugging documentation](guides/how_to_debug.md) to have a common knowledge of technics and tools that will help you investigate problems when developing a layer.
 
 # Opset specification
 * [OpenVINO web site](https://docs.openvinotoolkit.org/latest/operations_specifications.html)
@@ -77,7 +77,7 @@ Outputs:
 Add OpenVINO single layer test. Copy test suites from the MKLDNN plugin for initial setup.
 
 A simple test will be useful to have for debugging. Run it to see the build/compilation issues.
-Make sure to derive `LayerTest` from `LayerTestsUtils::KmbLayerTestsCommon`.
+Make sure to derive `LayerTest` from `LayerTestsUtils::VpuOv1LayerTestsCommon`.
 
 Useful links:
 [How to run tests](../../../guides/how-to-test.md)
@@ -92,7 +92,7 @@ Useful links:
 namespace LayerTestsDefinitions {
 class VPUXCTCGreedyDecoderLayerTest :
         public CTCGreedyDecoderLayerTest,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+        virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
 class VPUXCTCGreedyDecoderLayerTest_VPU3700 :
         public VPUXCTCGreedyDecoderLayerTest {
@@ -130,7 +130,7 @@ const auto params = testing::Combine(
     testing::Values(InferenceEngine::Layout::ANY),
     testing::ValuesIn(inputShapes),
     testing::ValuesIn(mergeRepeated),
-    testing::Values(LayerTestsUtils::testPlatformTargetDevice)
+    testing::Values(LayerTestsUtils::testPlatformTargetDevice())
 );
 
 INSTANTIATE_TEST_CASE_P(
@@ -278,17 +278,18 @@ For the operations with sophisticated parameters (eg parameters cannot be expres
 //
 
 def IE_RoundingType :
-        StrEnumAttr<
+        IE_I64EnumAttr<
             "RoundingType",
             "Rounding type that operations support",
             [
-                StrEnumAttrCase<"FLOOR">,
-                StrEnumAttrCase<"CEIL">,
+                I64EnumAttrCase<"FLOOR">,
+                I64EnumAttrCase<"CEIL">,
             ]
         > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
 }
+
+def IE_RoundingTypeAttr : IE_EnumAttr<IE_RoundingType, "rounding_type">;
+
 ```
 Additional helper function should be used for parsing the attribute.
 [src/vpux_compiler/src/frontend/IE.cpp#L164](../src/frontend/IE.cpp#L164)

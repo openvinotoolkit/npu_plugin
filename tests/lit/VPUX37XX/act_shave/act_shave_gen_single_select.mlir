@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-// RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" %s | vpux-translate --export-VPUIP -o %t
+// RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" %s | vpux-translate --vpu-arch=VPUX37XX --export-VPUIP -o %t
 // RUN: flatc --raw-binary --json %vpuip_schema_file% -- %t
 // RUN: FileCheck %s --input-file %basename_t.json
 // RUN: rm %basename_t.json
@@ -44,7 +44,7 @@ module @VPU.SW {
     func.func private @builtin_select(%input0 : memref<*xf16>, %input1 : memref<*xf16>, %input2 : memref<*xf16>, %output : memref<*xf16>)
         attributes {
             VPU.kernel_code = "eltwise_select_fp16.cpp",
-            VPU.kernel_entry = "eltwise_select_fp16"
+            VPU.kernel_entry = "eltwise_select_fp16"        
         }
 
     // management kernel definition
@@ -55,10 +55,10 @@ module @VPU.SW {
 }
 
 func.func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>, %3: memref<1x1x1x1000xf16>, %4: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
-    %in0_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x1x1x1000xf16, [@CMX_NN, 0]>
-    %in1_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <2000> -> memref<1x1x1x1000xf16, [@CMX_NN, 0]>
-    %in2_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <4000> -> memref<1x1x1x1000xf16, [@CMX_NN, 0]>
-    %out_tile0_cmx = VPURT.DeclareBuffer "CMX_NN" [0] <6000> -> memref<1x1x1x1000xf16, [@CMX_NN, 0]>
+    %in0_tile0_cmx  = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x1x1x1000xf16, [@CMX_NN, 0]>
+    %in1_tile0_cmx  = VPURT.DeclareBuffer <CMX_NN> [0] <2000> -> memref<1x1x1x1000xf16, [@CMX_NN, 0]>
+    %in2_tile0_cmx  = VPURT.DeclareBuffer <CMX_NN> [0] <4000> -> memref<1x1x1x1000xf16, [@CMX_NN, 0]>
+    %out_tile0_cmx = VPURT.DeclareBuffer <CMX_NN> [0] <6000> -> memref<1x1x1x1000xf16, [@CMX_NN, 0]>
 
     %b0 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     %b1 = VPURT.ConfigureBarrier<1> -> !VPURT.Barrier
@@ -72,11 +72,11 @@ func.func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>, %3: memr
     VPURT.Task updates(%b0 : !VPURT.Barrier) attributes {isTrailingSWLayer = false} {
         VPUIP.NNDMA {port = 0 : i64} inputs(%3 : memref<1x1x1x1000xf16>) outputs(%in2_tile0_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>) -> memref<1x1x1x1000xf16, [@CMX_NN, 0]>
     }
-
+    
     VPURT.Task waits(%b0 : !VPURT.Barrier) updates(%b1 : !VPURT.Barrier) attributes {isTrailingSWLayer = false} {
-        VPUIP.SW.Kernel
-                    {result_segment_sizes = dense<[1, 0]> : vector<2xi32>}
-                    @VPU.SW::@builtin_select
+        VPUIP.SW.Kernel 
+                    {result_segment_sizes = dense<[1, 0]> : vector<2xi32>} 
+                    @VPU.SW::@builtin_select 
                     inputs(%in0_tile0_cmx as %arg0: memref<1x1x1x1000xf16, [@CMX_NN, 0]>, %in1_tile0_cmx as %arg1: memref<1x1x1x1000xf16, [@CMX_NN, 0]>, %in2_tile0_cmx as %arg2: memref<1x1x1x1000xf16, [@CMX_NN, 0]>)
                     outputs(%out_tile0_cmx as %arg3: memref<1x1x1x1000xf16, [@CMX_NN, 0]>)
                     on tile 0

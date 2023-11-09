@@ -15,15 +15,15 @@ namespace IE {
 
 mlir::FailureOr<SmallVector<int64_t>> extractIntVector(mlir::Location loc, const mlir::Value value,
                                                        const Optional<mlir::ArrayAttr>& attr) {
-    if (attr.hasValue() && attr.getValue() != nullptr) {
-        return parseIntArrayAttr<int64_t>(attr.getValue());
+    if (attr.has_value() && attr.value() != nullptr) {
+        return parseIntArrayAttr<int64_t>(attr.value());
     } else if (value != nullptr) {
         auto valueConst = value.getDefiningOp<Const::DeclareOp>();
         if (valueConst == nullptr) {
             return errorAt(loc, "Only constant input is supported for interpolate attribute");
         }
 
-        const auto valueContent = valueConst.content();
+        const auto valueContent = valueConst.getContent();
         return to_small_vector(valueContent.getValues<int64_t>());
     }
     return errorAt(loc, "Parameter were not provided");
@@ -31,8 +31,8 @@ mlir::FailureOr<SmallVector<int64_t>> extractIntVector(mlir::Location loc, const
 
 mlir::FailureOr<SmallVector<double>> extractFPVector(mlir::Location loc, const mlir::Value value,
                                                      const Optional<mlir::ArrayAttr>& attr) {
-    if (attr.hasValue() && attr.getValue() != nullptr) {
-        return parseFPArrayAttr<double>(attr.getValue());
+    if (attr.has_value() && attr.value() != nullptr) {
+        return parseFPArrayAttr<double>(attr.value());
     } else if (value != nullptr) {
         auto valueConst = value.getDefiningOp<Const::DeclareOp>();
 
@@ -40,7 +40,7 @@ mlir::FailureOr<SmallVector<double>> extractFPVector(mlir::Location loc, const m
             return errorAt(loc, "Only constant input is supported for interpolate attribute");
         }
 
-        const auto valueContent = valueConst.content();
+        const auto valueContent = valueConst.getContent();
         return to_small_vector(valueContent.getValues<double>());
     }
     return errorAt(loc, "Parameter were not provided");
@@ -65,7 +65,7 @@ mlir::FailureOr<SmallVector<int64_t>> propagateShape(mlir::Location loc, mlir::F
                                                      mlir::FailureOr<ArrayRef<int64_t>> sizes,
                                                      mlir::FailureOr<ArrayRef<double>> scales, vpux::Logger log) {
     log.trace("Interp propagate shape: input = {0}", origShape);
-    const auto axesVal = axes.getValue();
+    const auto axesVal = axes.value();
     auto inferedShape = to_small_vector(origShape);
 
     for (auto axis : axesVal) {
@@ -74,7 +74,7 @@ mlir::FailureOr<SmallVector<int64_t>> propagateShape(mlir::Location loc, mlir::F
     }
 
     if (calcMode == IE::InterpolateCalcMode::SIZES) {
-        const auto sizesVal = sizes.getValue();
+        const auto sizesVal = sizes.value();
 
         if (sizesVal.size() != axesVal.size()) {
             return errorAt(loc,
@@ -88,7 +88,7 @@ mlir::FailureOr<SmallVector<int64_t>> propagateShape(mlir::Location loc, mlir::F
             inferedShape[i] = *sizesIter++;
         }
     } else if (calcMode == IE::InterpolateCalcMode::SCALES) {
-        const auto scales_val = scales.getValue();
+        const auto scales_val = scales.value();
 
         if (scales_val.size() != axesVal.size()) {
             return errorAt(loc,
@@ -109,7 +109,7 @@ mlir::FailureOr<SmallVector<int64_t>> propagateShape(mlir::Location loc, mlir::F
 
     // meaning pads provided in attributes
     if (mlir::succeeded(padsBegin) && mlir::succeeded(padsEnd)) {
-        applyInterpPads(inferedShape, padsBegin.getValue(), padsEnd.getValue());
+        applyInterpPads(inferedShape, padsBegin.value(), padsEnd.value());
     }
 
     log.trace("Interp propagate shape: output = {0}", inferedShape);
@@ -127,7 +127,7 @@ SmallVector<int64_t> getDefaultInterpolateAxes(IE::InterpolateOpAdaptor interpol
 mlir::FailureOr<SmallVector<int64_t>> calcOutputShapes(mlir::Location loc, IE::InterpolateOpAdaptor interpolate,
                                                        vpux::Logger log) {
     const auto axesAttr = interpolate.axes_attr();
-    const bool validAxesAttr = (axesAttr.hasValue() && axesAttr.getValue() != nullptr);
+    const bool validAxesAttr = (axesAttr.has_value() && axesAttr.value() != nullptr);
     const auto axes = (interpolate.axes() == nullptr && !validAxesAttr)
                               ? getDefaultInterpolateAxes(interpolate)
                               : extractIntVector(loc, interpolate.axes(), interpolate.axes_attr());
@@ -162,12 +162,12 @@ bool isBroadCastInterpolate(IE::InterpolateOp op) {
 
     const auto axes = extractIntVector(op.getLoc(), op.axes(), op.axes_attr());
     VPUX_THROW_UNLESS(mlir::succeeded(axes), "Cannot get axes Attr");
-    const auto axesValues = axes.getValue();
+    const auto axesValues = axes.value();
     const auto calcMode = op.attr().getShapeCalcMode().getValue();
     if (calcMode == IE::InterpolateCalcMode::SIZES) {
         const auto size = extractIntVector(op.getLoc(), op.sizes(), op.sizes_attr());
         VPUX_THROW_UNLESS(mlir::succeeded(axes), "Cannot get size Attr");
-        const auto sizeValues = size.getValue();
+        const auto sizeValues = size.value();
         VPUX_THROW_UNLESS(sizeValues.size() == axesValues.size(),
                           "Num of elements sizes tensor tensor: {0} should be equal to number of indices in axes: {1}",
                           sizeValues.size(), axesValues.size());
@@ -181,7 +181,7 @@ bool isBroadCastInterpolate(IE::InterpolateOp op) {
     } else if (calcMode == IE::InterpolateCalcMode::SCALES) {
         const auto scales = extractFPVector(op.getLoc(), op.scales(), op.scales_attr());
         VPUX_THROW_UNLESS(mlir::succeeded(scales), "Cannot get scales Attr");
-        const auto scalesVal = scales.getValue();
+        const auto scalesVal = scales.value();
         VPUX_THROW_UNLESS(scalesVal.size() == axesValues.size(),
                           "Num of elements scales tensor tensor: {0} should be equal to number of indices in axes: {1}",
                           scalesVal.size(), axesValues.size());
@@ -195,6 +195,78 @@ bool isBroadCastInterpolate(IE::InterpolateOp op) {
     }
 
     VPUX_THROW("Doesn't support shape_calculation_mode: {0}", calcMode);
+}
+
+std::pair<double, double> computeFractionCoefficients(double fraction) {
+    return std::pair<double, double>{1.0 - fraction, fraction};
+}
+
+//
+// Coordinate transformation mode functions
+//
+
+// HalfPixel coordintate transformation mode
+std::pair<int32_t, double> mapCoordHalfPixel(int32_t x, double scale, int32_t, int32_t) {
+    auto fractionX = scale * (x + 0.5) - 0.5;
+    auto integerX = static_cast<int32_t>(std::floor(fractionX));
+    fractionX -= integerX;
+    return std::pair<int32_t, double>{integerX, fractionX};
+}
+
+// PytorchHalfPixel coordintate transformation mode
+std::pair<int32_t, double> mapCoordPytorchHalfPixel(int32_t x, double scale, int32_t outputSize, int32_t) {
+    auto fractionX = scale * (x + 0.5) - 0.5;
+    if (outputSize <= 1) {
+        fractionX = 0;
+    }
+    auto integerX = static_cast<int32_t>(std::floor(fractionX));
+    fractionX -= integerX;
+    return std::pair<int32_t, double>{integerX, fractionX};
+}
+
+// Asymmetric coordintate transformation mode
+std::pair<int32_t, double> mapCoordAsymmetric(int32_t x, double scale, int32_t, int32_t) {
+    auto fractionX = scale * x;
+    auto integerX = static_cast<int32_t>(std::floor(fractionX));
+    fractionX -= integerX;
+    return std::pair<int32_t, double>{integerX, fractionX};
+}
+
+// TfHalfPixelForNN coordintate transformation mode
+std::pair<int32_t, double> mapCoordTfHalfPixelForNN(int32_t x, double scale, int32_t, int32_t) {
+    auto fractionX = scale * (x + 0.5);
+    auto integerX = static_cast<int32_t>(std::floor(fractionX));
+    fractionX -= integerX;
+    return std::pair<int32_t, double>{integerX, fractionX};
+}
+
+// AlignCorners coordintate transformation mode
+std::pair<int32_t, double> mapCoordAlignCorners(int32_t x, double, int32_t outputSize, int32_t inputSize) {
+    double fractionX;
+    if (outputSize == 1) {
+        fractionX = 0;
+    } else {
+        fractionX = static_cast<double>(x) * (inputSize - 1) / (outputSize - 1);
+    }
+    auto integerX = static_cast<int32_t>(std::floor(fractionX));
+    fractionX -= integerX;
+    return std::pair<int32_t, double>{integerX, fractionX};
+}
+
+MapCoordFuncT getMapCoordMethod(InterpolateCoordMode coordMode) {
+    if (coordMode == IE::InterpolateCoordMode::HALF_PIXEL) {
+        return mapCoordHalfPixel;
+    } else if (coordMode == IE::InterpolateCoordMode::PYTORCH_HALF_PIXEL) {
+        return mapCoordPytorchHalfPixel;
+    } else if (coordMode == IE::InterpolateCoordMode::ASYMMETRIC) {
+        return mapCoordAsymmetric;
+    } else if (coordMode == IE::InterpolateCoordMode::TF_HALF_PIXEL_FOR_NN) {
+        return mapCoordTfHalfPixelForNN;
+    } else if (coordMode == IE::InterpolateCoordMode::ALIGN_CORNERS) {
+        return mapCoordAlignCorners;
+    } else {
+        VPUX_THROW("Unsupported coodintate transformation mode: {0}.", coordMode);
+    }
 }
 
 }  // namespace IE

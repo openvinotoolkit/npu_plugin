@@ -92,7 +92,7 @@ vpux::InputTiling vpux::VPU::GRUSequenceOp::backInferTileInfo(const vpux::TileIn
     bTile.shape[Dim(0)] = outputTileY.shape[Dim(1)];
     bTile.offsets[Dim(0)] = outputTileY.offsets[Dim(1)];
 
-    return InputTiling{{inputTile, initialHiddenStateTile, wTile, rTile, bTile}};
+    return InputTiling{{inputTile, initialHiddenStateTile, wTile, std::move(rTile), bTile}};
 }
 
 void vpux::VPU::GRUSequenceOp::adjustAttrs(const TilingInfo& inputTiling, const TileInfo& outputYTile) {
@@ -124,7 +124,7 @@ void vpux::VPU::GRUSequenceOp::adjustAttrs(const TilingInfo& inputTiling, const 
     }
 }
 
-OutputTiling vpux::VPU::GRUSequenceOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
+mlir::FailureOr<OutputTiling> vpux::VPU::GRUSequenceOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
     auto baseOp = this->getOperation();
     VPUX_THROW_WHEN(tilingMode != TilingMode::ISOLATED,
                     "Only supporting isolated tiling for GRUSequence currently, for op {0} at '{1}'", baseOp->getName(),
@@ -145,7 +145,10 @@ OutputTiling vpux::VPU::GRUSequenceOp::getTilingStrategy(TilingMode tilingMode, 
     const auto isSupportedTileSize = [baseOp, &tilingInfo, outputYShape, log](ShapeRef nTilesOnDim,
                                                                               TilingMode tilingMode) -> bool {
         const auto tiles = fillDividedTiles(baseOp, nTilesOnDim, outputYShape);
-        return tilingInfo.isSupportedTiling(tiles, tilingMode, log);
+        if (mlir::failed(tiles)) {
+            return false;
+        }
+        return tilingInfo.isSupportedTiling(tiles.value(), tilingMode, log);
     };
 
     int64_t tileDim = 0;
@@ -198,9 +201,7 @@ void reverseTilesOrderForReverseMode(OutputTiling& tilesY, int64_t seqLengthTile
                                      IE::RNNSequenceDirection origDirection) {
     const auto reverse = [seqLengthTile, &tilesY](size_t i) {
         for (size_t j = 0; j < size_t(seqLengthTile / 2); ++j) {
-            auto tmpTile = tilesY[i + j];
-            tilesY[i + j] = tilesY[i + seqLengthTile - 1 - j];
-            tilesY[i + seqLengthTile - 1 - j] = tmpTile;
+            std::swap(tilesY[i + j], tilesY[i + seqLengthTile - 1 - j]);
         }
     };
     if (origDirection == IE::RNNSequenceDirection::BIDIRECTIONAL) {

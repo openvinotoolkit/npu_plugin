@@ -1,8 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) 2018-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "behavior/plugin/configuration_tests.hpp"
+#include "vpu_test_env_cfg.hpp"
+#include "vpux/al/config/common.hpp"
 
 using namespace BehaviorTestsDefinitions;
 namespace {
@@ -193,38 +196,42 @@ auto auto_batch_configs = []() {
     return std::vector<std::map<std::string, std::string>>{
             {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), CommonTestUtils::DEVICE_KEEMBAY}},
             {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), CommonTestUtils::DEVICE_KEEMBAY},
-             {CONFIG_KEY(AUTO_BATCH_TIMEOUT), "1"}},
-    };
+             {CONFIG_KEY(AUTO_BATCH_TIMEOUT), "1"}}};
 };
+
+static std::string getTestCaseName(testing::TestParamInfo<CorrectConfigParams> obj) {
+    return CorrectConfigTests::getTestCaseName(obj) +
+           "_targetPlatform=" + LayerTestsUtils::getTestsPlatformFromEnvironmentOr(CommonTestUtils::DEVICE_KEEMBAY);
+}
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, DefaultValuesConfigTests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
                                             ::testing::ValuesIn(conf)),
-                         DefaultValuesConfigTests::getTestCaseName);
+                         getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigAPITests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
                                             ::testing::ValuesIn(inconfigs())),
-                         IncorrectConfigAPITests::getTestCaseName);
+                         getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, IncorrectConfigAPITests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                             ::testing::ValuesIn(multiinconfigs())),
-                         IncorrectConfigAPITests::getTestCaseName);
+                         getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, IncorrectConfigAPITests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                             ::testing::ValuesIn(autoinconfigs())),
-                         IncorrectConfigAPITests::getTestCaseName);
+                         getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, IncorrectConfigAPITests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_BATCH),
                                             ::testing::ValuesIn(auto_batch_inconfigs())),
-                         IncorrectConfigAPITests::getTestCaseName);
+                         getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, CorrectConfigTests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_BATCH),
                                             ::testing::ValuesIn(auto_batch_configs())),
-                         CorrectConfigTests::getTestCaseName);
+                         getTestCaseName);
 
 const std::vector<std::map<std::string, std::string>> vpu_prop_config = {{
         {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::THROUGHPUT},
@@ -234,7 +241,8 @@ const std::vector<std::map<std::string, std::string>> vpu_prop_config = {{
 
 const std::vector<std::map<std::string, std::string>> vpu_loadNetWork_config = {{
         {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
-        //{InferenceEngine::PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, InferenceEngine::PluginConfigParams::NO},
+        //{InferenceEngine::PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS,
+        // InferenceEngine::PluginConfigParams::NO},
         {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "10"},
         {InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES},
 }};

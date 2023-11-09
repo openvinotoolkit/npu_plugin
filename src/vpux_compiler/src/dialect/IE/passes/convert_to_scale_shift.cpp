@@ -67,7 +67,7 @@ mlir::LogicalResult verifyAndBroadcastInput(mlir::Location loc, mlir::Value& inp
             return mlir::failure();
         }
 
-        Const::ContentAttr dataAttr = input2Const.contentAttr().broadcast(C, outputShape[C]);
+        Const::ContentAttr dataAttr = input2Const.getContentAttr().broadcast(C, outputShape[C]);
 
         if (dataAttr == nullptr) {
             return mlir::failure();
@@ -77,10 +77,10 @@ mlir::LogicalResult verifyAndBroadcastInput(mlir::Location loc, mlir::Value& inp
 
         if (opsVec.size() == 0) {
             // [Const]->[Multiply/Add] case
-            input = dataConstOp.output();
+            input = dataConstOp.getOutput();
         } else {
             // [Const] -> [several Reshapes]-> [FQ] -> [several Reshapes] -> [Multiply/Add] case
-            opsVec.front()->getOpOperand(0).set(dataConstOp.output());
+            opsVec.front()->getOpOperand(0).set(dataConstOp.getOutput());
             for (auto op : opsVec) {
                 inferReturnTypes(op, InferShapedTypeMode::SHAPE);
             }
@@ -147,7 +147,7 @@ mlir::LogicalResult ConvertBiasToScaleShift<BiasTypeOp>::matchAndRewrite(BiasTyp
         return mlir::failure();
     }
 
-    auto biasConst = findBiasConst.getValue();
+    auto biasConst = findBiasConst.value();
 
     // Convert:
     //
@@ -168,7 +168,7 @@ mlir::LogicalResult ConvertBiasToScaleShift<BiasTypeOp>::matchAndRewrite(BiasTyp
     //              |
 
     if (mlir::isa<IE::NegativeOp>(biasInput.getDefiningOp())) {
-        const auto negativeConstAttr = biasConst.contentAttr().rescale(-1.0);
+        const auto negativeConstAttr = biasConst.getContentAttr().rescale(-1.0);
         auto newBiasInput =
                 rewriter.create<Const::DeclareOp>(biasConst->getLoc(), biasConst.getType(), negativeConstAttr);
         _log.nest().trace("replacing op {0} with ScaleShift", biasOp->getName());
@@ -178,7 +178,7 @@ mlir::LogicalResult ConvertBiasToScaleShift<BiasTypeOp>::matchAndRewrite(BiasTyp
     }
 
     if (mlir::isa<IE::SubtractOp>(biasOp)) {
-        const auto negativeConstAttr = biasConst.contentAttr().rescale(-1.0);
+        const auto negativeConstAttr = biasConst.getContentAttr().rescale(-1.0);
         rewriter.replaceOpWithNewOp<Const::DeclareOp>(biasConst, biasConst.getType(), negativeConstAttr)
                 ->setLoc(biasConst->getLoc());
     }
@@ -225,6 +225,11 @@ mlir::LogicalResult ConvertMultiplyToScaleShift::matchAndRewrite(IE::MultiplyOp 
 
     auto mulOutShape = getShape(mulOp.output());
     auto weightsShape = getShape(weightsInput);
+
+    // Activation shape and scaleShift output shape should be consistent
+    if (getShape(activationInput) != mulOutShape) {
+        return mlir::failure();
+    }
 
     if (verifyAndBroadcastInput(mulOp.getLoc(), weightsInput, weightsShape, mulOutShape, rewriter).failed()) {
         return mlir::failure();

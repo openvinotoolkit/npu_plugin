@@ -1,10 +1,10 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
-#include "kmb_layer_test.hpp"
-#include "vpux_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
+#include "vpu_ov2_layer_test.hpp"
 
 #include <ngraph_functions/builders.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -27,10 +27,10 @@ struct SubtractTestParams {
 //
 
 class VPUXSubtractSubGraphTest_VPU3720 :
-        public LayerTestsUtils::KmbLayerTestsCommon,
+        public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<SubtractTestParams> {
 public:
-    void SetUp() {
+    void SetUp() override {
         const auto test_params = GetParam();
         targetDevice = test_params.device;
 
@@ -59,16 +59,16 @@ TEST_P(VPUXSubtractSubGraphTest_VPU3720, HW) {
 
 INSTANTIATE_TEST_SUITE_P(smoke_subtract_same_shape_const_inputs, VPUXSubtractSubGraphTest_VPU3720,
                          ::testing::Values(SubtractTestParams{
-                                 LayerTestsUtils::testPlatformTargetDevice,  // _device
-                                 {1, 1, 2, 2},                               // input1 shape
-                                 {1, 1, 2, 2},                               // input2 shape
+                                 LayerTestsUtils::testPlatformTargetDevice(),  // _device
+                                 {1, 1, 2, 2},                                 // input1 shape
+                                 {1, 1, 2, 2},                                 // input2 shape
                          }));
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_subtract_diff_shape_const_inputs, VPUXSubtractSubGraphTest_VPU3720,
                          ::testing::Values(SubtractTestParams{
-                                 LayerTestsUtils::testPlatformTargetDevice,  // _device
-                                 {1, 1, 2, 1},                               // input1 shape
-                                 {1, 1, 2, 4},                               // input2 shape
+                                 LayerTestsUtils::testPlatformTargetDevice(),  // _device
+                                 {1, 1, 2, 1},                                 // input1 shape
+                                 {1, 1, 2, 4},                                 // input2 shape
                          }));
 
 //
@@ -84,10 +84,10 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_subtract_diff_shape_const_inputs, VP
 //
 
 class VPUXSubtractFqSubGraphTest_VPU3720 :
-        public LayerTestsUtils::KmbLayerTestsCommon,
+        public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<SubtractTestParams> {
 public:
-    void SetUp() {
+    void SetUp() override {
         const auto test_params = GetParam();
         targetDevice = test_params.device;
 
@@ -127,16 +127,16 @@ TEST_P(VPUXSubtractFqSubGraphTest_VPU3720, HW) {
 
 INSTANTIATE_TEST_SUITE_P(smoke_subtract_same_shape_const_fq_inputs, VPUXSubtractFqSubGraphTest_VPU3720,
                          ::testing::Values(SubtractTestParams{
-                                 LayerTestsUtils::testPlatformTargetDevice,  // _device
-                                 {1, 1, 2, 2},                               // input1 shape
-                                 {1, 1, 2, 2},                               // input2 shape
+                                 LayerTestsUtils::testPlatformTargetDevice(),  // _device
+                                 {1, 1, 2, 2},                                 // input1 shape
+                                 {1, 1, 2, 2},                                 // input2 shape
                          }));
 
 INSTANTIATE_TEST_SUITE_P(smoke_subtract_diff_shape_const_fq_inputs, VPUXSubtractFqSubGraphTest_VPU3720,
                          ::testing::Values(SubtractTestParams{
-                                 LayerTestsUtils::testPlatformTargetDevice,  // _device
-                                 {1, 1, 2, 4},                               // input1 shape
-                                 {1, 1, 2, 1},                               // input2 shape
+                                 LayerTestsUtils::testPlatformTargetDevice(),  // _device
+                                 {1, 1, 2, 4},                                 // input1 shape
+                                 {1, 1, 2, 1},                                 // input2 shape
                          }));
 
 //
@@ -150,10 +150,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_subtract_diff_shape_const_fq_inputs, VPUXSubtract
 //
 
 class VPUXSubtractActInputsSubGraphTest_VPU3720 :
-        public LayerTestsUtils::KmbLayerTestsCommon,
+        public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<SubtractTestParams> {
 public:
-    void SetUp() {
+    void SetUp() override {
         const auto test_params = GetParam();
         targetDevice = test_params.device;
 
@@ -185,16 +185,16 @@ TEST_P(VPUXSubtractActInputsSubGraphTest_VPU3720, HW) {
 
 INSTANTIATE_TEST_SUITE_P(smoke_subtract_same_shapes_act_inputs, VPUXSubtractActInputsSubGraphTest_VPU3720,
                          ::testing::Values(SubtractTestParams{
-                                 LayerTestsUtils::testPlatformTargetDevice,  // _device
-                                 {1, 1, 2, 2},                               // input1 shape
-                                 {1, 1, 2, 2},                               // input2 shape
+                                 LayerTestsUtils::testPlatformTargetDevice(),  // _device
+                                 {1, 1, 2, 2},                                 // input1 shape
+                                 {1, 1, 2, 2},                                 // input2 shape
                          }));
 
 INSTANTIATE_TEST_SUITE_P(smoke_subtract_diff_shapes_act_inputs, VPUXSubtractActInputsSubGraphTest_VPU3720,
                          ::testing::Values(SubtractTestParams{
-                                 LayerTestsUtils::testPlatformTargetDevice,  // _device
-                                 {1, 1, 2, 4},                               // input1 shape
-                                 {1, 1, 2, 1},                               // input2 shape
+                                 LayerTestsUtils::testPlatformTargetDevice(),  // _device
+                                 {1, 1, 2, 4},                                 // input1 shape
+                                 {1, 1, 2, 1},                                 // input2 shape
                          }));
 
 //
@@ -212,10 +212,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_subtract_diff_shapes_act_inputs, VPUXSubtractActI
 //
 
 class VPUXSubtractFqActInputsSubGraphTest_VPU3720 :
-        public LayerTestsUtils::KmbLayerTestsCommon,
+        public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<SubtractTestParams> {
 public:
-    void SetUp() {
+    void SetUp() override {
         const auto test_params = GetParam();
         targetDevice = test_params.device;
 
@@ -257,17 +257,17 @@ TEST_P(VPUXSubtractFqActInputsSubGraphTest_VPU3720, HW) {
 
 INSTANTIATE_TEST_SUITE_P(smoke_subtract_same_shapes_fq_act_inputs, VPUXSubtractFqActInputsSubGraphTest_VPU3720,
                          ::testing::Values(SubtractTestParams{
-                                 LayerTestsUtils::testPlatformTargetDevice,  // _device
-                                 {1, 1, 2, 2},                               // input1 shape
-                                 {1, 1, 2, 2},                               // input2 shape
+                                 LayerTestsUtils::testPlatformTargetDevice(),  // _device
+                                 {1, 1, 2, 2},                                 // input1 shape
+                                 {1, 1, 2, 2},                                 // input2 shape
                          }));
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_subtract_diff_shapes_fq_act_inputs,
                          VPUXSubtractFqActInputsSubGraphTest_VPU3720,
                          ::testing::Values(SubtractTestParams{
-                                 LayerTestsUtils::testPlatformTargetDevice,  // _device
-                                 {1, 1, 2, 1},                               // input1 shape
-                                 {1, 1, 2, 4},                               // input2 shape
+                                 LayerTestsUtils::testPlatformTargetDevice(),  // _device
+                                 {1, 1, 2, 1},                                 // input1 shape
+                                 {1, 1, 2, 4},                                 // input2 shape
                          }));
 
 }  // namespace

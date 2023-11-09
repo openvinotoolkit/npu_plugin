@@ -1,7 +1,9 @@
-// Copyright (C) Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
+//
 
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 #include <ngraph_functions/builders.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -15,15 +17,15 @@ typedef std::tuple<LayerTestsUtils::TargetDevice, InferenceEngine::SizeVector> F
 // Test purpose: have a 'FakeQuantize' split into 'Quantize' + 'Dequantize'
 // In HW-pipeline, 'Quantize' will run on DPU, 'Dequantize' on Shave
 class VPUXFakeQuantPerChTest_VPU3720 :
-        public LayerTestsUtils::KmbLayerTestsCommon,
+        public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<FakeQuantPerChTestParams> {
     InferenceEngine::Precision iePrc = InferenceEngine::Precision::FP16;
 
     void ConfigureNetwork() override {
         cnnNetwork.getInputsInfo().begin()->second->setPrecision(iePrc);
         cnnNetwork.getOutputsInfo().begin()->second->setPrecision(iePrc);
-        cnnNetwork.getInputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NHWC);
-        cnnNetwork.getOutputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NHWC);
+        cnnNetwork.getInputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NCHW);
+        cnnNetwork.getOutputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NCHW);
     }
 
     void SetUp() override {
@@ -75,15 +77,15 @@ typedef std::tuple<LayerTestsUtils::TargetDevice, InferenceEngine::SizeVector, s
 // Test purpose: checking the functional results of the FQ Operation executed on shave for different ZPs for both
 // input and output
 class VPUXFakeQuantPerChCustomLimitsTest :
-        public LayerTestsUtils::KmbLayerTestsCommon,
+        public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<FakeQuantPerChCustomLimitsTestParams> {
     InferenceEngine::Precision iePrc = InferenceEngine::Precision::FP16;
 
     void ConfigureNetwork() override {
         cnnNetwork.getInputsInfo().begin()->second->setPrecision(iePrc);
         cnnNetwork.getOutputsInfo().begin()->second->setPrecision(iePrc);
-        cnnNetwork.getInputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NHWC);
-        cnnNetwork.getOutputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NHWC);
+        cnnNetwork.getInputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NCHW);
+        cnnNetwork.getOutputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NCHW);
     }
 
     void SetUp() override {
@@ -146,22 +148,22 @@ const std::vector<InferenceEngine::SizeVector> shapesTiling = {
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_precommit_FakeQuantPerCh, VPUXFakeQuantPerChTest_VPU3720_HW,
-                        ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                        ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                            ::testing::ValuesIn(shapesHW)));
 
 INSTANTIATE_TEST_CASE_P(smoke_FakeQuantPerCh, VPUXFakeQuantPerChTest_VPU3720_SW,
-                        ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                        ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                            ::testing::ValuesIn(shapesSW)));
 
 INSTANTIATE_TEST_CASE_P(smoke_tiling_FakeQuantPerCh, VPUXFakeQuantPerChTest_VPU3720_SW,
-                        ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                        ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                            ::testing::ValuesIn(shapesTiling)));
 
 //{outHigh, outLow, inHigh, inLow}
 // testing per-channel quantization with different ZPs for output
 INSTANTIATE_TEST_CASE_P(
         smoke_customLimits_FakeQuantPerCh1, VPUXFakeQuantPerChCustomLimitsTest_VPU3720_SW,
-        ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+        ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                            ::testing::ValuesIn(shapesSWcustomLimits),
                            ::testing::Values(std::vector<float>{+2.63867188}),
                            ::testing::Values(std::vector<float>{-49.28125, -35.65625, -31.828125}),
@@ -171,7 +173,7 @@ INSTANTIATE_TEST_CASE_P(
 // testing per-channel quantization with different ZPs for output and input
 INSTANTIATE_TEST_CASE_P(
         smoke_customLimits_FakeQuantPerCh2, VPUXFakeQuantPerChCustomLimitsTest_VPU3720_SW,
-        ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+        ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                            ::testing::ValuesIn(shapesSWcustomLimits),
                            ::testing::Values(std::vector<float>{+2.551250e+02, +2.670000e+02, +2.780000e+02}),
                            ::testing::Values(std::vector<float>{-49.28125, -35.65625, -31.828125}),
@@ -180,7 +182,7 @@ INSTANTIATE_TEST_CASE_P(
 
 // testing per-channel quantization with different ZPs for input
 INSTANTIATE_TEST_CASE_P(smoke_customLimits_FakeQuantPerCh3, VPUXFakeQuantPerChCustomLimitsTest_VPU3720_SW,
-                        ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                        ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                            ::testing::ValuesIn(shapesSWcustomLimits),
                                            ::testing::Values(std::vector<float>{+2.63867188}),
                                            ::testing::Values(std::vector<float>{-2.63867188}),

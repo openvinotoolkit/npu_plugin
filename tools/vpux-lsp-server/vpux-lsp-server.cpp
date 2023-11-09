@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/VPU30XX/dialect/IE/passes.hpp"
-#include "vpux/compiler/VPU37XX/dialect/IE/passes.hpp"
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/core/passes.hpp"
 #include "vpux/compiler/dialect/ELF/passes.hpp"
@@ -18,6 +16,8 @@
 #include "vpux/compiler/dialect/VPURegMapped/passes.hpp"
 #include "vpux/compiler/dialect/const/passes.hpp"
 #include "vpux/compiler/init.hpp"
+#include "vpux/compiler/interfaces_registry.hpp"
+#include "vpux/compiler/passes_register.hpp"
 #include "vpux/compiler/pipelines_register.hpp"
 #include "vpux/compiler/tools/options.hpp"
 
@@ -33,15 +33,23 @@
 
 int main(int argc, char* argv[]) {
     try {
-        mlir::DialectRegistry registry;
-        vpux::registerDialects(registry);
-        // TODO: need to rework this unconditional replacement. Ticket: E#50937
-        vpux::registerInterfacesWithReplacement(registry);
-
         const auto archKind = vpux::parseArchKind(argc, argv);
 
-        const auto pipelineRegister = vpux::createPipelineRegister(archKind);
+        mlir::DialectRegistry registry;
+        vpux::registerDialects(registry);
+        // TODO: need to rework this unconditional replacement for dummy ops
+        // there is an option for vpux-translate we can do it in the same way
+        // Ticket: E#50937
+        vpux::registerCommonInterfaces(registry, /*enableDummyOp*/ true);
+
+        auto interfacesRegistry = vpux::createInterfacesRegistry(archKind);
+        interfacesRegistry->registerInterfaces(registry);
+
+        const auto pipelineRegister = vpux::createPipelineRegistry(archKind);
         pipelineRegister->registerPipelines();
+
+        const auto passsesRegister = vpux::createPassesRegistry(archKind);
+        passsesRegister->registerPasses();
 
         vpux::registerCorePasses();
         vpux::Const::registerConstPasses();
@@ -49,8 +57,6 @@ int main(int argc, char* argv[]) {
         vpux::EMU::registerEMUPipelines();
         vpux::IE::registerIEPasses();
         vpux::IE::registerIEPipelines();
-        vpux::IE::Arch30XX::registerIEPasses();
-        vpux::IE::Arch37XX::registerIEPasses();
         vpux::VPU::registerVPUPasses();
         vpux::VPU::registerVPUPipelines();
         vpux::VPUIP::registerVPUIPPasses();
@@ -58,7 +64,6 @@ int main(int argc, char* argv[]) {
         vpux::VPURT::registerVPURTPipelines();
         vpux::VPURT::registerVPURTPasses();
         vpux::ELF::registerELFPasses();
-        vpux::VPURegMapped::registerVPURegMappedPasses();
         vpux::VPUMI37XX::registerVPUMI37XXPasses();
         vpux::registerConversionPasses();
         vpux::registerConversionPipelines();

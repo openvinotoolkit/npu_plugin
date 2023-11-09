@@ -15,8 +15,7 @@ namespace vpux {
 
 class PipelineStrategy37XX final : public IPipelineStrategy {
 public:
-    void buildPipeline(mlir::PassManager& pm, const Config& config, mlir::TimingScope& rootTiming, Logger log,
-                       const PrecisionInfo& prcInfo) override;
+    void buildPipeline(mlir::PassManager& pm, const Config& config, mlir::TimingScope& rootTiming, Logger log) override;
 };
 
 }  // namespace vpux

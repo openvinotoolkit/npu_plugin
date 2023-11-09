@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -85,11 +85,9 @@ struct LOG_LEVEL final : OptionBase<LOG_LEVEL, LogLevel> {
         return ov::log::level.name();
     }
 
-#ifdef VPUX_DEVELOPER_BUILD
     static StringRef envVar() {
-        return "IE_VPUX_LOG_LEVEL";
+        return "OV_NPU_LOG_LEVEL";
     }
-#endif
 
     static LogLevel defaultValue() {
         return LogLevel::None;
@@ -111,7 +109,7 @@ struct PLATFORM final : OptionBase<PLATFORM, InferenceEngine::VPUXConfigParams::
 
 #ifdef VPUX_DEVELOPER_BUILD
     static StringRef envVar() {
-        return "IE_VPUX_PLATFORM";
+        return "IE_NPU_PLATFORM";
     }
 #endif
 
@@ -129,6 +127,20 @@ struct PLATFORM final : OptionBase<PLATFORM, InferenceEngine::VPUXConfigParams::
 struct DEVICE_ID final : OptionBase<DEVICE_ID, std::string> {
     static StringRef key() {
         return ov::device::id.name();
+    }
+
+    static std::string defaultValue() {
+        return {};
+    }
+};
+
+//
+// CACHE_DIR
+//
+
+struct CACHE_DIR final : OptionBase<CACHE_DIR, std::string> {
+    static StringRef key() {
+        return ov::cache_dir.name();
     }
 
     static std::string defaultValue() {

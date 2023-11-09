@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation.
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -39,14 +39,8 @@ struct ReferenceSWOptions : mlir::PassPipelineOptions<T> {
     BoolOption enableSWProfiling{*this, "sw-profiling", llvm::cl::desc("Enable SW task profiling"),
                                  llvm::cl::init(true)};
 
-    BoolOption enableUseUserPrecision{*this, "use-user-precision", llvm::cl::desc("Enable use-user-precision pass"),
-                                      llvm::cl::init(true)};
-
     BoolOption enableMergeFakeQuant{*this, "merge-fake-quant", llvm::cl::desc("Enable merge-fake-quant pass"),
                                     llvm::cl::init(true)};
-
-    BoolOption enableUseUserLayout{*this, "use-user-layout", llvm::cl::desc("Enable use-user-layout pass"),
-                                   llvm::cl::init(true)};
 
     BoolOption enableOptimizeReorders{*this, "optimize-reorders", llvm::cl::desc("Enable optimize-reorders pass"),
                                       llvm::cl::init(false)};
@@ -56,12 +50,9 @@ struct ReferenceSWOptions : mlir::PassPipelineOptions<T> {
                                       llvm::cl::desc("Enable storage element pointer operations"),
                                       llvm::cl::init(false)};
 
-    bool enableCompressWeightsBTC = true;
     bool enableForceZMajorConcat = false;
     bool enableSwapTransposeWithFQ = false;
-    bool enableSwapConcatWithEltwise = false;
     bool enableAlignScales = false;
-    bool forceHostInputQuantization = false;
     bool enableConvertFCToConv = false;
 };
 
@@ -70,7 +61,6 @@ struct ReferenceSWOptionsBase final : public ReferenceSWOptions<ReferenceSWOptio
 //
 // ReferenceHWMode
 //
-
 
 template <typename T>
 struct ReferenceHWOptions : mlir::PassPipelineOptions<T> {
@@ -91,9 +81,9 @@ struct ReferenceHWOptions : mlir::PassPipelineOptions<T> {
     BoolOption enableSwapTransposeWithFQ{*this, "swap-transpose-with-fq",
                                          ::llvm::cl::desc("Enable SwapTransposeWithFQ pass"), ::llvm::cl::init(true)};
 
-    BoolOption enableConvertScaleShiftDW{*this, "convert-scale-shift-depthwise",
-                                         llvm::cl::desc("Enable convert-scale-shift-depthwise pass"),
-                                         llvm::cl::init(true)};
+    BoolOption enableOptimizeScaleShiftToDWConv{*this, "optimize-scale-shift-to-depthwise",
+                                                llvm::cl::desc("Enable optimize-scale-shift-to-depthwise pass"),
+                                                llvm::cl::init(true)};
 
     BoolOption enableSplitConvWithMultipleFQ{*this, "split-conv-with-multiple-fq",
                                              llvm::cl::desc("Enable split-conv-with-multiple-fq pass"),
@@ -109,6 +99,10 @@ struct ReferenceHWOptions : mlir::PassPipelineOptions<T> {
                                              llvm::cl::desc("Enable handle-asymmetric-strides pass"),
                                              llvm::cl::init(true)};
 
+    BoolOption enableBilinearInterpolateOnDPU{*this, "map-interpolate-on-dpu",
+                                              llvm::cl::desc("Enable map-interpolate-on-dpu pass"),
+                                              llvm::cl::init(true)};
+
     BoolOption enableLowPrecision{*this, "low-precision", llvm::cl::desc("Enable low-precision pipeline building"),
                                   llvm::cl::init(true)};
 
@@ -122,10 +116,6 @@ struct ReferenceHWOptions : mlir::PassPipelineOptions<T> {
     BoolOption enableOptimizeSliceExpand{*this, "optimize-slice-expand",
                                          llvm::cl::desc("Enable optimize-slice-expand pass"), llvm::cl::init(true)};
 
-    BoolOption forceHostPrecisionLayoutConversion{*this, "force-host-precision-layout-conversion",
-                                                  llvm::cl::desc("Enable force-host-precision-layout-conversion pass"),
-                                                  llvm::cl::init(false)};
-
     StrOption weightsSparsityHeuristic{*this, "weights-sparsity-heuristic",
                                        llvm::cl::desc("Weights sparsity heuristic (RATIO or CMX)"),
                                        llvm::cl::init("RATIO")};
@@ -136,7 +126,7 @@ struct ReferenceHWOptions : mlir::PassPipelineOptions<T> {
     BoolOption enablePrefetchTiling{*this, "prefetch-tiling", llvm::cl::desc("Enable prefetch tiling pass"),
                                     llvm::cl::init(true)};
     BoolOption enableVerticalFusion{*this, "vertical-fusion", llvm::cl::desc("Enable vertical fusion feature"),
-                                    llvm::cl::init(false)};
+                                    llvm::cl::init(true)};
 
     BoolOption enableOptimizeCopies{*this, "optimize-copies", llvm::cl::desc("Enable optimize-copies pass"),
                                     llvm::cl::init(true)};
@@ -149,9 +139,9 @@ struct ReferenceHWOptions : mlir::PassPipelineOptions<T> {
 
     BoolOption enableProfiling{*this, "profiling", llvm::cl::desc("Enable profiling"), llvm::cl::init(false)};
 
+    // Enable once RT will be ready, follow up -#E64068
     BoolOption enableDMAProfiling{*this, "dma-profiling", llvm::cl::desc("Enable DMA task profiling"),
                                   llvm::cl::init(true)};
-
     BoolOption enableDPUProfiling{*this, "dpu-profiling", llvm::cl::desc("Enable DPU task profiling"),
                                   llvm::cl::init(true)};
 
@@ -168,21 +158,12 @@ struct ReferenceHWOptions : mlir::PassPipelineOptions<T> {
                                         llvm::cl::desc("Replace unsupported SW Kernel ops with Dummy ones"),
                                         llvm::cl::init(false)};
 
-    BoolOption forceHostInputQuantization{*this, "force-host-input-quantization",
-                                          llvm::cl::desc("Force host input quantization"), llvm::cl::init(false)};
-
-    BoolOption enableUseUserPrecision{*this, "use-user-precision", llvm::cl::desc("Enable use-user-precision pass"),
-                                      llvm::cl::init(true)};
-
     BoolOption enableOptimizeReorders{*this, "optimize-reorders", llvm::cl::desc("Enable optimize-reorders pass"),
                                       llvm::cl::init(true)};
 
     BoolOption enableQuantDequantRemoval{*this, "quant-dequant-removal",
                                          llvm::cl::desc("Enable quantize->dequantize sequence removal"),
                                          llvm::cl::init(false)};
-
-    BoolOption enableUseUserLayout{*this, "use-user-layout", llvm::cl::desc("Enable use-user-layout pass"),
-                                   llvm::cl::init(true)};
 
     BoolOption enableForceZMajorConcat{*this, "force-z-major-concat",
                                        llvm::cl::desc("Enable transpose-reorder-concat pass"), llvm::cl::init(true)};
@@ -191,9 +172,6 @@ struct ReferenceHWOptions : mlir::PassPipelineOptions<T> {
                                            llvm::cl::desc("Enable Propagate Quantize Dequantize pass"),
                                            llvm::cl::init(true)};
 
-    BoolOption enableSwapConcatWithEltwise{*this, "swap-concat-with-eltwise",
-                                           ::llvm::cl::desc("Enable SwapConcatWithEltwise pass"),
-                                           ::llvm::cl::init(true)};
     BoolOption enableAlignScales{*this, "enable-align-scales", llvm::cl::desc("Enable align scales"),
                                  llvm::cl::init(true)};
 
@@ -216,6 +194,9 @@ struct ReferenceHWOptions : mlir::PassPipelineOptions<T> {
     BoolOption enableOpsAsDMA{*this, "enable-ops-as-dma",
                               llvm::cl::desc("Force using DMA transformations instead of SW ops"),
                               llvm::cl::init(false)};
+
+    BoolOption enableSMPipeline{*this, "enable-SM-Pipeline", llvm::cl::desc("Enable Strategy Manager pipeline"),
+                                llvm::cl::init(false)};
 };
 
 struct ReferenceHWOptionsBase final : public ReferenceHWOptions<ReferenceHWOptionsBase> {};
@@ -229,13 +210,9 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<T> {
     BoolOption enableDummyOpReplacement{*this, "dummy-op-replacement",
                                         llvm::cl::desc("Replace unsupported SW Kernel ops with Dummy ones"),
                                         llvm::cl::init(false)};
-    BoolOption forceHostInputQuantization{*this, "force-host-input-quantization",
-                                          llvm::cl::desc("Force host input quantization"), llvm::cl::init(false)};
     BoolOption enableProfiling{*this, "profiling", llvm::cl::desc("Enable profiling"), llvm::cl::init(false)};
-
     BoolOption enableDMAProfiling{*this, "dma-profiling", llvm::cl::desc("Enable DMA task profiling"),
                                   llvm::cl::init(true)};
-
     BoolOption enableDPUProfiling{*this, "dpu-profiling", llvm::cl::desc("Enable DPU task profiling"),
                                   llvm::cl::init(true)};
     BoolOption enableSWProfiling{*this, "sw-profiling", llvm::cl::desc("Enable SW task profiling"),
@@ -252,9 +229,6 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<T> {
 
     IntOption numberOfDMAPorts{*this, "num-of-dma-ports", llvm::cl::desc("Number of DMA ports")};
 
-    BoolOption enableUseUserPrecision{*this, "use-user-precision", llvm::cl::desc("Enable use-user-precision pass"),
-                                      llvm::cl::init(true)};
-
     BoolOption enableConvertFCToConv{*this, "convert-fc-to-conv", llvm::cl::desc("Enable convert-fc-to-conv pass"),
                                      llvm::cl::init(true)};
 
@@ -262,9 +236,9 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<T> {
                                             llvm::cl::desc("Enable convert-avg-pool-to-dw-conv pass"),
                                             llvm::cl::init(true)};
 
-    BoolOption enableConvertScaleShiftDW{*this, "convert-scale-shift-depthwise",
-                                         llvm::cl::desc("Enable convert-scale-shift-depthwise pass"),
-                                         llvm::cl::init(true)};
+    BoolOption enableOptimizeScaleShiftToDWConv{*this, "optimize-scale-shift-to-depthwise",
+                                                llvm::cl::desc("Enable optimize-scale-shift-to-depthwise pass"),
+                                                llvm::cl::init(true)};
 
     BoolOption enableSplitConvWithMultipleFQ{*this, "split-conv-with-multiple-fq",
                                              llvm::cl::desc("Enable split-conv-with-multiple-fq pass"),
@@ -283,6 +257,10 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<T> {
                                              llvm::cl::desc("Enable handle-asymmetric-strides pass"),
                                              llvm::cl::init(true)};
 
+    BoolOption enableBilinearInterpolateOnDPU{*this, "map-interpolate-on-dpu",
+                                              llvm::cl::desc("Enable map-interpolate-on-dpu pass"),
+                                              llvm::cl::init(true)};
+
     BoolOption enableLowPrecision{*this, "low-precision", llvm::cl::desc("Enable low-precision pipeline building"),
                                   llvm::cl::init(true)};
 
@@ -299,9 +277,6 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<T> {
 
     BoolOption enableOptimizeSliceExpand{*this, "optimize-slice-expand",
                                          llvm::cl::desc("Enable optimize-slice-expand pass"), llvm::cl::init(true)};
-
-    BoolOption enableUseUserLayout{*this, "use-user-layout", llvm::cl::desc("Enable use-user-layout pass"),
-                                   llvm::cl::init(true)};
 
     BoolOption enableOptimizeReorders{*this, "optimize-reorders", llvm::cl::desc("Enable optimize-reorders pass"),
                                       llvm::cl::init(true)};
@@ -328,14 +303,10 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<T> {
                                            llvm::cl::desc("Enable Propagate Quantize Dequantize pass"),
                                            llvm::cl::init(true)};
 
-    BoolOption enableSwapConcatWithEltwise{*this, "swap-concat-with-eltwise",
-                                           ::llvm::cl::desc("Enable SwapConcatWithEltwise pass"),
-                                           ::llvm::cl::init(true)};
-
     BoolOption enablePrefetchTiling{*this, "prefetch-tiling", llvm::cl::desc("Enable prefetch tiling pass"),
                                     llvm::cl::init(true)};
     BoolOption enableVerticalFusion{*this, "vertical-fusion", llvm::cl::desc("Enable vertical fusion feature"),
-                                    llvm::cl::init(false)};
+                                    llvm::cl::init(true)};
 
     BoolOption enableConstantFusion{*this, "constant-fusion", llvm::cl::desc("Enable constant fusion"),
                                     llvm::cl::init(true)};
@@ -345,9 +316,6 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<T> {
             llvm::cl::desc("Enable mixed mode for NCE tasks with FP16 input and quantized output"),
             llvm::cl::init(false)};
 
-    BoolOption forceHostPrecisionLayoutConversion{*this, "force-host-precision-layout-conversion",
-                                                  llvm::cl::desc("Enable force-host-precision-layout-conversion pass"),
-                                                  llvm::cl::init(false)};
     BoolOption enableAlignScales{*this, "enable-align-scales", llvm::cl::desc("Enable align scales"),
                                  llvm::cl::init(true)};
 
@@ -365,6 +333,21 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<T> {
     BoolOption enableOpsAsDMA{*this, "enable-ops-as-dma",
                               llvm::cl::desc("Force using DMA transformations instead of SW ops"),
                               llvm::cl::init(true)};
+
+    BoolOption enableSMPipeline{*this, "enable-SM-Pipeline", llvm::cl::desc("Enable Strategy Manager pipeline"),
+                                llvm::cl::init(false)};
+
+    BoolOption enableScheduleTrace{*this, "enable-schedule-trace",
+                                   llvm::cl::desc("Enable compile time schedule analysis and trace"),
+                                   llvm::cl::init(false)};
+
+    StrOption scheduleTraceFile{*this, "schedule-trace-file-name",
+                                llvm::cl::desc("Compile time schedule JSON trace file name"),
+                                llvm::cl::init("compileTimeScheduleTrace.json")};
+
+    BoolOption logOpOptimizations{*this, "log-op-optimizations",
+                                  llvm::cl::desc("Log potential operation optimizations that can be done"),
+                                  llvm::cl::init(false)};
 };
 
 struct DefaultHWOptionsBase final : public DefaultHWOptions<DefaultHWOptionsBase> {};

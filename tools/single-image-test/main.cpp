@@ -30,6 +30,9 @@
 
 namespace ie = InferenceEngine;
 
+const auto NHWC_LAYOUT_NUMBER_OF_DIMENSIONS = 4;
+const auto NDHWC_LAYOUT_NUMBER_OF_DIMENSIONS = 5;
+
 ie::details::CaselessEq<std::string> strEq;
 
 //
@@ -39,6 +42,7 @@ ie::details::CaselessEq<std::string> strEq;
 DEFINE_bool(ov_api_1_0, false, "Optional. Use legacy Inference Engine API (default: false)");
 DEFINE_string(network, "", "Network file (either XML or pre-compiled blob)");
 DEFINE_string(input, "", "Input file(s)");
+DEFINE_string(compiled_blob, "", "Output compiled network file (compiled result blob)");
 DEFINE_string(device, "", "Device to use");
 DEFINE_string(config, "", "Path to the configuration file (optional)");
 DEFINE_string(ip, "", "Input precision (default: U8)");
@@ -121,21 +125,22 @@ void parseCommandLine(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
 
     std::cout << "Parameters:" << std::endl;
-    std::cout << "    Network file:             " << FLAGS_network << std::endl;
-    std::cout << "    Input file(s):            " << FLAGS_input << std::endl;
-    std::cout << "    Color format:             " << FLAGS_color_format << std::endl;
-    std::cout << "    Input precision:          " << FLAGS_ip << std::endl;
-    std::cout << "    Output precision:         " << FLAGS_op << std::endl;
-    std::cout << "    Input layout:             " << FLAGS_il << std::endl;
-    std::cout << "    Output layout:            " << FLAGS_ol << std::endl;
-    std::cout << "    Model input layout:       " << FLAGS_iml << std::endl;
-    std::cout << "    Model output layout:      " << FLAGS_oml << std::endl;
-    std::cout << "    Img as binary:            " << FLAGS_img_as_bin << std::endl;
-    std::cout << "    Bin input file precision: " << FLAGS_img_bin_precision << std::endl;
-    std::cout << "    Device:                   " << FLAGS_device << std::endl;
-    std::cout << "    Config file:              " << FLAGS_config << std::endl;
-    std::cout << "    Run test:                 " << FLAGS_run_test << std::endl;
-    std::cout << "    Performance counters:     " << FLAGS_pc << std::endl;
+    std::cout << "    Network file:                     " << FLAGS_network << std::endl;
+    std::cout << "    Input file(s):                    " << FLAGS_input << std::endl;
+    std::cout << "    Output compiled network file:     " << FLAGS_compiled_blob << std::endl;
+    std::cout << "    Color format:                     " << FLAGS_color_format << std::endl;
+    std::cout << "    Input precision:                  " << FLAGS_ip << std::endl;
+    std::cout << "    Output precision:                 " << FLAGS_op << std::endl;
+    std::cout << "    Input layout:                     " << FLAGS_il << std::endl;
+    std::cout << "    Output layout:                    " << FLAGS_ol << std::endl;
+    std::cout << "    Model input layout:               " << FLAGS_iml << std::endl;
+    std::cout << "    Model output layout:              " << FLAGS_oml << std::endl;
+    std::cout << "    Img as binary:                    " << FLAGS_img_as_bin << std::endl;
+    std::cout << "    Bin input file precision:         " << FLAGS_img_bin_precision << std::endl;
+    std::cout << "    Device:                           " << FLAGS_device << std::endl;
+    std::cout << "    Config file:                      " << FLAGS_config << std::endl;
+    std::cout << "    Run test:                         " << FLAGS_run_test << std::endl;
+    std::cout << "    Performance counters:             " << FLAGS_pc << std::endl;
     if (FLAGS_run_test) {
         std::cout << "    Mode:             " << FLAGS_mode << std::endl;
         if (strEq(FLAGS_mode, "classification")) {
@@ -156,7 +161,7 @@ void parseCommandLine(int argc, char* argv[]) {
             std::cout << "    Threshold:        " << FLAGS_rrmse_loss_threshold << std::endl;
         }
     }
-    std::cout << "    Log level:        " << FLAGS_log_level << std::endl;
+    std::cout << "    Log level:                        " << FLAGS_log_level << std::endl;
     std::cout << std::endl;
 }
 
@@ -353,18 +358,86 @@ void cvToIe(const cv::Mat& cvImg, const ie::MemoryBlob::Ptr& ieBlob, const std::
     }
 }
 
+/**
+ * @brief Restores the the metadata found in the "IE::Data" structure based on the given layout.
+ * @details This functions acts as a helper for the "adjustInputLayout" method.
+ * @param inputMetadata The metadata object on which the previously mentioned changes shall be applied.
+ * @param layout The layout indicated by the user which influences these changes.
+ */
+void adjustDataLayout(const std::shared_ptr<ie::Data>& inputMetadata, const std::string& targetLayout) {
+    const ie::Layout& originalLayout = inputMetadata->getLayout();
+    const ie::SizeVector& originalDimensions = inputMetadata->getDims();
+    const auto numberOfDimensions = originalDimensions.size();
+
+    if (numberOfDimensions == NHWC_LAYOUT_NUMBER_OF_DIMENSIONS && targetLayout == "NHWC" &&
+        originalLayout != ie::Layout::NHWC) {
+        const auto batchAxis = 0;
+        const auto heightAxis = 1;
+        const auto widthAxis = 2;
+        const auto channelAxis = 3;
+
+        const ie::SizeVector reshapedDimensions({originalDimensions[batchAxis], originalDimensions[channelAxis],
+                                                 originalDimensions[heightAxis], originalDimensions[widthAxis]});
+
+        inputMetadata->setDims(reshapedDimensions);
+        inputMetadata->setLayout(ie::Layout::NHWC);
+    } else if (numberOfDimensions == NDHWC_LAYOUT_NUMBER_OF_DIMENSIONS && targetLayout == "NDHWC" &&
+               originalLayout != ie::Layout::NDHWC) {
+        const auto batchAxis = 0;
+        const auto depthAxis = 1;
+        const auto heightAxis = 2;
+        const auto widthAxis = 3;
+        const auto channelAxis = 4;
+
+        const ie::SizeVector reshapedDimensions({originalDimensions[batchAxis], originalDimensions[channelAxis],
+                                                 originalDimensions[depthAxis], originalDimensions[heightAxis],
+                                                 originalDimensions[widthAxis]});
+
+        inputMetadata->setDims(reshapedDimensions);
+        inputMetadata->setLayout(ie::Layout::NDHWC);
+    }
+}
+
+/**
+ * @brief Restores the legacy input layout information found inside the compiled model.
+ * @details As a consequence of the Plugin API 2.0 refactoring, the legacy layout information
+ * is lost upon compiling the model, storing the result and then loading it back into this application.
+ *
+ * To exemplify the previous issue, the input information which previously would have contained the "NHWC"
+ * layout and the "[1, 3, 224, 224]" shape now stores the "NCHW" and "[1, 224, 224, 3]" values, fact which,
+ * in some way, is more specific to the 2.0 API.
+ *
+ * This is an issue since this application expects to find the value "3" or "4" on the channel axis indicated
+ * by these attributes in order to call the image loading methods. The solution found here implies making use
+ * of the layout offered by the user as a CLI argument and reverting the effect explained previously.
+ * @param network The compiled model represented in the legacy manner on which the layout metadata changes
+ * will be applied.
+ * @param inputLayoutStringRepresentation String indicating the desired layout of the inputs.
+ * @see E#70453
+ */
+void adjustInputLayout(ie::ExecutableNetwork& network, const std::string& layoutStringRepresentation) {
+    const ie::ConstInputsDataMap& inputsInfo = network.GetInputsInfo();
+
+    for (const auto& mapEntry : inputsInfo) {
+        const std::shared_ptr<const ie::InputInfo>& inputInfo = mapEntry.second;
+        const ie::DataPtr& inputData = inputInfo->getInputData();
+
+        adjustDataLayout(inputData, layoutStringRepresentation);
+    }
+}
+
 //
 // File utils
 //
 
-std::string cleanName(std::string name) {
+std::string cleanName(std::string&& name) {
     std::replace_if(
             name.begin(), name.end(),
-            [](char c) {
+            [](unsigned char c) {
                 return !std::isalnum(c);
             },
             '_');
-    return name;
+    return std::move(name);
 }
 
 ie::MemoryBlob::Ptr loadImage(const ie::TensorDesc& desc, const std::string& filePath, const std::string& colorFormat) {
@@ -386,7 +459,7 @@ ie::MemoryBlob::Ptr loadBinary(const ie::TensorDesc& desc, const std::string& fi
 
     std::ifstream binaryFile(filePath, std::ios_base::binary | std::ios_base::ate);
 
-    IE_ASSERT(binaryFile) << "Failed to open input binary file";
+    IE_ASSERT(binaryFile) << "Failed to open input binary file: " << filePath;
 
     const int fileSize = binaryFile.tellg();
     binaryFile.seekg(0, std::ios_base::beg);
@@ -581,11 +654,17 @@ std::map<std::string, std::string> parseConfigFile() {
         if (option.empty() || option[0] == '#') {
             continue;
         }
-        size_t spacePos = option.find(' ');
+        size_t spacePos = option.find_first_of(" \t\n\r");
+        IE_ASSERT(spacePos != std::string::npos)
+                << "Invalid config parameter format. Space separator required here: " << option;
         std::string key, value;
         if (spacePos != std::string::npos) {
             key = option.substr(0, spacePos);
-            value = option.substr(spacePos + 1);
+            size_t valueStart = option.find_first_not_of(" \t\n\r", spacePos);
+            IE_ASSERT(valueStart != std::string::npos)
+                    << "An invalid config parameter value detected, it mustn't be empty: " << option;
+            size_t valueEnd = option.find_last_not_of(" \t\n\r");
+            value = option.substr(valueStart, valueEnd - valueStart + 1);
             config[key] = value;
         }
     }
@@ -602,7 +681,7 @@ std::weak_ptr<ie::Core> ieCore;
 void setupInferenceEngine() {
     auto flagDevice = FLAGS_device;
     auto ieCoreShared = ieCore.lock();
-    IE_ASSERT(!ieCore.expired()) << "ieCore object expired";
+    IE_ASSERT(ieCoreShared) << "ieCore object expired";
 
     if (!FLAGS_log_level.empty()) {
         ieCoreShared->SetConfig({{CONFIG_KEY(LOG_LEVEL), FLAGS_log_level}}, flagDevice);
@@ -936,7 +1015,7 @@ bool compareBlobs(const ie::MemoryBlob::Ptr& actualOutput, const ie::MemoryBlob:
     const auto& actualDesc = actualOutput->getTensorDesc();
     const auto& refDesc = refOutput->getTensorDesc();
 
-    if (actualDesc.getDims() != refDesc.getDims()) {
+    if (actualDesc.getBlockingDesc().getBlockDims() != refDesc.getBlockingDesc().getBlockDims()) {
         std::cout << "Actual and reference blobs has different shape" << std::endl;
         return false;
     }
@@ -1003,7 +1082,7 @@ bool compareCoSim(const ie::MemoryBlob::Ptr actOutput, const ie::MemoryBlob::Ptr
     const auto& actDesc = actOutput->getTensorDesc();
     const auto& refDesc = refOutput->getTensorDesc();
 
-    if (actDesc.getDims() != refDesc.getDims()) {
+    if (actDesc.getBlockingDesc().getBlockDims() != refDesc.getBlockingDesc().getBlockDims()) {
         std::cout << "Actual and reference blobs has different shape" << std::endl;
         return false;
     }
@@ -1075,7 +1154,7 @@ bool computeRRMSE(const ie::MemoryBlob::Ptr actOutput, const ie::MemoryBlob::Ptr
     const auto& actDesc = actOutput->getTensorDesc();
     const auto& refDesc = refOutput->getTensorDesc();
 
-    if (actDesc.getDims() != refDesc.getDims()) {
+    if (actDesc.getBlockingDesc().getBlockDims() != refDesc.getBlockingDesc().getBlockDims()) {
         std::cout << "Actual and reference blobs has different shape" << std::endl;
         return false;
     }
@@ -1476,6 +1555,12 @@ static int runSingleImageTestOV10() {
                         } else {
                             outputInfoIt->second->setLayout(ie::Layout::HWC);
                         }
+                    } else if (outputInfoIt->second->getDims().size() == 5) {
+                        if (FLAGS_ol == "NCDHW") {
+                            outputInfoIt->second->setLayout(ie::Layout::NCDHW);
+                        } else {
+                            outputInfoIt->second->setLayout(ie::Layout::NDHWC);
+                        }
                     } else {
                         if (FLAGS_ol == "NCHW") {
                             outputInfoIt->second->setLayout(ie::Layout::NCHW);
@@ -1489,10 +1574,28 @@ static int runSingleImageTestOV10() {
             exeNet = ieCoreShared->LoadNetwork(cnnNet, FLAGS_device);
         } else {
             std::cout << "Import network " << FLAGS_network << std::endl;
+            if (FLAGS_il.empty() || FLAGS_ol.empty()) {
+                std::cout << "WARNING: Input and/or output layout parameter is missing.\n Please note that if the "
+                             "model was compiled using a non-default layout value this may result in failure. If that "
+                             "is the case, consider using the same layout parameter values that were used for "
+                             "compiling the model."
+                          << std::endl;
+            }
 
             exeNet = importNetwork(FLAGS_network);
         }
 
+        // store compiled model, if requried
+        if (!FLAGS_compiled_blob.empty()) {
+            std::ofstream outputFile{FLAGS_compiled_blob, std::ios::out | std::ios::binary};
+            if (!outputFile.is_open()) {
+                std::cerr << "Output file \"" << FLAGS_compiled_blob << "\" can't be opened for writing" << std::endl;
+                return EXIT_FAILURE;
+            } else {
+                exeNet.Export(outputFile);
+            }
+        }
+        adjustInputLayout(exeNet, FLAGS_il);
         auto inferRequest = exeNet.CreateInferRequest();
 
         std::string netFileName;
@@ -1780,6 +1883,10 @@ static ie::Layout toIE(const ov::Layout layout) {
         return ie::Layout::CN;
     } else if (layout == ov::Layout("C")) {
         return ie::Layout::C;
+    } else if (layout == ov::Layout("NCDHW")) {
+        return ie::Layout::NCDHW;
+    } else if (layout == ov::Layout("NDHWC")) {
+        return ie::Layout::NDHWC;
     }
     std::stringstream ss;
     ss << "Failed to convert ov::Layout(" << layout.to_string() << ") to IE::Layout";
@@ -2138,6 +2245,17 @@ static int runSingleImageTestOV20() {
             std::ifstream file(FLAGS_network, std::ios_base::in | std::ios_base::binary);
             IE_ASSERT(file.is_open()) << "Can't open file " << FLAGS_network << " for read";
             compiledModel = core.import_model(file, FLAGS_device);
+        }
+
+        // store compiled model, if requried
+        if (!FLAGS_compiled_blob.empty()) {
+            std::ofstream outputFile{FLAGS_compiled_blob, std::ios::out | std::ios::binary};
+            if (!outputFile.is_open()) {
+                std::cerr << "Output file \"" << FLAGS_compiled_blob << "\" can't be opened for writing" << std::endl;
+                return EXIT_FAILURE;
+            } else {
+                compiledModel.export_model(outputFile);
+            }
         }
 
         auto inferRequest = compiledModel.create_infer_request();

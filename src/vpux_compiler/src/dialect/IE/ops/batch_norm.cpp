@@ -60,10 +60,10 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::BatchNormInferenceOp
         return mlir::failure();
     }
 
-    const auto gammaContent = gammaConst.content();
-    const auto betaContent = betaConst.content();
-    const auto meanContent = meanConst.content();
-    const auto varContent = varConst.content();
+    const auto gammaContent = gammaConst.getContent();
+    const auto betaContent = betaConst.getContent();
+    const auto meanContent = meanConst.getContent();
+    const auto varContent = varConst.getContent();
 
     const auto gammaAttr = getFPArrayAttr(getContext(), gammaContent.getValues<double>());
     const auto betaAttr = getFPArrayAttr(getContext(), betaContent.getValues<double>());

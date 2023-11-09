@@ -1,26 +1,19 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "single_layer_tests/concat.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 #include <vector>
 
 namespace LayerTestsDefinitions {
 
-class VPUXConcatLayerTest : public ConcatLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXConcatLayerTest : public ConcatLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
-class VPUXConcatLayerTest_VPU3700 : public VPUXConcatLayerTest {
-    // [Track number: S#49997]
-    virtual void SkipBeforeLoad() override {
-    }
-    // [Track number: S#49998]
-    virtual void SkipBeforeInfer() override {
-    }
-};
+class VPUXConcatLayerTest_VPU3700 : public VPUXConcatLayerTest {};
 
 class VPUXConcatLayerTest_VPU3720 : public VPUXConcatLayerTest {};
 
@@ -60,7 +53,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Concat, VPUXConcatLayerTest_VPU3700,
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          VPUXConcatLayerTest_VPU3700::getTestCaseName);
 
 // Check parameters from InceptionV3
@@ -78,7 +71,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Concat_InceptionV3, VPUXConcatLayerT
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          VPUXConcatLayerTest_VPU3700::getTestCaseName);
 
 const auto concatParamsVPUX = ::testing::Combine(
@@ -86,7 +79,8 @@ const auto concatParamsVPUX = ::testing::Combine(
         ::testing::Values(std::vector<std::vector<size_t>>({{1, 16, 10, 10}, {1, 16, 10, 10}})),
         ::testing::Values(InferenceEngine::Precision::U8), ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_precommit_Concat, VPUXConcatLayerTest_VPU3720, concatParamsVPUX,
                          VPUXConcatLayerTest_VPU3720::getTestCaseName);

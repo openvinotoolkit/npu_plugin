@@ -82,7 +82,7 @@ void UnrollUnusedVerticalFusionRegionPass::safeRunOnFunc() {
     auto func = getOperation();
 
     const auto isLegalVF = [&](VPU::VerticalFusionOp op) {
-        auto vfOps = op.body().front().getOps<VPU::VerticalFusionOpInterface>();
+        auto vfOps = op.ops().front().getOps<VPU::VerticalFusionOpInterface>();
         if (std::distance(vfOps.begin(), vfOps.end()) == 1) {
             return false;
         }

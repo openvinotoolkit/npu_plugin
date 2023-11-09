@@ -51,16 +51,12 @@ mlir::LogicalResult vpux::IE::BroadcastOp::inferReturnTypeComponents(
     }
 
     auto inShape = to_small_vector(broadcast.input().getType().cast<mlir::ShapedType>().getShape());
-    auto targetShape = IE::constInputToData(loc, broadcast.target_shape()).getValue();
     const auto inType = broadcast.input().getType().cast<mlir::ShapedType>().getElementType();
     const auto broadcastMode = broadcast.mode().has_value() ? broadcast.mode().value() : IE::BroadcastType::NUMPY;
 
-    SmallVector<int64_t> outShape;
-
-    if (broadcastMode == IE::BroadcastType::NUMPY || broadcastMode == IE::BroadcastType::EXPLICIT) {
-        outShape = targetShape;
-    } else if (broadcastMode == IE::BroadcastType::BIDIRECTIONAL) {
-        outShape = getResultShapeBidirectional(inShape, targetShape);
+    auto outShape = IE::constInputToData(loc, broadcast.target_shape()).value();
+    if (broadcastMode == IE::BroadcastType::BIDIRECTIONAL) {
+        outShape = getResultShapeBidirectional(inShape, outShape);
     }
 
     inferredReturnShapes.emplace_back(outShape, inType);
@@ -97,7 +93,7 @@ mlir::OpFoldResult vpux::IE::BroadcastOp::fold(ArrayRef<mlir::Attribute> operand
         if (broadcastType == IE::BroadcastType::BIDIRECTIONAL || broadcastType == IE::BroadcastType::NUMPY) {
             broadcastAxes = vpux::IE::getBroadcastAxesNumpyBidirectional(inputShape, outputShape);
         } else if (broadcastType == IE::BroadcastType::EXPLICIT) {
-            auto axesMapping = IE::constInputToData(getLoc(), axes_mapping()).getValue();
+            auto axesMapping = IE::constInputToData(getLoc(), axes_mapping()).value();
             broadcastAxes = vpux::IE::getBroadcastAxesExplicit(axesMapping, outputShape);
         } else {
             VPUX_THROW("Invalid broadcast type..{0}", broadcastType);

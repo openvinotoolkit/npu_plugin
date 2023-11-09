@@ -5,6 +5,7 @@
 
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/distributed_tensor_utils.hpp"
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/layers.hpp"
@@ -134,10 +135,10 @@ mlir::LogicalResult vpux::VPU::NCEMaxPoolOp::verify() {
     const auto SY = kernelStrides[Dims4D::Strides::Y];
     const auto SX = kernelStrides[Dims4D::Strides::X];
 
-    const auto padTop = pad().top().getValue().getSExtValue();
-    const auto padBottom = pad().bottom().getValue().getSExtValue();
-    const auto padLeft = pad().left().getValue().getSExtValue();
-    const auto padRight = pad().right().getValue().getSExtValue();
+    const auto padTop = pad().getTop().getValue().getSExtValue();
+    const auto padBottom = pad().getBottom().getValue().getSExtValue();
+    const auto padLeft = pad().getLeft().getValue().getSExtValue();
+    const auto padRight = pad().getRight().getValue().getSExtValue();
 
     if (!NCEInvariant::isAttrsSupported(arch, KY, KX, SY, SX, padTop, padBottom, padLeft, padRight, logCb)) {
         return mlir::failure();
@@ -198,10 +199,10 @@ mlir::LogicalResult vpux::VPU::NCEMaxPoolOp::inferReturnTypes(mlir::MLIRContext*
     const auto windowShape = parseIntArrayAttr<int64_t>(op.kernel_size());
     const auto windowStrides = parseIntArrayAttr<int64_t>(op.strides());
 
-    const auto padTop = op.pad().top().getValue().getSExtValue();
-    const auto padBottom = op.pad().bottom().getValue().getSExtValue();
-    const auto padLeft = op.pad().left().getValue().getSExtValue();
-    const auto padRight = op.pad().right().getValue().getSExtValue();
+    const auto padTop = op.pad().getTop().getValue().getSExtValue();
+    const auto padBottom = op.pad().getBottom().getValue().getSExtValue();
+    const auto padLeft = op.pad().getLeft().getValue().getSExtValue();
+    const auto padRight = op.pad().getRight().getValue().getSExtValue();
 
     const auto dataPaddingBelow = ngraph::CoordinateDiff({padTop, padLeft});
     const auto dataPaddingAbove = ngraph::CoordinateDiff({padBottom, padRight});
@@ -224,14 +225,6 @@ mlir::LogicalResult vpux::VPU::NCEMaxPoolOp::inferReturnTypes(mlir::MLIRContext*
 
     inferredReturnTypes.push_back(outputType);
     return mlir::success();
-}
-
-//
-// LayoutInfoOpInterface
-//
-
-void vpux::VPU::NCEMaxPoolOp::inferLayoutInfo(IE::LayerLayoutInfo& info) {
-    info.fill(DimsOrder::NHWC);
 }
 
 //
@@ -270,7 +263,7 @@ void vpux::VPU::NCEMaxPoolOp::adjustAttrs(const TilingInfo& inputTiling, const T
     activation_window_channel_lengthAttr(getIntAttr(getContext(), bitPatternSize));
 }
 
-OutputTiling vpux::VPU::NCEMaxPoolOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
+mlir::FailureOr<OutputTiling> vpux::VPU::NCEMaxPoolOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
     return vpux::getHWLayerTilingStrategy(this->getOperation(), tilingMode, log);
 }
 
@@ -278,21 +271,26 @@ OutputTiling vpux::VPU::NCEMaxPoolOp::getTilingStrategy(TilingMode tilingMode, L
 // NCEOpInterface
 //
 
-SmallVector<int64_t> vpux::VPU::NCEMaxPoolOp::getKernelSize() {
+SmallVector<int64_t> vpux::VPU::NCEMaxPoolOp::getKernelSizeVal() {
     return parseIntArrayAttr<int64_t>(kernel_size());
 }
 
-SmallVector<int64_t> vpux::VPU::NCEMaxPoolOp::getStrides() {
+SmallVector<int64_t> vpux::VPU::NCEMaxPoolOp::getStridesVal() {
     return parseIntArrayAttr<int64_t>(strides());
-}
-
-vpux::VPU::PaddingAttr vpux::VPU::NCEMaxPoolOp::getPad() {
-    return padAttr();
 }
 
 bool vpux::VPU::NCEMaxPoolOp::checkStrategyCompatibility(VPU::MultiClusterStrategy strategy) {
     return strategy == VPU::MultiClusterStrategy::Clustering ||
            strategy == VPU::MultiClusterStrategy::SplitOverHeight || strategy == VPU::MultiClusterStrategy::HKSwitch;
+}
+
+vpux::VPU::DistributedTensorAttr vpux::VPU::NCEMaxPoolOp::getExplicitDistributedTensorAttr(
+        vpux::ShapeRef shape, vpux::VPU::DistributionMode distributionMode, mlir::ArrayAttr numTiles,
+        mlir::IntegerAttr numClusters, mlir::ArrayAttr alignment, mlir::ArrayAttr kernel, vpux::VPU::PaddingAttr pad,
+        mlir::ArrayAttr stride, mlir::UnitAttr uniformDistributedSegments) {
+    return VPU::getNCEExplicitDistributedTensorAttr(mlir::dyn_cast<VPU::NCEOpInterface>(getOperation()), shape,
+                                                    distributionMode, numTiles, numClusters, alignment, kernel, pad,
+                                                    stride, uniformDistributedSegments);
 }
 
 mlir::LogicalResult vpux::VPU::NCEMaxPoolOp::verifyInputType(vpux::NDTypeInterface inputType) {
@@ -328,7 +326,6 @@ vpux::VPU::SparsitySupport vpux::VPU::NCEMaxPoolOp::sparsitySupport() {
 
     switch (arch) {
     case VPU::ArchKind::VPUX30XX:
-    case VPU::ArchKind::VPUX311X:
         return VPU::SparsitySupport::NONE;
     case VPU::ArchKind::VPUX37XX:
         return VPU::SparsitySupport::SPARSE_OUTPUTS & excludeMode;

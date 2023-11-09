@@ -87,8 +87,8 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::HardSigmoidOp hardSi
         return mlir::failure();
     }
 
-    const auto alphaContent = alphaConst.content();
-    const auto betaContent = betaConst.content();
+    const auto alphaContent = alphaConst.getContent();
+    const auto betaContent = betaConst.getContent();
 
     if ((!alphaContent.isSplat()) || (!betaContent.isSplat())) {
         return mlir::failure();

@@ -26,12 +26,8 @@ VPU::ArchKind vpux::getArchKind(const Config& config) {
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO_DETECT:
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR:
         return VPU::ArchKind::UNKNOWN;
-    case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400:
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700:
         return VPU::ArchKind::VPUX30XX;
-    case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800:
-    case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900:
-        return VPU::ArchKind::VPUX311X;
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720:
         return VPU::ArchKind::VPUX37XX;
     default:
@@ -49,8 +45,8 @@ VPU::CompilationMode vpux::getCompilationMode(const Config& config) {
     }
 
     const auto parsed = VPU::symbolizeCompilationMode(config.get<COMPILATION_MODE>());
-    VPUX_THROW_UNLESS(parsed.hasValue(), "Unsupported compilation mode '{0}'", config.get<COMPILATION_MODE>());
-    return parsed.getValue();
+    VPUX_THROW_UNLESS(parsed.has_value(), "Unsupported compilation mode '{0}'", config.get<COMPILATION_MODE>());
+    return parsed.value();
 }
 
 //
@@ -95,6 +91,11 @@ Optional<int> vpux::getNumberOfDMAEngines(const Config& config) {
     if (config.has<DMA_ENGINES>()) {
         return checked_cast<int>(config.get<DMA_ENGINES>());
     }
+
+    auto archKind = vpux::getArchKind(config);
+    auto numOfDpuGroups = getNumberOfDPUGroups(config);
+    int maxDmaPorts = VPU::getMaxDMAPorts(archKind);
+
     switch (config.get<PLATFORM>()) {
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720: {
         switch (config.get<PERFORMANCE_HINT>()) {
@@ -102,7 +103,12 @@ Optional<int> vpux::getNumberOfDMAEngines(const Config& config) {
         case ov::hint::PerformanceMode::UNDEFINED:
         case ov::hint::PerformanceMode::LATENCY:
         default:
-            return checked_cast<int>(VPU::getMaxDMAPorts(vpux::getArchKind(config)));
+            auto numOfDmaPorts = maxDmaPorts;
+            if (numOfDpuGroups.has_value()) {
+                numOfDmaPorts = std::min(numOfDmaPorts, numOfDpuGroups.value());
+            }
+
+            return numOfDmaPorts;
         }
         break;
     }
@@ -113,21 +119,9 @@ Optional<int> vpux::getNumberOfDMAEngines(const Config& config) {
         case ov::hint::PerformanceMode::LATENCY:
         case ov::hint::PerformanceMode::UNDEFINED:
         default:
-            return checked_cast<int>(VPU::getMaxDMAPorts(vpux::getArchKind(config)));
+            return maxDmaPorts;
         }
         break;
     }
     }
-}
-
-//
-// getDDRHeapSize
-//
-
-Optional<int> vpux::getDDRHeapSize(const Config& config) {
-    if (config.has<DDR_HEAP_SIZE_MB>()) {
-        return checked_cast<int>(config.get<DDR_HEAP_SIZE_MB>());
-    }
-
-    return 500;
 }

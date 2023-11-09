@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache 2.0
 #
 
-#
-
 set(TARGET_NAME "vpux-translate")
 
 add_tool_target(
@@ -13,9 +11,9 @@ add_tool_target(
     ADD_CLANG_FORMAT
     ENABLE_WARNINGS_AS_ERRORS
     LINK_LIBRARIES
-         vpux_utils
-         vpux_al
+         npu_utils
+         npu_al
          vpux_elf
-         vpux_mlir_compiler_static
-         vpux_translate_utils_static
+         npu_mlir_compiler_static
+         npu_translate_utils_static
 )

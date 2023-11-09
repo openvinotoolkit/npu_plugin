@@ -18,7 +18,7 @@ namespace {
 // Generated
 //
 
-#include <vpux/compiler/dialect/VPUIP/rewriters/generated/convert_allocations_to_declarations.hpp.inc>
+#include <vpux/compiler/dialect/VPUIP/convert_allocations_to_declarations.hpp.inc>
 
 //
 // ConvertAllocationsToDeclarationsPass

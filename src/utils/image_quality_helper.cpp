@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "image_quality_helper.hpp"
 
 #include "vpux/utils/IE/blob.hpp"

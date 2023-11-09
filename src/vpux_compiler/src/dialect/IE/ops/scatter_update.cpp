@@ -1,7 +1,6 @@
-////
-//// Copyright (C) 2022 Intel Corporation.
-//// SPDX-License-Identifier: Apache 2.0
-////
+//
+// Copyright (C) 2022 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
@@ -31,14 +30,6 @@ mlir::LogicalResult vpux::IE::ScatterUpdateOp::inferReturnTypeComponents(
 }
 
 //
-// inferLayoutInfo
-//
-void vpux::IE::ScatterUpdateOp::inferLayoutInfo(vpux::IE::LayerLayoutInfo& info) {
-    const auto inType = input().getType().cast<mlir::ShapedType>();
-    info.setInput(0, DimsOrder::fromNumDims(inType.getShape().size()));
-}
-
-//
 // ConvertConstToAttr
 //
 
@@ -63,7 +54,7 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::ScatterUpdateOp scat
     auto axisConst = scatterUpdateOp.axis().getDefiningOp<Const::DeclareOp>();
     VPUX_THROW_UNLESS(axis != nullptr, "Only support constant axis");
 
-    const auto axisContent = axisConst.content();
+    const auto axisContent = axisConst.getContent();
     if (!axisContent.isSplat()) {
         return mlir::failure();
     }

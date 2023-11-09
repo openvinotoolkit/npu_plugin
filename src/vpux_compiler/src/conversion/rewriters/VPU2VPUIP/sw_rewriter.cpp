@@ -282,63 +282,63 @@ mlir::Operation* createRTLayer(VPU::BroadcastOp origOp, ArrayRef<mlir::Value> al
 mlir::Operation* createRTLayer(VPU::ReduceMaxOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     VPUIP::ReduceUPAOp::Adaptor newOp(allBufs);
     return b.create<VPUIP::ReduceUPAOp>(
-            origOp.getLoc(), newOp.input(), newOp.axes(), newOp.output_buff(), origOp.keep_dimsAttr(),
+            origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.axes_valueAttr(), origOp.keep_dimsAttr(),
             VPUIP::ReduceLayerTypeAttr::get(origOp.getContext(), VPUIP::ReduceLayerType::MAX));
 }
 
 mlir::Operation* createRTLayer(VPU::ReduceMeanOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     VPUIP::ReduceUPAOp::Adaptor newOp(allBufs);
     return b.create<VPUIP::ReduceUPAOp>(
-            origOp.getLoc(), newOp.input(), newOp.axes(), newOp.output_buff(), origOp.keep_dimsAttr(),
+            origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.axes_valueAttr(), origOp.keep_dimsAttr(),
             VPUIP::ReduceLayerTypeAttr::get(origOp.getContext(), VPUIP::ReduceLayerType::MEAN));
 }
 
 mlir::Operation* createRTLayer(VPU::ReduceProdOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     VPUIP::ReduceUPAOp::Adaptor newOp(allBufs);
     return b.create<VPUIP::ReduceUPAOp>(
-            origOp.getLoc(), newOp.input(), newOp.axes(), newOp.output_buff(), origOp.keep_dimsAttr(),
+            origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.axes_valueAttr(), origOp.keep_dimsAttr(),
             VPUIP::ReduceLayerTypeAttr::get(origOp.getContext(), VPUIP::ReduceLayerType::PROD));
 }
 
 mlir::Operation* createRTLayer(VPU::ReduceSumOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     VPUIP::ReduceUPAOp::Adaptor newOp(allBufs);
     return b.create<VPUIP::ReduceUPAOp>(
-            origOp.getLoc(), newOp.input(), newOp.axes(), newOp.output_buff(), origOp.keep_dimsAttr(),
+            origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.axes_valueAttr(), origOp.keep_dimsAttr(),
             VPUIP::ReduceLayerTypeAttr::get(origOp.getContext(), VPUIP::ReduceLayerType::SUM));
 }
 
 mlir::Operation* createRTLayer(VPU::ReduceMinOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     VPUIP::ReduceUPAOp::Adaptor newOp(allBufs);
     return b.create<VPUIP::ReduceUPAOp>(
-            origOp.getLoc(), newOp.input(), newOp.axes(), newOp.output_buff(), origOp.keep_dimsAttr(),
+            origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.axes_valueAttr(), origOp.keep_dimsAttr(),
             VPUIP::ReduceLayerTypeAttr::get(origOp.getContext(), VPUIP::ReduceLayerType::MIN));
 }
 
 mlir::Operation* createRTLayer(VPU::ReduceL1Op origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     VPUIP::ReduceUPAOp::Adaptor newOp(allBufs);
     return b.create<VPUIP::ReduceUPAOp>(
-            origOp.getLoc(), newOp.input(), newOp.axes(), newOp.output_buff(), origOp.keep_dimsAttr(),
+            origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.axes_valueAttr(), origOp.keep_dimsAttr(),
             VPUIP::ReduceLayerTypeAttr::get(origOp.getContext(), VPUIP::ReduceLayerType::L1));
 }
 
 mlir::Operation* createRTLayer(VPU::ReduceL2Op origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     VPUIP::ReduceUPAOp::Adaptor newOp(allBufs);
     return b.create<VPUIP::ReduceUPAOp>(
-            origOp.getLoc(), newOp.input(), newOp.axes(), newOp.output_buff(), origOp.keep_dimsAttr(),
+            origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.axes_valueAttr(), origOp.keep_dimsAttr(),
             VPUIP::ReduceLayerTypeAttr::get(origOp.getContext(), VPUIP::ReduceLayerType::L2));
 }
 
 mlir::Operation* createRTLayer(VPU::ReduceLogicalOrOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     VPUIP::ReduceUPAOp::Adaptor newOp(allBufs);
     return b.create<VPUIP::ReduceUPAOp>(
-            origOp.getLoc(), newOp.input(), newOp.axes(), newOp.output_buff(), origOp.keep_dimsAttr(),
+            origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.axes_valueAttr(), origOp.keep_dimsAttr(),
             VPUIP::ReduceLayerTypeAttr::get(origOp.getContext(), VPUIP::ReduceLayerType::LOGICAL_OR));
 }
 
 mlir::Operation* createRTLayer(VPU::ReduceLogicalAndOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     VPUIP::ReduceUPAOp::Adaptor newOp(allBufs);
     return b.create<VPUIP::ReduceUPAOp>(
-            origOp.getLoc(), newOp.input(), newOp.axes(), newOp.output_buff(), origOp.keep_dimsAttr(),
+            origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.axes_valueAttr(), origOp.keep_dimsAttr(),
             VPUIP::ReduceLayerTypeAttr::get(origOp.getContext(), VPUIP::ReduceLayerType::LOGICAL_AND));
 }
 
@@ -431,7 +431,7 @@ mlir::Operation* createRTLayer(VPU::RollOp origOp, ArrayRef<mlir::Value> allBufs
 }
 
 mlir::Operation* createRTLayer(VPU::PadOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
-    VPUX_THROW_UNLESS(origOp.pads_begin_attr().hasValue() && origOp.pads_end_attr().hasValue(),
+    VPUX_THROW_UNLESS(origOp.pads_begin_attr().has_value() && origOp.pads_end_attr().has_value(),
                       "PadOp must use attributes for `pads_begin` and `pads_end` params");
 
     VPUIP::PadUPAOp::Adaptor newOp(allBufs);
@@ -445,9 +445,9 @@ mlir::Operation* createRTLayer(VPU::ExpOp origOp, ArrayRef<mlir::Value> allBufs,
 }
 
 mlir::Operation* createRTLayer(VPU::InterpolateOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
-    VPUX_THROW_UNLESS(origOp.sizes_attr().hasValue() && origOp.scales_attr().hasValue(),
+    VPUX_THROW_UNLESS(origOp.sizes_attr().has_value() && origOp.scales_attr().has_value(),
                       "Interpolate must have constant sizes or scales");
-    VPUX_THROW_UNLESS(origOp.axes_attr().hasValue(), "Interpolate must have constant axes");
+    VPUX_THROW_UNLESS(origOp.axes_attr().has_value(), "Interpolate must have constant axes");
 
     VPUIP::InterpolateUPAOp::Adaptor newOp(allBufs);
     return b.create<VPUIP::InterpolateUPAOp>(
@@ -469,7 +469,8 @@ mlir::Operation* createRTLayer(VPU::StridedSliceOp origOp, ArrayRef<mlir::Value>
 mlir::Operation* createRTLayer(VPU::RegionYoloOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     VPUIP::RegionYoloUPAOp::Adaptor newOp(allBufs);
     return b.create<VPUIP::RegionYoloUPAOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.coords(),
-                                            origOp.classes(), origOp.regions(), origOp.do_softmaxAttr(), origOp.mask());
+                                            origOp.classes(), origOp.num_regions(), origOp.do_softmaxAttr(),
+                                            origOp.mask());
 }
 
 mlir::Operation* createRTLayer(VPU::ReorgYoloOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
@@ -667,7 +668,7 @@ mlir::Operation* createRTLayer(VPU::EmbeddingBagOffsetsSumOp origOp, ArrayRef<ml
     VPUIP::EmbeddingBagOffsetsSumUPAOp::Adaptor newOp(allBufs);
     return b.create<VPUIP::EmbeddingBagOffsetsSumUPAOp>(origOp.getLoc(), newOp.input(), origOp.indices_valueAttr(),
                                                         origOp.offsets_valueAttr(), origOp.default_index_valueAttr(),
-                                                        origOp.weights_valueAttr(), newOp.output_buff());
+                                                        origOp.per_sample_weights_valueAttr(), newOp.output_buff());
 }
 
 mlir::Operation* createRTLayer(VPU::DeformablePSROIPoolingOp origOp, ArrayRef<mlir::Value> allBufs,

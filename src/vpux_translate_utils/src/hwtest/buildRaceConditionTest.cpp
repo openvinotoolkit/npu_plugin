@@ -105,9 +105,8 @@ void buildRaceConditionTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
                                                     static_cast<int>(cluster), inputCMXOffset));
 
         vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
-                funcBuilder, mlir::ValueRange(), mlir::ValueRange(inputDataDMA.barrier()), builder.getUnknownLoc(),
-                funcInput, getTensorResult(inputCMXVec[0]),
-                cluster);
+                funcBuilder, mlir::ValueRange(), mlir::ValueRange(inputDataDMA.getBarrier()), builder.getUnknownLoc(),
+                funcInput, getTensorResult(inputCMXVec[0]), cluster);
 
         auto localOutputCMXOffset = outputCMXOffset;
         for (size_t unit = 0; unit < raceConditionParams.requestedUnits; ++unit) {
@@ -119,13 +118,13 @@ void buildRaceConditionTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
             for (size_t iter = 0; iter < raceConditionParams.iterationsCount; ++iter) {
                 auto updateBarrier =
                         funcBuilder.create<VPURT::ConfigureBarrierOp>(funcBuilder.getUnknownLoc(), barrierNumber++);
-                underlyingOpBuilder(
-                        *testDescUnderlyingOp, module, funcBuilder, log, inputTypes, inputCMXVec, outputCMX,
-                        iter == 0 ? mlir::ValueRange(inputDataDMA.barrier()) : mlir::ValueRange(waitBarrier.barrier()),
-                        mlir::ValueRange(updateBarrier.barrier()), cluster, unit);
+                underlyingOpBuilder(*testDescUnderlyingOp, module, funcBuilder, log, inputTypes, inputCMXVec, outputCMX,
+                                    iter == 0 ? mlir::ValueRange(inputDataDMA.getBarrier())
+                                              : mlir::ValueRange(waitBarrier.getBarrier()),
+                                    mlir::ValueRange(updateBarrier.getBarrier()), cluster, unit);
                 waitBarrier = updateBarrier;
             }
-            waitBarriers.emplace_back(waitBarrier.barrier());
+            waitBarriers.emplace_back(waitBarrier.getBarrier());
         }
     }
 
@@ -145,7 +144,7 @@ void buildRaceConditionTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
     pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::ReferenceHW,
                                            static_cast<int>(raceConditionParams.requestedClusters),
-                                           static_cast<int>(raceConditionParams.requestedClusters), None, log));
+                                           static_cast<int>(raceConditionParams.requestedClusters), log));
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 
     //  CNN Operation

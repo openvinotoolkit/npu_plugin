@@ -258,11 +258,10 @@ vpux::QuantizationApproximation::QuantizationApproximation(VPU::ArchKind archite
         : _mult(0), _shift(0), _postShift(0) {
     std::tie(_mult, _shift, _postShift) = approximate<decltype(_mult)>(15, target);
 
-    VPUX_THROW_WHEN(
-            _postShift != 0 && !(architecture == VPU::ArchKind::VPUX30XX || architecture == VPU::ArchKind::VPUX311X),
-            "Encountered an attempt to approximate {0} as mult = {1}, shift = {2}, postShift = {3} on {4}, "
-            "but postShift is not supported",
-            target, mult(), shift(), postShift(), architecture);
+    VPUX_THROW_WHEN(_postShift != 0 && architecture != VPU::ArchKind::VPUX30XX,
+                    "Encountered an attempt to approximate {0} as mult = {1}, shift = {2}, postShift = {3} on {4}, "
+                    "but postShift is not supported",
+                    target, mult(), shift(), postShift(), architecture);
 }
 
 int64_t vpux::QuantizationApproximation::mult() const {
@@ -345,7 +344,7 @@ QuantizationApproximation vpux::EltwiseQuantizationApproximation::output() const
 
 vpux::PReLUApproximation::PReLUApproximation(VPU::ArchKind architecture, double target): _mult(0), _shift(0) {
     // TODO return logic for 11 bits for quantized case VPUX37XX back as soon as it works.
-    const auto bits = architecture == VPU::ArchKind::VPUX30XX || architecture == VPU::ArchKind::VPUX311X ? 7 : 11;
+    const auto bits = architecture == VPU::ArchKind::VPUX30XX ? 7 : 11;
     int8_t postShift = 0;
     std::tie(_mult, _shift, postShift) = approximate<decltype(_mult)>(bits, target);
 
@@ -527,7 +526,7 @@ mlir::quant::QuantizedType vpux::getQuantizedType(mlir::Attribute lowConstAttr, 
                       lowShape, highShape);
         return nullptr;
     }
-    const auto broadcastShape = broadcastShapeRes.getValue();
+    const auto broadcastShape = broadcastShapeRes.value();
 
     Optional<int32_t> axisInd;
     for (size_t i = 0; i < broadcastShape.size(); ++i) {
@@ -535,14 +534,14 @@ mlir::quant::QuantizedType vpux::getQuantizedType(mlir::Attribute lowConstAttr, 
             continue;
         }
 
-        if (axisInd.hasValue()) {
+        if (axisInd.has_value()) {
             (void)errorAt(loc, "Can't get axis index from shape '{0}'", broadcastShape);
             return nullptr;
         }
 
         axisInd = checked_cast<int32_t>(i);
     }
-    if (!axisInd.hasValue()) {
+    if (!axisInd.has_value()) {
         (void)errorAt(loc, "Can't get axis index from shape '{0}'", broadcastShape);
         return nullptr;
     }
@@ -566,8 +565,8 @@ mlir::quant::QuantizedType vpux::getQuantizedType(mlir::Attribute lowConstAttr, 
     }
 
     return mlir::quant::UniformQuantizedPerAxisType::getChecked(
-            loc, isSigned ? mlir::quant::QuantizationFlags::Signed : 0, storageType, realType, scales, zeroPoints,
-            axisInd.getValue(), qMin, qMax);
+            loc, isSigned ? mlir::quant::QuantizationFlags::Signed : 0, storageType, realType, std::move(scales),
+            std::move(zeroPoints), axisInd.value(), qMin, qMax);
 }
 
 void vpux::getFakeQuantParams(mlir::quant::UniformQuantizedType qElemType, int64_t& levels, float& rMin, float& rMax) {
@@ -662,7 +661,7 @@ std::pair<EMU::BlobWriter::Vector<uint16_t>, EMU::BlobWriter::Vector<uint16_t>> 
         return valFP16.to_bits();
     };
 
-    const auto getVecFP16 = [&](auto range) {
+    const auto getVecFP16 = [&](const auto& range) {
         return writer.createVector(range | transformed(getRawFP16));
     };
 

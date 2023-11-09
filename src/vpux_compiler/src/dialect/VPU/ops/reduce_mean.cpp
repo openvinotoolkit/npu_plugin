@@ -29,22 +29,22 @@ mlir::LogicalResult vpux::VPU::ReduceMeanOp::inferReturnTypes(mlir::MLIRContext*
 
     const auto input = reduceMean.input();
     const auto keepDims = reduceMean.keep_dims();
-    auto axes = IE::constInputToData(loc, reduceMean.axes());
-    if (mlir::failed(axes)) {
-        return mlir::failure();
-    }
 
-    auto axesValue = axes.getValue();
+    auto axesValue = parseIntArrayAttr<int64_t>(reduceMean.axes_value());
 
     return VPU::inferReduceReturnTypes(loc, input, keepDims, axesValue, inferredReturnTypes);
 }
 
 //
-// inferLayoutInfo
+// fold
 //
 
-void vpux::VPU::ReduceMeanOp::inferLayoutInfo(mlir::Operation* op, vpux::IE::LayerLayoutInfo& info) {
-    vpux::IE::inferReduceLayoutInfo(op, info);
+mlir::OpFoldResult vpux::VPU::ReduceMeanOp::fold(ArrayRef<mlir::Attribute>) {
+    if (input().getType() == output().getType()) {
+        return input();
+    }
+
+    return nullptr;
 }
 
 //
@@ -54,10 +54,12 @@ void vpux::VPU::ReduceMeanOp::inferLayoutInfo(mlir::Operation* op, vpux::IE::Lay
 EMU::BlobWriter::SpecificTask vpux::VPU::ReduceMeanOp::serialize(EMU::BlobWriter& writer) {
     EMU::BlobWriter::String type;
     type = writer.createString("mean");
+    const auto axes = writer.createVector(parseIntArrayAttr<int64_t>(axes_value()));
 
     MVCNN::ReduceParamsBuilder builder(writer);
     builder.add_keep_dims(checked_cast<bool>(keep_dims()));
     builder.add_operation(type);
+    builder.add_axes_value(axes);
 
     const auto paramsOff = builder.Finish();
 

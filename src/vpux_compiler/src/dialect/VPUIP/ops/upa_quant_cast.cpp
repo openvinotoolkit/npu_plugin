@@ -31,7 +31,7 @@ std::pair<VPUIP::BlobWriter::Vector<uint16_t>, VPUIP::BlobWriter::Vector<uint16_
         return valFP16.to_bits();
     };
 
-    const auto getVecFP16 = [&](auto range) {
+    const auto getVecFP16 = [&](const auto& range) {
         return writer.createVector(range | transformed(getRawFP16));
     };
 

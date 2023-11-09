@@ -26,7 +26,7 @@ mlir::LogicalResult vpux::VPU::DeformablePSROIPoolingOp::inferReturnTypes(
 
     const auto outputDim = deformablepsroiPooling.output_dim();
     const auto groupSize =
-            deformablepsroiPooling.group_size().hasValue() ? deformablepsroiPooling.group_size().getValue() : 1;
+            deformablepsroiPooling.group_size().has_value() ? deformablepsroiPooling.group_size().value() : 1;
     const auto inTypeFeatureMap = deformablepsroiPooling.input_score_maps().getType().cast<vpux::NDTypeInterface>();
     const auto inType2 = deformablepsroiPooling.input_rois().getType().cast<vpux::NDTypeInterface>();
     const auto inShapeCoord = inType2.getShape();
@@ -55,13 +55,13 @@ mlir::LogicalResult vpux::VPU::DeformablePSROIPoolingOp::inferReturnTypes(
 //
 
 EMU::BlobWriter::SpecificTask vpux::VPU::DeformablePSROIPoolingOp::serialize(EMU::BlobWriter& writer) {
-    const auto spatialBinsX = spatial_bins_x().hasValue() ? spatial_bins_x().getValue() : 1;
-    const auto spatialBinsY = spatial_bins_y().hasValue() ? spatial_bins_y().getValue() : 1;
-    const auto groupSize = group_size().hasValue() ? group_size().getValue() : 1;
-    const auto partSize = part_size().hasValue() ? part_size().getValue() : 0;
-    const auto transStd = trans_std().hasValue();
+    const auto spatialBinsX = spatial_bins_x().has_value() ? spatial_bins_x().value() : 1;
+    const auto spatialBinsY = spatial_bins_y().has_value() ? spatial_bins_y().value() : 1;
+    const auto groupSize = group_size().has_value() ? group_size().value() : 1;
+    const auto partSize = part_size().has_value() ? part_size().value() : 0;
+    const auto transStd = trans_std().has_value();
     const auto deformablepsROIPoolingMode =
-            mode().hasValue() ? mode().getValue() : IE::DeformablePSROIPoolingMode::BILINEAR_DEFORMABLE;
+            mode().has_value() ? mode().value() : IE::DeformablePSROIPoolingMode::BILINEAR_DEFORMABLE;
 
     MVCNN::DeformablePSROIPoolingParamsBuilder builder(writer);
 

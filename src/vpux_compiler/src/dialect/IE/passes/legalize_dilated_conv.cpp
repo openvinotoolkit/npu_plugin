@@ -46,7 +46,7 @@ mlir::Value getZerosConst(mlir::PatternRewriter& rewriter, mlir::Operation* orig
 
     return rewriter
             .create<Const::DeclareOp>(origOp->getLoc(), dataStorageType, Const::ContentAttr::get(denseElementVal))
-            .output();
+            .getOutput();
 }
 
 mlir::Value createNewOp(mlir::PatternRewriter& rewriter, mlir::Operation* origOp, SmallVector<mlir::Value> operands,
@@ -317,8 +317,8 @@ mlir::LogicalResult ConvGeneralRewriter<ConcreteOp>::matchAndRewrite(ConcreteOp 
         _log.trace("Expand dilated '{0}' layer at '{1}'", origOp->getName(), origOp->getLoc());
         auto dilatedFilter =
                 rewriter.create<IE::ExpandDilatedOp>(origOp->getLoc(), origOp.filter(), origOp.dilations());
-        SmallVector<mlir::Value> operands = {origOp.input(), dilatedFilter.getResult(), origOp.bias()};
-        auto newOp = createNewOp(rewriter, origOp, operands, Shape(parseIntArrayAttr<int64_t>(origOp.pads_begin())),
+        auto newOp = createNewOp(rewriter, origOp, {origOp.input(), dilatedFilter.getResult(), origOp.bias()},
+                                 Shape(parseIntArrayAttr<int64_t>(origOp.pads_begin())),
                                  Shape(parseIntArrayAttr<int64_t>(origOp.pads_end())), false, false);
         rewriter.replaceOp(origOp, newOp);
         return mlir::success();

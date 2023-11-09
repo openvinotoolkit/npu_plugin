@@ -7,7 +7,8 @@
 #include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
-#include "vpux/compiler/init.hpp"
+
+#include "common/utils.hpp"
 
 #include <mlir/IR/MLIRContext.h>
 #include <mlir/Parser/Parser.h>
@@ -26,15 +27,14 @@ void checkExecutorKind(mlir::Operation* op, vpux::VPU::ExecutorKind expectedKind
     ASSERT_TRUE(kindAttr.isa<mlir::SymbolRefAttr>());
 
     auto kind = vpux::VPU::symbolizeEnum<vpux::VPU::ExecutorKind>(kindAttr.getLeafName());
-    EXPECT_EQ(kind.getValue(), expectedKind);
+    EXPECT_EQ(kind.value(), expectedKind);
 }
 
 }  // namespace
 
-TEST(MLIR_VPUIP_LayerInfo, AsyncLayerOpInterface) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
+using MLIR_VPUIP_LayerInfo = MLIR_UnitBase;
 
+TEST_F(MLIR_VPUIP_LayerInfo, AsyncLayerOpInterface) {
     mlir::MLIRContext ctx(registry);
 
     constexpr llvm::StringLiteral inputIR = R"(
@@ -57,7 +57,7 @@ TEST(MLIR_VPUIP_LayerInfo, AsyncLayerOpInterface) {
 
     mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
     pm.addPass(vpux::VPU::createInitCompilerPass(vpux::VPU::ArchKind::VPUX30XX, vpux::VPU::CompilationMode::ReferenceSW,
-                                                 vpux::None, vpux::None, vpux::None, vpux::Logger::global()));
+                                                 vpux::None, vpux::None, vpux::Logger::global()));
 
     ASSERT_TRUE(mlir::succeeded(pm.run(module.get())));
 

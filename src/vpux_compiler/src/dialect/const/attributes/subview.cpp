@@ -163,10 +163,15 @@ Const::Content vpux::Const::SubViewAttr::transform(vpux::Const::Content& input) 
 
         // Type specific implementation: i1
         if (getElemTypeSize(input.getStorageElemType()).count() == 1) {
-            const auto sizeInBytes = output.getType().getTotalAllocSize().count();
+            std::fill(outBuf.begin(), outBuf.end(), 0x00);
             auto outBufData = outBuf.data();
-            std::memset(outBufData, 0x00, sizeInBytes);
-            loop_1d(LoopExecPolicy::Parallel, output.getType().getNumElements(), [&](int64_t outMemInd1D) {
+            /*
+             * The body of this loop works with bits packed into a byte.
+             * It overwrites the entire byte in output each time any bit is written into that byte.
+             * It cannot be run as parallel loop as straightforward as other implementations since
+             * different threads may write into the same bytes.
+             */
+            for (int64_t outMemInd1D = 0; outMemInd1D < output.getType().getNumElements(); ++outMemInd1D) {
                 const auto outMemIndND = getMemIndexND(outMemInd1D, outMemShape);
                 MemShape inMemIndND(outMemIndND.size());
                 for (auto ind : irange(inMemIndND.size())) {
@@ -178,12 +183,12 @@ Const::Content vpux::Const::SubViewAttr::transform(vpux::Const::Content& input) 
                 const auto inputCoord = std::div(inMemInd1D, checked_cast<int64_t>(CHAR_BIT));
                 const auto bitValue = static_cast<bool>(inBuf.data()[inputCoord.quot] & (1 << inputCoord.rem));
                 if (!bitValue) {
-                    return;
+                    continue;
                 }
                 // If non zero then set corresponding bit in output
                 const auto outputCoord = std::div(outMemInd1D, checked_cast<int64_t>(CHAR_BIT));
                 outBufData[outputCoord.quot] = static_cast<char>(outBufData[outputCoord.quot] | (1 << outputCoord.rem));
-            });
+            }
 
             return output;
         }

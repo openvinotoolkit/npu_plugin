@@ -6,7 +6,7 @@
 #pragma once
 
 #include "vpux/compiler/core/type_interfaces.hpp"
-#include "vpux/compiler/dialect/VPURegMapped/enums.hpp"
+
 #include "vpux/utils/core/string_ref.hpp"
 
 #include <mlir/IR/DialectImplementation.h>
@@ -17,6 +17,8 @@
 // Generated
 //
 
+#include <vpux/compiler/dialect/VPURegMapped/enums.hpp.inc>
+
 #define GET_TYPEDEF_CLASSES
-#include <vpux/compiler/dialect/VPURegMapped/generated/types.hpp.inc>
+#include <vpux/compiler/dialect/VPURegMapped/types.hpp.inc>
 #undef GET_TYPEDEF_CLASSES

@@ -5,8 +5,9 @@
 
 #include <mlir/IR/BuiltinTypes.h>
 #include "vpux/compiler/dialect/ELF/utils.hpp"
-#include "vpux/compiler/dialect/VPU37XX/api/vpu_nnrt_api.h"
 #include "vpux/compiler/dialect/VPUMI37XX/ops.hpp"
+
+#include <vpu_nnrt_api_37xx.h>
 
 using namespace vpux;
 
@@ -15,9 +16,9 @@ using namespace vpux;
 //
 
 void vpux::VPUMI37XX::ActKernelRangeOp::serialize(elf::writer::BinaryDataSection<uint8_t>& binDataSection) {
-    auto kernel_text_value = kernel_text_index();
-    auto kernel_args_value = kernel_args_index();
-    auto kernel_entry_value = kernel_entry_index();
+    auto kernel_text_value = getKernelTextIndex();
+    auto kernel_args_value = getKernelArgsIndex();
+    auto kernel_entry_value = getKernelEntryIndex();
 
     auto kernel_text_op = kernel_text_value.getDefiningOp<VPUMI37XX::DeclareKernelTextOp>();
     auto kernel_args_op = kernel_args_value.getDefiningOp<VPUMI37XX::DeclareKernelArgsOp>();
@@ -73,9 +74,9 @@ vpux::VPURT::BufferSection vpux::VPUMI37XX::ActKernelRangeOp::getMemorySpace() {
 }
 
 mlir::FailureOr<uint64_t> vpux::VPUMI37XX::ActKernelRangeOp::getOffsetOfWithinOperation(mlir::Value val) {
-    if (val == kernel_text_index()) {
+    if (val == getKernelTextIndex()) {
         return offsetof(nn_public::VpuActKernelRange, text_window_base);
-    } else if (val == kernel_args_index()) {
+    } else if (val == getKernelArgsIndex()) {
         // kernel_args operand needs to be moved to ActKernelInvocationOp (there is where it gets relocated)
         return mlir::failure();
     }

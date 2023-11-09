@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "kmb_test_base.hpp"
 
 #include <format_reader_ptr.h>
@@ -42,7 +40,7 @@ const std::string KmbTestBase::DEVICE_NAME = []() -> std::string {
         return var;
     }
 
-    return "VPUX";
+    return "NPU";
 }();
 
 const std::string KmbTestBase::REF_DEVICE_NAME = []() -> std::string {
@@ -106,7 +104,7 @@ const bool KmbTestBase::RAW_EXPORT = []() -> bool {
         return vpux::envVarStrToBool("IE_KMB_TESTS_RAW_EXPORT", var);
     }
 
-    if (KmbTestBase::DEVICE_NAME != "VPUX" || !KmbTestBase::EXPORT_NETWORK) {
+    if (KmbTestBase::DEVICE_NAME != "NPU" || !KmbTestBase::EXPORT_NETWORK) {
         return false;
     }
 
@@ -162,14 +160,14 @@ void KmbTestBase::SetUp() {
         const auto devices = core->GetAvailableDevices();
         const auto isVPUXDeviceAvailable =
                 std::find_if(devices.cbegin(), devices.cend(), [](const std::string& device) {
-                    return device.find("VPUX") != std::string::npos;
+                    return device.find("NPU") != std::string::npos;
                 }) != devices.cend();
 
         return isVPUXDeviceAvailable;
     }();
 
     BACKEND_NAME = [this]() -> std::string {
-        const auto backendName = core->GetMetric("VPUX", VPUX_METRIC_KEY(BACKEND_NAME)).as<std::string>();
+        const auto backendName = core->GetMetric("NPU", VPUX_METRIC_KEY(BACKEND_NAME)).as<std::string>();
         return backendName;
     }();
 

@@ -24,8 +24,6 @@ public:
     ExecutorImpl(InferenceEngine::VPUXConfigParams::VPUXPlatform platform, const NetworkDescription::Ptr& network,
                  const Config& config);
 
-    Executor::Ptr clone() const override;
-
     NetworkDescription& getNetworkDesc() {
         return *_network.get();
     }

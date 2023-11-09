@@ -44,10 +44,10 @@ mlir::LogicalResult OptimizeSparsityOpsPass::initialize(mlir::MLIRContext* ctx) 
         return mlir::failure();
     }
     const auto parsedSparsityProfile = _sparsityProfileCreateCb(sparsityProfile.getValue());
-    if (!parsedSparsityProfile.hasValue()) {
+    if (!parsedSparsityProfile.has_value()) {
         return mlir::failure();
     }
-    _sparsityProfile = parsedSparsityProfile.getValue();
+    _sparsityProfile = parsedSparsityProfile.value();
     return mlir::success();
 }
 

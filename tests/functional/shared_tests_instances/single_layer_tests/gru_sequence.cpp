@@ -5,15 +5,15 @@
 
 #include "single_layer_tests/gru_sequence.hpp"
 #include <vector>
-#include "kmb_layer_test.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 using namespace ngraph::helpers;
 
 namespace LayerTestsDefinitions {
 
-class VPUXGRUSequenceLayerTest_VPU3720 : public GRUSequenceTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXGRUSequenceLayerTest : public GRUSequenceTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void GenerateInputs() override {
         SequenceTestsMode mode;
         size_t seqLengths;
@@ -145,11 +145,14 @@ class VPUXGRUSequenceLayerTest_VPU3720 : public GRUSequenceTest, virtual public 
     }
 };
 
+class VPUXGRUSequenceLayerTest_VPU3720 : public VPUXGRUSequenceLayerTest {};
+
 TEST_P(VPUXGRUSequenceLayerTest_VPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
 }
+
 }  // namespace LayerTestsDefinitions
 
 using namespace LayerTestsDefinitions;
@@ -167,6 +170,7 @@ const size_t batchSizeSplit = 1;
 const size_t hiddenSize = 4;
 const size_t hiddenSizeTiling = 1;
 const size_t hiddenSizeSplit = 569;
+const size_t hiddenSizeSplit1 = 200;
 const std::vector<std::string> activations = {"sigmoid", "tanh"};
 const float clip = 0.0f;
 const std::vector<bool> shouldLinearBeforeReset{true, false};
@@ -174,30 +178,38 @@ const std::vector<GRUDirection> directionMode{GRUDirection::FORWARD, GRUDirectio
                                               GRUDirection::BIDIRECTIONAL};
 const InferenceEngine::Precision netPrecisions = InferenceEngine::Precision::FP16;
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_GRUSequence_VPU3720, VPUXGRUSequenceLayerTest_VPU3720,
-                         ::testing::Combine(::testing::Values(testMode), ::testing::ValuesIn(seqLength),
-                                            ::testing::Values(batchSize), ::testing::Values(hiddenSize),
-                                            ::testing::Values(activations), ::testing::Values(clip),
-                                            ::testing::ValuesIn(shouldLinearBeforeReset),
-                                            ::testing::ValuesIn(directionMode), ::testing::Values(netPrecisions),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+const auto gruSequenceParam0 = testing::Combine(
+        ::testing::Values(testMode), ::testing::ValuesIn(seqLength), ::testing::Values(batchSize),
+        ::testing::Values(hiddenSize), ::testing::Values(activations), ::testing::Values(clip),
+        ::testing::ValuesIn(shouldLinearBeforeReset), ::testing::ValuesIn(directionMode),
+        ::testing::Values(netPrecisions), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
+
+const auto gruSequenceParam1 = testing::Combine(
+        ::testing::Values(testMode), ::testing::ValuesIn(seqLengthTiling), ::testing::Values(batchSizeTiling),
+        ::testing::Values(hiddenSizeTiling), ::testing::Values(activations), ::testing::Values(clip),
+        ::testing::ValuesIn(shouldLinearBeforeReset), ::testing::ValuesIn(directionMode),
+        ::testing::Values(netPrecisions), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
+
+const auto gruSequenceParam2 = testing::Combine(
+        ::testing::Values(testMode), ::testing::ValuesIn(seqLengthSplit), ::testing::Values(batchSizeSplit),
+        ::testing::Values(hiddenSizeSplit), ::testing::Values(activations), ::testing::Values(clip),
+        ::testing::ValuesIn(shouldLinearBeforeReset), ::testing::ValuesIn(directionMode),
+        ::testing::Values(netPrecisions), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
+
+const auto gruSequenceParam3 = testing::Combine(
+        ::testing::Values(testMode), ::testing::ValuesIn(seqLengthSplit), ::testing::Values(batchSizeSplit),
+        ::testing::Values(hiddenSizeSplit1), ::testing::Values(activations), ::testing::Values(clip),
+        ::testing::ValuesIn(shouldLinearBeforeReset), ::testing::ValuesIn(directionMode),
+        ::testing::Values(netPrecisions), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
+
+//    VPU3720
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_GRUSequence, VPUXGRUSequenceLayerTest_VPU3720, gruSequenceParam0,
                          GRUSequenceTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_GRUSequence_Tiling_VPU3720, VPUXGRUSequenceLayerTest_VPU3720,
-                         ::testing::Combine(::testing::Values(testMode), ::testing::ValuesIn(seqLengthTiling),
-                                            ::testing::Values(batchSizeTiling), ::testing::Values(hiddenSizeTiling),
-                                            ::testing::Values(activations), ::testing::Values(clip),
-                                            ::testing::ValuesIn(shouldLinearBeforeReset),
-                                            ::testing::ValuesIn(directionMode), ::testing::Values(netPrecisions),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_GRUSequence_Tiling, VPUXGRUSequenceLayerTest_VPU3720, gruSequenceParam1,
                          GRUSequenceTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_GRUSequence_Split_VPU3720, VPUXGRUSequenceLayerTest_VPU3720,
-                         ::testing::Combine(::testing::Values(testMode), ::testing::ValuesIn(seqLengthSplit),
-                                            ::testing::Values(batchSizeSplit), ::testing::Values(hiddenSizeSplit),
-                                            ::testing::Values(activations), ::testing::Values(clip),
-                                            ::testing::ValuesIn(shouldLinearBeforeReset),
-                                            ::testing::ValuesIn(directionMode), ::testing::Values(netPrecisions),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_GRUSequence_Split, VPUXGRUSequenceLayerTest_VPU3720, gruSequenceParam2,
                          GRUSequenceTest::getTestCaseName);
+
 }  // namespace

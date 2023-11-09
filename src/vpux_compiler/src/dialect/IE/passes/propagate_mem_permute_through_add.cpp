@@ -54,6 +54,113 @@ IE::AddOp getAddOp(mlir::Value permuteInput) {
     return nullptr;
 }
 
+// Search for pattern
+// IE.MemPermute / PermuteQuantize -> [IE.ShapeCast]|
+//                                                  | -> IE.Add -> [IE.ShapeCast] -> [IE.QuantizeCast] -> IE.MemPermute
+// IE.MemPermute / PermuteQuantize -> [IE.ShapeCast]|
+bool canBeFolded(IE::PermuteQuantizeOp permuteQuantizeOp, IE::MemPermuteOp memPermuteOp) {
+    const auto permuteQuantizeOutElemType =
+            permuteQuantizeOp.output().getType().cast<vpux::NDTypeInterface>().getElementType();
+    // Can fuse MemPermute with PermuteQuantization in case only permutation (no quantization) is performed by this
+    // PermuteQuantization Op.
+    if (permuteQuantizeOutElemType.isa<mlir::quant::QuantizedType>()) {
+        return false;
+    }
+
+    auto prevMemPerm = permuteQuantizeOp.mem_perm();
+    auto memPerm = memPermuteOp.mem_perm();
+    auto newMemPerm = memPerm.compose(prevMemPerm);
+
+    const auto permuteQuantizeOpInType = permuteQuantizeOp.input().getType();
+    const auto memPermuteOpOutType = memPermuteOp.output().getType();
+    auto permuteQuantizeOpInElemType = permuteQuantizeOpInType.cast<NDTypeInterface>().getElementType();
+    // For the case that permutations can be folded, PermuteQuantizeOpInType and memPermuteOpOutType are expected to be
+    // the same, except elemType.
+    if (permuteQuantizeOpInType !=
+                memPermuteOpOutType.cast<NDTypeInterface>().changeElemType(permuteQuantizeOpInElemType) ||
+        !newMemPerm.isIdentity()) {
+        return false;
+    }
+
+    return true;
+}
+
+bool canBeFusedIntoPermuteCast(IE::PermuteQuantizeOp permuteQuantizeOp, IE::MemPermuteOp memPermuteOp) {
+    const auto inOrder = DimsOrder::fromValue(permuteQuantizeOp.input());
+    const auto inShape = getShape(permuteQuantizeOp.input());
+    const auto inMemShape = inOrder.toMemoryOrder(inShape);
+
+    auto prevMemPerm = permuteQuantizeOp.mem_perm();
+    auto memPerm = memPermuteOp.mem_perm();
+    auto composedMemPerm = memPerm.compose(prevMemPerm);
+
+    return isTrivialPermute(inMemShape, composedMemPerm);
+}
+
+bool isSupportedMemPermute(IE::MemPermuteOp memPermuteOp, IE::AddOp addOp, Logger log) {
+    if (!addOp.output().hasOneUse()) {
+        log.trace("Add has more than one consumer");
+        return false;
+    }
+
+    const SmallVector<mlir::Value> branches = addOp->getOperands();
+    for (const auto& addInput : branches) {
+        const auto inPermutationOp = getInputPermuteLikeOp(addInput);
+        if (inPermutationOp != nullptr) {
+            // Further checking for inPermuteQuantizeOp - propagate if PermuteQuantize and MemPermute can be folded.
+            auto inPermuteQuantizeOp = mlir::dyn_cast<IE::PermuteQuantizeOp>(inPermutationOp);
+            if (inPermuteQuantizeOp != nullptr && !canBeFolded(inPermuteQuantizeOp, memPermuteOp) &&
+                !canBeFusedIntoPermuteCast(inPermuteQuantizeOp, memPermuteOp)) {
+                log.trace("IE::PermuteQuantize op: {0} and IE::MemPermute op: {1} can not be folded or fused into "
+                          "permuteCast",
+                          inPermuteQuantizeOp.getLoc(), memPermuteOp.getLoc());
+                return false;
+            }
+        }
+    }
+
+    if ((getInputPermuteLikeOp(branches[0]) != nullptr) || (getInputPermuteLikeOp(branches[1]) != nullptr)) {
+        // As long as one of the two inputs has PermuteLikeOp, the MemPermute should be propagated.
+        // If one of the branches keeps a MemPermute, such MemPermute may be optimized in later passes.
+        log.trace("IE::MemPermute op: {0} can be converted", memPermuteOp.getLoc());
+        return true;
+    }
+
+    return false;
+}
+
+mlir::Value processNonPermuteBranch(mlir::PatternRewriter& rewriter, IE::MemPermuteOp memPermuteOp, mlir::Value input,
+                                    int64_t idx) {
+    // For the branch without PermuteLike op like
+    //       IE.Tile -> [IE.ShapeCast]|
+    //                                | -> IE.Add -> [IE.ShapeCast] -> [IE.QuantizeCast] ->IE.MemPermute
+    // IE.MemPermute -> [IE.ShapeCast]|
+    // will be converted into:
+    //            IE.Tile -> IE.MemPermute -> [IE.ShapeCast]|
+    //                                                      | -> IE.Add -> [IE.ShapeCast] -> [IE.QuantizeCast]
+    // IE.PermuteQuantize -> IE.MemPermute -> [IE.ShapeCast]|
+    // For the branch IE.Tile -> IE.MemPermute -> [IE.ShapeCast], the MemPermute will be propagated to the front of the
+    // tile op in the later pass, like IE.MemPermute -> IE.Tile -> [IE.ShapeCast], this MemPermute may be a trivial
+    // permute or permute on a smaller tensor.
+    const auto addInOrder = DimsOrder::fromValue(input);
+    const auto orderInAttr = mlir::AffineMapAttr::get(addInOrder.toAffineMap(memPermuteOp.getContext()));
+    auto shapeCastOp = input.getDefiningOp<IE::ShapeCastOp>();
+
+    auto memPermuteInput = (shapeCastOp == nullptr) ? input : shapeCastOp.source();
+    const auto newMemPermuteLoc = appendLoc(memPermuteOp.getLoc(), "_mem_permute_{0}", idx);
+    auto newMemPermuteOp = rewriter.create<IE::MemPermuteOp>(newMemPermuteLoc, memPermuteInput,
+                                                             memPermuteOp.dst_order(), memPermuteOp.mem_perm());
+    const auto newLayoutCastLoc = appendLoc(memPermuteOp.getLoc(), "_in_layout_cast_{0}", idx);
+    auto newLayoutCastOp = rewriter.create<IE::LayoutCastOp>(newLayoutCastLoc, newMemPermuteOp.output(), orderInAttr);
+    if (shapeCastOp != nullptr) {
+        const auto newShapeCastLoc = appendLoc(memPermuteOp.getLoc(), "_in_shape_cast_{0}", idx);
+        auto newShapeCastOp =
+                rewriter.create<IE::ShapeCastOp>(newShapeCastLoc, newLayoutCastOp.output(), shapeCastOp.shapeAttr());
+        return newShapeCastOp.result();
+    }
+    return newLayoutCastOp.output();
+}
+
 //
 // OptimizeEltwise
 //
@@ -79,14 +186,32 @@ private:
 mlir::LogicalResult OptimizeEltwise::matchAndRewrite(IE::MemPermuteOp memPermuteOp,
                                                      mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got '{1}' at '{2}'", getDebugName(), memPermuteOp->getName(), memPermuteOp->getLoc());
+
     auto ctx = memPermuteOp.getContext();
     auto quantizeCastOp = memPermuteOp.input().getDefiningOp<IE::QuantizeCastOp>();
 
     auto addOp = getAddOp(memPermuteOp.input());
+    if (addOp == nullptr) {
+        return matchFailed(rewriter, memPermuteOp,
+                           "IE.Add -> [IE.ShapeCast] -> [IE.QuantizeCast] -> IE.MemPermute pattern not found");
+    }
+
+    if (!isSupportedMemPermute(memPermuteOp, addOp, _log.nest())) {
+        return mlir::failure();
+    }
+
     const SmallVector<mlir::Value> branches = addOp->getOperands();
 
     SmallVector<mlir::Value> newAddInputs;
+
     for (size_t inputIdx = 0; inputIdx < branches.size(); inputIdx++) {
+        if (getInputPermuteLikeOp(branches[inputIdx]) == nullptr) {
+            // Process branch without PermuteLike op.
+            const auto newOutput = processNonPermuteBranch(rewriter, memPermuteOp, branches[inputIdx], inputIdx);
+            newAddInputs.push_back(newOutput);
+            continue;
+        }
+
         const auto inPermutationOp = getInputPermuteLikeOp(branches[inputIdx]);
 
         const auto newMemPermuteLoc = appendLoc(memPermuteOp.getLoc(), "_mem_permute_{0}", inputIdx);
@@ -141,6 +266,63 @@ mlir::LogicalResult OptimizeEltwise::matchAndRewrite(IE::MemPermuteOp memPermute
 }
 
 //
+// SwapMemPermuteWithSoftmax
+//
+
+class SwapMemPermuteWithSoftmax final : public mlir::OpRewritePattern<IE::MemPermuteOp> {
+public:
+    SwapMemPermuteWithSoftmax(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IE::MemPermuteOp>(ctx), _log(log) {
+        this->setDebugName("SwapMemPermuteWithSoftmax");
+    }
+
+private:
+    mlir::LogicalResult matchAndRewrite(IE::MemPermuteOp memPermuteOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult SwapMemPermuteWithSoftmax::matchAndRewrite(IE::MemPermuteOp memPermuteOp,
+                                                               mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got '{1}' at '{2}'", getDebugName(), memPermuteOp->getName(), memPermuteOp->getLoc());
+
+    auto softmaxOp = memPermuteOp.input().getDefiningOp<IE::SoftMaxOp>();
+    if (softmaxOp == nullptr) {
+        return matchFailed(rewriter, memPermuteOp, "No parent softmaxOp found");
+    }
+
+    if (!softmaxOp->hasOneUse()) {
+        return matchFailed(rewriter, memPermuteOp, "Parent softmaxOp has multiple uses");
+    }
+
+    auto addOp = getAddOp(softmaxOp.input());
+    if (addOp == nullptr || !isSupportedMemPermute(memPermuteOp, addOp, _log.nest())) {
+        return matchFailed(
+                rewriter, memPermuteOp,
+                "IE.Add -> [IE.ShapeCast] -> [IE.QuantizeCast] -> IE.SoftMax -> IE.MemPermute pattern not found");
+    }
+
+    auto memPerm = DimsOrder::fromAffineMap(memPermuteOp.mem_perm());
+    auto permuteOutOrder = DimsOrder::fromValue(memPermuteOp.output());
+    auto softmaxOrder = DimsOrder::fromValue(softmaxOp.input());
+
+    auto softmaxAxisMemDim = softmaxOrder.toMemDim(Dim(softmaxOp.axisInd()));
+    auto newSoftmaxAxisMemDim = MemDim(memPerm.dimPos(Dim(softmaxAxisMemDim.ind())));
+    auto newSoftmaxAxisDim = permuteOutOrder.toDim(newSoftmaxAxisMemDim);
+
+    auto newMemPermute = rewriter.create<IE::MemPermuteOp>(memPermuteOp.getLoc(), softmaxOp.input(),
+                                                           memPermuteOp.dst_orderAttr(), memPermuteOp.mem_permAttr());
+    auto newSoftmaxOp =
+            rewriter.create<IE::SoftMaxOp>(softmaxOp.getLoc(), newMemPermute.output(),
+                                           getIntAttr(getContext(), newSoftmaxAxisDim.ind()), softmaxOp.padSizeAttr());
+
+    rewriter.replaceOp(memPermuteOp, newSoftmaxOp.output());
+
+    return mlir::success();
+}
+
+//
 // PropagateMemPermuteThroughAddPass
 //
 
@@ -153,106 +335,20 @@ public:
 
 private:
     void safeRunOnFunc() final;
-    bool isSupportedMemPermute(IE::MemPermuteOp memPermuteOp, Logger log) const;
 
 private:
     Logger _log;
 };
 
-// Search for pattern
-// IE.MemPermute / PermuteQuantize -> [IE.ShapeCast]|
-//                                                  | -> IE.Add -> [IE.ShapeCast] -> [IE.QuantizeCast] -> IE.MemPermute
-// IE.MemPermute / PermuteQuantize -> [IE.ShapeCast]|
-bool canBeFolded(IE::PermuteQuantizeOp permuteQuantizeOp, IE::MemPermuteOp memPermuteOp) {
-    const auto permuteQuantizeOutElemType =
-            permuteQuantizeOp.output().getType().cast<vpux::NDTypeInterface>().getElementType();
-    // Can fuse MemPermute with PermuteQuantization in case only permutation (no quantization) is performed by this
-    // PermuteQuantization Op.
-    if (permuteQuantizeOutElemType.isa<mlir::quant::QuantizedType>()) {
-        return false;
-    }
-
-    auto prevMemPerm = permuteQuantizeOp.mem_perm();
-    auto memPerm = memPermuteOp.mem_perm();
-    auto newMemPerm = memPerm.compose(prevMemPerm);
-
-    const auto permuteQuantizeOpInType = permuteQuantizeOp.input().getType();
-    const auto memPermuteOpOutType = memPermuteOp.output().getType();
-    auto permuteQuantizeOpInElemType = permuteQuantizeOpInType.cast<NDTypeInterface>().getElementType();
-    // For the case that permutations can be folded, PermuteQuantizeOpInType and memPermuteOpOutType are expected to be
-    // the same, except elemType.
-    if (permuteQuantizeOpInType !=
-                memPermuteOpOutType.cast<NDTypeInterface>().changeElemType(permuteQuantizeOpInElemType) ||
-        !newMemPerm.isIdentity()) {
-        return false;
-    }
-
-    return true;
-}
-
-bool canBeFusedIntoPermuteCast(IE::PermuteQuantizeOp permuteQuantizeOp, IE::MemPermuteOp memPermuteOp) {
-    const auto inOrder = DimsOrder::fromValue(permuteQuantizeOp.input());
-    const auto inShape = getShape(permuteQuantizeOp.input());
-    const auto inMemShape = inOrder.toMemoryOrder(inShape);
-
-    auto prevMemPerm = permuteQuantizeOp.mem_perm();
-    auto memPerm = memPermuteOp.mem_perm();
-    auto composedMemPerm = memPerm.compose(prevMemPerm);
-
-    if (isTrivialPermute(inMemShape, composedMemPerm)) {
-        return true;
-    }
-
-    return false;
-}
-
-bool PropagateMemPermuteThroughAddPass::isSupportedMemPermute(IE::MemPermuteOp memPermuteOp, Logger log) const {
-    auto addOp = getAddOp(memPermuteOp.input());
-    if (addOp == nullptr) {
-        log.trace("IE.Add -> [IE.ShapeCast] -> [IE.QuantizeCast] -> IE.MemPermute pattern not found");
-        return false;
-    }
-
-    const SmallVector<mlir::Value> branches = addOp->getOperands();
-    for (const auto& addInput : branches) {
-        const auto inPermutationOp = getInputPermuteLikeOp(addInput);
-        if (inPermutationOp == nullptr) {
-            log.trace("One of IE.Add inputs does not have IE.MemPermute or IE::PermuteQuantize");
-            return false;
-        }
-
-        // Futher checking for inPermuteQuantizeOp - propagate if PermuteQuantize and MemPermute can be folded.
-        auto inPermuteQuantizeOp = mlir::dyn_cast<IE::PermuteQuantizeOp>(inPermutationOp);
-        if (inPermuteQuantizeOp != nullptr && !canBeFolded(inPermuteQuantizeOp, memPermuteOp) &&
-            !canBeFusedIntoPermuteCast(inPermuteQuantizeOp, memPermuteOp)) {
-            log.trace("IE::PermuteQuantize op: {0} and IE::MemPermute op: {1} can not be folded or fused into "
-                      "permuteCast",
-                      inPermuteQuantizeOp.getLoc(), memPermuteOp.getLoc());
-            return false;
-        }
-    }
-
-    log.trace("IE::MemPermute op: {0} can be converted", memPermuteOp.getLoc());
-    return true;
-}
-
 void PropagateMemPermuteThroughAddPass::safeRunOnFunc() {
     auto& ctx = getContext();
+    auto func = getOperation();
+
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<OptimizeEltwise>(&ctx, _log);
+    patterns.add<SwapMemPermuteWithSoftmax>(&ctx, _log);
 
-    mlir::ConversionTarget target(ctx);
-    const auto isLegalMemPermute = [&](IE::MemPermuteOp memPermuteOp) -> bool {
-        return !isSupportedMemPermute(memPermuteOp, _log);
-    };
-    target.addDynamicallyLegalOp<IE::MemPermuteOp>(isLegalMemPermute);
-    target.addLegalOp<IE::ShapeCastOp>();
-    target.addLegalOp<IE::LayoutCastOp>();
-    target.addLegalOp<IE::AddOp>();
-    target.addLegalOp<IE::QuantizeCastOp>();
-
-    auto func = getOperation();
-    if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
+    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }
 }

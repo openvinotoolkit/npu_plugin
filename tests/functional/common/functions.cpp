@@ -1,5 +1,6 @@
-// Copyright (C) 2018-2021 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) 2018-2021 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "functions.h"
@@ -33,15 +34,15 @@ InferenceEngine::CNNNetwork buildSingleLayerSoftMaxNetwork() {
 const std::string PlatformEnvironment::PLATFORM = []() -> std::string {
     if (const auto var = std::getenv("IE_KMB_TESTS_PLATFORM")) {
         return var;
+    } else {
+        IE_THROW() << "Environment variable not set: IE_KMB_TESTS_PLATFORM.";
     }
-
-    return std::string("3700");
 }();
 
 std::string getBackendName(const InferenceEngine::Core& core) {
-    return core.GetMetric("VPUX", VPUX_METRIC_KEY(BACKEND_NAME)).as<std::string>();
+    return core.GetMetric("NPU", VPUX_METRIC_KEY(BACKEND_NAME)).as<std::string>();
 }
 
 std::vector<std::string> getAvailableDevices(const InferenceEngine::Core& core) {
-    return core.GetMetric("VPUX", METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
+    return core.GetMetric("NPU", METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
 }

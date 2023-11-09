@@ -1,6 +1,7 @@
 //
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
+//
 
 #include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
@@ -70,7 +71,7 @@ void buildReadAfterWriteDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
     auto updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, 0);
 
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(),
-                                          mlir::ValueRange(updateBarrier.barrier()), loc, functionInput,
+                                          mlir::ValueRange(updateBarrier.getBarrier()), loc, functionInput,
                                           inputCMXVec[0].getOperation()->getResult(0));
 
     auto waitBarrier = updateBarrier;
@@ -86,28 +87,29 @@ void buildReadAfterWriteDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
                                                  DimsOrder::NHWC, cluster, OUTPUT_DMA_CMX_OFFSET);
         }
         updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, i);
-        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
-                functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()),
-                loc, inputCMXVec[0].getOperation()->getResult(0), outputDMACMX.getOperation()->getResult(0),
-                cluster);
+        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.getBarrier()),
+                                              mlir::ValueRange(updateBarrier.getBarrier()), loc,
+                                              inputCMXVec[0].getOperation()->getResult(0),
+                                              outputDMACMX.getOperation()->getResult(0), cluster);
 
         waitBarrier = updateBarrier;
         updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, i + 1);
 
         buildActShaveTask(testDesc, module, functionBuilder, log, makeArrayRef(inputTypes), inputCMXVec, outputACTCMX,
-                          mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()), cluster);
+                          mlir::ValueRange(waitBarrier.getBarrier()), mlir::ValueRange(updateBarrier.getBarrier()),
+                          cluster);
 
         waitBarrier = updateBarrier;
     }
 
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(),
-                                          loc, outputDMACMX.getOperation()->getResult(0), functionOutput);
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.getBarrier()),
+                                          mlir::ValueRange(), loc, outputDMACMX.getOperation()->getResult(0),
+                                          functionOutput);
 
     functionBuilder.create<mlir::func::ReturnOp>(loc, mlir::ValueRange{functionOutput});
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(
-            VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, 1, None, log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, 1, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 

@@ -10,10 +10,10 @@
 namespace vpux {
 
 //
-// PipelineRegister37XX
+// PipelineRegistry37XX
 //
 
-class PipelineRegister37XX final : public IPipelineRegister {
+class PipelineRegistry37XX final : public IPipelineRegistry {
 public:
     void registerPipelines() override;
 };

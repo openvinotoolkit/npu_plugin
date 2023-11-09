@@ -7,9 +7,10 @@ if(BUILD_COMPILER_FOR_DRIVER)
     set(COMPILER_FOR_DRIVER_VERSION_FILE ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpux_al/src/version.cpp)
 endif()
 
+add_definitions(-DIE_BUILD_POSTFIX=${IE_BUILD_POSTFIX_VAR})
+
 add_subdirectory(utils)
 add_subdirectory(vpux_al)
-
 
 add_subdirectory(vpux_ngraph_transformations)
 
@@ -22,7 +23,7 @@ if(ENABLE_ZEROAPI_BACKEND)
 endif()
 
 if(BUILD_COMPILER_FOR_DRIVER)
-    add_subdirectory(VPUXCompilerL0)
+    add_subdirectory(vpux_driver_compiler)
 endif()
 add_subdirectory(vpux_plugin)
 

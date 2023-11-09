@@ -75,7 +75,7 @@ To perform tranformations on constant data, the new `Const::ContentAttr` must be
 
 ```C++
 Const::DeclareOp origConstOp = ...;
-Const::ConstContentAttr origConstAttr = origConstOp.contentAttr();
+Const::ConstContentAttr origConstAttr = origConstOp.getContentAttr();
 Const::ConstContentAttr newConstAttr = origConstAttr.convertElemType(mlir::Float16Type::get(ctx));
 Const::ConstOp newConstOp = builder.create<Const::DeclareOp>(loc, newConstAttr.getType(), newConstAttr);
 ```
@@ -165,6 +165,8 @@ Const::details::PositionRequirement Const::BitPackAttr::getPositionRequirement()
         static void populateBufferizePatterns(mlir::RewritePatternSet& patterns, mlir::TypeConverter& typeConverter, vpux::Logger log);
         static void setupExtraInterfaces(mlir::DialectRegistry& registry);
     }];
+
+    let emitAccessorPrefix = kEmitAccessorPrefix_Prefixed;
 }
 
 #endif

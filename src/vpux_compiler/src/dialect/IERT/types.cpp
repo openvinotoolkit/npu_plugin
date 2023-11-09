@@ -16,5 +16,5 @@ using namespace vpux;
 //
 
 #define GET_TYPEDEF_CLASSES
-#include <vpux/compiler/dialect/IERT/generated/types.cpp.inc>
+#include <vpux/compiler/dialect/IERT/types.cpp.inc>
 #undef GET_TYPEDEF_CLASSES

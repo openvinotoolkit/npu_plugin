@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -40,7 +40,7 @@ void ConstantFoldingPass::safeRunOnFunc() {
 
         mlir::OpBuilder builder(origOp);
 
-        const auto content = origOp.content();
+        const auto content = origOp.getContent();
         const auto contentType = content.getType();
         const auto contentElemType = contentType.getElementType();
 

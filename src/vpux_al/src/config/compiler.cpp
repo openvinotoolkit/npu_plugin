@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/al/config/compiler.hpp"
 
 using namespace vpux;
@@ -20,10 +18,7 @@ void vpux::registerCompilerOptions(OptionsDesc& desc) {
     desc.add<COMPILATION_MODE_PARAMS>();
     desc.add<DPU_GROUPS>();
     desc.add<DMA_ENGINES>();
-    desc.add<FORCE_HOST_QUANTIZATION>();
     desc.add<USE_ELF_COMPILER_BACKEND>();
-    desc.add<FORCE_HOST_PRECISION_LAYOUT_CONVERSION>();
-    desc.add<DDR_HEAP_SIZE_MB>();
 }
 
 //

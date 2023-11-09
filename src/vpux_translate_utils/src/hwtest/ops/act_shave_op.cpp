@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 #include <vpux/hwtest/ops/act_shave_op.hpp>
 
 #include "vpux/compiler/dialect/VPUIP/sw_utils.hpp"
@@ -12,15 +13,18 @@ namespace hwtest {
 namespace {
 
 VPUIP::KernelInfo getKernelInfo(nb::ActivationLayer activation, mlir::MLIRContext* ctx) {
+    const auto padSizeAttr = getIntAttr(ctx, /*padSize*/ 0);
+    const auto axisParamAttr = getIntAttr(ctx, activation.axis);
+
     switch (activation.activationType) {
     case nb::ActivationType::HSwish:
         return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{}, {"hswish_fp16"}, {"hswish_fp16.cpp"}};
     case nb::ActivationType::Sigmoid:
         return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{}, {"sigmoid_fp16"}, {"sigmoid_fp16.c"}};
     case nb::ActivationType::Softmax:
-        return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{getIntAttr(ctx, activation.axis)},
+        return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{axisParamAttr, padSizeAttr},
                                  {"singleShaveSoftmax"},
-                                 {"single_shave_softmax.cpp"}};
+                                 {"singleShaveSoftmax.cpp"}};
     case nb::ActivationType::vau_sigm:
         return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{}, {"vau_sigm_fp16"}, {"vau_sigm_fp16.c"}};
     case nb::ActivationType::vau_sqrt:
@@ -60,14 +64,27 @@ void buildActShaveTask(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleO
                        mlir::ValueRange waitBarrier, mlir::ValueRange updateBarrier, size_t cluster, size_t /*unit*/) {
     auto* ctx = builder.getContext();
     auto activation = testDesc.getActivationLayer();
+
+    // consider the idx & the order when mapping axis:
+    // NB idx starts from the left and order is NCHW
+    // shave idx starts from the right and order in builder is NHWC
+    //
+    // NB: N C H W   ->   shave: N H W C
+    //     0 1 2 3               3 2 1 0
+    if (activation.axis != 0) {
+        const auto inputTypesIf = inputTypes[0].cast<vpux::NDTypeInterface>();
+        const auto order = inputTypesIf.getDimsOrder();
+        const auto maxIter = inputTypesIf.getShape().size() - 1;
+        activation.axis = maxIter - order.dimPos((DimsOrder::NCHW).dimAt(activation.axis));
+    }
     auto kernelInfo = getKernelInfo(activation, ctx);
 
     const auto convertToUnrankedType = [ctx](mlir::Type srcType) -> mlir::Type {
         auto type = srcType.dyn_cast_or_null<mlir::MemRefType>();
         VPUX_THROW_UNLESS(type != nullptr, "Only MemRef type is supported");
 
-        return mlir::UnrankedMemRefType::get(type.getElementType(), mlir::SymbolRefAttr::get(VPU::MemoryKindAttr::get(
-                                                                            ctx, VPU::MemoryKind::CMX_NN)));
+        return mlir::UnrankedMemRefType::get(type.getElementType(),
+                                             mlir::SymbolRefAttr::get(ctx, stringifyEnum(VPU::MemoryKind::CMX_NN)));
     };
     SmallVector<mlir::Type> inputTypesUnranked;
     std::transform(inputTypes.begin(), inputTypes.end(), std::back_inserter(inputTypesUnranked), convertToUnrankedType);
@@ -92,7 +109,7 @@ void buildActShaveTask(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleO
         auto taskOp = builder.create<vpux::VPURT::TaskOp>(builder.getUnknownLoc(), waitBarrier, updateBarrier);
 
         mlir::OpBuilder::InsertPoint lastInsertionPoint = builder.saveInsertionPoint();
-        auto& block = taskOp.body().emplaceBlock();
+        auto& block = taskOp.getBody().emplaceBlock();
         builder.setInsertionPointToStart(&block);
 
         kernelTaskBody();
@@ -105,12 +122,13 @@ void buildActShaveTask(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleO
 
         SmallVector<mlir::Value> inputCMXValues;
         for (auto& input : inputCMX) {
-            inputCMXValues.push_back(input.buffer());
+            inputCMXValues.push_back(input.getBuffer());
         }
 
-        auto swKernelOp = builder.create<VPUIP::SwKernelOp>(builder.getUnknownLoc(), mlir::ValueRange{inputCMXValues},
-                                                            outputCMX.buffer(), builtInFunction, getIntAttr(ctx, tile));
-        VPUIP::initSwKernel(swKernelOp, mlir::ValueRange{inputCMXValues}, outputCMX.buffer(), kernelInfo.args, log);
+        auto swKernelOp =
+                builder.create<VPUIP::SwKernelOp>(builder.getUnknownLoc(), mlir::ValueRange{inputCMXValues},
+                                                  outputCMX.getBuffer(), builtInFunction, getIntAttr(ctx, tile));
+        VPUIP::initSwKernel(swKernelOp, mlir::ValueRange{inputCMXValues}, outputCMX.getBuffer(), kernelInfo.args, log);
     });
 }
 

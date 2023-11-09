@@ -56,7 +56,7 @@ mlir::MemRefType tensorToBuffer(mlir::RankedTensorType tensorType) {
     const auto order = type.getDimsOrder();
     const auto memSpace = type.getMemSpace();
     return getMemRefType(shape, elemType, order, memSpace);
-};
+}
 
 VPUIP::DistributedBufferType distributedTensorToBuffer(VPU::DistributedTensorType type) {
     return VPUIP::DistributedBufferType::get(type.getContext(), type.getShape().raw(), type.getElementType(),
@@ -296,4 +296,23 @@ void vpux::inferReturnTypes(mlir::Operation* op, InferShapedTypeMode mode) {
 
         val.setType(newType);
     }
+}
+
+//
+// createIdentityMaxPool
+//
+
+mlir::Operation* vpux::createIdentityMaxPool(mlir::Value operand, const mlir::Type outType,
+                                             mlir::PatternRewriter& rewriter) {
+    const SmallVector<int64_t> poolStrides = {1, 1};
+    const SmallVector<int64_t> poolKernels = {1, 1};
+    const SmallVector<int64_t> pads = {0, 0};
+    auto ctx = rewriter.getContext();
+    const auto padsAttr = getIntArrayAttr(ctx, pads);
+
+    auto identityOp = rewriter.create<IE::MaxPoolOp>(
+            operand.getLoc(), outType, operand, getIntArrayAttr(ctx, poolKernels), getIntArrayAttr(ctx, poolStrides),
+            padsAttr, padsAttr, IE::RoundingTypeAttr::get(ctx, IE::RoundingType::FLOOR), nullptr);
+
+    return identityOp;
 }

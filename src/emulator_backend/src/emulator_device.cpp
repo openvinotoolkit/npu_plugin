@@ -28,4 +28,8 @@ std::string EmulatorDevice::getName() const {
     return "EMULATOR";
 }
 
+std::string EmulatorDevice::getFullDeviceName() const {
+    return "Intel(R) NPU (EMULATOR)";
+}
+
 }  // namespace vpux

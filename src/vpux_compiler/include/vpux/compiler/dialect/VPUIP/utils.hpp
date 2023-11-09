@@ -11,7 +11,6 @@
 
 #include "vpux/compiler/utils/swizzling_utils.hpp"
 #include "vpux/utils/core/enums.hpp"
-#include "vpux/utils/core/preprocessing.hpp"
 
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinTypes.h>
@@ -71,6 +70,7 @@ uint32_t getMemoryBandwidth(IE::MemoryResourceOp mem);
 int64_t getNumClusterUsed(mlir::ModuleOp module);
 int64_t getNumAvailableBarriers(mlir::Operation* parentOp);
 size_t getBarrierMaxVariantCount(mlir::Operation* parentOp);
+int64_t getNumberOfIndependentDmaQueues(mlir::Operation* parentOp);
 
 //
 // DW Convolution utility
@@ -114,10 +114,13 @@ mlir::Operation* getRootConst(mlir::Value val);
 mlir::Value getClusterOperand(VPUIP::NCEClusterTilingOp clusterOp, mlir::Value innerOperand);
 
 using outputBuffers = SmallVector<mlir::Value>;
-using outputItiBuffers = SmallVector<SmallVector<mlir::Value>>;
 
 SmallVector<mlir::Value> getPerClusterMemoryBuffers(mlir::MLIRContext* ctx, mlir::Location loc, StringRef bufferName,
                                                     mlir::Value clusterOperand, mlir::Value innerOperand,
+                                                    int64_t numClusters, mlir::PatternRewriter& rewriter,
+                                                    bool allowDiscontinuousBuffers = false);
+SmallVector<mlir::Value> getPerClusterMemoryBuffers(mlir::MLIRContext* ctx, mlir::Location loc, StringRef bufferName,
+                                                    mlir::Value operand, VPUIP::DistributedBufferType distributedType,
                                                     int64_t numClusters, mlir::PatternRewriter& rewriter,
                                                     bool allowDiscontinuousBuffers = false);
 SmallVector<mlir::Value> getPerClusterComputeBuffers(mlir::MLIRContext* ctx, mlir::Location loc, StringRef bufferName,
@@ -142,20 +145,17 @@ SmallVector<mlir::Value> getSplitBuffers(mlir::MLIRContext* ctx, mlir::Location 
 // MovePureViewOpBeforeCopy Utilities
 //
 
-bool isSegmentedOverH(VPU::DistributedTensorAttr distAttr);
-bool isSegmentedOverC(VPU::DistributedTensorAttr distAttr);
-bool isSegmentedOverN(VPU::DistributedTensorAttr distAttr);
 VPU::DistributedTensorAttr getSOHDistAttrWithNewShape(mlir::MLIRContext* ctx, VPUIP::DistributedBufferType origDistType,
                                                       ShapeRef newShape, VPU::ArchKind arch);
 bool isDistributedCompatibleAfterShapeChange(VPUIP::DistributedBufferType inDistType, ShapeRef shape,
                                              VPU::ArchKind arch);
+bool isDistributedCompatibleAfterShapeChange(VPUIP::DistributedBufferType inDistType,
+                                             VPUIP::DistributedBufferType outDistType);
 
 //
 // Distributed buffer type compatibility check
 //
 
-bool isCompatibleForDistributedInputOutput(mlir::Operation* op, VPUIP::DistributedBufferType distributedInType,
-                                           VPUIP::DistributedBufferType distributedOutType);
 Optional<int64_t> getTilingDimIndex(mlir::Type type);
 bool isMemoryContiguousWithTiling(VPUIP::DistributedBufferType distributedBufferType);
 
@@ -171,16 +171,23 @@ bool canTilingWeightsBeCompressed(VPUIP::NCEClusterTilingOp op);
 bool isCopyWithStaticStrides(VPUIP::CopyOp copyOp);
 bool isCopyToDDR(VPUIP::CopyOp copyOp);
 bool isCopyFromDDR(VPUIP::CopyOp copyOp);
-int64_t getStridingLevel(const mlir::Value val);
-bool strideMoreThanOne(VPUIP::CopyOp copyOp);
-int64_t getFirstStridingDim(VPUIP::CopyOp copyOp);
-int64_t getNumberOfPlanes(VPUIP::CopyOp copyOp);
+vpux::Dim getCopyDMATilingDimForLargeSize(mlir::Operation* op);
+vpux::Dim getCopyDMATilingDimForLargePlaneNum(mlir::Operation* op);
+bool hasLegalStridingLevel(mlir::Operation* op);
+bool isSplitNeededForLargePlanesNum(mlir::Operation* op);
+int64_t getMaxStridingLevel(const VPU::ArchKind arch);
+int64_t getMaxNumberPlanes(const VPU::ArchKind arch);
 
 //
 // Operation utility
 //
 bool isOpOnlySplitOnDim(VPUIP::SubViewOp op, Dim dim);
 Byte getRequiredCMXSize(mlir::Operation* op);
+
+//
+// PermuteAsNNDMA Utility
+//
+Shape backInferD2SInputShape(Shape shape, int64_t paddedOC, int64_t paddedIC, int64_t blockSize);
 
 }  // namespace VPUIP
 }  // namespace vpux

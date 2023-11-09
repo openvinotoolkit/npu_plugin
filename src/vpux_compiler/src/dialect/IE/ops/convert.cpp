@@ -45,7 +45,7 @@ bool vpux::IE::ConvertOp::areCastCompatible(mlir::TypeRange inputs, mlir::TypeRa
 
 namespace {
 
-#include <vpux/compiler/dialect/IE/rewriters/generated/convert.hpp.inc>
+#include <vpux/compiler/dialect/IE/convert.hpp.inc>
 
 }  // namespace
 

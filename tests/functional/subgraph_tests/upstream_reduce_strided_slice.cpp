@@ -1,9 +1,9 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 #include <ngraph_functions/builders.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -36,7 +36,7 @@ struct UpstreamReduceStridedSliceTestParams {
 //                                 Slice_1 (H)  --- > ...
 
 class VPUXUpstreamReduceStridedSliceSubGraphTest_VPU3700 :
-        public LayerTestsUtils::KmbLayerTestsCommon,
+        public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<UpstreamReduceStridedSliceTestParams> {
     void ValidateTestParams(UpstreamReduceStridedSliceTestParams testParams) {
         ASSERT_EQ(testParams._inDims.size(), 2);
@@ -189,14 +189,14 @@ TEST_P(VPUXUpstreamReduceStridedSliceSubGraphTest_VPU3700, HW) {
 
 INSTANTIATE_TEST_CASE_P(smoke_UpstreamReduceStridedSlice, VPUXUpstreamReduceStridedSliceSubGraphTest_VPU3700,
                         ::testing::Values(UpstreamReduceStridedSliceTestParams{
-                                LayerTestsUtils::testPlatformTargetDevice,  // device
-                                {{1, 16, 64, 4}, {1, 16, 17, 2}},           // in dims
-                                {{32, 16, 3, 1}, {64, 16, 3, 1}},           // filter dims
-                                {{1, 1}, {1, 1}},                           // kernel strides
-                                {{0, 0, 47, 0}, {0, 0, 1, 0}},              // begin data
-                                {{0, 0, 0, 0}, {0, 0, 0, 0}},               // end data
-                                {{1, 1, 0, 1}, {1, 1, 0, 1}},               // begin mask
-                                {{1, 1, 1, 1}, {1, 1, 1, 1}}                // end mask
+                                LayerTestsUtils::testPlatformTargetDevice(),  // device
+                                {{1, 16, 64, 4}, {1, 16, 17, 2}},             // in dims
+                                {{32, 16, 3, 1}, {64, 16, 3, 1}},             // filter dims
+                                {{1, 1}, {1, 1}},                             // kernel strides
+                                {{0, 0, 47, 0}, {0, 0, 1, 0}},                // begin data
+                                {{0, 0, 0, 0}, {0, 0, 0, 0}},                 // end data
+                                {{1, 1, 0, 1}, {1, 1, 0, 1}},                 // begin mask
+                                {{1, 1, 1, 1}, {1, 1, 1, 1}}                  // end mask
                         }));
 
 }  // namespace
