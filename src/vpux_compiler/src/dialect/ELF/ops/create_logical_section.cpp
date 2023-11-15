@@ -10,10 +10,10 @@
 void vpux::ELF::CreateLogicalSectionOp::serialize(elf::Writer& writer, vpux::ELF::SectionMapType& sectionMap,
                                                   vpux::ELF::SymbolMapType& symbolMap) {
     VPUX_UNUSED(symbolMap);
-    const auto name = secName().str();
+    const auto name = getSecName().str();
     auto section = writer.addEmptySection(name);
-    section->maskFlags(static_cast<elf::Elf_Xword>(secFlags()));
-    section->setAddrAlign(secAddrAlign());
+    section->maskFlags(static_cast<elf::Elf_Xword>(getSecFlags()));
+    section->setAddrAlign(getSecAddrAlign());
 
     size_t maxOffset = 0;
     auto block = getBody();
@@ -22,13 +22,13 @@ void vpux::ELF::CreateLogicalSectionOp::serialize(elf::Writer& writer, vpux::ELF
     size_t nonBufferAllocs = 0;
 
     for (auto op : ops) {
-        auto pointingOp = op.inputArg().getDefiningOp();
+        auto pointingOp = op.getInputArg().getDefiningOp();
 
         auto binOp = mlir::dyn_cast<ELF::BinaryOpInterface>(pointingOp);
         VPUX_THROW_UNLESS(binOp, "Operation included in section is not a BinaryOp");
 
         if (auto bufferOp = mlir::dyn_cast<VPURT::DeclareBufferOp>(pointingOp)) {
-            auto currentOffset = bufferOp.byteOffset() + bufferOp.getBinarySize();
+            auto currentOffset = bufferOp.getByteOffset() + bufferOp.getBinarySize();
             if (currentOffset > maxOffset) {
                 maxOffset = currentOffset;
             }

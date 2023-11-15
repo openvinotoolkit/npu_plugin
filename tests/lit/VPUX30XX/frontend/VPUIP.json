@@ -1,4 +1,9 @@
-// RUN: cp %s %t && flatc -b --raw-binary %vpuip_schema_file% %t && vpux-translate --import-VPUIP %basename_t.blob | FileCheck %s
+//
+// Copyright (C) 2021-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
+//
+
+// RUN: cp %s %t && flatc -b --raw-binary %vpuip_schema_file% %t && vpux-translate --vpu-arch=VPUX30XX --import-VPUIP %basename_t.blob | FileCheck %s --strict-whitespace
 
 {
   header: {
@@ -6,7 +11,7 @@
       majorV: 3,
       minorV: 11,
       hash: "",
-      context: "VPUX Compiler"
+      context: "VPU Compiler"
     },
     identifier: "Test",
     net_input: [
@@ -423,29 +428,28 @@
   ]
 }
 
-// CHECK:   module @Test attributes {VPU.arch = "VPUX30XX"} {
-
-// CHECK-DAG:   IE.MemoryResource 917504 bytes of @CMX_NN
-// CHECK-DAG:   IE.MemoryResource 2048 bytes of @DDR
-
-// CHECK-DAG:   IE.ExecutorResource 1 of @DMA_NN
-// CHECK-DAG:   IE.ExecutorResource 16 of @SHAVE_UPA
-// CHECK-DAG:   IE.ExecutorResource 4 of  @NCE at 7.000000e+02 MHz {
-// CHECK-DAG:   IE.ExecutorResource 5 of @DPU
-
-// CHECK-DAG:   IE.MemoryResource 917504 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
-// CHECK-DAG:   IE.MemoryResource 524288000 bytes of @DDR {VPU.bandwidth = 8 : i64, VPU.derateFactor = 6.000000e-01 : f64}
+// CHECK:   module @Test attributes {VPU.arch = #VPU.arch_kind<VPUX30XX>} {
+// CHECK-DAG:   {{  }}module @UsedMemory
+// CHECK-DAG:   {{    }}IE.MemoryResource 2048 bytes of @DDR
+// CHECK-DAG:   {{  }}IE.ExecutorResource 1 of @DMA_NN
+// CHECK-DAG:   {{  }}IE.ExecutorResource 16 of @SHAVE_UPA
+// CHECK-DAG:   {{  }}IE.ExecutorResource 4 of @NCE at 7.000000e+02 MHz {
+// CHECK-DAG:   {{    }}builtin.module @UsedMemory
+// CHECK-DAG:   {{      }}IE.MemoryResource 917504 bytes of @CMX_NN
+// CHECK-DAG:   {{    }}IE.ExecutorResource 5 of @DPU
+// CHECK-DAG:   {{    }}IE.MemoryResource 917504 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
+// CHECK-DAG:   {{  }}IE.MemoryResource 2306867200 bytes of @DDR {VPU.bandwidth = 8 : i64, VPU.derateFactor = 6.000000e-01 : f64}
 
 // CHECK:   DataInfo "input" : tensor<1x1000xf32>
 // CHECK:   DataInfo "softmax" : tensor<1x1000xf32>
 
 // CHECK:   func.func @main(%arg0: memref<1x1x1x1000xf16, @DDR>, %arg1: memref<1x1x1x1000xf16, @DDR>) -> memref<1x1x1x1000xf16, @DDR> {
 // CHECK:   %0 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
-// CHECK:   %1 = VPURT.DeclareBuffer "DDR" [0] <0> -> memref<1x1x1x1000xf16, @DDR>
+// CHECK:   %1 = VPURT.DeclareBuffer <DDR> [0] <0> -> memref<1x1x1x1000xf16, @DDR>
 // CHECK:   VPURT.Task
 // CHECK:     waits(%0 : !VPURT.Barrier)
 // CHECK:   VPUIP.NNDMA {is_out_of_order, port = 0 : i64} inputs(%1 : memref<1x1x1x1000xf16, @DDR>) outputs(%arg1 : memref<1x1x1x1000xf16, @DDR>) -> memref<1x1x1x1000xf16, @DDR>
-// CHECK:   %2 = VPURT.DeclareBuffer "DDR" [0] <0> -> memref<1x1x1x1000xf16, @DDR>
+// CHECK:   %2 = VPURT.DeclareBuffer <DDR> [0] <0> -> memref<1x1x1x1000xf16, @DDR>
 // CHECK:   VPURT.Task
 // CHECK:     updates(%0 : !VPURT.Barrier)
 // CHECK:   VPUIP.SoftMaxUPA {axisInd = 3 : i64} inputs(%arg0 : memref<1x1x1x1000xf16, @DDR>) outputs(%2 : memref<1x1x1x1000xf16, @DDR>) -> memref<1x1x1x1000xf16, @DDR>

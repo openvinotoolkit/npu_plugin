@@ -122,7 +122,7 @@ def NDTypeInterface : TypeInterface<"NDTypeInterface"> {
 
         InterfaceMethod<
             "Returns the type with the new values for the given components",
-            "vpux::NDTypeInterface", "changeTypeComponents", (ins "vpux::TypeComponents":$typeComponents)
+            "vpux::NDTypeInterface", "changeTypeComponents", (ins "const vpux::TypeComponents&":$typeComponents)
         >,
 
 

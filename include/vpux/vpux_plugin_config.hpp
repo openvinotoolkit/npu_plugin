@@ -23,10 +23,10 @@
 // VPUX plugin options
 //
 
-#define VPUX_CONFIG_KEY(name) InferenceEngine::VPUXConfigParams::_CONFIG_KEY(VPUX_##name)
+#define VPUX_CONFIG_KEY(name) InferenceEngine::VPUXConfigParams::_CONFIG_KEY(NPU_##name)
 #define VPUX_CONFIG_VALUE(name) InferenceEngine::VPUXConfigParams::name
 
-#define DECLARE_VPUX_CONFIG_KEY(name) DECLARE_CONFIG_KEY(VPUX_##name)
+#define DECLARE_VPUX_CONFIG_KEY(name) DECLARE_CONFIG_KEY(NPU_##name)
 #define DECLARE_VPUX_CONFIG_VALUE(name) DECLARE_CONFIG_VALUE(name)
 
 namespace InferenceEngine {

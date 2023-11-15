@@ -69,7 +69,7 @@ mlir::LogicalResult BufferizeConst::matchAndRewrite(Const::DeclareOp origOp, OpA
 
     const auto newType = typeConverter->convertType(origOp.getType());
 
-    rewriter.replaceOpWithNewOp<Const::DeclareOp>(origOp, newType, origOp.contentAttr());
+    rewriter.replaceOpWithNewOp<Const::DeclareOp>(origOp, newType, origOp.getContentAttr());
     return mlir::success();
 }
 
@@ -86,7 +86,7 @@ void vpux::Const::ConstDialect::populateBufferizePatterns(mlir::RewritePatternSe
 
 mlir::OpFoldResult vpux::Const::DeclareOp::fold(ArrayRef<mlir::Attribute> operands) {
     VPUX_THROW_UNLESS(operands.empty(), "constant has no operands");
-    return contentAttr();
+    return getContentAttr();
 }
 
 //
@@ -94,7 +94,7 @@ mlir::OpFoldResult vpux::Const::DeclareOp::fold(ArrayRef<mlir::Attribute> operan
 //
 
 void vpux::Const::DeclareOp::serialize(elf::writer::BinaryDataSection<uint8_t>& binDataSection) {
-    vpux::Const::Content cnt = content();
+    vpux::Const::Content cnt = getContent();
     // int64_t typeTotalSize = cnt.getRawStorageBuf().size();
 
     auto tmpBuf = std::make_unique<char[]>(cnt.getType().getTotalAllocSize().count());
@@ -111,7 +111,7 @@ void vpux::Const::DeclareOp::serialize(elf::writer::BinaryDataSection<uint8_t>& 
 //
 
 size_t vpux::Const::DeclareOp::getBinarySize() {
-    vpux::Const::Content cnt = content();
+    vpux::Const::Content cnt = getContent();
 
     return cnt.getType().getTotalAllocSize().count();
 }
@@ -162,7 +162,7 @@ vpux::ELF::SectionFlagsAttr vpux::Const::DeclareOp::getUserProcs() {
 
 mlir::LogicalResult vpux::Const::DeclareOp::verify() {
     const auto op = getOperation();
-    const auto attrType = contentAttr().getType();
+    const auto attrType = getContentAttr().getType();
     const auto opType = getType().cast<vpux::NDTypeInterface>();
 
     if (opType.getShape() != attrType.getShape()) {
@@ -195,9 +195,9 @@ mlir::LogicalResult vpux::Const::DeclareOp::verify() {
 void vpux::Const::DeclareOp::print(mlir::OpAsmPrinter& printer) {
     printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs(), /*elidedAttrs=*/{"content"});
     printer << " ";
-    printer.printType(output().getType());
+    printer.printType(getOutput().getType());
     printer << " = ";
-    contentAttr().print(printer);
+    getContentAttr().print(printer);
 }
 
 //
@@ -257,7 +257,7 @@ void Const::ConstDialect::setupExtraInterfaces(mlir::DialectRegistry& registry) 
 // Generated
 //
 
-#include <vpux/compiler/dialect/const/generated/dialect.cpp.inc>
+#include <vpux/compiler/dialect/const/dialect.cpp.inc>
 
 #define GET_OP_CLASSES
-#include <vpux/compiler/dialect/const/generated/ops.cpp.inc>
+#include <vpux/compiler/dialect/const/ops.cpp.inc>

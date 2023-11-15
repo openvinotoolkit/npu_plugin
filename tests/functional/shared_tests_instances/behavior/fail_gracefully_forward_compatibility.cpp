@@ -1,5 +1,6 @@
-// Copyright (C) Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "behavior/fail_gracefully_forward_compatibility.hpp"
@@ -7,8 +8,8 @@
 using namespace ov::test::behavior;
 
 const std::vector<ov::AnyMap> configs = {
-        {{"VPUX_COMPILER_TYPE", "DRIVER"}},
-        {{"VPUX_COMPILER_TYPE", "MLIR"}},
+        {{"NPU_COMPILER_TYPE", "DRIVER"}},
+        {{"NPU_COMPILER_TYPE", "MLIR"}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest, FailGracefullyTest,

@@ -15,8 +15,8 @@ module @Convert {
     %bar_0 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     // CHECK:       %[[VAL1:.*]] = VPUMI37XX.ConfigureBarrier {consumer_count = 1 : ui8, producer_count = 1 : ui8}<0, -1> -> !VPURegMapped.Index<0:0:0>
 
-    %buf_0 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x100xui32, @DDR>
-    // CHECK:       %[[VAL2:.*]] = VPURT.DeclareBuffer "DDR" <0> -> memref<1x100xui32, @DDR>
+    %buf_0 = VPURT.DeclareBuffer <DDR> <0> -> memref<1x100xui32, @DDR>
+    // CHECK:       %[[VAL2:.*]] = VPURT.DeclareBuffer <DDR> <0> -> memref<1x100xui32, @DDR>
 
     %cst_0 = const.Declare memref<1x100xui32> = dense<1> : tensor<1x100xui32>
     // CHECK-DAG:       %[[VAL3:.*]] = const.Declare memref<1x100xui32> = dense<1> : tensor<1x100xui32>

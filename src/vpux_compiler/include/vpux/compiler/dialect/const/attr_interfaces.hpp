@@ -35,4 +35,4 @@ enum class PositionRequirement {
 // Generated
 //
 
-#include <vpux/compiler/dialect/const/generated/attr_interfaces.hpp.inc>
+#include <vpux/compiler/dialect/const/attr_interfaces.hpp.inc>

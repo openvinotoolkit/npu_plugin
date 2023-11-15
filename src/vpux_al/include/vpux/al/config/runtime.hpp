@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -76,7 +76,7 @@ struct PRINT_PROFILING final : OptionBase<PRINT_PROFILING, InferenceEngine::VPUX
 
 #ifdef VPUX_DEVELOPER_BUILD
     static StringRef envVar() {
-        return "IE_VPUX_PRINT_PROFILING";
+        return "IE_NPU_PRINT_PROFILING";
     }
 #endif
 };
@@ -132,7 +132,7 @@ struct CREATE_EXECUTOR final : OptionBase<CREATE_EXECUTOR, int64_t> {
 
 #ifdef VPUX_DEVELOPER_BUILD
     static StringRef envVar() {
-        return "IE_VPUX_CREATE_EXECUTOR";
+        return "IE_NPU_CREATE_EXECUTOR";
     }
 #endif
 

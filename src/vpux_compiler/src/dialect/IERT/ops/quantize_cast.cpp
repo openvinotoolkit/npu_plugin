@@ -6,9 +6,9 @@
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 
 mlir::Value vpux::IERT::QuantizeCastOp::getViewSource() {
-    return input();
+    return getInput();
 }
 
 mlir::OpFoldResult vpux::IERT::QuantizeCastOp::fold(ArrayRef<mlir::Attribute>) {
-    return input().getType() == output().getType() ? input() : nullptr;
+    return getInput().getType() == getOutput().getType() ? getInput() : nullptr;
 }

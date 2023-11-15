@@ -16,11 +16,11 @@ func.func @NoChangeEltwise(%arg0: tensor<1x96x16x16xf16, {mem_space = @DDR, orde
         -> tensor<1x96x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
     %2 = VPU.NCE.Eltwise(%0, %1) {
-                op_type = "ADD",
-                ppe = {clamp_high = 2147483647, clamp_low = -2147483648, lrelu_mult = 1, lrelu_shift = 0, mode = "ADD"}
+                op_type = #VPU.eltwise_type<ADD>,
+                ppe = #VPU.PPETask<mode = <ADD>, clamp_low = -2147483648 : i64, clamp_high = 2147483647 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64>
             } -> tensor<1x96x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-        VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 96, 8, 16] {bottom = 0, left = 0, right = 0, top = 0} "CUBOID_16x16"
-        VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 96, 8, 16] {bottom = 0, left = 0, right = 0, top = 0} "CUBOID_16x16"
+        VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 96, 8, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<CUBOID_16x16>
+        VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 96, 8, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<CUBOID_16x16>
     }
 
     %3 = VPU.Copy(%2) {out_mem_space = @DDR} : tensor<1x96x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
@@ -34,9 +34,9 @@ func.func @NoChangeEltwise(%arg0: tensor<1x96x16x16xf16, {mem_space = @DDR, orde
     // CHECK-SAME:      -> tensor<1x96x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
     // CHECK:       [[ELTWISE:%.+]] = VPU.NCE.Eltwise([[INPUT1]], [[INPUT2]])
-    // CHECK-SAME:      {op_type = "ADD", ppe = {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "ADD"}} -> tensor<1x96x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 96, 8, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16"
-    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 96, 8, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16"
+    // CHECK-SAME:      {op_type = #VPU.eltwise_type<ADD>, ppe = #VPU.PPETask<mode = <ADD>, clamp_low = -2147483648 : i64, clamp_high = 2147483647 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64>} -> tensor<1x96x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
+    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 96, 8, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16>
+    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 96, 8, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16>
     // CHECK:       }
 
     // CHECK:       [[OUTPUT:%.+]] = VPU.Copy([[ELTWISE]]) {out_mem_space = @DDR} : tensor<1x96x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> -> tensor<1x96x16x16xf16, {mem_space = @DDR, order = #NHWC}>
@@ -55,12 +55,12 @@ func.func @EltwiseWorkloadsTiledOverZ(%arg0: tensor<1x96x16x16xf16, {mem_space =
         -> tensor<1x96x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
     %2 = VPU.NCE.Eltwise(%0, %1) {
-                op_type = "ADD",
-                ppe = {clamp_high = 2147483647, clamp_low = -2147483648, lrelu_mult = 1, lrelu_shift = 0, mode = "ADD"}
+                op_type = #VPU.eltwise_type<ADD>,
+                ppe = #VPU.PPETask<clamp_high = 2147483647, clamp_low = -2147483648, lrelu_mult = 1, lrelu_shift = 0, mode = <ADD>>
             } -> tensor<1x96x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-        VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 32, 16, 16] {bottom = 0, left = 0, right = 0, top = 0} "CUBOID_16x16"
-        VPU.DPU.Workload outOffsets [0, 32, 0, 0] outSizes [1, 32, 16, 16] {bottom = 0, left = 0, right = 0, top = 0} "CUBOID_16x16"
-        VPU.DPU.Workload outOffsets [0, 64, 0, 0] outSizes [1, 32, 16, 16] {bottom = 0, left = 0, right = 0, top = 0} "CUBOID_16x16"
+        VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 32, 16, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<CUBOID_16x16>
+        VPU.DPU.Workload outOffsets [0, 32, 0, 0] outSizes [1, 32, 16, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<CUBOID_16x16>
+        VPU.DPU.Workload outOffsets [0, 64, 0, 0] outSizes [1, 32, 16, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<CUBOID_16x16>
     }
 
     %3 = VPU.Copy(%2) {out_mem_space = @DDR} : tensor<1x96x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
@@ -74,24 +74,24 @@ func.func @EltwiseWorkloadsTiledOverZ(%arg0: tensor<1x96x16x16xf16, {mem_space =
     // CHECK:       [[SLICE1_INPUT1:%.+]] = VPU.Slice [[INPUT1]] [0, 0, 0, 0] [1, 32, 16, 16] : tensor<1x96x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> to tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
     // CHECK:       [[SLICE1_INPUT2:%.+]] = VPU.Slice [[INPUT2]] [0, 0, 0, 0] [1, 32, 16, 16] : tensor<1x96x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> to tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
     // CHECK:       [[SLICE1_ELTWISE:%.+]] = VPU.NCE.Eltwise([[SLICE1_INPUT1]], [[SLICE1_INPUT2]])
-    // CHECK-SAME:      {op_type = "ADD", ppe = {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "ADD"}} -> tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 32, 16, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16"
+    // CHECK-SAME:      {op_type = #VPU.eltwise_type<ADD>, ppe = #VPU.PPETask<mode = <ADD>, clamp_low = -2147483648 : i64, clamp_high = 2147483647 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64>} -> tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
+    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 32, 16, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16>
     // CHECK:       }
     // CHECK:       [[SLICE1_ELTWISE_COPY:%.+]] = VPU.Copy([[SLICE1_ELTWISE]]) {out_mem_space = @DDR} : tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> -> tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}>
 
     // CHECK:       [[SLICE2_INPUT1:%.+]] = VPU.Slice [[INPUT1]] [0, 32, 0, 0] [1, 32, 16, 16] : tensor<1x96x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> to tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
     // CHECK:       [[SLICE2_INPUT2:%.+]] = VPU.Slice [[INPUT2]] [0, 32, 0, 0] [1, 32, 16, 16] : tensor<1x96x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> to tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
     // CHECK:       [[SLICE2_ELTWISE:%.+]] = VPU.NCE.Eltwise([[SLICE2_INPUT1]], [[SLICE2_INPUT2]])
-    // CHECK-SAME:      {op_type = "ADD", ppe = {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "ADD"}} -> tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 32, 16, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16"
+    // CHECK-SAME:      {op_type = #VPU.eltwise_type<ADD>, ppe = #VPU.PPETask<mode = <ADD>, clamp_low = -2147483648 : i64, clamp_high = 2147483647 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64>} -> tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
+    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 32, 16, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16>
     // CHECK:       }
     // CHECK:       [[SLICE2_ELTWISE_COPY:%.+]] = VPU.Copy([[SLICE2_ELTWISE]]) {out_mem_space = @DDR} : tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> -> tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}>
 
     // CHECK:       [[SLICE3_INPUT1:%.+]] = VPU.Slice [[INPUT1]] [0, 64, 0, 0] [1, 32, 16, 16] : tensor<1x96x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> to tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
     // CHECK:       [[SLICE3_INPUT2:%.+]] = VPU.Slice [[INPUT2]] [0, 64, 0, 0] [1, 32, 16, 16] : tensor<1x96x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> to tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
     // CHECK:       [[SLICE3_ELTWISE:%.+]] = VPU.NCE.Eltwise([[SLICE3_INPUT1]], [[SLICE3_INPUT2]])
-    // CHECK-SAME:      {op_type = "ADD", ppe = {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "ADD"}} -> tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 32, 16, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16"
+    // CHECK-SAME:      {op_type = #VPU.eltwise_type<ADD>, ppe = #VPU.PPETask<mode = <ADD>, clamp_low = -2147483648 : i64, clamp_high = 2147483647 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64>} -> tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
+    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 32, 16, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16>
     // CHECK:       }
     // CHECK:       [[SLICE3_ELTWISE_COPY:%.+]] = VPU.Copy([[SLICE3_ELTWISE]]) {out_mem_space = @DDR} : tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> -> tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}>
 
@@ -125,13 +125,13 @@ func.func @EltwiseWorkloadsTiledOverZClustering(%arg0: tensor<1x128x16x16xf16, {
     %2 = VPU.NCE.ClusterTiling(%0 as %arg2: tensor<1x128x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>, %1 as %arg3: tensor<1x128x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>)
             -> !VPU.DistributedTensor<1x128x16x16xf16, #NHWC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64, alignment = [1, 16, 1, 1]}> {
         %10 = VPU.NCE.Eltwise(%arg2, %arg3) {
-                    op_type = "ADD",
-                    ppe = {clamp_high = 2147483647, clamp_low = -2147483648, lrelu_mult = 1, lrelu_shift = 0, mode = "ADD"}
+                    op_type = #VPU.eltwise_type<ADD>,
+                    ppe = #VPU.PPETask<clamp_high = 2147483647, clamp_low = -2147483648, lrelu_mult = 1, lrelu_shift = 0, mode = <ADD>>
                 } -> tensor<1x128x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-            VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 16, 16] {bottom = 0, left = 0, right = 0, top = 0} "CUBOID_16x16" attributes {cluster_id = 0 : i64}
-            VPU.DPU.Workload outOffsets [0, 64, 0, 0] outSizes [1, 64, 16, 16] {bottom = 0, left = 0, right = 0, top = 0} "CUBOID_16x16" attributes {cluster_id = 0 : i64}
-            VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 16, 16] {bottom = 0, left = 0, right = 0, top = 0} "CUBOID_16x16" attributes {cluster_id = 1 : i64}
-            VPU.DPU.Workload outOffsets [0, 64, 0, 0] outSizes [1, 64, 16, 16] {bottom = 0, left = 0, right = 0, top = 0} "CUBOID_16x16" attributes {cluster_id = 1 : i64}
+            VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 16, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<CUBOID_16x16> attributes {cluster_id = 0 : i64}
+            VPU.DPU.Workload outOffsets [0, 64, 0, 0] outSizes [1, 64, 16, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<CUBOID_16x16> attributes {cluster_id = 0 : i64}
+            VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 16, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<CUBOID_16x16> attributes {cluster_id = 1 : i64}
+            VPU.DPU.Workload outOffsets [0, 64, 0, 0] outSizes [1, 64, 16, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<CUBOID_16x16> attributes {cluster_id = 1 : i64}
         }
         VPU.Yield %10
     }
@@ -169,9 +169,9 @@ func.func @EltwiseWorkloadsTiledOverZClustering(%arg0: tensor<1x128x16x16xf16, {
     // CHECK:       [[SLICE1_ELTWISE:%.+]] = VPU.NCE.ClusterTiling ([[SLICE1_INPUT1_COPY]] as [[INNER_ARG0:[^:]+]]: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>,
     // CHECK-SAME:                                                  [[SLICE1_INPUT2_COPY]] as [[INNER_ARG1:[^:]+]]: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>)
     // CHECK-SAME:        -> !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64, alignment = [1, 16, 1, 1]}> {
-    // CHECK:         VPU.NCE.Eltwise([[INNER_ARG0]], [[INNER_ARG1]]) {op_type = "ADD", ppe = {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "ADD"}} -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 16, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16" attributes {cluster_id = 0 : i64}
-    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 16, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16" attributes {cluster_id = 1 : i64}
+    // CHECK:         VPU.NCE.Eltwise([[INNER_ARG0]], [[INNER_ARG1]]) {op_type = #VPU.eltwise_type<ADD>, ppe = #VPU.PPETask<mode = <ADD>, clamp_low = -2147483648 : i64, clamp_high = 2147483647 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64>} -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
+    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 16, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16> attributes {cluster_id = 0 : i64}
+    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 16, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16> attributes {cluster_id = 1 : i64}
     // CHECK:         }
     // CHECK:       }
     // CHECK:       [[SLICE1_ELTWISE_COPY:%.+]] = VPU.NCE.ClusterTiling ([[SLICE1_ELTWISE]] as [[INNER_ARG0:[^:]+]]: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}> {
@@ -189,9 +189,9 @@ func.func @EltwiseWorkloadsTiledOverZClustering(%arg0: tensor<1x128x16x16xf16, {
     // CHECK:       [[SLICE2_ELTWISE:%.+]] = VPU.NCE.ClusterTiling ([[SLICE2_INPUT1_COPY]] as [[INNER_ARG0:[^:]+]]: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>,
     // CHECK-SAME:                                                  [[SLICE2_INPUT2_COPY]] as [[INNER_ARG1:[^:]+]]: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>)
     // CHECK-SAME:        -> !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64, alignment = [1, 16, 1, 1]}> {
-    // CHECK:         VPU.NCE.Eltwise([[INNER_ARG0]], [[INNER_ARG1]]) {op_type = "ADD", ppe = {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "ADD"}} -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 16, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16" attributes {cluster_id = 0 : i64}
-    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 16, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16" attributes {cluster_id = 1 : i64}
+    // CHECK:         VPU.NCE.Eltwise([[INNER_ARG0]], [[INNER_ARG1]]) {op_type = #VPU.eltwise_type<ADD>, ppe = #VPU.PPETask<mode = <ADD>, clamp_low = -2147483648 : i64, clamp_high = 2147483647 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64>} -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
+    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 16, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16> attributes {cluster_id = 0 : i64}
+    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 16, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16> attributes {cluster_id = 1 : i64}
     // CHECK:         }
     // CHECK:       }
     // CHECK:       [[SLICE2_ELTWISE_COPY:%.+]] = VPU.NCE.ClusterTiling ([[SLICE2_ELTWISE]] as [[INNER_ARG0:[^:]+]]: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}> {
@@ -224,13 +224,13 @@ func.func @EltwiseWorkloadsTiledOverZSOH(%arg0: tensor<1x128x16x16xf16, {mem_spa
     %2 = VPU.NCE.ClusterTiling(%0 as %arg2: tensor<1x128x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>, %1 as %arg3: tensor<1x128x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>)
             -> !VPU.DistributedTensor<1x128x16x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}> {
         %10 = VPU.NCE.Eltwise(%arg2, %arg3) {
-                    op_type = "ADD",
-                    ppe = {clamp_high = 2147483647, clamp_low = -2147483648, lrelu_mult = 1, lrelu_shift = 0, mode = "ADD"}
+                    op_type = #VPU.eltwise_type<ADD>,
+                    ppe = #VPU.PPETask<clamp_high = 2147483647, clamp_low = -2147483648, lrelu_mult = 1, lrelu_shift = 0, mode = <ADD>>
                 } -> tensor<1x128x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-            VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 8, 16] {bottom = 0, left = 0, right = 0, top = 0} "CUBOID_16x16" attributes {cluster_id = 0 : i64}
-            VPU.DPU.Workload outOffsets [0, 64, 0, 0] outSizes [1, 64, 8, 16] {bottom = 0, left = 0, right = 0, top = 0} "CUBOID_16x16" attributes {cluster_id = 0 : i64}
-            VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 64, 8, 16] {bottom = 0, left = 0, right = 0, top = 0} "CUBOID_16x16" attributes {cluster_id = 1 : i64}
-            VPU.DPU.Workload outOffsets [0, 64, 8, 0] outSizes [1, 64, 8, 16] {bottom = 0, left = 0, right = 0, top = 0} "CUBOID_16x16" attributes {cluster_id = 1 : i64}
+            VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 8, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<CUBOID_16x16> attributes {cluster_id = 0 : i64}
+            VPU.DPU.Workload outOffsets [0, 64, 0, 0] outSizes [1, 64, 8, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<CUBOID_16x16> attributes {cluster_id = 0 : i64}
+            VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 64, 8, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<CUBOID_16x16> attributes {cluster_id = 1 : i64}
+            VPU.DPU.Workload outOffsets [0, 64, 8, 0] outSizes [1, 64, 8, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<CUBOID_16x16> attributes {cluster_id = 1 : i64}
         }
         VPU.Yield %10
     }
@@ -268,9 +268,9 @@ func.func @EltwiseWorkloadsTiledOverZSOH(%arg0: tensor<1x128x16x16xf16, {mem_spa
     // CHECK:       [[SLICE1_ELTWISE:%.+]] = VPU.NCE.ClusterTiling ([[SLICE1_INPUT1_COPY]] as [[INNER_ARG0:[^:]+]]: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>,
     // CHECK-SAME:                                                  [[SLICE1_INPUT2_COPY]] as [[INNER_ARG1:[^:]+]]: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>)
     // CHECK-SAME:        -> !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}> {
-    // CHECK:         VPU.NCE.Eltwise([[INNER_ARG0]], [[INNER_ARG1]]) {op_type = "ADD", ppe = {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "ADD"}} -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 8, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16" attributes {cluster_id = 0 : i64}
-    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 64, 8, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16" attributes {cluster_id = 1 : i64}
+    // CHECK:         VPU.NCE.Eltwise([[INNER_ARG0]], [[INNER_ARG1]]) {op_type = #VPU.eltwise_type<ADD>, ppe = #VPU.PPETask<mode = <ADD>, clamp_low = -2147483648 : i64, clamp_high = 2147483647 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64>} -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
+    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 8, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16> attributes {cluster_id = 0 : i64}
+    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 64, 8, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16> attributes {cluster_id = 1 : i64}
     // CHECK:         }
     // CHECK:       }
     // CHECK:       [[SLICE1_ELTWISE_COPY:%.+]] = VPU.NCE.ClusterTiling ([[SLICE1_ELTWISE]] as [[INNER_ARG0:[^:]+]]: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}> {
@@ -288,9 +288,9 @@ func.func @EltwiseWorkloadsTiledOverZSOH(%arg0: tensor<1x128x16x16xf16, {mem_spa
     // CHECK:       [[SLICE2_ELTWISE:%.+]] = VPU.NCE.ClusterTiling ([[SLICE2_INPUT1_COPY]] as [[INNER_ARG0:[^:]+]]: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>,
     // CHECK-SAME:                                                  [[SLICE2_INPUT2_COPY]] as [[INNER_ARG1:[^:]+]]: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>)
     // CHECK-SAME:        -> !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}> {
-    // CHECK:         VPU.NCE.Eltwise([[INNER_ARG0]], [[INNER_ARG1]]) {op_type = "ADD", ppe = {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "ADD"}} -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 8, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16" attributes {cluster_id = 0 : i64}
-    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 64, 8, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16" attributes {cluster_id = 1 : i64}
+    // CHECK:         VPU.NCE.Eltwise([[INNER_ARG0]], [[INNER_ARG1]]) {op_type = #VPU.eltwise_type<ADD>, ppe = #VPU.PPETask<mode = <ADD>, clamp_low = -2147483648 : i64, clamp_high = 2147483647 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64>} -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
+    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 8, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16> attributes {cluster_id = 0 : i64}
+    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 64, 8, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16> attributes {cluster_id = 1 : i64}
     // CHECK:         }
     // CHECK:       }
     // CHECK:       [[SLICE2_ELTWISE_COPY:%.+]] = VPU.NCE.ClusterTiling ([[SLICE2_ELTWISE]] as [[INNER_ARG0:[^:]+]]: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}> {
@@ -323,13 +323,13 @@ func.func @EltwiseWorkloadsTiledOverZHKSwitch(%arg0: tensor<1x128x16x16xf16, {me
     %2 = VPU.NCE.ClusterTiling(%0 as %arg2: tensor<1x128x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>, %1 as %arg3: tensor<1x128x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>)
             -> !VPU.DistributedTensor<1x128x16x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED|MULTICASTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}> {
         %10 = VPU.NCE.Eltwise(%arg2, %arg3) {
-                    op_type = "ADD",
-                    ppe = {clamp_high = 2147483647, clamp_low = -2147483648, lrelu_mult = 1, lrelu_shift = 0, mode = "ADD"}
+                    op_type = #VPU.eltwise_type<ADD>,
+                    ppe = #VPU.PPETask<clamp_high = 2147483647, clamp_low = -2147483648, lrelu_mult = 1, lrelu_shift = 0, mode = <ADD>>
                 } -> tensor<1x128x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-            VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 8, 16] {bottom = 0, left = 0, right = 0, top = 0} "CUBOID_16x16" attributes {cluster_id = 0 : i64}
-            VPU.DPU.Workload outOffsets [0, 64, 0, 0] outSizes [1, 64, 8, 16] {bottom = 0, left = 0, right = 0, top = 0} "CUBOID_16x16" attributes {cluster_id = 0 : i64}
-            VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 64, 8, 16] {bottom = 0, left = 0, right = 0, top = 0} "CUBOID_16x16" attributes {cluster_id = 1 : i64}
-            VPU.DPU.Workload outOffsets [0, 64, 8, 0] outSizes [1, 64, 8, 16] {bottom = 0, left = 0, right = 0, top = 0} "CUBOID_16x16" attributes {cluster_id = 1 : i64}
+            VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 8, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<CUBOID_16x16> attributes {cluster_id = 0 : i64}
+            VPU.DPU.Workload outOffsets [0, 64, 0, 0] outSizes [1, 64, 8, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<CUBOID_16x16> attributes {cluster_id = 0 : i64}
+            VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 64, 8, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<CUBOID_16x16> attributes {cluster_id = 1 : i64}
+            VPU.DPU.Workload outOffsets [0, 64, 8, 0] outSizes [1, 64, 8, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<CUBOID_16x16> attributes {cluster_id = 1 : i64}
         }
         VPU.Yield %10
     }
@@ -367,9 +367,9 @@ func.func @EltwiseWorkloadsTiledOverZHKSwitch(%arg0: tensor<1x128x16x16xf16, {me
     // CHECK:       [[SLICE1_ELTWISE:%.+]] = VPU.NCE.ClusterTiling ([[SLICE1_INPUT1_COPY]] as [[INNER_ARG0:[^:]+]]: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>,
     // CHECK-SAME:                                                  [[SLICE1_INPUT2_COPY]] as [[INNER_ARG1:[^:]+]]: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>)
     // CHECK-SAME:        -> !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED|MULTICASTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}> {
-    // CHECK:         VPU.NCE.Eltwise([[INNER_ARG0]], [[INNER_ARG1]]) {op_type = "ADD", ppe = {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "ADD"}} -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 8, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16" attributes {cluster_id = 0 : i64}
-    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 64, 8, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16" attributes {cluster_id = 1 : i64}
+    // CHECK:         VPU.NCE.Eltwise([[INNER_ARG0]], [[INNER_ARG1]]) {op_type = #VPU.eltwise_type<ADD>, ppe = #VPU.PPETask<mode = <ADD>, clamp_low = -2147483648 : i64, clamp_high = 2147483647 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64>} -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
+    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 8, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16> attributes {cluster_id = 0 : i64}
+    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 64, 8, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16> attributes {cluster_id = 1 : i64}
     // CHECK:         }
     // CHECK:       }
     // CHECK:       [[SLICE1_ELTWISE_COPY:%.+]] = VPU.NCE.ClusterTiling ([[SLICE1_ELTWISE]] as [[INNER_ARG0:[^:]+]]: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}> {
@@ -387,9 +387,9 @@ func.func @EltwiseWorkloadsTiledOverZHKSwitch(%arg0: tensor<1x128x16x16xf16, {me
     // CHECK:       [[SLICE2_ELTWISE:%.+]] = VPU.NCE.ClusterTiling ([[SLICE2_INPUT1_COPY]] as [[INNER_ARG0:[^:]+]]: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>,
     // CHECK-SAME:                                                  [[SLICE2_INPUT2_COPY]] as [[INNER_ARG1:[^:]+]]: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>)
     // CHECK-SAME:        -> !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED|MULTICASTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}> {
-    // CHECK:         VPU.NCE.Eltwise([[INNER_ARG0]], [[INNER_ARG1]]) {op_type = "ADD", ppe = {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "ADD"}} -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 8, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16" attributes {cluster_id = 0 : i64}
-    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 64, 8, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16" attributes {cluster_id = 1 : i64}
+    // CHECK:         VPU.NCE.Eltwise([[INNER_ARG0]], [[INNER_ARG1]]) {op_type = #VPU.eltwise_type<ADD>, ppe = #VPU.PPETask<mode = <ADD>, clamp_low = -2147483648 : i64, clamp_high = 2147483647 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64>} -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
+    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 8, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16> attributes {cluster_id = 0 : i64}
+    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 64, 8, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16> attributes {cluster_id = 1 : i64}
     // CHECK:         }
     // CHECK:       }
     // CHECK:       [[SLICE2_ELTWISE_COPY:%.+]] = VPU.NCE.ClusterTiling ([[SLICE2_ELTWISE]] as [[INNER_ARG0:[^:]+]]: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}> {
@@ -422,13 +422,13 @@ func.func @EltwiseWorkloadsTiledOverZSOHWithNCEConsumer(%arg0: tensor<1x128x16x1
     %2 = VPU.NCE.ClusterTiling(%0 as %arg2: tensor<1x128x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>, %1 as %arg3: tensor<1x128x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>)
             -> !VPU.DistributedTensor<1x128x16x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}> {
         %10 = VPU.NCE.Eltwise(%arg2, %arg3) {
-                    op_type = "ADD",
-                    ppe = {clamp_high = 2147483647, clamp_low = -2147483648, lrelu_mult = 1, lrelu_shift = 0, mode = "ADD"}
+                    op_type = #VPU.eltwise_type<ADD>,
+                    ppe = #VPU.PPETask<mode = <ADD>, clamp_low = -2147483648 : i64, clamp_high = 2147483647 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64>
                 } -> tensor<1x128x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-            VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 8, 16] {bottom = 0, left = 0, right = 0, top = 0} "CUBOID_16x16" attributes {cluster_id = 0 : i64}
-            VPU.DPU.Workload outOffsets [0, 64, 0, 0] outSizes [1, 64, 8, 16] {bottom = 0, left = 0, right = 0, top = 0} "CUBOID_16x16" attributes {cluster_id = 0 : i64}
-            VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 64, 8, 16] {bottom = 0, left = 0, right = 0, top = 0} "CUBOID_16x16" attributes {cluster_id = 1 : i64}
-            VPU.DPU.Workload outOffsets [0, 64, 8, 0] outSizes [1, 64, 8, 16] {bottom = 0, left = 0, right = 0, top = 0} "CUBOID_16x16" attributes {cluster_id = 1 : i64}
+            VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 8, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<CUBOID_16x16> attributes {cluster_id = 0 : i64}
+            VPU.DPU.Workload outOffsets [0, 64, 0, 0] outSizes [1, 64, 8, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<CUBOID_16x16> attributes {cluster_id = 0 : i64}
+            VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 64, 8, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<CUBOID_16x16> attributes {cluster_id = 1 : i64}
+            VPU.DPU.Workload outOffsets [0, 64, 8, 0] outSizes [1, 64, 8, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<CUBOID_16x16> attributes {cluster_id = 1 : i64}
         }
         VPU.Yield %10
     }
@@ -436,11 +436,11 @@ func.func @EltwiseWorkloadsTiledOverZSOHWithNCEConsumer(%arg0: tensor<1x128x16x1
     %3 = VPU.NCE.ClusterTiling(%2 as %arg2: tensor<1x128x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>, %2 as %arg3: tensor<1x128x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>)
             -> !VPU.DistributedTensor<1x128x16x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}> {
         %10 = VPU.NCE.Eltwise(%arg2, %arg3) {
-                    op_type = "ADD",
-                    ppe = {clamp_high = 2147483647, clamp_low = -2147483648, lrelu_mult = 1, lrelu_shift = 0, mode = "ADD"}
+                    op_type = #VPU.eltwise_type<ADD>,
+                    ppe = #VPU.PPETask<mode = <ADD>, clamp_low = -2147483648 : i64, clamp_high = 2147483647 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64>
                 } -> tensor<1x128x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-            VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 128, 8, 16] {bottom = 0, left = 0, right = 0, top = 0} "CUBOID_16x16" attributes {cluster_id = 0 : i64}
-            VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 128, 8, 16] {bottom = 0, left = 0, right = 0, top = 0} "CUBOID_16x16" attributes {cluster_id = 1 : i64}
+            VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 128, 8, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<CUBOID_16x16> attributes {cluster_id = 0 : i64}
+            VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 128, 8, 16] <left = 0 , right = 0, top = 0, bottom = 0> #VPU.mpe_mode<CUBOID_16x16> attributes {cluster_id = 1 : i64}
         }
         VPU.Yield %10
     }
@@ -478,9 +478,9 @@ func.func @EltwiseWorkloadsTiledOverZSOHWithNCEConsumer(%arg0: tensor<1x128x16x1
     // CHECK:       [[SLICE1_ELTWISE:%.+]] = VPU.NCE.ClusterTiling ([[SLICE1_INPUT1_COPY]] as [[INNER_ARG0:[^:]+]]: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>,
     // CHECK-SAME:                                                  [[SLICE1_INPUT2_COPY]] as [[INNER_ARG1:[^:]+]]: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>)
     // CHECK-SAME:        -> !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}> {
-    // CHECK:         VPU.NCE.Eltwise([[INNER_ARG0]], [[INNER_ARG1]]) {op_type = "ADD", ppe = {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "ADD"}} -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 8, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16" attributes {cluster_id = 0 : i64}
-    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 64, 8, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16" attributes {cluster_id = 1 : i64}
+    // CHECK:         VPU.NCE.Eltwise([[INNER_ARG0]], [[INNER_ARG1]]) {op_type = #VPU.eltwise_type<ADD>, ppe = #VPU.PPETask<mode = <ADD>, clamp_low = -2147483648 : i64, clamp_high = 2147483647 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64>} -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
+    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 8, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16> attributes {cluster_id = 0 : i64}
+    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 64, 8, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16> attributes {cluster_id = 1 : i64}
     // CHECK:         }
     // CHECK:       }
     // CHECK:       [[SLICE1_ELTWISE_COPY:%.+]] = VPU.NCE.ClusterTiling ([[SLICE1_ELTWISE]] as [[INNER_ARG0:[^:]+]]: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}> {
@@ -498,9 +498,9 @@ func.func @EltwiseWorkloadsTiledOverZSOHWithNCEConsumer(%arg0: tensor<1x128x16x1
     // CHECK:       [[SLICE2_ELTWISE:%.+]] = VPU.NCE.ClusterTiling ([[SLICE2_INPUT1_COPY]] as [[INNER_ARG0:[^:]+]]: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>,
     // CHECK-SAME:                                                  [[SLICE2_INPUT2_COPY]] as [[INNER_ARG1:[^:]+]]: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>)
     // CHECK-SAME:        -> !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}> {
-    // CHECK:         VPU.NCE.Eltwise([[INNER_ARG0]], [[INNER_ARG1]]) {op_type = "ADD", ppe = {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "ADD"}} -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 8, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16" attributes {cluster_id = 0 : i64}
-    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 64, 8, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16" attributes {cluster_id = 1 : i64}
+    // CHECK:         VPU.NCE.Eltwise([[INNER_ARG0]], [[INNER_ARG1]]) {op_type = #VPU.eltwise_type<ADD>, ppe = #VPU.PPETask<mode = <ADD>, clamp_low = -2147483648 : i64, clamp_high = 2147483647 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64>} -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
+    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 64, 8, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16> attributes {cluster_id = 0 : i64}
+    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 64, 8, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16> attributes {cluster_id = 1 : i64}
     // CHECK:         }
     // CHECK:       }
     // CHECK:       [[SLICE2_ELTWISE_COPY:%.+]] = VPU.NCE.ClusterTiling ([[SLICE2_ELTWISE]] as [[INNER_ARG0:[^:]+]]: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}> {
@@ -518,9 +518,9 @@ func.func @EltwiseWorkloadsTiledOverZSOHWithNCEConsumer(%arg0: tensor<1x128x16x1
     // CHECK:       [[OUTPUT:%.+]] = VPU.NCE.ClusterTiling ([[CONCAT_CMX]] as [[INNER_ARG0:[^:]+]]: tensor<1x128x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>,
     // CHECK-SAME:                                          [[CONCAT_CMX]] as [[INNER_ARG1:[^:]+]]: tensor<1x128x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>)
     // CHECK-SAME:        -> !VPU.DistributedTensor<1x128x16x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}> {
-    // CHECK:         VPU.NCE.Eltwise([[INNER_ARG0]], [[INNER_ARG1]]) {op_type = "ADD", ppe = {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "ADD"}} -> tensor<1x128x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 128, 8, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16" attributes {cluster_id = 0 : i64}
-    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 128, 8, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "CUBOID_16x16" attributes {cluster_id = 1 : i64}
+    // CHECK:         VPU.NCE.Eltwise([[INNER_ARG0]], [[INNER_ARG1]]) {op_type = #VPU.eltwise_type<ADD>, ppe = #VPU.PPETask<mode = <ADD>, clamp_low = -2147483648 : i64, clamp_high = 2147483647 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64>} -> tensor<1x128x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
+    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 128, 8, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16> attributes {cluster_id = 0 : i64}
+    // CHECK:           VPU.DPU.Workload outOffsets [0, 0, 8, 0] outSizes [1, 128, 8, 16] <left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64> <CUBOID_16x16> attributes {cluster_id = 1 : i64}
     // CHECK:         }
     // CHECK:       }
 

@@ -10,10 +10,12 @@
 #include "vpux/utils/core/string_ref.hpp"
 
 #include <mlir/IR/BuiltinAttributes.h>
-#include <mlir/IR/BuiltinTypes.h>
 
 //
 // Generated
 //
 
-#include <vpux/compiler/dialect/ELF/generated/attributes/enums.hpp.inc>
+#include <vpux/compiler/dialect/ELF/enums.hpp.inc>
+
+#define GET_ATTRDEF_CLASSES
+#include <vpux/compiler/dialect/ELF/attributes.hpp.inc>

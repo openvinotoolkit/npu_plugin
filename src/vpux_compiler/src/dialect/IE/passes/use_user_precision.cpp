@@ -38,8 +38,8 @@ void UseUserPrecisionPass::safeRunOnModule() {
     mlir::func::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netInfo, netFunc);
 
-    auto userInputs = netInfo.getInputsInfo();
-    auto userOutputs = netInfo.getOutputsInfo();
+    auto userInputs = netInfo.getInputsDataInfo();
+    auto userOutputs = netInfo.getOutputsDataInfo();
 
     const auto funcType = netFunc.getFunctionType();
 

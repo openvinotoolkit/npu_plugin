@@ -112,7 +112,7 @@ void AdjustSpillSizePass::updateSpillWrite(VPUIP::CopyOp copyOp) {
     auto asyncSpillResult = asyncOp.results()[0];
     asyncSpillResult.setType(mlir::async::ValueType::get(newSpillTypeMemref));
 
-    _spillIdAndTypeMap[copyOp.spillId().getValue()] = newSpillTypeMemref;
+    _spillIdAndTypeMap[copyOp.spillId().value()] = newSpillTypeMemref;
 }
 
 // Based on corresponding spill-write op this function will update
@@ -120,7 +120,7 @@ void AdjustSpillSizePass::updateSpillWrite(VPUIP::CopyOp copyOp) {
 void AdjustSpillSizePass::updateSpillRead(VPUIP::CopyOp copyOp) {
     _log.trace("Spill Read op identified - '{0}'", copyOp->getLoc());
 
-    auto spillId = copyOp.spillId().getValue();
+    auto spillId = copyOp.spillId().value();
     VPUX_THROW_UNLESS(_spillIdAndTypeMap.find(spillId) != _spillIdAndTypeMap.end(),
                       "No matching spill write was located before");
 
@@ -153,7 +153,7 @@ void AdjustSpillSizePass::safeRunOnFunc() {
     auto func = getOperation();
 
     func->walk([&](VPUIP::CopyOp copyOp) {
-        if (!copyOp.spillId().hasValue()) {
+        if (!copyOp.spillId().has_value()) {
             return;
         }
 

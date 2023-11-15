@@ -1,6 +1,6 @@
 //
-// Copyright (C) 2022 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
@@ -36,7 +36,7 @@ mlir::LogicalResult vpux::IE::AdaptiveMaxPoolOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    auto pooledSpatialShape = spatialDimData.getValue();
+    auto pooledSpatialShape = spatialDimData.value();
 
     if (inputShape.size() != 2 + pooledSpatialShape.size()) {
         return errorAt(loc, "Input shape is not compatible with pooled shape size. Got {0}D and size {1}",

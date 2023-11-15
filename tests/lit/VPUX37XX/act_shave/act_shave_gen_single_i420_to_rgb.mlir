@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-// RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" %s | vpux-translate --export-VPUIP -o %t
+// RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" %s | vpux-translate --vpu-arch=VPUX37XX --export-VPUIP -o %t
 // RUN: flatc --raw-binary --json %vpuip_schema_file% -- %t
 // RUN: FileCheck %s --input-file %basename_t.json
 // RUN: rm %basename_t.json
@@ -34,7 +34,7 @@ module @VPU.SW {
     func.func private @builtin_YuvToRgb(%input0 : memref<*xf16>, %input1 : memref<*xf16>, %input2 : memref<*xf16>, %output : memref<*xf16>, %rgbFormat : i64)
         attributes {
             VPU.kernel_code = "single_shave_convert_color_i420_to_rgb.cpp",
-            VPU.kernel_entry = "single_shave_convert_color_i420_to_rgb"
+            VPU.kernel_entry = "single_shave_convert_color_i420_to_rgb"        
         }
 
     // management kernel definition
@@ -46,10 +46,10 @@ module @VPU.SW {
 
 func.func @main(%1: memref<1x240x320x1xf16>, %2: memref<1x120x160x1xf16>, %3: memref<1x120x160x1xf16>, %4: memref<1x240x320x3xf16>) -> memref<1x240x320x3xf16> {
 
-    %in0_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x240x320x1xf16, [@CMX_NN, 0]>
-    %in1_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <153600> -> memref<1x120x160x1xf16, [@CMX_NN, 0]>
-    %in2_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <192000> -> memref<1x120x160x1xf16, [@CMX_NN, 0]>
-    %out_tile0_cmx = VPURT.DeclareBuffer "CMX_NN" [0] <230400> -> memref<1x240x320x3xf16, [@CMX_NN, 0]>
+    %in0_tile0_cmx  = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x240x320x1xf16, [@CMX_NN, 0]>
+    %in1_tile0_cmx  = VPURT.DeclareBuffer <CMX_NN> [0] <153600> -> memref<1x120x160x1xf16, [@CMX_NN, 0]>
+    %in2_tile0_cmx  = VPURT.DeclareBuffer <CMX_NN> [0] <192000> -> memref<1x120x160x1xf16, [@CMX_NN, 0]>
+    %out_tile0_cmx = VPURT.DeclareBuffer <CMX_NN> [0] <230400> -> memref<1x240x320x3xf16, [@CMX_NN, 0]>
 
     %b0 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     %b1 = VPURT.ConfigureBarrier<1> -> !VPURT.Barrier

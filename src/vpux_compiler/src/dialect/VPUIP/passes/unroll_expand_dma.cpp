@@ -26,14 +26,14 @@ using namespace vpux;
 namespace {
 
 //
-// ClusterExpandDMARewriter
+// ExpandDMARewriter
 //
 
-class ClusterExpandDMARewriter final : public mlir::OpRewritePattern<VPUIP::ExpandDMAOp> {
+class ExpandDMARewriter final : public mlir::OpRewritePattern<VPUIP::ExpandDMAOp> {
 public:
-    ClusterExpandDMARewriter(mlir::MLIRContext* ctx, int64_t dmaPortCount, Logger log)
+    ExpandDMARewriter(mlir::MLIRContext* ctx, int64_t dmaPortCount, Logger log)
             : mlir::OpRewritePattern<VPUIP::ExpandDMAOp>(ctx), _log(log), _ctx(ctx), _dmaPortCount(dmaPortCount) {
-        setDebugName("ClusterExpandDMARewriter");
+        setDebugName("ExpandDMARewriter");
 
         _cmxNameAttr = mlir::FlatSymbolRefAttr::get(ctx, stringifyEnum(VPU::MemoryKind::CMX_NN));
     }
@@ -41,12 +41,12 @@ public:
     mlir::LogicalResult matchAndRewrite(VPUIP::ExpandDMAOp expandDmaOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    void unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::ExpandDMAOp origOp, VPUIP::NCEClusterTilingOp clusterOp,
-                                     VPURT::TaskOp vpurtTask, VPUIP::DistributedBufferType distributedType,
+    void unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::ExpandDMAOp origOp, VPURT::TaskOp vpurtTask,
+                                     VPUIP::DistributedBufferType distributedType,
                                      VPUIP::ExpandDmaDescriptorGenerator dmaDescriptorGenerator,
                                      mlir::PatternRewriter& rewriter) const;
-    void unrollDuplicated(mlir::Location loc, VPUIP::ExpandDMAOp origOp, VPUIP::NCEClusterTilingOp clusterOp,
-                          VPURT::TaskOp vpurtTask, VPUIP::DistributedBufferType distributedType,
+    void unrollDuplicated(mlir::Location loc, VPUIP::ExpandDMAOp origOp, VPURT::TaskOp vpurtTask,
+                          VPUIP::DistributedBufferType distributedType,
                           VPUIP::ExpandDmaDescriptorGenerator dmaDescriptorGenerator,
                           mlir::PatternRewriter& rewriter) const;
     void createTilesForLargeSize(VPUIP::ExpandDMAOp origOp, VPUIP::ExpandDmaDescriptorGenerator dmaDescriptorGenerator,
@@ -75,27 +75,23 @@ vpux::NDTypeInterface changeShape(vpux::NDTypeInterface originType, ShapeRef out
     return originType.changeShape(Shape(inShape));
 }
 
-void ClusterExpandDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::ExpandDMAOp expandDmaOp,
-                                                           VPUIP::NCEClusterTilingOp clusterOp, VPURT::TaskOp vpurtTask,
-                                                           VPUIP::DistributedBufferType distributedType,
-                                                           VPUIP::ExpandDmaDescriptorGenerator dmaDescriptorGenerator,
-                                                           mlir::PatternRewriter& rewriter) const {
-    const auto input = *clusterOp.getInputs().begin();
-    const auto output = *clusterOp.getOutputs().begin();
+void ExpandDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::ExpandDMAOp expandDmaOp,
+                                                    VPURT::TaskOp vpurtTask,
+                                                    VPUIP::DistributedBufferType distributedType,
+                                                    VPUIP::ExpandDmaDescriptorGenerator dmaDescriptorGenerator,
+                                                    mlir::PatternRewriter& rewriter) const {
+    const auto input = expandDmaOp.input();
+    const auto output = expandDmaOp.output_buff();
     const auto inputType = input.getType().cast<vpux::NDTypeInterface>();
-
-    const auto innerInput = *clusterOp.getInnerInputs().begin();
-    const auto innerOutput = *clusterOp.getInnerOutputs().begin();
-    const auto innerInputType = innerInput.getType().cast<vpux::NDTypeInterface>();
-    const auto innerOutputType = innerOutput.getType().cast<vpux::NDTypeInterface>();
+    const auto outputType = distributedType.getCompactType();
 
     const auto distributionAttr = distributedType.getDistribution();
-    const auto numClusters = distributionAttr.num_clusters().getInt();
+    const auto numClusters = distributionAttr.getNumClusters().getInt();
 
     auto cycleBeginAttr = vpurtTask->getAttr(cycleBegin);
     auto cycleEndAttr = vpurtTask->getAttr(cycleEnd);
 
-    const auto numTiles = parseIntArrayAttr<int64_t>(distributionAttr.num_tiles());
+    const auto numTiles = parseIntArrayAttr<int64_t>(distributionAttr.getNumTiles());
     const auto originInShape = inputType.getShape().raw();
     VPUX_THROW_UNLESS(originInShape.size() == numTiles.size(),
                       "Input shape size '{0}' and tiles array size '{1}' are mismatch", originInShape.size(),
@@ -109,11 +105,10 @@ void ClusterExpandDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, V
                       "Number of shape offsets '{0}' and clusters '{1}' are mismatch", perClusterShapeOffsets.size(),
                       numClusters);
 
-    const auto tileInnerType = [&](vpux::NDTypeInterface innerType) {
+    const auto tileType = [&](vpux::NDTypeInterface type) {
         SmallVector<vpux::NDTypeInterface> newTypes(numClusters);
         for (size_t clusterId = 0; clusterId < perClusterShapes.size(); ++clusterId) {
-            newTypes[clusterId] =
-                    changeShape(innerType, perClusterShapes[clusterId], perClusterShapeOffsets[clusterId]);
+            newTypes[clusterId] = changeShape(type, perClusterShapes[clusterId], perClusterShapeOffsets[clusterId]);
         }
 
         return newTypes;
@@ -137,24 +132,24 @@ void ClusterExpandDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, V
             return VPURT::createOp<VPURT::DeclareBufferOp>(rewriter, insertionPoint, loc, newCMXType,
                                                            VPURT::BufferSection::CMX_NN,
                                                            getIntArrayAttr(_ctx, makeArrayRef({clusterId})),
-                                                           declBuff.byteOffset(), declBuff.swizzlingKeyAttr());
+                                                           declBuff.getByteOffset(), declBuff.getSwizzlingKeyAttr());
         }
 
-        Byte ddrOffset{declBuff.byteOffset()};
-        const auto tilingScheme = parseIntArrayAttr<int64_t>(distributionAttr.num_tiles());
+        Byte ddrOffset{declBuff.getByteOffset()};
+        const auto tilingScheme = parseIntArrayAttr<int64_t>(distributionAttr.getNumTiles());
         const auto axis = vpux::VPU::getDistributedTilingAxis(tilingScheme);
 
         ddrOffset += perClusterShapeOffsets[clusterId][Dim(axis)] * static_cast<Byte>(newType.getStrides()[Dim(axis)]);
 
-        auto section = declBuff.section();
-        auto sectionIndex = declBuff.sectionIndex();
+        auto section = declBuff.getSection();
+        auto sectionIndex = declBuff.getSectionIndex();
 
         const auto symbolAttr = vpux::IndexedSymbolAttr::get(_ctx, stringifyEnum(VPURT::getMemoryKind(section)));
         newType = newType.changeMemSpace(symbolAttr);
 
-        if (sectionIndex.hasValue()) {
+        if (sectionIndex.has_value()) {
             return VPURT::createOp<VPURT::DeclareBufferOp>(rewriter, insertionPoint, loc, newType, section,
-                                                           sectionIndex.getValue(), ddrOffset.count(), nullptr);
+                                                           sectionIndex.value(), ddrOffset.count(), nullptr);
         }
 
         return VPURT::createOp<VPURT::DeclareBufferOp>(rewriter, insertionPoint, loc, newType, section,
@@ -164,9 +159,9 @@ void ClusterExpandDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, V
     auto inputInsertionPoint = input.getDefiningOp();
     auto outputInsertionPoint = output.getDefiningOp();
 
-    const auto inTypes = tileInnerType(innerInputType);
-    const auto outTypes = tileInnerType(innerOutputType);
-    Byte elemTypeSize = innerInputType.getElemTypeSize();
+    const auto inTypes = tileType(inputType);
+    const auto outTypes = tileType(outputType);
+    Byte elemTypeSize = inputType.getElemTypeSize();
     for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
         const auto newInputType = inTypes[clusterId];
         const auto newOutType = outTypes[clusterId];
@@ -184,8 +179,11 @@ void ClusterExpandDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, V
                                                              expandDmaOp.pads_endAttr(), elemTypeSize.count());
         auto newDMAPort = clusterId % _dmaPortCount;
         auto newExpandDMAOp = VPURT::wrapIntoTaskOp<VPUIP::ExpandDMAOp>(
-                rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), newLoc, inputBuffer, outBuffer,
-                expandDmaOp.pads_beginAttr(), expandDmaOp.pads_endAttr(), dmaDescriptor, getIntAttr(_ctx, newDMAPort));
+                rewriter, vpurtTask.getWaitBarriers(), vpurtTask.getUpdateBarriers(), newLoc, inputBuffer, outBuffer,
+                expandDmaOp.pads_beginAttr(), expandDmaOp.pads_endAttr(), dmaDescriptor, getIntAttr(_ctx, newDMAPort),
+                expandDmaOp.channelTypeAttr(), expandDmaOp.is_out_of_orderAttr(), expandDmaOp.is_criticalAttr(),
+                expandDmaOp.dma_hwp_idAttr());
+
         _log.trace("Insert new Expand dma : '{0}'", newExpandDMAOp);
         auto newTaskOp = newExpandDMAOp->getParentOfType<VPURT::TaskOp>();
         if (cycleBeginAttr) {
@@ -197,16 +195,15 @@ void ClusterExpandDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, V
     }
 }
 
-void ClusterExpandDMARewriter::unrollDuplicated(mlir::Location loc, VPUIP::ExpandDMAOp expandDmaOp,
-                                                VPUIP::NCEClusterTilingOp clusterOp, VPURT::TaskOp vpurtTask,
-                                                VPUIP::DistributedBufferType distributedType,
-                                                VPUIP::ExpandDmaDescriptorGenerator dmaDescriptorGenerator,
-                                                mlir::PatternRewriter& rewriter) const {
-    const auto input = *clusterOp.getInputs().begin();
-    const auto output = *clusterOp.getOutputs().begin();
+void ExpandDMARewriter::unrollDuplicated(mlir::Location loc, VPUIP::ExpandDMAOp expandDmaOp, VPURT::TaskOp vpurtTask,
+                                         VPUIP::DistributedBufferType distributedType,
+                                         VPUIP::ExpandDmaDescriptorGenerator dmaDescriptorGenerator,
+                                         mlir::PatternRewriter& rewriter) const {
+    const auto input = expandDmaOp.input();
+    const auto output = expandDmaOp.output_buff();
 
     const auto distributionAttr = distributedType.getDistribution();
-    const auto numClusters = distributionAttr.num_clusters().getInt();
+    const auto numClusters = distributionAttr.getNumClusters().getInt();
     SmallVector<int64_t> clusters(numClusters);
     std::iota(clusters.begin(), clusters.end(), 0);
 
@@ -215,7 +212,7 @@ void ClusterExpandDMARewriter::unrollDuplicated(mlir::Location loc, VPUIP::Expan
 
     auto newCMXBuffer = VPURT::createOp<VPURT::DeclareBufferOp>(
             rewriter, outDeclBuff, loc, outDeclBuff.getType(), VPURT::BufferSection::CMX_NN,
-            getIntArrayAttr(_ctx, clusters), outDeclBuff.byteOffset(), outDeclBuff.swizzlingKeyAttr());
+            getIntArrayAttr(_ctx, clusters), outDeclBuff.getByteOffset(), outDeclBuff.getSwizzlingKeyAttr());
 
     _log.trace("Insert new CMX buffer declaration: '{0}'", newCMXBuffer);
 
@@ -226,8 +223,10 @@ void ClusterExpandDMARewriter::unrollDuplicated(mlir::Location loc, VPUIP::Expan
     auto dmaDescriptor = dmaDescriptorGenerator.generate(expandInType, expandOutType, expandDmaOp.pads_beginAttr(),
                                                          expandDmaOp.pads_endAttr(), elemTypeSize.count());
     const auto newExpandDMA = VPURT::wrapIntoTaskOp<VPUIP::ExpandDMAOp>(
-            rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), newLoc, input, newCMXBuffer,
-            expandDmaOp.pads_beginAttr(), expandDmaOp.pads_endAttr(), dmaDescriptor);
+            rewriter, vpurtTask.getWaitBarriers(), vpurtTask.getUpdateBarriers(), newLoc, input, newCMXBuffer,
+            expandDmaOp.pads_beginAttr(), expandDmaOp.pads_endAttr(), dmaDescriptor,
+            /*port=*/vpux::getIntAttr(rewriter, 0), expandDmaOp.channelTypeAttr(), expandDmaOp.is_out_of_orderAttr(),
+            expandDmaOp.is_criticalAttr(), expandDmaOp.dma_hwp_idAttr());
     _log.trace("Insert new ExpandDMA op: '{0}'", newExpandDMA);
 
     auto newVpurtTask = newExpandDMA->getParentOfType<VPURT::TaskOp>();
@@ -239,9 +238,9 @@ void ClusterExpandDMARewriter::unrollDuplicated(mlir::Location loc, VPUIP::Expan
     }
 }
 
-void ClusterExpandDMARewriter::createTilesForLargeSize(VPUIP::ExpandDMAOp origOp,
-                                                       VPUIP::ExpandDmaDescriptorGenerator dmaDescriptorGenerator,
-                                                       mlir::PatternRewriter& rewriter) const {
+void ExpandDMARewriter::createTilesForLargeSize(VPUIP::ExpandDMAOp origOp,
+                                                VPUIP::ExpandDmaDescriptorGenerator dmaDescriptorGenerator,
+                                                mlir::PatternRewriter& rewriter) const {
     // Currently, tiling is implemented only for 4D shapes.
     const auto origInputShape = getShape(origOp.input());
     const auto origOutputShape = getShape(origOp.output());
@@ -269,8 +268,8 @@ void ClusterExpandDMARewriter::createTilesForLargeSize(VPUIP::ExpandDMAOp origOp
     VPUX_THROW_UNLESS(inputDeclBuff != nullptr && outputDeclBuff != nullptr,
                       "Can't get input or output buffer of ExpandDMAOp '{0}'", origOp->getLoc());
 
-    Byte inputOffset{inputDeclBuff.byteOffset()};
-    Byte outputOffset{outputDeclBuff.byteOffset()};
+    Byte inputOffset{inputDeclBuff.getByteOffset()};
+    Byte outputOffset{outputDeclBuff.getByteOffset()};
 
     const auto expandInputType = origOp.input().getType().cast<NDTypeInterface>();
     const Byte elemTypeSize = expandInputType.getElemTypeSize();
@@ -292,14 +291,14 @@ void ClusterExpandDMARewriter::createTilesForLargeSize(VPUIP::ExpandDMAOp origOp
         // Create new input buffer
         auto inputNewType = inputDeclBuff.getType().cast<NDTypeInterface>().changeShape(currentTileInShape);
         auto inputNewBuffer = VPURT::createOp<VPURT::DeclareBufferOp>(
-                rewriter, inputInsertionPoint, tileLoc, inputNewType, inputDeclBuff.section(), inputOffset.count());
+                rewriter, inputInsertionPoint, tileLoc, inputNewType, inputDeclBuff.getSection(), inputOffset.count());
         inputInsertionPoint = inputNewBuffer.getResult().getDefiningOp();
         inputOffset += Byte(currentTileInShape.totalSize() * elemTypeSize.count());
 
         // Create new output buffer
-        auto outputNewBuffer = VPURT::createOp<VPURT::DeclareBufferOp>(rewriter, outputInsertionPoint, tileLoc,
-                                                                       outputDeclBuff.getType(),
-                                                                       outputDeclBuff.section(), outputOffset.count());
+        auto outputNewBuffer = VPURT::createOp<VPURT::DeclareBufferOp>(
+                rewriter, outputInsertionPoint, tileLoc, outputDeclBuff.getType(), outputDeclBuff.getSection(),
+                outputOffset.count());
         outputInsertionPoint = outputNewBuffer.getResult().getDefiningOp();
         outputOffset += Byte(currentTileOutShape.totalSize() * elemTypeSize.count());
 
@@ -313,9 +312,10 @@ void ClusterExpandDMARewriter::createTilesForLargeSize(VPUIP::ExpandDMAOp origOp
         // Create tile ExpandDMAOp
         auto newDMAPort = tileIdx % _dmaPortCount;
         auto newExpandDMAOp = VPURT::wrapIntoTaskOp<VPUIP::ExpandDMAOp>(
-                rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), tileLoc, inputNewBuffer,
+                rewriter, vpurtTask.getWaitBarriers(), vpurtTask.getUpdateBarriers(), tileLoc, inputNewBuffer,
                 outputNewBuffer, origOp.pads_beginAttr(), origOp.pads_endAttr(), dmaDescriptor,
-                getIntAttr(_ctx, newDMAPort));
+                getIntAttr(_ctx, newDMAPort), origOp.channelTypeAttr(), origOp.is_out_of_orderAttr(),
+                origOp.is_criticalAttr(), origOp.dma_hwp_idAttr());
 
         _log.trace("New tile '{0}' Expand dma : '{1}'", tileIdx, newExpandDMAOp);
 
@@ -336,19 +336,27 @@ void ClusterExpandDMARewriter::createTilesForLargeSize(VPUIP::ExpandDMAOp origOp
     rewriter.eraseOp(vpurtTask);
 }
 
-mlir::LogicalResult ClusterExpandDMARewriter::matchAndRewrite(VPUIP::ExpandDMAOp expandDmaOp,
-                                                              mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult ExpandDMARewriter::matchAndRewrite(VPUIP::ExpandDMAOp expandDmaOp,
+                                                       mlir::PatternRewriter& rewriter) const {
     _log.trace("Process ExpandDMA op: {0}", expandDmaOp);
 
-    if (expandDmaOp.dma_descriptor().hasValue()) {
+    if (expandDmaOp.dma_descriptor().has_value()) {
         return mlir::failure();
     }
 
     auto dmaDescriptorGenerator = VPUIP::ExpandDmaDescriptorGenerator(_ctx, _log);
 
-    auto clusterOp = expandDmaOp->getParentOfType<VPUIP::NCEClusterTilingOp>();
-    if (clusterOp == nullptr) {
-        _log.trace("ExpandDMA is not a child of NCEClusterTiling op");
+    const auto input = expandDmaOp.input();
+    const auto output = expandDmaOp.output_buff();
+    const auto inputType = input.getType();
+    const auto outputType = output.getType();
+    VPUX_THROW_WHEN(inputType.isa<VPUIP::DistributedBufferType>() && outputType.isa<VPUIP::DistributedBufferType>(),
+                    "Only one operand can have DistributedBuffer type");
+
+    const auto distributedType = outputType.dyn_cast<VPUIP::DistributedBufferType>();
+
+    if (distributedType == nullptr) {
+        _log.trace("ExpandDMA's result is not a DistributedBufferType");
 
         const auto dmaSize = static_cast<Byte>(getCompactSize(expandDmaOp.input()));
         if (dmaSize > VPUIP::DMA_LIMIT) {
@@ -363,37 +371,28 @@ mlir::LogicalResult ClusterExpandDMARewriter::matchAndRewrite(VPUIP::ExpandDMAOp
         Byte elemTypeSize = expandInType.getElemTypeSize();
         auto dmaDescriptor = dmaDescriptorGenerator.generate(expandInType, expandOutType, expandDmaOp.pads_beginAttr(),
                                                              expandDmaOp.pads_endAttr(), elemTypeSize.count());
-        rewriter.replaceOpWithNewOp<VPUIP::ExpandDMAOp>(expandDmaOp, expandDmaOp.input(), expandDmaOp.output_buff(),
-                                                        expandDmaOp.pads_beginAttr(), expandDmaOp.pads_endAttr(),
-                                                        dmaDescriptor);
+        rewriter.replaceOpWithNewOp<VPUIP::ExpandDMAOp>(
+                expandDmaOp, expandDmaOp.input(), expandDmaOp.output_buff(), expandDmaOp.pads_beginAttr(),
+                expandDmaOp.pads_endAttr(), dmaDescriptor, vpux::getIntAttr(rewriter, 0), expandDmaOp.channelTypeAttr(),
+                expandDmaOp.is_out_of_orderAttr(), expandDmaOp.is_criticalAttr(), expandDmaOp.dma_hwp_idAttr());
 
         return mlir::success();
     }
 
-    const auto input = *clusterOp.getInputs().begin();
-    const auto output = *clusterOp.getOutputs().begin();
-    const auto inputType = input.getType();
-    const auto outputType = output.getType();
-    VPUX_THROW_WHEN(inputType.isa<VPUIP::DistributedBufferType>() && outputType.isa<VPUIP::DistributedBufferType>(),
-                    "Only one operand can have DistributedBuffer type");
-
-    auto vpurtTask = clusterOp->getParentOfType<VPURT::TaskOp>();
+    auto vpurtTask = expandDmaOp->getParentOfType<VPURT::TaskOp>();
     VPUX_THROW_UNLESS(vpurtTask != nullptr, "Can't get VPURT task operation");
     rewriter.setInsertionPointAfter(vpurtTask);
 
-    const auto distributedType = outputType.dyn_cast<VPUIP::DistributedBufferType>();
-    VPUX_THROW_UNLESS(distributedType != nullptr, "Output must have DistributedBuffer type");
-
     const auto distributionAttr = distributedType.getDistribution();
-    const auto mode = distributionAttr.mode().getValue();
+    const auto mode = distributionAttr.getMode().getValue();
     if (mode == VPU::DistributionMode::SEGMENTED || mode == VPU::DistributionMode::OVERLAPPED) {
         _log.trace("Process SEGMENTED/OVERLAPPED mode", VPU::stringifyDistributionMode(mode));
-        unrollSegmentedOrOverlapped(expandDmaOp->getLoc(), expandDmaOp, clusterOp, vpurtTask, distributedType,
+        unrollSegmentedOrOverlapped(expandDmaOp->getLoc(), expandDmaOp, vpurtTask, distributedType,
                                     dmaDescriptorGenerator, rewriter);
     } else if (mode == VPU::DistributionMode::DUPLICATED) {
         _log.trace("Process DUPLICATED mode");
-        unrollDuplicated(expandDmaOp->getLoc(), expandDmaOp, clusterOp, vpurtTask, distributedType,
-                         dmaDescriptorGenerator, rewriter);
+        unrollDuplicated(expandDmaOp->getLoc(), expandDmaOp, vpurtTask, distributedType, dmaDescriptorGenerator,
+                         rewriter);
     } else {
         VPUX_THROW("Unsupported distribution mode: {0}", VPU::stringifyDistributionMode(mode));
     }
@@ -425,7 +424,7 @@ void UnrollExpandDMAPass::safeRunOnFunc() {
     auto dmaPortCount = dmaOp.count();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<ClusterExpandDMARewriter>(&ctx, dmaPortCount, _log);
+    patterns.insert<ExpandDMARewriter>(&ctx, dmaPortCount, _log);
 
     if (mlir::failed(
                 mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), vpux::getDefaultGreedyRewriteConfig()))) {

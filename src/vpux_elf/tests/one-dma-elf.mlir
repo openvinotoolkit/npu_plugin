@@ -3,16 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-module @Test attributes {VPU.arch = "VPUX37XX", VPU.compilationMode = "ReferenceHW"}  {
-  IE.MemoryResource 31457280 bytes of @DDR {VPU.bandwidth = 8 : i64, VPU.derateFactor = 6.000000e-01 : f64}
-  IE.MemoryResource 2097152 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
-  IE.ExecutorResource 1 of @DMA_NN
-  IE.ExecutorResource 1 of @SHAVE_UPA
-  IE.ExecutorResource 1 of @SHAVE_ACT
-  IE.ExecutorResource 1 of @NCE  {
-    IE.ExecutorResource 1 of @DPU
-  }
-
+module @OneDMAWithoutAttributes {
 IE.CNNNetwork entryPoint : @main inputsInfo :  {
     DataInfo "inputCNN" : tensor<1x1x1x1000xf16>
 } outputsInfo :  {
@@ -36,6 +27,7 @@ func.func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) ->
     {
         ELF.PutOpInSection %dma0 : !VPURegMapped.Index<0:0:0>
     }
+    // CHECK:       %[[VAL0:.*]] = VPUMI40XX.NNDMA {port = 0 : i64} inputs(%arg0 : memref<1x2x3x4xf16, @DDR>) outputs(%arg1 : memref<1x2x3x4xf16, @DDR>) start_after(0) clean_after(0) -> !VPURegMapped.Index<0:0:0>
 
     %mappedInfSec = ELF.CreateSection secType(SHT_PROGBITS) secFlags(SHF_EXECINSTR) {secName=".text.mappedInference", secInfo = 0, secAddrAlign = 64} -> !ELF.Section
     {
@@ -57,7 +49,7 @@ func.func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) ->
     {
         ELF.PutOpInSection %sym_for_dmaSection : !ELF.Symbol
         ELF.PutOpInSection %sym_for_mappedInfSec : !ELF.Symbol
-        ELF.Symbol %mappedInference name("MappedInference") type("VPU_STT_ENTRY") : !VPURegMapped.Index<0:0:0>
+        ELF.Symbol %mappedInference name("MappedInference") type(<VPU_STT_ENTRY>) : !VPURegMapped.Index<0:0:0>
     }
 
     %inputSymSection = ELF.CreateSymbolTableSection secName(".symtab.inputs") secFlags(VPU_SHF_USERINPUT) -> !ELF.Section
@@ -71,19 +63,20 @@ func.func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) ->
 
     %mappedInferenceRelocs = ELF.CreateRelocationSection secName(".rlt.mappedInference") sourceSymbolTableSection(%genericSymSection) targetSection(%mappedInfSec) secFlags(SHF_INFO_LINK) -> !ELF.Section
     {
-        ELF.Reloc baseOp(%mappedInference : !VPURegMapped.Index<0:0:0>) offsetOf(%dma0 : !VPURegMapped.Index<0:0:0>) "R_VPU_64" %sym_for_dmaSection 0
+        ELF.Reloc baseOp(%mappedInference : !VPURegMapped.Index<0:0:0>) offsetOf(%dma0 : !VPURegMapped.Index<0:0:0>) <R_VPU_64> %sym_for_dmaSection 0
     }
 
     %inputRelocs = ELF.CreateRelocationSection secName(".rlt.inputs") sourceSymbolTableSection(%inputSymSection) targetSection(%dmaSection) secFlags("SHF_INFO_LINK|VPU_SHF_JIT|VPU_SHF_USERINPUT") -> !ELF.Section
     {
-        ELF.Reloc baseOp(%dma0 : !VPURegMapped.Index<0:0:0>) offsetOf(%arg0 : memref<1x1x1x1000xf16>) "R_VPU_64" %symArg0 0
+        ELF.Reloc baseOp(%dma0 : !VPURegMapped.Index<0:0:0>) offsetOf(%arg0 : memref<1x1x1x1000xf16>) <R_VPU_64> %symArg0 0
     }
 
     %outputRelocs = ELF.CreateRelocationSection secName(".rlt.outputs") sourceSymbolTableSection(%outputSymSection) targetSection(%dmaSection) secFlags("SHF_INFO_LINK|VPU_SHF_JIT|VPU_SHF_USEROUTPUT") -> !ELF.Section
     {
-        ELF.Reloc baseOp(%dma0 : !VPURegMapped.Index<0:0:0>) offsetOf(%arg1 : memref<1x1x1x1000xf16>) "R_VPU_64" %symArg1 0
+        ELF.Reloc baseOp(%dma0 : !VPURegMapped.Index<0:0:0>) offsetOf(%arg1 : memref<1x1x1x1000xf16>) <R_VPU_64> %symArg1 0
     }
 
     return %arg1 : memref<1x1x1x1000xf16>
+}
 }
 }

@@ -60,8 +60,8 @@ void convertToFP16(mlir::Value tensor, mlir::PatternRewriter& rewriter) {
 
     const auto newElementType = mlir::Float16Type::get(elementType.getContext());
     const auto newTensorType = type.changeElemType(newElementType);
-    const auto newConstAttr = parentConstOp.contentAttr().convertElemType(newElementType);
-    auto newTensor = rewriter.create<Const::DeclareOp>(parentConstOp.getLoc(), newTensorType, newConstAttr).output();
+    const auto newConstAttr = parentConstOp.getContentAttr().convertElemType(newElementType);
+    auto newTensor = rewriter.create<Const::DeclareOp>(parentConstOp.getLoc(), newTensorType, newConstAttr).getOutput();
     parentConstOp.replaceAllUsesWith(newTensor);
 }
 

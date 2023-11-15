@@ -21,14 +21,10 @@ public:
     LevelZeroCompilerAdapter();
     explicit LevelZeroCompilerAdapter(const IExternalCompiler::Ptr& compilerAdapter);
 
-    std::shared_ptr<INetworkDescription> compile(const std::shared_ptr<ngraph::Function>& func,
-                                                 const std::string& netName,
-                                                 const InferenceEngine::InputsDataMap& inputsInfo,
-                                                 const InferenceEngine::OutputsDataMap& outputsInfo,
+    std::shared_ptr<INetworkDescription> compile(std::shared_ptr<ov::Model>& model, const std::string& networkName,
                                                  const vpux::Config& config) final;
 
-    InferenceEngine::QueryNetworkResult query(const InferenceEngine::CNNNetwork& network,
-                                              const vpux::Config& config) final;
+    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const vpux::Config& config) final;
 
     std::shared_ptr<vpux::INetworkDescription> parse(const std::vector<char>& network, const vpux::Config& config,
                                                      const std::string& netName) final;

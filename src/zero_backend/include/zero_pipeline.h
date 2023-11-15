@@ -5,8 +5,11 @@
 
 #pragma once
 
+#include "zero_executor.h"
 #include "zero_memory.h"
+#include "zero_profiling.h"
 #include "zero_utils.h"
+#include "zero_wrappers.h"
 
 namespace vpux {
 struct Pipeline {
@@ -34,4 +37,7 @@ protected:
     zeroMemory::MemoryManagementUnit _outputs;
 };
 
+std::unique_ptr<Pipeline> makePipeline(const Executor::Ptr& executorPtr, const Config& config,
+                                       vpux::zeroProfiling::ProfilingPool& profiling_pool,
+                                       vpux::zeroProfiling::ProfilingQuery& profiling_query);
 }  // namespace vpux

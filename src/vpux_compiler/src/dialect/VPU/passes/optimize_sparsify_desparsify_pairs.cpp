@@ -45,10 +45,10 @@ mlir::LogicalResult OptimizeSparsifyDesparsifyPairsPass::initialize(mlir::MLIRCo
         return mlir::failure();
     }
     const auto parsedSparsityProfile = _sparsityProfileCreateCb(sparsityProfile.getValue());
-    if (!parsedSparsityProfile.hasValue()) {
+    if (!parsedSparsityProfile.has_value()) {
         return mlir::failure();
     }
-    _sparsityProfile = parsedSparsityProfile.getValue();
+    _sparsityProfile = parsedSparsityProfile.value();
     return mlir::success();
 }
 
@@ -190,7 +190,7 @@ private:
 mlir::LogicalResult EliminateDesparsifySparsifyPairs::matchAndRewrite(VPU::DesparsifyOp desparsifyOp,
                                                                       mlir::PatternRewriter& rewriter) const {
     size_t totalUses = 0;
-    mlir::DenseSet<mlir::Operation*> removableOps;
+    llvm::SetVector<mlir::Operation*> removableOps{};
     for (const auto user : desparsifyOp->getUsers()) {
         ++totalUses;
         if (mlir::isa<VPU::SparsifyOp>(user)) {

@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -10,27 +10,29 @@
 
 #include "vpux/al/config/common.hpp"
 #include "vpux_exceptions.h"
-#include "vpux_remote_context.h"
 
 #include <device_helpers.hpp>
 
 // TODO: E#30339 the creation of backend is not scalable,
 // it needs to be refactored in order to simplify
 // adding other backends into static build config
-#if defined(OPENVINO_STATIC_LIBRARY) && defined(ENABLE_ZEROAPI_BACKEND)
+#ifndef OPENVINO_STATIC_LIBRARY
+#include "vpux/utils/core/library_path.hpp"
+#elif defined(ENABLE_ZEROAPI_BACKEND)
 #include <zero_backend.h>
 #endif
 
 namespace vpux {
-namespace IE = InferenceEngine;
+namespace ie = InferenceEngine;
 
 // TODO Config will be useless here, since only default values will be used
-VPUXBackends::VPUXBackends(const std::vector<std::string>& backendRegistry): _logger("VPUXBackends", LogLevel::Error) {
+VPUXBackends::VPUXBackends(const std::vector<std::string>& backendRegistry, const Config& config)
+        : _logger(Logger::global().nest("NPUBackends", 0)) {
     std::vector<std::shared_ptr<EngineBackend>> registeredBackends;
     const auto registerBackend = [&](std::shared_ptr<EngineBackend> backend, const std::string& name) {
         const auto backendDevices = backend->getDeviceNames();
         if (!backendDevices.empty()) {
-            _logger.nest().debug("Register '{0}' with devices '{1}'", name, backendDevices);
+            _logger.debug("Register '{0}' with devices '{1}'", name, backendDevices);
             registeredBackends.emplace_back(backend);
         }
     };
@@ -43,31 +45,32 @@ VPUXBackends::VPUXBackends(const std::vector<std::string>& backendRegistry): _lo
 
         const auto exists = std::ifstream(path).good();
         if (!exists) {
-            _logger.nest().debug("Backend '{0}' at '{1}' doesn't exist", name, path);
+            _logger.debug("Backend '{0}' at '{1}' doesn't exist", name, path);
             continue;
         }
 
         try {
-            const auto backend = std::make_shared<EngineBackend>(path);
+            const auto backend = std::make_shared<EngineBackend>(path, config);
             registerBackend(backend, name);
         } catch (const std::exception& ex) {
             _logger.error("Got an error during backend '{0}' loading : {1}", name, ex.what());
         } catch (...) {
-            _logger.error("Got an unknown error during backend '{0}' loading : {1}", name);
+            _logger.error("Got an unknown error during backend '{0}' loading", name);
         }
     }
 #else
 
     (void)backendRegistry;
+    (void)config;
 #ifdef ENABLE_ZEROAPI_BACKEND
-    const auto backend = std::make_shared<EngineBackend>(std::make_shared<ZeroEngineBackend>());
+    const auto backend = std::make_shared<EngineBackend>(std::make_shared<ZeroEngineBackend>(config));
 #else
     const auto backend = std::make_shared<EngineBackend>(nullptr);
     IE_THROW() << "No backends available. The only available backend for static library configuration is "
-                  "vpux_level_zero_backend."
+                  "npu_level_zero_backend."
                << "Please make sure that ENABLE_ZEROAPI_BACKEND is ON";
 #endif
-    registerBackend(backend, "vpux_level_zero_backend");
+    registerBackend(backend, "npu_level_zero_backend");
 
 #endif
 
@@ -83,7 +86,7 @@ VPUXBackends::VPUXBackends(const std::vector<std::string>& backendRegistry): _lo
     if (_backend != nullptr) {
         _logger.info("Use '{0}' backend for inference", _backend->getName());
     } else {
-        _logger.warning("Cannot find backend for inference. Make sure if device is available.");
+        _logger.error("Cannot find backend for inference. Make sure the device is available.");
     }
 }
 
@@ -109,26 +112,15 @@ std::shared_ptr<Device> VPUXBackends::getDevice(const std::string& specificName)
     }
 
     if (deviceToUse == nullptr) {
-        _logger.warning("Device to use not found!");
+        _logger.warning("Device not found!");
     } else {
-        _logger.debug("Device to use found: {0}", deviceToUse->getName());
+        _logger.debug("Device found: {0}", deviceToUse->getName());
     }
     return deviceToUse;
 }
 
-std::shared_ptr<Device> VPUXBackends::getDevice(const IE::ParamMap& paramMap) const {
+std::shared_ptr<Device> VPUXBackends::getDevice(const ie::ParamMap& paramMap) const {
     return _backend->getDevice(paramMap);
-}
-
-std::shared_ptr<Device> VPUXBackends::getDevice(const IE::RemoteContext::Ptr& context) const {
-    // TODO more complicated logic should be here. Might require changing in backend implementation
-    const auto privateContext = std::dynamic_pointer_cast<VPUXRemoteContext>(context);
-    if (context == nullptr) {
-        IE_THROW() << FAILED_CAST_CONTEXT;
-    }
-    const auto device = privateContext->getDevice();
-    _logger.debug("Device from context found: {0}", device->getName());
-    return device;
 }
 
 std::vector<std::string> VPUXBackends::getAvailableDevicesNames() const {
@@ -146,21 +138,17 @@ void VPUXBackends::setup(const Config& config) {
     _logger.setLevel(config.get<LOG_LEVEL>());
 }
 
-static std::map<IE::VPUXConfigParams::VPUXPlatform, std::string> compilationPlatformMap = {
-        {IE::VPUXConfigParams::VPUXPlatform::AUTO_DETECT, "AUTO_DETECT"},
-        {IE::VPUXConfigParams::VPUXPlatform::VPU3400_A0, "3400_A0"},
-        {IE::VPUXConfigParams::VPUXPlatform::VPU3400, "3700"},  // sic
-        {IE::VPUXConfigParams::VPUXPlatform::VPU3700, "3700"},
-        {IE::VPUXConfigParams::VPUXPlatform::VPU3800, "3900"},
-        {IE::VPUXConfigParams::VPUXPlatform::VPU3900, "3900"},
-        {IE::VPUXConfigParams::VPUXPlatform::VPU3720, "3720"},
+static std::map<ie::VPUXConfigParams::VPUXPlatform, std::string> compilationPlatformMap = {
+        {ie::VPUXConfigParams::VPUXPlatform::AUTO_DETECT, "AUTO_DETECT"},
+        {ie::VPUXConfigParams::VPUXPlatform::VPU3700, "3700"},
+        {ie::VPUXConfigParams::VPUXPlatform::VPU3720, "3720"},
 };
 
-std::string VPUXBackends::getCompilationPlatform(const IE::VPUXConfigParams::VPUXPlatform platform,
+std::string VPUXBackends::getCompilationPlatform(const ie::VPUXConfigParams::VPUXPlatform platform,
                                                  const std::string& deviceId) const {
     // Platform parameter has a higher priority than deviceID
-    if (platform != IE::VPUXConfigParams::VPUXPlatform::AUTO_DETECT &&
-        platform != IE::VPUXConfigParams::VPUXPlatform::EMULATOR) {
+    if (platform != ie::VPUXConfigParams::VPUXPlatform::AUTO_DETECT &&
+        platform != ie::VPUXConfigParams::VPUXPlatform::EMULATOR) {
         return compilationPlatformMap.at(platform);
     }
 
@@ -172,8 +160,8 @@ std::string VPUXBackends::getCompilationPlatform(const IE::VPUXConfigParams::VPU
     // Automatic detection of compilation platform
     const auto devNames = getAvailableDevicesNames();
     if (devNames.empty()) {
-        IE_THROW() << "No devices found - platform must be explicitly specified for compilation. Example: -d VPUX.3700 "
-                      "instead of -d VPUX.";
+        IE_THROW() << "No devices found - platform must be explicitly specified for compilation. Example: -d NPU.3700 "
+                      "instead of -d NPU.";
     }
 
     if (std::find(devNames.cbegin(), devNames.cend(), "EMULATOR") != devNames.end()) {

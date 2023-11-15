@@ -67,7 +67,7 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::CumSumOp cumsumOp, m
         return mlir::failure();
     }
 
-    const auto axisContent = axisConst.content();
+    const auto axisContent = axisConst.getContent();
     if (!axisContent.isSplat()) {
         return mlir::failure();
     }

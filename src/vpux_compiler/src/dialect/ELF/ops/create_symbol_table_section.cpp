@@ -8,13 +8,13 @@
 
 void vpux::ELF::CreateSymbolTableSectionOp::serialize(elf::Writer& writer, vpux::ELF::SectionMapType& sectionMap,
                                                       vpux::ELF::SymbolMapType& symbolMap) {
-    if (isBuiltin())
+    if (getIsBuiltin())
         return;
 
-    const auto name = secName().str();
+    const auto name = getSecName().str();
     auto section = writer.addSymbolSection(name);
 
-    section->maskFlags(static_cast<elf::Elf_Xword>(secFlags()));
+    section->maskFlags(static_cast<elf::Elf_Xword>(getSecFlags()));
 
     auto block = getBody();
     for (auto& op : block->getOperations()) {
@@ -24,7 +24,7 @@ void vpux::ELF::CreateSymbolTableSectionOp::serialize(elf::Writer& writer, vpux:
             symOp.serialize(symbol, sectionMap);
             symbolMap[symOp.getOperation()] = symbol;
         } else if (auto placeholder = llvm::dyn_cast<vpux::ELF::PutOpInSectionOp>(op)) {
-            auto actualOp = placeholder.inputArg().getDefiningOp();
+            auto actualOp = placeholder.getInputArg().getDefiningOp();
             auto symOp = llvm::dyn_cast<vpux::ELF::SymbolOp>(actualOp);
 
             VPUX_THROW_UNLESS(

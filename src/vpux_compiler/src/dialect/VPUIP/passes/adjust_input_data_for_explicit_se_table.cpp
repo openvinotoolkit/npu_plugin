@@ -54,10 +54,10 @@ void AdjustInputDataForExplicitSETablePass::safeRunOnFunc() {
             auto newType = getNewType(declareOp, seOperand);
             newDeclareOp->getResult(0).setType(newType);
 
-            declareOp.buffer().replaceUsesWithIf(newDeclareOp->getResult(0), [&](mlir::OpOperand& operand) -> bool {
+            declareOp.getBuffer().replaceUsesWithIf(newDeclareOp->getResult(0), [&](mlir::OpOperand& operand) -> bool {
                 return operand.getOwner() == nceOp.getOperation();
             });
-            if (declareOp.buffer().use_empty()) {
+            if (declareOp.getBuffer().use_empty()) {
                 declareOp->erase();
             }
         };

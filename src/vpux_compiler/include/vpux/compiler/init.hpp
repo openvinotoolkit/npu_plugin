@@ -6,10 +6,11 @@
 #pragma once
 
 #include <mlir/IR/Dialect.h>
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 
 namespace vpux {
 
 void registerDialects(mlir::DialectRegistry& registry);
-void registerInterfacesWithReplacement(mlir::DialectRegistry& registry);
+void registerCommonInterfaces(mlir::DialectRegistry& registry, bool enableDummyOp = false);
 
 }  // namespace vpux

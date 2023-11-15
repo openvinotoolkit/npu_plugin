@@ -3,14 +3,14 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/attributes/indexed_symbol_attr.hpp"
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/init.hpp"
+
+#include "common/utils.hpp"
 
 #include <mlir/IR/MLIRContext.h>
 #include <mlir/Parser/Parser.h>
@@ -28,24 +28,22 @@ constexpr vpux::StringRef DPU_NAME = "DPU";
 void checkDDRSpace(vpux::IndexedSymbolAttr indexedSymbol) {
     ASSERT_EQ(indexedSymbol.getRootName(), DDR_NAME);
     ASSERT_EQ(indexedSymbol.getLeafName(), DDR_NAME);
-    ASSERT_FALSE(indexedSymbol.getIndex().hasValue());
-    ASSERT_FALSE(indexedSymbol.getNestedReference().hasValue());
+    ASSERT_FALSE(indexedSymbol.getIndex().has_value());
+    ASSERT_FALSE(indexedSymbol.getNestedReference().has_value());
 }
 
 void checkCMXSpace(vpux::IndexedSymbolAttr indexedSymbol, int64_t expIndex) {
     ASSERT_EQ(indexedSymbol.getRootName(), CMX_NAME);
     ASSERT_EQ(indexedSymbol.getLeafName(), CMX_NAME);
-    ASSERT_TRUE(indexedSymbol.getIndex().hasValue());
-    ASSERT_EQ(indexedSymbol.getIndex().getValue(), expIndex);
-    ASSERT_FALSE(indexedSymbol.getNestedReference().hasValue());
+    ASSERT_TRUE(indexedSymbol.getIndex().has_value());
+    ASSERT_EQ(indexedSymbol.getIndex().value(), expIndex);
+    ASSERT_FALSE(indexedSymbol.getNestedReference().has_value());
 }
 
 }  // namespace
+using MLIR_IndexedSymbolAttr = MLIR_UnitBase;
 
-TEST(MLIR_IndexedSymbolAttr, CheckNestedAttr) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
+TEST_F(MLIR_IndexedSymbolAttr, CheckNestedAttr) {
     mlir::MLIRContext ctx(registry);
 
     const int64_t nestedIdx = 0;
@@ -62,24 +60,21 @@ TEST(MLIR_IndexedSymbolAttr, CheckNestedAttr) {
     ASSERT_EQ(rootAttr.getRootReference(), rootNameAttr);
     ASSERT_EQ(rootAttr.getLeafReference(), nestedNameAttr);
     ASSERT_EQ(rootAttr.getFullReference(), fullSymbolAttr);
-    ASSERT_TRUE(rootAttr.getIndex().hasValue());
-    ASSERT_EQ(rootAttr.getIndex().getValue(), rootIdx);
-    ASSERT_TRUE(rootAttr.getNestedReference().hasValue());
+    ASSERT_TRUE(rootAttr.getIndex().has_value());
+    ASSERT_EQ(rootAttr.getIndex().value(), rootIdx);
+    ASSERT_TRUE(rootAttr.getNestedReference().has_value());
 
-    const auto actNestedAttr = rootAttr.getNestedReference().getValue();
+    const auto actNestedAttr = rootAttr.getNestedReference().value();
     ASSERT_EQ(actNestedAttr, nestedAttr);
     ASSERT_EQ(actNestedAttr.getRootReference(), nestedNameAttr);
     ASSERT_EQ(actNestedAttr.getLeafReference(), nestedNameAttr);
     ASSERT_EQ(actNestedAttr.getFullReference(), nestedNameAttr);
-    ASSERT_TRUE(actNestedAttr.getIndex().hasValue());
-    ASSERT_EQ(actNestedAttr.getIndex().getValue(), nestedIdx);
-    ASSERT_FALSE(actNestedAttr.getNestedReference().hasValue());
+    ASSERT_TRUE(actNestedAttr.getIndex().has_value());
+    ASSERT_EQ(actNestedAttr.getIndex().value(), nestedIdx);
+    ASSERT_FALSE(actNestedAttr.getNestedReference().has_value());
 }
 
-TEST(MLIR_IndexedSymbolAttr, CheckMemoryResourceAttr) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
+TEST_F(MLIR_IndexedSymbolAttr, CheckMemoryResourceAttr) {
     mlir::MLIRContext ctx(registry);
 
     constexpr llvm::StringLiteral inputIR = R"(
@@ -127,10 +122,7 @@ TEST(MLIR_IndexedSymbolAttr, CheckMemoryResourceAttr) {
     }
 }
 
-TEST(MLIR_IndexedSymbolAttr, CheckExecutorResourceAttr) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
+TEST_F(MLIR_IndexedSymbolAttr, CheckExecutorResourceAttr) {
     mlir::MLIRContext ctx(registry);
 
     constexpr llvm::StringLiteral inputIR = R"(
@@ -171,7 +163,7 @@ TEST(MLIR_IndexedSymbolAttr, CheckExecutorResourceAttr) {
                                         %results_1#0 as %arg4: !async.value<memref<48x1x1x4xsi32, @CMX_NN>>) ->
                                             !async.value<memref<1x48x60x60xf16, #NHWC, @CMX_NN>>
                                                 attributes { VPUIP.executor = [@NCE, 1, [@DPU]] } {
-                  %5 = VPUIP.NCEClusterTask {kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, kernel_size = [3, 3], kernel_strides = [1, 1], task_type = "CONV"}
+                  %5 = VPUIP.NCEClusterTask {kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, kernel_size = [3, 3], kernel_strides = [1, 1], task_type = #VPUIP.nce_task_type<CONV>}
                                                 input(%arg2 : memref<1x16x62x62xf16, #NHWC, @CMX_NN>)
                                                 weights(%arg3 : memref<48x16x3x3xf16, #NHWC, @CMX_NN>)
                                                 weight_table(%arg4 : memref<48x1x1x4xsi32, @CMX_NN>)
@@ -179,11 +171,11 @@ TEST(MLIR_IndexedSymbolAttr, CheckExecutorResourceAttr) {
                                                 parent_output(%2 : memref<1x48x60x60xf16, #NHWC, @CMX_NN>)
                                                 outputs(%2 : memref<1x48x60x60xf16, #NHWC, @CMX_NN>) ->
                 memref<1x48x60x60xf16, #NHWC, @CMX_NN> variants :  {
-                    DPUTask {outEnd = [59, 11, 47], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 0, 0]}
-                    DPUTask {outEnd = [59, 23, 47], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 12, 0]}
-                    DPUTask {outEnd = [59, 35, 47], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 24, 0]}
-                    DPUTask {outEnd = [59, 47, 47], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 36, 0]}
-                    DPUTask {outEnd = [59, 59, 47], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, outStart = [0, 48, 0]}
+                    DPUTask {outEnd = [59, 11, 47], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 0, 0]}
+                    DPUTask {outEnd = [59, 23, 47], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 12, 0]}
+                    DPUTask {outEnd = [59, 35, 47], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 24, 0]}
+                    DPUTask {outEnd = [59, 47, 47], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 36, 0]}
+                    DPUTask {outEnd = [59, 59, 47], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, outStart = [0, 48, 0]}
                   } PPE :  {
                   }
                   async.yield %2 : memref<1x48x60x60xf16, #NHWC, @CMX_NN>
@@ -217,14 +209,14 @@ TEST(MLIR_IndexedSymbolAttr, CheckExecutorResourceAttr) {
             if (executor.getRootName() == NCE_NAME) {
                 ASSERT_TRUE(execRes.hasProcessorFrequency());
                 ASSERT_EQ(execRes.getProcessorFrequency().getValueAsDouble(), 700.0);
-                ASSERT_TRUE(executor.getIndex().hasValue());
-                ASSERT_EQ(executor.getIndex().getValue(), 1);
-                ASSERT_TRUE(executor.getNestedReference().hasValue());
+                ASSERT_TRUE(executor.getIndex().has_value());
+                ASSERT_EQ(executor.getIndex().value(), 1);
+                ASSERT_TRUE(executor.getNestedReference().has_value());
                 ASSERT_EQ(executor.getLeafName(), DPU_NAME);
 
-                auto nestedExecAttr = executor.getNestedReference().getValue();
+                auto nestedExecAttr = executor.getNestedReference().value();
                 ASSERT_EQ(nestedExecAttr.getRootName(), DPU_NAME);
-                ASSERT_FALSE(nestedExecAttr.getNestedReference().hasValue());
+                ASSERT_FALSE(nestedExecAttr.getNestedReference().has_value());
 
                 auto nestedExecRes = vpux::IE::getAvailableExecutor(module.get(), executor.getFullReference());
                 ASSERT_TRUE(nestedExecRes != nullptr);

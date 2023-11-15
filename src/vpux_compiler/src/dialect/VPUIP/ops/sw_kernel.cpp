@@ -7,8 +7,12 @@
 #include "vpux/compiler/utils/asm.hpp"
 
 #include <llvm/ADT/TypeSwitch.h>
-#define REGION_YOLO_MAX_MASK_SIZE 9     // max mask size for region yolo op
-#define REGION_YOLO_MAX_ANCHOR_SIZE 18  // max anchor size for region yolo op
+#include <llvm/ADT/bit.h>
+
+#define REGION_YOLO_MAX_MASK_SIZE 9  // max mask size for region yolo op
+#define PROPOSAL_MAX_RATIO 3         // max ratio size for proposal op
+#define PROPOSAL_MAX_SCALE 6         // max scale size for proposal op
+#define MAX_AXES_DIMS 4              // max axes size for reduce ops
 
 using namespace vpux;
 using namespace mlir;
@@ -74,38 +78,49 @@ static SmallVector<int64_t> getAxesArrayRevertAndOrderAware(mlir::Value tensorAr
     return revertedAxesArray;
 }
 
-template <class T>
-void packAsFP16IntoU64(const SmallVector<T>& values, SmallVector<int64_t>& params) {
-    static constexpr uint32_t PACKED_VALUES_COUNT = 4;
-    float16 f16Value[PACKED_VALUES_COUNT];
+uint64_t getFloatBits(float16 val) {
+    return static_cast<uint64_t>(val.to_bits());
+}
+
+uint64_t getFloatBits(float val) {
+    uint32_t f32Bits = llvm::bit_cast<uint32_t>(val);
+    return static_cast<uint64_t>(f32Bits);
+}
+
+template <class IT, class OT>
+void packAsFpIntoU64(const SmallVector<IT>& values, SmallVector<int64_t>& params) {
+    static constexpr uint32_t PACKED_VALUES_COUNT = sizeof(int64_t) / sizeof(OT);
+    static constexpr uint64_t bitWidth = sizeof(OT) * CHAR_BIT;
+    OT fltValue[PACKED_VALUES_COUNT];
     size_t packIdx = 0;
 
-    auto f16Pack = [](float16 f16Vals[PACKED_VALUES_COUNT]) -> uint64_t {
-        uint64_t ret = (static_cast<uint64_t>(f16Vals[0].to_bits()) << 0LL) |
-                       (static_cast<uint64_t>(f16Vals[1].to_bits()) << 16LL) |
-                       (static_cast<uint64_t>(f16Vals[2].to_bits()) << 32LL) |
-                       (static_cast<uint64_t>(f16Vals[3].to_bits()) << 48LL);
+    auto pack = [](OT fltVals[PACKED_VALUES_COUNT]) -> uint64_t {
+        uint64_t ret = 0;
+        for (uint32_t i = 0; i < PACKED_VALUES_COUNT; i++) {
+            ret |= getFloatBits(fltVals[i]) << (bitWidth * i);
+        }
         return ret;
     };
 
     for (const auto val : values) {
-        f16Value[packIdx++] = static_cast<float16>(val);
+        fltValue[packIdx++] = static_cast<OT>(val);
         if (packIdx == PACKED_VALUES_COUNT) {
-            params.push_back(f16Pack(f16Value));
+            params.push_back(pack(fltValue));
             packIdx = 0;  // reset pack index
         }
     }
 
-    // Pad with trailing zeros up to U64 alignment
+    // Store trailing elements
     if (packIdx) {
+        // Pad with zeros up to U64 alignment
         while (packIdx < PACKED_VALUES_COUNT) {
-            f16Value[packIdx++] = 0;
+            fltValue[packIdx++] = 0;
         }
-        params.push_back(f16Pack(f16Value));
+        params.push_back(pack(fltValue));
     }
 }
 
-void getQuantParamsAttr(mlir::MLIRContext* ctx, mlir::Type qType, mlir::ArrayAttr& paramsAttr) {
+void getQuantParamsAttr(mlir::MLIRContext* ctx, mlir::Type qType, mlir::Type pType, mlir::ArrayAttr& paramsAttr) {
     SmallVector<double> scales;
     SmallVector<int64_t> zeroes;
 
@@ -121,12 +136,23 @@ void getQuantParamsAttr(mlir::MLIRContext* ctx, mlir::Type qType, mlir::ArrayAtt
         VPUX_THROW("Unsupported quantized type {0}", qType);
     }
 
-    // Convert & pack 4xfp16 values into one u64 word for serialization
+    typedef decltype(scales)::value_type TS;
+    typedef decltype(zeroes)::value_type TZ;
+
+    // Convert & pack float values into u64 words for serialization
     llvm::SmallVector<int64_t> params;
     params.push_back(scales.size());
-    packAsFP16IntoU64(scales, params);
-    packAsFP16IntoU64(zeroes, params);
-    paramsAttr = getIntArrayAttr(ctx, params);
+    if (pType.isF16()) {
+        packAsFpIntoU64<TS, float16>(scales, params);
+        packAsFpIntoU64<TZ, float16>(zeroes, params);
+    } else if (pType.isF32()) {
+        packAsFpIntoU64<TS, float>(scales, params);
+        packAsFpIntoU64<TZ, float>(zeroes, params);
+    } else {
+        pType.dump();
+        VPUX_THROW("Supported non-quantized type : f16/f32");
+    }
+    paramsAttr = getIntArrayAttr(ctx, std::move(params));
 }
 
 }  // namespace
@@ -171,7 +197,7 @@ void vpux::VPUIP::SwKernelOp::print(mlir::OpAsmPrinter& p) {
         p << ")";
     }
 
-    if (tileIndex().hasValue()) {
+    if (tileIndex().has_value()) {
         p << ' ' << "on";
         p << ' ' << "tile";
         p << ' ';
@@ -362,11 +388,18 @@ mlir::LogicalResult SwKernelOp::inferReturnTypes(mlir::MLIRContext* ctx, mlir::O
     return mlir::success();
 }
 
-#define CASE_REDUCE(_OP_, _STR1_, _STR2_, _CTX_)                                                  \
-    .Case<_OP_>([&](_OP_ reduce) {                                                                \
-        const auto keepDims = static_cast<int64_t>(reduce.keep_dimsAttr() != nullptr);            \
-        const auto keepDimsAttr = getIntAttr(_CTX_, keepDims);                                    \
-        return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{keepDimsAttr}, {_STR1_}, {_STR2_}}; \
+#define CASE_REDUCE(_OP_, _STR1_, _STR2_, _CTX_)                                                          \
+    .Case<_OP_>([&](_OP_ reduce) {                                                                        \
+        const auto keepDims = static_cast<int64_t>(reduce.keep_dimsAttr() != nullptr);                    \
+        const auto keepDimsAttr = getIntAttr(_CTX_, keepDims);                                            \
+        const auto axesValue_size = static_cast<int64_t>(reduce.axes_valueAttr().getValue().size());      \
+        VPUX_THROW_UNLESS(axesValue_size <= MAX_AXES_DIMS, "Axes size {0} bigger than max axis size {1}", \
+                          axesValue_size, MAX_AXES_DIMS);                                                 \
+        const auto axesValue_sizeAttr = getIntAttr(_CTX_, axesValue_size);                                \
+        return VPUIP::KernelInfo{                                                                         \
+                SmallVector<mlir::Attribute>{keepDimsAttr, axesValue_sizeAttr, reduce.axes_valueAttr()},  \
+                {_STR1_},                                                                                 \
+                {_STR2_}};                                                                                \
     })
 
 VPUIP::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
@@ -377,11 +410,29 @@ VPUIP::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                 return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{}, {"exp_fp16"}, {"exp_fp16.cpp"}};
             })
             .Case<VPU::GatherOp>([&](VPU::GatherOp gather) {
-                const auto axisParam = computeReverseMemDim(gather.input(), gather.axis_value().getValue());
+                const auto axisParam = computeReverseMemDim(gather.input(), gather.axis_value().value());
                 const auto axisParamAttr = getIntAttr(gather.getContext(), axisParam);
                 return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{axisParamAttr, gather.batch_dimsAttr()},
                                          {"single_shave_gather"},
                                          {"single_shave_gather.cpp"}};
+            })
+            .Case<VPU::GatherSliceOp>([&](VPU::GatherSliceOp gatherSlice) {
+                const auto axisValue =
+                        gatherSlice.axis_valueAttr().dyn_cast_or_null<mlir::IntegerAttr>().getValue().getSExtValue();
+                const auto axisParam = computeReverseMemDim(gatherSlice.input(), axisValue);
+                const auto axisParamAttr = getIntAttr(gatherSlice.getContext(), axisParam);
+                return VPUIP::KernelInfo{
+                        SmallVector<mlir::Attribute>{axisParamAttr, gatherSlice.batch_dimsAttr(),
+                                                     gatherSlice.max_axis_dimensionAttr(), gatherSlice.slice_headAttr(),
+                                                     gatherSlice.slice_tailAttr()},
+                        {"single_shave_gather_slice"},
+                        {"single_shave_gather_slice.cpp"}};
+            })
+            .Case<VPU::ExtractValueOp>([&](VPU::ExtractValueOp extractValue) {
+                return VPUIP::KernelInfo{
+                        SmallVector<mlir::Attribute>{extractValue.axis_valueAttr(), extractValue.batch_dimsAttr()},
+                        {"single_shave_extract_value"},
+                        {"single_shave_extract_value.cpp"}};
             })
             .Case<VPU::GatherElementsOp>([&](VPU::GatherElementsOp gatherElements) {
                 const auto axisParam = computeReverseMemDim(gatherElements.input(), gatherElements.axis());
@@ -402,12 +453,19 @@ VPUIP::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                                          {"single_shave_gather_tree.cpp"}};
             })
             .Case<VPU::ScatterUpdateOp>([&](VPU::ScatterUpdateOp scatterUpdate) {
-                const auto axisParam =
-                        computeReverseMemDim(scatterUpdate.input(), scatterUpdate.axis_value().getValue());
+                const auto axisParam = computeReverseMemDim(scatterUpdate.input(), scatterUpdate.axis_value().value());
                 const auto axisParamAttr = getIntAttr(scatterUpdate.getContext(), axisParam);
                 return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{axisParamAttr},
                                          {"single_shave_scatter_update"},
                                          {"single_shave_scatter_update.cpp"}};
+            })
+            .Case<VPU::ScatterElementsUpdateOp>([&](VPU::ScatterElementsUpdateOp scatterElementsUpdate) {
+                const auto axisParam =
+                        computeReverseMemDim(scatterElementsUpdate.input(), scatterElementsUpdate.axis());
+                const auto axisParamAttr = getIntAttr(scatterElementsUpdate.getContext(), axisParam);
+                return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{axisParamAttr},
+                                         {"single_shave_scatter_elements_update"},
+                                         {"single_shave_scatter_elements_update.cpp"}};
             })
             .Case<VPU::TanhOp>([&](VPU::TanhOp) {
                 return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{}, {"tanh_fp16"}, {"tanh_fp16.cpp"}};
@@ -451,9 +509,21 @@ VPUIP::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                 // input tensor, to transform axis
                 const auto axisParam = computeReverseMemDim(softmax.input(), softmax.axisInd());
                 const auto axisParamAttr = getIntAttr(ctx, axisParam);
-                return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{axisParamAttr},
-                                         {"singleShaveSoftmax"},
-                                         {"single_shave_softmax.cpp"}};
+                const int64_t padSize = 0;
+                auto padSizeAttr = getIntAttr(ctx, padSize);
+                if (softmax.padSize().has_value()) {
+                    padSizeAttr = softmax.padSizeAttr();
+                }
+                const auto iType = softmax.input().getType().cast<vpux::NDTypeInterface>();
+                if (iType.getElementType().isF32()) {
+                    return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{axisParamAttr, padSizeAttr},
+                                             {"singleShaveSoftmaxFp32"},
+                                             {"singleShaveSoftmaxFp32.cpp"}};
+                } else {
+                    return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{axisParamAttr, padSizeAttr},
+                                             {"singleShaveSoftmax"},
+                                             {"singleShaveSoftmax.cpp"}};
+                }
             })
             .Case<VPU::LogSoftmaxOp>([&](VPU::LogSoftmaxOp logSoftmax) {
                 const auto axisParam = computeReverseMemDim(logSoftmax.input(), logSoftmax.axisInd());
@@ -468,9 +538,9 @@ VPUIP::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                 const auto nearestMode = static_cast<int64_t>(interpolate.attr().getNearestMode().getValue());
                 const auto antialias = static_cast<int64_t>(interpolate.attr().getAntialias().getValue());
                 const auto inOrder = DimsOrder::fromValue(interpolate.input());
-                const auto initialInputDim = interpolate.initial_input_dims_attr().getValue();
+                const auto initialInputDim = interpolate.initial_input_dims_attr().value();
                 const auto initialInputDimsParam = permuteIntArrayAttr(inOrder, initialInputDim);
-                const auto initialOutputDim = interpolate.initial_output_dims_attr().getValue();
+                const auto initialOutputDim = interpolate.initial_output_dims_attr().value();
                 const auto initialOutputDimsParam = permuteIntArrayAttr(inOrder, initialOutputDim);
                 const auto tileFPList = parseFPArrayAttr<double>(interpolate.tile_offset_attrAttr());
                 const auto cubeCoeffParam = interpolate.attr().getCubeCoeff().getValueAsDouble();
@@ -486,12 +556,12 @@ VPUIP::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                                 interpolate->getLoc());
 
                 const auto initialInputOffset =
-                        interpolate.initial_input_offset_attr().hasValue()
-                                ? permuteIntArrayAttr(inOrder, interpolate.initial_input_offset_attr().getValue())
+                        interpolate.initial_input_offset_attr().has_value()
+                                ? permuteIntArrayAttr(inOrder, interpolate.initial_input_offset_attr().value())
                                 : SmallVector<int64_t>(inOrder.numDims(), 0);
                 const auto initialOutputOffset =
-                        interpolate.initial_output_offset_attr().hasValue()
-                                ? permuteIntArrayAttr(inOrder, interpolate.initial_output_offset_attr().getValue())
+                        interpolate.initial_output_offset_attr().has_value()
+                                ? permuteIntArrayAttr(inOrder, interpolate.initial_output_offset_attr().value())
                                 : SmallVector<int64_t>(inOrder.numDims(), 0);
 
                 const auto modeAttr = getIntAttr(ctx, mode);
@@ -641,6 +711,24 @@ VPUIP::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                                          {"singleShaveMVN"},
                                          {"singleShaveMVN.cpp"}};
             })
+            .Case<VPU::MVN1SumOp>([&](VPU::MVN1SumOp mvnSum) {
+                return VPUIP::KernelInfo{
+                        SmallVector<mlir::Attribute>{mvnSum.across_channelsAttr(), mvnSum.normalize_varianceAttr()},
+                        {"mvn1_sum"},
+                        {"mvn1_sum.cpp"}};
+            })
+            .Case<VPU::MVN1MeanVarOp>([&](VPU::MVN1MeanVarOp op) {
+                return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{op.orig_shapeAttr(), op.across_channelsAttr(),
+                                                                      op.normalize_varianceAttr(), op.epsAttr()},
+                                         {"mvn1_mean_var"},
+                                         {"mvn1_mean_var.cpp"}};
+            })
+            .Case<VPU::MVN1NormalizeOp>([&](VPU::MVN1NormalizeOp op) {
+                return VPUIP::KernelInfo{
+                        SmallVector<mlir::Attribute>{op.across_channelsAttr(), op.normalize_varianceAttr()},
+                        {"mvn1_norm"},
+                        {"mvn1_norm.cpp"}};
+            })
             .Case<VPU::MVN6Op>([&](VPU::MVN6Op mvn) {
                 mlir::MLIRContext* ctx = mvn.getContext();
                 // Convert 'axes' to physical reversed (innermost first) equivalent
@@ -666,9 +754,6 @@ VPUIP::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                                          {"reorder_fp16.cpp"}};
             })
             .Case<VPU::LRNOp>([&](VPU::LRNOp LRN) {
-                const auto iType = LRN.input().getType().cast<vpux::NDTypeInterface>();
-                VPUX_THROW_UNLESS(iType.getRank() == 4 || iType.getRank() == 3,
-                                  "Supporting only 4D and 3D input, got {0}", iType.getRank());
                 return VPUIP::KernelInfo{
                         SmallVector<mlir::Attribute>{LRN.alphaAttr(), LRN.betaAttr(), LRN.biasAttr(), LRN.sizeAttr()},
                         {"single_shave_LRN"},
@@ -696,25 +781,12 @@ VPUIP::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                 }
                 const auto maskArrayRef = ArrayRef<int64_t>(maskList, REGION_YOLO_MAX_MASK_SIZE);
                 const auto maskAttrInput = getIntArrayAttr(ctx, maskArrayRef);
-                // Supplement for anchorAttrInput to meet array size(18) defined in kernel
-                const auto anchorSize = static_cast<int64_t>(regionYolo.anchorsAttr().getValue().size());
-                assert(anchorSize <= REGION_YOLO_MAX_ANCHOR_SIZE);
-                float anchorList[REGION_YOLO_MAX_ANCHOR_SIZE];
-                const auto anchorFloatList = parseFPArrayAttr<float>(regionYolo.anchorsAttr());
-                for (int i = 0; i < REGION_YOLO_MAX_ANCHOR_SIZE; i++) {
-                    if (i >= anchorSize) {
-                        anchorList[i] = 0;
-                    } else {
-                        anchorList[i] = anchorFloatList[i];
-                    }
-                }
-                const auto anchorArrayRef = ArrayRef<float>(anchorList, REGION_YOLO_MAX_ANCHOR_SIZE);
-                const auto anchorAttrInput = getIntArrayAttr(ctx, anchorArrayRef);
+
                 return VPUIP::KernelInfo{
                         SmallVector<mlir::Attribute>{regionYolo.coordsAttr(), regionYolo.classesAttr(),
-                                                     regionYolo.regionsAttr(), regionYolo.do_softmaxAttr(),
+                                                     regionYolo.num_regionsAttr(), regionYolo.do_softmaxAttr(),
                                                      maskSizeParamAttr, maskAttrInput, regionYolo.axisAttr(),
-                                                     regionYolo.end_axisAttr(), anchorAttrInput},
+                                                     regionYolo.end_axisAttr()},
                         {"single_shave_region_yolo"},
                         {"single_shave_region_yolo.cpp"}};
             })
@@ -722,14 +794,17 @@ VPUIP::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                 const auto axisParam = computeReverseMemDim(topk.input(), topk.axis());
                 const auto mode = static_cast<int64_t>(topk.modeAttr().getValue());
                 const auto sortMode = static_cast<int64_t>(topk.sortAttr().getValue());
+                const auto kValue = static_cast<int64_t>(topk.k_value().value());
 
                 const auto axisParamAttr = getIntAttr(ctx, axisParam);
                 const auto modeIntAttr = getIntAttr(ctx, mode);
                 const auto sortModeAttr = getIntAttr(ctx, sortMode);
+                const auto kValueAttr = getIntAttr(ctx, kValue);
 
-                return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{axisParamAttr, modeIntAttr, sortModeAttr},
-                                         {"single_shave_topk"},
-                                         {"single_shave_topk.cpp"}};
+                return VPUIP::KernelInfo{
+                        SmallVector<mlir::Attribute>{axisParamAttr, modeIntAttr, sortModeAttr, kValueAttr},
+                        {"single_shave_topk"},
+                        {"single_shave_topk.cpp"}};
             })
             .Case<VPU::ExtractImagePatchesOp>([&](VPU::ExtractImagePatchesOp op) {
                 auto sizes = parseIntArrayAttr<int64_t>(op.sizesAttr());
@@ -762,8 +837,8 @@ VPUIP::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
             .Case<VPU::PadOp>([&](VPU::PadOp pad) {
                 mlir::MLIRContext* ctx = origOp->getContext();
                 const auto inOrder = DimsOrder::fromValue(pad.input());
-                const auto padBegin = permuteIntArrayAttr(inOrder, pad.pads_begin_attr().getValue());
-                const auto padEnd = permuteIntArrayAttr(inOrder, pad.pads_end_attr().getValue());
+                const auto padBegin = permuteIntArrayAttr(inOrder, pad.pads_begin_attr().value());
+                const auto padEnd = permuteIntArrayAttr(inOrder, pad.pads_end_attr().value());
                 const auto padMode = static_cast<int64_t>(pad.modeAttr().getValue());
 
                 const auto padBeginAttr = getIntArrayAttr(ctx, padBegin);
@@ -802,6 +877,11 @@ VPUIP::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                                          {"single_shave_avg_pool"},
                                          {"single_shave_avg_pool.cpp"}};
             })
+            .Case<VPU::AdaptiveAvgPoolOp>([&](VPU::AdaptiveAvgPoolOp) {
+                return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{},
+                                         {"single_shave_adaptive_pool"},
+                                         {"single_shave_adaptive_pool.cpp"}};
+            })
             .Case<VPU::FakeQuantizeOp>([&](VPU::FakeQuantizeOp op) {
                 const auto iType = op.input().getType().cast<vpux::NDTypeInterface>();
                 const auto oType = op.output().getType().cast<vpux::NDTypeInterface>();
@@ -813,15 +893,17 @@ VPUIP::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                                          {"fake_quantize.cpp"}};
             })
             .Case<VPU::QuantizeOp>([&](VPU::QuantizeOp op) {
+                const auto iType = op.input().getType().cast<vpux::NDTypeInterface>();
                 const auto oType = op.output().getType().cast<vpux::NDTypeInterface>();
                 mlir::ArrayAttr paramsAttr;
-                getQuantParamsAttr(ctx, oType.getElementType(), paramsAttr);
+                getQuantParamsAttr(ctx, oType.getElementType(), iType.getElementType(), paramsAttr);
                 return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{paramsAttr}, {"quantize"}, {"quantize.cpp"}};
             })
             .Case<VPU::DequantizeOp>([&](VPU::DequantizeOp op) {
                 const auto iType = op.input().getType().cast<vpux::NDTypeInterface>();
+                const auto oType = op.output().getType().cast<vpux::NDTypeInterface>();
                 mlir::ArrayAttr paramsAttr;
-                getQuantParamsAttr(ctx, iType.getElementType(), paramsAttr);
+                getQuantParamsAttr(ctx, iType.getElementType(), oType.getElementType(), paramsAttr);
                 return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{paramsAttr}, {"dequantize"}, {"dequantize.cpp"}};
             })
             .Case<VPU::DynamicQuantizeOp>([&](VPU::DynamicQuantizeOp) {
@@ -833,9 +915,9 @@ VPUIP::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                 const auto mode = static_cast<int64_t>(depth_to_space.modeAttr().getValue());
                 const auto modeAttr = getIntAttr(ctx, mode);
                 SmallVector<mlir::Attribute> paramAttr = {depth_to_space.block_sizeAttr(), modeAttr};
-                if (depth_to_space.padded_channels().hasValue()) {
-                    auto paddedIC = depth_to_space.padded_channels().getValue().input();
-                    auto paddedOC = depth_to_space.padded_channels().getValue().output();
+                if (depth_to_space.padded_channels().has_value()) {
+                    auto paddedIC = depth_to_space.padded_channels().value().getInput();
+                    auto paddedOC = depth_to_space.padded_channels().value().getOutput();
 
                     if (paddedIC != nullptr) {
                         paramAttr.push_back(paddedIC);
@@ -884,7 +966,7 @@ VPUIP::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
 
                 const auto stridedSliceBegins = padIntArrayAttr(stridedslice.begins_attr());
                 const auto stridedSliceEnds = padIntArrayAttr(stridedslice.ends_attr());
-                const auto stridedSliceStrides = padIntArrayAttr(stridedslice.strides_attr().getValue());
+                const auto stridedSliceStrides = padIntArrayAttr(stridedslice.strides_attr().value());
 
                 const auto stridedSliceBeginsAttr = getIntArrayAttr(ctx, stridedSliceBegins);
                 const auto stridedSliceEndsAttr = getIntArrayAttr(ctx, stridedSliceEnds);
@@ -969,9 +1051,72 @@ VPUIP::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                                          {"single_shave_reorg_yolo"},
                                          {"single_shave_reorg_yolo.cpp"}};
             })
+            .Case<VPU::ProposalOp>([&](VPU::ProposalOp proposal) {
+                const auto baseSizeAttr = proposal.proposal_attrsAttr().getBaseSize();
+                const auto preNmsTopNAttr = proposal.proposal_attrsAttr().getPreNmsTopN();
+                const auto postNmsTopNAttr = proposal.proposal_attrsAttr().getPostNmsTopN();
+                const auto nmsThreshAttr = proposal.proposal_attrsAttr().getNmsThresh();
+                const auto featStrideAttr = proposal.proposal_attrsAttr().getFeatStride();
+                const auto minSizeAttr = proposal.proposal_attrsAttr().getMinSize();
+
+                const auto ratioSize = static_cast<int>(proposal.proposal_attrsAttr().getRatio().size());
+                const auto ratio = parseFPArrayAttr<double>(proposal.proposal_attrsAttr().getRatio());
+                float ratioList[PROPOSAL_MAX_RATIO];
+                for (int i = 0; i < PROPOSAL_MAX_RATIO; i++) {
+                    if (i >= ratioSize) {
+                        ratioList[i] = -1;
+                    } else {
+                        ratioList[i] = ratio[i];
+                    }
+                }
+                const auto ratioRef = ArrayRef<float>(ratioList, PROPOSAL_MAX_RATIO);
+                const auto ratioAttr = getFPArrayAttr(ctx, ratioRef);
+
+                const auto scaleSize = static_cast<int>(proposal.proposal_attrsAttr().getScale().size());
+                const auto scale = parseFPArrayAttr<double>(proposal.proposal_attrsAttr().getScale());
+                float scaleList[PROPOSAL_MAX_SCALE];
+                for (int i = 0; i < PROPOSAL_MAX_SCALE; i++) {
+                    if (i >= scaleSize) {
+                        scaleList[i] = -1;
+                    } else {
+                        scaleList[i] = scale[i];
+                    }
+                }
+                const auto scaleRef = ArrayRef<float>(scaleList, PROPOSAL_MAX_SCALE);
+                const auto scaleAttr = getFPArrayAttr(ctx, scaleRef);
+
+                const bool clipBeforeNms = proposal.proposal_attrsAttr().getClipBeforeNms().getValue();
+                const int64_t clipBeforeNmsInt = clipBeforeNms != 0;
+                const auto clipBeforeNmsAttr = getIntAttr(ctx, clipBeforeNmsInt);
+
+                const bool clipAfterNms = proposal.proposal_attrsAttr().getClipAfterNms().getValue();
+                const int64_t clipAfterNmsInt = clipAfterNms != 0;
+                const auto clipAfterNmsAttr = getIntAttr(ctx, clipAfterNmsInt);
+
+                const bool normalize = proposal.proposal_attrsAttr().getNormalize().getValue();
+                const int64_t normalizeInt = normalize != 0;
+                const auto normalizeAttr = getIntAttr(ctx, normalizeInt);
+
+                const auto boxSizeScaleAttr = proposal.proposal_attrsAttr().getBoxSizeScale();
+                const auto boxCoordinateScaleAttr = proposal.proposal_attrsAttr().getBoxCoordinateScale();
+
+                const auto framework = proposal.proposal_attrsAttr().getFramework().getValue().str();
+                int64_t frameworkInt = framework == "tensorflow";
+                const auto frameworkAttr = getIntAttr(ctx, frameworkInt);
+
+                return VPUIP::KernelInfo{
+                        SmallVector<mlir::Attribute>{baseSizeAttr, preNmsTopNAttr, postNmsTopNAttr, nmsThreshAttr,
+                                                     featStrideAttr, minSizeAttr, ratioAttr, scaleAttr,
+                                                     clipBeforeNmsAttr, clipAfterNmsAttr, normalizeAttr,
+                                                     boxSizeScaleAttr, boxCoordinateScaleAttr, frameworkAttr},
+                        {"single_shave_proposal"},
+                        {"single_shave_proposal.cpp"}};
+            })
             .Case<VPU::PSROIPoolingOp>([&](VPU::PSROIPoolingOp psroi) {
                 const auto iType = psroi.input().getType().cast<vpux::NDTypeInterface>();
                 VPUX_THROW_UNLESS(iType.getRank() == 4, "Supporting only 4D input, got {0}", iType.getRank());
+                VPUX_THROW_UNLESS(psroi.mode() == IE::PSROIPoolingMode::AVERAGE,
+                                  "Supporting only average psroi mode, got {0}", psroi.mode());
 
                 const auto spatialBinsX = static_cast<int64_t>(psroi.spatial_bins_xAttr() != nullptr);
                 const auto spatialBinsY = static_cast<int64_t>(psroi.spatial_bins_yAttr() != nullptr);
@@ -1190,7 +1335,7 @@ VPUIP::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                                          {"normalize_l2_fp16.cpp"}};
             })
             .Case<VPU::CumSumOp>([&](VPU::CumSumOp cumSum) {
-                const auto axisParam = computeReverseMemDim(cumSum.input(), cumSum.axis_value().getValue());
+                const auto axisParam = computeReverseMemDim(cumSum.input(), cumSum.axis_value().value());
                 const auto exclusive = static_cast<int64_t>(cumSum.exclusiveAttr() != nullptr);
                 const auto reverse = static_cast<int64_t>(cumSum.reverseAttr() != nullptr);
 
@@ -1206,6 +1351,11 @@ VPUIP::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                 return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{},
                                          {"eltwise_select_fp16"},
                                          {"eltwise_select_fp16.cpp"}};
+            })
+            .Case<VPU::EmbeddingBagOffsetsSumOp>([&](VPU::EmbeddingBagOffsetsSumOp op) {
+                return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{op.default_index_valueAttr()},
+                                         {"single_shave_embedding_bag_offsets_sum"},
+                                         {"single_shave_embedding_bag_offsets_sum.cpp"}};
             })
             .Case<VPU::SoftPlusOp>([&](VPU::SoftPlusOp) {
                 return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{}, {"softplus_fp16"}, {"softplus_fp16.cpp"}};
@@ -1296,8 +1446,8 @@ VPUIP::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
             })
             .Case<VPU::SquaredDifferenceOp>([&](VPU::SquaredDifferenceOp) {
                 return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{},
-                                         {"eltwise_squared_difference_fp16"},
-                                         {"eltwise_squared_difference_fp16.cpp"}};
+                                         {"eltwise_squared_difference"},
+                                         {"eltwise_squared_difference.cpp"}};
             })
             .Case<VPU::MaxPoolOp>([&](VPU::MaxPoolOp op) {
                 auto kernelSize = parseIntArrayAttr<int64_t>(op.kernel_sizeAttr());
@@ -1347,7 +1497,7 @@ VPUIP::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                         {"single_shave_convolution.cpp"}};
             })
             .Case<VPU::GroupConvolutionOp>([&](VPU::GroupConvolutionOp op) {
-                auto group = static_cast<int64_t>(op.groups().getValue());
+                auto group = static_cast<int64_t>(op.groups().value());
                 auto padsEnd = parseIntArrayAttr<int64_t>(op.pads_end());
                 auto padsBegin = parseIntArrayAttr<int64_t>(op.pads_begin());
                 auto strides = parseIntArrayAttr<int64_t>(op.strides());
@@ -1370,7 +1520,7 @@ VPUIP::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                 const auto axesAttr = getIntArrayAttr(ctx, axes);
                 return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{noAxesAttr, axesAttr}, {"dft"}, {"dft.cpp"}};
             })
-            .Case<VPU::RDFTOp>([&](VPU::RDFTOp op) {
+            .Case<VPU::RDFTUncutOp>([&](VPU::RDFTUncutOp op) {
                 auto axes = getAxesArrayRevertAndOrderAware(op.input(), op.axes_attr());
                 auto noAxes = op.axes_attr().size();
                 const auto noAxesAttr = getIntAttr(ctx, static_cast<int64_t>(noAxes));
@@ -1384,7 +1534,7 @@ VPUIP::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                 const auto axesAttr = getIntArrayAttr(ctx, axes);
                 return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{noAxesAttr, axesAttr}, {"idft"}, {"idft.cpp"}};
             })
-            .Case<VPU::IRDFTOp>([&](VPU::IRDFTOp op) {
+            .Case<VPU::IRDFTLastAxisOp>([&](VPU::IRDFTLastAxisOp op) {
                 auto axes = getAxesArrayRevertAndOrderAware(op.input(), op.axes_attr());
                 auto noAxes = op.axes_attr().size();
                 const auto noAxesAttr = getIntAttr(ctx, static_cast<int64_t>(noAxes));

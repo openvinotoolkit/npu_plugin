@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2022 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
+
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IE/utils/const_attributes.hpp"
@@ -33,20 +34,6 @@ public:
 private:
     Logger _log;
 };
-
-Const::DeclareOp createAxesTensor(mlir::Location loc, const mlir::SmallVector<int64_t>& axes,
-                                  mlir::PatternRewriter& rewriter) {
-    mlir::SmallVector<int32_t> axesI32 = to_small_vector(axes | transformed([](int64_t axis) {
-                                                             return checked_cast<int32_t>(axis);
-                                                         }));
-
-    const auto tensorType =
-            mlir::RankedTensorType::get({checked_cast<int32_t>(axesI32.size())},
-                                        mlir::IntegerType::get(rewriter.getContext(), 32, mlir::IntegerType::Signed));
-    const auto tensorAttr = mlir::DenseElementsAttr::get(tensorType, makeArrayRef(axesI32));
-    const auto tensorContentAttr = Const::ContentAttr::get(tensorAttr);
-    return rewriter.create<Const::DeclareOp>(loc, tensorType, tensorContentAttr);
-}
 
 bool isExtractImagePatchesJustTranspose(IE::ExtractImagePatchesOp op, Logger log) {
     if (op.sizes() == nullptr || op.strides() == nullptr || op.rates() == nullptr || op.autoPadAttr() == nullptr) {
@@ -131,26 +118,27 @@ mlir::LogicalResult ConvertToReduceSumRewriter::matchAndRewrite(IE::ExtractImage
                    origOp->getLoc());
 
         // Additional checks for aboveReduceSumOp
-        if (!aboveReduceSumOp.keep_dims() || aboveReduceSumOp.axes() == nullptr) {
+        if (!aboveReduceSumOp.keep_dims() || !aboveReduceSumOp.axes_value().has_value()) {
             return replaceExtractImagePatchesWithTranspose(origOp, rewriter, _log);
         }
 
-        auto aboveReduceSumOpAxes = parseIntArrayAttr<int64_t>(vpux::IE::getIntArrayAttrValue(aboveReduceSumOp.axes()));
+        auto aboveReduceSumOpAxes = parseIntArrayAttr<int64_t>(aboveReduceSumOp.axes_value().value());
         if (aboveReduceSumOpAxes.size() > 1 || aboveReduceSumOpAxes[0] != vpux::Dims4D::Act::C.ind()) {
             return replaceExtractImagePatchesWithTranspose(origOp, rewriter, _log);
         }
 
         // Additional checks for belowReduceSumOp
-        auto belowReduceSumOpAxes = parseIntArrayAttr<int64_t>(vpux::IE::getIntArrayAttrValue(belowReduceSumOp.axes()));
-        if (belowReduceSumOp.axes() == nullptr) {
+        if (!belowReduceSumOp.axes_value().has_value()) {
             return replaceExtractImagePatchesWithTranspose(origOp, rewriter, _log);
         }
+
+        auto belowReduceSumOpAxes = parseIntArrayAttr<int64_t>(belowReduceSumOp.axes_value().value());
         if (transposeOp == nullptr) {
             if (belowReduceSumOpAxes.size() > 1 || belowReduceSumOpAxes[0] != vpux::Dims4D::Act::C.ind()) {
                 return replaceExtractImagePatchesWithTranspose(origOp, rewriter, _log);
             }
         } else {
-            const auto transposeOpPerm = vpux::DimsOrder::fromAffineMap(transposeOp.order_value().getValue());
+            const auto transposeOpPerm = vpux::DimsOrder::fromAffineMap(transposeOp.order_value().value());
             if (transposeOpPerm != vpux::DimsOrder::NHWC || belowReduceSumOpAxes.size() > 1 ||
                 belowReduceSumOpAxes[0] != vpux::Dims4D::Act::W.ind()) {
                 return replaceExtractImagePatchesWithTranspose(origOp, rewriter, _log);
@@ -160,10 +148,11 @@ mlir::LogicalResult ConvertToReduceSumRewriter::matchAndRewrite(IE::ExtractImage
 
         // Replace the subgraph with the equivalent ReduceSum op
         aboveReduceSumOpAxes.push_back(vpux::Dims4D::Act::W.ind());
-        // Create the tensor containing the fused reduction axes
-        auto axesOp = createAxesTensor(origOp->getLoc(), aboveReduceSumOpAxes, rewriter);
+        // Create the array attribute containing the fused reduction axes
+        mlir::MLIRContext* ctx = origOp->getContext();
+        auto axesAttr = getIntArrayAttr(ctx, makeArrayRef(aboveReduceSumOpAxes));
         auto newReduceSumOp =
-                rewriter.create<IE::ReduceSumOp>(origOp->getLoc(), aboveReduceSumOp.input(), axesOp.output(), false);
+                rewriter.create<IE::ReduceSumOp>(origOp->getLoc(), aboveReduceSumOp.input(), nullptr, axesAttr, false);
         mlir::SmallVector<int64_t> unsqueezeAxis{vpux::Dims4D::Act::H.ind()};
         if (belowReduceSumOp.keep_dims()) {
             unsqueezeAxis.push_back(belowReduceSumOpAxes[0]);
@@ -245,7 +234,7 @@ mlir::LogicalResult ConvertToSliceConcatRewriter::matchAndRewrite(IE::ExtractIma
         return mlir::failure();
     }
 
-    const auto origPerm = vpux::DimsOrder::fromAffineMap(transposeOp.order_value().getValue());
+    const auto origPerm = vpux::DimsOrder::fromAffineMap(transposeOp.order_value().value());
     if (origPerm != vpux::DimsOrder::NHWC) {
         return mlir::failure();
     }

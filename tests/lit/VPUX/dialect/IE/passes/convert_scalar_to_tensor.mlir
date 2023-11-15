@@ -84,8 +84,161 @@ func.func @ReduceMax(%arg0: tensor<10xf32>) -> tensor<1xf32> {
     %cst = const.Declare tensor<1xsi32> = dense<0> : tensor<1xsi32>
     %0 = IE.ReduceMax(%arg0, %cst) : tensor<10xf32>, tensor<1xsi32> -> tensor<1xf32>
     return %0 : tensor<1xf32>
-
+    
     // CHECK:       [[CST:%.*]] = const.Declare tensor<1xsi32> = dense<0> : tensor<1xsi32>
     // CHECK:       [[VAL0:%.*]] = IE.ReduceMax(%arg0, %cst) : tensor<10xf32>, tensor<1xsi32> -> tensor<1xf32>
     // CHECK:       return [[VAL0]]
+}
+
+// -----
+
+// CHECK-LABEL: @ReduceProd
+func.func @ReduceProd(%arg0: tensor<10xf32>) -> tensor<1xf32> {
+    %AXIS = const.Declare tensor<si32> = dense<0> : tensor<si32>
+    %REDUCE = IE.ReduceProd(%arg0, %AXIS) : tensor<10xf32>, tensor<si32> -> tensor<1xf32>
+    return %REDUCE : tensor<1xf32>
+
+    // CHECK:   [[AXIS:%.*]] = const.Declare tensor<1xsi32> =
+    // CHECK-SAME:      dense<0> : tensor<si32>, [#const.Reshape<[1]>]
+
+    // CHECK:   [[REDUCE:%.*]] = IE.ReduceProd(%arg0, [[AXIS]]) :
+    // CHECK-SAME:      tensor<10xf32>, tensor<1xsi32> -> tensor<1xf32>
+
+    // CHECK:   return [[REDUCE]] : tensor<1xf32>
+}
+
+// -----
+
+// CHECK-LABEL: @ReduceMaxScalar
+func.func @ReduceMaxScalar(%arg0: tensor<10xf32>) -> tensor<1xf32> {
+    %AXIS = const.Declare tensor<si32> = dense<0> : tensor<si32>
+    %REDUCE = IE.ReduceMax(%arg0, %AXIS) : tensor<10xf32>, tensor<si32> -> tensor<1xf32>
+    return %REDUCE : tensor<1xf32>
+
+    // CHECK:   [[AXIS:%.*]] = const.Declare tensor<1xsi32> =
+    // CHECK-SAME:      dense<0> : tensor<si32>, [#const.Reshape<[1]>]
+
+    // CHECK:   [[REDUCE:%.*]] = IE.ReduceMax(%arg0, [[AXIS]]) :
+    // CHECK-SAME:      tensor<10xf32>, tensor<1xsi32> -> tensor<1xf32>
+
+    // CHECK:   return [[REDUCE]] : tensor<1xf32>
+}
+
+// -----
+
+// CHECK-LABEL: @ReduceMean
+func.func @ReduceMean(%arg0: tensor<10xf32>) -> tensor<1xf32> {
+    %AXIS = const.Declare tensor<si32> = dense<0> : tensor<si32>
+    %REDUCE = IE.ReduceMean(%arg0, %AXIS) : tensor<10xf32>, tensor<si32> -> tensor<1xf32>
+    return %REDUCE : tensor<1xf32>
+
+    // CHECK:   [[AXIS:%.*]] = const.Declare tensor<1xsi32> =
+    // CHECK-SAME:      dense<0> : tensor<si32>, [#const.Reshape<[1]>]
+
+    // CHECK:   [[REDUCE:%.*]] = IE.ReduceMean(%arg0, [[AXIS]]) :
+    // CHECK-SAME:      tensor<10xf32>, tensor<1xsi32> -> tensor<1xf32>
+
+    // CHECK:   return [[REDUCE]] : tensor<1xf32>
+}
+
+// -----
+
+// CHECK-LABEL: @ReduceLogicalOr
+func.func @ReduceLogicalOr(%arg0: tensor<10xf32>) -> tensor<1xf32> {
+    %AXIS = const.Declare tensor<si32> = dense<0> : tensor<si32>
+    %REDUCE = IE.ReduceLogicalOr(%arg0, %AXIS) : tensor<10xf32>, tensor<si32> -> tensor<1xf32>
+    return %REDUCE : tensor<1xf32>
+
+    // CHECK:   [[AXIS:%.*]] = const.Declare tensor<1xsi32> =
+    // CHECK-SAME:      dense<0> : tensor<si32>, [#const.Reshape<[1]>]
+
+    // CHECK:   [[REDUCE:%.*]] = IE.ReduceLogicalOr(%arg0, [[AXIS]]) :
+    // CHECK-SAME:      tensor<10xf32>, tensor<1xsi32> -> tensor<1xf32>
+
+    // CHECK:   return [[REDUCE]] : tensor<1xf32>
+}
+
+// -----
+
+// CHECK-LABEL: @ReduceLogicalAnd
+func.func @ReduceLogicalAnd(%arg0: tensor<10xf32>) -> tensor<1xf32> {
+    %AXIS = const.Declare tensor<si32> = dense<0> : tensor<si32>
+    %REDUCE = IE.ReduceLogicalAnd(%arg0, %AXIS) : tensor<10xf32>, tensor<si32> -> tensor<1xf32>
+    return %REDUCE : tensor<1xf32>
+
+    // CHECK:   [[AXIS:%.*]] = const.Declare tensor<1xsi32> =
+    // CHECK-SAME:      dense<0> : tensor<si32>, [#const.Reshape<[1]>]
+
+    // CHECK:   [[REDUCE:%.*]] = IE.ReduceLogicalAnd(%arg0, [[AXIS]]) :
+    // CHECK-SAME:      tensor<10xf32>, tensor<1xsi32> -> tensor<1xf32>
+
+    // CHECK:   return [[REDUCE]] : tensor<1xf32>
+}
+
+// -----
+
+// CHECK-LABEL: @ReduceSum
+func.func @ReduceSum(%arg0: tensor<10xf32>) -> tensor<1xf32> {
+    %AXIS = const.Declare tensor<si32> = dense<0> : tensor<si32>
+    %REDUCE = IE.ReduceSum(%arg0, %AXIS) : tensor<10xf32>, tensor<si32> -> tensor<1xf32>
+    return %REDUCE : tensor<1xf32>
+
+    // CHECK:   [[AXIS:%.*]] = const.Declare tensor<1xsi32> =
+    // CHECK-SAME:      dense<0> : tensor<si32>, [#const.Reshape<[1]>]
+
+    // CHECK:   [[REDUCE:%.*]] = IE.ReduceSum(%arg0, [[AXIS]]) :
+    // CHECK-SAME:      tensor<10xf32>, tensor<1xsi32> -> tensor<1xf32>
+
+    // CHECK:   return [[REDUCE]] : tensor<1xf32>
+}
+
+// -----
+
+// CHECK-LABEL: @ReduceMin
+func.func @ReduceMin(%arg0: tensor<10xf32>) -> tensor<1xf32> {
+    %AXIS = const.Declare tensor<si32> = dense<0> : tensor<si32>
+    %REDUCE = IE.ReduceMin(%arg0, %AXIS) : tensor<10xf32>, tensor<si32> -> tensor<1xf32>
+    return %REDUCE : tensor<1xf32>
+
+    // CHECK:   [[AXIS:%.*]] = const.Declare tensor<1xsi32> =
+    // CHECK-SAME:      dense<0> : tensor<si32>, [#const.Reshape<[1]>]
+
+    // CHECK:   [[REDUCE:%.*]] = IE.ReduceMin(%arg0, [[AXIS]]) :
+    // CHECK-SAME:      tensor<10xf32>, tensor<1xsi32> -> tensor<1xf32>
+
+    // CHECK:   return [[REDUCE]] : tensor<1xf32>
+}
+
+// -----
+
+// CHECK-LABEL: @ReduceL1
+func.func @ReduceL1(%arg0: tensor<10xf32>) -> tensor<1xf32> {
+    %AXIS = const.Declare tensor<si32> = dense<0> : tensor<si32>
+    %REDUCE = IE.ReduceL1(%arg0, %AXIS) : tensor<10xf32>, tensor<si32> -> tensor<1xf32>
+    return %REDUCE : tensor<1xf32>
+
+    // CHECK:   [[AXIS:%.*]] = const.Declare tensor<1xsi32> =
+    // CHECK-SAME:      dense<0> : tensor<si32>, [#const.Reshape<[1]>]
+
+    // CHECK:   [[REDUCE:%.*]] = IE.ReduceL1(%arg0, [[AXIS]]) :
+    // CHECK-SAME:      tensor<10xf32>, tensor<1xsi32> -> tensor<1xf32>
+
+    // CHECK:   return [[REDUCE]] : tensor<1xf32>
+}
+
+// -----
+
+// CHECK-LABEL: @ReduceL2
+func.func @ReduceL2(%arg0: tensor<10xf32>) -> tensor<1xf32> {
+    %AXIS = const.Declare tensor<si32> = dense<0> : tensor<si32>
+    %REDUCE = IE.ReduceL2(%arg0, %AXIS) : tensor<10xf32>, tensor<si32> -> tensor<1xf32>
+    return %REDUCE : tensor<1xf32>
+
+    // CHECK:   [[AXIS:%.*]] = const.Declare tensor<1xsi32> =
+    // CHECK-SAME:      dense<0> : tensor<si32>, [#const.Reshape<[1]>]
+
+    // CHECK:   [[REDUCE:%.*]] = IE.ReduceL2(%arg0, [[AXIS]]) :
+    // CHECK-SAME:      tensor<10xf32>, tensor<1xsi32> -> tensor<1xf32>
+
+    // CHECK:   return [[REDUCE]] : tensor<1xf32>
 }

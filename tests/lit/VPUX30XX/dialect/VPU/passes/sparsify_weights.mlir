@@ -12,7 +12,7 @@ func.func @DoNotSparsifyPaddedConv(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}
     %weights = const.Declare tensor<16x16x1x1xf16, {order = #NHWC}> = dense<1.0> : tensor<16x15x1x1xf16>, [
         #const.Reorder<#NHWC>, #const.PadWithZero<[0, 0, 0, 0], [0, 1, 0, 0]>]
     %1 = VPU.NCE.Convolution(%arg0, %weights, %arg1) {
-            pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             rawFilterShape = [16, 16, 1, 1],
             strides = [1, 1]
         } -> tensor<1x16x16x16xf16, {order = #NHWC}>
@@ -32,7 +32,7 @@ func.func @SparsifyPaddedConv(%arg0: tensor<1x32x16x16xf16, {order = #NHWC}>, %a
     %weights = const.Declare tensor<16x32x1x1xf16, {order = #NHWC}> = dense<1.0> : tensor<16x15x1x1xf16>, [
         #const.Reorder<#NHWC>, #const.PadWithZero<[0, 0, 0, 0], [0, 17, 0, 0]>]
     %1 = VPU.NCE.Convolution(%arg0, %weights, %arg1) {
-            pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
             rawFilterShape = [16, 32, 1, 1],
             strides = [1, 1]
         } -> tensor<1x16x16x16xf16, {order = #NHWC}>

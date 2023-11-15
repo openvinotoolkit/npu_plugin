@@ -43,5 +43,21 @@ SmallVector<int64_t> getSWInputTensorNumTiles(VPU::InterpolateOp interpolateOp,
 SmallVector<int64_t> getSWInputTensorNumTiles(VPU::MultiplyOp multiplyOp, int64_t numClustersAvailableForCompilation,
                                               VPU::MultiClusterStrategy strategy, vpux::NDTypeInterface inputType);
 
+//
+// SameInOutDefaultDimsOrder
+//
+
+mlir::LogicalResult verifySameInOutDefaultDimsOrder(mlir::Operation* op);
+void inferLayoutInfoSameInOutDefaultDimsOrder(IE::LayerLayoutInfo& info);
+
+mlir::LogicalResult verifySameAnyDimsOrder(mlir::Operation* op);
+void inferLayoutInfoSameAnyDimsOrder(IE::LayerLayoutInfo& info);
+
+mlir::LogicalResult verifySameInOutSpecificDimsOrder(mlir::Operation* op, ArrayRef<DimsOrder> supportedLayouts);
+void inferLayoutInfoSameInOutSpecificDimsOrder(IE::LayerLayoutInfo& info, ArrayRef<DimsOrder> supportedLayouts);
+
+mlir::LogicalResult verifyReduceLayoutInfo(mlir::Operation* op);
+void inferReduceLayoutInfo(mlir::Operation* op, IE::LayerLayoutInfo& info);
+
 }  // namespace VPU
 }  // namespace vpux

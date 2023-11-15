@@ -101,6 +101,6 @@ void vpux::VPU::AvgPoolOp::adjustAttrs(const TilingInfo& inputTiling, const Tile
     IE::adjustPaddings(this, inputTiling);
 }
 
-OutputTiling vpux::VPU::AvgPoolOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
+mlir::FailureOr<OutputTiling> vpux::VPU::AvgPoolOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
     return vpux::getSWLayerTilingStrategy(this->getOperation(), tilingMode, log);
 }

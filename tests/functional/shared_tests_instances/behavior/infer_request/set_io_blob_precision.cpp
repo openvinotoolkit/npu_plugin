@@ -1,5 +1,6 @@
-// Copyright (C) 2018-2021 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) 2018-2021 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "behavior/infer_request/set_io_blob_precision.hpp"

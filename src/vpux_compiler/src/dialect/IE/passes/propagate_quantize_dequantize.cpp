@@ -18,8 +18,6 @@ using namespace vpux;
 
 namespace {
 
-constexpr int64_t QUANT_DEQUANT_RANK = 4;
-
 //
 // PropagateQuantize
 //
@@ -65,18 +63,7 @@ mlir::LogicalResult PropagateQuantize::matchAndRewrite(IE::ElemTypeInfoOpInterfa
         return mlir::failure();
     }
 
-    // 3. Check that tensor rank is 4, otherwise compilation fails in later passes
-    // E#31028
-    const auto hasNot4DRankNotElemType = [&](mlir::Value operand) {
-        return operand.getType().cast<vpux::NDTypeInterface>().getRank() != QUANT_DEQUANT_RANK &&
-               operand.getDefiningOp<IE::ElemTypeInfoOpInterface>() == nullptr;
-    };
-
-    if (llvm::any_of(layer->getOperands(), hasNot4DRankNotElemType)) {
-        return mlir::failure();
-    }
-
-    // 4. Check that operation supports quantization params propagation.
+    // 3. Check that operation supports quantization params propagation.
     const auto quantizedElemType = quantizeOp.output().getType().cast<vpux::NDTypeInterface>().getElementType();
     auto elemTypeInfo = origOp.getElemTypeInfo();
     for (size_t outputInd = 0; outputInd < layer->getNumResults(); outputInd++) {
@@ -193,21 +180,7 @@ mlir::LogicalResult PropagateDequantize::matchAndRewrite(IE::ElemTypeInfoOpInter
         return matchFailed(rewriter, origOp, "Dequantize inputs have different destination element type");
     }
 
-    // 3. Check that tensor rank is 4, otherwise compilation fails in later passes
-    // // E#31028
-    const auto isElemType = [&](auto user) {
-        return mlir::dyn_cast_or_null<IE::ElemTypeInfoOpInterface>(user) == nullptr;
-    };
-
-    if (llvm::any_of(layer->getUsers(), isElemType)) {
-        for (unsigned int outputInd = 0; outputInd < layer->getNumResults(); outputInd++) {
-            if (layer->getResult(outputInd).getType().cast<vpux::NDTypeInterface>().getRank() != QUANT_DEQUANT_RANK) {
-                return mlir::failure();
-            }
-        }
-    }
-
-    // 4. Check if operation supports quantization params propagation.
+    // 3. Check if operation supports quantization params propagation.
     auto elemTypeInfo = origOp.getElemTypeInfo();
 
     SmallVector<mlir::Type> originalTypes;
@@ -236,7 +209,7 @@ mlir::LogicalResult PropagateDequantize::matchAndRewrite(IE::ElemTypeInfoOpInter
         }
     }
 
-    // 5. Rewrite the sub-graph.
+    // 4. Rewrite the sub-graph.
     rewriter.startRootUpdate(origOp);
 
     const auto inputs = origOp->getOpOperands();

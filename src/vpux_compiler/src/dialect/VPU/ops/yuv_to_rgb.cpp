@@ -126,7 +126,7 @@ vpux::InputTiling vpux::VPU::YuvToRgbOp::backInferTileInfo(const vpux::TileInfo&
 void vpux::VPU::YuvToRgbOp::adjustAttrs(const TilingInfo& /*inputTiling*/, const TileInfo& /*outputTile*/) {
 }
 
-OutputTiling vpux::VPU::YuvToRgbOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
+mlir::FailureOr<OutputTiling> vpux::VPU::YuvToRgbOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
     auto op = this->getOperation();
     VPUX_THROW_WHEN(tilingMode != TilingMode::ISOLATED,
                     "Only supporting isolated tiling for YuvToRgbOp currently, for op {0} at '{1}'", op->getName(),
@@ -140,7 +140,10 @@ OutputTiling vpux::VPU::YuvToRgbOp::getTilingStrategy(TilingMode tilingMode, Log
     const auto isSupportedTileSize = [op, &tilingInfo, outputShape, log](ShapeRef nTilesOnDim,
                                                                          TilingMode tilingMode) -> bool {
         const auto tiles = fillDividedTiles(op, nTilesOnDim, outputShape);
-        return tilingInfo.isSupportedTiling(tiles, tilingMode, log);
+        if (mlir::failed(tiles)) {
+            return false;
+        }
+        return tilingInfo.isSupportedTiling(tiles.value(), tilingMode, log);
     };
 
     while (!isSupportedTileSize(nTilesOnDimforYuv2RGB, tilingMode)) {

@@ -6,6 +6,7 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/broadcast_utils.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -27,17 +28,6 @@ bool isGreaterShape(ShapeRef shape1, ShapeRef shape2) {
         }
     }
     return true;
-}
-
-Const::DeclareOp createShapeConst(mlir::PatternRewriter& rewriter, mlir::MLIRContext* ctx, mlir::Location loc,
-                                  ShapeRef shape) {
-    SmallVector<int64_t> constShape = {4};
-    auto intType = getSInt64Type(ctx);
-    const auto shapeStorageType = mlir::RankedTensorType::get(constShape, intType);
-    const auto shapeDenseAttr = mlir::DenseElementsAttr::get(shapeStorageType, shape.raw());
-    auto newContentAttr = Const::ContentAttr::get(shapeDenseAttr).convertElemType(getSInt32Type(ctx));
-
-    return rewriter.create<Const::DeclareOp>(loc, shapeStorageType, newContentAttr);
 }
 
 static inline Const::DeclareOp createConstOpFromValue(mlir::PatternRewriter& rewriter, mlir::Location loc, float val,
@@ -64,7 +54,7 @@ Const::DeclareOp getConstInput(IE::SubtractOp subtractOp) {
 mlir::Value createNegativeFqVal(mlir::PatternRewriter& rewriter, mlir::Location loc, mlir::Value fqVal,
                                 mlir::RankedTensorType storageType) {
     auto valConst = fqVal.getDefiningOp<Const::DeclareOp>();
-    auto valConstContent = valConst.content();
+    auto valConstContent = valConst.getContent();
 
     VPUX_THROW_UNLESS(valConstContent.isSplat(), "Second input's FQ constant is not splat");
     auto inValue = valConstContent.getSplatValue<float>();
@@ -124,7 +114,7 @@ mlir::LogicalResult ConvertSubtractToDWConvAdd::matchAndRewrite(IE::SubtractOp s
     auto fqInput2 = input2.getDefiningOp<IE::FakeQuantizeOp>();
     auto constInput2 = getConstInput(subOp);
     if (constInput2 != nullptr) {
-        auto constInput2Content = constInput2.contentAttr();
+        auto constInput2Content = constInput2.getContentAttr();
         auto negativeContent = constInput2Content.rescale(-1.0);
         negativeInput = rewriter.create<Const::DeclareOp>(subOpLoc, constInput2.getType(), negativeContent);
     } else {
@@ -132,7 +122,7 @@ mlir::LogicalResult ConvertSubtractToDWConvAdd::matchAndRewrite(IE::SubtractOp s
         const Shape filterShape = {inputC, 1, 1, 1};
         const auto filterStorageType = mlir::RankedTensorType::get(to_small_vector(filterShape), elemType);
         auto dwConvFilter = createConstOpFromValue(rewriter, subOpLoc, -1.0f, filterStorageType);
-        auto filter = dwConvFilter.output();
+        auto filter = dwConvFilter.getOutput();
 
         if (fqInput2 != nullptr) {
             const auto fqArgType = mlir::RankedTensorType::get({}, elemType);
@@ -167,12 +157,14 @@ mlir::LogicalResult ConvertSubtractToDWConvAdd::matchAndRewrite(IE::SubtractOp s
             const auto broadcastType = IE::BroadcastTypeAttr::get(ctx, IE::BroadcastType::NUMPY);
             if (isGreaterShape(input1Shape, negativeInputShape)) {
                 inputBroadcast = rewriter.create<IE::BroadcastOp>(
-                        subOpLoc, negativeInput, createShapeConst(rewriter, ctx, subOpLoc, input1Shape), nullptr,
+                        subOpLoc, negativeInput,
+                        vpux::IE::createShapeConstForBroadCast(rewriter, ctx, subOpLoc, input1Shape), nullptr,
                         broadcastType);
                 negativeInput = inputBroadcast.output();
             } else {
                 inputBroadcast = rewriter.create<IE::BroadcastOp>(
-                        subOpLoc, input1, createShapeConst(rewriter, ctx, subOpLoc, negativeInputShape), nullptr,
+                        subOpLoc, input1,
+                        vpux::IE::createShapeConstForBroadCast(rewriter, ctx, subOpLoc, negativeInputShape), nullptr,
                         broadcastType);
                 input1 = inputBroadcast.output();
             }

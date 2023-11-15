@@ -13,9 +13,8 @@ func.func @FuseSubViewIntoSETableOp(%arg0 : memref<1x1x5x9xi32, #NHWC>) -> memre
     %se_table = VPUIP.StorageElementTable {
                     dataElemType = f16,
                     dataShape = [1, 64, 4, 4],
-                    seAttr = #VPU.SEInterpolate<mode = "BILINEAR",
-                                                nearest_mode = "FLOOR",
-                                                coordinate_transformation_mode = "ASYMMETRIC",
+                    seAttr = #VPU.SEInterpolate<mode = <BILINEAR>,
+                                                coordinate_transformation_mode = <ASYMMETRIC>,
                                                 scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00],
                                                 offsets = [0, 0, 0, 0],
                                                 sizes = [1, 64, 9, 9]>,
@@ -35,9 +34,8 @@ func.func @FuseSubViewIntoSETableOp(%arg0 : memref<1x1x5x9xi32, #NHWC>) -> memre
     // CHECK: [[SE_TABLE:%.+]] = VPUIP.StorageElementTable {
     // CHECK-SAME:                     dataElemType = f16,
     // CHECK-SAME:                     dataShape = [1, 32, 3, 4],
-    // CHECK-SAME:                     seAttr = #VPU.SEInterpolate<mode = "BILINEAR",
-    // CHECK-SAME:                                                 nearest_mode = "FLOOR",
-    // CHECK-SAME:                                                 coordinate_transformation_mode = "ASYMMETRIC",
+    // CHECK-SAME:                     seAttr = #VPU.SEInterpolate<mode = <BILINEAR>,
+    // CHECK-SAME:                                                 coordinate_transformation_mode = <ASYMMETRIC>,
     // CHECK-SAME:                                                 scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00],
     // CHECK-SAME:                                                 offsets = [0, 0, 0, 0],
     // CHECK-SAME:                                                 sizes = [1, 32, 5, 9]>,

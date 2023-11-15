@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -37,46 +38,95 @@ mlir::LogicalResult vpux::VPUIP::ShapeCastOp::verify() {
     return mlir::success();
 }
 
-vpux::NDTypeInterface checkAndUpdateDistributedType(vpux::VPUIP::DistributedBufferType inTypeDistr,
-                                                    llvm::SmallVector<int64_t> shape, VPU::ArchKind arch) {
-    const auto distrMode = inTypeDistr.getDistribution().mode().getValue();
-    if (VPU::bitEnumContains(distrMode, VPU::DistributionMode::SEGMENTED) ||
-        VPU::bitEnumContains(distrMode, VPU::DistributionMode::OVERLAPPED)) {
-        const auto origShape = inTypeDistr.getShape().raw();
-        const auto isSameDimAsClustering = [&]() {
-            const auto numTiles = parseIntArrayAttr<int64_t>(inTypeDistr.getDistribution().num_tiles());
-            for (auto dim : irange(origShape.size())) {
-                if (numTiles[dim] > 1 && origShape[dim] != shape[dim]) {
-                    return false;
+namespace {
+VPU::DistributedTensorAttr getDistributedAttrAfterShapeCast(VPUIP::DistributedBufferType origDistrType,
+                                                            ArrayRef<int64_t> shape, VPU::ArchKind arch) {
+    const auto origDistribution = origDistrType.getDistribution();
+    const auto mode = origDistribution.getMode().getValue();
+    const auto origShape = origDistrType.getShape().raw();
+    auto ctx = origDistrType.getContext();
+
+    const auto isSameDimAsClustering = [&]() {
+        const auto numTiles = parseIntArrayAttr<int64_t>(origDistribution.getNumTiles());
+        for (auto dim : irange(origShape.size())) {
+            if (numTiles[dim] > 1 && origShape[dim] != shape[dim]) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    // ShapeCastOp is not a "compute" op, therefore memory and compute shapes are the same
+    if (VPU::isDistributedAttrWithExplicitShapesAndOffsets(origDistribution)) {
+        VPUX_THROW_WHEN((mode != VPU::DistributionMode::OVERLAPPED) && (mode != VPU::DistributionMode::SEGMENTED) &&
+                                !VPU::bitEnumContains(mode, VPU::DistributionMode::DUPLICATED) &&
+                                !VPU::bitEnumContains(mode, VPU::DistributionMode::MULTICASTED),
+                        "Cannot cast shape with explicit memory/compute shapes/offsets with DistributionMode {0}",
+                        origDistribution.getMode());
+
+        const auto numClusters = static_cast<size_t>(origDistribution.getNumClusters().getInt());
+
+        // When having full output broadcasted across all clusters, offsets stay the same as original ones
+        // and shape changes to the new one indicated by ShapeCast
+        const auto shapeVec = SmallVector<int64_t>(shape.begin(), shape.end());
+        auto perClusterShapes = SmallVector<SmallVector<int64_t>>(numClusters, shapeVec);
+
+        // SEGMENTED/OVERLAPPED case
+        if ((mode == VPU::DistributionMode::OVERLAPPED) || (mode == VPU::DistributionMode::SEGMENTED)) {
+            VPUX_THROW_WHEN(
+                    isSameDimAsClustering(),
+                    "Cannot cast shape from '{0}' to '{1}' when having explicit memory/compute shapes/offsets as "
+                    "segmentation dim changes at output",
+                    origShape, shape);
+
+            // Use newly casted shape for all dims except the clustering dim
+            const auto origPerClusterShapes = parseIntArrayOfArrayAttr<int64_t>(origDistribution.getMemoryShapes());
+            const auto numTiles = parseIntArrayAttr<int64_t>(origDistribution.getNumTiles());
+            for (size_t cluster = 0; cluster < numClusters; cluster++) {
+                for (size_t dim = 0; dim < shape.size(); dim++) {
+                    if (numTiles[dim] != 1) {
+                        perClusterShapes[cluster][dim] = origPerClusterShapes[cluster][dim];
+                    }
                 }
             }
-            return true;
-        };
-        VPUX_THROW_UNLESS(isSameDimAsClustering() ||
-                                  VPUIP::isDistributedCompatibleAfterShapeChange(inTypeDistr, ShapeRef(shape), arch),
-                          "Cannot cast shape from '{0}' to '{1}' as clustering", origShape, shape);
+        }
+
+        auto perClusterShapesAttr = vpux::getIntArrayOfArray(ctx, perClusterShapes);
+        return VPU::DistributedTensorAttr::get(
+                ctx, origDistribution.getMode(), origDistribution.getNumTiles(), origDistribution.getKernel(),
+                origDistribution.getPads(), origDistribution.getStrides(), origDistribution.getNumClusters(),
+                origDistribution.getAlignment(), origDistribution.getUniformDistributedSegments(), perClusterShapesAttr,
+                origDistribution.getMemoryOffsets(), perClusterShapesAttr, origDistribution.getMemoryOffsets(),
+                origDistribution.getEqualMemoryAndComputeView());
     }
 
-    auto outType = inTypeDistr.cast<NDTypeInterface>().changeShape(ShapeRef(shape));
-    const auto order = outType.getDimsOrder();
+    if (VPU::bitEnumContains(mode, VPU::DistributionMode::SEGMENTED)) {
+        VPUX_THROW_WHEN(isSameDimAsClustering() &&
+                                !VPUIP::isDistributedCompatibleAfterShapeChange(origDistrType, ShapeRef(shape), arch),
+                        "Cannot cast shape from '{0}' to '{1}' as clustering", origShape, shape);
+    }
+
+    VPUX_THROW_WHEN((mode == VPU::DistributionMode::OVERLAPPED) && isSameDimAsClustering(),
+                    "Cannot cast shape from '{0}' to '{1}' as OVERLAPPED clustering; clustering dim changes at output",
+                    origShape, shape);
+
+    if (VPU::isSegmentedOverH(origDistribution)) {
+        return getSOHDistAttrWithNewShape(ctx, origDistrType, ShapeRef(shape), arch);
+    }
+
+    return origDistribution;
+}
+}  // namespace
+
+vpux::NDTypeInterface checkAndUpdateDistributedType(vpux::VPUIP::DistributedBufferType inTypeDistr,
+                                                    ArrayRef<int64_t> shape, VPU::ArchKind arch) {
     const auto ctx = inTypeDistr.getContext();
-    const auto mode = inTypeDistr.getDistribution().mode().getValue();
-    const auto newDistribution =
-            mode == VPU::DistributionMode::SEGMENTED && VPUIP::isSegmentedOverH(inTypeDistr.getDistribution())
-                    ? getSOHDistAttrWithNewShape(ctx, inTypeDistr, ShapeRef(shape), arch)
-                    : inTypeDistr.getDistribution();
-    outType = VPUIP::DistributedBufferType::get(ctx, shape, outType.getElementType(),
-                                                mlir::AffineMapAttr::get(order.toAffineMap(ctx)), outType.getMemSpace(),
-                                                newDistribution);
+    auto newDistribution = getDistributedAttrAfterShapeCast(inTypeDistr, shape, arch);
+    auto outType = inTypeDistr.changeShapeForExplicitDistribution(ShapeRef(shape), newDistribution);
 
-    if (!inTypeDistr.getLayout().isa<mlir::AffineMapAttr>()) {
-        const auto memStrides = StrideReqs::compact(order.numDims()).calcStrides(order, outType);
-        auto compactStrides = order.toLogicalOrder(memStrides);
-        auto newOutType = outType.changeStrides(StridesRef(compactStrides));
-        return newOutType;
-    }
-
-    return outType;
+    return VPUIP::DistributedBufferType::get(ctx, shape, outType.getElementType(),
+                                             mlir::AffineMapAttr::get(outType.getDimsOrder().toAffineMap(ctx)),
+                                             outType.getMemSpace(), newDistribution);
 }
 
 //

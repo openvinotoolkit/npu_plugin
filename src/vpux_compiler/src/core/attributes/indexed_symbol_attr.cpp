@@ -129,7 +129,7 @@ mlir::SymbolRefAttr vpux::IndexedSymbolAttr::getFullReference() const {
     const auto rootRef = getRootReference();
 
     SmallVector<mlir::FlatSymbolRefAttr> nestedRefs;
-    for (auto nested = getNestedReference(); nested.hasValue(); nested = nested->getNestedReference()) {
+    for (auto nested = getNestedReference(); nested.has_value(); nested = nested->getNestedReference()) {
         nestedRefs.push_back(nested->getRootReference());
     }
 

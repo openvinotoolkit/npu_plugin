@@ -1,5 +1,6 @@
-// Copyright (C) 2019 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) 2019 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "subgraph_tests/split_conv_concat.hpp"
@@ -7,7 +8,7 @@
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 using namespace SubgraphTestsDefinitions;
 
@@ -19,6 +20,6 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_NoReshape, SplitConvConcat,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::SizeVector({1, 6, 40, 40})),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          SplitConvConcat::getTestCaseName);
 }  // namespace

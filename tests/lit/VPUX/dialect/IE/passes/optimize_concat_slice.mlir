@@ -58,11 +58,11 @@ func.func @ChangesAtHeightTwoUsers(%arg0: tensor<1x16x4x4xf16>, %arg1 : tensor<1
 
 // CHECK-LABEL: @NoChangesNoOffsetAttribute
 func.func @NoChangesNoOffsetAttribute(%arg0: tensor<1x16x4x4xf16>, %arg1 : tensor<1x16x3x4xf16>) -> tensor<1x16x3x4xf16> {
-    %0 = IE.Concat(%arg0, %arg1) { per_axis={axis = 2 : i64} } : tensor<1x16x4x4xf16>, tensor<1x16x3x4xf16> -> tensor<1x16x7x4xf16>
+    %0 = IE.Concat(%arg0, %arg1) { per_axis = #IE.Concat<axis = 2 : i64> } : tensor<1x16x4x4xf16>, tensor<1x16x3x4xf16> -> tensor<1x16x7x4xf16>
     %1 = IE.Slice %0 [0, 0, 4, 0] [1, 16, 3, 4] : tensor<1x16x7x4xf16> to tensor<1x16x3x4xf16>
     return %1 : tensor<1x16x3x4xf16>
 
-    // CHECK: [[VAR0:%.+]] = IE.Concat(%arg0, %arg1) {per_axis = {axis = 2 : i64}} : tensor<1x16x4x4xf16>, tensor<1x16x3x4xf16> -> tensor<1x16x7x4xf16>
+    // CHECK: [[VAR0:%.+]] = IE.Concat(%arg0, %arg1) {per_axis = #IE.Concat<axis = 2 : i64>} : tensor<1x16x4x4xf16>, tensor<1x16x3x4xf16> -> tensor<1x16x7x4xf16>
     // CHECK: [[VAR1:%.+]] = IE.Slice [[VAR0]] [0, 0, 4, 0] [1, 16, 3, 4] : tensor<1x16x7x4xf16> to tensor<1x16x3x4xf16>
     // CHECK: return [[VAR1:%.+]] : tensor<1x16x3x4xf16>
 
@@ -104,3 +104,5 @@ func.func @ChangesAtChannelHeight(%arg0: tensor<1x3x4x4xf16>, %arg1 : tensor<1x3
     // CHECK: return [[VAR0]] : tensor<1x2x2x2xf16>
 
 }
+
+

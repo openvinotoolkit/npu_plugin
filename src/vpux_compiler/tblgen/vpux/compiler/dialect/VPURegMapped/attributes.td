@@ -9,6 +9,21 @@
 include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/dialect/VPURegMapped/dialect.td"
 
+//
+// Base classes
+//
+
+class VPURegMapped_I64EnumAttr <string name, string summary, list<I64EnumAttrCase> cases> : 
+        I64EnumAttr<name, summary, cases> {
+    let cppNamespace = "vpux::VPURegMapped";
+    let genSpecializedAttr = 0;
+}
+
+class VPURegMapped_EnumAttr <EnumAttrInfo enumInfo, string name = "", list <Trait> traits = []> : 
+        EnumAttr<VPURegMapped_Dialect, enumInfo, name, traits> {
+    let assemblyFormat = "`<`$value`>`";
+}
+
 class VPURegMapped_Attr<string name, list<Trait> traits = []> : AttrDef<VPURegMapped_Dialect, name, traits> {
     let mnemonic = name;
 }
@@ -18,18 +33,18 @@ class VPURegMapped_Attr<string name, list<Trait> traits = []> : AttrDef<VPURegMa
 //
 
 def VPURegMapped_RegFieldDataType :
-        StrEnumAttr<
-            "RegFieldDataType",
-            "RegFieldDataType that the regField supports",
-            [
-                StrEnumAttrCase<"UINT">,
-                StrEnumAttrCase<"SINT">,
-                StrEnumAttrCase<"FP">,
-            ]
-        > {
-    let cppNamespace = "vpux::VPURegMapped";
-    let genSpecializedAttr = 1;
+    VPURegMapped_I64EnumAttr<
+        "RegFieldDataType",
+        "RegFieldDataType that the regField supports",
+        [
+            I64EnumAttrCase<"UINT", 0>,
+            I64EnumAttrCase<"SINT", 1>,
+            I64EnumAttrCase<"FP",   2>,
+        ]
+    > {
 }
+
+def VPURegMapped_RegFieldDataTypeAttr : VPURegMapped_EnumAttr<VPURegMapped_RegFieldDataType, "reg_field_data_type">;
 
 //
 // RegisterFieldAttr
@@ -96,19 +111,19 @@ def VPURegMapped_RegisterMappedAttr : VPURegMapped_Attr<"RegisterMapped"> {
 //
 
 def VPURegMapped_TaskType :
-        StrEnumAttr<
-            "TaskType",
-            "The type of the relevant processing code of the VPU for the task",
-            [
-                StrEnumAttrCase<"DMA">,
-                StrEnumAttrCase<"ActKernelInvocation">,
-                StrEnumAttrCase<"ActKernelRange">,
-                StrEnumAttrCase<"DPUInvariant">,
-                StrEnumAttrCase<"DPUVariant">
-            ]
-        > {
-    let cppNamespace = "vpux::VPURegMapped";
-    let genSpecializedAttr = 1;
+    VPURegMapped_I64EnumAttr<
+        "TaskType",
+        "The type of the relevant processing code of the VPU for the task",
+        [
+            I64EnumAttrCase<"DMA",                 0>,
+            I64EnumAttrCase<"ActKernelInvocation", 1>,
+            I64EnumAttrCase<"ActKernelRange",      2>,
+            I64EnumAttrCase<"DPUInvariant",        3>,
+            I64EnumAttrCase<"DPUVariant",          4>
+        ]
+    > {
 }
+
+def VPURegMapped_TaskTypeAttr : VPURegMapped_EnumAttr<VPURegMapped_TaskType, "task_type">;
 
 #endif

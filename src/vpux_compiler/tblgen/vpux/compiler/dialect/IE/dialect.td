@@ -62,16 +62,16 @@ It deals with the following resource types:
 
 ```MLIR
 IE.ExecutorResource 16 of @SHAVE_UPA
-IE.ExecutorResource 20 of @SHAVE_NN
-IE.ExecutorResource 1 of @SHAVE_ACT
 IE.ExecutorResource 4 of @NCE {
     IE.ExecutorResource 5 of @DPU
+    IE.ExecutorResource 5 of @SHAVE_NN
+    IE.ExecutorResource 1 of @SHAVE_ACT
+    IE.MemoryResource 1048576 bytes of @CMX_NN {VPUIP.bandwidth = 32 : i64, VPUIP.derateFactor = 1.000000e+00 : f64}
 }
 IE.ExecutorResource 1 of @DMA_NN
 
 IE.MemoryResource 31457280 bytes of @DDR {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}
 IE.MemoryResource 4194304 bytes of @CMX_UPA {VPUIP.bandwidth = 16 : i64, VPUIP.derateFactor = 8.500000e-01 : f64}
-IE.MemoryResource 1048576 bytes of @CMX_NN {VPUIP.bandwidth = 32 : i64, VPUIP.derateFactor = 1.000000e+00 : f64}
 
 module @UsedMemory : {
     IE.MemoryResource 2048 bytes of @DDR
@@ -101,6 +101,8 @@ The `IE.ExecutorResource` and `IE.MemoryResource` are added by underlying low-le
 
     let hasConstantMaterializer = 1;
     let useDefaultAttributePrinterParser = 1;
+
+    let emitAccessorPrefix = kEmitAccessorPrefix_Both;
 }
 
 #endif

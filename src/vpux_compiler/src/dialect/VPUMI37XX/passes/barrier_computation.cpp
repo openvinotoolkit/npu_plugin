@@ -9,7 +9,7 @@
 #include "vpux/compiler/dialect/VPUMI37XX/passes.hpp"
 #include "vpux/compiler/dialect/VPUMI37XX/utils.hpp"
 
-#include "vpux/compiler/dialect/VPU37XX/api/vpu_nnrt_api.h"
+#include <vpu_nnrt_api_37xx.h>
 
 using namespace vpux;
 
@@ -52,10 +52,10 @@ struct VirtualDependencyTracker {
 
         Dependency d{};
 
-        if (!extract(d.consumer_, taskOp.waitBarriers()))
+        if (!extract(d.consumer_, taskOp.getWaitBarriers()))
             return UINT_MAX;
 
-        if (!extract(d.producer_, taskOp.updateBarriers()))
+        if (!extract(d.producer_, taskOp.getUpdateBarriers()))
             return UINT_MAX;
 
         if (d.consumer_.second || d.producer_.second) {
@@ -232,7 +232,7 @@ private:
             auto vid = opIndexType.getValue();
 
             if (vid >= MAX_PID) {
-                nextSameID[op.id()].push_back(vid);
+                nextSameID[op.getId()].push_back(vid);
             }
         }
 
@@ -240,15 +240,15 @@ private:
         for (auto op : funcOp.getOps<VPUMI37XX::ConfigureBarrierOp>()) {
             auto newNextSameID = -1;
 
-            if (!copyOfNextSameID[op.id()].empty()) {
-                newNextSameID = copyOfNextSameID[op.id()].front();
-                copyOfNextSameID[op.id()].pop_front();
+            if (!copyOfNextSameID[op.getId()].empty()) {
+                newNextSameID = copyOfNextSameID[op.getId()].front();
+                copyOfNextSameID[op.getId()].pop_front();
             }
 
             auto newNextSameIDAttr =
                     mlir::IntegerAttr::get(mlir::IntegerType::get(ctx, 32, mlir::IntegerType::Signed), newNextSameID);
 
-            op.next_same_idAttr(newNextSameIDAttr);
+            op.setNextSameIdAttr(newNextSameIDAttr);
         }
     }
 
@@ -291,10 +291,10 @@ private:
 
         VirtualDependencyTracker vdt_;
         auto dmas0 = buildTaskVector<VPUMI37XX::NNDMAOp>(funcOp, vdt_, [](VPUMI37XX::NNDMAOp dma) {
-            return dma.port() == 0;
+            return dma.getPort() == 0;
         });
         auto dmas1 = buildTaskVector<VPUMI37XX::NNDMAOp>(funcOp, vdt_, [](VPUMI37XX::NNDMAOp dma) {
-            return dma.port() == 1;
+            return dma.getPort() == 1;
         });
         auto dpus = buildTaskVector<VPUMI37XX::DPUInvariantOp>(funcOp, vdt_);
         auto acts = buildTaskVector<VPUMI37XX::ActKernelInvocationOp>(funcOp, vdt_);
@@ -302,9 +302,10 @@ private:
         std::vector<nn_public::VpuBarrierCountConfig> barriersConfigs;
         unsigned char nn_barriers_ = 0;
         for (auto op : funcOp.getOps<VPUMI37XX::ConfigureBarrierOp>()) {
-            barriersConfigs.push_back(nn_public::VpuBarrierCountConfig{-1, op.producer_count().getValue(),
-                                                                       op.consumer_count().getValue(), op.id(), 0});
-            nn_barriers_ = std::max<unsigned char>(nn_barriers_, op.id() + 1);
+            barriersConfigs.push_back(nn_public::VpuBarrierCountConfig{std::numeric_limits<uint16_t>::max(),
+                                                                       op.getProducerCount().value(),
+                                                                       op.getConsumerCount().value(), op.getId(), 0});
+            nn_barriers_ = std::max<unsigned char>(nn_barriers_, op.getId() + 1);
         }
 
         simulateBarriers(barriersConfigs, nn_barriers_, dmas0, dmas1, dpus, acts, vdt_);

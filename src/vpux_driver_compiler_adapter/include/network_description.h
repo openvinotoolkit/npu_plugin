@@ -11,10 +11,8 @@ namespace vpux {
 namespace driverCompilerAdapter {
 
 struct NetworkMeta final {
-    DataMap networkInputs;
-    DataMap networkOutputs;
-    DataMap deviceInputs;
-    DataMap deviceOutputs;
+    NetworkIOVector deviceInputs;
+    NetworkIOVector deviceOutputs;
     std::vector<OVRawNode> ovResults;
     std::vector<OVRawNode> ovParameters;
     int numStreams = 1;
@@ -25,14 +23,12 @@ struct NetworkMeta final {
  */
 class NetworkDescription final : public INetworkDescription {
 public:
-    NetworkDescription(const std::vector<char>& compiledNetwork, const std::string& name, const DataMap& networkInputs,
-                       const DataMap& networkOutputs, const DataMap& deviceInputs, const DataMap& deviceOutputs,
+    NetworkDescription(const std::vector<char>& compiledNetwork, const std::string& name,
+                       const NetworkIOVector& deviceInputs, const NetworkIOVector& deviceOutputs,
                        const std::vector<OVRawNode>& ovResults, const std::vector<OVRawNode>& ovParameters,
                        int numStreams)
             : _compiledNetwork(compiledNetwork),
               _name(name),
-              _networkInputs(networkInputs),
-              _networkOutputs(networkOutputs),
               _deviceInputs(deviceInputs),
               _deviceOutputs(deviceOutputs),
               _ovResults(ovResults),
@@ -42,16 +38,11 @@ public:
 
     NetworkDescription(const std::vector<char>& compiledNetwork, const std::string& name,
                        const NetworkMeta& networkMeta)
-            : NetworkDescription(compiledNetwork, name, networkMeta.networkInputs, networkMeta.networkOutputs,
-                                 networkMeta.deviceInputs, networkMeta.deviceOutputs, networkMeta.ovResults,
-                                 networkMeta.ovParameters, networkMeta.numStreams) {
+            : NetworkDescription(compiledNetwork, name, networkMeta.deviceInputs, networkMeta.deviceOutputs,
+                                 networkMeta.ovResults, networkMeta.ovParameters, networkMeta.numStreams) {
     }
 
 public:
-    const vpux::QuantizationParamMap& getQuantParamsInfo() const final {
-        return _quantParams;
-    }
-
     const std::vector<char>& getCompiledNetwork() const final {
         return _compiledNetwork;
     }
@@ -68,20 +59,13 @@ public:
         return _name;
     }
 
-    const DataMap& getInputsInfo() const final {
-        return _networkInputs;
-    }
-    const DataMap& getOutputsInfo() const final {
-        return _networkOutputs;
-    }
-
-    const DataMap& getDeviceInputsInfo() const final {
+    const NetworkIOVector& getDeviceInputsInfo() const final {
         return _deviceInputs;
     }
-    const DataMap& getDeviceOutputsInfo() const final {
+    const NetworkIOVector& getDeviceOutputsInfo() const final {
         return _deviceOutputs;
     }
-    const DataMap& getDeviceProfilingOutputsInfo() const final {
+    const NetworkIOVector& getDeviceProfilingOutputsInfo() const final {
         return _profilingOutputs;
     }
 
@@ -101,17 +85,11 @@ private:
 
     std::string _name;
 
-    DataMap _networkInputs;
-    DataMap _networkOutputs;
-
-    DataMap _deviceInputs;
-    DataMap _deviceOutputs;
+    NetworkIOVector _deviceInputs;
+    NetworkIOVector _deviceOutputs;
 
     // TODO #-30194 Add profiling support for driver compiler adapter and CID
-    DataMap _profilingOutputs;
-
-    // TODO #-30195 Add quant params support
-    vpux::QuantizationParamMap _quantParams{};
+    NetworkIOVector _profilingOutputs;
 
     // TODO #-30196 Support ovParameters and ovResults which required for OV2.0 support
     const std::vector<vpux::OVRawNode> _ovParameters;

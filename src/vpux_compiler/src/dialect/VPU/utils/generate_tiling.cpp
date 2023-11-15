@@ -2,6 +2,7 @@
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 #include <llvm/ADT/TypeSwitch.h>
 
 #include "vpux/compiler/core/attributes/dim.hpp"
@@ -14,7 +15,14 @@
 namespace vpux {
 namespace VPU {
 
-OutputTiling getLayerTilingStrategy(VPU::TilingBuilderOpInterface origOp, bool enablePrefetchTiling, Logger log) {
+mlir::FailureOr<OutputTiling> getLayerTilingStrategy(VPU::TilingBuilderOpInterface origOp, bool enablePrefetchTiling,
+                                                     Logger log) {
+    auto tilingMode = TilingMode::ISOLATED;
+    return getLayerTilingStrategy(origOp, enablePrefetchTiling, log, tilingMode);
+}
+
+mlir::FailureOr<OutputTiling> getLayerTilingStrategy(VPU::TilingBuilderOpInterface origOp, bool enablePrefetchTiling,
+                                                     Logger log, TilingMode& mode) {
     log.trace("getLayerTilingStrategy for op '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
     auto op = origOp.getOperation();
     auto tilingInfo = mlir::cast<VPU::TilingInfoOpInterface>(op);
@@ -22,7 +30,7 @@ OutputTiling getLayerTilingStrategy(VPU::TilingBuilderOpInterface origOp, bool e
     log.nest().trace("Enable Prefetch Tiling: {0}", enablePrefetchTiling);
 
     // Default to ISOLATED mode
-    auto mode = TilingMode::ISOLATED;
+    mode = TilingMode::ISOLATED;
 
     // Prefetching for HW layers
     if (enablePrefetchTiling && mlir::isa<VPU::NCEOpInterface>(op)) {
@@ -45,7 +53,7 @@ mlir::LogicalResult checkAndAlignActInputTiling(vpux::VPU::NCEOpInterface nceOp,
         return mlir::success();
     }
     log.trace("Inferred activation input tiling {0} is invalid for {1}", inputTiling.tiles[0], nceOp->getName());
-    auto stride = nceOp.getStrides()[Dims4D::Strides::X.ind()];  // get W side strides
+    auto stride = nceOp.getStridesVal()[Dims4D::Strides::X.ind()];  // get W side strides
     int64_t bias = 0;
     auto newInputActTiling = inputTiling.tiles[0];
     while (++bias < stride) {
@@ -105,7 +113,7 @@ SmallVector<mlir::Value> reifyTileTopK(VPU::TilingBuilderOpInterface origOp, con
 
 // Temporari solution until E#59988 will be implemented.
 // Function can be deleted when E#59993 related interface will be added.
-mlir::LogicalResult applyTileStrategyTopK(VPU::TilingBuilderOpInterface origOp, OutputTiling tiles,
+mlir::LogicalResult applyTileStrategyTopK(VPU::TilingBuilderOpInterface origOp, const OutputTiling& tiles,
                                           mlir::PatternRewriter& rewriter, Logger log) {
     // apply the generated tiling strategy and create tiled operations
     // insert the tiled pattern with a concat to the IR
@@ -126,6 +134,84 @@ mlir::LogicalResult applyTileStrategyTopK(VPU::TilingBuilderOpInterface origOp, 
 
     SmallVector<mlir::Value> opsConcat;
     for (auto& p : origOp->getResults() | indexed) {
+        auto idx = p.index();
+        auto opConcat = rewriter.create<VPU::ConcatOp>(origOp->getLoc(), origOp->getResult(idx).getType(),
+                                                       mlir::ValueRange(resultTileVals[idx]),
+                                                       makeArrayRef(resultTileOffsets[idx]));
+        opsConcat.push_back(opConcat.output());
+    }
+    rewriter.replaceOp(origOp, opsConcat);
+
+    return mlir::success();
+}
+
+// Function can be deleted when E#59993 related interface will be added.
+SmallVector<mlir::Value> reifyTilesDetectionOutputSortTopK(VPU::TilingBuilderOpInterface origOp,
+                                                           const TileInfo& outputTile, mlir::OpBuilder& builder,
+                                                           Logger log) {
+    log = log.nest(2);
+    log.trace("{0}", outputTile);
+
+    auto inputTiling = origOp.backInferTileInfo(outputTile, log);
+    auto& inTiles = inputTiling.tiles;
+
+    VPUX_THROW_UNLESS(!inTiles.empty(), "Got empty tile information");
+
+    mlir::BlockAndValueMapping mapper;
+    for (auto& p : origOp->getOperands() | indexed) {
+        auto origInput = p.value();
+        auto inputIdx = p.index();
+
+        const auto valName = printToString("input {0}", inputIdx);
+        const auto tiledInput = vpux::VPU::makeTile(builder, origOp->getLoc(), origInput, inTiles[inputIdx], valName);
+
+        mapper.map(origInput, tiledInput);
+    }
+
+    const auto tileLoc = appendLoc(origOp->getLoc(), "output tile {0}", outputTile.offsets);
+
+    auto* tiledOp = builder.clone(*origOp, mapper);
+    tiledOp->setLoc(tileLoc);
+
+    auto tiledBuilderOp = mlir::dyn_cast<VPU::TilingBuilderOpInterface>(tiledOp);
+    VPUX_THROW_WHEN(tiledBuilderOp == nullptr, "Operation '{0}' doesn't implement TilingBuilderOpInterface",
+                    tiledBuilderOp->getName());
+
+    tiledBuilderOp.adjustAttrs(inputTiling, outputTile);
+
+    vpux::inferReturnTypes(tiledOp, vpux::InferShapedTypeMode::ALL);
+
+    return tiledOp->getResults();
+}
+
+// This is an attempt to implement multi-output tiling
+// Should be removed after a common approach will be implemented E#59993
+mlir::LogicalResult applyTileStrategyDetectionOutputSortTopK(VPU::TilingBuilderOpInterface origOp,
+                                                             const OutputTiling& tiles, mlir::PatternRewriter& rewriter,
+                                                             Logger log) {
+    auto resultTileVals = SmallVector<SmallVector<mlir::Value>>(origOp->getNumResults());
+    auto resultTileOffsets = SmallVector<SmallVector<Shape>>(origOp->getNumResults());
+
+    for (const auto& outputTile : tiles) {
+        const auto values = reifyTilesDetectionOutputSortTopK(origOp, outputTile, rewriter, log);
+        const auto outputTiles = origOp.getOutputTiling(outputTile, log);
+
+        for (const auto& p : zip(values, outputTiles)) {
+            const auto tiledShape = getShape(std::get<0>(p));
+            VPUX_THROW_UNLESS(tiledShape == std::get<1>(p).shape,
+                              "Inferred tiled output shape '{0}' doesn't match with generated '{1}'", tiledShape,
+                              outputTile.shape);
+        }
+
+        for (const auto& p : origOp->getResults() | indexed) {
+            auto idx = p.index();
+            resultTileOffsets[idx].push_back(outputTiles[idx].offsets);
+            resultTileVals[idx].push_back(values[idx]);
+        }
+    }
+
+    SmallVector<mlir::Value> opsConcat;
+    for (const auto& p : origOp->getResults() | indexed) {
         auto idx = p.index();
         auto opConcat = rewriter.create<VPU::ConcatOp>(origOp->getLoc(), origOp->getResult(idx).getType(),
                                                        mlir::ValueRange(resultTileVals[idx]),
@@ -178,7 +264,7 @@ mlir::Value reifyTile(VPU::TilingBuilderOpInterface origOp, const TileInfo& outp
     return tiledRes;
 }
 
-mlir::LogicalResult applyTileStrategy(VPU::TilingBuilderOpInterface origOp, OutputTiling tiles,
+mlir::LogicalResult applyTileStrategy(VPU::TilingBuilderOpInterface origOp, const OutputTiling& tiles,
                                       mlir::PatternRewriter& rewriter, Logger log) {
     // TODO: delete when function will allow rewrite for multiple output ops (E#59988)
     if (mlir::isa<VPU::TopKOp>(origOp)) {
@@ -187,6 +273,9 @@ mlir::LogicalResult applyTileStrategy(VPU::TilingBuilderOpInterface origOp, Outp
     if (mlir::isa<VPU::GRUSequenceOp>(origOp)) {
         auto gruSequenceOp = mlir::dyn_cast<VPU::GRUSequenceOp>(origOp.getOperation());
         return gruSequenceOp.applyTileStrategyGRUSequence(origOp, tiles, rewriter, log);
+    }
+    if (mlir::isa<VPU::DetectionOutputSortTopKOp>(origOp)) {
+        return applyTileStrategyDetectionOutputSortTopK(origOp, tiles, rewriter, log);
     }
 
     // apply the generated tiling strategy and create tiled operations
@@ -303,7 +392,7 @@ bool prefetchTilingConditionSatisfied(mlir::Operation* op, Logger log) {
         return false;
     }
     const auto arch = VPU::getArch(op);
-    if ((arch == VPU::ArchKind::VPUX30XX) || (arch == VPU::ArchKind::VPUX311X)) {
+    if (arch == VPU::ArchKind::VPUX30XX) {
         if (!mlir::isa<VPU::NCEOpInterface>(parentOp)) {
             return false;
         }
@@ -332,12 +421,20 @@ bool prefetchTilingConditionSatisfied(mlir::Operation* op, Logger log) {
     // Check if tile pattern is supported
     const auto resShape = getShape(op->getResult(0));
     const Shape neutralTile(resShape.size(), 1);
-    if (opTilingInter.isSupportedTiling(fillDividedTiles(op, neutralTile, resShape), TilingMode::PREFETCHING, log)) {
+    auto fillTiles = fillDividedTiles(op, neutralTile, resShape);
+    if (mlir::failed(fillTiles)) {
+        return false;
+    }
+    if (opTilingInter.isSupportedTiling(fillTiles.value(), TilingMode::PREFETCHING, log)) {
         return false;
     }
     log.nest(1).trace("Attempting to satisfy PREFETCHING tiling.");
     auto tiles = opTilingBuilder.getTilingStrategy(TilingMode::PREFETCHING, log.nest());
-    return tiles.begin()->axis != neutralTile;
+    if (mlir::failed(tiles)) {
+        return false;
+    }
+
+    return tiles.value().begin()->axis != neutralTile;
 }
 
 bool isLargeConstOp(mlir::Operation* op, Logger log) {
@@ -352,7 +449,7 @@ bool isLargeConstOp(mlir::Operation* op, Logger log) {
     }
 
     Byte filterSize(0);
-    auto filterType = filter.output().getType().cast<vpux::NDTypeInterface>();
+    auto filterType = filter.getOutput().getType().cast<vpux::NDTypeInterface>();
     if (op->hasAttr(multiClusterStrategy)) {
         auto nceOp = mlir::cast<VPU::NCEOpInterface>(op);
         auto clusterOp = mlir::cast<VPU::ClusteredOpInterface>(op);
@@ -390,8 +487,12 @@ bool largeConstPipelineConditionSatisfied(mlir::Operation* op, Logger log) {
     // The pipelining should be doable with this tiling size
     log.nest(1).trace("Checking large const pipeline tiling.");
     auto tiles = opTilingBuilder.getTilingStrategy(TilingMode::PIPELINING, log.nest());
-    if (tiles.begin()->axis != Shape(getShape(op->getResult(0)).size(), 1)) {
-        log.nest(1).trace("Found pipelining tiling strategy {0}", tiles.begin()->axis);
+    if (mlir::failed(tiles)) {
+        return false;
+    }
+
+    if (tiles.value().begin()->axis != Shape(getShape(op->getResult(0)).size(), 1)) {
+        log.nest(1).trace("Found pipelining tiling strategy {0}", tiles.value().begin()->axis);
         return true;
     }
 
@@ -400,6 +501,51 @@ bool largeConstPipelineConditionSatisfied(mlir::Operation* op, Logger log) {
 
 bool archSupportsSwLayerTiling(VPU::ArchKind arch) {
     return arch == VPU::ArchKind::VPUX37XX;
+}
+
+bool opNeedsTiling(mlir::Operation* op, bool enablePrefetchTiling, Logger log) {
+    if (mlir::isa<VPU::SliceOp, VPU::ConcatOp, VPU::NCEClusterTilingOp>(op) ||
+        op->getParentOfType<VPU::NCEClusterTilingOp>()) {
+        return false;
+    }
+    auto func = op->getParentOfType<mlir::func::FuncOp>();
+    if (func == nullptr) {
+        return false;
+    }
+    auto module = func->getParentOfType<mlir::ModuleOp>();
+    const auto arch = VPU::getArch(module);
+    if (!mlir::isa<VPU::NCEOpInterface>(op) && !VPU::archSupportsSwLayerTiling(arch)) {
+        return false;
+    }
+
+    // not to stream activations for a multi-cluster strategy that exists
+    // to allow to switch segmentation strategy in cmx
+    if (auto clusterOp = mlir::dyn_cast<VPU::ClusteredOpInterface>(op)) {
+        if (clusterOp.getMultiClusterStrategy().hasValue() &&
+            clusterOp.getMultiClusterStrategy().getValue() == VPU::MultiClusterStrategy::HKSwitch) {
+            return false;
+        }
+    }
+
+    if (auto iface = mlir::dyn_cast<VPU::TilingInfoOpInterface>(op)) {
+        log.trace("Check: '{0}' at '{1}'", op->getName(), op->getLoc());
+        const auto resShape = getShape(op->getResult(0));
+        if (!iface.isSupportedTiling({TileInfo(resShape)}, TilingMode::ISOLATED, log.nest())) {
+            log.nest().trace("ISOLATED tiling or PIPELINING tiling required");
+            return true;
+        }
+        if (enablePrefetchTiling && mlir::isa<VPU::NCEOpInterface>(op)) {
+            if (VPU::prefetchTilingConditionSatisfied(op, log.nest())) {
+                log.nest().trace("PREFETCHING tiling required");
+                return true;
+            }
+            if (VPU::largeConstPipelineConditionSatisfied(op, log.nest())) {
+                log.nest().trace("PIPELINING tiling for large constant weights required");
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 }  // namespace VPU

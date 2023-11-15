@@ -11,28 +11,28 @@
 module @mainModule {
 
   IE.CNNNetwork entryPoint : @maxpool_f16_f16 inputsInfo : {
-    DataInfo "input_0" : tensor<1x64x16x16xf16, {order = #NHWC}>
+    DataInfo "input_0" : tensor<1x64x16x16xf16>
   } outputsInfo : {
-    DataInfo "output_0" : tensor<1x64x9x8xf16, {order = #NHWC}>
+    DataInfo "output_0" : tensor<1x64x9x8xf16>
   }
   func.func private @maxpool_f16_f16(%arg0: memref<1x64x16x16xf16, #NHWC, @DDR>, %arg1: memref<1x64x9x8xf16, #NHWC, @DDR>) -> memref<1x64x9x8xf16, #NHWC, @DDR> {
-    %0 = VPURT.DeclareBuffer "CMX_NN" [0] <9216> -> memref<1x64x16x16xf16, #NHWC, [@CMX_NN, 0]>
-    %1 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x64x9x8xf16, #NHWC, [@CMX_NN, 0]>
-    %2 = VPURT.DeclareBuffer "CMX_NN" [0] <9216> -> memref<1x64x16x16xf16, #NHWC, [@CMX_NN, 0]>
-    %3 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x64x9x8xf16, #NHWC, [@CMX_NN, 0]>
+    %0 = VPURT.DeclareBuffer <CMX_NN> [0] <9216> -> memref<1x64x16x16xf16, #NHWC, [@CMX_NN, 0]>
+    %1 = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x64x9x8xf16, #NHWC, [@CMX_NN, 0]>
+    %2 = VPURT.DeclareBuffer <CMX_NN> [0] <9216> -> memref<1x64x16x16xf16, #NHWC, [@CMX_NN, 0]>
+    %3 = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x64x9x8xf16, #NHWC, [@CMX_NN, 0]>
     %4 = VPUMI37XX.ConfigureBarrier {consumer_count = 1 : ui8, producer_count = 3 : ui8}<0, -1> -> !VPURegMapped.Index<0:0:0>
     %5 = VPUMI37XX.ConfigureBarrier {consumer_count = 1 : ui8, producer_count = 1 : ui8}<1, -1> -> !VPURegMapped.Index<0:0:1>
     %6 = VPUMI37XX.NNDMA {port = 0 : i64} inputs(%arg0 : memref<1x64x16x16xf16, #NHWC, @DDR>) outputs(%0 : memref<1x64x16x16xf16, #NHWC, [@CMX_NN, 0]>) updates(%4 : !VPURegMapped.Index<0:0:0>) start_after(0) clean_after(0) -> !VPURegMapped.Index<0:0:0>
     %cst = const.Declare memref<1x1x1x16xui8, #NHWC, @DDR> = dense<0> : tensor<1x1x1x16xui8>, [#const.Reorder<#NHWC>]
-    %7 = VPURT.DeclareBuffer "CMX_NN" [0] <41984> -> memref<1x1x1x16xui8, #NHWC, [@CMX_NN, 0]>
+    %7 = VPURT.DeclareBuffer <CMX_NN> [0] <41984> -> memref<1x1x1x16xui8, #NHWC, [@CMX_NN, 0]>
     %8 = VPUMI37XX.NNDMA {port = 0 : i64} inputs(%cst : memref<1x1x1x16xui8, #NHWC, @DDR>) outputs(%7 : memref<1x1x1x16xui8, #NHWC, [@CMX_NN, 0]>) previousDMA(%6 : !VPURegMapped.Index<0:0:0>) updates(%4 : !VPURegMapped.Index<0:0:0>) start_after(0) clean_after(0) -> !VPURegMapped.Index<0:0:1>
     %cst_0 = const.Declare memref<64x1x1x4xsi32, #NHWC, @DDR> = dense<0> : tensor<64x1x1x4xsi32>, [#const.Reorder<#NHWC>]
-    %9 = VPURT.DeclareBuffer "CMX_NN" [0] <42000> -> memref<64x1x1x4xsi32, #NHWC, [@CMX_NN, 0]>
+    %9 = VPURT.DeclareBuffer <CMX_NN> [0] <42000> -> memref<64x1x1x4xsi32, #NHWC, [@CMX_NN, 0]>
     %10 = VPUMI37XX.NNDMA {port = 0 : i64} inputs(%cst_0 : memref<64x1x1x4xsi32, #NHWC, @DDR>) outputs(%9 : memref<64x1x1x4xsi32, #NHWC, [@CMX_NN, 0]>) previousDMA(%8 : !VPURegMapped.Index<0:0:1>) updates(%4 : !VPURegMapped.Index<0:0:0>) start_after(0) clean_after(0) -> !VPURegMapped.Index<0:0:2>
-    %11 = VPUMI37XX.DPUInvariant {activation_window_channel_length = 16 : i32, clean_after = 0 : ui64, kernel_padding = {bottom = 1 : i64, left = 0 : i64, right = 0 : i64, top = 1 : i64}, kernel_size = [2, 2], kernel_strides = [2, 2], mpe_frequent_mode = "CUBOID_16x16", start_after = 0 : ui64, task_type = "MAXPOOL"} input(%0 : memref<1x64x16x16xf16, #NHWC, [@CMX_NN, 0]>) weight_table(%9 : memref<64x1x1x4xsi32, #NHWC, [@CMX_NN, 0]>) parent_input(%2 : memref<1x64x16x16xf16, #NHWC, [@CMX_NN, 0]>) parent_output(%3 : memref<1x64x9x8xf16, #NHWC, [@CMX_NN, 0]>) outputs(%1 : memref<1x64x9x8xf16, #NHWC, [@CMX_NN, 0]>) waits(%4 : !VPURegMapped.Index<0:0:0>) updates(%5 : !VPURegMapped.Index<0:0:1>) -> <0:0:0> PPE : {
-      VPUIP.PPETask "NOOP" {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64}
+    %11 = VPUMI37XX.DPUInvariant {activation_window_channel_length = 16 : i32, clean_after = 0 : ui64, kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 1 : i64, bottom = 1 : i64>, kernel_size = [2, 2], kernel_strides = [2, 2], mpe_frequent_mode = #VPU.mpe_mode<CUBOID_16x16>, start_after = 0 : ui64, nce_task_type = #VPUIP.nce_task_type<MAXPOOL>} input(%0 : memref<1x64x16x16xf16, #NHWC, [@CMX_NN, 0]>) weight_table(%9 : memref<64x1x1x4xsi32, #NHWC, [@CMX_NN, 0]>) parent_input(%2 : memref<1x64x16x16xf16, #NHWC, [@CMX_NN, 0]>) parent_output(%3 : memref<1x64x9x8xf16, #NHWC, [@CMX_NN, 0]>) outputs(%1 : memref<1x64x9x8xf16, #NHWC, [@CMX_NN, 0]>) waits(%4 : !VPURegMapped.Index<0:0:0>) updates(%5 : !VPURegMapped.Index<0:0:1>) -> <0:0:0> PPE : {
+      VPUIP.PPETask <NOOP> {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64}
     }
-    %12 = "VPUMI37XX.DPUVariant"(%11) {end = [7, 8, 63], mpe_mode = "CUBOID_16x16", pad = {bottom = 1 : i64, left = 0 : i64, right = 0 : i64, top = 1 : i64}, start = [0, 0, 0]} : (!VPURegMapped.Index<0:0:0>) -> !VPURegMapped.Index<0:0:0>
+    %12 = "VPUMI37XX.DPUVariant"(%11) {end = [7, 8, 63], mpe_mode = #VPU.mpe_mode<CUBOID_16x16>, pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 1 : i64, bottom = 1 : i64>, start = [0, 0, 0]} : (!VPURegMapped.Index<0:0:0>) -> !VPURegMapped.Index<0:0:0>
     %13 = VPUMI37XX.NNDMA {port = 0 : i64} inputs(%1 : memref<1x64x9x8xf16, #NHWC, [@CMX_NN, 0]>) outputs(%arg1 : memref<1x64x9x8xf16, #NHWC, @DDR>) previousDMA(%10 : !VPURegMapped.Index<0:0:2>) waits(%5 : !VPURegMapped.Index<0:0:1>) start_after(0) clean_after(0) -> !VPURegMapped.Index<0:0:3>
     %14 = VPUMI37XX.MappedInference dmas(%6 : !VPURegMapped.Index<0:0:0>) invariants(%11 : !VPURegMapped.Index<0:0:0>) variants(%12 : !VPURegMapped.Index<0:0:0>) barriers(%4 : !VPURegMapped.Index<0:0:0>) dmaCount([4, 0]) invariantCount(1) variantCount(1) actKernelRangesCount(0) actKernelInvocationsCount(0) barrierCount(2) -> !VPURegMapped.Index<0:0:0>
     return %arg1 : memref<1x64x9x8xf16, #NHWC, @DDR>
@@ -40,21 +40,21 @@ module @mainModule {
 }
 
 // CHECK: func.func private @maxpool_f16_f16
-// CHECK: %[[VAL0:.*]] = VPURT.DeclareBuffer "CMX_NN"
-// CHECK-NEXT: %[[VAL1:.*]] = VPURT.DeclareBuffer "CMX_NN"
-// CHECK-NEXT: %[[VAL2:.*]] = VPURT.DeclareBuffer "CMX_NN"
-// CHECK-NEXT: %[[VAL3:.*]] = VPURT.DeclareBuffer "CMX_NN"
+// CHECK: %[[VAL0:.*]] = VPURT.DeclareBuffer <CMX_NN>
+// CHECK-NEXT: %[[VAL1:.*]] = VPURT.DeclareBuffer <CMX_NN>
+// CHECK-NEXT: %[[VAL2:.*]] = VPURT.DeclareBuffer <CMX_NN>
+// CHECK-NEXT: %[[VAL3:.*]] = VPURT.DeclareBuffer <CMX_NN>
 
 // CHECK-NEXT: %[[VAL4:.*]] = VPUMI37XX.ConfigureBarrier
 // CHECK-NEXT: %[[VAL5:.*]] = VPUMI37XX.ConfigureBarrier
 
 // CHECK-NEXT: %[[VAL6:.*]] = VPUMI37XX.NNDMA
 // CHECK-NEXT: %[[VALcst:.*]] = const.Declare
-// CHECK-NEXT: %[[VAL7:.*]] = VPURT.DeclareBuffer "CMX_NN"
+// CHECK-NEXT: %[[VAL7:.*]] = VPURT.DeclareBuffer <CMX_NN>
 
 // CHECK-NEXT: %[[VAL8:.*]] = VPUMI37XX.NNDMA
 // CHECK-NEXT: %[[VALcst_0:.*]] = const.Declare
-// CHECK-NEXT: %[[VAL9:.*]] = VPURT.DeclareBuffer "CMX_NN"
+// CHECK-NEXT: %[[VAL9:.*]] = VPURT.DeclareBuffer <CMX_NN>
 // CHECK-NEXT: %[[VAL10:.*]] = VPUMI37XX.NNDMA
 
 // CHECK-NEXT: %[[VAL11:.*]] = VPUMI37XX.DPUInvariant

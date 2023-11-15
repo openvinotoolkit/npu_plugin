@@ -85,12 +85,10 @@ func.func @CTCGreedyDecoder(%arg0: tensor<20x8x128xf16>, %arg1: tensor<20x8xf16>
 
 // CHECK-LABEL: @ReduceL1
 func.func @ReduceL1(%arg0: tensor<1x32x112x112xf16>) -> tensor<1x32x112x1xf16> {
-    %cst = const.Declare tensor<1xsi32> = dense<3> : tensor<1xsi64>, [#const.ConvertElemType<si32>]
-    %0 = IE.ReduceL1(%arg0, %cst) {keep_dims} : tensor<1x32x112x112xf16>, tensor<1xsi32> -> tensor<1x32x112x1xf16>
+    %0 = IE.ReduceL1(%arg0) {axes_value = [3], keep_dims} : tensor<1x32x112x112xf16> -> tensor<1x32x112x1xf16>
     return %0 : tensor<1x32x112x1xf16>
 
-    // CHECK-DAG: [[CST:%.+]] = const.Declare tensor<1xsi32> = dense<3> : tensor<1xsi64>, [#const.ConvertElemType<si32>]
-    // CHECK: [[VAR0:%.+]] = VPU.ReduceL1(%arg0, [[CST]]) {keep_dims} : tensor<1x32x112x112xf16>, tensor<1xsi32> -> tensor<1x32x112x1xf16>
+    // CHECK: [[VAR0:%.+]] = VPU.ReduceL1(%arg0) {axes_value = [3], keep_dims} : tensor<1x32x112x112xf16> -> tensor<1x32x112x1xf16>
     // CHECK: return [[VAR0]] : tensor<1x32x112x1xf16>
 }
 
@@ -98,12 +96,10 @@ func.func @ReduceL1(%arg0: tensor<1x32x112x112xf16>) -> tensor<1x32x112x1xf16> {
 
 // CHECK-LABEL: @ReduceL2
 func.func @ReduceL2(%arg0: tensor<1x32x112x112xf16>) -> tensor<1x32x112x1xf16> {
-    %cst = const.Declare tensor<1xsi32> = dense<3> : tensor<1xsi64>, [#const.ConvertElemType<si32>]
-    %0 = IE.ReduceL2(%arg0, %cst) {keep_dims} : tensor<1x32x112x112xf16>, tensor<1xsi32> -> tensor<1x32x112x1xf16>
+    %0 = IE.ReduceL2(%arg0) {axes_value = [3], keep_dims} : tensor<1x32x112x112xf16> -> tensor<1x32x112x1xf16>
     return %0 : tensor<1x32x112x1xf16>
 
-    // CHECK-DAG: [[CST:%.+]] = const.Declare tensor<1xsi32> = dense<3> : tensor<1xsi64>, [#const.ConvertElemType<si32>]
-    // CHECK: [[VAR0:%.+]] = VPU.ReduceL2(%arg0, [[CST]]) {keep_dims} : tensor<1x32x112x112xf16>, tensor<1xsi32> -> tensor<1x32x112x1xf16>
+    // CHECK: [[VAR0:%.+]] = VPU.ReduceL2(%arg0) {axes_value = [3], keep_dims} : tensor<1x32x112x112xf16> -> tensor<1x32x112x1xf16>
     // CHECK: return [[VAR0]] : tensor<1x32x112x1xf16>
 }
 
@@ -111,12 +107,10 @@ func.func @ReduceL2(%arg0: tensor<1x32x112x112xf16>) -> tensor<1x32x112x1xf16> {
 
 // CHECK-LABEL: @ReduceProd
 func.func @ReduceProd(%arg0: tensor<1x32x112x112xf16>) -> tensor<1x32x112x1xf16> {
-    %cst = const.Declare tensor<1xsi32> = dense<3> : tensor<1xsi64>, [#const.ConvertElemType<si32>]
-    %0 = IE.ReduceProd(%arg0, %cst) {keep_dims} : tensor<1x32x112x112xf16>, tensor<1xsi32> -> tensor<1x32x112x1xf16>
+    %0 = IE.ReduceProd(%arg0) {axes_value = [3], keep_dims} : tensor<1x32x112x112xf16> -> tensor<1x32x112x1xf16>
     return %0 : tensor<1x32x112x1xf16>
 
-    // CHECK-DAG: [[CST:%.+]] = const.Declare tensor<1xsi32> = dense<3> : tensor<1xsi64>, [#const.ConvertElemType<si32>]
-    // CHECK: [[VAR0:%.+]] = VPU.ReduceProd(%arg0, [[CST]]) {keep_dims} : tensor<1x32x112x112xf16>, tensor<1xsi32> -> tensor<1x32x112x1xf16>
+    // CHECK: [[VAR0:%.+]] = VPU.ReduceProd(%arg0) {axes_value = [3], keep_dims} : tensor<1x32x112x112xf16> -> tensor<1x32x112x1xf16>
     // CHECK: return [[VAR0]] : tensor<1x32x112x1xf16>
 }
 
@@ -211,20 +205,6 @@ func.func @GatherTree(%arg0: tensor<5x7x3xsi32>, %arg1: tensor<5x7x3xsi32>, %arg
 }
 
 // -----
-
-// CHECK-LABEL: @EmbeddingBagOffsetsSum
-func.func @EmbeddingBagOffsetsSum(%arg0: tensor<5x6x4xsi32>) -> tensor<2x6x4xsi32> {
-    %0 = IE.EmbeddingBagOffsetsSum(%arg0) {default_index_value = 4 : i32, indices_value = [0, 1, 2, 2, 3], offsets_value = [0, 2], operand_segment_sizes = dense<[1, 0, 0, 0, 0]> : vector<5xi32>,
-    weights_value = [1.000000e+00, 5.000000e+00, 1.000000e+01, 8.000000e+00, 1.000000e+01]} : tensor<5x6x4xsi32> -> tensor<2x6x4xsi32>
-    return %0 : tensor<2x6x4xsi32>
-
-    // CHECK: [[VAR0:%.+]] = VPU.EmbeddingBagOffsetsSum(%arg0) {default_index_value = 4 : i32, indices_value = [0, 1, 2, 2, 3], offsets_value = [0, 2],
-    // CHECK-SAME: weights_value = [1.000000e+00, 5.000000e+00, 1.000000e+01, 8.000000e+00, 1.000000e+01]} : tensor<5x6x4xsi32> -> tensor<2x6x4xsi32>
-    // CHECK: return [[VAR0]] : tensor<2x6x4xsi32>
-}
-
-// -----
-
 
 // CHECK-LABEL: @GridSample
 func.func @GridSample(%arg0: tensor<1x1x2x3xf16>, %arg1: tensor<1x1x3x2xf16>) -> tensor<1x1x1x3xf16> {
@@ -360,6 +340,18 @@ func.func @OneHot(%arg0: tensor<4xsi32>) -> tensor<4x3xf16> {
 
 // -----
 
+// CHECK-LABEL: @ScatterElementsUpdate
+func.func @ScatterElementsUpdate(%arg0: tensor<2x3x4xf16>, %arg1: tensor<1x3x1xf16>) -> tensor<2x3x4xf16> {
+    %cst = const.Declare tensor<1x3x1xsi32> = dense<[[[1], [0], [1]]]> : tensor<1x3x1xsi32>
+    %0 = IE.ScatterElementsUpdate(%arg0, %cst, %arg1) {axis_value = 1 : i64} : tensor<2x3x4xf16>, tensor<1x3x1xsi32>, tensor<1x3x1xf16> -> tensor<2x3x4xf16>
+    return %0 : tensor<2x3x4xf16>
+
+    // CHECK: [[VAR0:%.+]] = VPU.ScatterElementsUpdate(%arg0, %cst, %arg1) {axis = 1 : i64} : tensor<2x3x4xf16>, tensor<1x3x1xsi32>, tensor<1x3x1xf16> -> tensor<2x3x4xf16>
+    // CHECK: return [[VAR0]] : tensor<2x3x4xf16>
+}
+
+// -----
+
 // CHECK-LABEL: @Tan
 func.func @Tan(%arg0: tensor<1x32x112x112xf16>) -> (tensor<1x32x112x112xf16>) {
     %0 = IE.Tan(%arg0) : tensor<1x32x112x112xf16> -> tensor<1x32x112x112xf16>
@@ -386,7 +378,7 @@ func.func @ShapeCast(%arg0: tensor<1x3x32x32xf16>) -> tensor<1x16x16x12xf16> {
 // CHECK-LABEL: @DFT
 // CHECK-SAME:   (%arg0: tensor<10x4x2xf32>) -> tensor<10x4x2xf32>
 func.func @DFT(%arg0: tensor<10x4x2xf32>) -> tensor<10x4x2xf32> {
-    %0 = IE.DFT(%arg0) {axes_attr = [0, 1], signal_size_attr = [-1, -1]} : tensor<10x4x2xf32> -> tensor<10x4x2xf32>
+    %0 = IE.DFT(%arg0) {axes_attr = [0, 1], operand_segment_sizes = dense<[1, 0, 0]> : vector<3xi32>, signal_size_attr = [-1, -1]} : tensor<10x4x2xf32> -> tensor<10x4x2xf32>
     return %0 : tensor<10x4x2xf32>
 
     // CHECK: %0 = VPU.DFT(%arg0) {axes_attr = [0, 1], signal_size_attr = [-1, -1]} : tensor<10x4x2xf32> -> tensor<10x4x2xf32>
@@ -398,11 +390,11 @@ func.func @DFT(%arg0: tensor<10x4x2xf32>) -> tensor<10x4x2xf32> {
 // CHECK-LABEL: @IDFT
 // CHECK-SAME: (%arg0: tensor<10x4x2xf32>) -> tensor<10x4x2xf32>
 func.func @IDFT(%arg0: tensor<10x4x2xf32>) -> tensor<10x4x2xf32> {
-  %0 = IE.IDFT(%arg0) {axes_attr = [0, 1], signal_size_attr = [-1, -1]} : tensor<10x4x2xf32> -> tensor<10x4x2xf32>
-  return %0 : tensor<10x4x2xf32>
+    %0 = IE.IDFT(%arg0) {axes_attr = [0, 1], operand_segment_sizes = dense<[1, 0, 0]> : vector<3xi32>, signal_size_attr = [-1, -1]} : tensor<10x4x2xf32> -> tensor<10x4x2xf32>
+    return %0 : tensor<10x4x2xf32>
 
-  // CHECK: %0 = VPU.IDFT(%arg0) {axes_attr = [0, 1], signal_size_attr = [-1, -1]} : tensor<10x4x2xf32> -> tensor<10x4x2xf32>
-  // CHECK: return %0 : tensor<10x4x2xf32>
+    // CHECK: %0 = VPU.IDFT(%arg0) {axes_attr = [0, 1], signal_size_attr = [-1, -1]} : tensor<10x4x2xf32> -> tensor<10x4x2xf32>
+    // CHECK: return %0 : tensor<10x4x2xf32>
 }
 
 // -----
@@ -410,12 +402,11 @@ func.func @IDFT(%arg0: tensor<10x4x2xf32>) -> tensor<10x4x2xf32> {
 // CHECK-LABEL: @RDFT
 // CHECK-SAME:  (%arg0: tensor<10x4x2xf32>) -> tensor<10x3x2x2xf32>
 func.func @RDFT(%arg0: tensor<10x4x2xf32>) -> tensor<10x3x2x2xf32> {
-  %0 = IE.RDFT(%arg0) {axes_attr = [0, 1], signal_size_attr = [-1, -1]} : tensor<10x4x2xf32> -> tensor<10x3x2x2xf32>
-  return %0 : tensor<10x3x2x2xf32>
+    %0 = IE.RDFT(%arg0) {axes_attr = [0, 1], operand_segment_sizes = dense<[1, 0, 0]> : vector<3xi32>, signal_size_attr = [-1, -1]} : tensor<10x4x2xf32> -> tensor<10x3x2x2xf32>
+    return %0 : tensor<10x3x2x2xf32>
 
-  // CHECK: %0 = VPU.RDFT(%arg0) {axes_attr = [0, 1], signal_size_attr = [-1, -1]} : tensor<10x4x2xf32> -> tensor<10x4x2x2xf32>
-  // CHECK: %1 = VPU.Slice %0 [0, 0, 0, 0] [10, 3, 2, 2] : tensor<10x4x2x2xf32> to tensor<10x3x2x2xf32>
-  // CHECK: return %1 : tensor<10x3x2x2xf32>
+    // CHECK: %0 = VPU.RDFT(%arg0) {axes_attr = [0, 1], signal_size_attr = [-1, -1]} : tensor<10x4x2xf32> -> tensor<10x3x2x2xf32>
+    // CHECK: return %0 : tensor<10x3x2x2xf32>
 }
 
 // -----
@@ -423,12 +414,11 @@ func.func @RDFT(%arg0: tensor<10x4x2xf32>) -> tensor<10x3x2x2xf32> {
 // CHECK-LABEL: @IRDFT
 // CHECK-SAME: (%arg0: tensor<10x4x2xf32>) -> tensor<10x6xf32>
 func.func @IRDFT(%arg0: tensor<10x4x2xf32>) -> tensor<10x6xf32> {
-  %0 = IE.IRDFT(%arg0) {axes_attr = [0, 1], signal_size_attr = [-1, -1]} : tensor<10x4x2xf32> -> tensor<10x6xf32>
-  return %0 : tensor<10x6xf32>
+    %0 = IE.IRDFT(%arg0) {axes_attr = [0, 1], operand_segment_sizes = dense<[1, 0, 0]> : vector<3xi32>, signal_size_attr = [-1, -1]} : tensor<10x4x2xf32> -> tensor<10x6xf32>
+    return %0 : tensor<10x6xf32>
 
-  // CHECK: %0 = VPU.IDFT(%arg0) {axes_attr = [0], signal_size_attr = [-1]} : tensor<10x4x2xf32> -> tensor<10x4x2xf32>
-  // CHECK: %1 = VPU.IRDFT(%0) {axes_attr = [1], signal_size_attr = [-1]} : tensor<10x4x2xf32> -> tensor<10x6xf32>
-  // CHECK: return %1 : tensor<10x6xf32>
+    // CHECK: %0 = VPU.IRDFT(%arg0) {axes_attr = [0, 1], signal_size_attr = [-1, -1]} : tensor<10x4x2xf32> -> tensor<10x6xf32>
+    // CHECK: return %0 : tensor<10x6xf32>
 }
 
 // -----
@@ -436,9 +426,84 @@ func.func @IRDFT(%arg0: tensor<10x4x2xf32>) -> tensor<10x6xf32> {
 // CHECK-LABEL: @IRDFTOneAxis
 // CHECK-SAME: (%arg0: tensor<10x4x2xf32>) -> tensor<10x6xf32>
 func.func @IRDFTOneAxis(%arg0: tensor<10x4x2xf32>) -> tensor<10x6xf32> {
-  %0 = IE.IRDFT(%arg0) {axes_attr = [1], signal_size_attr = [-1]} : tensor<10x4x2xf32> -> tensor<10x6xf32>
+  %0 = IE.IRDFT(%arg0) {axes_attr = [1], operand_segment_sizes = dense<[1, 0, 0]> : vector<3xi32>, signal_size_attr = [-1]} : tensor<10x4x2xf32> -> tensor<10x6xf32>
   return %0 : tensor<10x6xf32>
 
   // CHECK: %0 = VPU.IRDFT(%arg0) {axes_attr = [1], signal_size_attr = [-1]} : tensor<10x4x2xf32> -> tensor<10x6xf32>
   // CHECK: return %0 : tensor<10x6xf32>
+}
+
+// -----
+
+!qElemType0 = !quant.uniform<u8:f16, 0.0173492431640625:32>
+!qElemType1 = !quant.uniform<u8:f16, 0.01293658088235294:64>
+
+// CHECK: !qElemType0 = !quant.uniform<u8:f16, 0.0173492431640625:32>
+// CHECK: !qElemType1 = !quant.uniform<u8:f16, 0.01293658088235294:64>
+
+// CHECK-LABEL: @InterpolateQuantized
+func.func @InterpolateQuantized(%arg0: tensor<1x16x3x3x!qElemType0>) -> tensor<1x16x6x6x!qElemType1> {
+    %0 = IE.Interpolate(%arg0) {
+        attr = #IE.Interpolate<mode = <NEAREST>,
+                               shape_calc_mode = <SCALES>,
+                               coord_mode = <ASYMMETRIC>,
+                               nearest_mode = <FLOOR>,
+                               antialias = false,
+                               pads_begin = [0, 0, 0, 0],
+                               pads_end = [0, 0, 0, 0],
+                               cube_coeff = -7.500000e-01 : f64>,
+        operand_segment_sizes = dense<[1, 0, 0, 0]> : vector<4xi32>,
+        axes_attr = [2, 3],
+        scales_attr = [2.0, 2.0],
+        sizes_attr = [6, 6]}
+        : tensor<1x16x3x3x!qElemType0> -> tensor<1x16x6x6x!qElemType1>
+    return %0 : tensor<1x16x6x6x!qElemType1>
+
+    // CHECK:       [[VAL0:%.+]] = VPU.Interpolate(%arg0) {
+    // CHECK-SAME:    attr = #IE.Interpolate<mode = <NEAREST>,
+    // CHECK-SAME:                           shape_calc_mode = <SCALES>,
+    // CHECK-SAME:                           coord_mode = <ASYMMETRIC>,
+    // CHECK-SAME:                           nearest_mode = <FLOOR>,
+    // CHECK-SAME:                           antialias = false,
+    // CHECK-SAME:                           pads_begin = [0, 0, 0, 0],
+    // CHECK-SAME:                           pads_end = [0, 0, 0, 0],
+    // CHECK-SAME:                           cube_coeff = -7.500000e-01 : f64>,
+    // CHECK-SAME:    axes_attr = [2, 3],
+    // CHECK-SAME:    operand_segment_sizes = dense<[1, 0, 0, 0]> : vector<4xi32>,
+    // CHECK-SAME:    scales_attr = [2.000000e+00, 2.000000e+00],
+    // CHECK-SAME:    sizes_attr = [6, 6]}
+    // CHECK-SAME:  : tensor<1x16x3x3x!qElemType0> -> tensor<1x16x6x6x!qElemType1>
+    // CHECK:       return [[VAL0]]
+}
+
+// -----
+
+// CHECK-LABEL: @TopKWithKValue
+// CHECK-SAME: (%arg0: tensor<1x64x128x128xf32>) -> tensor<1x1x128x128xsi32>
+func.func @TopKWithKValue(%arg0: tensor<1x64x128x128xf32>) -> tensor<1x1x128x128xsi32> {
+    %output_values, %target_shape = IE.TopK(%arg0) {axis = 1 : i64, element_type = si32, k_value = 1 : i64, mode = #IE.topk_mode<MAX>, sort = #IE.topk_sort_type<SORT_INDICES>}
+            : tensor<1x64x128x128xf32> -> tensor<1x1x128x128xf32>, tensor<1x1x128x128xsi32>
+    return %target_shape : tensor<1x1x128x128xsi32>
+
+    // CHECK: [[VALUES:%.*]], [[SHAPE:%.*]] = VPU.TopK(%arg0)
+    // CHECK-SAME:         {axis = 1 : i64, element_type = si32, k_value = 1 : i64, mode = #IE.topk_mode<MAX>, sort = #IE.topk_sort_type<SORT_INDICES>}
+    // CHECK-SAME:         : tensor<1x64x128x128xf32> -> tensor<1x1x128x128xf32>, tensor<1x1x128x128xsi32>
+    // CHECK: return [[SHAPE]] : tensor<1x1x128x128xsi32>
+}
+
+// -----
+
+// CHECK-LABEL: @TopKWithKConst
+// CHECK-SAME: (%arg0: tensor<1x64x128x128xf32>) -> tensor<1x1x128x128xsi32>
+func.func @TopKWithKConst(%arg0: tensor<1x64x128x128xf32>) -> tensor<1x1x128x128xsi32> {
+    %cst_K = const.Declare tensor<si32> = dense<1> : tensor<si32>
+    %output_values, %target_shape = IE.TopK(%arg0, %cst_K) {axis = 1 : i64, element_type = si32, mode = #IE.topk_mode<MAX>, sort = #IE.topk_sort_type<SORT_INDICES>}
+            : tensor<1x64x128x128xf32>, tensor<si32> -> tensor<1x1x128x128xf32>, tensor<1x1x128x128xsi32>
+    return %target_shape : tensor<1x1x128x128xsi32>
+
+    // CHECK-DAG:   [[CST_K:%.*]] = const.Declare tensor<si32> = dense<1> : tensor<si32>
+    // CHECK: [[VALUES:%.*]], [[SHAPE:%.*]] = VPU.TopK(%arg0, [[CST_K]])
+    // CHECK-SAME:         {axis = 1 : i64, element_type = si32, mode = #IE.topk_mode<MAX>, sort = #IE.topk_sort_type<SORT_INDICES>}
+    // CHECK-SAME:         : tensor<1x64x128x128xf32>, tensor<si32> -> tensor<1x1x128x128xf32>, tensor<1x1x128x128xsi32>
+    // CHECK: return [[SHAPE]] : tensor<1x1x128x128xsi32>
 }

@@ -111,12 +111,12 @@ mlir::LogicalResult generalSplitter(mlir::Operation* origOp, mlir::PatternRewrit
             auto* newOp = makeOperation(loc, slicedInput->getResult(0),
                                         {getIntArrayAttr(ctx, newStrides), getIntArrayAttr(ctx, newPadBegin),
                                          getIntArrayAttr(ctx, newPadEnd)});
-            wSliced.push_back(newOp->getResult(0));
-
             // TODO: temporary FQ propagation
             if (outputFQ != nullptr) {
                 newOp = createFQ(rewriter, newOp, outputFQ);
             }
+
+            wSliced.push_back(newOp->getResult(0));
 
             offsets[Dims4D::Act::W] += strides[1] - padLeft;
         }
@@ -549,6 +549,7 @@ void HandleLargeStridesPass::safeRunOnFunc() {
 
     target.addLegalOp<IE::SliceOp>();
     target.addLegalOp<IE::ConcatOp>();
+    target.addLegalOp<IE::FakeQuantizeOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<ConvMPOptimizationRewriter>(&ctx, _log);

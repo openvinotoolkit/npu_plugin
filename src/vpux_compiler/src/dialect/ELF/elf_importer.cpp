@@ -22,47 +22,8 @@ constexpr uint32_t INVALID_SEC_IDX = 0;
 
 using namespace vpux;
 
-elf::DeviceBuffer vpux::ELF::ImporterBufferManager::allocate(const elf::BufferSpecs& buffSpecs) {
-    auto addr = new char[buffSpecs.size];
-    auto deviceBuffer =
-            elf::DeviceBuffer{reinterpret_cast<uint8_t*>(addr), reinterpret_cast<uint64_t>(addr), buffSpecs.size};
-
-    m_allocatedZones.push_back(deviceBuffer);
-
-    return deviceBuffer;
-}
-
-void vpux::ELF::ImporterBufferManager::deallocate(elf::DeviceBuffer& devBuffer) {
-    for (auto devBufIt = m_allocatedZones.begin(); devBufIt != m_allocatedZones.end(); ++devBufIt) {
-        if (devBufIt->cpu_addr() == devBuffer.cpu_addr() && devBufIt->vpu_addr() == devBuffer.vpu_addr() &&
-            devBufIt->size() == devBuffer.size()) {
-            delete[] devBuffer.cpu_addr();
-            break;
-        }
-    }
-}
-
-void vpux::ELF::ImporterBufferManager::lock(elf::DeviceBuffer&) {
-}
-
-void vpux::ELF::ImporterBufferManager::unlock(elf::DeviceBuffer&) {
-}
-
-size_t vpux::ELF::ImporterBufferManager::copy(elf::DeviceBuffer& to, const uint8_t* from, size_t count) {
-    memcpy(to.cpu_addr(), from, count);
-    return count;
-}
-
-vpux::ELF::ImporterBufferManager::~ImporterBufferManager() {
-    for (auto devBufferIt = m_allocatedZones.begin(); devBufferIt != m_allocatedZones.end();) {
-        deallocate(*devBufferIt);
-        devBufferIt = m_allocatedZones.erase(devBufferIt);
-    }
-}
-
 vpux::ELF::ElfImporter::ElfImporter(mlir::MLIRContext* ctx, const std::string& elfFileName, Logger log)
-        : _importerBufMgr(new ImporterBufferManager()),
-          _accessor(new elf::ElfFSAccessManager(elfFileName, _importerBufMgr)),
+        : _accessor(new elf::ElfFSAccessManager(elfFileName)),
           _elfReader(elf::Reader<elf::ELF_Bitness::Elf64>(_accessor)),
           _ctx(ctx),
           _log(log) {
@@ -82,7 +43,6 @@ vpux::ELF::ElfImporter::ElfImporter(mlir::MLIRContext* ctx, const std::string& e
 
 vpux::ELF::ElfImporter::~ElfImporter() {
     delete _accessor;
-    delete _importerBufMgr;
 }
 
 void vpux::ELF::ElfImporter::buildCNNNetworkOp() {
@@ -95,8 +55,8 @@ void vpux::ELF::ElfImporter::buildCNNNetworkOp() {
 }
 
 void vpux::ELF::ElfImporter::parseUserInputsOutputs(OpBuilderLogger& builderLog, IE::CNNNetworkOp& cnnOp) {
-    cnnOp.inputsInfo().emplaceBlock();
-    cnnOp.outputsInfo().emplaceBlock();
+    cnnOp.getInputsInfo().emplaceBlock();
+    cnnOp.getOutputsInfo().emplaceBlock();
 
     const auto processUserIO = [this](const elf::Reader<elf::ELF_Bitness::Elf64>::Section& section,
                                       mlir::OpBuilder& builder, SmallVector<mlir::Type>& paramTypes) {
@@ -114,7 +74,8 @@ void vpux::ELF::ElfImporter::parseUserInputsOutputs(OpBuilderLogger& builderLog,
             const auto userTypeAttr = mlir::TypeAttr::get(rankedTensor);
 
             paramTypes.push_back(memRefRankedTensor);
-            builder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(_ctx), nameAttr, userTypeAttr);
+            builder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(_ctx), nameAttr, userTypeAttr,
+                                           /*profilingSectionsCount=*/0);
         }
     };
 
@@ -125,10 +86,10 @@ void vpux::ELF::ElfImporter::parseUserInputsOutputs(OpBuilderLogger& builderLog,
         if (elf::SHT_SYMTAB == sectionHeader->sh_type) {
             auto sectionFlags = sectionHeader->sh_flags;
             if (sectionFlags & elf::VPU_SHF_USERINPUT) {
-                auto inputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.inputsInfo().front(), &builderLog);
+                auto inputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.getInputsInfo().front(), &builderLog);
                 processUserIO(section, inputsInfoBuilder, _inputTypes);
             } else if (sectionFlags & elf::VPU_SHF_USEROUTPUT) {
-                auto outputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.outputsInfo().front(), &builderLog);
+                auto outputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.getOutputsInfo().front(), &builderLog);
                 processUserIO(section, outputsInfoBuilder, _outputTypes);
             }
         }
@@ -186,7 +147,7 @@ std::vector<std::pair<unsigned int, ELF::SymbolOp>> vpux::ELF::ElfImporter::crea
         mlir::Type typeAttr = mlir::IntegerType::get(_ctx, 64, mlir::IntegerType::Unsigned);
         mlir::IntegerAttr symSizeAttr = mlir::IntegerAttr::get(typeAttr, symbols[idx].st_size);
         mlir::IntegerAttr symValAttr = mlir::IntegerAttr::get(typeAttr, symbols[idx].st_value);
-        auto symAttr = symbolizeSymbolTypeAttr(symbols[idx].st_info).value_or(vpux::ELF::SymbolTypeAttr::STT_NOTYPE);
+        auto symAttr = symbolizeSymbolTypeEnum(symbols[idx].st_info).value_or(vpux::ELF::SymbolTypeEnum::STT_NOTYPE);
 
         mlir::Value inputArg;
         if (sectionHeader->sh_flags & elf::VPU_SHF_USERINPUT) {
@@ -207,7 +168,7 @@ std::vector<std::pair<unsigned int, ELF::SymbolOp>> vpux::ELF::ElfImporter::crea
         elfSymbolsOp.push_back(std::make_pair(
                 idx, opsBuilder.create<ELF::SymbolOp>(mlir::UnknownLoc::get(_ctx), vpux::ELF::SymbolType::get(_ctx),
                                                       inputArg, nullptr, mlir::StringAttr::get(_ctx, symName),
-                                                      vpux::ELF::SymbolTypeAttrAttr::get(_ctx, symAttr), symSizeAttr,
+                                                      vpux::ELF::SymbolTypeEnumAttr::get(_ctx, symAttr), symSizeAttr,
                                                       symValAttr)));
     }
 
@@ -417,11 +378,11 @@ void vpux::ELF::ElfImporter::createSectionOpForActKernelParams(mlir::OpBuilder& 
     };
 
     mlir::Type type8UIntAttr = mlir::IntegerType::get(_ctx, 8, mlir::IntegerType::SignednessSemantics::Unsigned);
-    long int params_size = (long int)(params_vector_dummy.size());
+    auto params_size = static_cast<long int>(params_vector_dummy.size());
     auto kernalParamsOp = opsBuilder.create<VPUMI37XX::KernelParamsOp>(
             mlir::UnknownLoc::get(_ctx), VPURegMapped::IndexType::get(_ctx, 0),
             mlir::ValueRange(_buffers.front().second.getResult()), mlir::ValueRange(_buffers.back().second.getResult()),
-            mlir::StringAttr::get(_ctx, "Softmax"),
+            /*input_dims*/ nullptr, /*output_dims*/ nullptr, mlir::StringAttr::get(_ctx, "Softmax"),
             mlir::DenseIntElementsAttr::get(mlir::VectorType::get({params_size}, type8UIntAttr), params_vector_dummy));
 
     createSectionOp(opsBuilder, actKernelParamsSectionIdx, kernalParamsOp.getResult());
@@ -665,15 +626,15 @@ void vpux::ELF::ElfImporter::createSectionOpForDMA(mlir::func::FuncOp& func, mli
                     dmaTasks->transaction_.cfg_link.cfg_bits.critical ? mlir::UnitAttr::get(_ctx) : nullptr;
             const auto isOutOfOrder =
                     dmaTasks->transaction_.cfg_link.cfg_bits.order_forced ? mlir::UnitAttr::get(_ctx) : nullptr;
-            const auto dmaDescriptor = VPUIP::DmaDescriptorAttr::get(
-                    vpux::getIntAttr(_ctx, dmaTasks->transaction_.num_planes),
-                    vpux::getIntAttr(_ctx, dmaTasks->transaction_.length),
-                    vpux::getIntAttr(_ctx, dmaTasks->transaction_.attr2d.src_width),
-                    vpux::getIntAttr(_ctx, dmaTasks->transaction_.attr2d.src_stride),
-                    vpux::getIntAttr(_ctx, dmaTasks->transaction_.src_plane_stride),
-                    vpux::getIntAttr(_ctx, dmaTasks->transaction_.attr2d.dst_width),
-                    vpux::getIntAttr(_ctx, dmaTasks->transaction_.attr2d.dst_stride),
-                    vpux::getIntAttr(_ctx, dmaTasks->transaction_.dst_plane_stride), _ctx);
+            const auto dmaDescriptor =
+                    VPUIP::DMADescriptorAttr::get(_ctx, vpux::getIntAttr(_ctx, dmaTasks->transaction_.num_planes),
+                                                  vpux::getIntAttr(_ctx, dmaTasks->transaction_.length),
+                                                  vpux::getIntAttr(_ctx, dmaTasks->transaction_.attr2d.src_width),
+                                                  vpux::getIntAttr(_ctx, dmaTasks->transaction_.attr2d.src_stride),
+                                                  vpux::getIntAttr(_ctx, dmaTasks->transaction_.src_plane_stride),
+                                                  vpux::getIntAttr(_ctx, dmaTasks->transaction_.attr2d.dst_width),
+                                                  vpux::getIntAttr(_ctx, dmaTasks->transaction_.attr2d.dst_stride),
+                                                  vpux::getIntAttr(_ctx, dmaTasks->transaction_.dst_plane_stride));
 
             mlir::ValueRange waitBarriers, updateBarriers;
             const auto prodMask = dmaTasks->transaction_.cfg_link.cfg_bits.type
@@ -776,14 +737,15 @@ void vpux::ELF::ElfImporter::createGenericBuiltInRegion(mlir::OpBuilder& opsBuil
 
     std::vector<std::pair<unsigned int, ELF::SymbolOp>> elfSymbolsConstOp;
 
-    for (uint8_t val = 0; val <= vpux::ELF::getMaxEnumValForCMXMappingSymbolAttr(); ++val) {
+    for (uint8_t val = 0; val <= vpux::ELF::getMaxEnumValForCMXMappingSymbol(); ++val) {
         auto arithOperation = opsBuilder.create<mlir::arith::ConstantIntOp>(mlir::UnknownLoc::get(_ctx), val, 8);
-        auto specialSymAttr = symbolizeCMXMappingSymbolAttr(val).value_or(
-                vpux::ELF::CMXMappingSymbolAttr::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR);
+        const auto specialSym = symbolizeCMXMappingSymbol(val).value_or(
+                vpux::ELF::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR);
+        const auto specialSymAttr = mlir::StringAttr::get(_ctx, stringifyCMXMappingSymbol(specialSym));
         auto symbolValue = opsBuilder.create<ELF::SymbolOp>(
                 mlir::UnknownLoc::get(_ctx), vpux::ELF::SymbolType::get(_ctx), arithOperation.getResult(),
-                mlir::UnitAttr::get(_ctx), vpux::ELF::CMXMappingSymbolAttrAttr::get(_ctx, specialSymAttr),
-                vpux::ELF::SymbolTypeAttrAttr{}, mlir::IntegerAttr{}, mlir::IntegerAttr{});
+                mlir::UnitAttr::get(_ctx), specialSymAttr, vpux::ELF::SymbolTypeEnumAttr{}, mlir::IntegerAttr{},
+                mlir::IntegerAttr{});
         elfSymbolsConstOp.push_back(std::make_pair(val, symbolValue));
     }
 
@@ -812,7 +774,7 @@ VPURT::DeclareBufferOp vpux::ELF::ElfImporter::createDeclareBufferOp(mlir::OpBui
     for (auto& buffer : _buffers) {
         mlir::Value bufferVal = buffer.second.getResult();
         auto bufSize = bufferVal.getType().cast<mlir::ShapedType>().getSizeInBits() / CHAR_BIT;
-        if (bufSize == bufferSize && buffer.first == isTypeDDR && buffer.second.byteOffset() == byteOffset) {
+        if (bufSize == bufferSize && buffer.first == isTypeDDR && buffer.second.getByteOffset() == byteOffset) {
             return buffer.second;
         }
     }
@@ -948,8 +910,8 @@ void vpux::ELF::ElfImporter::buildMainFunc() {
             const auto entriesNum = section.getEntriesNum();
 
             for (size_t idx = 0; idx < entriesNum; ++idx) {
-                const auto rType = vpux::ELF::symbolizeRelocationTypeAttr(elf::elf64RType(entries[idx].r_info));
-                const auto relocationType = rType.value_or(vpux::ELF::RelocationTypeAttr::R_VPU_64);
+                const auto rType = vpux::ELF::symbolizeRelocationType(elf::elf64RType(entries[idx].r_info));
+                const auto relocationType = rType.value_or(vpux::ELF::RelocationType::R_VPU_64);
                 const auto symbolIdx = elf::elf64RSym(entries[idx].r_info);
                 auto symbolForRelocation = getSymbolValueBySecHeaderAndSymbolIdx(sectionHeader->sh_link, symbolIdx);
                 if (symbolForRelocation == nullptr) {

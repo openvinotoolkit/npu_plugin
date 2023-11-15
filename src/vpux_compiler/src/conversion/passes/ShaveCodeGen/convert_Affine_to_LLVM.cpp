@@ -162,7 +162,7 @@ void ConvertAffine2LLVMPass::handleSpecialCast(mlir::LLVM::LLVMFuncOp funcOp) {
                           "The IERT.SpecialCastOp has as successor an operation that is not a "
                           "builtin.unrealized_conversion_cast.");
 
-        scOpNext->replaceAllUsesWith(scOp.operands().getDefiningOp());
+        scOpNext->replaceAllUsesWith(scOp.getInputs().getDefiningOp());
 
         scOpNext->erase();
         scOp.erase();

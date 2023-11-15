@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/utils/plugin/profiling_parser.hpp"
 
 #include <gtest/gtest.h>

@@ -19,9 +19,7 @@ func.func @PropagateFqThroughConcat(%arg0: tensor<1x2x1x512xf16>) -> tensor<1x64
         levels = 256 : i64
     } : tensor<1x2x1x512xf16>, tensor<1x1x1x1xf16>, tensor<1x1x1x1xf16>, tensor<1x1x1x1xf16>, tensor<1x1x1x1xf16> -> tensor<1x2x1x512xf16>
 
-    %CONCAT = IE.Concat(%FQ_IN, %PAD_CST) {
-        per_axis = {axis = 3 : i64}
-    } : tensor<1x2x1x512xf16>, tensor<1x2x1x6xf16> -> tensor<1x2x1x518xf16>
+    %CONCAT = IE.Concat(%FQ_IN, %PAD_CST) {per_axis = #IE.Concat<axis = 3 : i64>} : tensor<1x2x1x512xf16>, tensor<1x2x1x6xf16> -> tensor<1x2x1x518xf16>
 
     %FQ_WGHT = IE.FakeQuantize(%WGHT, %WGHT_LO, %WGHT_HI, %WGHT_LO, %WGHT_HI) {
         auto_broadcast = #IE.auto_broadcast_type<NUMPY>,
@@ -60,7 +58,7 @@ func.func @PropagateFqThroughConcat(%arg0: tensor<1x2x1x512xf16>) -> tensor<1x64
     // CHECK-SAME: } : tensor<1x2x1x6xf16>, tensor<1x1x1x1xf16>, tensor<1x1x1x1xf16>, tensor<1x1x1x1xf16>, tensor<1x1x1x1xf16> -> tensor<1x2x1x6xf16>
 
     // CHECK: %[[CONCAT:.*]] = IE.Concat(%[[FQ_IN]], %[[FQ_PAD_CST]]) {
-    // CHECK-SAME  {per_axis = {axis = 3 : i64}
+    // CHECK-SAME  {per_axis = #IE.Concat<axis = 3 : i64>
     // CHECK-SAME: } : tensor<1x2x1x512xf16>, tensor<1x2x1x6xf16> -> tensor<1x2x1x518xf16>
 
     // CHECK: %[[FQ_PAD:.*]] = IE.FakeQuantize(%[[CONCAT]], %[[IN_LO]], %[[IN_HI]], %[[IN_LO]], %[[IN_HI]]) {
@@ -102,9 +100,7 @@ func.func @PropagateFqThroughOut(%arg0: tensor<1x2x1x512xf16>) -> tensor<1x2x1x5
         levels = 256 : i64
     } : tensor<1x2x1x512xf16>, tensor<1x1x1x1xf16>, tensor<1x1x1x1xf16>, tensor<1x1x1x1xf16>, tensor<1x1x1x1xf16> -> tensor<1x2x1x512xf16>
 
-    %CONCAT = IE.Concat(%FQ_IN, %PAD_CST) {
-        per_axis = {axis = 3 : i64}
-    } : tensor<1x2x1x512xf16>, tensor<1x2x1x6xf16> -> tensor<1x2x1x518xf16>
+    %CONCAT = IE.Concat(%FQ_IN, %PAD_CST) {per_axis = #IE.Concat<axis = 3 : i64>} : tensor<1x2x1x512xf16>, tensor<1x2x1x6xf16> -> tensor<1x2x1x518xf16>
 
 
     %FQ_OUT = IE.FakeQuantize(%CONCAT, %OUT_LO, %OUT_HI, %OUT_LO, %OUT_HI) {
@@ -130,7 +126,7 @@ func.func @PropagateFqThroughOut(%arg0: tensor<1x2x1x512xf16>) -> tensor<1x2x1x5
     // CHECK-SAME: } : tensor<1x2x1x6xf16>, tensor<1x1x1x1xf16>, tensor<1x1x1x1xf16>, tensor<1x1x1x1xf16>, tensor<1x1x1x1xf16> -> tensor<1x2x1x6xf16>
 
     // CHECK: %[[CONCAT:.*]] = IE.Concat(%[[FQ_IN]], %[[FQ_PAD_CST]]) {
-    // CHECK-SAME  {per_axis = {axis = 3 : i64}
+    // CHECK-SAME  {per_axis = #IE.Concat<axis = 3 : i64>
     // CHECK-SAME: } : tensor<1x2x1x512xf16>, tensor<1x2x1x6xf16> -> tensor<1x2x1x518xf16>
 
     // CHECK: %[[FQ_CONCAT:.*]] = IE.FakeQuantize(%[[CONCAT]], %[[OUT_LO]], %[[OUT_HI]], %[[OUT_LO]], %[[OUT_HI]]) {

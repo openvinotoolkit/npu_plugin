@@ -79,13 +79,13 @@ vpux::InputTiling vpux::VPU::PReluOp::backInferTileInfo(const vpux::TileInfo& ou
                    outputTile.shape[Dims4D::Act::C], slopeTile.shape[Dims4D::Act::C]);
     }
 
-    return TilingInfo{{inputTile, slopeTile}};
+    return TilingInfo{{std::move(inputTile), std::move(slopeTile)}};
 }
 
 void vpux::VPU::PReluOp::adjustAttrs(const TilingInfo& /*inputTiling*/, const TileInfo& /*outputTile*/) {
     // do nothing here
 }
 
-OutputTiling vpux::VPU::PReluOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
+mlir::FailureOr<OutputTiling> vpux::VPU::PReluOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
     return vpux::getSWLayerTilingStrategy(this->getOperation(), tilingMode, log);
 }

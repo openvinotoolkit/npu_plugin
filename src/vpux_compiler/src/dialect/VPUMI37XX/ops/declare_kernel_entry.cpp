@@ -21,7 +21,7 @@ using namespace vpux;
 //
 
 uint32_t vpux::VPUMI37XX::DeclareKernelEntryOp::getKernelEntry() {
-    auto kernel = kernel_path();
+    auto kernel = getKernelPath();
 
     const auto& kernelInfo = ShaveBinaryResources::getInstance();
     const SmallString arch = ELF::getSwKernelArchString(VPU::getArch(this->getOperation()));

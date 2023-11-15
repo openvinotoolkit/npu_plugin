@@ -23,3 +23,4 @@ func.func @SwapTransposeWithPerTensorQuant(%arg0: tensor<1x64x128x8xf16>) -> ten
     // CHECK:   return %[[PAD]] : tensor<1x8x70x134xf16>
 
 }
+

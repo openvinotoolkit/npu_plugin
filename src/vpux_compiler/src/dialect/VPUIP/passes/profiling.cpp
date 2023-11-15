@@ -64,14 +64,14 @@ void ActShaveProfilingPass::safeRunOnModule() {
     auto* ctx = module->getContext();
 
     auto maybeMemKind = _memKindCb("");
-    if (!maybeMemKind.hasValue()) {
+    if (!maybeMemKind.has_value()) {
         _log.trace("Memory Space is not defined");
         return;
     }
 
     vpux::IndexedSymbolAttr memKindAttr = nullptr;
     {
-        const auto memKind = maybeMemKind.getValue();
+        const auto memKind = maybeMemKind.value();
         if (memKind == VPU::MemoryKind::CMX_NN) {
             memKindAttr = IndexedSymbolAttr::get(ctx, stringifyEnum(memKind), 0);
         } else {
@@ -120,7 +120,8 @@ void ActShaveProfilingPass::safeRunOnModule() {
     // Declare and create additional output from network
     const unsigned outputDdrSize = profiler->getRequiredDdrMemory();
     const auto outputResultDdr = mlir::MemRefType::get({outputDdrSize}, getUInt32Type(ctx));
-    auto profilingResult = addNewProfilingOutput(ctx, netFunc, netOp, outputResultDdr, "actshave");
+    auto profilingResult =
+            addNewProfilingOutput(ctx, netFunc, netOp, outputResultDdr, profiling::ExecutorType::ACTSHAVE);
 
     SmallVector<mlir::Value> concatResults;
     profiler->addProfilingOps(profilingResult, concatResults);
@@ -212,22 +213,19 @@ void UPAProfilingPass::safeRunOnModule() {
 
         const auto loc = appendLoc(upaTask->getLoc(), "{0}_{1}", PROFILING_PREFIX, upaId);
         upaTask->setLoc(loc);
-        upaTask.profiling_dataMutable().assign(declareOp);
+        upaTask.getInnerTaskOp()->setLoc(loc);
+        upaTask.getProfilingDataMutable().assign(declareOp);
         upaId++;
     }
 
     // Declare and create additional output from network
-    auto profilngResult = addNewProfilingOutput(ctx, netFunc, netOp, outputResult, "upa");
+    auto profilngResult = addNewProfilingOutput(ctx, netFunc, netOp, outputResult, profiling::ExecutorType::UPA);
 
     // And to the returnOp
     mlir::func::ReturnOp returnOp =
             mlir::dyn_cast_or_null<mlir::func::ReturnOp>(netFunc.getBody().front().getTerminator());
     VPUX_THROW_UNLESS(returnOp != nullptr, "No ReturnOp was found");
     returnOp.operandsMutable().append(profilngResult);
-}
-
-unsigned GroupProfilingBuffersPass::getAlignment(StringRef /*name*/) {
-    return 1;
 }
 
 void GroupProfilingBuffersPass::safeRunOnModule() {
@@ -241,34 +239,40 @@ void GroupProfilingBuffersPass::safeRunOnModule() {
     mlir::OpBuilder builder(&netFunc.getBody().front().front(), &builderLog);
 
     // If profiling was enabled for SW kernels only and network doesn't have any, there will be
-    // profilingOutputsInfo with single block "^bb0" and 0 operation inside.
-    if (netOp.profilingOutputsInfo().empty() || netOp.profilingOutputsInfo().front().empty() ||
-        netOp.profilingOutputsInfo().front().getOps().empty()) {
+    // getProfilingOutputsInfo with single block "^bb0" and 0 operation inside.
+    if (netOp.getProfilingOutputsInfo().empty() || netOp.getProfilingOutputsInfo().front().empty() ||
+        netOp.getProfilingOutputsInfo().front().getOps().empty()) {
         return;
     }
 
     // Collecting sizes of all profiling buffers in order to calculate offsets in the base buffer
     // New buffer name will be like: [offset]_[name]_[offset]_[name]...
-    auto& profilingOutputs = netOp.profilingOutputsInfo().front();
+    auto& profilingOutputs = netOp.getProfilingOutputsInfo().front();
     SmallVector<uint32_t> outputBases;
-    uint32_t totalSize = 0;
-    std::string newOutputName;
+
+    struct Section {
+        int execType;
+        size_t offset;
+        size_t size;
+    };
+    std::vector<Section> sections;
+    size_t offset = 0;
     profilingOutputs.walk([&](IE::DataInfoOp op) {
-        outputBases.push_back(totalSize);
-        auto type = op.userType().cast<mlir::ShapedType>();
-        auto sectionName = op.name().str();
-        auto alignment = getAlignment(sectionName);
-        bool alignmentRequired = (totalSize % alignment) != 0;
-        if (alignmentRequired) {
-            newOutputName += formatv("{0}_pad_", totalSize);
-            totalSize = alignValUp(totalSize, alignment);
-        }
-        newOutputName += formatv("{0}_{1}_", totalSize, sectionName);
-        auto size = static_cast<uint32_t>(type.getSizeInBits() / CHAR_BIT);
-        totalSize += size;
+        const auto type = op.userType().cast<mlir::ShapedType>();
+        const auto sectionName = op.name();
+
+        const size_t alignment = PROFILING_SECTION_ALIGNMENT;
+        offset = alignValUp(offset, alignment);
+        const auto size = static_cast<size_t>(type.getSizeInBits() / CHAR_BIT);
+
+        const auto execType = convertDataInfoNameToExecType(sectionName);
+        const auto execCode = static_cast<int>(execType);
+        sections.push_back({execCode, offset, size});
+        outputBases.push_back(offset);
+        offset += size;
         op.erase();
     });
-    newOutputName.pop_back();
+    const size_t totalSize = offset;
 
     //
     // Create and add new combined profiling output to the user info
@@ -279,9 +283,18 @@ void GroupProfilingBuffersPass::safeRunOnModule() {
     auto outputUserResult = getTensorType(newOutputShapedType.getShape(), newOutputShapedType.getElementType(),
                                           newOutputShapedType.getDimsOrder(), nullptr);
     auto userInfoBuilder = mlir::OpBuilder::atBlockEnd(&profilingOutputs.front(), &builderLog);
-    userInfoBuilder.create<IE::DataInfoOp>(
-            mlir::NameLoc::get(mlir::StringAttr::get(ctx, "combinedProfilingDataOutputInfo")),
-            mlir::StringAttr::get(ctx, newOutputName), mlir::TypeAttr::get(outputUserResult));
+
+    auto dataInfo = userInfoBuilder.create<IE::DataInfoOp>(
+            mlir::UnknownLoc::get(ctx), mlir::StringAttr::get(ctx, vpux::PROFILING_OUTPUT_NAME),
+            mlir::TypeAttr::get(outputUserResult), /*profilingSectionsCount=*/1);
+    dataInfo.sections().front().emplaceBlock();
+
+    auto sectionsBuilder = mlir::OpBuilder::atBlockBegin(&dataInfo.sections().front().front(), builder.getListener());
+    for (const auto& section : sections) {
+        sectionsBuilder.create<VPUIP::ProfilingSectionOp>(mlir::UnknownLoc::get(ctx), getIntAttr(ctx, section.execType),
+                                                          getIntAttr(ctx, section.offset),
+                                                          getIntAttr(ctx, section.size));
+    }
 
     auto totalArgumentsCount = netFunc.getNumArguments();
     auto mainArgumentsCount = totalArgumentsCount - outputBases.size();
@@ -312,7 +325,7 @@ void GroupProfilingBuffersPass::safeRunOnModule() {
                 auto declareOp = builder.create<VPURT::DeclareBufferOp>(
                         mlir::NameLoc::get(mlir::StringAttr::get(ctx, "newProfilingBuffer")), arg->getType(),
                         VPURT::BufferSection::ProfilingOutput, 0, base);
-                use->set(declareOp.buffer());
+                use->set(declareOp.getBuffer());
             }
             netFunc.eraseArgument(argNum);
             removedArgs++;
@@ -329,28 +342,28 @@ void GroupProfilingBuffersPass::safeRunOnModule() {
     // Recalculate existing DeclareTensorOp
     //
     netFunc.walk([&](VPURT::DeclareBufferOp op) {
-        if (op.section() == VPURT::BufferSection::ProfilingOutput ||
-            op.section() == VPURT::BufferSection::NetworkOutput) {
-            auto sectionIndex = op.sectionIndex();
-            if (sectionIndex.hasValue()) {
-                VPUX_THROW_UNLESS(sectionIndex.getValue().size() == 1,
+        if (op.getSection() == VPURT::BufferSection::ProfilingOutput ||
+            op.getSection() == VPURT::BufferSection::NetworkOutput) {
+            auto sectionIndex = op.getSectionIndex();
+            if (sectionIndex.has_value()) {
+                VPUX_THROW_UNLESS(sectionIndex.value().size() == 1,
                                   "Profiling output is expected to have just one locale index");
-                auto idx = parseIntArrayAttr<int64_t>(sectionIndex.getValue())[0];
-                if (op.section() == VPURT::BufferSection::NetworkOutput) {
+                auto idx = parseIntArrayAttr<int64_t>(sectionIndex.value())[0];
+                if (op.getSection() == VPURT::BufferSection::NetworkOutput) {
                     if (idx < static_cast<int64_t>(numMainOutputs)) {
                         return;
                     }
                     idx -= numMainOutputs;
                     auto sectionAttr = VPURT::BufferSectionAttr::get(ctx, VPURT::BufferSection::ProfilingOutput);
-                    op.sectionAttr(sectionAttr);
+                    op.setSectionAttr(sectionAttr);
                 } else if (idx <= 0) {
                     return;
                 }
 
                 auto base = outputBases[idx];
-                op.sectionIndexAttr(getIntArrayAttr(ctx, SmallVector<int64_t>({0})));
-                auto offset = static_cast<uint32_t>(base + op.byteOffset());
-                op.byteOffsetAttr(builder.getUI32IntegerAttr(offset));
+                op.setSectionIndexAttr(getIntArrayAttr(ctx, SmallVector<int64_t>({0})));
+                auto offset = static_cast<uint32_t>(base + op.getByteOffset());
+                op.setByteOffsetAttr(builder.getUI32IntegerAttr(offset));
             }
         }
     });

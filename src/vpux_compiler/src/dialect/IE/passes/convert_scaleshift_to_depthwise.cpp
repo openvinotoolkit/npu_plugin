@@ -8,6 +8,7 @@
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IE/utils/const_attributes.hpp"
+#include "vpux/compiler/dialect/IE/utils/scale_shift_utils.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -60,35 +61,8 @@ private:
 
 mlir::LogicalResult ConvertScaleShiftToDWPass::ScaleShiftOpConverter::matchAndRewrite(
         IE::ScaleShiftOp origOp, mlir::PatternRewriter& rewriter) const {
-    if (origOp.biases() != nullptr) {
-        if (mlir::failed(IE::getConstParentOp(origOp.biases()))) {
-            return matchFailed(_log, rewriter, origOp,
-                               "Failed to convert ScaleShift to DW, since it has non constant biases");
-        }
-    }
-
-    // If ScaleShift after input and first conv can use C-major, It is better not convert to DWConv.
-    // More general, if sub-graph like: input -> UPAs -> ScaleShift -> Conv. It is better not convert to DWConv.
-    // If layer before ScaleShift is NCE op or with NHWC layout. It should convert to DWConv.
-    auto onlySupportNHWCLayout = [&](mlir::Operation* op) -> bool {
-        if (auto iface = mlir::dyn_cast<IE::LayoutInfoOpInterface>(op)) {
-            auto orderInfo = iface.getLayoutInfo();
-            iface.inferLayoutInfo(orderInfo);
-            return orderInfo.hasChanges();
-        }
-        return false;
-    };
-
-    auto prevOp = origOp.input().getDefiningOp();
-    if (prevOp == nullptr || !onlySupportNHWCLayout(prevOp)) {
-        for (auto user : origOp.getResult().getUsers()) {
-            auto convOp = mlir::dyn_cast<IE::ConvolutionOp>(user);
-            if (convOp != nullptr &&
-                VPU::NCEInvariant::isChannelMajorCompatible(VPU::getArch(convOp),
-                                                            convOp.input().getType().cast<vpux::NDTypeInterface>())) {
-                return mlir::failure();
-            }
-        }
+    if (mlir::failed(vpux::IE::isBeneficialConvertScaleShiftToDW(origOp, _log))) {
+        return mlir::failure();
     }
 
     const SmallVector<int32_t> strides = {1, 1};
@@ -132,7 +106,7 @@ mlir::LogicalResult ConvertScaleShiftToDWPass::ScaleShiftOpConverter::matchAndRe
         weights = dwConvFilter.output();
     } else {
         auto dwConvFilter = createConstOp(weightShape, 1.0f);
-        weights = dwConvFilter.output();
+        weights = dwConvFilter.getOutput();
         auto inputFq = origOp.input().getDefiningOp<IE::FakeQuantizeOp>();
         if (inputFq != nullptr) {
             auto newFqOp = rewriter.create<IE::FakeQuantizeOp>(origOp->getLoc(), weights, weights, weights, weights,

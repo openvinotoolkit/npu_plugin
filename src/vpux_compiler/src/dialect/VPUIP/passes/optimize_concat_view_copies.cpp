@@ -31,7 +31,7 @@ public:
     mlir::LogicalResult matchAndRewrite(VPUIP::ConcatViewOp copyOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    mlir::LogicalResult checkConcatUsers(mlir::Value::user_range users, int64_t& channels, int64_t& channelOffsets,
+    mlir::LogicalResult checkConcatUsers(mlir::Value output, int64_t& channels, int64_t& channelOffsets,
                                          SmallVector<VPUIP::SubViewOp>& subViewOps) const;
     mlir::LogicalResult checkConcatInputs(mlir::ValueRange inputs, int64_t& channels,
                                           SmallVector<VPUIP::NCEClusterTilingOp>& tilingCopies) const;
@@ -51,9 +51,10 @@ private:
     m > n
 
 */
-mlir::LogicalResult AvoidConcatExtraChannel::checkConcatUsers(mlir::Value::user_range subviews, int64_t& channels,
+mlir::LogicalResult AvoidConcatExtraChannel::checkConcatUsers(mlir::Value output, int64_t& channels,
                                                               int64_t& channelOffsets,
                                                               SmallVector<VPUIP::SubViewOp>& subViewOps) const {
+    auto subviews = output.getUsers();
     if (subviews.empty()) {
         return mlir::failure();
     }
@@ -68,7 +69,7 @@ mlir::LogicalResult AvoidConcatExtraChannel::checkConcatUsers(mlir::Value::user_
         auto offsets = parseIntArrayAttr<int64_t>(subview.static_offsetsAttr());
         auto sizes = parseIntArrayAttr<int64_t>(subview.static_sizesAttr());
 
-        if (subview.static_strides().hasValue()) {
+        if (subview.static_strides().has_value()) {
             return mlir::failure();
         }
 
@@ -194,11 +195,11 @@ mlir::LogicalResult AvoidConcatExtraChannel::matchAndRewrite(VPUIP::ConcatViewOp
     _log.trace("Got VPUIP.ConcatViewOp at '{0}'", concatOp->getLoc());
     auto nestedLogger = _log.nest();
 
-    auto concatUsers = concatOp.output().getUsers();
+    auto concatOutput = concatOp.output();
     int64_t numChannels = 0;
     int64_t channelOffsets = 0;
     SmallVector<VPUIP::SubViewOp> subViewOps;
-    if (checkConcatUsers(concatUsers, numChannels, channelOffsets, subViewOps).failed()) {
+    if (checkConcatUsers(concatOutput, numChannels, channelOffsets, subViewOps).failed()) {
         nestedLogger.trace("Cannot optimize because of users requirements");
         return mlir::failure();
     }
@@ -511,31 +512,6 @@ mlir::LogicalResult FuseConcatView::fuseTwoConcatViewInputs(VPUIP::ConcatViewOp 
 
             auto newSubViewOp = rewriter.create<VPUIP::SubViewOp>(outCopySubView->getLoc(), outCopySubView.source(),
                                                                   newCopyOffsets, newCopySizes);
-
-            const auto inputStridingLevel = VPUIP::getStridingLevel(op->getOperand(0));
-            const auto outputStridingLevel = VPUIP::getStridingLevel(newSubViewOp.result());
-            constexpr int64_t maxStridingLevel = 2;
-            if (inputStridingLevel > maxStridingLevel || outputStridingLevel > maxStridingLevel) {
-                log.nest().trace("DMA transaction unable to handle Striding Level large than 2, but got input '{0}' "
-                                 "output '{1}'",
-                                 inputStridingLevel, outputStridingLevel);
-                rewriter.eraseOp(newSubViewOp);
-                return mlir::failure();
-            }
-
-            if (inputStridingLevel == maxStridingLevel || outputStridingLevel == maxStridingLevel) {
-                auto numberOfPlanes =
-                        isClusterCopy ? VPUIP::getNumberOfPlanes(clusterCopyOp.getInnerTaskOpOfType<VPUIP::CopyOp>())
-                                      : VPUIP::getNumberOfPlanes(inCopyOp);
-                if (numberOfPlanes > VPUIP::CMX_DMA_MAX_NUM_PLANES) {
-                    log.nest().trace("DMA Striding Level equal 2 and numberOfPlanes '{0}' large than '{1}'. Fusing "
-                                     "Concat Op have no benefit",
-                                     numberOfPlanes, VPUIP::CMX_DMA_MAX_NUM_PLANES);
-                    rewriter.eraseOp(newSubViewOp);
-                    return mlir::failure();
-                }
-            }
-
             if (newSubViewOp->isBeforeInBlock(nextConcatMemAlloc)) {
                 if (auto groupOp = mlir::dyn_cast<vpux::GroupedViewOpInterface>(nextConcatMemAlloc)) {
                     for (auto source : groupOp.getViewSources()) {
@@ -555,11 +531,24 @@ mlir::LogicalResult FuseConcatView::fuseTwoConcatViewInputs(VPUIP::ConcatViewOp 
                 auto newCopyInCluster = rewriter.create<VPUIP::NCEClusterTilingOp>(
                         op->getLoc(), newSubViewOp->getResult(0).getType(), inputOutputOperands, copyOutBodyBuilder);
 
+                auto innerCopyOp = newCopyInCluster.getInnerTaskOpOfType<VPUIP::CopyOp>();
+                if (!VPUIP::hasLegalStridingLevel(innerCopyOp)) {
+                    log.nest().trace("DMA Striding Level is illegal. Fusing Concat Op have no benefit");
+                    rewriter.eraseOp(newCopyInCluster);
+                    rewriter.eraseOp(newSubViewOp);
+                    return mlir::failure();
+                }
                 newCopyInputs.push_back(newCopyInCluster->getResult(0));
                 continue;
             }
 
             auto newCopyOp = rewriter.create<VPUIP::CopyOp>(op->getLoc(), op->getOperand(0), newSubViewOp.result());
+            if (!VPUIP::hasLegalStridingLevel(newCopyOp)) {
+                log.nest().trace("DMA Striding Level is illegal. Fusing Concat Op have no benefit");
+                rewriter.eraseOp(newCopyOp);
+                rewriter.eraseOp(newSubViewOp);
+                return mlir::failure();
+            }
             newCopyInputs.push_back(newCopyOp.output());
         }
     }

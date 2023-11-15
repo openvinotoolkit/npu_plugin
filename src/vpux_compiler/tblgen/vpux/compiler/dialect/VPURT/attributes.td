@@ -6,33 +6,48 @@
 #ifndef VPUX_COMPILER_DIALECT_VPURT_ATTRIBUTES
 #define VPUX_COMPILER_DIALECT_VPURT_ATTRIBUTES
 
-include "mlir/IR/OpBase.td"
-include "mlir/IR/EnumAttr.td"
+include "vpux/compiler/core/attributes.td"
+include "vpux/compiler/dialect/VPURT/dialect.td"
+
+//
+// Base classes
+//
+
+class VPURT_I64EnumAttr <string name, string summary, list<I64EnumAttrCase> cases> : 
+        I64EnumAttr<name, summary, cases> {
+    let cppNamespace = "vpux::VPURT";
+    let genSpecializedAttr = 0;
+}
+
+class VPURT_EnumAttr <EnumAttrInfo enumInfo, string name = "", list <Trait> traits = []> : 
+        EnumAttr<VPURT_Dialect, enumInfo, name, traits> {
+    let assemblyFormat = "`<`$value`>`";
+}
 
 //
 // BufferSection
 //
 
 def VPURT_BufferSection :
-        StrEnumAttr<
+        VPURT_I64EnumAttr<
             "BufferSection",
             "Values indicating which section of BLOB the buffer resides in",
             [
-                StrEnumAttrCase<"NetworkInput">,
-                StrEnumAttrCase<"NetworkOutput">,
-                StrEnumAttrCase<"ProfilingOutput">,
-                StrEnumAttrCase<"Constant">,
-                StrEnumAttrCase<"SW_KernelText">,
-                StrEnumAttrCase<"DDR">,
-                StrEnumAttrCase<"CSRAM">,
-                StrEnumAttrCase<"CMX_UPA">,
-                StrEnumAttrCase<"CMX_NN">,
-                StrEnumAttrCase<"Register">,
-                StrEnumAttrCase<"MAC_Accumulators">,
+                I64EnumAttrCase<"NetworkInput",     0>,
+                I64EnumAttrCase<"NetworkOutput",    1>,
+                I64EnumAttrCase<"ProfilingOutput",  2>,
+                I64EnumAttrCase<"Constant",         3>,
+                I64EnumAttrCase<"SW_KernelText",    4>,
+                I64EnumAttrCase<"DDR",              5>,
+                I64EnumAttrCase<"CSRAM",            6>,
+                I64EnumAttrCase<"CMX_UPA",          7>,
+                I64EnumAttrCase<"CMX_NN",           8>,
+                I64EnumAttrCase<"Register",         9>,
+                I64EnumAttrCase<"MAC_Accumulators", 10>,
             ]
         > {
-    let cppNamespace = "vpux::VPURT";
-    let genSpecializedAttr = 1;
 }
+
+def VPURT_BufferSectionAttr : VPURT_EnumAttr<VPURT_BufferSection, "buffer_section">;
 
 #endif

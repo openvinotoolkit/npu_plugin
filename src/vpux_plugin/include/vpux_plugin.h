@@ -29,13 +29,19 @@ namespace vpux {
 class Engine : public InferenceEngine::IInferencePlugin {
 public:
     Engine();
+    Engine(const Engine&) = delete;
+    Engine(Engine&&) = delete;
+    Engine& operator=(const Engine&) = delete;
+    Engine&& operator=(Engine&&) = delete;
+    virtual ~Engine() = default;
 
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
             const InferenceEngine::CNNNetwork& network, const std::map<std::string, std::string>& config) override;
 
+    // Virtual method implemetation throws an error as RemoteContext is deprecated
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
-            const InferenceEngine::CNNNetwork& network, const std::shared_ptr<InferenceEngine::RemoteContext>& ptr,
-            const std::map<std::string, std::string>& map) override;
+            const InferenceEngine::CNNNetwork&, const std::shared_ptr<InferenceEngine::RemoteContext>&,
+            const std::map<std::string, std::string>&) override;
 
     InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
             const std::string& modelFileName, const std::map<std::string, std::string>& config) override;
@@ -43,9 +49,10 @@ public:
     InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
             std::istream& networkModel, const std::map<std::string, std::string>& config) override;
 
+    // Virtual method implemetation throws an error as RemoteContext is deprecated
     InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
-            std::istream& networkModel, const std::shared_ptr<InferenceEngine::RemoteContext>& context,
-            const std::map<std::string, std::string>& config) override;
+            std::istream&, const std::shared_ptr<InferenceEngine::RemoteContext>&,
+            const std::map<std::string, std::string>&) override;
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
 
@@ -59,8 +66,7 @@ public:
             const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
 
     /**
-     * @brief Create context form param map. Will reuse already created workloadContext (workload
-     * context id should be specified in param map)
+     * @brief Virtual method implemetation throws an error as RemoteContext is deprecated
      */
     std::shared_ptr<InferenceEngine::RemoteContext> CreateContext(const InferenceEngine::ParamMap& map) override;
 
@@ -74,6 +80,14 @@ private:
     Config _globalConfig;
     VPUXBackends::Ptr _backends;
     std::unique_ptr<Metrics> _metrics;
+    // properties map OV1.0: {name -> [supported, eval function]}
+    std::map<std::string, std::tuple<bool, std::function<InferenceEngine::Parameter(const Config&)>>> propertiesOv1;
+    std::vector<ov::PropertyName> supportedProperties0v1;
+    // properties map: {name -> [supported, mutable, eval function]}
+    std::map<std::string,
+             std::tuple<bool, ov::PropertyMutability, std::function<InferenceEngine::Parameter(const Config&)>>>
+            propertiesOv2;
+    std::vector<ov::PropertyName> supportedProperties0v2;
     Logger _logger;
 };
 

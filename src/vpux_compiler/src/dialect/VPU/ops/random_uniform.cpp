@@ -27,10 +27,6 @@ mlir::LogicalResult vpux::VPU::RandomUniformOp::inferReturnTypes(
     return mlir::success();
 }
 
-void vpux::VPU::RandomUniformOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
-    IE::fillDefaultLayoutInfo(info);
-}
-
 //
 // EMU serialize
 //

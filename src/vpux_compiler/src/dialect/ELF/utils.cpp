@@ -44,7 +44,7 @@ size_t vpux::ELF::getOffsetOfOpInSection(mlir::Value& op, mlir::Value& section) 
     // is no need for any computation
     auto actualOp = op.getDefiningOp();
     if (auto declareBufferOp = mlir::dyn_cast<vpux::VPURT::DeclareBufferOp>(actualOp)) {
-        return declareBufferOp.byteOffset();
+        return declareBufferOp.getByteOffset();
     }
 
     auto elfSection = mlir::cast<vpux::ELF::ElfSectionInterface>(section.getDefiningOp());
@@ -54,11 +54,12 @@ size_t vpux::ELF::getOffsetOfOpInSection(mlir::Value& op, mlir::Value& section) 
     for (auto& inner_op : elfSection.getBlock()->getOperations()) {
         if (mlir::isa<vpux::ELF::BinaryOpInterface>(inner_op)) {
             if (auto putOpInSectionOp = mlir::dyn_cast<vpux::ELF::PutOpInSectionOp>(inner_op)) {
-                if (putOpInSectionOp.inputArg() == op.getDefiningOp()->getResult(0)) {
+                if (putOpInSectionOp.getInputArg() == op.getDefiningOp()->getResult(0)) {
                     opFound = true;
                     break;
                 }
-                auto binaryOp = mlir::cast<vpux::ELF::BinaryOpInterface>(putOpInSectionOp.inputArg().getDefiningOp());
+                auto binaryOp =
+                        mlir::cast<vpux::ELF::BinaryOpInterface>(putOpInSectionOp.getInputArg().getDefiningOp());
                 totalOffset += binaryOp.getBinarySize();
 
             } else {
@@ -88,7 +89,7 @@ size_t vpux::ELF::getOffsetOfOpInSection(mlir::Value& op) {
 
     auto tile = type.getMemSpace().getIndex().value_or(0);
 
-    return tile * mvds::nce2p7::CMX_SLICE_SIZE + declareBufferOp.byteOffset();
+    return tile * mvds::nce2p7::CMX_SLICE_SIZE + declareBufferOp.getByteOffset();
 }
 
 SmallString vpux::ELF::getSwKernelArchString(VPU::ArchKind archKind) {

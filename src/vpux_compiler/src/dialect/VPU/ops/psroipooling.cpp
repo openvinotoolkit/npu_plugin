@@ -54,9 +54,9 @@ mlir::LogicalResult vpux::VPU::PSROIPoolingOp::inferReturnTypes(
 //
 
 EMU::BlobWriter::SpecificTask vpux::VPU::PSROIPoolingOp::serialize(EMU::BlobWriter& writer) {
-    const auto spatialBinsX = spatial_bins_x().hasValue() ? spatial_bins_x().getValue() : 1;
-    const auto spatialBinsY = spatial_bins_y().hasValue() ? spatial_bins_y().getValue() : 1;
-    const auto psROIPoolingMode = mode().hasValue() ? mode().getValue() : IE::PSROIPoolingMode::AVERAGE;
+    const auto spatialBinsX = spatial_bins_x().has_value() ? spatial_bins_x().value() : 1;
+    const auto spatialBinsY = spatial_bins_y().has_value() ? spatial_bins_y().value() : 1;
+    const auto psROIPoolingMode = mode().has_value() ? mode().value() : IE::PSROIPoolingMode::AVERAGE;
 
     MVCNN::PSROIPoolingParamsBuilder builder(writer);
 

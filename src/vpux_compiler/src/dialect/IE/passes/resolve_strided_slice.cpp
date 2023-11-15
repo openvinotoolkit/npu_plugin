@@ -66,13 +66,13 @@ ngraph::SlicePlan ResolveStridedSlicePass::SlicePlanning::getSlicePlan(IE::Strid
         return axis_set;
     };
 
-    VPUX_THROW_UNLESS(origOp.begins_attr().hasValue(), "begins_attr is null");
-    VPUX_THROW_UNLESS(origOp.ends_attr().hasValue(), "ends_attr is null");
-    VPUX_THROW_UNLESS(origOp.strides_attr().hasValue(), "strides_attr is null");
+    VPUX_THROW_UNLESS(origOp.begins_attr().has_value(), "begins_attr is null");
+    VPUX_THROW_UNLESS(origOp.ends_attr().has_value(), "ends_attr is null");
+    VPUX_THROW_UNLESS(origOp.strides_attr().has_value(), "strides_attr is null");
 
-    const auto beginsVec = to_std_vector(parseIntArrayAttr<int64_t>(origOp.begins_attr().getValue()));
-    const auto endsVec = to_std_vector(parseIntArrayAttr<int64_t>(origOp.ends_attr().getValue()));
-    const auto stridesVec = to_std_vector(parseIntArrayAttr<int64_t>(origOp.strides_attr().getValue()));
+    const auto beginsVec = to_std_vector(parseIntArrayAttr<int64_t>(origOp.begins_attr().value()));
+    const auto endsVec = to_std_vector(parseIntArrayAttr<int64_t>(origOp.ends_attr().value()));
+    const auto stridesVec = to_std_vector(parseIntArrayAttr<int64_t>(origOp.strides_attr().value()));
 
     const auto beginMask = getAxisSetArr(origOp.begin_mask());
     const auto endMask = getAxisSetArr(origOp.end_mask());
@@ -93,7 +93,7 @@ mlir::LogicalResult ResolveStridedSlicePass::SlicePlanning::matchAndRewrite(IE::
 
     const auto plan = getSlicePlan(origOp);
 
-    const auto beginAttr = getIntArrayAttr(getContext(), plan.begins);
+    auto beginAttr = getIntArrayAttr(getContext(), plan.begins);
     IE::LayerOpInterface newOp;
     if (llvm::any_of(plan.strides, [](int64_t val) {
             return val > 1;
@@ -109,8 +109,22 @@ mlir::LogicalResult ResolveStridedSlicePass::SlicePlanning::matchAndRewrite(IE::
         auto sizes = std::vector<int64_t>(plan.ends.size());
         std::transform(plan.ends.cbegin(), plan.ends.cend(), plan.begins.cbegin(), sizes.begin(),
                        std::minus<int64_t>());
+        auto source = origOp.input();
+        // Merge the adjacent dims if their values are both 1 and not slice dim, such as 1x1x9x16x1000 -> 1x1x9x16x478
+        auto it = std::adjacent_find(sizes.begin(), sizes.end());
+        auto newInputShape = std::vector<int64_t>(getShape(origOp.input()).raw());
+        auto index = it - sizes.begin();
+        if (it != sizes.end() && *it == 1 && newInputShape[index] == 1) {
+            sizes.erase(it);
+            auto newBegin = std::vector<int64_t>(plan.begins);
+            newBegin.erase(newBegin.begin() + index);
+            beginAttr = getIntArrayAttr(getContext(), newBegin);
+            newInputShape.erase(newInputShape.begin() + index);
+            source = rewriter.createOrFold<IE::ReshapeOp>(origOp->getLoc(), source, nullptr, false,
+                                                          getIntArrayAttr(getContext(), newInputShape));
+        }
         const auto endsAttr = getIntArrayAttr(getContext(), sizes);
-        newOp = rewriter.create<IE::SliceOp>(origOp->getLoc(), origOp.input(), beginAttr, endsAttr);
+        newOp = rewriter.create<IE::SliceOp>(origOp->getLoc(), source, beginAttr, endsAttr);
     }
 
     const auto outputShapeAttr = getIntArrayAttr(getContext(), plan.reshape_out_shape);
@@ -133,11 +147,10 @@ void ResolveStridedSlicePass::safeRunOnFunc() {
             return val == 1;
         };
 
-        VPUX_THROW_UNLESS(slice.begins_attr().hasValue(), "begins_attr is null");
-        VPUX_THROW_UNLESS(slice.ends_attr().hasValue(), "ends_attr is null");
+        VPUX_THROW_UNLESS(slice.begins_attr().has_value(), "begins_attr is null");
+        VPUX_THROW_UNLESS(slice.ends_attr().has_value(), "ends_attr is null");
 
-        return slice.isSimplified() &&
-               !llvm::all_of(parseIntArrayAttr<int64_t>(slice.strides_attr().getValue()), isOne);
+        return slice.isSimplified() && !llvm::all_of(parseIntArrayAttr<int64_t>(slice.strides_attr().value()), isOne);
     };
 
     mlir::ConversionTarget target(ctx);

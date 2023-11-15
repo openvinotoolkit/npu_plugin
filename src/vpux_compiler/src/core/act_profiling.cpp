@@ -22,8 +22,6 @@
 
 namespace vpux {
 
-using namespace vpux;
-
 // Create a string that should be placed as a suffix for operation name (Loc) with relevant metadata
 // allowing post processing tools to correctly interpret profiling data
 std::string createActShaveProfilingLocSuffix(size_t inDdrOffset, size_t clusterSize, size_t inClusterOffset,
@@ -92,7 +90,7 @@ BaseActShaveProfiler::BaseActShaveProfiler(unsigned clustersNum, mlir::OpBuilder
           _netFunc(netFunc),
           _memKindAttr(memKindAttr),
           _log(log),
-          _uniqifier(uniqifier) {
+          _uniqifier(std::move(uniqifier)) {
 }
 
 // Get amount of memory needed to store profiling data of all ActShave tasks in the model
@@ -241,7 +239,7 @@ UniformNonTiledActShaveProfiler::UniformNonTiledActShaveProfiler(unsigned cluste
                                                                  vpux::IndexedSymbolAttr memKindAttr,
                                                                  mlir::func::FuncOp netFunc, vpux::Logger& log,
                                                                  std::shared_ptr<NameUniqifier> uniqifier)
-        : BaseActShaveProfiler(clustersNum, builder, ctx, memKindAttr, netFunc, log, uniqifier) {
+        : BaseActShaveProfiler(clustersNum, builder, ctx, memKindAttr, netFunc, log, std::move(uniqifier)) {
 }
 
 // Create allocation operation representing profiling buffer instance in CMX. If such buffer is full
@@ -335,8 +333,8 @@ VPUIP::DistributedBufferType NCETiledActShaveProfiler::getDistributedBufferType(
     const auto numClusters = getIntAttr(_ctx, _clustersNum);
     const auto memKindAttr = IndexedSymbolAttr::get(_memKindAttr.getLeafNameAttr());
     auto distributedTensorAttr = VPU::DistributedTensorAttr::get(
-            distributionModeAttr, numTiles, nullptr, nullptr, nullptr, numClusters, nullptr,
-            /*uniformDistributedSegments=*/mlir::UnitAttr::get(_ctx), nullptr, nullptr, nullptr, _ctx);
+            _ctx, distributionModeAttr, numTiles, nullptr, nullptr, nullptr, numClusters, nullptr,
+            /*uniformDistributedSegments=*/mlir::UnitAttr::get(_ctx), nullptr, nullptr, nullptr, nullptr, nullptr);
     return VPUIP::DistributedBufferType::get(_ctx, {totalElements}, getActShaveProfilingElementType(_ctx), layout,
                                              memKindAttr, distributedTensorAttr);
 }
@@ -345,7 +343,7 @@ NCETiledActShaveProfiler::NCETiledActShaveProfiler(unsigned clustersNum, mlir::O
                                                    mlir::MLIRContext* ctx, vpux::IndexedSymbolAttr memKindAttr,
                                                    mlir::func::FuncOp netFunc, vpux::Logger& log,
                                                    std::shared_ptr<NameUniqifier> uniqifier)
-        : BaseActShaveProfiler(clustersNum, builder, ctx, memKindAttr, netFunc, log, uniqifier) {
+        : BaseActShaveProfiler(clustersNum, builder, ctx, memKindAttr, netFunc, log, std::move(uniqifier)) {
 }
 
 // Create allocation operation representing profiling buffer instance in CMX. If such buffer is full

@@ -55,12 +55,12 @@ private:
     void unrollDepthFirstNCHW2NHWC(VPUIP::SpaceToDepthDMAOp origOp, vpux::VPURT::TaskOp vpurtTask,
                                    mlir::PatternRewriter& rewriter) const;
 
-    mlir::LogicalResult unrollSegmented(VPUIP::NCEClusterTilingOp clusterOp, VPUIP::SpaceToDepthDMAOp spaceToDepthOp,
+    mlir::LogicalResult unrollSegmented(VPUIP::SpaceToDepthDMAOp spaceToDepthOp,
                                         VPUIP::DistributedBufferType distributedType,
                                         mlir::PatternRewriter& rewriter) const;
 
     void createSpaceToDepthDMASubOp(VPUIP::SpaceToDepthDMAOp origOp, vpux::VPURT::TaskOp vpurtTask, ShapeRef subShape,
-                                    int64_t srcOffset, int64_t dstOffset, VPUIP::DmaDescriptorAttr dma_descriptor,
+                                    int64_t srcOffset, int64_t dstOffset, VPUIP::DMADescriptorAttr dma_descriptor,
                                     int64_t port, mlir::PatternRewriter& rewriter) const;
 
 private:
@@ -84,8 +84,8 @@ void SpaceToDepthDMARewriter::unrollBlocksFirstNCHW2NCHW(VPUIP::SpaceToDepthDMAO
     const auto OH = outShape[Dims4D::Act::H];
     const auto OW = outShape[Dims4D::Act::W];
 
-    auto srcOffset = origOp.input().getDefiningOp<VPURT::DeclareBufferOp>().byteOffset();
-    auto dstOffset = origOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>().byteOffset();
+    auto srcOffset = origOp.input().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
+    auto dstOffset = origOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
 
     auto spaceToDepthIndex = 0;
     auto dmaDescriptorGenerator = VPUIP::SpaceToDepthDmaDescriptorGenerator(getContext(), _log);
@@ -113,8 +113,8 @@ void SpaceToDepthDMARewriter::unrollBlocksFirstNHWC2NHWC(VPUIP::SpaceToDepthDMAO
     const auto blockSize = origOp.block_size();
     const auto mode = origOp.mode();
 
-    auto srcOffset = origOp.input().getDefiningOp<VPURT::DeclareBufferOp>().byteOffset();
-    auto dstOffset = origOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>().byteOffset();
+    auto srcOffset = origOp.input().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
+    auto dstOffset = origOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
 
     auto dmaDescriptorGenerator = VPUIP::SpaceToDepthDmaDescriptorGenerator(getContext(), _log);
     auto dmaDescriptor = dmaDescriptorGenerator.generate(inType, outType, mode, blockSize);
@@ -139,8 +139,8 @@ void SpaceToDepthDMARewriter::unrollBlocksFirstNCHW2NHWC(VPUIP::SpaceToDepthDMAO
     const auto OH = outShape[Dims4D::Act::H];
     const auto OW = outShape[Dims4D::Act::W];
 
-    auto srcOffset = origOp.input().getDefiningOp<VPURT::DeclareBufferOp>().byteOffset();
-    auto dstOffset = origOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>().byteOffset();
+    auto srcOffset = origOp.input().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
+    auto dstOffset = origOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
 
     auto spaceToDepthIndex = 0;
     auto dmaDescriptorGenerator = VPUIP::SpaceToDepthDmaDescriptorGenerator(getContext(), _log);
@@ -178,8 +178,8 @@ void SpaceToDepthDMARewriter::unrollDepthFirstNCHW2NCHW(VPUIP::SpaceToDepthDMAOp
     const auto OH = outShape[Dims4D::Act::H];
     const auto OW = outShape[Dims4D::Act::W];
 
-    auto srcOffset = origOp.input().getDefiningOp<VPURT::DeclareBufferOp>().byteOffset();
-    auto dstOffset = origOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>().byteOffset();
+    auto srcOffset = origOp.input().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
+    auto dstOffset = origOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
 
     auto spaceToDepthIndex = 0;
     auto dmaDescriptorGenerator = VPUIP::SpaceToDepthDmaDescriptorGenerator(getContext(), _log);
@@ -217,8 +217,8 @@ void SpaceToDepthDMARewriter::unrollDepthFirstNHWC2NHWC(VPUIP::SpaceToDepthDMAOp
     const auto OH = outShape[Dims4D::Act::H];
     const auto OW = outShape[Dims4D::Act::W];
 
-    auto srcOffset = origOp.input().getDefiningOp<VPURT::DeclareBufferOp>().byteOffset();
-    auto dstOffset = origOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>().byteOffset();
+    auto srcOffset = origOp.input().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
+    auto dstOffset = origOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
 
     auto spaceToDepthIndex = 0;
     auto dmaDescriptorGenerator = VPUIP::SpaceToDepthDmaDescriptorGenerator(getContext(), _log);
@@ -253,8 +253,8 @@ void SpaceToDepthDMARewriter::unrollDepthFirstNCHW2NHWC(VPUIP::SpaceToDepthDMAOp
     const auto IH = inShape[Dims4D::Act::H];
     const auto IW = inShape[Dims4D::Act::W];
 
-    auto srcOffset = origOp.input().getDefiningOp<VPURT::DeclareBufferOp>().byteOffset();
-    auto dstOffset = origOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>().byteOffset();
+    auto srcOffset = origOp.input().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
+    auto dstOffset = origOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
 
     auto spaceToDepthIndex = 0;
     auto dmaDescriptorGenerator = VPUIP::SpaceToDepthDmaDescriptorGenerator(getContext(), _log);
@@ -272,7 +272,7 @@ void SpaceToDepthDMARewriter::unrollDepthFirstNCHW2NHWC(VPUIP::SpaceToDepthDMAOp
 
 void SpaceToDepthDMARewriter::createSpaceToDepthDMASubOp(VPUIP::SpaceToDepthDMAOp origOp, vpux::VPURT::TaskOp vpurtTask,
                                                          ShapeRef subShape, int64_t srcOffset, int64_t dstOffset,
-                                                         VPUIP::DmaDescriptorAttr dma_descriptor, int64_t port,
+                                                         VPUIP::DMADescriptorAttr dma_descriptor, int64_t port,
                                                          mlir::PatternRewriter& rewriter) const {
     auto srcDeclBuff = origOp.input().getDefiningOp<VPURT::DeclareBufferOp>();
     auto dstDeclBuff = origOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>();
@@ -282,30 +282,32 @@ void SpaceToDepthDMARewriter::createSpaceToDepthDMASubOp(VPUIP::SpaceToDepthDMAO
 
     auto newSrcMemRef = srcType.changeShape(subShape).cast<mlir::MemRefType>();
     auto newSrcBuff = VPURT::createOp<VPURT::DeclareBufferOp>(rewriter, srcDeclBuff, vpurtTask.getLoc(), newSrcMemRef,
-                                                              srcDeclBuff.section(), srcOffset);
+                                                              srcDeclBuff.getSection(), srcOffset);
     auto srcMemSpaceIndex = srcType.getMemSpace().getIndex();
-    if (srcMemSpaceIndex.hasValue()) {
+    if (srcMemSpaceIndex.has_value()) {
         newSrcBuff =
                 VPURT::createOp<VPURT::DeclareBufferOp>(rewriter, srcDeclBuff, vpurtTask.getLoc(), newSrcMemRef,
-                                                        srcDeclBuff.section(), srcMemSpaceIndex.getValue(), srcOffset);
+                                                        srcDeclBuff.getSection(), srcMemSpaceIndex.value(), srcOffset);
     }
 
     auto newDstMemRef = dstType.changeShape(subShape).cast<mlir::MemRefType>();
     auto newDstBuff = VPURT::createOp<VPURT::DeclareBufferOp>(rewriter, dstDeclBuff, vpurtTask.getLoc(), newDstMemRef,
-                                                              dstDeclBuff.section(), dstOffset);
+                                                              dstDeclBuff.getSection(), dstOffset);
     auto dstMemSpaceIndex = dstType.getMemSpace().getIndex();
-    if (dstMemSpaceIndex.hasValue()) {
+    if (dstMemSpaceIndex.has_value()) {
         newDstBuff =
                 VPURT::createOp<VPURT::DeclareBufferOp>(rewriter, dstDeclBuff, vpurtTask.getLoc(), newDstMemRef,
-                                                        dstDeclBuff.section(), dstMemSpaceIndex.getValue(), dstOffset);
+                                                        dstDeclBuff.getSection(), dstMemSpaceIndex.value(), dstOffset);
     }
 
     _log.trace("Create Sub-SpaceToDepthDMAOp with shape: {0}, SrcMemory at {1}, DstMemory at {2}", subShape,
-               newSrcBuff.section(), newDstBuff.section());
+               newSrcBuff.getSection(), newDstBuff.getSection());
 
     auto newOp = VPURT::wrapIntoTaskOp<VPUIP::SpaceToDepthDMAOp>(
-            rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), vpurtTask.getLoc(), newSrcBuff, newDstBuff,
-            origOp.block_sizeAttr(), origOp.modeAttr(), dma_descriptor, vpux::getIntAttr(rewriter, port));
+            rewriter, vpurtTask.getWaitBarriers(), vpurtTask.getUpdateBarriers(), vpurtTask.getLoc(), newSrcBuff,
+            newDstBuff, vpux::getIntAttr(rewriter, port), origOp.channelTypeAttr(), origOp.block_sizeAttr(),
+            origOp.modeAttr(), dma_descriptor, origOp.dma_hwp_idAttr());
+
     auto newVpurtTask = newOp->getParentOfType<VPURT::TaskOp>();
 
     auto cycleBeginAttr = vpurtTask->getAttr(cycleBegin);
@@ -318,26 +320,21 @@ void SpaceToDepthDMARewriter::createSpaceToDepthDMASubOp(VPUIP::SpaceToDepthDMAO
     }
 }
 
-mlir::LogicalResult SpaceToDepthDMARewriter::unrollSegmented(VPUIP::NCEClusterTilingOp clusterOp,
-                                                             VPUIP::SpaceToDepthDMAOp spaceToDepthOp,
+mlir::LogicalResult SpaceToDepthDMARewriter::unrollSegmented(VPUIP::SpaceToDepthDMAOp spaceToDepthOp,
                                                              VPUIP::DistributedBufferType distributedType,
                                                              mlir::PatternRewriter& rewriter) const {
     auto loc = spaceToDepthOp->getLoc();
     auto ctx = spaceToDepthOp->getContext();
 
-    if (clusterOp.getInputs().empty() || clusterOp.getOutputs().empty()) {
-        return mlir::failure();
-    }
+    const auto input = spaceToDepthOp.input();
+    const auto output = spaceToDepthOp.output_buff();
 
-    const auto input = *clusterOp.getInputs().begin();
-    const auto output = *clusterOp.getOutputs().begin();
-
-    const auto innerInputType = spaceToDepthOp.input().getType().cast<vpux::NDTypeInterface>();
-    const auto innerOutputType = spaceToDepthOp.output_buff().getType().cast<vpux::NDTypeInterface>();
+    const auto inputType = spaceToDepthOp.input().getType().cast<vpux::NDTypeInterface>();
+    const auto outputType = distributedType.getCompactType().cast<vpux::NDTypeInterface>();
 
     const auto distributionAttr = distributedType.getDistribution();
-    const auto numClustersAttr = distributionAttr.num_clusters();
-    const auto distModeAttr = distributionAttr.mode();
+    const auto numClustersAttr = distributionAttr.getNumClusters();
+    const auto distModeAttr = distributionAttr.getMode();
     VPUX_THROW_UNLESS(numClustersAttr != nullptr && distModeAttr != nullptr,
                       "Failed to extract attributes from distributed type.");
     const auto numClusters = numClustersAttr.getInt();
@@ -351,7 +348,7 @@ mlir::LogicalResult SpaceToDepthDMARewriter::unrollSegmented(VPUIP::NCEClusterTi
     const auto perClusterShapeOffsets = distributedType.getPerClusterMemoryShapeOffsets();
     auto cmxNameAttr = mlir::FlatSymbolRefAttr::get(ctx, stringifyEnum(VPU::MemoryKind::CMX_NN));
 
-    auto vpurtTask = clusterOp->getParentOfType<VPURT::TaskOp>();
+    auto vpurtTask = spaceToDepthOp->getParentOfType<VPURT::TaskOp>();
     VPUX_THROW_WHEN(vpurtTask == nullptr, "Can not get VPURT.TaskOp for {0}", spaceToDepthOp);
     auto cycleBeginAttr = vpurtTask->getAttr(cycleBegin);
     auto cycleEndAttr = vpurtTask->getAttr(cycleEnd);
@@ -364,17 +361,17 @@ mlir::LogicalResult SpaceToDepthDMARewriter::unrollSegmented(VPUIP::NCEClusterTi
         return inShape;
     };
 
-    const auto originStride = innerInputType.getStrides();
+    const auto originStride = inputType.getStrides();
     SmallVector<vpux::NDTypeInterface> inTypes(numClusters);
     SmallVector<vpux::NDTypeInterface> outTypes(numClusters);
 
     for (size_t clusterId = 0; clusterId < perClusterOutShapes.size(); ++clusterId) {
-        inTypes[clusterId] = innerInputType
+        inTypes[clusterId] = inputType
                                      .extractDenseTile(perClusterShapeOffsets[clusterId],
                                                        backInferInputShape(perClusterOutShapes[clusterId], blockSize))
                                      .changeStrides(originStride);
         outTypes[clusterId] =
-                innerOutputType.extractDenseTile(perClusterShapeOffsets[clusterId], perClusterOutShapes[clusterId]);
+                outputType.extractDenseTile(perClusterShapeOffsets[clusterId], perClusterOutShapes[clusterId]);
     }
 
     rewriter.setInsertionPointAfter(vpurtTask);
@@ -384,17 +381,17 @@ mlir::LogicalResult SpaceToDepthDMARewriter::unrollSegmented(VPUIP::NCEClusterTi
         auto declBuff = operand.getDefiningOp<VPURT::DeclareBufferOp>();
         VPUX_THROW_UNLESS(declBuff != nullptr, "Can't get buffer offset");
 
-        Byte cmxOffset{declBuff.byteOffset()};
+        Byte cmxOffset{declBuff.getByteOffset()};
         cmxOffset += offset;
 
         auto declBuffType = declBuff.getType().cast<vpux::NDTypeInterface>();
         VPUX_THROW_UNLESS(declBuffType.getMemoryKind() == VPU::MemoryKind::CMX_NN,
                           "Currently only support input in CMX");
         auto sectionIndex = declBuffType.getMemSpace().getIndex();
-        VPUX_THROW_UNLESS(sectionIndex.hasValue() && sectionIndex.getValue() == 0,
+        VPUX_THROW_UNLESS(sectionIndex.has_value() && sectionIndex.value() == 0,
                           "Currently only support input in CMX0");
 
-        auto section = declBuff.section();
+        auto section = declBuff.getSection();
         const auto symbolAttr = vpux::IndexedSymbolAttr::get(ctx, stringifyEnum(VPURT::getMemoryKind(section)), 0);
         newType = newType.changeMemSpace(symbolAttr);
         return VPURT::createOp<VPURT::DeclareBufferOp>(rewriter, insertionPoint, loc, newType, section,
@@ -409,12 +406,13 @@ mlir::LogicalResult SpaceToDepthDMARewriter::unrollSegmented(VPUIP::NCEClusterTi
         const auto symbolAttr = vpux::IndexedSymbolAttr::get(ctx, {cmxNameAttr, vpux::getIntAttr(ctx, clusterId)});
         auto newCMXType = newType.changeMemSpace(symbolAttr);
 
-        return VPURT::createOp<VPURT::DeclareBufferOp>(
-                rewriter, insertionPoint, spaceToDepthOp->getLoc(), newCMXType, VPURT::BufferSection::CMX_NN,
-                getIntArrayAttr(ctx, makeArrayRef({clusterId})), declBuff.byteOffset(), declBuff.swizzlingKeyAttr());
+        return VPURT::createOp<VPURT::DeclareBufferOp>(rewriter, insertionPoint, spaceToDepthOp->getLoc(), newCMXType,
+                                                       VPURT::BufferSection::CMX_NN,
+                                                       getIntArrayAttr(ctx, makeArrayRef({clusterId})),
+                                                       declBuff.getByteOffset(), declBuff.getSwizzlingKeyAttr());
     };
 
-    auto elemTypeSize = Byte(innerInputType.getElemTypeSize());
+    auto elemTypeSize = Byte(inputType.getElemTypeSize());
 
     int64_t dmaPort = 0;
     Byte cmxOffset(0);
@@ -436,9 +434,9 @@ mlir::LogicalResult SpaceToDepthDMARewriter::unrollSegmented(VPUIP::NCEClusterTi
 
         const auto newLoc = appendLoc(loc, "_cluster_{0}", clusterId);
         auto newSpaceToDepthDMAOp = VPURT::wrapIntoTaskOp<VPUIP::SpaceToDepthDMAOp>(
-                rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), newLoc, inputBuffer, outBuffer,
-                spaceToDepthOp.block_sizeAttr(), spaceToDepthOp.modeAttr(), nullptr,
-                vpux::getIntAttr(rewriter, dmaPort));
+                rewriter, vpurtTask.getWaitBarriers(), vpurtTask.getUpdateBarriers(), newLoc, inputBuffer, outBuffer,
+                vpux::getIntAttr(rewriter, dmaPort), spaceToDepthOp.channelTypeAttr(), spaceToDepthOp.block_sizeAttr(),
+                spaceToDepthOp.modeAttr(), nullptr, spaceToDepthOp.dma_hwp_idAttr());
 
         dmaPort = (dmaPort + 1) % _dmaPortCount;
 
@@ -453,11 +451,10 @@ mlir::LogicalResult SpaceToDepthDMARewriter::unrollSegmented(VPUIP::NCEClusterTi
 
 mlir::LogicalResult SpaceToDepthDMARewriter::matchAndRewriteClusterDMA(VPUIP::SpaceToDepthDMAOp spaceToDepthDMAOp,
                                                                        mlir::PatternRewriter& rewriter) const {
-    auto clusterOp = spaceToDepthDMAOp->getParentOfType<VPUIP::NCEClusterTilingOp>();
-    _log.trace("Got SpaceToDepthDMA inside NCEClusterTilingOp: {0}", spaceToDepthDMAOp);
+    _log.trace("Got SpaceToDepthDMA with DistributedType: {0}", spaceToDepthDMAOp);
 
-    const auto input = *clusterOp.getInputs().begin();
-    const auto output = *clusterOp.getOutputs().begin();
+    const auto input = spaceToDepthDMAOp.input();
+    const auto output = spaceToDepthDMAOp.output_buff();
 
     const auto inputType = input.getType().cast<vpux::NDTypeInterface>();
     const auto outputType = output.getType().cast<vpux::NDTypeInterface>();
@@ -473,23 +470,24 @@ mlir::LogicalResult SpaceToDepthDMARewriter::matchAndRewriteClusterDMA(VPUIP::Sp
     const auto distributionAttr = distributedType.getDistribution();
     VPUX_THROW_WHEN(distributionAttr == nullptr, "Failed to extract distributon tensor from distributed type.");
 
-    const auto modeAttr = distributionAttr.mode();
+    const auto modeAttr = distributionAttr.getMode();
     VPUX_THROW_WHEN(modeAttr == nullptr, "Failed to extract mode from distributed attribute.");
     const auto mode = modeAttr.getValue();
 
     VPUX_THROW_UNLESS(mode == VPU::DistributionMode::SEGMENTED, "Unsupported distributed mode: {0}", modeAttr);
-    return unrollSegmented(clusterOp, spaceToDepthDMAOp, distributedType, rewriter);
+    return unrollSegmented(spaceToDepthDMAOp, distributedType, rewriter);
 }
 
 mlir::LogicalResult SpaceToDepthDMARewriter::matchAndRewrite(VPUIP::SpaceToDepthDMAOp spaceToDepthDMAOp,
                                                              mlir::PatternRewriter& rewriter) const {
-    if (auto clusterOp = spaceToDepthDMAOp->getParentOfType<VPUIP::NCEClusterTilingOp>()) {
+    const auto outputType = spaceToDepthDMAOp.output_buff().getType();
+    if (auto distributedType = outputType.dyn_cast<VPUIP::DistributedBufferType>()) {
         return matchAndRewriteClusterDMA(spaceToDepthDMAOp, rewriter);
     }
 
     _log.trace("Get SpaceToDepthDMAOp : {0}", spaceToDepthDMAOp->getLoc());
 
-    if (spaceToDepthDMAOp.dma_descriptor().hasValue()) {
+    if (spaceToDepthDMAOp.dma_descriptor().has_value()) {
         _log.trace("This SpaceToDepthDMAOp has already been unrolled.");
         return mlir::failure();
     }

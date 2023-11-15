@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache 2.0
 #
 
-#
+add_definitions(-DIE_BUILD_POSTFIX=${IE_BUILD_POSTFIX_VAR})
 
 add_subdirectory(libs)
 
@@ -17,4 +17,8 @@ add_subdirectory(lit)
 
 if (ENABLE_DIALECT_SHARED_LIBRARIES)
     add_subdirectory(smoke)
+endif()
+
+if (ENABLE_VPUX_FUZZ_TESTS)
+    add_subdirectory(fuzz)
 endif()

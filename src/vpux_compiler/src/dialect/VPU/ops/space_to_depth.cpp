@@ -110,7 +110,7 @@ vpux::InputTiling vpux::VPU::SpaceToDepthOp::backInferTileInfo(const vpux::TileI
 void vpux::VPU::SpaceToDepthOp::adjustAttrs(const TilingInfo& /*inputTiling*/, const TileInfo& /*outputTile*/) {
 }
 
-OutputTiling vpux::VPU::SpaceToDepthOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
+mlir::FailureOr<OutputTiling> vpux::VPU::SpaceToDepthOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
     auto op = this->getOperation();
     auto origOp = mlir::dyn_cast<VPU::SpaceToDepthOp>(op);
     auto tilingInfo = mlir::dyn_cast<VPU::TilingInfoOpInterface>(op);
@@ -144,7 +144,10 @@ OutputTiling vpux::VPU::SpaceToDepthOp::getTilingStrategy(TilingMode tilingMode,
     const auto isSupportedTileSize = [op, &tilingInfo, outputShape, log](ShapeRef nTilesOnDim,
                                                                          TilingMode tilingMode) -> bool {
         const auto tiles = fillDividedTiles(op, nTilesOnDim, outputShape);
-        return tilingInfo.isSupportedTiling(tiles, tilingMode, log);
+        if (mlir::failed(tiles)) {
+            return false;
+        }
+        return tilingInfo.isSupportedTiling(tiles.value(), tilingMode, log);
     };
 
     int64_t maxTile = 1;

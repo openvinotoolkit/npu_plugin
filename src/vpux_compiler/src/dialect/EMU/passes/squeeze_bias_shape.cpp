@@ -65,8 +65,8 @@ mlir::LogicalResult BiasShapeConverter<ConcreteOp>::matchAndRewrite(ConcreteOp o
 
     const auto newBiasShape = Shape({origBiasShape[Dims4D::Act::C]});
     const auto newBiasType = origBiasType.changeShape(newBiasShape);
-    const auto newBiasConstAttr = biasConst.contentAttr().reshape(newBiasShape);
-    auto newBias = rewriter.replaceOpWithNewOp<Const::DeclareOp>(biasConst, newBiasType, newBiasConstAttr).output();
+    const auto newBiasConstAttr = biasConst.getContentAttr().reshape(newBiasShape);
+    auto newBias = rewriter.replaceOpWithNewOp<Const::DeclareOp>(biasConst, newBiasType, newBiasConstAttr).getOutput();
 
     // Updating bias operand
     origOp.biasMutable().assign(newBias);

@@ -1,8 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) 2018-2022 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "behavior/ov_plugin/caching_tests.hpp"
+#include "vpu_test_env_cfg.hpp"
+#include "vpux/al/config/common.hpp"
 
 using namespace ov::test::behavior;
 
@@ -58,28 +61,38 @@ INSTANTIATE_TEST_SUITE_P(nightly_CachingSupportCase_KeemBay, CompileModelCacheTe
                                             ::testing::Values(ov::AnyMap{})),
                          CompileModelCacheTestBase::getTestCaseName);
 
+static std::string getTestCaseName(testing::TestParamInfo<compileModelLoadFromFileParams> obj) {
+    return CompileModelLoadFromFileTestBase::getTestCaseName(obj) +
+           "_targetPlatform=" + LayerTestsUtils::getTestsPlatformFromEnvironmentOr(CommonTestUtils::DEVICE_KEEMBAY);
+}
+
 const std::vector<ov::AnyMap> LoadFromFileConfigs = {
         {ov::device::priorities(CommonTestUtils::DEVICE_KEEMBAY),
+         ov::intel_vpux::compiler_type(ov::intel_vpux::CompilerType::DRIVER),
          ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
         {ov::device::priorities(CommonTestUtils::DEVICE_KEEMBAY),
+         ov::intel_vpux::compiler_type(ov::intel_vpux::CompilerType::DRIVER),
          ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}};
 const std::vector<std::string> TestTargets = {
         CommonTestUtils::DEVICE_AUTO,
         CommonTestUtils::DEVICE_MULTI,
+        CommonTestUtils::DEVICE_BATCH,
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_CachingSupportCase_KeemBay, CompileModelLoadFromFileTestBase,
                          ::testing::Combine(::testing::ValuesIn(TestTargets), ::testing::ValuesIn(LoadFromFileConfigs)),
-                         CompileModelLoadFromFileTestBase::getTestCaseName);
+                         getTestCaseName);
 
 const std::vector<ov::AnyMap> KEEMBAYLoadFromFileConfigs = {
-        {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
-        {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
-        {},
+        {ov::intel_vpux::compiler_type(ov::intel_vpux::CompilerType::DRIVER),
+         ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
+        {ov::intel_vpux::compiler_type(ov::intel_vpux::CompilerType::DRIVER),
+         ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
+        {ov::intel_vpux::compiler_type(ov::intel_vpux::CompilerType::DRIVER)},
 };
 INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_KeemBay, CompileModelLoadFromFileTestBase,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
                                             ::testing::ValuesIn(KEEMBAYLoadFromFileConfigs)),
-                         CompileModelLoadFromFileTestBase::getTestCaseName);
+                         getTestCaseName);
 
 }  // namespace

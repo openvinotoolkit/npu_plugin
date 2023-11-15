@@ -1,8 +1,9 @@
-// Copyright (C) Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 #include <ngraph_functions/builders.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -11,7 +12,7 @@
 namespace {
 
 class VPUXConv2dWithTransposeTest_VPU3720 :
-        public LayerTestsUtils::KmbLayerTestsCommon,
+        public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<std::tuple<std::vector<int64_t>, InferenceEngine::Layout>> {
     void ConfigureNetwork() override {
         cnnNetwork.getInputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
@@ -21,7 +22,7 @@ class VPUXConv2dWithTransposeTest_VPU3720 :
         cnnNetwork.getOutputsInfo().begin()->second->setLayout(outLayout);
     }
     void SetUp() override {
-        targetDevice = LayerTestsUtils::testPlatformTargetDevice;
+        targetDevice = LayerTestsUtils::testPlatformTargetDevice();
         const auto transposeOrder = std::get<0>(GetParam());
         const InferenceEngine::SizeVector lhsInputShape = {1, 3, 32, 64};
 

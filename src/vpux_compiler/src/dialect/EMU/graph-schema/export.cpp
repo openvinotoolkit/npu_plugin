@@ -9,6 +9,7 @@
 #include "vpux/compiler/dialect/EMU/ops.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/generated/schema/gf_version.h"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/schema.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
@@ -22,7 +23,6 @@
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/numeric.hpp"
-#include "vpux/utils/core/preprocessing.hpp"
 #include "vpux/utils/core/range.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 
@@ -55,12 +55,12 @@ flatbuffers::Offset<MVCNN::Resources> createResources(EMU::BlobWriter& writer, m
     SmallVector<flatbuffers::Offset<MVCNN::ProcessorMapping>> executorsOffsets;
     SmallVector<flatbuffers::Offset<MVCNN::ProcessorMapping>> processorVec;
     module.walk([&](IE::ExecutorResourceOp res) {
-        if (const auto execKind = res.getKindAs<VPU::ExecutorKindAttr>()) {
-            if (supportedProcessors.count(execKind.getValue()) != 0) {
-                executorsOffsets.push_back(VPUIP::createProcessorMapping(writer, res, module));
-                if (res.hasProcessorFrequency()) {
-                    processorVec.push_back(VPUIP::createProcessorFreqMapping(writer, res));
-                }
+        const auto execKind = VPU::getKindValue<VPU::ExecutorKind>(res);
+
+        if (supportedProcessors.count(execKind) != 0) {
+            executorsOffsets.push_back(VPUIP::createProcessorMapping(writer, res, module));
+            if (res.hasProcessorFrequency()) {
+                processorVec.push_back(VPUIP::createProcessorFreqMapping(writer, res));
             }
         }
     });
@@ -99,10 +99,10 @@ flatbuffers::Offset<MVCNN::Resources> createResources(EMU::BlobWriter& writer, m
 
 flatbuffers::Offset<MVCNN::Version> createVersion(EMU::BlobWriter& writer, Logger log) {
     log.info("Blob version: majorV={0}, minorV={1}, patch={2}, hash={3}, context={4}", MVCNN_VERSION_MAJOR,
-             MVCNN_VERSION_MINOR, MVCNN_VERSION_PATCH, VPUX_PLUGIN_VERSION, "VPUX Compiler");
+             MVCNN_VERSION_MINOR, MVCNN_VERSION_PATCH, VPUX_PLUGIN_VERSION, "NPU Compiler");
 
     const auto serializedHash = writer.createString(VPUX_PLUGIN_VERSION);
-    const auto serializedContext = writer.createString("VPUX Compiler");
+    const auto serializedContext = writer.createString("NPU Compiler");
 
     MVCNN::VersionBuilder builder(writer);
     builder.add_majorV(checked_cast<uint32_t>(MVCNN_VERSION_MAJOR));
@@ -115,16 +115,15 @@ flatbuffers::Offset<MVCNN::Version> createVersion(EMU::BlobWriter& writer, Logge
 
 flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
         EMU::BlobWriter& writer, mlir::ModuleOp module, IE::CNNNetworkOp netOp, mlir::func::FuncOp netFunc,
-        mlir::TimingScope& rootTiming, const std::vector<PreProcessInfo>& preprocessInfo,
-        const std::vector<std::shared_ptr<const ov::Node>>& parameters,
+        mlir::TimingScope& rootTiming, const std::vector<std::shared_ptr<const ov::Node>>& parameters,
         const std::vector<std::shared_ptr<const ov::Node>>& results, Logger log) {
     auto scopeTiming = rootTiming.nest("Create summary header");
 
     const auto allTasks = netFunc.getOps<EMU::SerializeInterface>();
     const auto taskCount = std::distance(allTasks.begin(), allTasks.end());
 
-    auto inputsInfo = netOp.getInputsInfo();
-    auto outputsInfo = netOp.getOutputsInfo();
+    auto inputsInfo = netOp.getInputsDataInfo();
+    auto outputsInfo = netOp.getOutputsDataInfo();
 
     SmallVector<EMU::BlobWriter::TensorReference> graphInputs, userInputs;
     graphInputs.reserve(inputsInfo.size());
@@ -191,16 +190,6 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
     const auto ovParam = createOVNodes(parameters, false);
     const auto ovRes = createOVNodes(results, true);
 
-    SmallVector<VPUIP::BlobWriter::PreprocessingInfo> preprocInfo;
-    preprocInfo.reserve(preprocessInfo.size());
-
-    for (const auto& pr : preprocessInfo) {
-        preprocInfo.push_back(MVCNN::CreatepreprocessingInfo(writer, writer.createString(pr._inputName),
-                                                             VPUIP::mapPreProcessColorFormat.at(pr._inputFormat),
-                                                             VPUIP::mapPreProcessColorFormat.at(pr._outputFormat),
-                                                             VPUIP::mapPreProcessResizeAlgorithm.at(pr._algorithm)));
-    }
-
     const auto serializedVersion = createVersion(writer, log);
     const auto serializedName = writer.createString(module.getName().value_or("network"));
     const auto serializedGraphInputs = writer.createVector(graphInputs);
@@ -210,7 +199,6 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
     const auto serializedResources = createResources(writer, module);
     const auto serializedParameters = writer.createVector(ovParam);
     const auto serializedResults = writer.createVector(ovRes);
-    const auto serializedPreProcInfo = writer.createVector(preprocInfo);
 
     MVCNN::SummaryHeaderBuilder builder(writer);
     builder.add_version(serializedVersion);
@@ -223,7 +211,6 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
     builder.add_out_tensor_desc(serializedUserOutputs);
     builder.add_ov_parameters(serializedParameters);
     builder.add_ov_results(serializedResults);
-    builder.add_pre_process_info(serializedPreProcInfo);
     builder.add_device(VPUIP::mapTargetDevice(VPU::getArch(module)));
     builder.add_device_revision(VPUIP::mapTargetDeviceRevision(VPU::getArch(module)));
     return builder.Finish();
@@ -259,7 +246,7 @@ SmallVector<EMU::BlobWriter::BinaryData> serializeBinaryData(EMU::BlobWriter& wr
     SmallVector<std::vector<uint64_t>> bufs(constOps.size());
 
     loop_1d(LoopExecPolicy::Parallel, checked_cast<int64_t>(constOps.size()), [&](int64_t ind) {
-        const auto attr = constOps[static_cast<size_t>(ind)].contentAttr();
+        const auto attr = constOps[static_cast<size_t>(ind)].getContentAttr();
 
         const auto type = attr.getType();
         const auto content = attr.fold();
@@ -285,7 +272,7 @@ SmallVector<EMU::BlobWriter::BinaryData> serializeBinaryData(EMU::BlobWriter& wr
 
         binaryData[constTensorInd] = writer.createBinaryData(content, constOp.getType().cast<mlir::ShapedType>());
 
-        writer.createTensor(constOp.output(), llvm::formatv("constant-{0}", constTensorInd).str(),
+        writer.createTensor(constOp.getOutput(), llvm::formatv("constant-{0}", constTensorInd).str(),
                             VPURT::BufferSection::Constant, constTensorInd);
     }
 
@@ -335,7 +322,6 @@ flatbuffers::Offset<MVCNN::GraphFile> createGraphFile(EMU::BlobWriter& writer,
 }  // namespace
 
 flatbuffers::DetachedBuffer vpux::EMU::exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
-                                                    const std::vector<vpux::PreProcessInfo>& preprocessInfo,
                                                     const std::vector<std::shared_ptr<const ov::Node>>& parameters,
                                                     const std::vector<std::shared_ptr<const ov::Node>>& results,
                                                     Logger log) {
@@ -348,8 +334,7 @@ flatbuffers::DetachedBuffer vpux::EMU::exportToBlob(mlir::ModuleOp module, mlir:
 
     EMU::BlobWriter writer(log.nest(), VPU::getArch(module));
 
-    const auto header =
-            createSummaryHeader(writer, module, netOp, netFunc, rootTiming, preprocessInfo, parameters, results, log);
+    const auto header = createSummaryHeader(writer, module, netOp, netFunc, rootTiming, parameters, results, log);
 
     serializeTensorDecls(writer, netFunc, rootTiming);
     const auto binaryData = serializeBinaryData(writer, netFunc, rootTiming, log);

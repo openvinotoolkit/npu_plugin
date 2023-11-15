@@ -76,6 +76,10 @@ void VerticalFusionTilingRewriter::adjustInputShape(mlir::PatternRewriter& rewri
                         originalTiling.shape);
 
         // correct offset of operations based on offsets of block argument
+        // In case the output of previous operation is bigger than expected
+        // which might happen when bigger tile was chosen for same block argument
+        // slice operation is needed after the output with correct offsets
+        // calculated based on tiling information of current operation and previous one
         _log.trace("Offset before {0}, shape {1}", originalTiling.offsets, expectedShape);
 
         for (auto& item : originalTiling.offsets | indexed) {
@@ -85,7 +89,9 @@ void VerticalFusionTilingRewriter::adjustInputShape(mlir::PatternRewriter& rewri
                 const auto origShape = originalTiling.shape.raw()[dim];
 
                 if (auto blockArg = operand.dyn_cast<mlir::BlockArgument>()) {
-                    auto tileInfo = tilingStorage.get(blockArg.getArgNumber(), tilingIndex).getValue();
+                    // in case previous operation is outside the block and
+                    // operand is block argument, correct offset on its offset from tiling info
+                    auto tileInfo = tilingStorage.get(blockArg.getArgNumber(), tilingIndex).value();
 
                     VPUX_THROW_UNLESS(dim < tileInfo.shape.size(), "Got invalid dim index {0}", dim);
                     const auto inputOffset = tileInfo.offsets.raw()[dim];
@@ -96,8 +102,20 @@ void VerticalFusionTilingRewriter::adjustInputShape(mlir::PatternRewriter& rewri
 
                     VPUX_THROW_WHEN((inputOffset > offset) || ((inputOffset + inputShape) < (offset + origShape)),
                                     "Got invalid offsets");
-                    offset = offset - inputOffset;
+                    offset -= inputOffset;
+                } else if (auto parentTilingOp = operand.getDefiningOp<VPU::TilingBuilderOpInterface>()) {
+                    // in case there is parent operation which has tiling info
+                    // restore original tiling of that op based on original tiling info
+                    // and correct offset on it
+                    auto inputOldTiling = parentTilingOp.backInferTileInfo(originalTiling, _log);
+
+                    VPUX_THROW_WHEN(inputOldTiling.tiles.empty() || dim >= inputOldTiling.tiles[0].offsets.size(),
+                                    "Got invalid offsets");
+
+                    offset -= inputOldTiling.tiles[0].offsets.raw()[dim];
+
                 } else {
+                    // by default just correct it by original shape
                     offset = expectedShape.raw()[dim] - origShape;
                 }
             }
@@ -146,21 +164,21 @@ mlir::LogicalResult VerticalFusionTilingRewriter::matchAndRewrite(VPU::VerticalF
                     auto origInput = vfOp.getOperand(blockArg.getArgNumber());
                     auto tileInfo = tilingStorage.get(blockArg.getArgNumber(), index);
 
-                    VPUX_THROW_WHEN(!tileInfo.hasValue(),
+                    VPUX_THROW_WHEN(!tileInfo.has_value(),
                                     "Couldn't find tile information for argument {0} and tile {1}",
                                     blockArg.getArgNumber(), index);
 
-                    auto operandTile = VPU::makeTile(rewriter, op.getLoc(), origInput, tileInfo.getValue(), valName);
+                    auto operandTile = VPU::makeTile(rewriter, op.getLoc(), origInput, tileInfo.value(), valName);
                     mapper.map(operand, operandTile);
                 }
             }
 
             auto inputTiling = operationStorage->get(&op, index);
 
-            VPUX_THROW_WHEN(!inputTiling.hasValue(), "Couldn't find tile information for operation {0} and tile {1}",
+            VPUX_THROW_WHEN(!inputTiling.has_value(), "Couldn't find tile information for operation {0} and tile {1}",
                             op, index);
 
-            const auto inputTilingPair = inputTiling.getValue();
+            const auto inputTilingPair = inputTiling.value();
             auto inputTilingInfo = inputTilingPair.first;
             adjustInputShape(rewriter, &op, inputTilingInfo, mapper, tilingStorage, index);
 

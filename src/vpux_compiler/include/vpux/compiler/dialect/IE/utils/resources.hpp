@@ -16,45 +16,56 @@ namespace IE {
 
 static constexpr StringLiteral usedMemModuleName = "UsedMemory";
 
-MemoryResourceOp addAvailableMemory(mlir::ModuleOp mainModule, mlir::StringAttr memSpace, Byte size);
-bool hasAvailableMemory(mlir::ModuleOp mainModule, mlir::StringAttr memSpace);
+namespace details {
+
+MemoryResourceOp addAvailableMemory(mlir::Region& region, mlir::StringAttr memSpace, Byte size);
+bool hasAvailableMemory(mlir::SymbolTable symbolTable, mlir::StringAttr memSpace);
+MemoryResourceOp getAvailableMemory(mlir::SymbolTable symbolTable, mlir::StringAttr memSpace);
+
+MemoryResourceOp getUsedMemory(mlir::SymbolTable symbolTable, mlir::StringAttr memSpace);
+
+}  // namespace details
 
 template <typename Enum, typename OutT = MemoryResourceOp>
-using memory_resource_if = enable_t<OutT, std::is_enum<Enum>, details::HasStringifyEnum<Enum>>;
+using memory_resource_if = enable_t<OutT, std::is_enum<Enum>, vpux::details::HasStringifyEnum<Enum>>;
 
 template <typename Enum>
 memory_resource_if<Enum> addAvailableMemory(mlir::ModuleOp mainModule, Enum kind, Byte size) {
-    return addAvailableMemory(mainModule, mlir::StringAttr::get(mainModule.getContext(), stringifyEnum(kind)), size);
+    return details::addAvailableMemory(mainModule, mlir::StringAttr::get(mainModule.getContext(), stringifyEnum(kind)),
+                                       size);
 }
 
+MemoryResourceOp addAvailableMemory(mlir::ModuleOp mainModule, mlir::StringAttr memSpace, Byte size);
+
 template <typename Enum, typename OutT = bool>
-using bool_if = enable_t<OutT, std::is_enum<Enum>, details::HasStringifyEnum<Enum>>;
+using bool_if = enable_t<OutT, std::is_enum<Enum>, vpux::details::HasStringifyEnum<Enum>>;
 
 template <typename Enum>
 bool_if<Enum> hasAvailableMemory(mlir::ModuleOp mainModule, Enum kind) {
-    return hasAvailableMemory(mainModule, mlir::StringAttr::get(mainModule.getContext(), stringifyEnum(kind)));
+    return details::hasAvailableMemory(mainModule, mlir::StringAttr::get(mainModule.getContext(), stringifyEnum(kind)));
 }
 
+bool hasAvailableMemory(mlir::ModuleOp mainModule, mlir::StringAttr memSpace);
+
 MemoryResourceOp getAvailableMemory(mlir::ModuleOp mainModule, mlir::StringAttr memSpace);
-MemoryResourceOp getAvailableMemory(mlir::ModuleOp mainModule, mlir::SymbolRefAttr memSpace);
 
 template <typename Enum>
 memory_resource_if<Enum> getAvailableMemory(mlir::ModuleOp mainModule, Enum kind) {
-    return mainModule.template lookupSymbol<MemoryResourceOp>(stringifyEnum(kind));
+    return getAvailableMemory(mainModule, mlir::StringAttr::get(mainModule.getContext(), stringifyEnum(kind)));
 }
 
-MemoryResourceOp setUsedMemory(mlir::ModuleOp mainModule, mlir::SymbolRefAttr memSpace, Byte size);
+MemoryResourceOp setUsedMemory(mlir::ModuleOp mainModule, mlir::StringAttr memSpace, Byte size);
 
 template <typename Enum>
 memory_resource_if<Enum> setUsedMemory(mlir::ModuleOp mainModule, Enum kind, Byte size) {
-    return setUsedMemory(mainModule, mlir::SymbolRefAttr::get(mainModule.getContext(), stringifyEnum(kind)), size);
+    return setUsedMemory(mainModule, mlir::StringAttr::get(mainModule.getContext(), stringifyEnum(kind)), size);
 }
 
-MemoryResourceOp getUsedMemory(mlir::ModuleOp mainModule, mlir::SymbolRefAttr memSpace);
+MemoryResourceOp getUsedMemory(mlir::ModuleOp mainModule, mlir::StringAttr memSpace);
 
 template <typename Enum>
 memory_resource_if<Enum> getUsedMemory(mlir::ModuleOp mainModule, Enum kind) {
-    return getUsedMemory(mainModule, mlir::SymbolRefAttr::get(mainModule.getContext(), stringifyEnum(kind)));
+    return getUsedMemory(mainModule, mlir::StringAttr::get(mainModule.getContext(), stringifyEnum(kind)));
 }
 
 SmallVector<MemoryResourceOp> getUsedMemory(mlir::ModuleOp mainModule);
@@ -64,22 +75,21 @@ SmallVector<MemoryResourceOp> getUsedMemory(mlir::ModuleOp mainModule);
 //
 static constexpr StringLiteral resMemModuleName = "ReservedMemory";
 
-SmallVector<IE::MemoryResourceOp> getReservedMemoryResources(mlir::ModuleOp mainModule, mlir::SymbolRefAttr memSpace);
+SmallVector<IE::MemoryResourceOp> getReservedMemoryResources(mlir::ModuleOp mainModule, mlir::StringAttr memSpace);
 
 //
 // DMA profiling reserved memory
 //
 static constexpr StringLiteral dmaProfilingResMemModuleName = "DmaProfilingReservedMemory";
 
-IE::MemoryResourceOp setDmaProfilingReservedMemory(mlir::ModuleOp mainModule, mlir::SymbolRefAttr memSpace,
-                                                   int64_t size);
+IE::MemoryResourceOp setDmaProfilingReservedMemory(mlir::ModuleOp mainModule, mlir::StringAttr memSpace, int64_t size);
 
-IE::MemoryResourceOp getDmaProfilingReservedMemory(mlir::ModuleOp mainModule, mlir::SymbolRefAttr memSpace);
+IE::MemoryResourceOp getDmaProfilingReservedMemory(mlir::ModuleOp mainModule, mlir::StringAttr memSpace);
 
 template <typename Enum>
 memory_resource_if<Enum> getDmaProfilingReservedMemory(mlir::ModuleOp mainModule, Enum kind) {
     return getDmaProfilingReservedMemory(mainModule,
-                                         mlir::SymbolRefAttr::get(mainModule.getContext(), stringifyEnum(kind)));
+                                         mlir::StringAttr::get(mainModule.getContext(), stringifyEnum(kind)));
 }
 
 SmallVector<MemoryResourceOp> getDmaProfilingReservedMemory(mlir::ModuleOp mainModule);
@@ -89,15 +99,14 @@ SmallVector<MemoryResourceOp> getDmaProfilingReservedMemory(mlir::ModuleOp mainM
 //
 static constexpr StringLiteral compressDmaResMemModuleName = "CompressDmaReservedMemory";
 
-IE::MemoryResourceOp setCompressDmaReservedMemory(mlir::ModuleOp mainModule, mlir::SymbolRefAttr memSpace,
-                                                  int64_t size);
+IE::MemoryResourceOp setCompressDmaReservedMemory(mlir::ModuleOp mainModule, mlir::StringAttr memSpace, int64_t size);
 
-IE::MemoryResourceOp getCompressDmaReservedMemory(mlir::ModuleOp mainModule, mlir::SymbolRefAttr memSpace);
+IE::MemoryResourceOp getCompressDmaReservedMemory(mlir::ModuleOp mainModule, mlir::StringAttr memSpace);
 
 template <typename Enum>
 memory_resource_if<Enum> getCompressDmaReservedMemory(mlir::ModuleOp mainModule, Enum kind) {
     return getCompressDmaReservedMemory(mainModule,
-                                        mlir::SymbolRefAttr::get(mainModule.getContext(), stringifyEnum(kind)));
+                                        mlir::StringAttr::get(mainModule.getContext(), stringifyEnum(kind)));
 }
 
 SmallVector<MemoryResourceOp> getCompressDmaReservedMemory(mlir::ModuleOp mainModule);
@@ -135,6 +144,12 @@ template <typename Enum>
 exec_resource_if<Enum> getAvailableExecutor(mlir::ModuleOp mainModule, Enum kind) {
     return getAvailableExecutor(mainModule, mlir::SymbolRefAttr::get(mainModule->getContext(), stringifyEnum(kind)));
 }
+
+//
+// ShaveResources
+//
+
+int64_t getTotalNumOfActShaveEngines(mlir::ModuleOp moduleOp);
 
 }  // namespace IE
 }  // namespace vpux

@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) 2018-2021 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "shared_test_classes/subgraph/preprocess.hpp"
-#include <vpux_layer_test.hpp>
+#include <vpu_ov2_layer_test.hpp>
 #include "ngraph_functions/preprocess/preprocess_builders.hpp"
 
 using namespace ov::preprocess;
@@ -405,7 +406,7 @@ inline std::vector<ov::builder::preprocess::preprocess_func> preprocess_function
 
 using namespace SubgraphTestsDefinitions;
 
-class VPUXPreProcessTestCommon : virtual public PrePostProcessTest, virtual public VPUXLayerTest {
+class VPUXPreProcessTestCommon : virtual public PrePostProcessTest, virtual public VpuOv2LayerTest {
 public:
     void SetUp() override {
         PrePostProcessTest::SetUp();

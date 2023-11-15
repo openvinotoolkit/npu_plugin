@@ -18,8 +18,8 @@ func.func @ConvertNearestToStridedConcat_HW(%arg0: tensor<1x128x6x10xf32>) -> te
     return %0 : tensor<1x128x12x20xf32>
 
     // CHECK-NOT: IE.Interpolate
-    // CHECK: [[CONCAT1:%.*]] = IE.Concat(%arg0, %arg0) {per_axis = {axis = 3 : i64, offset = 1 : i64, stride = 2 : i64}} : tensor<1x128x6x10xf32>, tensor<1x128x6x10xf32> -> tensor<1x128x6x20xf32>
-    // CHECK: [[CONCAT_OUT:%.*]] = IE.Concat([[CONCAT1]], [[CONCAT1]]) {per_axis = {axis = 2 : i64, offset = 1 : i64, stride = 2 : i64}} : tensor<1x128x6x20xf32>, tensor<1x128x6x20xf32> -> tensor<1x128x12x20xf32>
+    // CHECK: [[CONCAT1:%.*]] = IE.Concat(%arg0, %arg0) {per_axis = #IE.Concat<axis = 3 : i64, offset = 1 : i64, stride = 2 : i64>} : tensor<1x128x6x10xf32>, tensor<1x128x6x10xf32> -> tensor<1x128x6x20xf32>
+    // CHECK: [[CONCAT_OUT:%.*]] = IE.Concat([[CONCAT1]], [[CONCAT1]]) {per_axis = #IE.Concat<axis = 2 : i64, offset = 1 : i64, stride = 2 : i64>} : tensor<1x128x6x20xf32>, tensor<1x128x6x20xf32> -> tensor<1x128x12x20xf32>
     // CHECK: return [[CONCAT_OUT]] : tensor<1x128x12x20xf32>
 }
 
@@ -37,8 +37,8 @@ func.func @ConvertNearestToStridedConcat_HW_ScalesMode(%arg0: tensor<1x128x6x10x
     return %0 : tensor<1x128x12x20xf32>
 
     // CHECK-NOT: IE.Interpolate
-    // CHECK: [[CONCAT1:%.*]] = IE.Concat(%arg0, %arg0) {per_axis = {axis = 3 : i64, offset = 1 : i64, stride = 2 : i64}} : tensor<1x128x6x10xf32>, tensor<1x128x6x10xf32> -> tensor<1x128x6x20xf32>
-    // CHECK: [[CONCAT_OUT:%.*]] = IE.Concat([[CONCAT1]], [[CONCAT1]]) {per_axis = {axis = 2 : i64, offset = 1 : i64, stride = 2 : i64}} : tensor<1x128x6x20xf32>, tensor<1x128x6x20xf32> -> tensor<1x128x12x20xf32>
+    // CHECK: [[CONCAT1:%.*]] = IE.Concat(%arg0, %arg0) {per_axis = #IE.Concat<axis = 3 : i64, offset = 1 : i64, stride = 2 : i64>} : tensor<1x128x6x10xf32>, tensor<1x128x6x10xf32> -> tensor<1x128x6x20xf32>
+    // CHECK: [[CONCAT_OUT:%.*]] = IE.Concat([[CONCAT1]], [[CONCAT1]]) {per_axis = #IE.Concat<axis = 2 : i64, offset = 1 : i64, stride = 2 : i64>} : tensor<1x128x6x20xf32>, tensor<1x128x6x20xf32> -> tensor<1x128x12x20xf32>
     // CHECK: return [[CONCAT_OUT]] : tensor<1x128x12x20xf32>
 }
 
@@ -56,7 +56,7 @@ func.func @ConvertNearestToStridedConcat_H(%arg0: tensor<1x128x6x10xf32>) -> ten
     return %0 : tensor<1x128x12x10xf32>
 
     // CHECK-NOT: IE.Interpolate
-    // CHECK: [[CONCAT_H:%.*]] = IE.Concat(%arg0, %arg0) {per_axis = {axis = 2 : i64, offset = 1 : i64, stride = 2 : i64}} : tensor<1x128x6x10xf32>, tensor<1x128x6x10xf32> -> tensor<1x128x12x10xf32>
+    // CHECK: [[CONCAT_H:%.*]] = IE.Concat(%arg0, %arg0) {per_axis = #IE.Concat<axis = 2 : i64, offset = 1 : i64, stride = 2 : i64>} : tensor<1x128x6x10xf32>, tensor<1x128x6x10xf32> -> tensor<1x128x12x10xf32>
     // CHECK: return [[CONCAT_H]] : tensor<1x128x12x10xf32>
 }
 
@@ -74,7 +74,7 @@ func.func @ConvertNearestToStridedConcat_W(%arg0: tensor<1x128x6x10xf32>) -> ten
     return %0 : tensor<1x128x6x20xf32>
 
     // CHECK-NOT: IE.Interpolate
-    // CHECK: [[CONCAT_W:%.*]] = IE.Concat(%arg0, %arg0) {per_axis = {axis = 3 : i64, offset = 1 : i64, stride = 2 : i64}} : tensor<1x128x6x10xf32>, tensor<1x128x6x10xf32> -> tensor<1x128x6x20xf32>
+    // CHECK: [[CONCAT_W:%.*]] = IE.Concat(%arg0, %arg0) {per_axis = #IE.Concat<axis = 3 : i64, offset = 1 : i64, stride = 2 : i64>} : tensor<1x128x6x10xf32>, tensor<1x128x6x10xf32> -> tensor<1x128x6x20xf32>
     // CHECK: return [[CONCAT_W]] : tensor<1x128x6x20xf32>
 }
 
@@ -96,9 +96,9 @@ func.func @ConvertNearestToStridedConcatFQPropagation(%arg0: tensor<1x128x6x10xf
 
     // CHECK-NOT: IE.Interpolate
     // CHECK: [[CONCAT_0:%.*]] = IE.Concat
-    // CHECK-SAME: {per_axis = {axis = 3 : i64, offset = 1 : i64, stride = 2 : i64}}
+    // CHECK-SAME: {per_axis = #IE.Concat<axis = 3 : i64, offset = 1 : i64, stride = 2 : i64>}
     // CHECK: [[FQ_0:%.*]] = IE.FakeQuantize
-    // CHECK: [[CONCAT_OUT:%.*]] = IE.Concat([[FQ_0]], [[FQ_0]]) {per_axis = {axis = 2 : i64, offset = 1 : i64, stride = 2 : i64}} : tensor<1x128x6x20xf16>, tensor<1x128x6x20xf16> -> tensor<1x128x12x20xf16>
+    // CHECK: [[CONCAT_OUT:%.*]] = IE.Concat([[FQ_0]], [[FQ_0]]) {per_axis = #IE.Concat<axis = 2 : i64, offset = 1 : i64, stride = 2 : i64>} : tensor<1x128x6x20xf16>, tensor<1x128x6x20xf16> -> tensor<1x128x12x20xf16>
     // CHECK: [[CONCAT_OUT_FQ:%.*]] = IE.FakeQuantize
 }
 
@@ -116,8 +116,8 @@ func.func @ConvertNearestInterpolate4ToStridedConcat(%arg0: tensor<1x32x360x640x
     return %0 : tensor<1x32x720x1280xf32>
 
     // CHECK-NOT: IE.Interpolate
-    // CHECK:   [[CONCAT_1:%.*]] = IE.Concat(%arg0, %arg0) {per_axis = {axis = 3 : i64, offset = 1 : i64, stride = 2 : i64}} : tensor<1x32x360x640xf32>, tensor<1x32x360x640xf32> -> tensor<1x32x360x1280xf32>
-    // CHECK:   [[CONCAT_2:%.*]] = IE.Concat([[CONCAT_1]], [[CONCAT_1]]) {per_axis = {axis = 2 : i64, offset = 1 : i64, stride = 2 : i64}} : tensor<1x32x360x1280xf32>, tensor<1x32x360x1280xf32> -> tensor<1x32x720x1280xf32>
+    // CHECK:   [[CONCAT_1:%.*]] = IE.Concat(%arg0, %arg0) {per_axis = #IE.Concat<axis = 3 : i64, offset = 1 : i64, stride = 2 : i64>} : tensor<1x32x360x640xf32>, tensor<1x32x360x640xf32> -> tensor<1x32x360x1280xf32>
+    // CHECK:   [[CONCAT_2:%.*]] = IE.Concat([[CONCAT_1]], [[CONCAT_1]]) {per_axis = #IE.Concat<axis = 2 : i64, offset = 1 : i64, stride = 2 : i64>} : tensor<1x32x360x1280xf32>, tensor<1x32x360x1280xf32> -> tensor<1x32x720x1280xf32>
 
     // CHECK: return [[CONCAT_2]] : tensor<1x32x720x1280xf32>
 }
@@ -146,9 +146,9 @@ func.func @ConvertNearestInterpolate4ToStridedConcatFQ(%arg0: tensor<1x32x360x64
     // CHECK-DAG:   [[CST:%.*]] = const.Declare tensor<1x1x1x1xf16> = dense<0.000000e+00> : tensor<1x1x1x1xf16>
     // CHECK-DAG:   [[CST_1:%.*]] = const.Declare tensor<1x1x1x1xf16> = dense<1.000000e+00> : tensor<1x1x1x1xf16>
     // CHECK:   [[FQ_1:%.*]] = IE.FakeQuantize(%arg0, [[CST]], [[CST_1]], [[CST]], [[CST_1]]) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>, levels = 256 : i64} : tensor<1x32x360x640xf32>, tensor<1x1x1x1xf16>, tensor<1x1x1x1xf16>, tensor<1x1x1x1xf16>, tensor<1x1x1x1xf16> -> tensor<1x32x360x640xf32>
-    // CHECK:   [[CONCAT_1:%.*]] = IE.Concat([[FQ_1]], [[FQ_1]]) {per_axis = {axis = 3 : i64, offset = 1 : i64, stride = 2 : i64}} : tensor<1x32x360x640xf32>, tensor<1x32x360x640xf32> -> tensor<1x32x360x1280xf32>
+    // CHECK:   [[CONCAT_1:%.*]] = IE.Concat([[FQ_1]], [[FQ_1]]) {per_axis = #IE.Concat<axis = 3 : i64, offset = 1 : i64, stride = 2 : i64>} : tensor<1x32x360x640xf32>, tensor<1x32x360x640xf32> -> tensor<1x32x360x1280xf32>
     // CHECK:   [[FQ_2:%.*]] = IE.FakeQuantize([[CONCAT_1]], [[CST]], [[CST_1]], [[CST]], [[CST_1]]) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>, levels = 256 : i64} : tensor<1x32x360x1280xf32>, tensor<1x1x1x1xf16>, tensor<1x1x1x1xf16>, tensor<1x1x1x1xf16>, tensor<1x1x1x1xf16> -> tensor<1x32x360x1280xf32>
-    // CHECK:   [[CONCAT_2:%.*]] = IE.Concat([[FQ_2]], [[FQ_2]]) {per_axis = {axis = 2 : i64, offset = 1 : i64, stride = 2 : i64}} : tensor<1x32x360x1280xf32>, tensor<1x32x360x1280xf32> -> tensor<1x32x720x1280xf32>
+    // CHECK:   [[CONCAT_2:%.*]] = IE.Concat([[FQ_2]], [[FQ_2]]) {per_axis = #IE.Concat<axis = 2 : i64, offset = 1 : i64, stride = 2 : i64>} : tensor<1x32x360x1280xf32>, tensor<1x32x360x1280xf32> -> tensor<1x32x720x1280xf32>
     // CHECK:   [[FQ_3:%.*]] = IE.FakeQuantize([[CONCAT_2]], [[CST]], [[CST_1]], [[CST]], [[CST_1]]) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>, levels = 256 : i64} : tensor<1x32x720x1280xf32>, tensor<1x1x1x1xf16>, tensor<1x1x1x1xf16>, tensor<1x1x1x1xf16>, tensor<1x1x1x1xf16> -> tensor<1x32x720x1280xf32>
     // CHECK:   return [[FQ_3]] : tensor<1x32x720x1280xf32>
 
@@ -180,8 +180,8 @@ func.func @NotConvertNearestScales(%arg0: tensor<1x128x8x8xf16>) -> tensor<1x128
     return %0 : tensor<1x128x16x16xf16>
 
     // CHECK-NOT: IE.Interpolate
-    // CHECK:   [[CONCAT_1:%.*]] = IE.Concat(%arg0, %arg0) {per_axis = {axis = 3 : i64, offset = 1 : i64, stride = 2 : i64}} : tensor<1x128x8x8xf16>, tensor<1x128x8x8xf16> -> tensor<1x128x8x16xf16>
-    // CHECK:   [[CONCAT_2:%.*]] = IE.Concat(%0, %0) {per_axis = {axis = 2 : i64, offset = 1 : i64, stride = 2 : i64}} : tensor<1x128x8x16xf16>, tensor<1x128x8x16xf16> -> tensor<1x128x16x16xf16>
+    // CHECK:   [[CONCAT_1:%.*]] = IE.Concat(%arg0, %arg0) {per_axis = #IE.Concat<axis = 3 : i64, offset = 1 : i64, stride = 2 : i64>} : tensor<1x128x8x8xf16>, tensor<1x128x8x8xf16> -> tensor<1x128x8x16xf16>
+    // CHECK:   [[CONCAT_2:%.*]] = IE.Concat(%0, %0) {per_axis = #IE.Concat<axis = 2 : i64, offset = 1 : i64, stride = 2 : i64>} : tensor<1x128x8x16xf16>, tensor<1x128x8x16xf16> -> tensor<1x128x16x16xf16>
 
     // CHECK: return [[CONCAT_2]] : tensor<1x128x16x16xf16>
 }

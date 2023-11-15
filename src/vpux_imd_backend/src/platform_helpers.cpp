@@ -16,9 +16,8 @@ using InferenceEngine::VPUXConfigParams::VPUXPlatform;
 namespace {
 
 const EnumMap<VPUXPlatform, StringRef> platformToAppNameMap = {
-        {VPUXPlatform::VPU3720, "InferenceManagerDemo_vpu_2_7.elf"},  //
-        {VPUXPlatform::VPU3700, "InferenceManagerDemo_vpu_2_0.elf"},  //
-        {VPUXPlatform::VPU3400, "InferenceManagerDemo_vpu_2_0.elf"},
+        {VPUXPlatform::VPU3700, "InferenceManagerDemo_vpu_2_0.elf"},
+        {VPUXPlatform::VPU3720, "InferenceManagerDemo_vpu_2_7.elf"},
 };
 
 }  // namespace

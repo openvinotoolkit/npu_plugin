@@ -38,6 +38,8 @@ The **VPURegMapped Dialect** defines attributes and types common
 
     let useDefaultTypePrinterParser = 1;
     let useDefaultAttributePrinterParser = 1;
+
+    let emitAccessorPrefix = kEmitAccessorPrefix_Prefixed;
 }
 
 #endif

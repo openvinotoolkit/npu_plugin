@@ -56,10 +56,10 @@ mlir::LogicalResult ConvertGatherToSlicePass::GatherConverter::matchAndRewrite(I
     auto* ctx = rewriter.getContext();
 
     auto indices = gatherOp.indices().getDefiningOp<Const::DeclareOp>();
-    const auto indicesContent = indices.content();
+    const auto indicesContent = indices.getContent();
     const auto indicesVal = indicesContent.getSplatValue<int64_t>();
 
-    const auto axisVal = gatherOp.axis_value().getValue();
+    const auto axisVal = gatherOp.axis_value().value();
 
     const auto inType = gatherOp.input().getType().cast<NDTypeInterface>();
     const auto inputShape = inType.getShape();
@@ -95,8 +95,8 @@ void ConvertGatherToSlicePass::safeRunOnFunc() {
             return true;
         }
 
-        const auto indicesContent = indices.content();
-        return !(indicesContent.getType().getNumElements() == 1 && batchDims == 0 && gatherOp.axis_value().hasValue());
+        const auto indicesContent = indices.getContent();
+        return !(indicesContent.getType().getNumElements() == 1 && batchDims == 0 && gatherOp.axis_value().has_value());
     });
     target.addLegalOp<IE::SliceOp>();
     target.addLegalOp<IE::ReshapeOp>();

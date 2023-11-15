@@ -14,6 +14,7 @@
 
 using namespace vpux;
 static size_t get_cpu_ram_size();
+
 ZeroDevice::ZeroDevice(ze_driver_handle_t driver, ze_device_handle_t device, ze_context_handle_t context,
                        ze_graph_dditable_ext_t* graph_ddi_table_ext,
                        ze_graph_profiling_dditable_ext_t* graph_profiling_ddi_table_ext)
@@ -26,6 +27,8 @@ ZeroDevice::ZeroDevice(ze_driver_handle_t driver, ze_device_handle_t device, ze_
     ze_device_properties_t properties = {};
     properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
     zeroUtils::throwOnFail("zeDeviceGetProperties", zeDeviceGetProperties(_device_handle, &properties));
+
+    fullDeviceName = properties.name;
 
     if (properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED) {
         // Return host memory size when device is integrated
@@ -52,6 +55,18 @@ ZeroDevice::ZeroDevice(ze_driver_handle_t driver, ze_device_handle_t device, ze_
                       e.what());  // todo: E#78609, upgrade driver version to 31.0.12+ and then remove try block
         }
     }
+    std::vector<ze_command_queue_group_properties_t> command_group_properties;
+    uint32_t command_queue_group_count = 0;
+    // Discover all command queue groups
+    zeroUtils::throwOnFail("zeDeviceGetCommandQueueGroupProperties",
+                           zeDeviceGetCommandQueueGroupProperties(_device_handle, &command_queue_group_count, nullptr));
+    command_group_properties.resize(command_queue_group_count);
+    zeroUtils::throwOnFail("zeDeviceGetCommandQueueGroupProperties",
+                           zeDeviceGetCommandQueueGroupProperties(_device_handle, &command_queue_group_count,
+                                                                  command_group_properties.data()));
+
+    // Find the corespondinng command queue group.
+    _group_ordinal = zeroUtils::findGroupOrdinal(command_group_properties, properties);
 }
 
 std::shared_ptr<Allocator> ZeroDevice::getAllocator() const {
@@ -63,7 +78,7 @@ std::shared_ptr<Executor> ZeroDevice::createExecutor(const NetworkDescription::P
                                                      const Config& config) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Device::createExecutor");
     return std::make_shared<ZeroExecutor>(_driver_handle, _device_handle, _context, _graph_ddi_table_ext,
-                                          _graph_profiling_ddi_table_ext, networkDescription, config);
+                                          _graph_profiling_ddi_table_ext, networkDescription, config, _group_ordinal);
 }
 
 std::string ZeroDevice::getName() const {
@@ -76,7 +91,6 @@ std::string ZeroDevice::getName() const {
 #define VPU_3700_DEVICE_ID 0x6240
 #define VPU_3720_P_DEVICE_ID 0x7D1D
 #define VPU_3720_S_DEVICE_ID 0xAD1D
-#define VPU_4000_DEVICE_ID 0x643E
 
     std::string name;
     switch (properties.deviceId) {
@@ -90,14 +104,15 @@ std::string ZeroDevice::getName() const {
     case VPU_3720_S_DEVICE_ID:
         name = "3720";
         break;
-    case VPU_4000_DEVICE_ID:
-        name = "4000";
-        break;
     default:
         name = "AUTO_DETECT";
     }
 
     return name + ".0";
+}
+
+std::string ZeroDevice::getFullDeviceName() const {
+    return fullDeviceName;
 }
 
 Uuid ZeroDevice::getUuid() const {
@@ -114,6 +129,14 @@ Uuid ZeroDevice::getUuid() const {
     return uuid;
 }
 
+uint32_t ZeroDevice::getDriverVersion() const {
+    ze_driver_properties_t properties = {};
+    properties.stype = ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES;
+    zeroUtils::throwOnFail("zeDeviceGetProperties", zeDriverGetProperties(_driver_handle, &properties));
+
+    return properties.driverVersion;
+}
+
 uint64_t ZeroDevice::getTotalMemSize() const {
     return totalMemSize;
 }
@@ -124,7 +147,7 @@ IInferRequest::Ptr ZeroDevice::createInferRequest(const InferenceEngine::InputsD
                                                   const std::string& netName,
                                                   const std::vector<std::shared_ptr<const ov::Node>>& parameters,
                                                   const std::vector<std::shared_ptr<const ov::Node>>& results,
-                                                  const vpux::DataMap& networkStatesInfo,
+                                                  const vpux::NetworkIOVector& networkStatesInfo,
                                                   const std::shared_ptr<InferenceEngine::IAllocator>& allocator) {
     return std::make_shared<ZeroInferRequest>(networkInputs, networkOutputs, executor, config, netName, parameters,
                                               results, networkStatesInfo, allocator);

@@ -3,11 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/types.hpp"
-#include "vpux/compiler/init.hpp"
+
+#include "common/utils.hpp"
 
 #include "vpux/utils/core/mem_size.hpp"
 #include "vpux/utils/core/small_vector.hpp"
@@ -25,10 +24,9 @@ constexpr vpux::StringRef DDR_NAME = "DDR";
 
 }  // namespace
 
-TEST(MLIR_NDTypeInterface, BufferType) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
+using MLIR_NDTypeInterface = MLIR_UnitBase;
 
+TEST_F(MLIR_NDTypeInterface, BufferType) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 

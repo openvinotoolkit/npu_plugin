@@ -26,7 +26,11 @@ struct ScheduledOpOneResource {
             : _op(o._op), _addressStart(o._addressStart), _addressEnd(o._addressEnd), _resRelation(o._resRelation) {
     }
 
-    const ScheduledOpOneResource& operator=(const ScheduledOpOneResource& o) {
+    ScheduledOpOneResource& operator=(const ScheduledOpOneResource& o) {
+        if (&o == this) {
+            return *this;
+        }
+
         _op = o._op;
         _addressStart = o._addressStart;
         _addressEnd = o._addressEnd;
@@ -43,6 +47,7 @@ struct ScheduledOpOneResource {
         }
         return (_addressStart != o._addressStart) ? (_addressStart < o._addressStart) : (_addressEnd < o._addressEnd);
     }
+    ~ScheduledOpOneResource() = default;
 
     OperationType _op{};
     size_t _addressStart{};

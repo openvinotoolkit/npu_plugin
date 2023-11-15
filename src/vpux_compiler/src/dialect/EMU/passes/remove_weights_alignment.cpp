@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2022 Intel Corporation.
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/EMU/ops.hpp"
 #include "vpux/compiler/dialect/EMU/passes.hpp"
@@ -20,7 +21,7 @@ namespace {
 */
 mlir::Value handleDWConstWeights(mlir::PatternRewriter& rewriter, Const::DeclareOp weightsConst,
                                  mlir::ArrayAttr rawFilterShape) {
-    const auto weightsContentAttr = weightsConst.contentAttr();
+    const auto weightsContentAttr = weightsConst.getContentAttr();
 
     const auto finalWeightsShape = parseIntArrayAttr<int64_t>(rawFilterShape);
 
@@ -33,13 +34,13 @@ mlir::Value handleDWConstWeights(mlir::PatternRewriter& rewriter, Const::Declare
     const auto noPadWeightsContentAttr = reorderedWeightsContentAttr.subview({0, 0, 0, 0}, {OC, IC * KY * KX, 1, 1});
     const auto finalWeightsContentAttr = noPadWeightsContentAttr.reshape(Shape(finalWeightsShape));
 
-    const auto weightsType = weightsConst.output().getType().cast<NDTypeInterface>();
+    const auto weightsType = weightsConst.getOutput().getType().cast<NDTypeInterface>();
     const auto outAllocType =
             mlir::RankedTensorType::get(finalWeightsShape, weightsType.getElementType()).cast<vpux::NDTypeInterface>();
 
     auto finalWeightsOp =
             rewriter.create<Const::DeclareOp>(weightsConst->getLoc(), outAllocType, finalWeightsContentAttr);
-    return finalWeightsOp.output();
+    return finalWeightsOp.getOutput();
 }
 
 /*
@@ -80,9 +81,9 @@ mlir::FailureOr<mlir::Value> handleDWNonConstWeights(mlir::Value weights) {
 }
 
 mlir::FailureOr<mlir::Value> adjustDWConvWeights(mlir::PatternRewriter& rewriter, EMU::NCEClusterTaskOp origOp) {
-    const auto origWeights = origOp.weights();
+    const auto origWeights = origOp.getWeights();
     if (auto weightsConst = origWeights.getDefiningOp<Const::DeclareOp>()) {
-        return handleDWConstWeights(rewriter, weightsConst, origOp.rawFilterShapeAttr());
+        return handleDWConstWeights(rewriter, weightsConst, origOp.getRawFilterShapeAttr());
     }
 
     return handleDWNonConstWeights(origWeights);
@@ -94,11 +95,11 @@ mlir::FailureOr<mlir::Value> adjustDWConvWeights(mlir::PatternRewriter& rewriter
    After that we reshape the weights to the original shape -> {OC, IC, KY, KX}
 */
 mlir::FailureOr<mlir::Value> adjustConvWeights(mlir::PatternRewriter& rewriter, EMU::NCEClusterTaskOp origOp) {
-    auto origWeightsConst = origOp.weights().getDefiningOp<Const::DeclareOp>();
-    const auto weightsType = origWeightsConst.output().getType().cast<NDTypeInterface>();
-    const auto weightsContentAttr = origWeightsConst.contentAttr();
+    auto origWeightsConst = origOp.getWeights().getDefiningOp<Const::DeclareOp>();
+    const auto weightsType = origWeightsConst.getOutput().getType().cast<NDTypeInterface>();
+    const auto weightsContentAttr = origWeightsConst.getContentAttr();
 
-    const auto finalWeightsShape = parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr());
+    const auto finalWeightsShape = parseIntArrayAttr<int64_t>(origOp.getRawFilterShapeAttr());
 
     const auto KX = finalWeightsShape[Dims4D::Filter::KX.ind()];
     const auto KY = finalWeightsShape[Dims4D::Filter::KY.ind()];
@@ -114,7 +115,7 @@ mlir::FailureOr<mlir::Value> adjustConvWeights(mlir::PatternRewriter& rewriter, 
 
     auto finalWeightsOp =
             rewriter.create<Const::DeclareOp>(origWeightsConst->getLoc(), outAllocType, finalWeightsContentAttr);
-    return finalWeightsOp.output();
+    return finalWeightsOp.getOutput();
 }
 
 //
@@ -138,7 +139,7 @@ mlir::LogicalResult RemoveWeightsAlignmentRewriter::matchAndRewrite(EMU::NCEClus
                                                                     mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got '{1}' at '{2}'", getDebugName(), origOp->getName(), origOp->getLoc());
 
-    auto taskType = origOp.task_type();
+    auto taskType = origOp.getTaskType();
     const auto weights = (taskType == VPUIP::NCETaskType::CMCONV || taskType == VPUIP::NCETaskType::CONV)
                                  ? adjustConvWeights(rewriter, origOp)
                                  : adjustDWConvWeights(rewriter, origOp);
@@ -147,14 +148,14 @@ mlir::LogicalResult RemoveWeightsAlignmentRewriter::matchAndRewrite(EMU::NCEClus
         return mlir::failure();
     }
 
-    auto nceOp = rewriter.create<EMU::NCEClusterTaskOp>(origOp->getLoc(), origOp.getType(), origOp.input(),
-                                                        weights.getValue(), origOp.weight_table(), taskType,
-                                                        origOp.kernel_sizeAttr(), origOp.kernel_stridesAttr(),
-                                                        origOp.kernel_paddingAttr(), origOp.rawFilterShapeAttr());
+    auto nceOp = rewriter.create<EMU::NCEClusterTaskOp>(origOp->getLoc(), origOp.getType(), origOp.getInput(),
+                                                        weights.value(), origOp.getWeightTable(), taskType,
+                                                        origOp.getKernelSizeAttr(), origOp.getKernelStridesAttr(),
+                                                        origOp.getKernelPaddingAttr(), origOp.getRawFilterShapeAttr());
 
     nceOp.addPPETask(rewriter, origOp);
 
-    rewriter.replaceOp(origOp, nceOp.output());
+    rewriter.replaceOp(origOp, nceOp.getOutput());
     return mlir::success();
 }
 
@@ -183,16 +184,16 @@ void RemoveWeightsAlignmentPass::safeRunOnFunc() {
 
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalOp<EMU::NCEClusterTaskOp>([&](EMU::NCEClusterTaskOp op) {
-        auto taskType = op.task_type();
+        auto taskType = op.getTaskType();
         if (taskType != VPUIP::NCETaskType::CMCONV && taskType != VPUIP::NCETaskType::DWCONV &&
             taskType != VPUIP::NCETaskType::CONV) {
             return true;
         }
 
-        const auto weightsType = op.weights().getType().cast<NDTypeInterface>();
+        const auto weightsType = op.getWeights().getType().cast<NDTypeInterface>();
         const auto weightsShape = weightsType.getShape();
 
-        const Shape origWeightsShape = Shape(parseIntArrayAttr<int64_t>(op.rawFilterShapeAttr()));
+        const Shape origWeightsShape = Shape(parseIntArrayAttr<int64_t>(op.getRawFilterShapeAttr()));
         return weightsShape == origWeightsShape;
     });
 

@@ -132,6 +132,7 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
         vpux::Const::ContentAttr expandDilated(vpux::ShapeRef dilations) const;
         vpux::Const::ContentAttr getSparsityMap() const;
         vpux::Const::ContentAttr sparsify(bool compressOutputType) const;
+        vpux::Const::ContentAttr changeShapeAndElemType(vpux::ShapeRef newShape, mlir::Type newElemType) const;
 
         static vpux::Const::ContentAttr addTransformation(vpux::Const::ContentAttr input, vpux::Const::TransformAttrInterface transformation);
         int64_t getNumberOfElements() const;
@@ -611,6 +612,41 @@ def Const_SparsifyAttr : Const_Attr<"Sparsify", [
     let extraClassDeclaration = [{
         static int64_t countNumTotalElements(vpux::Const::SparsifyAttr transformation);
     }];
+
+    let storageNamespace = "details";
+    let genVerifyDecl = 1;
+    let skipDefaultBuilders = 1;
+    let hasCustomAssemblyFormat = 1;
+}
+
+//
+// ChangeShapeAndElemTypeAttr
+//
+
+def Const_ChangeShapeAndElemTypeAttr : Const_Attr<"ChangeShapeAndElemType",
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+    let summary = "Change the shape and element type of a constant";
+
+    let description = [{
+        This transformation atomically changes the shape and the element type of a constant.
+        It can only be applied to constants that have a per-axis quantized element type
+        and the only difference between the original element type and the new one must be
+        the quantization dimension. The transformation is needed to avoid any intermediary
+        invalid state when the reshape also changes the quantization dimention.
+    }];
+
+    let parameters = (ins
+        "mlir::ArrayAttr":$shape,
+        "mlir::Type":$elemType
+    );
+
+    let builders = [
+        AttrBuilderWithInferredContext<
+            (ins "mlir::ArrayAttr":$shape, "mlir::Type":$elemType), [{
+                return $_get(shape.getContext(), shape, elemType);
+            }]
+        >
+    ];
 
     let storageNamespace = "details";
     let genVerifyDecl = 1;

@@ -6,6 +6,8 @@
 #include <llvm/ADT/STLExtras.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 #include "vpux/compiler/dialect/IE/passes.hpp"
+#include "vpux/compiler/dialect/IE/utils/const_attributes.hpp"
+#include "vpux/compiler/dialect/IE/utils/groupconvolution_utils.hpp"
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
@@ -73,11 +75,11 @@ public:
     }
 
     void setUnExpandedShape(Shape shape) {
-        _unExpandedShape = shape;
+        _unExpandedShape = std::move(shape);
     }
 
     void setNewExpandedShape(Shape shape) {
-        _newExpandedShape = shape;
+        _newExpandedShape = std::move(shape);
     }
 
 private:
@@ -98,25 +100,6 @@ public:
     mlir::LogicalResult rewrite();
 };
 
-mlir::FailureOr<int64_t> getRealDataSize(Const::DeclareOp constOp) {
-    if (constOp == nullptr) {
-        return mlir::failure();
-    }
-    auto contentAttr = constOp.contentAttr();
-    if (contentAttr == nullptr) {
-        return mlir::failure();
-    }
-    auto baseContent = contentAttr.getBaseContent();
-
-    if (auto denseBaseAttr = baseContent.dyn_cast<mlir::DenseElementsAttr>()) {
-        return denseBaseAttr.getType().getNumElements();
-    } else if (auto opaqueBaseAttr = baseContent.dyn_cast<Const::OpaqueElementsAttr>()) {
-        return opaqueBaseAttr.getType().getNumElements();
-    } else {
-        VPUX_THROW("Got unsupported 'baseContent' in 'ContentAttr'");
-    }
-}
-
 bool isDimExpansionReshape(ShapeRef origShape, ShapeRef reshapeShape) {
     auto getNonOneDims = [](ShapeRef shape) {
         Shape resultShape;
@@ -126,15 +109,6 @@ bool isDimExpansionReshape(ShapeRef origShape, ShapeRef reshapeShape) {
         return resultShape;
     };
     return getNonOneDims(origShape) == getNonOneDims(reshapeShape);
-}
-
-bool hasSingleUserSliceOp(mlir::Operation* eltwiseOp) {
-    if (eltwiseOp->hasOneUse()) {
-        auto user = *(eltwiseOp->getUsers().begin());
-        auto sliceOp = mlir::dyn_cast<IE::SliceOp>(user);
-        return sliceOp != nullptr;
-    }
-    return false;
 }
 
 void ExpandEltwisePattern::checkAndCorrectGroupConv() {
@@ -181,20 +155,13 @@ QuantizeCast  QuantizeCast
 bool ExpandEltwisePattern::init() {
     auto log = _log.nest();
     // only support eltwise ops with same input and output layouts
-    auto eltwiseOutputType = _eltwiseOp->getResult(0).getType().cast<vpux::NDTypeInterface>();
-    auto uniformQElemType = eltwiseOutputType.getElementType().dyn_cast<mlir::quant::UniformQuantizedType>();
-    auto eltwiseOutputLayout = eltwiseOutputType.getDimsOrder();
+    auto eltwiseOutputLayout = _eltwiseOp->getResult(0).getType().cast<vpux::NDTypeInterface>().getDimsOrder();
     for (auto operand : _eltwiseOp->getOperands()) {
         if (operand.getDefiningOp() && mlir::isa<Const::DeclareOp>(operand.getDefiningOp())) {
             continue;
         }
 
-        auto inputType = operand.getType().cast<vpux::NDTypeInterface>();
-        auto isF16 = inputType.getElementType().isF16();
-        if (isF16 && uniformQElemType && !hasSingleUserSliceOp(_eltwiseOp)) {
-            return false;
-        }
-        auto inputLayout = inputType.getDimsOrder();
+        auto inputLayout = operand.getType().cast<vpux::NDTypeInterface>().getDimsOrder();
         if (inputLayout != eltwiseOutputLayout) {
             _log.trace("Unsupported eltwise input and output layout");
             return false;
@@ -249,9 +216,9 @@ bool ExpandEltwisePattern::init() {
     auto activationDataSize =
             std::accumulate(_unExpandedShape.begin(), _unExpandedShape.end(), int64_t(1), std::multiplies<int64_t>());
     for (auto constDeclare : _constInputs) {
-        auto realDataSizeResult = getRealDataSize(constDeclare);
+        auto realDataSizeResult = getBaseContentNumElements(constDeclare);
         if (mlir::failed(realDataSizeResult) ||
-            (realDataSizeResult.getValue() != 1 && realDataSizeResult.getValue() != activationDataSize)) {
+            (realDataSizeResult.value() != 1 && realDataSizeResult.value() != activationDataSize)) {
             log.trace("Unsupported const input {0} at {1}", constDeclare->getName(), constDeclare->getLoc());
             return false;
         }
@@ -262,7 +229,7 @@ bool ExpandEltwisePattern::init() {
     if (mlir::failed(newExpandedShapeResult)) {
         return false;
     }
-    _newExpandedShape = newExpandedShapeResult.getValue();
+    _newExpandedShape = newExpandedShapeResult.value();
     return true;
 }
 
@@ -352,9 +319,9 @@ mlir::LogicalResult ExpandEltwisePattern::rewrite() {
     }
 
     for (auto constDeclare : _constInputs) {
-        auto contentAttr = constDeclare.contentAttr();
+        auto contentAttr = constDeclare.getContentAttr();
         auto baseContent = contentAttr.getBaseContent();
-        auto dataShape = getShape(constDeclare.output()).toValues();
+        auto dataShape = getShape(constDeclare.getOutput()).toValues();
 
         Const::ContentAttr newContentAttr;
         Shape realDataShape;
@@ -368,12 +335,12 @@ mlir::LogicalResult ExpandEltwisePattern::rewrite() {
             VPUX_THROW("Got unsupported 'baseContent' in 'ContentAttr'");
         }
 
-        auto newConstOutputType = constDeclare.output().getType().cast<vpux::NDTypeInterface>();
-        const auto realDataSizeResult = getRealDataSize(constDeclare);
+        auto newConstOutputType = constDeclare.getOutput().getType().cast<vpux::NDTypeInterface>();
+        const auto realDataSizeResult = getBaseContentNumElements(constDeclare);
         if (mlir::failed(realDataSizeResult)) {
             return mlir::failure();
         }
-        const auto singleValueData = realDataSizeResult.getValue() == 1;
+        const auto singleValueData = realDataSizeResult.value() == 1;
         if (singleValueData) {
             if (mlir::dyn_cast<IE::GroupConvolutionOp>(_eltwiseOp)) {
                 for (const auto& dim : enumerate(dataShape)) {
@@ -428,7 +395,7 @@ mlir::LogicalResult ExpandEltwisePattern::rewrite() {
         builder.setInsertionPoint(_eltwiseOp);
         auto newConstDeclare =
                 builder.create<Const::DeclareOp>(constDeclare.getLoc(), newConstOutputType, newContentAttr);
-        constDeclare.output().replaceUsesWithIf(newConstDeclare.output(), [&](mlir::OpOperand& opOperand) {
+        constDeclare.getOutput().replaceUsesWithIf(newConstDeclare.getOutput(), [&](mlir::OpOperand& opOperand) {
             return opOperand.getOwner() == _eltwiseOp;
         });
     }
@@ -509,26 +476,7 @@ mlir::LogicalResult ExpandGroupConvRewriter::matchAndRewrite(IE::GroupConvolutio
     // the total size of filter constant is 1, as well as the bias, i.e., denseElem.getType().getNumElements() = 1
     // Kernel size must be 1x1, and must be a depthwise convolution.
     // in that case, the GroupConvolution can be considered as an Eltwise
-    const auto supportedGroupConv = [](IE::GroupConvolutionOp layerOp) {
-        // check kernel size and is a depthwise convolution or not
-        auto filterShape = getShape(layerOp.filter());
-        if (filterShape[Dims4D::Filter::KX] != 1 || filterShape[Dims4D::Filter::KX] != 1 ||
-            filterShape[Dims4D::Filter::OC] != layerOp.groups().getValue()) {
-            return false;
-        }
-
-        // check input const is single data or not
-        mlir::SmallVector<Const::DeclareOp> constInputOps;
-        constInputOps.push_back(layerOp.filter().getDefiningOp<Const::DeclareOp>());
-        if (layerOp.bias()) {
-            constInputOps.push_back(layerOp.bias().getDefiningOp<Const::DeclareOp>());
-        }
-        return llvm::all_of(constInputOps, [](Const::DeclareOp constOp) {
-            auto realDataSizeResult = getRealDataSize(constOp);
-            return mlir::succeeded(realDataSizeResult) && realDataSizeResult.getValue() == 1;
-        });
-    };
-    if (!supportedGroupConv(layerOp)) {
+    if (!groupConvIsEltwise(layerOp)) {
         return mlir::failure();
     }
 
@@ -539,6 +487,133 @@ mlir::LogicalResult ExpandGroupConvRewriter::matchAndRewrite(IE::GroupConvolutio
     if (pattern.opCostReduced()) {
         return pattern.rewrite();
     }
+    return mlir::failure();
+}
+
+//
+// ExpandPoolingPattern
+//
+
+class ExpandPoolingPattern final : public ExpandEltwisePattern {
+public:
+    ExpandPoolingPattern(mlir::Operation* pooling, Logger log): ExpandEltwisePattern(pooling, log) {
+    }
+
+    // Overwrite ExpandEltwisePattern::init()
+    bool init();
+};
+
+/* Try to match the Expand-pooling patterns
+         Expand
+            |
+        pooling
+            |
+      Slice (optional)
+*/
+
+bool ExpandPoolingPattern::init() {
+    auto log = getLogger().nest();
+    auto op = getEltwiseOperation();
+
+    // match input expand
+    auto operand = op->getOperand(0);
+    if (auto expand = operand.getDefiningOp<IE::ExpandOp>()) {
+        addExpandInput(expand);
+        log.trace("{0} Expand input(s) found", getExpandInputsNum());
+    } else {
+        log.trace("Cannot find any input ExpandOp");
+        return false;
+    }
+
+    // match output slices or non-slices
+    for (auto user : op->getResult(0).getUsers()) {
+        if (auto slice = mlir::dyn_cast<IE::SliceOp>(user)) {
+            addSliceOutput(slice);
+        } else {
+            addNonSliceOutput(user);
+        }
+    }
+    log.trace("{0} Slice output(s) found", getSliceOutputsNum());
+
+    // save the original shape and generate new shape
+    auto expandInputOp = *getExpandInputs().begin();
+    auto unExpandedShape = expandInputOp.input().getType().cast<vpux::NDTypeInterface>().getShape().toValues();
+    setUnExpandedShape(unExpandedShape);
+
+    mlir::FailureOr<Shape> newExpandedShapeResult =
+            getShapeCastExpandedShape(op, getShape(op->getOperand(0)).toValues(), unExpandedShape, log);
+    if (mlir::failed(newExpandedShapeResult)) {
+        return false;
+    }
+
+    auto newExpandedShape = newExpandedShapeResult.value();
+    setNewExpandedShape(std::move(newExpandedShape));
+    return true;
+}
+
+//
+// ExpandPoolingRewriter
+//
+
+template <class PoolingOp>
+class ExpandPoolingRewriter final : public mlir::OpRewritePattern<PoolingOp> {
+public:
+    ExpandPoolingRewriter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<PoolingOp>(ctx), _log(log) {
+        this->setDebugName("ExpandPoolingOpRewriter");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(PoolingOp layerOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+template <class PoolingOp>
+mlir::LogicalResult ExpandPoolingRewriter<PoolingOp>::matchAndRewrite(PoolingOp layerOp, mlir::PatternRewriter&) const {
+    _log.trace("[{0}] Got '{1}' at '{2}'", this->getDebugName(), layerOp->getName(), layerOp->getLoc());
+    const auto supportedPooling = [](PoolingOp layerOp) {
+        const auto kernels = parseIntArrayAttr<int64_t>(layerOp.kernel_size());
+        const auto padStart = parseIntArrayAttr<int64_t>(layerOp.pads_begin());
+        const auto padEnd = parseIntArrayAttr<int64_t>(layerOp.pads_end());
+        const auto strides = parseIntArrayAttr<int64_t>(layerOp.strides());
+
+        mlir::Value input = layerOp.input();
+        mlir::Value output = layerOp.output();
+        auto inputLayout = input.getType().cast<vpux::NDTypeInterface>().getDimsOrder();
+        auto outputLayout = output.getType().cast<vpux::NDTypeInterface>().getDimsOrder();
+        // input and output layer need to be same
+        if (inputLayout != outputLayout) {
+            return false;
+        }
+
+        auto hasValidKernels = llvm::all_of(kernels, [&](const auto& kernel) {
+            return kernel == 1;
+        });
+        auto hasValidPadStart = llvm::all_of(padStart, [&](const auto& pad) {
+            return pad == 0;
+        });
+        auto hasValidPadEnd = llvm::all_of(padEnd, [&](const auto& pad) {
+            return pad == 0;
+        });
+        auto hasValidStrides = llvm::all_of(strides, [&](const auto& stride) {
+            return stride == 1;
+        });
+
+        return hasValidKernels && hasValidPadStart && hasValidPadEnd && hasValidStrides;
+    };
+    if (!supportedPooling(layerOp)) {
+        return mlir::failure();
+    }
+
+    auto pattern = ExpandPoolingPattern(layerOp.getOperation(), _log);
+    if (!pattern.init()) {
+        return mlir::failure();
+    }
+    if (pattern.opCostReduced()) {
+        return pattern.rewrite();
+    }
+
     return mlir::failure();
 }
 
@@ -696,8 +771,8 @@ bool ExpandPermuteQuantizePattern::init() {
     if (mlir::failed(newExpandedShapeResult)) {
         return false;
     }
-    auto newExpandedShape = newExpandedShapeResult.getValue();
-    setNewExpandedShape(newExpandedShape);
+
+    setNewExpandedShape(newExpandedShapeResult.value());
     return true;
 }
 
@@ -742,6 +817,8 @@ void AdjustInputShapeForEltwisePass::safeRunOnFunc() {
     patterns.add<ExpandEltwiseRewriter<IE::AddOp>>(&ctx, _log);
     patterns.add<ExpandGroupConvRewriter>(&ctx, _log);
     patterns.add<ExpandPermuteQuantizeRewriter>(&ctx, _log);
+    patterns.add<ExpandPoolingRewriter<IE::AvgPoolOp>>(&ctx, _log);
+    patterns.add<ExpandPoolingRewriter<IE::MaxPoolOp>>(&ctx, _log);
 
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();

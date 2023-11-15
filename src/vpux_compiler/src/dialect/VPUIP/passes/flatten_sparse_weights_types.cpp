@@ -31,7 +31,7 @@ void setDenseWeightsOperandType(mlir::func::FuncOp func) {
                           nceOp.weights().getDefiningOp());
         mlir::OpBuilder builder(declareOp);
         auto newDeclareOp = builder.clone(*declareOp.getOperation());
-        declareOp.buffer().replaceUsesWithIf(newDeclareOp->getResult(0), [](mlir::OpOperand& operand) -> bool {
+        declareOp.getBuffer().replaceUsesWithIf(newDeclareOp->getResult(0), [](mlir::OpOperand& operand) -> bool {
             return mlir::isa<VPUIP::NCEClusterTaskOp>(operand.getOwner());
         });
     });
@@ -42,7 +42,7 @@ void compressConstWeightsType(mlir::func::FuncOp func) {
     auto ctx = func.getContext();
 
     func.walk([&](Const::DeclareOp constOp) {
-        const auto contentAttr = constOp.contentAttr();
+        const auto contentAttr = constOp.getContentAttr();
         const auto transformations = contentAttr.getTransformations();
         const auto sparsifyTransformationIt =
                 std::find_if(transformations.rbegin(), transformations.rend(), [](Const::TransformAttrInterface tr) {
@@ -79,7 +79,7 @@ void compressConstWeightsType(mlir::func::FuncOp func) {
 
         auto newContentAttr =
                 Const::ContentAttr::get(contentAttr.getBaseContent(), newTransformationsAttr, newOutputType);
-        constOp.contentAttr(newContentAttr);
+        constOp.setContentAttr(newContentAttr);
     });
 }
 

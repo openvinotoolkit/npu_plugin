@@ -1,9 +1,9 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 #include <ngraph_functions/builders.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -11,7 +11,7 @@
 
 namespace ConcatSoftmaxSubGraphTestsDefinitions {
 class VPUXConcatSoftmaxSubGraphTest_VPU3700 :
-        public LayerTestsUtils::KmbLayerTestsCommon,
+        public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public LayerTestsDefinitions::ConcatLayerTest {
     void SetUp() override {
         int axis;
@@ -59,7 +59,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke4d_tensors, VPUXConcatSoftmaxSubGraph
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          VPUXConcatSoftmaxSubGraphTest_VPU3700::getTestCaseName);
 
 // 3d cases
@@ -76,7 +76,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke3d_tensors, VPUXConcatSoftmaxSubGraph
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          VPUXConcatSoftmaxSubGraphTest_VPU3700::getTestCaseName);
 
 // Check parameters from squeezenet1_1
@@ -95,7 +95,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_squeeznet1_1_tensors, VPUXConcatSoftmaxSubGraphTe
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          VPUXConcatSoftmaxSubGraphTest_VPU3700::getTestCaseName);
 
 }  // namespace ConcatSoftmaxSubGraphTestsDefinitions

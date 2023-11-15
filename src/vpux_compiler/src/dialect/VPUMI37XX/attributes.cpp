@@ -17,8 +17,10 @@ using namespace vpux;
 //
 
 #define GET_ATTRDEF_CLASSES
-#include <vpux/compiler/dialect/VPUMI37XX/generated/attributes.cpp.inc>
-#undef GET_ATTRDEF_CLASSES
+#include <vpux/compiler/dialect/VPUMI37XX/attributes.cpp.inc>
+
+#include <vpux/compiler/dialect/VPUMI37XX/enums.cpp.inc>
+#include <vpux/compiler/dialect/VPUMI37XX/structs.cpp.inc>
 
 //
 // Dialect hooks
@@ -27,6 +29,6 @@ using namespace vpux;
 void vpux::VPUMI37XX::VPUMI37XXDialect::registerAttributes() {
     addAttributes<
 #define GET_ATTRDEF_LIST
-#include <vpux/compiler/dialect/VPUMI37XX/generated/attributes.cpp.inc>
+#include <vpux/compiler/dialect/VPUMI37XX/attributes.cpp.inc>
             >();
 }

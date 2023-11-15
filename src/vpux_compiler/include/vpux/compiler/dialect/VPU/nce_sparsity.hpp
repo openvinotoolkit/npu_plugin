@@ -60,11 +60,11 @@ std::vector<int32_t> getWeightsTable(mlir::Type inElemType, mlir::Type outElemTy
                                      int32_t weightsPtrStep, Optional<int32_t> sparsityPtrOffset,
                                      int32_t sparsityPtrStep, ArchKind arch, int64_t OC,
                                      mlir::Type weightsElemType = nullptr, Const::ContentAttr bias = nullptr,
-                                     VPU::PPETaskAttr ppe = nullptr, vpux::IE::PostOp postOpAttr = nullptr);
-std::vector<int32_t> getWeightsTable(mlir::Type inElemType, mlir::Type outElemType, SmallVector<int32_t> weightPtrs,
-                                     SmallVector<int32_t> sparsityPtrs, ArchKind arch, int64_t OC,
+                                     VPU::PPETaskAttr ppe = nullptr, vpux::IE::PostOpAttr postOpAttr = nullptr);
+std::vector<int32_t> getWeightsTable(mlir::Type inElemType, mlir::Type outElemType, ArrayRef<int32_t> weightPtrs,
+                                     ArrayRef<int32_t> sparsityPtrs, ArchKind arch, int64_t OC,
                                      mlir::Type weightsElemType = nullptr, Const::ContentAttr bias = nullptr,
-                                     VPU::PPETaskAttr ppe = nullptr, vpux::IE::PostOp postOpAttr = nullptr);
+                                     VPU::PPETaskAttr ppe = nullptr, vpux::IE::PostOpAttr postOpAttr = nullptr);
 
 std::vector<int32_t> patchWeightsTableSparsityPtrs(const std::vector<std::int32_t>& weightsTableVals,
                                                    const int32_t sparsityPtrOffset, const int32_t sparsityPtrStep);

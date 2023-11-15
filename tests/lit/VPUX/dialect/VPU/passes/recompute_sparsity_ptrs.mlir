@@ -15,7 +15,7 @@ func.func @RecomputePtrsForSparseNCEConv(%arg0: tensor<1x16x16x16xf16, {order = 
     %sparse_weights_cst = VPU.GroupSparseTensor(%weights_cst, %sparse_map_cst) {is_weights} -> !VPU.SparseTensor<data=tensor<16x16x4x4xf16, {order = #NHWC}>, sparsity_map=tensor<16x1x1x256xi1>, is_weights>
     %weights_table_cst = const.Declare tensor<16x1x1x4xsi32> = dense<1> : tensor<16x1x1x4xsi32>
     %1 = VPU.NCE.Convolution(%arg0, %sparse_weights_cst, %weights_table_cst) {
-            pad = {bottom = 1 : i64, left = 2 : i64, right = 1 : i64, top = 2 : i64},
+            pad = #VPU.Padding<left = 2 : i64, right = 1 : i64, top = 2 : i64, bottom = 1 : i64>,
             rawFilterShape = [16, 16, 4, 4],
             strides = [1, 1]
         } -> tensor<1x16x16x16xf16, {order = #NHWC}>
@@ -38,7 +38,7 @@ func.func @DontChangePtrsForDenseNCEConv(%arg0: tensor<1x16x16x16xf16, {order = 
     %weights_cst = const.Declare tensor<16x16x4x4xf16, {order = #NHWC}> = dense<0.0> : tensor<16x16x4x4xf16>, [#const.Reorder<#NHWC>]
     %weights_table_cst = const.Declare tensor<16x1x1x4xsi32> = dense<1> : tensor<16x1x1x4xsi32>
     %1 = VPU.NCE.Convolution(%arg0, %weights_cst, %weights_table_cst) {
-            pad = {bottom = 1 : i64, left = 2 : i64, right = 1 : i64, top = 2 : i64},
+            pad = #VPU.Padding<left = 2 : i64, right = 1 : i64, top = 2 : i64, bottom = 1 : i64>,
             rawFilterShape = [16, 16, 4, 4],
             strides = [1, 1]
         } -> tensor<1x16x16x16xf16, {order = #NHWC}>

@@ -17,6 +17,38 @@ namespace {
 // MovePermutePostEltwisePass
 //
 
+bool isEltwiseGroupConvolution(IE::GroupConvolutionOp groupConvOp) {
+    const auto kernelSize = getShape(groupConvOp.filter());
+    if (kernelSize[Dims4D::Filter::KX] != 1 || kernelSize[Dims4D::Filter::KY] != 1) {
+        return false;
+    }
+
+    const auto hasLargeDim = [](const int64_t val) -> bool {
+        return val != 1;
+    };
+    const auto hasPadding = [](const int64_t val) -> bool {
+        return val != 0;
+    };
+
+    const auto strides = parseIntArrayAttr<int64_t>(groupConvOp.strides());
+    if (std::any_of(strides.begin(), strides.end(), hasLargeDim)) {
+        return false;
+    }
+
+    const auto dilations = parseIntArrayAttr<int64_t>(groupConvOp.dilations());
+    if (std::any_of(dilations.begin(), dilations.end(), hasLargeDim)) {
+        return false;
+    }
+
+    const auto padsBegin = parseIntArrayAttr<int64_t>(groupConvOp.pads_begin());
+    if (std::any_of(padsBegin.begin(), padsBegin.end(), hasPadding)) {
+        return false;
+    }
+
+    const auto padsEnd = parseIntArrayAttr<int64_t>(groupConvOp.pads_end());
+    return !std::any_of(padsEnd.begin(), padsEnd.end(), hasPadding);
+}
+
 class MovePermutePostEltwisePass final : public MovePermutePostEltwiseBase<MovePermutePostEltwisePass> {
 public:
     MovePermutePostEltwisePass(Logger log) {
@@ -64,20 +96,31 @@ Shape getMappedShape(DimsOrder sourceLayout, DimsOrder resultLayout, DimsOrder m
     return mappedShape;
 }
 
-IE::MemPermuteOp getEltwiseInputPermute(mlir::Value eltwiseInput) {
+mlir::Operation* getEltwiseInputPermute(mlir::Value eltwiseInput) {
     auto parentOp = eltwiseInput.getDefiningOp();
     while (parentOp) {
         if (auto parentPermute = mlir::dyn_cast<IE::MemPermuteOp>(parentOp)) {
             // Case when there is a MemPermute and the processing of EltWise above adds another MemPermute
             // Skipping now, as canonicalizer takes care of optimizing both MemPermutes
             auto grandParentOp = parentPermute.input().getDefiningOp();
-            if (grandParentOp != nullptr && mlir::isa<IE::MemPermuteOp>(grandParentOp)) {
+            if (mlir::isa_and_nonnull<IE::MemPermuteOp>(grandParentOp)) {
                 auto grandParentPermute = mlir::cast<IE::MemPermuteOp>(grandParentOp);
                 if (parentPermute.dst_order() == grandParentPermute.dst_order()) {
                     return nullptr;
                 }
             }
-            return parentPermute;
+            return parentPermute.getOperation();
+        } else if (auto parentPermute = mlir::dyn_cast<IE::PermuteQuantizeOp>(parentOp)) {
+            // Case when there is a PermuteQuantize and the processing of EltWise above adds another PermuteQuantize
+            // Skipping now, as canonicalizer takes care of optimizing both PermuteQuantizes
+            auto grandParentOp = parentPermute.input().getDefiningOp();
+            if (mlir::isa_and_nonnull<IE::PermuteQuantizeOp>(grandParentOp)) {
+                auto grandParentPermute = mlir::cast<IE::PermuteQuantizeOp>(grandParentOp);
+                if (parentPermute.dst_order() == grandParentPermute.dst_order()) {
+                    return nullptr;
+                }
+            }
+            return parentPermute.getOperation();
         } else if (auto parentQuantizeCast = mlir::dyn_cast<IE::QuantizeCastOp>(parentOp)) {
             if (VPU::hasMultiBranches(parentQuantizeCast.getOperation())) {
                 return nullptr;
@@ -97,15 +140,15 @@ IE::MemPermuteOp getEltwiseInputPermute(mlir::Value eltwiseInput) {
     return nullptr;
 }
 
-SmallVector<IE::MemPermuteOp> getPermutesToMove(ArrayRef<IE::MemPermuteOp> permutes) {
+SmallVector<mlir::Operation*> getPermutesToMove(ArrayRef<mlir::Operation*> permutes) {
     if (permutes.size() == 1) {
-        return SmallVector<IE::MemPermuteOp>({permutes[0]});
+        return SmallVector<mlir::Operation*>({permutes[0]});
     }
     if (permutes.size() == 2) {
         if (permutes[0] == permutes[1]) {
-            return SmallVector<IE::MemPermuteOp>({permutes[0]});
+            return SmallVector<mlir::Operation*>({permutes[0]});
         } else {
-            return SmallVector<IE::MemPermuteOp>({permutes[0], permutes[1]});
+            return SmallVector<mlir::Operation*>({permutes[0], permutes[1]});
         }
     }
     VPUX_THROW("getPermutesToMove: Unsupported number of elements. Expected 1 or 2, got {0}", permutes.size());
@@ -115,7 +158,7 @@ bool isSplatConstant(Const::DeclareOp constOp) {
     if (constOp == nullptr) {
         return false;
     }
-    return constOp.content().isSplat();
+    return constOp.getContent().isSplat();
 }
 
 /* Rewrite the pattern from:
@@ -160,6 +203,10 @@ mlir::LogicalResult PermuteEltwiseRewriter<EltwiseOp>::matchAndRewrite(EltwiseOp
     }
 
     if (isGroupConv) {
+        auto groupConvOp = mlir::dyn_cast<IE::GroupConvolutionOp>(*eltwiseOp);
+        if (!isEltwiseGroupConvolution(groupConvOp)) {
+            return mlir::failure();
+        }
         mlir::SmallVector<Const::DeclareOp> constInputOps;
         // Skip the first operand, check only weights and biases.
         for (unsigned operandIdx = 1; operandIdx < eltwiseOp->getNumOperands(); operandIdx++) {
@@ -173,15 +220,15 @@ mlir::LogicalResult PermuteEltwiseRewriter<EltwiseOp>::matchAndRewrite(EltwiseOp
         }
     }
 
-    SmallVector<IE::MemPermuteOp> inputMemPermutes;
+    SmallVector<mlir::Operation*> inputPermutes;
     const unsigned numInputs = isGroupConv ? 1 : 2;
     for (unsigned inIdx = 0; inIdx < numInputs; inIdx++) {
-        inputMemPermutes.push_back(getEltwiseInputPermute(eltwiseOp->getOperand(inIdx)));
+        inputPermutes.push_back(getEltwiseInputPermute(eltwiseOp->getOperand(inIdx)));
     }
-    const auto isMemPermute = [](const IE::MemPermuteOp op) -> bool {
-        return op != nullptr;
+    const auto isPermute = [](const mlir::Operation* op) -> bool {
+        return mlir::isa_and_nonnull<IE::MemPermuteOp, IE::PermuteQuantizeOp>(op);
     };
-    auto allInputsArePermutes = std::all_of(inputMemPermutes.begin(), inputMemPermutes.end(), isMemPermute);
+    auto allInputsArePermutes = std::all_of(inputPermutes.begin(), inputPermutes.end(), isPermute);
     if (!allInputsArePermutes) {
         return mlir::failure();
     }
@@ -189,22 +236,39 @@ mlir::LogicalResult PermuteEltwiseRewriter<EltwiseOp>::matchAndRewrite(EltwiseOp
     const auto getInputType = [](mlir::Operation* permute) -> vpux::NDTypeInterface {
         return permute->getOperand(0).getType().template cast<vpux::NDTypeInterface>();
     };
-    std::transform(inputMemPermutes.begin(), inputMemPermutes.end(), std::back_inserter(permuteInputTypes),
-                   getInputType);
+    std::transform(inputPermutes.begin(), inputPermutes.end(), std::back_inserter(permuteInputTypes), getInputType);
 
     SmallVector<DimsOrder> permuteInputLayouts;
     const auto getInputLayout = [](mlir::Operation* permute) -> DimsOrder {
         return DimsOrder::fromValue(permute->getOperand(0));
     };
-    std::transform(inputMemPermutes.begin(), inputMemPermutes.end(), std::back_inserter(permuteInputLayouts),
-                   getInputLayout);
+    std::transform(inputPermutes.begin(), inputPermutes.end(), std::back_inserter(permuteInputLayouts), getInputLayout);
 
     SmallVector<DimsOrder> permuteMemPermLayouts;
-    const auto getMemPermLayout = [](IE::MemPermuteOp permute) -> DimsOrder {
-        return DimsOrder::fromAffineMap(permute.mem_permAttr().getValue());
+    const auto getMemPermLayout = [](mlir::Operation* op) -> DimsOrder {
+        if (auto permute = mlir::dyn_cast<IE::MemPermuteOp>(op)) {
+            return DimsOrder::fromAffineMap(permute.mem_permAttr().getValue());
+        } else if (auto permute = mlir::dyn_cast<IE::PermuteQuantizeOp>(op)) {
+            return DimsOrder::fromAffineMap(permute.mem_permAttr().getValue());
+        } else {
+            VPUX_THROW("Unsupported operation type, got {0}", op->getLoc());
+        }
     };
-    std::transform(inputMemPermutes.begin(), inputMemPermutes.end(), std::back_inserter(permuteMemPermLayouts),
+    std::transform(inputPermutes.begin(), inputPermutes.end(), std::back_inserter(permuteMemPermLayouts),
                    getMemPermLayout);
+
+    auto eltwiseOutElemType = eltwiseOp.output().getType().template cast<vpux::NDTypeInterface>().getElementType();
+    SmallVector<bool> isPermuteElemTypeEquals;
+    const auto getElemTypeEqual = [eltwiseOutElemType](mlir::Operation* op) -> bool {
+        if (mlir::isa<IE::MemPermuteOp>(op)) {
+            return true;
+        }
+        auto srcElemType = op->getOperand(0).getType().cast<NDTypeInterface>().getElementType();
+        auto dstElemType = op->getResult(0).getType().cast<NDTypeInterface>().getElementType();
+        return (srcElemType == dstElemType) && (eltwiseOutElemType.isF16() || eltwiseOutElemType.isF32());
+    };
+    std::transform(inputPermutes.begin(), inputPermutes.end(), std::back_inserter(isPermuteElemTypeEquals),
+                   getElemTypeEqual);
 
     auto eltwiseInput1Type = eltwiseOp->getOperand(0).getType().template cast<vpux::NDTypeInterface>();
     auto eltwiseInputLayout = eltwiseInput1Type.getDimsOrder();
@@ -234,6 +298,10 @@ mlir::LogicalResult PermuteEltwiseRewriter<EltwiseOp>::matchAndRewrite(EltwiseOp
         if (!std::all_of(permuteMemPermLayouts.begin(), permuteMemPermLayouts.end(), isSameMemPerm)) {
             return false;
         }
+        if (std::find(isPermuteElemTypeEquals.begin(), isPermuteElemTypeEquals.end(), false) !=
+            isPermuteElemTypeEquals.end()) {
+            return false;
+        }
 
         auto output = eltwiseOp.output();
         // When elementwise operation has two consumers with at least one IE.ShapeCast, skip such case.
@@ -252,7 +320,7 @@ mlir::LogicalResult PermuteEltwiseRewriter<EltwiseOp>::matchAndRewrite(EltwiseOp
         return mlir::failure();
     }
     _log.nest().trace("Moving permute op post eltwise {0} at {1}", eltwiseOp->getName(), eltwiseOp->getLoc());
-    auto permutesToMove = getPermutesToMove(inputMemPermutes);
+    auto permutesToMove = getPermutesToMove(inputPermutes);
     const auto neutralMemPerm = mlir::AffineMapAttr::get(mlir::AffineMap::getPermutationMap({0, 1, 2, 3}, ctx));
     // Get operation skipping QuantizeCast and ShapeCast ops
     auto getOwnerIgnoreCasts = [&](const mlir::OpOperand& opOperand) -> mlir::Operation* {
@@ -264,28 +332,28 @@ mlir::LogicalResult PermuteEltwiseRewriter<EltwiseOp>::matchAndRewrite(EltwiseOp
         return ownerOp;
     };
     auto mappedShape = getMappedShape(permuteInputLayouts[0], eltwiseInputLayout, permuteMemPermLayouts[0],
-                                      getShape(inputMemPermutes[0].input()));
+                                      getShape(inputPermutes[0]->getOperand(0)));
     for (auto curPermute : permutesToMove) {
         _log.nest().trace("Processing permute {0} {1}", curPermute->getName(), curPermute->getLoc());
-        auto permuteOutputType = curPermute.output().getType().template cast<vpux::NDTypeInterface>();
+        auto permuteOutputType = curPermute->getResult(0).getType().template cast<vpux::NDTypeInterface>();
         const auto dstOrder = mlir::AffineMapAttr::get(eltwiseInputLayout.toAffineMap(ctx));
         rewriter.setInsertionPoint(curPermute);
         if (permuteInputLayouts[0] != eltwiseInputLayout) {
-            auto permuteCast = rewriter.template create<IE::PermuteCastOp>(curPermute->getLoc(), curPermute.input(),
-                                                                           dstOrder, neutralMemPerm);
+            auto permuteCast = rewriter.template create<IE::PermuteCastOp>(
+                    curPermute->getLoc(), curPermute->getOperand(0), dstOrder, neutralMemPerm);
             auto newPermuteCastOutputType = permuteCast.output().getType().template cast<vpux::NDTypeInterface>();
             mappedShape = newPermuteCastOutputType.getShape().toValues();
             auto shapeCast = rewriter.template create<IE::ShapeCastOp>(
                     curPermute->getLoc(), newPermuteCastOutputType.changeShape(eltwiseInputShape), permuteCast.output(),
                     getIntArrayAttr(ctx, eltwiseInputShape.raw()));
-            curPermute.output().replaceUsesWithIf(shapeCast.result(), [&](mlir::OpOperand& opOperand) {
+            curPermute->getResult(0).replaceUsesWithIf(shapeCast.result(), [&](mlir::OpOperand& opOperand) {
                 return getOwnerIgnoreCasts(opOperand) == eltwiseOp;
             });
         } else {
             auto shapeCast = rewriter.template create<IE::ShapeCastOp>(
-                    curPermute->getLoc(), permuteOutputType.changeShape(eltwiseInputShape), curPermute.input(),
+                    curPermute->getLoc(), permuteOutputType.changeShape(eltwiseInputShape), curPermute->getOperand(0),
                     getIntArrayAttr(ctx, eltwiseInputShape.raw()));
-            curPermute.output().replaceUsesWithIf(shapeCast.result(), [&](mlir::OpOperand& opOperand) {
+            curPermute->getResult(0).replaceUsesWithIf(shapeCast.result(), [&](mlir::OpOperand& opOperand) {
                 return getOwnerIgnoreCasts(opOperand) == eltwiseOp;
             });
         }
@@ -323,15 +391,36 @@ mlir::LogicalResult PermuteEltwiseRewriter<EltwiseOp>::matchAndRewrite(EltwiseOp
     auto eltwiseOutputType = outputValue.getType().template cast<vpux::NDTypeInterface>();
     rewriter.setInsertionPointAfter(outputValue.getDefiningOp());
     auto newOutputShapeCastType = eltwiseOutputType.changeShape(mappedShape);
+    // Get new output memPermuteOp or permuteQuantizeOp
+    auto getOutputPermute = [&](const mlir::Operation* op,
+                                const mlir::Value inputValue) -> mlir::FailureOr<mlir::Operation*> {
+        if (auto memPermute = mlir::dyn_cast<IE::MemPermuteOp>(op)) {
+            return rewriter
+                    .template create<IE::MemPermuteOp>(eltwiseOp->getLoc(), inputValue, memPermute.dst_orderAttr(),
+                                                       memPermute.mem_permAttr())
+                    .getOperation();
+        } else if (auto permuteQuantize = mlir::dyn_cast<IE::PermuteQuantizeOp>(op)) {
+            return rewriter
+                    .template create<IE::PermuteQuantizeOp>(
+                            eltwiseOp->getLoc(), inputValue, permuteQuantize.dst_orderAttr(),
+                            permuteQuantize.mem_permAttr(), permuteQuantize.dstElemTypeAttr(),
+                            permuteQuantize.pads_beginAttr(), permuteQuantize.pads_endAttr())
+                    .getOperation();
+        } else {
+            VPUX_THROW("Unsupported operation, operation should be MemPermuteOp or PermuteQuantizeOp!");
+        }
+    };
     if (permuteInputLayouts[0] != eltwiseInputLayout) {
         auto outputShapeCast = rewriter.template create<IE::ShapeCastOp>(
                 eltwiseOp->getLoc(), newOutputShapeCastType, outputValue, getIntArrayAttr(ctx, mappedShape.raw()));
         const auto outputDstOrder = mlir::AffineMapAttr::get(permuteInputLayouts[0].toAffineMap(ctx));
         auto outputPermuteCast = rewriter.template create<IE::PermuteCastOp>(
                 eltwiseOp->getLoc(), outputShapeCast.result(), outputDstOrder, neutralMemPerm);
-        auto outputPermute = rewriter.template create<IE::MemPermuteOp>(eltwiseOp->getLoc(), outputPermuteCast.output(),
-                                                                        inputMemPermutes[0].dst_orderAttr(),
-                                                                        inputMemPermutes[0].mem_permAttr());
+        auto permuteOrFailure = getOutputPermute(inputPermutes[0], outputPermuteCast.output());
+        if (mlir::failed(permuteOrFailure)) {
+            return mlir::failure();
+        }
+        auto outputPermute = permuteOrFailure.value();
         auto eltwiseOutputShape = eltwiseOutputType.getShape();
         auto outputPermuteOutputShape = newOutputShapeCastType.getShape();
         if (eltwiseOutputShape != outputPermuteOutputShape) {
@@ -371,22 +460,30 @@ mlir::LogicalResult PermuteEltwiseRewriter<EltwiseOp>::matchAndRewrite(EltwiseOp
              There should be an extra ShapeCast.
             */
             auto outputPermuteShapeCast = rewriter.template create<IE::ShapeCastOp>(
-                    eltwiseOp->getLoc(), eltwiseOutputType, outputPermute.output(),
+                    eltwiseOp->getLoc(), eltwiseOutputType, outputPermute->getResult(0),
                     getIntArrayAttr(ctx, eltwiseOutputShape.raw()));
             outputValue.replaceAllUsesExcept(outputPermuteShapeCast, outputShapeCast);
         } else {
-            outputPermute.output().setType(eltwiseOutputType);
-            outputValue.replaceAllUsesExcept(outputPermute, outputShapeCast);
+            outputPermute->getResult(0).setType(eltwiseOutputType);
+            outputValue.replaceAllUsesExcept(outputPermute->getResult(0), outputShapeCast);
         }
     } else {
         auto outputShapeCast = rewriter.template create<IE::ShapeCastOp>(
                 eltwiseOp->getLoc(), newOutputShapeCastType.changeShape(permuteInputTypes[0].getShape()), outputValue,
                 getIntArrayAttr(ctx, permuteInputTypes[0].getShape().raw()));
-        auto outputPermute = rewriter.template create<IE::MemPermuteOp>(eltwiseOp->getLoc(), outputShapeCast.result(),
-                                                                        inputMemPermutes[0].dst_orderAttr(),
-                                                                        inputMemPermutes[0].mem_permAttr());
-        outputPermute.output().setType(eltwiseOutputType);
-        outputValue.replaceAllUsesExcept(outputPermute, outputShapeCast);
+        auto permuteOrFailure = getOutputPermute(inputPermutes[0], outputShapeCast.result());
+        if (mlir::failed(permuteOrFailure)) {
+            return mlir::failure();
+        }
+        auto outputPermute = permuteOrFailure.value();
+        auto permuteOutShape =
+                inputPermutes[0]->getResult(0).getType().template cast<vpux::NDTypeInterface>().getShape();
+        auto outPermuteType = eltwiseOutputType.changeShape(permuteOutShape);
+        outputPermute->getResult(0).setType(outPermuteType);
+        auto permuteOutShapeCast = rewriter.template create<IE::ShapeCastOp>(
+                eltwiseOp->getLoc(), newOutputShapeCastType.changeShape(eltwiseOutputType.getShape()),
+                outputPermute->getResult(0), getIntArrayAttr(ctx, eltwiseOutputType.getShape().raw()));
+        outputValue.replaceAllUsesExcept(permuteOutShapeCast, outputShapeCast);
     }
 
     return mlir::success();

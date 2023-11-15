@@ -66,8 +66,8 @@ mlir::LogicalResult SwapWithTranspose::matchAndRewrite(IE::TransposeOp originOp,
         return mlir::failure();
     }
 
-    const auto padsBeginValue = padsBegin.getValue();
-    const auto padsEndValue = padsEnd.getValue();
+    const auto padsBeginValue = padsBegin.value();
+    const auto padsEndValue = padsEnd.value();
 
     VPUX_THROW_UNLESS(permutation.size() == padsBeginValue.size() && padsBeginValue.size() == padsEndValue.size(),
                       "Permutation size {0} and pads {1} don't match", permutation.size(), padsBeginValue.size());

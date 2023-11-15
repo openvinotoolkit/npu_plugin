@@ -50,10 +50,10 @@ mlir::Value createAllocOp(Const::DeclareOp declOp, VPURT::AllocDistributed alloc
         auto newType = vpux::ConstantFusing::getDistributedBufferType(origType, declOp, rewriter);
         auto distributedBufferType = newType.cast<VPUIP::DistributedBufferType>();
         return rewriter.create<VPURT::AllocDistributed>(declOp.getLoc(), distributedBufferType, nullptr, nullptr)
-                .buffer();
+                .getBuffer();
 
     } else {
-        const auto type = declOp.output().getType().cast<vpux::NDTypeInterface>();
+        const auto type = declOp.getOutput().getType().cast<vpux::NDTypeInterface>();
         vpux::IndexedSymbolAttr memKindAttr =
                 IndexedSymbolAttr::get(rewriter.getContext(), stringifyEnum(VPU::MemoryKind::CMX_NN), 0);
         auto newType = type.changeMemSpace(memKindAttr);
@@ -65,7 +65,7 @@ mlir::Value createAllocOp(Const::DeclareOp declOp, VPURT::AllocDistributed alloc
 VPUIP::CopyOp createFusedCopyOp(mlir::Value allocDefiningOp, Const::DeclareOp declOp, mlir::PatternRewriter& rewriter) {
     VPUIP::CopyOp fusedCopyOp = nullptr;
     if (auto allocOp = allocDefiningOp.getDefiningOp<VPURT::AllocDistributed>()) {
-        SmallVector<mlir::Value> inputsOutputOperands = {declOp.getResult(), allocOp.buffer()};
+        SmallVector<mlir::Value> inputsOutputOperands = {declOp.getResult(), allocOp.getBuffer()};
         const auto bodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
             fusedCopyOp = builder.create<VPUIP::CopyOp>(loc, newOperands[0], newOperands[1]);
         };
@@ -73,7 +73,7 @@ VPUIP::CopyOp createFusedCopyOp(mlir::Value allocDefiningOp, Const::DeclareOp de
         rewriter.create<VPUIP::NCEClusterTilingOp>(appendLoc(declOp.getLoc(), "_fused_tile"), allocDefiningOp.getType(),
                                                    inputsOutputOperands, bodyBuilder);
     } else if (auto allocOp = allocDefiningOp.getDefiningOp<mlir::memref::AllocOp>()) {
-        fusedCopyOp = rewriter.create<VPUIP::CopyOp>(declOp->getLoc(), declOp.output(), allocOp.memref());
+        fusedCopyOp = rewriter.create<VPUIP::CopyOp>(declOp->getLoc(), declOp.getOutput(), allocOp.memref());
     } else {
         VPUX_THROW("Unrecognized allocDefiningOp encountered");
     }
@@ -99,7 +99,7 @@ mlir::RankedTensorType FuseConstants::populateFusedConstantBuffer(vpux::Constant
         // In case of some layers like MaxPool the weights won't be present so skip over to the next
         // constant for fusion
         if (pair.second != nullptr) {
-            auto content = pair.second.content();
+            auto content = pair.second.getContent();
             auto contentType = pair.second.getType().cast<vpux::NDTypeInterface>();
             auto elemType = contentType.getElementType();
 

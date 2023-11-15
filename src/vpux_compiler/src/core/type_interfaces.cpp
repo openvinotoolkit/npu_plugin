@@ -47,7 +47,7 @@ TypeComponents& TypeComponents::setStrides(StridesRef newStrides) {
 // Generated
 //
 
-#include <vpux/compiler/core/generated/type_interfaces.cpp.inc>
+#include <vpux/compiler/core/type_interfaces.cpp.inc>
 
 //
 // TensorNDTypeInterface
@@ -102,14 +102,14 @@ vpux::DimsOrder TensorNDTypeInterface::getDimsOrder(mlir::Type type) const {
     VPUX_THROW_UNLESS(type.isa<mlir::RankedTensorType>(),
                       "Only RankedTensorType is supported for 'getDimsOrder'. Got '{0}'", type);
     const auto tensor = type.cast<mlir::RankedTensorType>();
-    return DimsOrder::fromAffineMap(IE::getOrder(tensor));
+    return DimsOrder::fromAffineMap(vpux::getOrder(tensor));
 }
 
 vpux::IndexedSymbolAttr TensorNDTypeInterface::getMemSpace(mlir::Type type) const {
     VPUX_THROW_UNLESS(type.isa<mlir::RankedTensorType>(),
                       "Only RankedTensorType is supported for 'getMemSpace'. Got '{0}'", type);
     const auto tensor = type.cast<mlir::RankedTensorType>();
-    return IE::getMemorySpace(tensor);
+    return vpux::getMemorySpace(tensor);
 }
 
 vpux::VPU::MemoryKind TensorNDTypeInterface::getMemoryKind(mlir::Type type) const {
@@ -121,7 +121,7 @@ vpux::VPU::MemoryKind TensorNDTypeInterface::getMemoryKind(mlir::Type type) cons
         return vpux::VPU::MemoryKind::DDR;
     }
 
-    return vpux::VPU::symbolizeEnum<VPU::MemoryKind>(memSpace.getLeafName()).getValue();
+    return vpux::VPU::symbolizeEnum<VPU::MemoryKind>(memSpace.getLeafName()).value();
 }
 
 vpux::Strides TensorNDTypeInterface::getStrides(mlir::Type type) const {
@@ -185,8 +185,8 @@ vpux::NDTypeInterface TensorNDTypeInterface::changeShape(mlir::Type type, vpux::
     auto elemType = getElementType(type);
     if (auto perAxisType = elemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
         const auto axis = vpux::getQuantizedAxis(perAxisType.getQuantizedDimension(), getShape(type), shape);
-        if (axis.hasValue()) {
-            elemType = changeAxis(perAxisType, axis.getValue());
+        if (axis.has_value()) {
+            elemType = changeAxis(perAxisType, axis.value());
         }
     }
     const auto newType = vpux::getTensorType(shape, elemType, newOrder, getMemSpace(type));
@@ -251,7 +251,7 @@ vpux::NDTypeInterface TensorNDTypeInterface::changeStrides(mlir::Type /*type*/, 
 }
 
 vpux::NDTypeInterface TensorNDTypeInterface::changeTypeComponents(mlir::Type type,
-                                                                  vpux::TypeComponents typeComponents) const {
+                                                                  const vpux::TypeComponents& typeComponents) const {
     const auto shape = typeComponents.shape.value_or(Shape(getShape(type).toValues()));
     const auto elementType = typeComponents.elementType.value_or(getElementType(type));
     const auto dimsOrder = typeComponents.dimsOrder.value_or(getDimsOrder(type));
@@ -406,7 +406,7 @@ vpux::VPU::MemoryKind MemRefNDTypeInterface::getMemoryKind(mlir::Type type) cons
         return vpux::VPU::MemoryKind::DDR;
     }
 
-    return vpux::VPU::symbolizeEnum<VPU::MemoryKind>(memSpace.getLeafName()).getValue();
+    return vpux::VPU::symbolizeEnum<VPU::MemoryKind>(memSpace.getLeafName()).value();
 }
 
 vpux::Strides MemRefNDTypeInterface::getStrides(mlir::Type type) const {
@@ -607,7 +607,7 @@ vpux::NDTypeInterface MemRefNDTypeInterface::changeStrides(mlir::Type type, vpux
 }
 
 vpux::NDTypeInterface MemRefNDTypeInterface::changeTypeComponents(mlir::Type type,
-                                                                  vpux::TypeComponents typeComponents) const {
+                                                                  const vpux::TypeComponents& typeComponents) const {
     const auto shape = typeComponents.shape.value_or(Shape(getShape(type).toValues()));
     const auto elementType = typeComponents.elementType.value_or(getElementType(type));
     const auto dimsOrder = typeComponents.dimsOrder.value_or(getDimsOrder(type));

@@ -171,7 +171,7 @@ def VPUMI37XX_NNDMAOp :
         UnitAttr:$is_out_of_order,
         UnitAttr:$is_critical,
         DefaultValuedAttr<IntAttr, "0">:$port,
-        OptionalAttr<VPUIP_DmaDescriptorAttr>:$dma_descriptor
+        OptionalAttr<VPUIP_DMADescriptorAttr>:$dma_descriptor
     );
 
     let results = (outs
@@ -186,7 +186,7 @@ def VPUMI37XX_NNDMAOp :
             (ins "mlir::Type":$index, "mlir::Value":$input, "mlir::ValueRange":$output_buffs,
             "mlir::Value":$previousDMAIdx, "mlir::ValueRange":$waitBarriers, "mlir::ValueRange":$updateBarriers,
             "bool":$compression, "uint64_t":$start_after, "uint64_t":$clean_after, "bool":$is_out_of_order,
-            "bool":$is_critical, "int64_t":$port, "vpux::VPUIP::DmaDescriptorAttr":$dma_descriptor)
+            "bool":$is_critical, "int64_t":$port, "vpux::VPUIP::DMADescriptorAttr":$dma_descriptor)
         >
     ];
 
@@ -341,9 +341,20 @@ def VPUMI37XX_KernelParamsOp :
         > {
     let summary = "Kernel Params";
 
+    let description = [{
+        This operation contains description of parameters for software kernel.
+        It can be used to cover dynamic and static shapes. Dynamic shapes are represented by
+        input_dims and output_dims arguments. If shape does not require to be dynamic the corresponding argument
+        can be omitted. The shape is resolved via kernel_params for this case.
+
+        Currently, dynamic shape is supported only for single input/output.
+    }];
+
     let arguments = (ins
         Variadic<AnyMemRef>:$inputs,
         Variadic<AnyMemRef>:$outputs,
+        Optional<AnyMemRef>:$input_dims,  // TODO(E#84956) make variadic
+        Optional<AnyMemRef>:$output_dims, // to handle multiple inputs/outputs
         StrAttr:$kernel_type,
         ElementsAttr:$kernel_params
     );
@@ -360,6 +371,8 @@ def VPUMI37XX_KernelParamsOp :
         attr-dict
         `inputs` `(` $inputs `:` type($inputs) `)`
         `outputs` `(` $outputs `:` type($outputs) `)`
+        (`input_dims` `(` $input_dims^ `:` type($input_dims) `)`)?
+        (`output_dims` `(` $output_dims^ `:` type($output_dims) `)`)?
         `kernel_type` `(` $kernel_type `)`
         `kernel_params` `(` $kernel_params `)`
         `->` type(results)
@@ -453,7 +466,7 @@ def VPUMI37XX_DPUVariantOp : VPUMI37XX_TaskOp<"DPUVariant", []> {
         I64ArrayAttr:$start,
         I64ArrayAttr:$end,
         VPU_PaddingAttr:$pad,
-        VPU_MPEMode:$mpe_mode,
+        VPU_MPEModeAttr:$mpe_mode,
         OptionalAttr<IntAttr>:$cluster_id,
         OptionalAttr<IntAttr>:$workload_id
     );
@@ -494,8 +507,9 @@ def VPUMI37XX_DPUInvariantOp :
         Optional<AnyTypeOf<[MemRefOf<[I1]>, VPUIP_DistributedBuffer]>>:$output_sparsity_map_buff,
         Optional<AnyTypeOf<[MemRefOf<[UI64]>, VPUIP_DistributedBuffer]>>:$profiling_data,
 
-        VPUIP_NCETaskType:$task_type,
-        VPU_MPEMode:$mpe_frequent_mode,
+        VPUIP_NCETaskTypeAttr:$nce_task_type,
+        VPU_MPEModeAttr:$mpe_frequent_mode,
+
         OptionalAttr<I64ArrayAttr>:$kernel_size,
         OptionalAttr<I64ArrayAttr>:$kernel_strides,
         OptionalAttr<VPU_PaddingAttr>:$kernel_padding,
@@ -510,6 +524,7 @@ def VPUMI37XX_DPUInvariantOp :
         OptionalAttr<IntAttr>:$input_se_size,
         OptionalAttr<IntAttr>:$output_se_size,
         OptionalAttr<UnitAttr>:$is_permute_quantize,
+        OptionalAttr<VPUIP_DpuProfilingMetadataAttr>:$profilingMetadata,
 
         Variadic<VPURegMapped_IndexType>:$waitBarriers,
         Variadic<VPURegMapped_IndexType>:$updateBarriers,

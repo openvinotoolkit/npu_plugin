@@ -1,6 +1,7 @@
 //
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
+//
 
 #include <numeric>
 
@@ -156,14 +157,14 @@ void buildDifferentClustersDPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
                                                         outputClusters[idx], OUTPUT_CMX_OFFSET));
     }
 
-    auto nceClusterTaskOutBuffer = outCMXBufferVec.front().buffer();
+    auto nceClusterTaskOutBuffer = outCMXBufferVec.front().getBuffer();
     if (outputClusters.size() > 1) {
         // Create distributed buffer for CMX output
         const auto distributionModeAttr = VPU::DistributionModeAttr::get(ctx, VPU::DistributionMode::DUPLICATED);
         const auto numClustersAttr = getIntAttr(ctx, outputClusters.size());
-        const auto distributedAttr =
-                VPU::DistributedTensorAttr::get(distributionModeAttr, nullptr, nullptr, nullptr, nullptr,
-                                                numClustersAttr, nullptr, nullptr, nullptr, nullptr, nullptr, ctx);
+        const auto distributedAttr = VPU::DistributedTensorAttr::get(
+                ctx, distributionModeAttr, nullptr, nullptr, nullptr, nullptr, numClustersAttr, nullptr, nullptr,
+                nullptr, nullptr, nullptr, nullptr, nullptr);
 
         const auto orderAttr = mlir::AffineMapAttr::get(outputTypeIf.getDimsOrder().toAffineMap(ctx));
         const auto elemStrides = to_small_vector(outputTypeIf.getStrides() | transformed([&](Bit stride) {
@@ -180,18 +181,18 @@ void buildDifferentClustersDPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
 
         auto outDistributedCMX = createDeclareTensorOp(functionBuilder, outDistributedCMXType,
                                                        VPURT::BufferSection::CMX_NN, outputClusters, OUTPUT_CMX_OFFSET);
-        nceClusterTaskOutBuffer = outDistributedCMX.buffer();
+        nceClusterTaskOutBuffer = outDistributedCMX.getBuffer();
     }
 
     auto updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, 0);
 
     // Create DMAs for input act, weights and weights table
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(),
-                                          mlir::ValueRange(updateBarrier.barrier()), loc, functionInput, inputCMX);
+                                          mlir::ValueRange(updateBarrier.getBarrier()), loc, functionInput, inputCMX);
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(),
-                                          mlir::ValueRange(updateBarrier.barrier()), loc, weightsDDR, weightsCMX);
+                                          mlir::ValueRange(updateBarrier.getBarrier()), loc, weightsDDR, weightsCMX);
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(),
-                                          mlir::ValueRange(updateBarrier.barrier()), loc, weightsTableDDR,
+                                          mlir::ValueRange(updateBarrier.getBarrier()), loc, weightsTableDDR,
                                           weightsTableCMX);
 
     auto waitBarrier = updateBarrier;
@@ -206,9 +207,10 @@ void buildDifferentClustersDPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
     // Create NCEClusterTaskOp
     updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, 1);
     auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
-            functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()), loc,
-            inputCMX.buffer(), weightsCMX.buffer(), weightsTableCMX.buffer(), /*instruction_table_list=*/nullptr,
-            /*activation_window=*/nullptr, inputCMX.buffer(), nceClusterTaskOutBuffer, nceClusterTaskOutBuffer,
+            functionBuilder, mlir::ValueRange(waitBarrier.getBarrier()), mlir::ValueRange(updateBarrier.getBarrier()),
+            loc, inputCMX.getBuffer(), weightsCMX.getBuffer(), weightsTableCMX.getBuffer(),
+            /*instruction_table_list=*/nullptr,
+            /*activation_window=*/nullptr, inputCMX.getBuffer(), nceClusterTaskOutBuffer, nceClusterTaskOutBuffer,
             vpux::VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings, nullptr, nullptr);
 
     const auto start = getIntArrayAttr(ctx, std::vector<std::int64_t>{0, 0, 0});
@@ -227,7 +229,7 @@ void buildDifferentClustersDPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
     for (std::size_t idx = 0; idx < outputClusters.size(); idx++) {
         auto functionOutput = function.getArgument(1 + idx);
         functionOutputs[idx] = functionOutput;
-        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.barrier()),
+        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.getBarrier()),
                                               mlir::ValueRange(), loc, outCMXBufferVec[idx], functionOutput);
     }
 
@@ -236,8 +238,12 @@ void buildDifferentClustersDPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
     module.dump();
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW,
-                                           outputClusters.size(), None, None, log));
+
+    const auto maxClusterOutput = static_cast<size_t>(*std::max_element(outputClusters.begin(), outputClusters.end()));
+    const auto numTiles = std::max({inputCluster, weightsCluster, weightsTableCluster, maxClusterOutput}) + 1;
+
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, numTiles, None,
+                                           log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsBTCPass(log));
     }

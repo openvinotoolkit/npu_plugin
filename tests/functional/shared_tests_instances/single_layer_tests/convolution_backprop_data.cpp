@@ -1,18 +1,19 @@
-// Copyright (C) 2019-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) 2019-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
-#include "kmb_layer_test.hpp"
 #include "single_layer_tests/convolution_backprop_data.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
 class VPUXConvolutionBackpropDataLayerTest :
         public ConvolutionBackpropDataLayerTest,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+        virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 class VPUXConvolutionBackpropDataLayerTest_VPU3700 : public VPUXConvolutionBackpropDataLayerTest {};
 class VPUXConvolutionBackpropDataLayerTest_VPU3720 : public VPUXConvolutionBackpropDataLayerTest {};
 
@@ -62,7 +63,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_precommit_ConvolutionBackpropData1D_TestConv1DToC
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapes1D), ::testing::ValuesIn(emptyOutputShape),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          VPUXConvolutionBackpropDataLayerTest_VPU3720::getTestCaseName);
 
 /* ============= 2D ConvolutionBackpropData ============= */
@@ -106,7 +107,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_precommit_ConvolutionBackpropData2D_OutputPadding
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapes2D), ::testing::ValuesIn(emptyOutputShape),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          VPUXConvolutionBackpropDataLayerTest_VPU3720::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding, VPUXConvolutionBackpropDataLayerTest_VPU3700,
@@ -117,7 +118,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding, VPUXCo
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapes2D_MLIR),
                                             ::testing::ValuesIn(emptyOutputShape),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          VPUXConvolutionBackpropDataLayerTest_VPU3700::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_OutputShape, VPUXConvolutionBackpropDataLayerTest_VPU3700,
@@ -128,10 +129,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_OutputShape, VPUXConvol
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(specificInputShapes2D_MLIR),
                                             ::testing::ValuesIn(outputShape),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          VPUXConvolutionBackpropDataLayerTest_VPU3700::getTestCaseName);
 
-// [Track number: S#44901]
 INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_AutoPadValid, VPUXConvolutionBackpropDataLayerTest_VPU3700,
                          ::testing::Combine(conv2DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -140,7 +140,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_AutoPadValid, VPUXConvo
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapes2D_MLIR),
                                             ::testing::ValuesIn(emptyOutputShape),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          VPUXConvolutionBackpropDataLayerTest_VPU3700::getTestCaseName);
 
 /* ============= 3D ConvolutionBackpropData ============= */
@@ -161,7 +161,7 @@ const auto conv3DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(dilations3D), ::testing::ValuesIn(numOutChannels),
         ::testing::Values(ngraph::op::PadType::VALID), ::testing::ValuesIn(emptyOutputPadding));
 
-// [Track number: S#44901]
+// Tracking number [E#85137]
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ConvolutionBackpropData3D_ExplicitPadding,
                          VPUXConvolutionBackpropDataLayerTest_VPU3700,
                          ::testing::Combine(conv3DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
@@ -170,10 +170,10 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ConvolutionBackpropData3D_ExplicitPaddin
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapes3D), ::testing::ValuesIn(emptyOutputShape),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          VPUXConvolutionBackpropDataLayerTest_VPU3700::getTestCaseName);
 
-// [Track number: S#44901]
+// Tracking number [E#85137]
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ConvolutionBackpropData3D_AutoPadValid,
                          VPUXConvolutionBackpropDataLayerTest_VPU3700,
                          ::testing::Combine(conv3DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),
@@ -182,7 +182,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ConvolutionBackpropData3D_AutoPadValid,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapes3D), ::testing::ValuesIn(emptyOutputShape),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          VPUXConvolutionBackpropDataLayerTest_VPU3700::getTestCaseName);
 
 }  // namespace

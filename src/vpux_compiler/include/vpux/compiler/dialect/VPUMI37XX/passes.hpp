@@ -33,11 +33,11 @@ std::unique_ptr<mlir::Pass> createBarrierComputationPass(Logger log = Logger::gl
 //
 
 #define GEN_PASS_CLASSES
-#include <vpux/compiler/dialect/VPUMI37XX/generated/passes.hpp.inc>
+#include <vpux/compiler/dialect/VPUMI37XX/passes.hpp.inc>
 #undef GEN_PASS_CLASSES
 
 #define GEN_PASS_REGISTRATION
-#include <vpux/compiler/dialect/VPUMI37XX/generated/passes.hpp.inc>
+#include <vpux/compiler/dialect/VPUMI37XX/passes.hpp.inc>
 #undef GEN_PASS_REGISTRATION
 
 }  // namespace VPUMI37XX

@@ -28,7 +28,7 @@ def createDeclareCMXTensorOp :
         NativeCodeCall<[{
             $_builder.create<vpux::VPURT::DeclareBufferOp>(
                 $_loc, $0.getType().cast<mlir::MemRefType>(),
-                vpux::VPURT::BufferSection::CMX_NN, $0.getType().cast<vpux::NDTypeInterface>().getMemSpace().getIndex().getValue(),
+                vpux::VPURT::BufferSection::CMX_NN, $0.getType().cast<vpux::NDTypeInterface>().getMemSpace().getIndex().value(),
                 $1.getInt()
             )
         }]>;
@@ -39,7 +39,7 @@ class HasMemSpace<string physicalMemory> :
         >>;
 
 def HasIndex:
-        Constraint<CPred<"$0.getType().cast<vpux::NDTypeInterface>().getMemSpace().getIndex().hasValue()">>;
+        Constraint<CPred<"$0.getType().cast<vpux::NDTypeInterface>().getMemSpace().getIndex().has_value()">>;
 
 def RewriteStaticAllocDDR :
         Pat<

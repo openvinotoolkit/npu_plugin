@@ -51,15 +51,15 @@ mlir::FailureOr<int64_t> extractNumSegments(mlir::Location loc,
             return errorAt(loc, "Only constant input is supported for numSegments");
         }
 
-        const auto numSegmentsContent = numSegmentsConst.content();
+        const auto numSegmentsContent = numSegmentsConst.getContent();
         if (!numSegmentsContent.isSplat()) {
             return errorAt(loc, "numSegments value must be a scalar");
         }
 
         int64_t numSegments = numSegmentsContent.getSplatValue<int64_t>();
         return numSegments;
-    } else if (embeddingSegmentsSum.num_segments_value().hasValue()) {
-        return embeddingSegmentsSum.num_segments_value().getValue();
+    } else if (embeddingSegmentsSum.num_segments_value().has_value()) {
+        return embeddingSegmentsSum.num_segments_value().value();
     }
     return errorAt(loc, "NumSegments was not provided");
 }
@@ -79,8 +79,6 @@ mlir::LogicalResult vpux::IE::EmbeddingSegmentsSumOp::inferReturnTypeComponents(
 
     const auto inType = embeddingSegmentsSum.emb_table().getType().cast<mlir::ShapedType>();
 
-    auto embTableShape = to_small_vector(inType.getShape());
-
     const auto numSegments = extractNumSegments(loc, embeddingSegmentsSum);
     if (mlir::failed(numSegments)) {
         return mlir::failure();
@@ -88,7 +86,7 @@ mlir::LogicalResult vpux::IE::EmbeddingSegmentsSumOp::inferReturnTypeComponents(
 
     int64_t numSegmentsVal = checked_cast<int64_t>(*numSegments);
 
-    SmallVector<int64_t> outShape(embTableShape);
+    SmallVector<int64_t> outShape(to_small_vector(inType.getShape()));
     outShape[0] = numSegmentsVal;
 
     inferredReturnShapes.emplace_back(outShape, inType.getElementType());
@@ -171,8 +169,8 @@ public:
                                         mlir::PatternRewriter& rewriter) const final;
 };
 
-mlir::LogicalResult ConvertConstToAttrVPUX37XX::matchAndRewrite(
-        IE::EmbeddingSegmentsSumOp embeddingSegmentsSumOp, mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult ConvertConstToAttrVPUX37XX::matchAndRewrite(IE::EmbeddingSegmentsSumOp embeddingSegmentsSumOp,
+                                                                mlir::PatternRewriter& rewriter) const {
     const auto module = embeddingSegmentsSumOp->getParentOfType<mlir::ModuleOp>();
     const auto arch = VPU::getArch(module);
     if (arch != VPU::ArchKind::VPUX37XX) {

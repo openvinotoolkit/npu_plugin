@@ -46,7 +46,7 @@ struct TypeComponents {
 // Generated
 //
 
-#include <vpux/compiler/core/generated/type_interfaces.hpp.inc>
+#include <vpux/compiler/core/type_interfaces.hpp.inc>
 
 namespace vpux {
 
@@ -72,7 +72,7 @@ public:
     vpux::NDTypeInterface changeDimsOrder(mlir::Type type, vpux::DimsOrder order) const;
     vpux::NDTypeInterface changeMemSpace(mlir::Type type, vpux::IndexedSymbolAttr memSpace) const;
     vpux::NDTypeInterface changeStrides(mlir::Type type, vpux::StridesRef strides) const;
-    vpux::NDTypeInterface changeTypeComponents(mlir::Type type, vpux::TypeComponents typeComponents) const;
+    vpux::NDTypeInterface changeTypeComponents(mlir::Type type, const vpux::TypeComponents& typeComponents) const;
     vpux::NDTypeInterface extractDenseTile(mlir::Type type, vpux::ShapeRef tileOffsets, vpux::ShapeRef tileShape) const;
     vpux::NDTypeInterface extractViewTile(mlir::Type type, vpux::ShapeRef tileOffsets, vpux::ShapeRef tileShape,
                                           vpux::ShapeRef tileElemStrides) const;
@@ -102,7 +102,7 @@ public:
     vpux::NDTypeInterface changeDimsOrder(mlir::Type type, vpux::DimsOrder order) const;
     vpux::NDTypeInterface changeMemSpace(mlir::Type type, vpux::IndexedSymbolAttr memSpace) const;
     vpux::NDTypeInterface changeStrides(mlir::Type type, vpux::StridesRef strides) const;
-    vpux::NDTypeInterface changeTypeComponents(mlir::Type type, vpux::TypeComponents typeComponents) const;
+    vpux::NDTypeInterface changeTypeComponents(mlir::Type type, const vpux::TypeComponents& typeComponents) const;
     vpux::NDTypeInterface extractDenseTile(mlir::Type type, vpux::ShapeRef tileOffsets, vpux::ShapeRef tileShape) const;
     vpux::NDTypeInterface extractViewTile(mlir::Type type, vpux::ShapeRef tileOffsets, vpux::ShapeRef tileShape,
                                           vpux::ShapeRef tileElemStrides) const;

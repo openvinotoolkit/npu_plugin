@@ -38,10 +38,6 @@ mlir::LogicalResult vpux::VPU::OneHotOp::inferReturnTypes(mlir::MLIRContext* ctx
     return mlir::success();
 }
 
-void vpux::VPU::OneHotOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
-    IE::fillDefaultLayoutInfo(info);
-}
-
 //
 // serialize
 //

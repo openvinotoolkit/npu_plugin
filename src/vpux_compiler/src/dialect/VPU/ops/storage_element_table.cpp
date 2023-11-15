@@ -56,7 +56,7 @@ mlir::LogicalResult vpux::VPU::StorageElementTableOp::verify() {
                         "Only SEInterpolateAttr is supported for VPU::SEAttr");
     }
 
-    if (!basePtrs().hasValue()) {
+    if (!basePtrs().has_value()) {
         return mlir::success();
     }
 

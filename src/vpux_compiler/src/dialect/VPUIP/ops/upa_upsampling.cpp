@@ -14,17 +14,19 @@
 using namespace vpux;
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::UpsamplingUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    SmallVector<int32_t> pad_x = {checked_cast<int32_t>(padAttr().pads_width()[0].cast<mlir::IntegerAttr>().getInt()),
-                                  checked_cast<int32_t>(padAttr().pads_width()[1].cast<mlir::IntegerAttr>().getInt())};
+    SmallVector<int32_t> pad_x = {
+            checked_cast<int32_t>(padAttr().getPadsWidth()[0].cast<mlir::IntegerAttr>().getInt()),
+            checked_cast<int32_t>(padAttr().getPadsWidth()[1].cast<mlir::IntegerAttr>().getInt())};
     auto pad_x_vector = writer.createVector(pad_x);
 
-    SmallVector<int32_t> pad_y = {checked_cast<int32_t>(padAttr().pads_height()[0].cast<mlir::IntegerAttr>().getInt()),
-                                  checked_cast<int32_t>(padAttr().pads_height()[1].cast<mlir::IntegerAttr>().getInt())};
+    SmallVector<int32_t> pad_y = {
+            checked_cast<int32_t>(padAttr().getPadsHeight()[0].cast<mlir::IntegerAttr>().getInt()),
+            checked_cast<int32_t>(padAttr().getPadsHeight()[1].cast<mlir::IntegerAttr>().getInt())};
     auto pad_y_vector = writer.createVector(pad_y);
 
     SmallVector<int32_t> pad_z = {
-            checked_cast<int32_t>(padAttr().pads_channel()[0].cast<mlir::IntegerAttr>().getInt()),
-            checked_cast<int32_t>(padAttr().pads_channel()[1].cast<mlir::IntegerAttr>().getInt())};
+            checked_cast<int32_t>(padAttr().getPadsChannel()[0].cast<mlir::IntegerAttr>().getInt()),
+            checked_cast<int32_t>(padAttr().getPadsChannel()[1].cast<mlir::IntegerAttr>().getInt())};
     auto pad_z_vector = writer.createVector(pad_z);
 
     MVCNN::UpsamplingParamsBuilder builder(writer);
@@ -51,7 +53,7 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseUpsampling(mlir::OpBuilder& build
     auto padChannelAttr = getIntArrayAttr(_ctx, SmallVector<int64_t>{params->pad_z()->Get(0), params->pad_z()->Get(1)});
     auto padHeightAttr = getIntArrayAttr(_ctx, SmallVector<int64_t>{params->pad_y()->Get(0), params->pad_y()->Get(1)});
     auto padWidthAttr = getIntArrayAttr(_ctx, SmallVector<int64_t>{params->pad_x()->Get(0), params->pad_x()->Get(1)});
-    auto padAttr = IE::UpsamplingPadAttr::get(padChannelAttr, padHeightAttr, padWidthAttr, _ctx);
+    auto padAttr = IE::UpsamplingPadAttr::get(_ctx, padChannelAttr, padHeightAttr, padWidthAttr);
 
     return builder.create<VPUIP::UpsamplingUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0],
                                                   getIntArrayAttr(_ctx, upsampling_factor), padAttr);

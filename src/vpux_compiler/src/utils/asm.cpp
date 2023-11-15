@@ -204,7 +204,7 @@ void vpux::printGroupOfOperands(mlir::OpAsmPrinter& p, mlir::Block* entry, mlir:
         p << operand << " as " << argument << ": " << argument.getType();
     });
     p << ")";
-};
+}
 
 mlir::ParseResult vpux::parseGroupOfOperands(mlir::OpAsmParser& parser, mlir::OperationState& result,
                                              SmallVector<mlir::OpAsmParser::Argument>& blockArgs,
@@ -237,4 +237,4 @@ mlir::ParseResult vpux::parseGroupOfOperands(mlir::OpAsmParser& parser, mlir::Op
     }
 
     return mlir::success();
-};
+}

@@ -17,7 +17,7 @@ void inferPermuteReturnTypeComponents(mlir::Value input, mlir::AffineMap mem_per
     const auto outMemShape = applyPerm(inMemShape, mem_perm);
     const auto outShape = outOrder.toLogicalOrder(outMemShape);
 
-    const auto outDesc = IE::getTensorAttr(dst_order, strictInfer ? IE::getMemorySpace(inType) : nullptr);
+    const auto outDesc = vpux::getTensorAttr(dst_order, strictInfer ? vpux::getMemorySpace(inType) : nullptr);
 
     inferredReturnShapes.emplace_back(outShape.raw(), inType.getElementType(), outDesc);
 }

@@ -2,8 +2,10 @@
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 #include "vpux/compiler/dialect/EMU/ops.hpp"
 
+#include "vpux/compiler/dialect/VPUIP/dialect.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
@@ -23,7 +25,7 @@ using namespace vpux;
 void EMU::EMUDialect::initialize() {
     addOperations<
 #define GET_OP_LIST
-#include <vpux/compiler/dialect/EMU/generated/ops.cpp.inc>
+#include <vpux/compiler/dialect/EMU/ops.cpp.inc>
             >();
 }
 
@@ -46,7 +48,7 @@ mlir::Operation* EMU::EMUDialect::materializeConstant(mlir::OpBuilder& builder, 
     return builder.create<Const::DeclareOp>(loc, type, value.cast<Const::ContentAttr>());
 }
 
-#include <vpux/compiler/dialect/EMU/generated/dialect.cpp.inc>
+#include <vpux/compiler/dialect/EMU/dialect.cpp.inc>
 
 #define GET_OP_CLASSES
-#include <vpux/compiler/dialect/EMU/generated/ops.cpp.inc>
+#include <vpux/compiler/dialect/EMU/ops.cpp.inc>

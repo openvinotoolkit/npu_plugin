@@ -36,6 +36,7 @@
 // 4. Usual rules of the broadcasting are applied for batch dimensions.
 //
 
+#include <numeric>
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include <mlir/IR/PatternMatch.h>
@@ -153,12 +154,12 @@ mlir::LogicalResult UseFullyConnected::matchAndRewrite(IE::MatMulOp matmulOp, ml
 }  // namespace
 
 //
-// TransposeWeights
+// TransposeInputs
 //
 
 namespace {
 
-class TransposeWeights final : public mlir::OpRewritePattern<IE::MatMulOp> {
+class TransposeInputs final : public mlir::OpRewritePattern<IE::MatMulOp> {
 public:
     using mlir::OpRewritePattern<IE::MatMulOp>::OpRewritePattern;
 
@@ -166,29 +167,42 @@ public:
     mlir::LogicalResult matchAndRewrite(IE::MatMulOp matmulOp, mlir::PatternRewriter& rewriter) const final;
 };
 
-mlir::LogicalResult TransposeWeights::matchAndRewrite(IE::MatMulOp matmulOp, mlir::PatternRewriter& rewriter) const {
-    auto transWeights = matmulOp.transpose_b();
-    if (transWeights) {
+mlir::LogicalResult TransposeInputs::matchAndRewrite(IE::MatMulOp matmulOp, mlir::PatternRewriter& rewriter) const {
+    if (!matmulOp.transpose_a() && matmulOp.transpose_b()) {
         return mlir::failure();
     }
-    const auto rhsShape = getShape(matmulOp.input2());
-    SmallVector<unsigned> perm(rhsShape.size(), 0);
-    for (size_t dimIdx = 0; dimIdx < perm.size(); dimIdx++) {
-        perm[dimIdx] = checked_cast<unsigned>(dimIdx);
-    }
-    const auto weightsRank = perm.size();
-    if (weightsRank < 2) {
-        return mlir::failure();
-    }
-    const auto weightsColIdx = weightsRank - 1;
-    const auto weightsRowIdx = weightsRank - 2;
-    perm[weightsColIdx] = checked_cast<unsigned>(weightsRowIdx);
-    perm[weightsRowIdx] = checked_cast<unsigned>(weightsColIdx);
-    const auto orderAttr = mlir::AffineMapAttr::get(mlir::AffineMap::getPermutationMap(perm, matmulOp->getContext()));
 
-    auto transpose = rewriter.create<IE::TransposeOp>(matmulOp->getLoc(), matmulOp.input2(), nullptr, orderAttr);
+    auto ctx = matmulOp.getContext();
+    auto transposedOrderAttr = [&](int64_t inputRank) -> mlir::AffineMapAttr {
+        SmallVector<unsigned> perm(inputRank, 0);
+        std::iota(perm.begin(), perm.end(), 0);
+        if (inputRank < 2) {
+            return nullptr;
+        }
+        std::iter_swap(perm.end() - 1, perm.end() - 2);
+        return mlir::AffineMapAttr::get(mlir::AffineMap::getPermutationMap(perm, ctx));
+    };
 
-    rewriter.replaceOpWithNewOp<IE::MatMulOp>(matmulOp, matmulOp.input1(), transpose.output(), matmulOp.transpose_a(),
+    auto getInput = [&](auto isTranspose, auto input) -> mlir::Value {
+        if (isTranspose) {
+            return input;
+        }
+        const auto inputShape = getShape(input);
+        const auto inputRank = inputShape.size();
+
+        if (transposedOrderAttr(inputRank) != nullptr) {
+            auto orderAttr = transposedOrderAttr(inputRank);
+            auto transpose = rewriter.create<IE::TransposeOp>(matmulOp->getLoc(), input, nullptr, orderAttr);
+            return transpose.output();
+        }
+
+        return nullptr;
+    };
+
+    auto input1 = getInput(!matmulOp.transpose_a(), matmulOp.input1());
+    auto input2 = getInput(matmulOp.transpose_b(), matmulOp.input2());
+
+    rewriter.replaceOpWithNewOp<IE::MatMulOp>(matmulOp, input1, input2, /*transpose_a=*/false,
                                               /*transpose_b=*/true);
 
     return mlir::success();
@@ -197,6 +211,6 @@ mlir::LogicalResult TransposeWeights::matchAndRewrite(IE::MatMulOp matmulOp, mli
 }  // namespace
 
 void vpux::IE::MatMulOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* context) {
-    patterns.add<TransposeWeights>(context);
+    patterns.add<TransposeInputs>(context);
     patterns.add<UseFullyConnected>(context);
 }

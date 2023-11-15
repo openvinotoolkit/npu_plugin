@@ -13,7 +13,7 @@
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 4, 1],
     kernel = [3, 3],
-    pads = {bottom = 1, left = 1, right = 1, top = 1},
+    pads = #VPU.Padding<left = 1 , right = 1, top = 1, bottom = 1>,
     strides = [1, 1],
     num_clusters = 4
 }>
@@ -42,7 +42,7 @@ func.func @ParsePrintDistributedBufferNNDMA(%input: !Input_DDR) -> !Output_DDR {
 
     //CHECK:        [[INPUT_CMX:%.*]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<1x32x16x16xf16, #NHWC, @CMX_NN,
     //CHECK-SAME:                           {mode = "OVERLAPPED", num_tiles = [1, 1, 4, 1], kernel = [3, 3],
-    //CHECK-SAME:                           pads = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, strides = [1, 1], num_clusters = 4 : i64}>
+    //CHECK-SAME:                           pads = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>, strides = [1, 1], num_clusters = 4 : i64}>
     //CHECK:        %token = async.execute attributes {VPUIP.executor = @DMA_NN, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
     //CHECK:              %2 = VPUIP.NNDMA inputs(%arg0 : memref<1x32x16x16xf16, #NHWC, @DDR>
     //CHECK-SAME:                          outputs([[INPUT_CMX]] : !VPUIP.DistributedBuffer
@@ -68,7 +68,7 @@ func.func @ParsePrintDistributedBufferNNDMA(%input: !Input_DDR) -> !Output_DDR {
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 4, 1],
     kernel = [3, 3],
-    pads = {bottom = 1, left = 1, right = 1, top = 1},
+    pads = #VPU.Padding<left = 1 , right = 1, top = 1, bottom = 1>,
     strides = [1, 1],
     num_clusters = 4
 }>
@@ -80,7 +80,7 @@ func.func @ParsePrintDistributedBufferPermuteDMA(%input: !Input_DDR) -> !Output_
     %input_cmx = VPURT.AllocDistributed -> !InputDistributed
     %t0 = async.execute
             attributes {VPUIP.executor = @DMA_NN, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
-
+        
             %5 = VPUIP.PermuteDMA {mem_perm = #NHWC, port = 0 : i64} inputs(%input : !Input_DDR) outputs(%input_cmx : !InputDistributed) -> !InputDistributed
 
         async.yield
@@ -98,9 +98,9 @@ func.func @ParsePrintDistributedBufferPermuteDMA(%input: !Input_DDR) -> !Output_
 
     //CHECK:        [[INPUT_CMX:%.*]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<1x32x16x16xf16, #NHWC, @CMX_NN,
     //CHECK-SAME:                           {mode = "OVERLAPPED", num_tiles = [1, 1, 4, 1], kernel = [3, 3],
-    //CHECK-SAME:                           pads = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, strides = [1, 1], num_clusters = 4 : i64}>
+    //CHECK-SAME:                           pads = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>, strides = [1, 1], num_clusters = 4 : i64}>
     //CHECK:        %token = async.execute attributes {VPUIP.executor = @DMA_NN, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
-    //CHECK:              %2 = VPUIP.PermuteDMA
+    //CHECK:              %2 = VPUIP.PermuteDMA 
     //CHECK-SAME:                          inputs(%arg0 : memref<1x32x16x16xf16, @DDR>
     //CHECK-SAME:                          outputs([[INPUT_CMX]] : !VPUIP.DistributedBuffer
     //CHECK:              async.yield
@@ -108,7 +108,7 @@ func.func @ParsePrintDistributedBufferPermuteDMA(%input: !Input_DDR) -> !Output_
 
     //CHECK:        [[OUTPUT:%.*]] = memref.alloc() : memref<1x32x16x16xf16, @DDR>
     //CHECK:        %token_0 = async.execute attributes {VPUIP.executor = @DMA_NN, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
-    //CHECK:              %2 = VPUIP.PermuteDMA
+    //CHECK:              %2 = VPUIP.PermuteDMA 
     //CHECK-SAME:                          inputs([[INPUT_CMX]] : !VPUIP.DistributedBuffer
     //CHECK-SAME:                          outputs([[OUTPUT]] : memref<1x32x16x16xf16, @DDR>
     //CHECK:              async.yield
@@ -125,7 +125,7 @@ func.func @ParsePrintDistributedBufferPermuteDMA(%input: !Input_DDR) -> !Output_
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 2, 1],
     kernel = [3, 3],
-    pads = {bottom = 1, left = 1, right = 1, top = 1},
+    pads = #VPU.Padding<left = 1 , right = 1, top = 1, bottom = 1>,
     strides = [1, 1],
     num_clusters = 2
 }>
@@ -138,7 +138,7 @@ func.func @ParsePrintDistributedBufferSpaceToDepthDMA(%input: !Input_DDR) -> !Ou
     %t0 = async.execute
             attributes {VPUIP.executor = @DMA_NN, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
         %5 = VPUIP.SpaceToDepthDMA {block_size = 2 : i64, mode = #IE.space_to_depth_mode<BLOCKS_FIRST>, output_channel = 2 : i64, output_width = 6, port = 0 : i64}
-            inputs(%input : !Input_DDR)
+            inputs(%input : !Input_DDR) 
             outputs(%input_cmx : !InputDistributed) -> !InputDistributed
 
         async.yield
@@ -148,7 +148,7 @@ func.func @ParsePrintDistributedBufferSpaceToDepthDMA(%input: !Input_DDR) -> !Ou
     %t4 = async.execute
             attributes {VPUIP.executor = @DMA_NN, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
         %5 = VPUIP.DepthToSpaceDMA {block_size = 2 : i64, mode = #IE.depth_to_space_mode<BLOCKS_FIRST>, port = 0 : i64}
-            inputs(%input_cmx : !InputDistributed)
+            inputs(%input_cmx : !InputDistributed) 
             outputs(%output : !Output_DDR) -> !Output_DDR
 
         async.yield
@@ -158,9 +158,9 @@ func.func @ParsePrintDistributedBufferSpaceToDepthDMA(%input: !Input_DDR) -> !Ou
 
     //CHECK:        [[INPUT_CMX:%.*]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<1x8x2x3xf16, #NHWC, @CMX_NN,
     //CHECK-SAME:                           {mode = "OVERLAPPED", num_tiles = [1, 1, 2, 1], kernel = [3, 3],
-    //CHECK-SAME:                           pads = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, strides = [1, 1], num_clusters = 2 : i64}>
+    //CHECK-SAME:                           pads = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>, strides = [1, 1], num_clusters = 2 : i64}>
     //CHECK:        %token = async.execute attributes {VPUIP.executor = @DMA_NN, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
-    //CHECK:              %2 = VPUIP.SpaceToDepthDMA
+    //CHECK:              %2 = VPUIP.SpaceToDepthDMA 
     //CHECK-SAME:                          inputs(%arg0 : memref<1x2x4x6xf16, #NHWC, @DDR>
     //CHECK-SAME:                          outputs([[INPUT_CMX]] : !VPUIP.DistributedBuffer
     //CHECK:              async.yield
@@ -168,7 +168,7 @@ func.func @ParsePrintDistributedBufferSpaceToDepthDMA(%input: !Input_DDR) -> !Ou
 
     //CHECK:        [[OUTPUT:%.*]] = memref.alloc() : memref<1x2x4x6xf16, #NHWC, @DDR>
     //CHECK:        %token_0 = async.execute attributes {VPUIP.executor = @DMA_NN, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
-    //CHECK:              %2 = VPUIP.DepthToSpaceDMA
+    //CHECK:              %2 = VPUIP.DepthToSpaceDMA 
     //CHECK-SAME:                          inputs([[INPUT_CMX]] : !VPUIP.DistributedBuffer
     //CHECK-SAME:                          outputs([[OUTPUT]] : memref<1x2x4x6xf16, #NHWC, @DDR>
     //CHECK:              async.yield
@@ -185,7 +185,7 @@ func.func @ParsePrintDistributedBufferSpaceToDepthDMA(%input: !Input_DDR) -> !Ou
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 2, 1],
     kernel = [3, 3],
-    pads = {bottom = 1, left = 1, right = 1, top = 1},
+    pads = #VPU.Padding<left = 1 , right = 1, top = 1, bottom = 1>,
     strides = [1, 1],
     num_clusters = 2
 }>
@@ -198,7 +198,7 @@ func.func @ParsePrintDistributedBufferDepthToSpaceDMA(%input: !Input_DDR) -> !Ou
     %t0 = async.execute
             attributes {VPUIP.executor = @DMA_NN, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
         %5 = VPUIP.DepthToSpaceDMA {block_size = 2 : i64, mode = #IE.depth_to_space_mode<BLOCKS_FIRST>, port = 0 : i64}
-            inputs(%input : !Input_DDR)
+            inputs(%input : !Input_DDR) 
             outputs(%input_cmx : !InputDistributed) -> !InputDistributed
 
         async.yield
@@ -208,7 +208,7 @@ func.func @ParsePrintDistributedBufferDepthToSpaceDMA(%input: !Input_DDR) -> !Ou
     %t4 = async.execute
             attributes {VPUIP.executor = @DMA_NN, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
         %5 = VPUIP.SpaceToDepthDMA {block_size = 2 : i64, mode = #IE.space_to_depth_mode<BLOCKS_FIRST>, output_channel = 2 : i64, output_width = 6, port = 0 : i64}
-            inputs(%input_cmx : !InputDistributed)
+            inputs(%input_cmx : !InputDistributed) 
             outputs(%output : !Output_DDR) -> !Output_DDR
 
         async.yield
@@ -218,9 +218,9 @@ func.func @ParsePrintDistributedBufferDepthToSpaceDMA(%input: !Input_DDR) -> !Ou
 
     //CHECK:        [[INPUT_CMX:%.*]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<1x2x4x6xf16, #NHWC, @CMX_NN,
     //CHECK-SAME:                           {mode = "OVERLAPPED", num_tiles = [1, 1, 2, 1], kernel = [3, 3],
-    //CHECK-SAME:                           pads = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, strides = [1, 1], num_clusters = 2 : i64}>
+    //CHECK-SAME:                           pads = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>, strides = [1, 1], num_clusters = 2 : i64}>
     //CHECK:        %token = async.execute attributes {VPUIP.executor = @DMA_NN, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
-    //CHECK:              %2 = VPUIP.DepthToSpaceDMA
+    //CHECK:              %2 = VPUIP.DepthToSpaceDMA 
     //CHECK-SAME:                          inputs(%arg0 : memref<1x8x2x3xf16, #NHWC, @DDR>
     //CHECK-SAME:                          outputs([[INPUT_CMX]] : !VPUIP.DistributedBuffer
     //CHECK:              async.yield
@@ -228,7 +228,7 @@ func.func @ParsePrintDistributedBufferDepthToSpaceDMA(%input: !Input_DDR) -> !Ou
 
     //CHECK:        [[OUTPUT:%.*]] = memref.alloc() : memref<1x8x2x3xf16, #NHWC, @DDR>
     //CHECK:        %token_0 = async.execute attributes {VPUIP.executor = @DMA_NN, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
-    //CHECK:              %2 = VPUIP.SpaceToDepthDMA
+    //CHECK:              %2 = VPUIP.SpaceToDepthDMA 
     //CHECK-SAME:                          inputs([[INPUT_CMX]] : !VPUIP.DistributedBuffer
     //CHECK-SAME:                          outputs([[OUTPUT]] : memref<1x8x2x3xf16, #NHWC, @DDR>
     //CHECK:              async.yield
@@ -245,7 +245,7 @@ func.func @ParsePrintDistributedBufferDepthToSpaceDMA(%input: !Input_DDR) -> !Ou
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 4, 1],
     kernel = [3, 3],
-    pads = {bottom = 1, left = 1, right = 1, top = 1},
+    pads = #VPU.Padding<left = 1 , right = 1, top = 1, bottom = 1>,
     strides = [1, 1],
     num_clusters = 4
 }>
@@ -258,7 +258,7 @@ func.func @ParsePrintDistributedBufferPerAxisTileDMA(%input: !Input_DDR) -> !Out
     %t0 = async.execute
             attributes {VPUIP.executor = @DMA_NN, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
         %5 = VPUIP.PerAxisTileDMA {axis = 1 : i64, port = 0 : i64, tiles = 8 : i64}
-            inputs(%input : !Input_DDR)
+            inputs(%input : !Input_DDR) 
             outputs(%input_cmx : !InputDistributed) -> !InputDistributed
 
         async.yield
@@ -268,7 +268,7 @@ func.func @ParsePrintDistributedBufferPerAxisTileDMA(%input: !Input_DDR) -> !Out
     %t4 = async.execute
             attributes {VPUIP.executor = @DMA_NN, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
         %5 = VPUIP.PerAxisTileDMA {axis = 1 : i64, port = 0 : i64, tiles = 2 : i64}
-            inputs(%input_cmx : !InputDistributed)
+            inputs(%input_cmx : !InputDistributed) 
             outputs(%output : !Output_DDR) -> !Output_DDR
 
         async.yield
@@ -278,9 +278,9 @@ func.func @ParsePrintDistributedBufferPerAxisTileDMA(%input: !Input_DDR) -> !Out
 
     //CHECK:        [[INPUT_CMX:%.*]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<1x16x35x16xf16, #NHWC, @CMX_NN,
     //CHECK-SAME:                           {mode = "OVERLAPPED", num_tiles = [1, 1, 4, 1], kernel = [3, 3],
-    //CHECK-SAME:                           pads = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, strides = [1, 1], num_clusters = 4 : i64}>
+    //CHECK-SAME:                           pads = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>, strides = [1, 1], num_clusters = 4 : i64}>
     //CHECK:        %token = async.execute attributes {VPUIP.executor = @DMA_NN, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
-    //CHECK:              %2 = VPUIP.PerAxisTileDMA
+    //CHECK:              %2 = VPUIP.PerAxisTileDMA 
     //CHECK-SAME:                          inputs(%arg0 : memref<1x2x35x16xf16, #NHWC, @DDR>
     //CHECK-SAME:                          outputs([[INPUT_CMX]] : !VPUIP.DistributedBuffer
     //CHECK:              async.yield
@@ -288,7 +288,7 @@ func.func @ParsePrintDistributedBufferPerAxisTileDMA(%input: !Input_DDR) -> !Out
 
     //CHECK:        [[OUTPUT:%.*]] = memref.alloc() : memref<1x32x35x16xf16, #NHWC, @DDR>
     //CHECK:        %token_0 = async.execute attributes {VPUIP.executor = @DMA_NN, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
-    //CHECK:              %2 = VPUIP.PerAxisTileDMA
+    //CHECK:              %2 = VPUIP.PerAxisTileDMA 
     //CHECK-SAME:                          inputs([[INPUT_CMX]] : !VPUIP.DistributedBuffer
     //CHECK-SAME:                          outputs([[OUTPUT]] : memref<1x32x35x16xf16, #NHWC, @DDR>
     //CHECK:              async.yield
@@ -305,7 +305,7 @@ func.func @ParsePrintDistributedBufferPerAxisTileDMA(%input: !Input_DDR) -> !Out
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 4, 1],
     kernel = [3, 3],
-    pads = {bottom = 1, left = 1, right = 1, top = 1},
+    pads = #VPU.Padding<left = 1 , right = 1, top = 1, bottom = 1>,
     strides = [1, 1],
     num_clusters = 4
 }>
@@ -318,7 +318,7 @@ func.func @ParsePrintDistributedBufferExpandDMA(%input: !Input_DDR) -> !Output_D
     %t0 = async.execute
             attributes {VPUIP.executor = @DMA_NN, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
         %5 = VPUIP.ExpandDMA {pads_begin = [0, 0, 0, 0], pads_end = [0, 0, 1, 0], port = 0 : i64}
-            inputs(%input : !Input_DDR)
+            inputs(%input : !Input_DDR) 
             outputs(%input_cmx : !InputDistributed) -> !InputDistributed
 
         async.yield
@@ -328,7 +328,7 @@ func.func @ParsePrintDistributedBufferExpandDMA(%input: !Input_DDR) -> !Output_D
     %t4 = async.execute
             attributes {VPUIP.executor = @DMA_NN, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
         %5 = VPUIP.ExpandDMA {pads_begin = [0, 0, 0, 0], pads_end = [0, 1, 0, 0], port = 0 : i64}
-            inputs(%input_cmx : !InputDistributed)
+            inputs(%input_cmx : !InputDistributed) 
             outputs(%output : !Output_DDR) -> !Output_DDR
 
         async.yield
@@ -338,9 +338,9 @@ func.func @ParsePrintDistributedBufferExpandDMA(%input: !Input_DDR) -> !Output_D
 
     //CHECK:        [[INPUT_CMX:%.*]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<1x32x35x16xf16, #NHWC, @CMX_NN,
     //CHECK-SAME:                           {mode = "OVERLAPPED", num_tiles = [1, 1, 4, 1], kernel = [3, 3],
-    //CHECK-SAME:                           pads = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, strides = [1, 1], num_clusters = 4 : i64}>
+    //CHECK-SAME:                           pads = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>, strides = [1, 1], num_clusters = 4 : i64}>
     //CHECK:        %token = async.execute attributes {VPUIP.executor = @DMA_NN, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
-    //CHECK:              %2 = VPUIP.ExpandDMA
+    //CHECK:              %2 = VPUIP.ExpandDMA 
     //CHECK-SAME:                          inputs(%arg0 : memref<1x32x34x16xf16, #NHWC, @DDR>
     //CHECK-SAME:                          outputs([[INPUT_CMX]] : !VPUIP.DistributedBuffer
     //CHECK:              async.yield
@@ -348,7 +348,7 @@ func.func @ParsePrintDistributedBufferExpandDMA(%input: !Input_DDR) -> !Output_D
 
     //CHECK:        [[OUTPUT:%.*]] = memref.alloc() : memref<1x33x35x16xf16, #NHWC, @DDR>
     //CHECK:        %token_0 = async.execute attributes {VPUIP.executor = @DMA_NN, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
-    //CHECK:              %2 = VPUIP.ExpandDMA
+    //CHECK:              %2 = VPUIP.ExpandDMA 
     //CHECK-SAME:                          inputs([[INPUT_CMX]] : !VPUIP.DistributedBuffer
     //CHECK-SAME:                          outputs([[OUTPUT]] : memref<1x33x35x16xf16, #NHWC, @DDR>
     //CHECK:              async.yield
@@ -365,7 +365,7 @@ func.func @ParsePrintDistributedBufferExpandDMA(%input: !Input_DDR) -> !Output_D
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 4, 1],
     kernel = [3, 3],
-    pads = {bottom = 1, left = 1, right = 1, top = 1},
+    pads = #VPU.Padding<left = 1 , right = 1, top = 1, bottom = 1>,
     strides = [1, 1],
     num_clusters = 4
 }>
@@ -378,7 +378,7 @@ func.func @ParsePrintDistributedBufferUpsamplingDMAOp(%input: !Input_DDR) -> !Ou
     %t0 = async.execute
             attributes {VPUIP.executor = @DMA_NN, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
         %5 = VPUIP.UpsamplingDMAOp {port = 0 : i64, upsampling_factor = [1, 1, 2, 2]}
-            inputs(%input : !Input_DDR)
+            inputs(%input : !Input_DDR) 
             outputs(%input_cmx : !InputDistributed) -> !InputDistributed
 
         async.yield
@@ -388,7 +388,7 @@ func.func @ParsePrintDistributedBufferUpsamplingDMAOp(%input: !Input_DDR) -> !Ou
     %t4 = async.execute
             attributes {VPUIP.executor = @DMA_NN, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
         %5 = VPUIP.UpsamplingDMAOp {port = 0 : i64, upsampling_factor = [1, 1, 2, 2]}
-            inputs(%input_cmx : !InputDistributed)
+            inputs(%input_cmx : !InputDistributed) 
             outputs(%output : !Output_DDR) -> !Output_DDR
 
         async.yield
@@ -398,9 +398,9 @@ func.func @ParsePrintDistributedBufferUpsamplingDMAOp(%input: !Input_DDR) -> !Ou
 
     //CHECK:        [[INPUT_CMX:%.*]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<1x16x32x32xf16, #NHWC, @CMX_NN,
     //CHECK-SAME:                           {mode = "OVERLAPPED", num_tiles = [1, 1, 4, 1], kernel = [3, 3],
-    //CHECK-SAME:                           pads = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, strides = [1, 1], num_clusters = 4 : i64}>
+    //CHECK-SAME:                           pads = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>, strides = [1, 1], num_clusters = 4 : i64}>
     //CHECK:        %token = async.execute attributes {VPUIP.executor = @DMA_NN, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
-    //CHECK:              %2 = VPUIP.UpsamplingDMAOp
+    //CHECK:              %2 = VPUIP.UpsamplingDMAOp 
     //CHECK-SAME:                          inputs(%arg0 : memref<1x16x16x16xf16, #NHWC, @DDR>
     //CHECK-SAME:                          outputs([[INPUT_CMX]] : !VPUIP.DistributedBuffer
     //CHECK:              async.yield
@@ -408,7 +408,7 @@ func.func @ParsePrintDistributedBufferUpsamplingDMAOp(%input: !Input_DDR) -> !Ou
 
     //CHECK:        [[OUTPUT:%.*]] = memref.alloc() : memref<1x16x64x64xf16, #NHWC, @DDR>
     //CHECK:        %token_0 = async.execute attributes {VPUIP.executor = @DMA_NN, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
-    //CHECK:              %2 = VPUIP.UpsamplingDMAOp
+    //CHECK:              %2 = VPUIP.UpsamplingDMAOp 
     //CHECK-SAME:                          inputs([[INPUT_CMX]] : !VPUIP.DistributedBuffer
     //CHECK-SAME:                          outputs([[OUTPUT]] : memref<1x16x64x64xf16, #NHWC, @DDR>
     //CHECK:              async.yield

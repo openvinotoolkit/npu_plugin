@@ -3,13 +3,11 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "behavior/plugin/preprocessing.hpp"
 
 #include "common/functions.h"
 #include "common_test_utils/test_constants.hpp"
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 using namespace LayerTestsUtils;
 
@@ -17,7 +15,7 @@ namespace BehaviorTestsDefinitions {
 
 class VpuxPreprocessingPrecisionConvertTest :
         virtual public PreprocessingPrecisionConvertTest,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {
+        virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void SetUp() override {
         PreprocessingPrecisionConvertTest::SetRefMode(LayerTestsUtils::RefMode::INTERPRETER);
 
@@ -39,6 +37,12 @@ class VpuxPreprocessingPrecisionConvertTest :
         PreprocessingPrecisionConvertTest::function = make_ngraph(false);
         reference_function = make_ngraph(true);  // use extra ops to mimic the preprocessing
     }
+
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<PreprocessingPrecisionConvertParams> obj) {
+        return PreprocessingPrecisionConvertTest::getTestCaseName(obj) +
+               "_targetPlatform=" + LayerTestsUtils::getTestsPlatformFromEnvironmentOr(CommonTestUtils::DEVICE_KEEMBAY);
+    }
 };
 
 TEST_P(VpuxPreprocessingPrecisionConvertTest, PrecisionConvert) {
@@ -57,11 +61,25 @@ const std::vector<InferenceEngine::Precision> inputPrecisions = {
 
 const std::vector<std::map<std::string, std::string>> configs = {{}};
 
-INSTANTIATE_TEST_CASE_P(smoke_precommit_VPU3720_BehaviorTestsPreprocessingTests, VpuxPreprocessingPrecisionConvertTest,
+const std::vector<std::map<std::string, std::string>> autoConfigs = {
+        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_KEEMBAY},
+         {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
+          CommonTestUtils::DEVICE_KEEMBAY + std::string(",") + CommonTestUtils::DEVICE_CPU}}};
+
+INSTANTIATE_TEST_CASE_P(smoke_precommit_BehaviorTestsPreprocessingTests, VpuxPreprocessingPrecisionConvertTest,
                         ::testing::Combine(::testing::ValuesIn(inputPrecisions),
                                            ::testing::Values(1),  // Number of input tensor channels
                                            ::testing::Bool(),     // Use SetInput or GetBlob
                                            ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
                                            ::testing::ValuesIn(configs)),
                         VpuxPreprocessingPrecisionConvertTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_precommit_Auto_BehaviorTestsPreprocessingTests, VpuxPreprocessingPrecisionConvertTest,
+                        ::testing::Combine(::testing::ValuesIn(inputPrecisions),
+                                           ::testing::Values(1),  // Number of input tensor channels
+                                           ::testing::Bool(),     // Use SetInput or GetBlob
+                                           ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                           ::testing::ValuesIn(autoConfigs)),
+                        VpuxPreprocessingPrecisionConvertTest::getTestCaseName);
+
 }  // namespace

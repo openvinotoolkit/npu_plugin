@@ -12,7 +12,7 @@ func.func @ConvertSquaredDiffToSubPower(%arg0: tensor<1x64x128x64xf16>, %arg1: t
     return %0 : tensor<1x64x128x64xf16>
 
 
-    // CHECK-NOT: IE.SquaredDiff
+    // CHECK-NOT: IE.SquaredDiff 
     // CHECK: [[SUBTRACT:%.*]] = IE.Subtract(%arg0, %arg1) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>} : tensor<1x64x128x64xf16>, tensor<1x1x1x64xf16> -> tensor<1x64x128x64xf16>
     // CHECK-DAG: [[CST:%.*]] = const.Declare tensor<1x1x1x1xf16> = dense<2.000000e+00> : tensor<1x1x1x1xf16>
     // CHECK: [[POWER:%.*]] = IE.Power([[SUBTRACT]], [[CST]]) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>} : tensor<1x64x128x64xf16>, tensor<1x1x1x1xf16> -> tensor<1x64x128x64xf16>

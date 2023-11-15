@@ -23,6 +23,7 @@ public:
     std::shared_ptr<Executor> createExecutor(const NetworkDescription::Ptr& network, const Config& config) override;
 
     std::string getName() const override;
+    std::string getFullDeviceName() const override;
 
     IInferRequest::Ptr createInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
                                           const InferenceEngine::OutputsDataMap& networkOutputs,
@@ -30,7 +31,7 @@ public:
                                           const std::string& networkName,
                                           const std::vector<std::shared_ptr<const ov::Node>>& parameters,
                                           const std::vector<std::shared_ptr<const ov::Node>>& results,
-                                          const vpux::DataMap& networkStatesInfo,
+                                          const vpux::NetworkIOVector& networkStatesInfo,
                                           const std::shared_ptr<InferenceEngine::IAllocator>& allocator) override {
         return std::make_shared<IMDInferRequest>(networkInputs, networkOutputs, executor, config, networkName,
                                                  parameters, results, networkStatesInfo, allocator);

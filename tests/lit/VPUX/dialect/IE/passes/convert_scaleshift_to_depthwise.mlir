@@ -23,7 +23,7 @@ func.func @ConvertScaleShiftToDepthwise(%arg0: tensor<1x3x224x224xf16>) -> tenso
     // CHECK-SAME:      pads_begin = [0, 0]
     // CHECK-SAME:      pads_end = [0, 0]
     // CHECK-SAME:      strides = [1, 1]
-    // CHECK:       return %[[GROUPCONV]]
+    // CHECK:       return %[[GROUPCONV]] 
 }
 
 // CHECK-LABEL: @ConvertScaleWith2ArgsToDW

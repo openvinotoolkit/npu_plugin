@@ -107,4 +107,6 @@ inline bool bitEnumContains(InferShapedTypeMode bits, InferShapedTypeMode bit) {
 
 void inferReturnTypes(mlir::Operation* op, InferShapedTypeMode mode);
 
+mlir::Operation* createIdentityMaxPool(mlir::Value operand, const mlir::Type outType, mlir::PatternRewriter& rewriter);
+
 }  // namespace vpux

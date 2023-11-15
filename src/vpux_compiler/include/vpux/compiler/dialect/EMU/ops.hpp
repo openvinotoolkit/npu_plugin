@@ -25,7 +25,7 @@
 // Generated
 //
 
-#include <vpux/compiler/dialect/EMU/generated/dialect.hpp.inc>
+#include <vpux/compiler/dialect/EMU/dialect.hpp.inc>
 
 #define GET_OP_CLASSES
-#include <vpux/compiler/dialect/EMU/generated/ops.hpp.inc>
+#include <vpux/compiler/dialect/EMU/ops.hpp.inc>

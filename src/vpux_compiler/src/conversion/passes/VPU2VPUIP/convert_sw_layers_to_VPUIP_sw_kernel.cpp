@@ -7,6 +7,7 @@
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/dialect/VPUIP/sw_utils.hpp"
 #include "vpux/compiler/utils/allocate_buffers.hpp"
+#include "vpux/compiler/utils/dma.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/utils/core/logger.hpp"
@@ -29,7 +30,7 @@ mlir::SymbolRefAttr createBuiltInFunction(mlir::ModuleOp module, VPU::LayerOpInt
                                           const VPUIP::KernelInfo& kernelInfo, const Logger& log) {
     OpBuilderLogger builderLog(log);
 
-    SmallString builtInFunctionName{"builtin_"};
+    SmallString builtInFunctionName{VPUIP::SW_KERNEL_NAME_PREFIX};
     auto nonNamespaceOpName = origOp->getName().getStringRef().slice(origOp->getName().getDialectNamespace().size() + 1,
                                                                      mlir::StringRef::npos);
     builtInFunctionName.append(nonNamespaceOpName);
@@ -224,7 +225,6 @@ private:
 void ConvertSWLayers2VPUIPSWKernelPass::safeRunOnModule() {
     auto& ctx = getContext();
     auto module = getOperation();
-
     vpux::BufferizeTypeConverter typeConverter;
 
     mlir::ConversionTarget target(ctx);
@@ -236,6 +236,10 @@ void ConvertSWLayers2VPUIPSWKernelPass::safeRunOnModule() {
             };
             auto inputElemType = convertOp.input().getType().cast<vpux::NDTypeInterface>().getElementType();
             auto outputElemType = convertOp.output().getType().cast<vpux::NDTypeInterface>().getElementType();
+            // If conversion can be done on DMA, mark it legal so later pass can lower this to ConvertDMAOp
+            if (isConvertSupportedOnDMA<VPU::ConvertOp>(convertOp)) {
+                return true;
+            }
             return !checkElementType(inputElemType) || !checkElementType(outputElemType);
         }
         if (auto stridedSliceOp = mlir::dyn_cast<VPU::StridedSliceOp>(op)) {

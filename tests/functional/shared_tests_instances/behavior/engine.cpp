@@ -1,6 +1,6 @@
 //
-// Copyright (C) 2022 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include <algorithm>
@@ -8,10 +8,10 @@
 #include <ie_core.hpp>
 #include <string>
 #include <vector>
+#include "vpu_test_env_cfg.hpp"
 
 namespace {
-const std::string expectedDeviceName =
-        std::getenv("IE_KMB_TESTS_DEVICE_NAME") != nullptr ? std::getenv("IE_KMB_TESTS_DEVICE_NAME") : "VPUX";
+const std::string expectedDeviceName = LayerTestsUtils::getTestsDeviceNameFromEnvironmentOr("NPU");
 }
 
 TEST(smoke_InterfaceTests, TestEngineClassGetMetric) {

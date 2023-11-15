@@ -1,17 +1,17 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "single_layer_tests/logical.hpp"
 
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 #include "ngraph_functions/builders.hpp"
 
 namespace LayerTestsDefinitions {
 
-class VPUXLogicalLayerTest : public LogicalLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXLogicalLayerTest : public LogicalLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void SetUp() override {
         SetupParams();
 
@@ -25,15 +25,9 @@ class VPUXLogicalLayerTest : public LogicalLayerTest, virtual public LayerTestsU
             }
             logicalNode = ngraph::builder::makeLogical(convertedInputs[0], convertedInputs[1], logicalOpType);
             function = std::make_shared<ngraph::Function>(logicalNode, inputs, "Logical");
-
         } else {
             auto inputs = ngraph::builder::makeParams(ngInputsPrc, {inputShapes.first});
-            ngraph::NodeVector convertedInputs;
-            for (const auto& input : inputs) {
-                convertedInputs.push_back(std::make_shared<ngraph::opset5::Convert>(input, ngraph::element::boolean));
-            }
-            logicalNode =
-                    ngraph::builder::makeLogical(convertedInputs[0], ngraph::Output<ngraph::Node>(), logicalOpType);
+            logicalNode = ngraph::builder::makeLogical(inputs[0], ngraph::Output<ngraph::Node>(), logicalOpType);
             function = std::make_shared<ngraph::Function>(logicalNode, inputs, "Logical");
         }
     }
@@ -79,16 +73,6 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> inputShapes = {
         {{2, 200}, {{1}, {200}, {2, 2, 200}}},
         {{1, 3, 20}, {{20}, {2, 1, 1}}},
         {{2, 17, 3, 4}, {{2, 1, 3, 4}}},
-
-        // The same as for eltwise:
-        // There are errors at validation step on board for some input shapes:
-        // [Track number: S#51346]
-        // {{2, 200}, {{2, 200} }},
-
-        // The same as for eltwise:
-        // [Track number: E#15146]
-        // Initialization disabled partly
-        // {{2, 17, 3, 4}, {{4}, {1, 3, 4}}},
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> inputShapesNot = {
@@ -124,7 +108,7 @@ const auto LogicalTestParams = ::testing::Combine(
         ::testing::ValuesIn(secondInputTypes), ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputsPrecisions), ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice), ::testing::Values(additional_config));
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(additional_config));
 
 const auto LogicalTestParamsNot = ::testing::Combine(
         ::testing::ValuesIn(LogicalLayerTest::combineShapes(inputShapesNot)),
@@ -132,7 +116,7 @@ const auto LogicalTestParamsNot = ::testing::Combine(
         ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT), ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputsPrecisions), ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice), ::testing::Values(additional_config));
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_CompareWithRefs, VPUXLogicalLayerTest_VPU3700, LogicalTestParams,
                         LogicalLayerTest::getTestCaseName);
@@ -150,9 +134,9 @@ std::set<ngraph::helpers::LogicalTypes> supportedTypesVPUX = {
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> inShapesVPUX = {
-        {{2, 17, 3, 4}, {{2, 1, 3, 4}}},
-        {{1, 16, 32}, {{1, 16, 32}}},
-        {{1, 28, 300, 1}, {{1, 1, 300, 28}}},
+        {{2, 17, 3, 4}, {{2, 1, 3, 4}}},   {{1, 16, 32}, {{1, 16, 32}}}, {{1, 28, 300, 1}, {{1, 1, 300, 28}}},
+        {{2, 17, 3, 4}, {{4}, {1, 3, 4}}}, {{2, 200}, {{2, 200}}},
+
 };
 
 std::vector<InferenceEngine::Precision> inputsPrecisions_VPUX = {
@@ -170,7 +154,7 @@ const auto logical_params_VPUX = ::testing::Combine(
         ::testing::ValuesIn(secondInputTypes), ::testing::ValuesIn(netPrecisions_VPUX),
         ::testing::ValuesIn(inputsPrecisions_VPUX), ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice), ::testing::Values(additional_config));
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_CASE_P(smoke_logical_VPU3720, VPUXLogicalLayerTest_SW_VPU3720, logical_params_VPUX,
                         LogicalLayerTest::getTestCaseName);
@@ -184,7 +168,7 @@ const auto precommit_logical_params_VPUX = ::testing::Combine(
         ::testing::ValuesIn(supportedTypesVPUX), ::testing::ValuesIn(secondInputTypes),
         ::testing::ValuesIn(netPrecisions_VPUX), ::testing::ValuesIn(inputsPrecisions_VPUX),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
         ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_CASE_P(smoke_precommit_CompareWithRefs_VPU3720, VPUXLogicalLayerTest_SW_VPU3720,
@@ -200,7 +184,7 @@ const auto precommit_logical_params_not_VPUX = ::testing::Combine(
         ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT), ::testing::ValuesIn(netPrecisions_VPUX),
         ::testing::ValuesIn(inputsPrecisions_VPUX), ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice), ::testing::Values(additional_config));
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_CASE_P(smoke_precommit_not_CompareWithRefs_VPU3720, VPUXLogicalLayerTest_SW_VPU3720,
                         precommit_logical_params_not_VPUX, LogicalLayerTest::getTestCaseName);
@@ -218,7 +202,7 @@ const auto tiling_logical_params_VPU3720 = ::testing::Combine(
         ::testing::Values(ngraph::helpers::LogicalTypes::LOGICAL_OR), ::testing::ValuesIn(secondInputTypes),
         ::testing::ValuesIn(netPrecisions), ::testing::ValuesIn(inputsPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
         ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_CASE_P(smoke_tiling_CompareWithRefs_VPU3720, VPUXLogicalLayerTest_HW_VPU3720,

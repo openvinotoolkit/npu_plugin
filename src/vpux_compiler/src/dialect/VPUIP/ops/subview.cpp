@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/distributed_tensor_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/utils/attributes.hpp"
@@ -71,8 +73,8 @@ mlir::LogicalResult VPUIP::SubViewOp::inferReturnTypes(mlir::MLIRContext* ctx, m
 
     const auto subViewShape = parseIntArrayAttr<int64_t>(subViewOp.static_sizes());
     const auto subViewOffsets = parseIntArrayAttr<int64_t>(subViewOp.static_offsets());
-    const auto subViewStrides = subViewOp.static_strides().hasValue()
-                                        ? parseIntArrayAttr<int64_t>(subViewOp.static_strides().getValue())
+    const auto subViewStrides = subViewOp.static_strides().has_value()
+                                        ? parseIntArrayAttr<int64_t>(subViewOp.static_strides().value())
                                         : SmallVector<int64_t>(origType.getRank(), 1);
 
     if (subViewShape.size() != checked_cast<size_t>(origType.getRank())) {
@@ -85,10 +87,50 @@ mlir::LogicalResult VPUIP::SubViewOp::inferReturnTypes(mlir::MLIRContext* ctx, m
         return errorAt(loc, "Tile strides '{0}' doesn't match MemRef rank '{1}'", subViewStrides, origType.getRank());
     }
 
-    const auto subViewType =
-            origType.extractViewTile(ShapeRef(subViewOffsets), ShapeRef(subViewShape), ShapeRef(subViewStrides));
+    auto inferExplicitDistributedAttr = [&](VPUIP::DistributedBufferType distributedIn) -> VPU::DistributedTensorAttr {
+        const auto origDistribution = distributedIn.getDistribution();
+        const auto inShape = distributedIn.getShape().raw();
 
-    inferredTypes.push_back(subViewType);
+        if (origDistribution.getMode().getValue() != VPU::DistributionMode::OVERLAPPED ||
+            !VPU::isSegmentedOverlappedAxisSameAsSliceAxis(origDistribution.getNumTiles(), inShape, subViewShape)) {
+            return VPU::getExplicitDistrAttrForSliceLikeOps(origDistribution, subViewShape, inShape, ctx);
+        }
+
+        // When clustering axis == slice axis, we cannot infer per cluster shape from op itself
+        // and therefore this should be correctly computed in pass that creates the Subview Op
+        auto memoryShapes = vpux::parseIntArrayOfArrayAttr<int64_t>(origDistribution.getMemoryShapes());
+
+        for (size_t cluster = 0; cluster < memoryShapes.size(); cluster++) {
+            for (size_t dim = 0; dim < inShape.size(); dim++) {
+                // If this is the slice axis, the dim shape needs to be adjusted
+                if (subViewShape[dim] != inShape[dim]) {
+                    memoryShapes[cluster][dim] = subViewShape[dim];
+                }
+            }
+        }
+        const auto perClusterShapesAttr = vpux::getIntArrayOfArray(ctx, memoryShapes);
+
+        return VPU::DistributedTensorAttr::get(
+                ctx, origDistribution.getMode(), origDistribution.getNumTiles(), origDistribution.getKernel(),
+                origDistribution.getPads(), origDistribution.getStrides(), origDistribution.getNumClusters(),
+                origDistribution.getAlignment(), origDistribution.getUniformDistributedSegments(), perClusterShapesAttr,
+                origDistribution.getMemoryOffsets(), perClusterShapesAttr, origDistribution.getMemoryOffsets(),
+                origDistribution.getEqualMemoryAndComputeView());
+    };
+
+    auto distributedIn = origType.dyn_cast<VPUIP::DistributedBufferType>();
+    if (distributedIn != nullptr &&
+        VPU::isDistributedAttrWithExplicitShapesAndOffsets(distributedIn.getDistribution())) {
+        const auto subViewDistributedAttr = inferExplicitDistributedAttr(distributedIn);
+        const auto subViewType = distributedIn.extractViewTileForExplicitDistribution(
+                ShapeRef(subViewOffsets), ShapeRef(subViewShape), ShapeRef(subViewStrides), subViewDistributedAttr);
+        inferredTypes.push_back(subViewType);
+    } else {
+        const auto subViewType =
+                origType.extractViewTile(ShapeRef(subViewOffsets), ShapeRef(subViewShape), ShapeRef(subViewStrides));
+
+        inferredTypes.push_back(subViewType);
+    }
 
     return mlir::success();
 }
@@ -103,7 +145,7 @@ void adaptSparsityMapConstant(mlir::Value source, Shape& offset, Shape& shape) {
     if (constParentOp == nullptr) {
         return;
     }
-    const auto transformations = constParentOp.contentAttr().getTransformations();
+    const auto transformations = constParentOp.getContentAttr().getTransformations();
     if (transformations.empty()) {
         return;
     }
@@ -135,7 +177,7 @@ void adaptSparsityMapConstant(mlir::Value source, Shape& offset, Shape& shape) {
                           sparsityMapDim, shapeDim);
     }
 
-    auto inputType = constParentOp.contentAttr().getBaseContent().getType().cast<vpux::NDTypeInterface>();
+    auto inputType = constParentOp.getContentAttr().getBaseContent().getType().cast<vpux::NDTypeInterface>();
     for (auto idx : irange(transformations.size() - (1 + posFromEnd))) {
         inputType = transformations[idx].inferOutputType(inputType);
     }
@@ -183,7 +225,7 @@ mlir::LogicalResult ComposeSubView::matchAndRewrite(VPUIP::SubViewOp origOp, mli
         return mlir::failure();
     }
 
-    if (origOp.static_strides().hasValue() || producerSubViewOp.static_strides().hasValue()) {
+    if (origOp.static_strides().has_value() || producerSubViewOp.static_strides().has_value()) {
         return mlir::failure();
     }
 

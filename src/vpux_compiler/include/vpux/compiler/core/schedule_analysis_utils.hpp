@@ -33,7 +33,7 @@ static const std::map<std::string, int> executorStrToId = {{"DMA_NN", 0},    {"D
 ExecutorStallCycles getExecutorStallRegions(ScheduledOpInfoVec& scheduledOps);
 StallCycles getStallsOnAllExecutorPipelines(ScheduledOpInfoVec& scheduledOps);
 void verifyDependenciesPreservedInCycles(AsyncDepsInfo& depsInfo, ScheduledOpInfoVec& scheduledOps);
-StringRef getTaskType(ScheduledOpInfo op);
+StringRef getTaskType(const ScheduledOpInfo& op);
 void printScheduleStatistics(mlir::func::FuncOp& netFunc, AsyncDepsInfo& depsInfo, Logger log,
                              llvm::ArrayRef<ScheduledOpInfo> scheduledOps);
 SpillStats getDynamicSpillingStats(llvm::ArrayRef<ScheduledOpInfo> scheduledOps);

@@ -8,25 +8,5 @@
 
 using namespace vpux;
 
-//
-// initialize
-//
-
-void vpux::VPURegMapped::VPURegMappedDialect::initialize() {
-    addOperations<
-#define GET_OP_LIST
-#include <vpux/compiler/dialect/VPURegMapped/generated/ops.cpp.inc>
-            >();
-
-    registerAttributes();
-    registerTypes();
-}
-
-//
-// Generated
-//
-
-#include <vpux/compiler/dialect/VPURegMapped/generated/dialect.cpp.inc>
-
 #define GET_OP_CLASSES
-#include <vpux/compiler/dialect/VPURegMapped/generated/ops.cpp.inc>
+#include <vpux/compiler/dialect/VPURegMapped/ops.cpp.inc>

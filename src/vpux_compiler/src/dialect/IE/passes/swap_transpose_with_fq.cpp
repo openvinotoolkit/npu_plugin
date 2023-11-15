@@ -82,7 +82,7 @@ void SwapTransposeWithFQ::safeRunOnFunc() {
         if (auto maybeQuantOp = transposeIn.getDefiningOp<IE::QuantizeOp>()) {
             // Check that Quantize has per-tensor quantization.
             const auto axis = IE::getQuantAxisIndex(maybeQuantOp);
-            if (axis.hasValue()) {
+            if (axis.has_value()) {
                 return true;
             }
 
@@ -95,7 +95,7 @@ void SwapTransposeWithFQ::safeRunOnFunc() {
         } else if (auto maybeFqOp = transposeIn.getDefiningOp<IE::FakeQuantizeOp>()) {
             // Check that FQ has per-tensor quantization.
             const auto axis = IE::getFQAxisIndex(maybeFqOp);
-            if (axis.hasValue()) {
+            if (axis.has_value()) {
                 return true;
             }
 

@@ -4,13 +4,34 @@
 //
 
 #include "vpux/compiler/dialect/VPURT/attributes.hpp"
+#include "vpux/compiler/dialect/VPURT/dialect.hpp"
 
 #include "vpux/compiler/core/type_interfaces.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/utils/core/error.hpp"
 
 #include <llvm/ADT/StringExtras.h>
+#include <llvm/ADT/TypeSwitch.h>
 
 using namespace vpux;
+
+//
+// Generated
+//
+
+#define GET_ATTRDEF_CLASSES
+#include <vpux/compiler/dialect/VPURT/attributes.cpp.inc>
+
+//
+// Dialect hooks
+//
+
+void vpux::VPURT::VPURTDialect::registerAttributes() {
+    addAttributes<
+#define GET_ATTRDEF_LIST
+#include <vpux/compiler/dialect/VPURT/attributes.cpp.inc>
+            >();
+}
 
 //
 // BufferSection/MemoryKind conversion
@@ -63,4 +84,4 @@ bool vpux::VPURT::isMemoryCompatible(BufferSection section, vpux::NDTypeInterfac
 // Generated
 //
 
-#include <vpux/compiler/dialect/VPURT/generated/attributes/enums.cpp.inc>
+#include <vpux/compiler/dialect/VPURT/enums.cpp.inc>

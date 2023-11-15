@@ -18,10 +18,10 @@ func.func @NCECompressConv(%arg0: tensor<1x3x224x224xf16, {order = #NHWC}>) -> t
     %expand = IE.Expand(%arg0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 1, 0, 0]}
             : tensor<1x3x224x224xf16, {order = #NHWC}> -> tensor<1x4x224x224xf16, {order = #NHWC}>
 
-    %compress_conv = VPU.NCE.CompressConvolution(%expand, %filter, %weight_table)
+    %compress_conv = VPU.NCE.CompressConvolution(%expand, %filter, %weight_table) 
         {
             cm_sp_pattern = 15 : i64,
-            pad = {bottom = 2 : i64, left = 3 : i64, right = 2 : i64, top = 3 : i64},
+            pad = #VPU.Padding<left = 3 : i64, right = 2 : i64, top = 3 : i64, bottom = 2 : i64>,
             rawFilterShape = [64, 4, 7, 7], strides = [2, 2]
         } -> tensor<1x64x112x112xf16, {order = #NHWC}>
     return %compress_conv : tensor<1x64x112x112xf16, {order = #NHWC}>
@@ -32,7 +32,7 @@ func.func @NCECompressConv(%arg0: tensor<1x3x224x224xf16, {order = #NHWC}>) -> t
     // CHECK-SAME:      tensor<1x3x224x224xf16, {order = #NHWC}> -> tensor<1x4x224x224xf16, {order = #NHWC}>
     // CHECK:       %[[VAL0:.*]] = VPU.NCE.CompressConvolution(%[[EXPAND]], %[[FILTERS]], %[[WEIGHTS_TABLE]])
     // CHECK-SAME:      cm_sp_pattern = 15 : i64
-    // CHECK-SAME:      pad = {bottom = 2 : i64, left = 3 : i64, right = 2 : i64, top = 3 : i64},
+    // CHECK-SAME:      pad = #VPU.Padding<left = 3 : i64, right = 2 : i64, top = 3 : i64, bottom = 2 : i64>,
     // CHECK-SAME:      rawFilterShape = [64, 4, 7, 7], strides = [2, 2]
     // CHECK:       return %[[VAL0]]
 }

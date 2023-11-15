@@ -14,7 +14,7 @@ func.func @ConvertDepthToSpace_BLOCKS_FIRST(%arg0: memref<1x8x2x3xf16, #NHWC, @D
     %depthToSpace = VPUIP.DepthToSpaceUPA {block_size = 2 : i64, mode = #IE.depth_to_space_mode<BLOCKS_FIRST>}
                 inputs(%arg0 : memref<1x8x2x3xf16, #NHWC, @DDR>)
                 outputs(%outBuffer : memref<1x2x4x6xf16, #NHWC, @DDR>) -> memref<1x2x4x6xf16, #NHWC, @DDR>
-
+    
     return %depthToSpace : memref<1x2x4x6xf16, #NHWC, @DDR>
 
     //CHECK:    [[OUTBUFFER:%.*]] = memref.alloc() : memref<1x2x4x6xf16, #NHWC, @DDR>

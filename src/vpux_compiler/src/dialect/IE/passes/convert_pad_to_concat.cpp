@@ -56,9 +56,9 @@ mlir::LogicalResult ReplacePadWithConstAndConcat::matchAndRewrite(IE::PadOp orig
         return mlir::failure();
     }
 
-    VPUX_THROW_UNLESS(origPadOp.pad_value_attr().hasValue(), "IE::PadOp has pad_value_attr() == nullptr {0}",
+    VPUX_THROW_UNLESS(origPadOp.pad_value_attr().has_value(), "IE::PadOp has pad_value_attr() == nullptr {0}",
                       origPadOp->getLoc());
-    const auto padValue = origPadOp.pad_value_attr().getValue().convertToDouble();
+    const auto padValue = origPadOp.pad_value_attr().value().convertToDouble();
 
     const auto inputShape = origPadOp.input().getType().cast<vpux::NDTypeInterface>().getShape().raw();
     const auto outputShape = origPadOp.output().getType().cast<vpux::NDTypeInterface>().getShape().raw();
@@ -83,12 +83,12 @@ mlir::LogicalResult ReplacePadWithConstAndConcat::matchAndRewrite(IE::PadOp orig
         const auto padDataAttr = Const::ContentAttr::get(padDataStorage).convertElemType(origElemType);
 
         auto constant = rewriter.create<Const::DeclareOp>(origPadOp->getLoc(), padDataType, padDataAttr);
-        values.push_back(constant.output());
+        values.push_back(constant.getOutput());
     };
 
     auto midInput = origPadOp.input();
-    const auto padsBeginValue = padsBegin.getValue();
-    const auto padsEndValue = padsEnd.getValue();
+    const auto padsBeginValue = padsBegin.value();
+    const auto padsEndValue = padsEnd.value();
     VPUX_THROW_UNLESS(padsBeginValue.size() == inputShape.size() && padsEndValue.size() == inputShape.size(),
                       "`IE::PadOp` {0} shape size {1} mismatch with input size {2}", origPadOp.getLoc(),
                       padsBeginValue.size(), inputShape.size());

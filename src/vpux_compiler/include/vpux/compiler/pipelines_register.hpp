@@ -16,20 +16,20 @@
 namespace vpux {
 
 //
-// IPipelineRegister
+// IPipelineRegistry
 //
 
-class IPipelineRegister {
+class IPipelineRegistry {
 public:
     virtual void registerPipelines() = 0;
 
-    virtual ~IPipelineRegister() = default;
+    virtual ~IPipelineRegistry() = default;
 };
 
 //
-// createPipelineRegister
+// createPipelineRegistry
 //
 
-std::unique_ptr<IPipelineRegister> createPipelineRegister(VPU::ArchKind archKind);
+std::unique_ptr<IPipelineRegistry> createPipelineRegistry(VPU::ArchKind archKind);
 
 }  // namespace vpux

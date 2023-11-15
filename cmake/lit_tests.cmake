@@ -5,8 +5,6 @@
 
 find_package(Python3 QUIET)
 
-include(AddLLVM)
-
 function(vpux_setup_lit_tool)
     set(extra_tools FileCheck not ${ARGN})
 
@@ -16,28 +14,28 @@ function(vpux_setup_lit_tool)
             COMMAND
                 ${CMAKE_COMMAND} -E copy
                     "$<TARGET_FILE:${tool}>"
-                    "$<TARGET_FILE_DIR:vpuxUnitTests>/"
+                    "$<TARGET_FILE_DIR:npuUnitTests>/"
         )
     endforeach()
 
     add_custom_target(copy_lit_tool ALL
         COMMAND
             ${CMAKE_COMMAND} -E remove_directory
-                "$<TARGET_FILE_DIR:vpuxUnitTests>/lit-tests/lit-tool"
+                "$<TARGET_FILE_DIR:npuUnitTests>/lit-tests/lit-tool"
         COMMAND
             ${CMAKE_COMMAND} -E make_directory
-                "$<TARGET_FILE_DIR:vpuxUnitTests>/lit-tests/lit-tool"
+                "$<TARGET_FILE_DIR:npuUnitTests>/lit-tests/lit-tool"
         COMMAND
             ${CMAKE_COMMAND} -E copy_directory
                 "${LLVM_SOURCE_DIR}/utils/lit/lit"
-                "$<TARGET_FILE_DIR:vpuxUnitTests>/lit-tests/lit-tool/lit"
+                "$<TARGET_FILE_DIR:npuUnitTests>/lit-tests/lit-tool/lit"
         COMMAND
             ${CMAKE_COMMAND} -E copy
                 "${LLVM_SOURCE_DIR}/utils/lit/LICENSE.TXT"
                 "${LLVM_SOURCE_DIR}/utils/lit/lit.py"
                 "${LLVM_SOURCE_DIR}/utils/lit/README.txt"
                 "${LLVM_SOURCE_DIR}/utils/lit/setup.py"
-                "$<TARGET_FILE_DIR:vpuxUnitTests>/lit-tests/lit-tool/"
+                "$<TARGET_FILE_DIR:npuUnitTests>/lit-tests/lit-tool/"
         ${extra_tools_copy_cmd}
         DEPENDS ${extra_tools}
         COMMENT "[LIT] Copy LIT tool"
@@ -101,6 +99,12 @@ function(vpux_setup_lit_tests TEST_NAME)
     get_directory_property(LLVM_BUILD_MODE DIRECTORY ${LLVM_SOURCE_DIR} DEFINITION LLVM_BUILD_MODE)
     set(LTDL_SHLIB_EXT ${CMAKE_SHARED_LIBRARY_SUFFIX})
     set(EXEEXT ${CMAKE_EXECUTABLE_SUFFIX})
+    string(CONCAT LLVM_LIT_PATH_FUNCTION
+            "# Allow generated file to be relocatable.\n"
+            "from pathlib import Path\n"
+            "def path(p):\n"
+            "    if not p: return ''\n"
+            "    return str((Path(__file__).parent / p).resolve())\n")
 
     configure_lit_site_cfg(
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/cmake/lit.site.cfg.py.in"
@@ -114,22 +118,22 @@ function(vpux_setup_lit_tests TEST_NAME)
             COMMAND
                 ${CMAKE_COMMAND} -E copy
                     "${LIT_ROOT}/${file}"
-                    "$<TARGET_FILE_DIR:vpuxUnitTests>/lit-tests/${TEST_NAME}/${file}"
+                    "$<TARGET_FILE_DIR:npuUnitTests>/lit-tests/${TEST_NAME}/${file}"
         )
     endforeach()
 
     add_custom_target(copy_${TEST_NAME}_tests ALL
         COMMAND
             ${CMAKE_COMMAND} -E remove_directory
-                "$<TARGET_FILE_DIR:vpuxUnitTests>/lit-tests/${TEST_NAME}"
+                "$<TARGET_FILE_DIR:npuUnitTests>/lit-tests/${TEST_NAME}"
         COMMAND
             ${CMAKE_COMMAND} -E make_directory
-                "$<TARGET_FILE_DIR:vpuxUnitTests>/lit-tests/${TEST_NAME}"
+                "$<TARGET_FILE_DIR:npuUnitTests>/lit-tests/${TEST_NAME}"
         COMMAND
             ${CMAKE_COMMAND} -E copy
                 "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/cmake/lit.cfg.py"
                 "${CMAKE_CURRENT_BINARY_DIR}/lit.site.cfg.py"
-                "$<TARGET_FILE_DIR:vpuxUnitTests>/lit-tests/${TEST_NAME}/"
+                "$<TARGET_FILE_DIR:npuUnitTests>/lit-tests/${TEST_NAME}/"
         ${tests_copy_cmd}
         SOURCES ${SOURCES}
         COMMENT "[LIT] Copy ${TEST_NAME} LIT tests"
@@ -143,12 +147,12 @@ function(vpux_setup_lit_tests TEST_NAME)
             add_test(NAME LIT-${TEST_NAME}
                 COMMAND
                     ${Python3_EXECUTABLE}
-                    "$<TARGET_FILE_DIR:vpuxUnitTests>/lit-tests/lit-tool/lit.py"
+                    "$<TARGET_FILE_DIR:npuUnitTests>/lit-tests/lit-tool/lit.py"
                     -v
-                    "$<TARGET_FILE_DIR:vpuxUnitTests>/lit-tests/${TEST_NAME}"
+                    "$<TARGET_FILE_DIR:npuUnitTests>/lit-tests/${TEST_NAME}"
             )
             set_tests_properties(LIT-${TEST_NAME} PROPERTIES
-                LABELS "VPUX;LIT"
+                LABELS "NPU;LIT"
             )
         endif()
     endif()

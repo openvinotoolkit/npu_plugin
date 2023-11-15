@@ -19,7 +19,7 @@ mlir::OperandRange vpux::VPU::NCEClusterTilingOp::getSuccessorEntryOperands(Opti
 
 void vpux::VPU::NCEClusterTilingOp::getSuccessorRegions(Optional<unsigned> index, ArrayRef<mlir::Attribute>,
                                                         SmallVectorImpl<mlir::RegionSuccessor>& regions) {
-    if (index.hasValue()) {
+    if (index.has_value()) {
         VPUX_THROW_UNLESS(*index == 0, "Invalid region index: {0}", *index);
         regions.push_back(mlir::RegionSuccessor(results()));
         return;

@@ -25,8 +25,8 @@ using InputToReordersMap = DenseMap<mlir::Value, std::unordered_map<DimsOrder, I
 
 class LayerRewriter final : public mlir::OpInterfaceRewritePattern<IE::LayoutInfoOpInterface> {
 public:
-    LayerRewriter(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpInterfaceRewritePattern<IE::LayoutInfoOpInterface>(ctx), _log(log) {
+    LayerRewriter(mlir::MLIRContext* ctx, Logger log, const bool seOpsEnabled)
+            : mlir::OpInterfaceRewritePattern<IE::LayoutInfoOpInterface>(ctx), _log(log), _seOpsEnabled(seOpsEnabled) {
     }
 
 public:
@@ -34,6 +34,7 @@ public:
 
 private:
     Logger _log;
+    bool _seOpsEnabled;
 };
 
 mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::LayoutInfoOpInterface origOp,
@@ -41,7 +42,7 @@ mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::LayoutInfoOpInterface ori
     _log.trace("Rewrite layer operation '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
 
     auto orderInfo = origOp.getLayoutInfo();
-    origOp.inferLayoutInfo(orderInfo);
+    origOp.inferLayoutInfo(orderInfo, _seOpsEnabled);
 
     rewriter.startRootUpdate(origOp);
 
@@ -83,7 +84,7 @@ mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::LayoutInfoOpInterface ori
 
 class AdjustLayoutsPass final : public IE::AdjustLayoutsBase<AdjustLayoutsPass> {
 public:
-    explicit AdjustLayoutsPass(const bool adaptSEOps, Logger log): _adaptSEOps(adaptSEOps) {
+    explicit AdjustLayoutsPass(const bool seOpsEnabled, Logger log): _seOpsEnabled(seOpsEnabled) {
         Base::initLogger(log, Base::getArgumentName());
     }
 
@@ -93,7 +94,7 @@ private:
     void safeRunOnFunc() final;
 
 private:
-    bool _adaptSEOps;
+    bool _seOpsEnabled;
 };
 
 mlir::LogicalResult AdjustLayoutsPass::initialize(mlir::MLIRContext* ctx) {
@@ -103,8 +104,8 @@ mlir::LogicalResult AdjustLayoutsPass::initialize(mlir::MLIRContext* ctx) {
 
     // When this parameter has a value, it probably comes from LIT test.
     // Override the default
-    if (adaptSEOps.hasValue()) {
-        _adaptSEOps = adaptSEOps.getValue();
+    if (seOpsEnabled.hasValue()) {
+        _seOpsEnabled = seOpsEnabled.getValue();
     }
 
     return mlir::success();
@@ -115,16 +116,13 @@ void AdjustLayoutsPass::safeRunOnFunc() {
 
     mlir::ConversionTarget target(ctx);
     target.markUnknownOpDynamicallyLegal([&](mlir::Operation* op) {
-        if (!_adaptSEOps && mlir::isa<IE::SEOpInterface>(op)) {
-            return true;
-        }
         if (auto iface = mlir::dyn_cast<IE::LayoutInfoOpInterface>(op)) {
             _log.trace("Check layer operation '{0}' at '{1}'", op->getName(), op->getLoc());
 
             auto orderInfo = iface.getLayoutInfo();
             _log.nest().trace("Current layouts: {0}", orderInfo);
 
-            iface.inferLayoutInfo(orderInfo);
+            iface.inferLayoutInfo(orderInfo, _seOpsEnabled);
             _log.nest().trace("Required layouts: {0}", orderInfo);
 
             return !orderInfo.hasChanges();
@@ -135,7 +133,7 @@ void AdjustLayoutsPass::safeRunOnFunc() {
     target.addLegalOp<IE::ReorderOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<LayerRewriter>(&ctx, _log.nest());
+    patterns.add<LayerRewriter>(&ctx, _log.nest(), _seOpsEnabled);
 
     auto func = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
@@ -149,6 +147,6 @@ void AdjustLayoutsPass::safeRunOnFunc() {
 // createAdjustLayoutsPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::IE::createAdjustLayoutsPass(const bool adaptSEOps, Logger log) {
-    return std::make_unique<AdjustLayoutsPass>(adaptSEOps, log);
+std::unique_ptr<mlir::Pass> vpux::IE::createAdjustLayoutsPass(const bool seOpsEnabled, Logger log) {
+    return std::make_unique<AdjustLayoutsPass>(seOpsEnabled, log);
 }

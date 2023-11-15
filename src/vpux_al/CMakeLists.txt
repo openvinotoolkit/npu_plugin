@@ -3,13 +3,11 @@
 # SPDX-License-Identifier: Apache 2.0
 #
 
-#
-
 if(ENABLE_LTO)
     ie_enable_lto()
 endif()
 
-set(TARGET_NAME vpux_al)
+set(TARGET_NAME npu_al)
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
@@ -36,15 +34,11 @@ target_include_directories(${TARGET_NAME}
         $<BUILD_INTERFACE:${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpux_plugin/include>
 )
 
-target_sources(${TARGET_NAME}
-    PRIVATE
-    ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpux_plugin/src/vpux_remote_blob.cpp
-)
 # FIXME: end
 
 link_system_libraries(${TARGET_NAME}
     PRIVATE
-        vpux_utils
+        npu_utils
 )
 
 if(BUILD_SHARED_LIBS)
@@ -62,22 +56,22 @@ else()
     if(ENABLE_MLIR_COMPILER)
         target_link_libraries(${TARGET_NAME}
             PUBLIC
-                vpux_mlir_compiler
-                vpux_mlir_dependencies
+                npu_mlir_compiler
+                npu_mlir_dependencies
         )
     endif()
 
     if(ENABLE_DRIVER_COMPILER_ADAPTER)
         target_link_libraries(${TARGET_NAME}
             PUBLIC
-                vpux_driver_compiler_adapter
+                npu_driver_compiler_adapter
         )
     endif()
 
     if(ENABLE_ZEROAPI_BACKEND)
         target_link_libraries(${TARGET_NAME}
             PUBLIC
-                vpux_level_zero_backend
+                npu_level_zero_backend
         )
 
         target_include_directories(${TARGET_NAME}

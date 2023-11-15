@@ -3,16 +3,15 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/dialect.hpp"
-#include "vpux/compiler/init.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/types.hpp"
+
+#include "common/utils.hpp"
 
 #include <mlir/IR/AffineMap.h>
 #include <mlir/IR/BuiltinTypes.h>
@@ -115,15 +114,12 @@ getIsCompatibleLayout() {
 
 }  // namespace
 
-class MLIR_DimsOrderTest : public testing::Test {
+class MLIR_DimsOrderTest : public MLIR_UnitBase {
 public:
     mlir::MLIRContext ctx;
 
 public:
-    void SetUp() override {
-        mlir::DialectRegistry registry;
-        registerDialects(registry);
-
+    MLIR_DimsOrderTest(): MLIR_UnitBase() {
         ctx.appendDialectRegistry(registry);
         ctx.loadDialect<Const::ConstDialect>();
         ctx.loadDialect<VPUIP::VPUIPDialect>();
@@ -403,12 +399,12 @@ TEST_F(MLIR_DimsOrderTest, getCanonicalName) {
 
     std::for_each(orders2name.begin(), orders2name.end(), [](const std::pair<DimsOrder, StringRef>& order2name) {
         const auto name = order2name.first.getCanonicalName();
-        ASSERT_TRUE(name.hasValue()) << order2name.second.data();
-        ASSERT_EQ(name.getValue(), order2name.second);
+        ASSERT_TRUE(name.has_value()) << order2name.second.data();
+        ASSERT_EQ(name.value(), order2name.second);
     });
 
     const auto nonDefault = DimsOrder::fromNumDims(7).getCanonicalName();
-    ASSERT_FALSE(nonDefault.hasValue());
+    ASSERT_FALSE(nonDefault.has_value());
 }
 
 TEST_F(MLIR_DimsOrderTest, fromMemRefTypeSimpleTest) {

@@ -71,7 +71,7 @@ template <>
 void createAllocOp(mlir::PatternRewriter& rewriter, VPURT::Alloc origOp, mlir::Type type, int64_t offset) {
     auto section = VPURT::getBufferSection(type.cast<vpux::NDTypeInterface>().getMemoryKind());
     rewriter.replaceOpWithNewOp<VPURT::DeclareBufferOp>(origOp, type, section, nullptr, offset,
-                                                        origOp.swizzlingKeyAttr());
+                                                        origOp.getSwizzlingKeyAttr());
 }
 
 template <class ConcreteAllocOp>
@@ -116,7 +116,7 @@ private:
 private:
     VPUIP::MemKindCreateFunc _memKindCb;
     VPU::MemoryKind _memKind{VPU::MemoryKind::DDR};
-    mlir::SymbolRefAttr _memKindAttr = nullptr;
+    mlir::StringAttr _memKindAttr = nullptr;
 };
 
 StaticAllocationPass::StaticAllocationPass(VPUIP::MemKindCreateFunc memKindCb, Logger log)
@@ -130,12 +130,12 @@ mlir::LogicalResult StaticAllocationPass::initialize(mlir::MLIRContext* ctx) {
     }
 
     auto maybeMemKind = _memKindCb(memSpaceName.getValue());
-    if (!maybeMemKind.hasValue()) {
+    if (!maybeMemKind.has_value()) {
         return mlir::failure();
     }
 
-    _memKind = maybeMemKind.getValue();
-    _memKindAttr = mlir::SymbolRefAttr::get(ctx, stringifyEnum(_memKind));
+    _memKind = maybeMemKind.value();
+    _memKindAttr = mlir::StringAttr::get(ctx, stringifyEnum(_memKind));
 
     return mlir::success();
 }
@@ -376,7 +376,7 @@ void StaticAllocationPass::safeRunOnModule() {
         return type == nullptr || type.getMemoryKind() != _memKind;
     });
     target.addDynamicallyLegalOp<VPURT::Alloc>([&](VPURT::Alloc op) {
-        const auto type = op.buffer().getType().dyn_cast<vpux::NDTypeInterface>();
+        const auto type = op.getBuffer().getType().dyn_cast<vpux::NDTypeInterface>();
         return type == nullptr || type.getMemoryKind() != _memKind;
     });
 

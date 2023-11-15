@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -46,7 +46,6 @@ public:
 
 private:
     void safeRunOnFunc() final;
-    bool isLegalOp(mlir::Operation* op);
     void assignStrategy(VPU::TilingBuilderOpInterface origOp);
 
     bool _enablePrefetchTiling = true;
@@ -63,48 +62,14 @@ mlir::LogicalResult TilingStrategyAssignmentPass::initialize(mlir::MLIRContext* 
     return mlir::success();
 }
 
-bool TilingStrategyAssignmentPass::isLegalOp(mlir::Operation* op) {
-    if (mlir::isa<VPU::SliceOp, VPU::ConcatOp, VPU::NCEClusterTilingOp>(op) ||
-        op->getParentOfType<VPU::NCEClusterTilingOp>() || op->hasAttr(tilingStrategy)) {
-        return true;
-    }
-    auto func = getOperation();
-    auto module = func->getParentOfType<mlir::ModuleOp>();
-    const auto arch = VPU::getArch(module);
-    if (!mlir::isa<VPU::NCEOpInterface>(op) && !VPU::archSupportsSwLayerTiling(arch)) {
-        return true;
-    }
-    if (op->hasAttr(tilingStrategy)) {
-        return true;
-    }
-    if (auto iface = mlir::dyn_cast<VPU::TilingInfoOpInterface>(op)) {
-        _log.trace("Check: '{0}' at '{1}'", op->getName(), op->getLoc());
-        const auto resShape = getShape(op->getResult(0));
-        if (!iface.isSupportedTiling({TileInfo(resShape)}, TilingMode::ISOLATED, _log.nest())) {
-            _log.nest().trace("ISOLATED tiling or PIPELINING tiling required");
-            return false;
-        }
-        if (_enablePrefetchTiling && mlir::isa<VPU::NCEOpInterface>(op)) {
-            if (VPU::prefetchTilingConditionSatisfied(op, _log.nest())) {
-                _log.nest().trace("PREFETCHING tiling required");
-                return false;
-            }
-            if (VPU::largeConstPipelineConditionSatisfied(op, _log.nest())) {
-                _log.nest().trace("PIPELINING tiling for large constant weights required");
-                return false;
-            }
-        }
-    }
-    return true;
-}
-
 void TilingStrategyAssignmentPass::assignStrategy(VPU::TilingBuilderOpInterface origOp) {
     _log.trace("Assign: '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
 
     auto op = origOp.getOperation();
     const auto tiles = getLayerTilingStrategy(origOp, _enablePrefetchTiling, _log);
+    VPUX_THROW_WHEN(mlir::failed(tiles), "Invalid tiling strategy for {0}", origOp->getLoc());
 
-    origOp->setAttr(tilingStrategy, getIntArrayAttr(op->getContext(), tiles[0].axis));
+    origOp->setAttr(tilingStrategy, getIntArrayAttr(op->getContext(), tiles.value()[0].axis));
 }
 
 void TilingStrategyAssignmentPass::safeRunOnFunc() {
@@ -112,7 +77,7 @@ void TilingStrategyAssignmentPass::safeRunOnFunc() {
 
     const auto callback = [&](mlir::Operation* op) {
         auto tilingOp = mlir::dyn_cast<VPU::TilingBuilderOpInterface>(op);
-        if (tilingOp != nullptr && !isLegalOp(op)) {
+        if (tilingOp != nullptr && VPU::opNeedsTiling(op, _enablePrefetchTiling, _log)) {
             assignStrategy(tilingOp);
         }
     };

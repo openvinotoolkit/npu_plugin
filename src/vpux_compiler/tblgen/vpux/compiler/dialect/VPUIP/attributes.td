@@ -6,11 +6,29 @@
 #ifndef VPUX_COMPILER_DIALECT_VPUIP_ATTRIBUTES
 #define VPUX_COMPILER_DIALECT_VPUIP_ATTRIBUTES
 
+include "vpux/compiler/dialect/VPUIP/attr_interfaces.td"
 include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/dialect/VPUIP/dialect.td"
 
-class VPUIP_Attr<string name, list<Trait> traits = []> : AttrDef<VPUIP_Dialect, name, traits> {
-    let mnemonic = name;
+//
+// Base classes
+//
+
+class VPUIP_I64EnumAttr <string name, string summary, list<I64EnumAttrCase> cases> :
+        I64EnumAttr<name, summary, cases> {
+    let cppNamespace = "vpux::VPUIP";
+    let genSpecializedAttr = 0;
+}
+
+class VPUIP_EnumAttr <EnumAttrInfo enumInfo, string name = "", list <Trait> traits = []> :
+        EnumAttr<VPUIP_Dialect, enumInfo, name, traits> {
+    let assemblyFormat = "`<`$value`>`";
+}
+
+class VPUIP_Attr<string name, list<Trait> traits = []> :
+        AttrDef<VPUIP_Dialect, name, traits> {
+    let mnemonic = name # "Attr";
+    let assemblyFormat = "`<` struct(params) `>`";
 }
 
 //
@@ -18,64 +36,64 @@ class VPUIP_Attr<string name, list<Trait> traits = []> : AttrDef<VPUIP_Dialect, 
 //
 
 def VPUIP_PoolLayerType :
-        StrEnumAttr<
-            "PoolLayerType",
-            "Type of Pooling layer",
-            [
-                StrEnumAttrCase<"MAX">,
-                StrEnumAttrCase<"AVG">,
-            ]
-        > {
-    let cppNamespace = "vpux::VPUIP";
-    let genSpecializedAttr = 1;
+    VPUIP_I64EnumAttr<
+        "PoolLayerType",
+        "Type of Pooling layer",
+        [
+            I64EnumAttrCase<"MAX", 0>,
+            I64EnumAttrCase<"AVG", 1>,
+        ]
+    > {
 }
+
+def VPUIP_PoolLayerTypeAttr : VPUIP_EnumAttr<VPUIP_PoolLayerType, "pool_layer_type">;
 
 //
 // ReduceLayerType
 //
 
 def VPUIP_ReduceLayerType :
-        StrEnumAttr<
-            "ReduceLayerType",
-            "Type of Reduce layer",
-            [
-                StrEnumAttrCase<"MAX">,
-                StrEnumAttrCase<"MEAN">,
-                StrEnumAttrCase<"LOGICAL_OR">,
-                StrEnumAttrCase<"LOGICAL_AND">,
-                StrEnumAttrCase<"PROD">,
-                StrEnumAttrCase<"SUM">,
-                StrEnumAttrCase<"MIN">,
-                StrEnumAttrCase<"L1">,
-                StrEnumAttrCase<"L2">,
-            ]
-        > {
-    let cppNamespace = "vpux::VPUIP";
-    let genSpecializedAttr = 1;
+    VPUIP_I64EnumAttr<
+        "ReduceLayerType",
+        "Type of Reduce layer",
+        [
+            I64EnumAttrCase<"MAX",         0>,
+            I64EnumAttrCase<"MEAN",        1>,
+            I64EnumAttrCase<"LOGICAL_OR",  2>,
+            I64EnumAttrCase<"LOGICAL_AND", 3>,
+            I64EnumAttrCase<"PROD",        4>,
+            I64EnumAttrCase<"SUM",         5>,
+            I64EnumAttrCase<"MIN",         6>,
+            I64EnumAttrCase<"L1",          7>,
+            I64EnumAttrCase<"L2",          8>,
+        ]
+    > {
 }
+
+def VPUIP_ReduceLayerTypeAttr : VPUIP_EnumAttr<VPUIP_ReduceLayerType, "reduce_layer_type">;
 
 //
 // NCETaskType
 //
 
 def VPUIP_NCETaskType :
-        StrEnumAttr<
-            "NCETaskType",
-            "NCE task type",
-            [
-                StrEnumAttrCase<"CONV">,
-                StrEnumAttrCase<"DWCONV">,
-                StrEnumAttrCase<"MAXPOOL">,
-                StrEnumAttrCase<"AVEPOOL">,
-                StrEnumAttrCase<"FCL">,
-                StrEnumAttrCase<"ELTWISE">,
-                StrEnumAttrCase<"IDENTITY">,
-                StrEnumAttrCase<"CMCONV">
-            ]
-        > {
-    let cppNamespace = "vpux::VPUIP";
-    let genSpecializedAttr = 1;
+    VPUIP_I64EnumAttr<
+        "NCETaskType",
+        "NCE task type",
+        [
+            I64EnumAttrCase<"CONV",     0>,
+            I64EnumAttrCase<"DWCONV",   1>,
+            I64EnumAttrCase<"MAXPOOL",  2>,
+            I64EnumAttrCase<"AVEPOOL",  3>,
+            I64EnumAttrCase<"FCL",      4>,
+            I64EnumAttrCase<"ELTWISE",  5>,
+            I64EnumAttrCase<"IDENTITY", 6>,
+            I64EnumAttrCase<"CMCONV",   7>
+        ]
+    > {
 }
+
+def VPUIP_NCETaskTypeAttr : VPUIP_EnumAttr<VPUIP_NCETaskType, "nce_task_type">;
 
 //
 // CompressionSchemeAttr
@@ -116,7 +134,7 @@ def VPUIP_CompressionSchemeAttr : VPUIP_Attr<"CompressionScheme"> {
 def VPUIP_SwizzlingSchemeAttr : VPUIP_Attr<"SwizzlingScheme"> {
     let description = [{
         This contains information about all the swizzling related requirements for the buffer
-        
+
         The 'key' is the swizzling key to be used, these keys refers to 5 swizzling patterns that determines how much striping is applied
         Higher swizzling shows higher performance but needs larger alignment/padding size for each allocation depending on the architecture
         The 'sizeAlignment' is the requirement for the buffer size dictated by the architecture
@@ -134,37 +152,34 @@ def VPUIP_SwizzlingSchemeAttr : VPUIP_Attr<"SwizzlingScheme"> {
 //
 
 def VPUIP_MemRefAttr :
-        StructAttr<
-            "MemRefAttr",
-            VPUIP_Dialect,
-            [
-                StructFieldAttr<"order", AffineMapAttr>,
-                StructFieldAttr<"strides", OptionalAttr<I64ArrayAttr>>,
-                StructFieldAttr<"swizzlingScheme", OptionalAttr<VPUIP_SwizzlingSchemeAttr>>,
-                StructFieldAttr<"compressionScheme", OptionalAttr<VPUIP_CompressionSchemeAttr>>,
-                StructFieldAttr<"allocSize", OptionalAttr<IntAttr>>
-            ]
-        >;
+    StructAttr<
+        "MemRefAttr",
+        VPUIP_Dialect,
+        [
+            StructFieldAttr<"order", AffineMapAttr>,
+            StructFieldAttr<"strides", OptionalAttr<I64ArrayAttr>>,
+            StructFieldAttr<"swizzlingScheme", OptionalAttr<VPUIP_SwizzlingSchemeAttr>>,
+            StructFieldAttr<"compressionScheme", OptionalAttr<VPUIP_CompressionSchemeAttr>>,
+            StructFieldAttr<"allocSize", OptionalAttr<IntAttr>>
+        ]
+    >;
 
 //
-// DmaDescriptorAttr
+// DMADescriptorAttr
 //
 
-def VPUIP_DmaDescriptorAttr :
-        StructAttr<
-            "DmaDescriptorAttr",
-            VPUIP_Dialect,
-            [
-                StructFieldAttr<"numPlanes", IntAttr>,
-                StructFieldAttr<"len", IntAttr>,
-                StructFieldAttr<"srcWidth", IntAttr>,
-                StructFieldAttr<"srcStride", IntAttr>,
-                StructFieldAttr<"srcPlaneStride", IntAttr>,
-                StructFieldAttr<"dstWidth", IntAttr>,
-                StructFieldAttr<"dstStride", IntAttr>,
-                StructFieldAttr<"dstPlaneStride", IntAttr>
-            ]
-        >;
+def VPUIP_DMADescriptorAttr : VPUIP_Attr<"DMADescriptor"> {
+    let parameters = (ins
+        "mlir::IntegerAttr":$numPlanes,
+        "mlir::IntegerAttr":$len,
+        "mlir::IntegerAttr":$srcWidth,
+        "mlir::IntegerAttr":$srcStride,
+        "mlir::IntegerAttr":$srcPlaneStride,
+        "mlir::IntegerAttr":$dstWidth,
+        "mlir::IntegerAttr":$dstStride,
+        "mlir::IntegerAttr":$dstPlaneStride
+    );
+}
 
 //
 // DmaChannelType
@@ -187,6 +202,47 @@ def VPUIP_DmaChannelType :
        - DDR channel - DMA SRC is DDR
        - CMX channel - DMA SRC is CMX or HW register"
     }];
+}
+
+//
+// DMA Acceleration mode
+//
+
+def VPUIP_DMAAccMode :
+    VPUIP_I64EnumAttr<
+        "DMAAccMode",
+        "DMA Acceleration Mode",
+        [
+            I64EnumAttrCase<"DISABLE",       0>,
+            I64EnumAttrCase<"COMPRESSION",   1>,
+            I64EnumAttrCase<"DECOMPRESSION", 2>,
+            I64EnumAttrCase<"WEIGHT_PREP",   3>
+        ]
+    > {
+}
+
+def VPUIP_DMAAccModeAttr : VPUIP_EnumAttr<VPUIP_DMAAccMode, "dma_cc_mode">;
+
+//
+// DPU Profiling Metadata
+//
+
+def VPUIP_DpuProfilingMetadataAttr : VPUIP_Attr<"DpuProfilingMetadata", [
+        DeclareAttrInterfaceMethods<VPUIP_ProfilingMetadataAttrInterface>
+    ] > {
+    let description = [{
+        Attribute attached to NCEClusterTask operation. Represent related to the task profiling memory layout
+    }];
+
+    let parameters = (ins
+        "mlir::IntegerAttr":$bufferId,
+        "mlir::IntegerAttr":$taskId,
+        "mlir::IntegerAttr":$maxVariants,
+        OptionalParameter<"mlir::IntegerAttr">:$numVariants,
+        OptionalParameter<"mlir::IntegerAttr">:$clusterId
+    );
+
+    let assemblyFormat = "`<` struct(params) `>`";
 }
 
 #endif

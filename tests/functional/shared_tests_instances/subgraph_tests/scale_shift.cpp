@@ -1,6 +1,6 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include <shared_test_classes/subgraph/scaleshift.hpp>
@@ -9,11 +9,11 @@
 
 #include <common/functions.h>
 #include "common_test_utils/test_constants.hpp"
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace SubgraphTestsDefinitions {
 
-class VPUXScaleShiftLayerTest : public ScaleShiftLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXScaleShiftLayerTest : public ScaleShiftLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
 class VPUXScaleShiftLayerTest_VPU3700 : public VPUXScaleShiftLayerTest {};
 
@@ -52,7 +52,7 @@ std::vector<InferenceEngine::Precision> netPrecisions = {
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_scale_shift_mlir, VPUXScaleShiftLayerTest_VPU3700,
                          ::testing::Combine(::testing::ValuesIn(inShapes), ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::ValuesIn(Scales), ::testing::ValuesIn(Shifts)),
                          VPUXScaleShiftLayerTest_VPU3700::getTestCaseName);
 

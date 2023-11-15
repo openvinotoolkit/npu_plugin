@@ -30,12 +30,12 @@ IE::DeformablePSROIPoolingMode convertDeformablePSROIPoolingModeToIE(MVCNN::Defo
 }  // namespace
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::DeformablePSROIPoolingUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto spatialBinsX = spatial_bins_x().hasValue() ? spatial_bins_x().getValue() : 1;
-    const auto spatialBinsY = spatial_bins_y().hasValue() ? spatial_bins_y().getValue() : 1;
-    const auto groupSize = group_size().hasValue() ? group_size().getValue() : 1;
-    const auto partSize = part_size().hasValue() ? part_size().getValue() : 0;
+    const auto spatialBinsX = spatial_bins_x().has_value() ? spatial_bins_x().value() : 1;
+    const auto spatialBinsY = spatial_bins_y().has_value() ? spatial_bins_y().value() : 1;
+    const auto groupSize = group_size().has_value() ? group_size().value() : 1;
+    const auto partSize = part_size().has_value() ? part_size().value() : 0;
     const auto deformablepsROIPoolingMode =
-            mode().hasValue() ? mode().getValue() : IE::DeformablePSROIPoolingMode::BILINEAR_DEFORMABLE;
+            mode().has_value() ? mode().value() : IE::DeformablePSROIPoolingMode::BILINEAR_DEFORMABLE;
 
     MVCNN::DeformablePSROIPoolingParamsBuilder builder(writer);
 

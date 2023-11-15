@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache 2.0
 #
 
-#
-
 set(TARGET_NAME legacy-single-image-test)
 
 find_package(OpenCV QUIET COMPONENTS core imgproc imgcodecs)

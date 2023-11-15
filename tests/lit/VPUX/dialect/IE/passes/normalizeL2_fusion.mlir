@@ -11,7 +11,7 @@ func.func @main(%arg0: tensor<1x192xf32>) -> tensor<1x192xf32> {
     %1 = IE.Clamp(%0) {max = 1.7976931348623157E+308 : f64, min = 9.999999960041972E-13 : f64} : tensor<1x1xf32> -> tensor<1x1xf32>
     %2 = IE.Divide(%arg0, %1) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>} : tensor<1x192xf32>, tensor<1x1xf32> -> tensor<1x192xf32>
     return %2 : tensor<1x192xf32>
-
+  
 
     // CHECK-NOT: IE.ReduceL2
     // CHECK:   [[NORMALIZEL2:%.*]] = IE.NormalizeL2(%arg0, %cst) {eps = 9.999999960041972E-13 : f64, eps_mode = #IE.eps_mode<ADD>} : tensor<1x192xf32>, tensor<1xsi64> -> tensor<1x192xf32>

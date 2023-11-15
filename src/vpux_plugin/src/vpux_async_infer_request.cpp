@@ -6,14 +6,14 @@
 #include "vpux_async_infer_request.h"
 
 namespace vpux {
-namespace IE = InferenceEngine;
+namespace ie = InferenceEngine;
 
 // clang-format off
 AsyncInferRequest::AsyncInferRequest(const IInferRequest::Ptr &inferRequest,
-                                     const IE::ITaskExecutor::Ptr &requestExecutor,
-                                     const IE::ITaskExecutor::Ptr &getResultExecutor,
-                                     const IE::ITaskExecutor::Ptr &callbackExecutor)
-        : IE::AsyncInferRequestThreadSafeDefault(inferRequest, requestExecutor, callbackExecutor),
+                                     const ie::ITaskExecutor::Ptr &requestExecutor,
+                                     const ie::ITaskExecutor::Ptr &getResultExecutor,
+                                     const ie::ITaskExecutor::Ptr &callbackExecutor)
+        : ie::AsyncInferRequestThreadSafeDefault(inferRequest, requestExecutor, callbackExecutor),
           _inferRequest(inferRequest), _getResultExecutor(getResultExecutor) {
     _pipeline = {
             {_requestExecutor,       [this] { _inferRequest->InferAsync(); }},

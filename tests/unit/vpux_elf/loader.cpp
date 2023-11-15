@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <gtest/gtest.h>
 #include <malloc.h>
 #include <random>
@@ -204,10 +202,16 @@ TEST(ELFLoader, ThrowWhenAccessorPointerIsNull) {
 }
 
 TEST(ELFLoader, ThrowWhenElfHeaderIsInvalid) {
-    std::vector<uint8_t> elfBad = {0x7f, 'E', 'L', 'X'};
-    ElfDDRAccessManager accessor(reinterpret_cast<const uint8_t*>(elfBad.data()), elfBad.size());
+    ELFHeader elf{};
+    elf.e_ident[0] = elf::ELFMAG0;
+    elf.e_ident[1] = elf::EI_MAG1;
+    elf.e_ident[2] = elf::EI_MAG2;
+    elf.e_ident[3] = 'X';
+    DummyBufferManager bufMgr;
 
-    ASSERT_THROW(VPUXLoader(&accessor, nullptr, gSymTab.symTab()), HeaderError);
+    ElfDDRAccessManager accessor(reinterpret_cast<const uint8_t*>(&elf), sizeof(ELFHeader));
+
+    ASSERT_THROW(VPUXLoader(&accessor, &bufMgr, gSymTab.symTab()), HeaderError);
 }
 
 TEST(ELFLoader, ThrowWhenBufferManagerIsNull) {

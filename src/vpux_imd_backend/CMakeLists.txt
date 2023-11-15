@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache 2.0
 #
 
-set(TARGET_NAME "vpux_imd_backend")
+set(TARGET_NAME "npu_imd_backend")
 
 add_custom_target("${TARGET_NAME}_copy_app" ALL
     COMMAND
@@ -82,8 +82,8 @@ link_system_libraries(${TARGET_NAME}
 )
 target_link_libraries(${TARGET_NAME}
     PRIVATE
-        vpux_al
-        vpux_utils
+        npu_al
+        npu_utils
 )
 
 install(TARGETS ${TARGET_NAME}

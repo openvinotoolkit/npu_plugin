@@ -1,0 +1,25 @@
+[rewrite-concat-attr]
+match = "IE.Concat(:[args]) { per_axis = {:[attr]} }"
+rewrite = "IE.Concat(:[args]) { per_axis = #IE.Concat<:[attr]> }"
+
+[rewrite-postop-attr]
+match = "post_op = {:[attrs]}"
+rewrite = "post_op = #IE.PostOp<:[attrs]>"
+
+
+comby 'IE.Concat(:[args]) { per_axis = {:[attr]} }' 'IE.Concat(:[args]) { per_axis = #IE.Concat<:[attr]> }' -i -omega .mlir -statistics
+
+comby 'IE.Concat(:[args]) {per_axis = {:[attr]}}' 'IE.Concat(:[args]) { per_axis = #IE.Concat<:[attr]> }' -i -omega .mlir -statistics
+
+comby 'IE.Concat(:[args]) { per_axis={:[attr]} }' 'IE.Concat(:[args]) { per_axis = #IE.Concat<:[attr]> }' -i -omega .mlir -statistics
+
+comby 'post_op = {:[attrs]}' 'post_op = #IE.PostOp<:[attrs]>' -i -omega .mlir -statistics
+
+comby '#IE.PostOp<attrs = :[attrs], name = :[name]>' '#IE.PostOp<name = :[name], attrs = :[attrs]>' -i -omega .mlir -statistics
+
+comby 'padded_channels = {input = :[input]: i64, output = :[output]: i64}' 'padded_channels = #IE.ChannelPadding<input = :[input]: i64, output = :[output]: i64>' -i -omega .mlir -statistics
+
+comby '{ per_axis = #IE.Concat<:[args]> }' '{per_axis = #IE.Concat<:[args]>}' -i -omega .mlir -statistics
+
+
+comby 'per_axis = {:[attrs]}' 'per_axis = #IE.Concat<:[attrs]>' -i -omega .mlir -statistics

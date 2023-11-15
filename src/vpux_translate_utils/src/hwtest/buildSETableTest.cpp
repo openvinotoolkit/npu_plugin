@@ -1,6 +1,7 @@
 //
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
+//
 
 #include <numeric>
 
@@ -178,7 +179,7 @@ void buildSETableTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp
 
     // Create sparsity map filled with 1s
     const auto numElems = inputCMX.getType().cast<vpux::NDTypeInterface>().getShape().totalSize();
-    const auto sparseMapContent = std::vector<char>(numElems / CHAR_BIT, 0xFF);
+    const auto sparseMapContent = std::vector<char>(numElems / CHAR_BIT, static_cast<char>(0xFF));
     auto sparseMapValues = mlir::DenseElementsAttr::getFromRawBuffer(mlir::RankedTensorType::get(inputShape, int1),
                                                                      llvm::makeArrayRef<char>(sparseMapContent));
     auto sparseMapConstAttr = vpux::Const::ContentAttr::get(sparseMapValues);
@@ -211,9 +212,6 @@ void buildSETableTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp
                                             DimsOrder::NHWC, seTableStrides, CLUSTER_NUM, SE_TABLE_CMX_OFFSET);
 
     auto inputSeSizeAttr = getIntAttr(ctx, inputShape[Dims4D::Act::C.ind()]);
-
-    auto inputSparseBuffer = fcnBuilder.create<VPUIP::GroupSparseBufferOp>(
-            loc, inputCMX.buffer(), sparsityMapCMX.buffer(), seTableCMX.buffer(), nullptr);
 
     // Create weights table
     auto& weightsOutputChannelsStrideInBits = weightsStrides[vpux::Dims4D::Filter::OC];
@@ -248,15 +246,15 @@ void buildSETableTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp
     auto updateBarrier = fcnBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, 0);
 
     // Create DMAs for input act, weights, weights table, sparsity map and SE table
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(fcnBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.barrier()),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(fcnBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.getBarrier()),
                                           loc, functionInput, inputCMX);
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(fcnBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.barrier()),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(fcnBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.getBarrier()),
                                           loc, weightsDDR, weightsCMX);
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(fcnBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.barrier()),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(fcnBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.getBarrier()),
                                           loc, weightsTableDDR, weightsTableCMX);
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(fcnBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.barrier()),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(fcnBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.getBarrier()),
                                           loc, sparsityMapDDR, sparsityMapCMX);
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(fcnBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.barrier()),
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(fcnBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.getBarrier()),
                                           loc, seTableDDR, seTableCMX);
 
     auto waitBarrier = updateBarrier;
@@ -271,11 +269,11 @@ void buildSETableTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp
     // Create NCEClusterTaskOp
     updateBarrier = fcnBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, 1);
     auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
-            fcnBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()), loc,
-            inputSparseBuffer.data(), inputSparseBuffer.sparsityMap(), inputSparseBuffer.storageElementTable(),
-            weightsCMX, /*weights_sparsity_map=*/nullptr, weightsTableCMX, /*instruction_list_table=*/nullptr,
-            /*activation_window=*/nullptr, inputSparseBuffer.data(), inputSparseBuffer.sparsityMap(),
-            inputSparseBuffer.storageElementTable(), outCMXBuffer, /*parent_output_sparsity_map=*/nullptr, outCMXBuffer,
+            fcnBuilder, mlir::ValueRange(waitBarrier.getBarrier()), mlir::ValueRange(updateBarrier.getBarrier()), loc,
+            inputCMX.getBuffer(), sparsityMapCMX.getBuffer(), seTableCMX.getBuffer(), weightsCMX,
+            /*weights_sparsity_map=*/nullptr, weightsTableCMX, /*instruction_list_table=*/nullptr,
+            /*activation_window=*/nullptr, inputCMX.getBuffer(), sparsityMapCMX.getBuffer(), seTableCMX.getBuffer(),
+            outCMXBuffer, /*parent_output_sparsity_map=*/nullptr, outCMXBuffer,
             /*output_sparsity_map_buff=*/nullptr, /*profiling_data=*/nullptr, vpux::VPUIP::NCETaskType::CONV,
             kernelSize, strides, kernelPaddings,
             /*activation_window_channel_length=*/nullptr,
@@ -303,14 +301,13 @@ void buildSETableTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp
     // Create CMX2DDR DMAs from each cluster the output was broadcasted to
 
     auto functionOutput = function.getArgument(1);
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(fcnBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(), loc,
-                                          outCMXBuffer, functionOutput);
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(fcnBuilder, mlir::ValueRange(waitBarrier.getBarrier()), mlir::ValueRange(),
+                                          loc, outCMXBuffer, functionOutput);
 
     fcnBuilder.create<mlir::func::ReturnOp>(loc, SmallVector<mlir::Value>{functionOutput});
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, None,
-                                           log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsBTCPass(log));
     }

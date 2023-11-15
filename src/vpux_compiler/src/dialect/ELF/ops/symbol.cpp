@@ -37,13 +37,13 @@ mlir::Operation* getParentSectionOp(mlir::Value val) {
 }  // namespace
 
 void vpux::ELF::SymbolOp::serialize(elf::writer::Symbol* symbol, vpux::ELF::SectionMapType& sectionMap) {
-    if (isBuiltin())
+    if (getIsBuiltin())
         return;
 
-    auto symName = name().value_or("");
-    auto symType = type().value_or(vpux::ELF::SymbolTypeAttr::STT_NOTYPE);
-    auto symSize = size().value_or(0);
-    auto symVal = value().value_or(0);
+    auto symName = getName().value_or("");
+    auto symType = getSymType().value_or(vpux::ELF::SymbolTypeEnum::STT_NOTYPE);
+    auto symSize = getSize().value_or(0);
+    auto symVal = getValue().value_or(0);
 
     /* From the serialization perspective the symbols can be of 5 types:
         - Section symbols: in this case the parentSection is the defining op itself;
@@ -56,15 +56,15 @@ void vpux::ELF::SymbolOp::serialize(elf::writer::Symbol* symbol, vpux::ELF::Sect
       The ticket E#29144 plans to handle these last 2 types of sections.
     */
 
-    // We initialize parentSection to nullptr, since inputArg() can be a BlockArgument,
+    // We initialize parentSection to nullptr, since getInputArg() can be a BlockArgument,
     //   which has getDefiningOp() equal to nullptr.
     mlir::Operation* parentSection = nullptr;
 
-    if (auto inputArgDefOp = inputArg().getDefiningOp()) {
+    if (auto inputArgDefOp = getInputArg().getDefiningOp()) {
         if (mlir::isa<ELF::ElfSectionInterface>(inputArgDefOp)) {
             parentSection = inputArgDefOp;
         } else {
-            parentSection = getParentSectionOp(inputArg());
+            parentSection = getParentSectionOp(getInputArg());
 
             if (mlir::isa<mlir::func::FuncOp>(parentSection)) {
                 parentSection = nullptr;

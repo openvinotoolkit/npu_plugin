@@ -13,7 +13,7 @@ using namespace vpux;
 
 int64_t vpux::getDMAPortValue(mlir::Operation* wrappedTaskOp) {
     if (auto dmaOp = mlir::dyn_cast<VPUIP::DMATypeOpInterface>(wrappedTaskOp)) {
-        auto portAttr = dmaOp.getPortAttr();
+        auto portAttr = dmaOp.getPortAttribute();
         if (portAttr == nullptr) {
             return 0;
         }
@@ -23,6 +23,6 @@ int64_t vpux::getDMAPortValue(mlir::Operation* wrappedTaskOp) {
     VPUX_THROW("Could not cast to DMA task '{0}'", *wrappedTaskOp);
 }
 
-VPUIP::DmaChannelType vpux::setDMAChannelType(VPUIP::DMATypeOpInterface /*dmaOp*/, VPU::ArchKind /*arch*/) {
+VPUIP::DmaChannelType vpux::setDMAChannelType(VPUIP::DMATypeOpInterface /* dmaOp */, VPU::ArchKind /* arch */) {
     return VPUIP::DmaChannelType::DDR;
 }

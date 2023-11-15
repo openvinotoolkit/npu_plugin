@@ -1,15 +1,16 @@
-// Copyright (C) Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include <vector>
 
 #include <common/functions.h>
-#include "kmb_layer_test.hpp"
 #include "single_layer_tests/mat_mul.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
-class VPUXMatMulLayerTest : public MatMulTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXMatMulLayerTest : public MatMulTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
 class VPUXMatMulLayerTest_VPU3700 : public VPUXMatMulLayerTest {
     void SkipBeforeLoad() override {
@@ -24,16 +25,14 @@ class VPUXMatMulLayerTest_VPU3700 : public VPUXMatMulLayerTest {
                  additionalConfig) = GetParam();
 
         if (shapeRelatedParams.input1.first == InferenceEngine::SizeVector({1, 2048})) {
-            throw LayerTestsUtils::KmbSkipTestException("Unsupported MLIR case");
+            throw LayerTestsUtils::VpuSkipTestException("Unsupported MLIR case");
         }
     }
     void SkipBeforeInfer() override {
-        // [Track number: E#20337]
+        // Tracking number [E#85137]
         if (getBackendName(*getCore()) == "LEVEL0") {
-            throw LayerTestsUtils::KmbSkipTestException("AppendGraphInitialize result 0x70000001");
+            throw LayerTestsUtils::VpuSkipTestException("AppendGraphInitialize result 0x70000001");
         }
-    }
-    void SkipBeforeValidate() override {
     }
 };
 class VPUXMatMulLayerTest_HW_VPU3720 : public VPUXMatMulLayerTest {};
@@ -96,27 +95,18 @@ const auto fullyConnectedCase = ::testing::Combine(
         ::testing::ValuesIn(fullyConnectedShapeParams), ::testing::ValuesIn(inputPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::ValuesIn(secondaryInputTypes), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+        ::testing::ValuesIn(secondaryInputTypes), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
         ::testing::Values(additional_config));
 
-// [Track number: S#50186]
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_MatMul, VPUXMatMulLayerTest_VPU3700,
-                         ::testing::Combine(::testing::ValuesIn(shapeRelatedParams),
-                                            ::testing::ValuesIn(inputPrecisions),
-                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::ValuesIn(secondaryInputTypes),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
-                                            ::testing::Values(additional_config)),
-                         VPUXMatMulLayerTest_VPU3700::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_MatMul_to_FC_case, VPUXMatMulLayerTest_VPU3700, fullyConnectedCase,
-                         VPUXMatMulLayerTest_VPU3700::getTestCaseName);
-
-/* ============= VPU3720 ============= */
+const auto matMulParams = ::testing::Combine(
+        ::testing::ValuesIn(shapeRelatedParams), ::testing::ValuesIn(inputPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(secondaryInputTypes), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
+        ::testing::Values(additional_config));
 
 const std::vector<InferenceEngine::Precision> inputPrecisions_VPU3720 = {InferenceEngine::Precision::FP16};
+
 const std::vector<ShapeRelatedParams> shapeRelatedParams_VPU3720 = {
         {{{1, 2, 5, 16}, false}, {{1, 2, 16, 4}, false}}, {{{1, 8, 76, 64}, false}, {{1, 8, 4, 64}, true}},
         {{{2, 16, 5}, true}, {{16, 16}, true}},           {{{8, 76, 64}, false}, {{4, 64}, true}},
@@ -127,14 +117,31 @@ std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes_VPU3720 = {
         ngraph::helpers::InputLayerType::PARAMETER,
 };
 
-const auto params_VPU3720 = ::testing::Combine(
+const auto matMulPrecommit = ::testing::Combine(
         ::testing::ValuesIn(shapeRelatedParams_VPU3720), ::testing::ValuesIn(inputPrecisions_VPU3720),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::ValuesIn(secondaryInputTypes_VPU3720), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
-        ::testing::Values(additional_config));
+        ::testing::ValuesIn(secondaryInputTypes_VPU3720),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(additional_config));
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_MatMul, VPUXMatMulLayerTest_HW_VPU3720, params_VPU3720,
+/* ============= VPU3700 ============= */
+
+// Tracking number [E#85137]
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_MatMul, VPUXMatMulLayerTest_VPU3700, matMulParams,
+                         VPUXMatMulLayerTest_VPU3700::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_MatMul_to_FC_case, VPUXMatMulLayerTest_VPU3700, fullyConnectedCase,
+                         VPUXMatMulLayerTest_VPU3700::getTestCaseName);
+
+/* ============= VPU3720 ============= */
+
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_MatMul, VPUXMatMulLayerTest_HW_VPU3720, matMulPrecommit,
                          VPUXMatMulLayerTest_HW_VPU3720::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMul_to_FC_case, VPUXMatMulLayerTest_SW_VPU3720, fullyConnectedCase,
+                         VPUXMatMulLayerTest_SW_VPU3720::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMul, VPUXMatMulLayerTest_SW_VPU3720, matMulParams,
+                         VPUXMatMulLayerTest_SW_VPU3720::getTestCaseName);
 
 }  // namespace

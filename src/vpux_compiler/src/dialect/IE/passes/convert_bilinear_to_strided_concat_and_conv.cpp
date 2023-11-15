@@ -26,17 +26,6 @@ mlir::Value createFQ(mlir::PatternRewriter& rewriter, mlir::Value input, IE::Fak
             ->getResult(0);
 }
 
-static inline Const::DeclareOp declareFloatConst(mlir::Location loc, float val, mlir::RankedTensorType argType,
-                                                 mlir::PatternRewriter& rewriter) {
-    const auto denseElementVal = wrapData(argType, val);
-    // Must never fail, given the 'RankedTensorOf<[F16, F32]>:$input,' declaration.
-    VPUX_THROW_UNLESS(denseElementVal != nullptr,
-                      "Average pool has incompatible data type {0}, only float16 or float32 are supported",
-                      argType.getElementType());
-
-    return rewriter.create<Const::DeclareOp>(loc, argType, Const::ContentAttr::get(denseElementVal));
-}
-
 // padding Right or bottom for given input
 mlir::Value createPadding(mlir::PatternRewriter& rewriter, IE::InterpolateOp origOp, mlir::Value input, Dim axis,
                           int64_t scale) {
@@ -54,7 +43,7 @@ mlir::Value createPadding(mlir::PatternRewriter& rewriter, IE::InterpolateOp ori
     subSlices.push_back(input);
     subSlices.insert(subSlices.end(), scale - 1, subSlice);
     return rewriter.create<IE::ConcatOp>(origOp->getLoc(), subSlices, axis).output();
-};
+}
 
 mlir::Value createAverageDWConv(mlir::Value input, ShapeRef kernelShape, mlir::Location loc, IE::FakeQuantizeOp inputFQ,
                                 mlir::PatternRewriter& rewriter, Logger log) {
@@ -79,16 +68,16 @@ mlir::Value createAverageDWConv(mlir::Value input, ShapeRef kernelShape, mlir::L
     const float weightsScaleFactor = 1.0f / static_cast<float>(kernelShape[Dim(0)] * kernelShape[Dim(1)]);
     const float weightRealVal = (inputFQ != nullptr) ? 1.0f : weightsScaleFactor;
     auto dwConvFilter = createConstOp(weightShape, weightRealVal);
-    auto weights = dwConvFilter.output();
+    auto weights = dwConvFilter.getOutput();
     const auto dataStorageType = mlir::RankedTensorType::get(to_small_vector(weightShape), elemType);
     // Add fakeQuan after kernel if needed
     if (inputFQ != nullptr) {
         const auto fqArgType = mlir::RankedTensorType::get({}, elemType);
 
         auto fqLevelsVal = getIntAttr(rewriter, 255);
-        auto fqLowVal = declareFloatConst(loc, 0.0f, fqArgType, rewriter);
-        auto fqInHighVal = declareFloatConst(loc, 254.0f, fqArgType, rewriter);
-        auto fqOutHighVal = declareFloatConst(loc, 254.0f * weightsScaleFactor, fqArgType, rewriter);
+        auto fqLowVal = VPU::declareFloatConst(rewriter, loc, 0.0f, fqArgType);
+        auto fqInHighVal = VPU::declareFloatConst(rewriter, loc, 254.0f, fqArgType);
+        auto fqOutHighVal = VPU::declareFloatConst(rewriter, loc, 254.0f * weightsScaleFactor, fqArgType);
 
         auto quantizationForWeights =
                 rewriter.create<IE::FakeQuantizeOp>(loc, dataStorageType, weights, fqLowVal, fqInHighVal, fqLowVal,

@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2022 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
+
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
@@ -119,34 +120,6 @@ mlir::LogicalResult FusePermuteQuantizeRewrite::matchAndRewrite(IE::QuantizeCast
         return mlir::failure();
     }
 
-    // input can be fp32, so fuse and convertOp if it is possible.
-    auto paternInput = opReorder.input();
-    auto opReshape = opReorder.input().getDefiningOp<IE::AffineReshapeOp>();
-    auto opConvert = opReorder.input().getDefiningOp<IE::ConvertOp>();
-    // first patern when no reshape involve, just fuse ConvertOp
-    // Do not fuse convert when PermuteQuantize can only be executed on DPU.
-    // DPU does not support FP32 inputs.
-    if (opConvert != nullptr && !_dpuOnly) {
-        if (opConvert.getResult().hasOneUse() &&
-            opConvert.input().getType().cast<vpux::NDTypeInterface>().getElementType().isF32()) {
-            paternInput = opConvert.input();
-        }
-    }
-    // pattern 2 when we have Convert->Reshape>PermuteQuantizePattern
-    // in this case Reshape will be move before ConvertOp
-    if (opReshape != nullptr) {
-        opConvert = opReshape.input().getDefiningOp<IE::ConvertOp>();
-        if (opConvert != nullptr && !_dpuOnly) {
-            if (opReshape.getResult().hasOneUse() && opConvert.getResult().hasOneUse() &&
-                opConvert.input().getType().cast<vpux::NDTypeInterface>().getElementType().isF32()) {
-                const auto newReshapeOpLoc = appendLoc(origOp->getLoc(), "AffineReshape");
-                auto newReshapeOp = rewriter.create<IE::AffineReshapeOp>(
-                        newReshapeOpLoc, opConvert.input(), opReshape.dim_mappingAttr(), opReshape.shape_valueAttr());
-                paternInput = newReshapeOp.output();
-            }
-        }
-    }
-
     auto memPermAttr = mlir::AffineMapAttr::get(getPermutationFromOrders(inOrder, outOrder, origOp->getContext()));
     SmallVector<int64_t> noPadBeginEnd(inOrder.numDims(), 0);
     const auto& ctx = origOp.getContext();
@@ -157,7 +130,7 @@ mlir::LogicalResult FusePermuteQuantizeRewrite::matchAndRewrite(IE::QuantizeCast
     const auto dstElemTypeAttr = mlir::TypeAttr::get(permQuantElemType);
     const auto permQuantLoc = appendLoc(origOp->getLoc(), "PermuteQuantize");
     auto permuteQuantizeOp = rewriter.create<IE::PermuteQuantizeOp>(
-            permQuantLoc, permQuantOutType, paternInput, opReorder.dstOrderAttr(), memPermAttr, dstElemTypeAttr,
+            permQuantLoc, permQuantOutType, opReorder.input(), opReorder.dstOrderAttr(), memPermAttr, dstElemTypeAttr,
             getIntArrayAttr(ctx, noPadBeginEnd), getIntArrayAttr(ctx, noPadBeginEnd));
 
     // IE.PermuteQuantize must have quantization parameters from the original IE.Quantize operation.

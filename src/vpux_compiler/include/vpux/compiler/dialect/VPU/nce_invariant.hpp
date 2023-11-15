@@ -40,6 +40,9 @@ constexpr int64_t VPU_WEIGHT_SET_BYTE_ALIGNMENT = 16;
 
 constexpr int64_t VPU_DIMENSION_LIMIT = 8192;
 
+constexpr int64_t VPU_SEGMENT_SIZE_DENSE = 4;
+constexpr int64_t VPU_SEGMENT_SIZE_SPARSE = 8;
+
 //
 // Precision checks
 //
@@ -94,16 +97,12 @@ bool checkLayouts(mlir::TypeRange operandTypes, mlir::TypeRange resultTypes, con
                   const unsigned numInputOperands, LogCb logCb);
 
 //
-// Compress Convolution
-//
-
-bool isCompressConvolution(ArchKind arch, mlir::Operation* op);
-
-//
 // Check if given architecture supports NCE tasks in superdense mode
 //
 
 bool isSuperdenseSupported(const VPU::ArchKind arch);
+
+mlir::LogicalResult isSupported(mlir::Operation* op, Logger log = Logger::global());
 
 }  // namespace NCEInvariant
 

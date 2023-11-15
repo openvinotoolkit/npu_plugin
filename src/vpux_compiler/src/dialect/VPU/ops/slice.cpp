@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPU/utils/distributed_tensor_utils.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
 using namespace vpux;
@@ -54,9 +56,48 @@ mlir::LogicalResult vpux::VPU::SliceOp::inferReturnTypes(mlir::MLIRContext* ctx,
                        origType.getRank());
     }
 
-    const auto newType = origType.extractDenseTile(ShapeRef(sliceOffsets), ShapeRef(sliceShape));
+    auto inferExplicitDistributedAttr = [&](VPU::DistributedTensorType distributedIn) -> VPU::DistributedTensorAttr {
+        const auto origDistribution = distributedIn.getDistribution();
+        const auto inShape = distributedIn.getShape().raw();
 
-    inferredTypes.emplace_back(newType);
+        if (origDistribution.getMode().getValue() != VPU::DistributionMode::OVERLAPPED ||
+            !VPU::isSegmentedOverlappedAxisSameAsSliceAxis(origDistribution.getNumTiles(), inShape, sliceShape)) {
+            return VPU::getExplicitDistrAttrForSliceLikeOps(origDistribution, sliceShape, inShape, ctx);
+        }
+
+        // When clustering axis == slice axis, we cannot infer per cluster shape from op itself
+        // and therefore this should be correctly computed in pass that creates the Slice Op
+        auto memoryShapes = vpux::parseIntArrayOfArrayAttr<int64_t>(origDistribution.getMemoryShapes());
+
+        for (size_t cluster = 0; cluster < memoryShapes.size(); cluster++) {
+            for (size_t dim = 0; dim < inShape.size(); dim++) {
+                // If this is the slice axis, the dim shape needs to be adjusted
+                if (sliceShape[dim] != inShape[dim]) {
+                    memoryShapes[cluster][dim] = sliceShape[dim];
+                }
+            }
+        }
+        const auto perClusterShapesAttr = vpux::getIntArrayOfArray(ctx, memoryShapes);
+
+        return VPU::DistributedTensorAttr::get(
+                ctx, origDistribution.getMode(), origDistribution.getNumTiles(), origDistribution.getKernel(),
+                origDistribution.getPads(), origDistribution.getStrides(), origDistribution.getNumClusters(),
+                origDistribution.getAlignment(), origDistribution.getUniformDistributedSegments(), perClusterShapesAttr,
+                origDistribution.getMemoryOffsets(), perClusterShapesAttr, origDistribution.getMemoryOffsets(),
+                origDistribution.getEqualMemoryAndComputeView());
+    };
+
+    auto distributedIn = origType.dyn_cast<VPU::DistributedTensorType>();
+    if (distributedIn != nullptr &&
+        VPU::isDistributedAttrWithExplicitShapesAndOffsets(distributedIn.getDistribution())) {
+        const auto sliceDistributedAttr = inferExplicitDistributedAttr(distributedIn);
+        const auto newType = distributedIn.extractDenseTileForExplicitDistribution(
+                ShapeRef(sliceOffsets), ShapeRef(sliceShape), sliceDistributedAttr);
+        inferredTypes.emplace_back(newType);
+    } else {
+        const auto newType = origType.extractDenseTile(ShapeRef(sliceOffsets), ShapeRef(sliceShape));
+        inferredTypes.emplace_back(newType);
+    }
 
     return mlir::success();
 }

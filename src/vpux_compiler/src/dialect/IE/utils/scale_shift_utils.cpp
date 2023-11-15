@@ -1,0 +1,50 @@
+//
+// Copyright (C) 2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
+//
+
+#include "vpux/compiler/dialect/IE/utils/scale_shift_utils.hpp"
+#include "vpux/compiler/dialect/IE/utils/const_attributes.hpp"
+#include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
+
+namespace vpux {
+namespace IE {
+
+mlir::LogicalResult isBeneficialConvertScaleShiftToDW(IE::ScaleShiftOp scaleShiftOp, Logger log) {
+    if (scaleShiftOp.biases() != nullptr) {
+        if (mlir::failed(IE::getConstParentOp(scaleShiftOp.biases()))) {
+            log.nest().trace("Cannot convert ScaleShift to DW, since it has non constant biases");
+            return mlir::failure();
+        }
+    }
+
+    // If ScaleShift after input and first conv can use C-major, It is better not convert to DWConv.
+    // More general, if sub-graph like: input -> UPAs -> ScaleShift -> Conv. It is better not convert to DWConv.
+    // If layer before ScaleShift is NCE op or with NHWC layout. It should convert to DWConv.
+    auto onlySupportNHWCLayout = [&](mlir::Operation* op) -> bool {
+        if (auto iface = mlir::dyn_cast_or_null<IE::LayoutInfoOpInterface>(op)) {
+            auto orderInfo = iface.getLayoutInfo();
+            iface.inferLayoutInfo(orderInfo, /*seOpsEnabled=*/false);
+            return orderInfo.hasChanges();
+        }
+        return false;
+    };
+
+    auto prevOp = scaleShiftOp.input().getDefiningOp();
+    if (onlySupportNHWCLayout(prevOp)) {
+        return mlir::success();
+    }
+    for (auto user : scaleShiftOp.getResult().getUsers()) {
+        auto convOp = mlir::dyn_cast<IE::ConvolutionOp>(user);
+        if (convOp != nullptr &&
+            VPU::NCEInvariant::isChannelMajorCompatible(VPU::getArch(convOp),
+                                                        convOp.input().getType().cast<vpux::NDTypeInterface>())) {
+            log.nest().trace("Cannot convert ScaleShift to DW, since there is no benefit.");
+            return mlir::failure();
+        }
+    }
+
+    return mlir::success();
+}
+}  // namespace IE
+}  // namespace vpux

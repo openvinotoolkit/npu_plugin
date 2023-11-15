@@ -1,5 +1,6 @@
-// Copyright (C) 2018-2021 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) 2018-2021 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include <vector>
@@ -28,7 +29,7 @@ namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16, InferenceEngine::Precision::U8};
 
-const std::vector<std::map<std::string, std::string>> configs = {{{"VPUX_CREATE_EXECUTOR", "0"}}};
+const std::vector<std::map<std::string, std::string>> configs = {{{"NPU_CREATE_EXECUTOR", "0"}}};
 
 const std::vector<std::map<std::string, std::string>> autoConfig = {
         {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), CommonTestUtils::DEVICE_KEEMBAY}},

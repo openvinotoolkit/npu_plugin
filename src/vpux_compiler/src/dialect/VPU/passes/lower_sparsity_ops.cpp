@@ -249,8 +249,9 @@ mlir::Value createFilter(mlir::PatternRewriter& rewriter, mlir::Location loc, vp
     const auto alignmentAttr = getIntAttr(ctx, VPU::NCEInvariant::VPU_WEIGHT_SET_BYTE_ALIGNMENT);
     auto compressionSchemeAttr = VPU::CompressionSchemeAttr::get(ctx, axisAttr, numElemsAttr, alignmentAttr);
 
-    auto groupOp = rewriter.create<VPU::GroupSparseTensorOp>(loc, filterConstOp.output(), sparsityMapConstOp.output(),
-                                                             /*is_weights=*/true, compressionSchemeAttr);
+    auto groupOp =
+            rewriter.create<VPU::GroupSparseTensorOp>(loc, filterConstOp.getOutput(), sparsityMapConstOp.getOutput(),
+                                                      /*is_weights=*/true, compressionSchemeAttr);
 
     return groupOp.output();
 }
@@ -311,7 +312,7 @@ mlir::LogicalResult rewriteSparsityOpWithConv(mlir::PatternRewriter& rewriter, m
                 /*flags=*/0, getUInt8Type(ctx), mlir::Float16Type::get(ctx),
                 /*scale=*/1.0, /*zeroPoint=*/0, /*storageTypeMin=*/0, /*storageTypeMax=*/255);
     }
-    auto filterTensorAttr = IE::getTensorAttr(ctx, DimsOrder::OYXI, nullptr);
+    auto filterTensorAttr = vpux::getTensorAttr(ctx, DimsOrder::OYXI, nullptr);
     auto filterType = mlir::RankedTensorType::get(filterShape.raw(), filterElemType, filterTensorAttr)
                               .cast<vpux::NDTypeInterface>();
 
@@ -387,7 +388,7 @@ mlir::LogicalResult LowerSparsityOpsPass::initialize(mlir::MLIRContext* ctx) {
     if (!fakeSparsify.hasValue()) {
         return mlir::success();
     }
-    if (_maybeFakeSparsify.hasValue()) {
+    if (_maybeFakeSparsify.has_value()) {
         _log.trace("Overloading C++ createLowerSparsityOpsPass argument by MLIR variable");
     }
     _maybeFakeSparsify = fakeSparsify;

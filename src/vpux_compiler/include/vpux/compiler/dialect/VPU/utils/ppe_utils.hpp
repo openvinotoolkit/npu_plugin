@@ -54,24 +54,25 @@ double calculateQuantScaleVectorForAvgPool(vpux::NDTypeInterface inputShapedType
                                            vpux::NDTypeInterface outputShapedType, ArrayRef<int64_t> filter_size,
                                            VPU::ArchKind arch);
 
-VPU::PPETaskAttr getPPEAttr(VPU::PostOpParams postOpParams, mlir::MLIRContext* ctx);
+VPU::PPETaskAttr getPPEAttr(const VPU::PostOpParams& postOpParams, mlir::MLIRContext* ctx);
 
-VPU::PPETaskAttr getPPETaskAttrFromPostOpsParams(mlir::Value opInput, mlir::Value opOutput, vpux::IE::PostOp postOpAttr,
-                                                 mlir::Location loc, mlir::MLIRContext* ctx, VPU::ArchKind arch);
+VPU::PPETaskAttr getPPETaskAttrFromPostOpsParams(mlir::Value opInput, mlir::Value opOutput,
+                                                 vpux::IE::PostOpAttr postOpAttr, mlir::Location loc,
+                                                 mlir::MLIRContext* ctx, VPU::ArchKind arch);
 
 VPU::PPETaskAttr getNCEAveragePoolPPETaskAttr(vpux::NDTypeInterface inputType, mlir::ArrayAttr kernelSizeAttr,
-                                              vpux::NDTypeInterface outputType, vpux::IE::PostOp postOpAttr,
+                                              vpux::NDTypeInterface outputType, vpux::IE::PostOpAttr postOpAttr,
                                               mlir::Location loc, mlir::MLIRContext* ctx, VPU::ArchKind arch);
 
 VPU::PPETaskAttr getNCEEltwisePPETaskAttr(vpux::NDTypeInterface input1Type, vpux::NDTypeInterface input2Type,
-                                          vpux::NDTypeInterface outputType, vpux::IE::PostOp postOpAttr,
+                                          vpux::NDTypeInterface outputType, vpux::IE::PostOpAttr postOpAttr,
                                           mlir::Location loc, VPU::EltwiseType opType, mlir::MLIRContext* ctx,
                                           VPU::ArchKind arch);
 
 PostOpParams getPwlPostOpParams(const mlir::Type inElemType, const mlir::Type outElemType, VPU::PPEMode ppeType);
 
-llvm::Optional<PostOpParams> parsePostOp(IE::PostOp postOp, const mlir::Type inElemType, const mlir::Type outElemType,
-                                         VPU::ArchKind arch, mlir::Location loc);
+llvm::Optional<PostOpParams> parsePostOp(IE::PostOpAttr postOp, const mlir::Type inElemType,
+                                         const mlir::Type outElemType, VPU::ArchKind arch, mlir::Location loc);
 bool supportsPerInputEltwiseScale(const VPU::ArchKind arch);
 
 }  // namespace VPU

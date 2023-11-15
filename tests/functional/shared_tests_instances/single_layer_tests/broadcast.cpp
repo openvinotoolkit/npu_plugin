@@ -1,16 +1,16 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
 #include "single_layer_tests/broadcast.hpp"
 #include <vector>
 #include "common_test_utils/test_constants.hpp"
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
-class VPUXBroadcastLayerTest : public BroadcastLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXBroadcastLayerTest : public BroadcastLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
 class VPUXBroadcastLayerTest_VPU3700 : public VPUXBroadcastLayerTest {};
 class VPUXBroadcastLayerTest_VPU3720 : public VPUXBroadcastLayerTest {};
@@ -45,7 +45,7 @@ std::vector<std::vector<size_t>> targetShapesNumpy = {{2, 3, 6}, {1, 4, 4}};
 const auto numpyBroadcastParams1 = ::testing::Combine(
         ::testing::Values(targetShapesNumpy[0]), ::testing::Values(ngraph::AxisSet{}),  // not used in numpy mode
         ::testing::Values(ngraph::op::BroadcastType::NUMPY), ::testing::Values(inShapesNumpy[0]),
-        ::testing::ValuesIn(inputPrecision), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        ::testing::ValuesIn(inputPrecision), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_CASE_P(smoke_NumpyBroadcastCheck1, VPUXBroadcastLayerTest_VPU3700, numpyBroadcastParams1,
                         VPUXBroadcastLayerTest_VPU3700::getTestCaseName);
@@ -53,7 +53,7 @@ INSTANTIATE_TEST_CASE_P(smoke_NumpyBroadcastCheck1, VPUXBroadcastLayerTest_VPU37
 const auto numpyBroadcastParams2 = ::testing::Combine(
         ::testing::Values(targetShapesNumpy[1]), ::testing::Values(ngraph::AxisSet{}),
         ::testing::Values(ngraph::op::BroadcastType::NUMPY), ::testing::Values(inShapesNumpy[1]),
-        ::testing::ValuesIn(inputPrecision), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        ::testing::ValuesIn(inputPrecision), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_CASE_P(smoke_NumpyBroadcastCheck2, VPUXBroadcastLayerTest_VPU3700, numpyBroadcastParams2,
                         VPUXBroadcastLayerTest_VPU3700::getTestCaseName);
@@ -67,7 +67,7 @@ std::vector<std::vector<size_t>> targetShapesBidi = {{2, 1, 4}, {1, 4, 4}, {1, 1
 const auto bidirectionalBroadcastParams1 = ::testing::Combine(
         ::testing::Values(targetShapesBidi[0]), ::testing::Values(ngraph::AxisSet{}),  // not used in bidirectional mode
         ::testing::Values(ngraph::op::BroadcastType::BIDIRECTIONAL), ::testing::Values(inShapesBidi[0]),
-        ::testing::ValuesIn(inputPrecision), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        ::testing::ValuesIn(inputPrecision), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_CASE_P(smoke_BidirectionalBroadcastCheck1, VPUXBroadcastLayerTest_VPU3700,
                         bidirectionalBroadcastParams1, VPUXBroadcastLayerTest_VPU3700::getTestCaseName);
@@ -75,7 +75,7 @@ INSTANTIATE_TEST_CASE_P(smoke_BidirectionalBroadcastCheck1, VPUXBroadcastLayerTe
 const auto bidirectionalBroadcastParams2 = ::testing::Combine(
         ::testing::Values(targetShapesBidi[1]), ::testing::Values(ngraph::AxisSet{}),
         ::testing::Values(ngraph::op::BroadcastType::BIDIRECTIONAL), ::testing::Values(inShapesBidi[1]),
-        ::testing::ValuesIn(inputPrecision), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        ::testing::ValuesIn(inputPrecision), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_CASE_P(smoke_BidirectionalBroadcastCheck2, VPUXBroadcastLayerTest_VPU3700,
                         bidirectionalBroadcastParams2, VPUXBroadcastLayerTest_VPU3700::getTestCaseName);
@@ -83,7 +83,7 @@ INSTANTIATE_TEST_CASE_P(smoke_BidirectionalBroadcastCheck2, VPUXBroadcastLayerTe
 const auto bidirectionalBroadcastParams3 = ::testing::Combine(
         ::testing::Values(targetShapesBidi[2]), ::testing::Values(ngraph::AxisSet{}),
         ::testing::Values(ngraph::op::BroadcastType::BIDIRECTIONAL), ::testing::Values(inShapesBidi[2]),
-        ::testing::ValuesIn(inputPrecision), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        ::testing::ValuesIn(inputPrecision), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_CASE_P(smoke_BidirectionalBroadcastCheck3, VPUXBroadcastLayerTest_VPU3700,
                         bidirectionalBroadcastParams3, VPUXBroadcastLayerTest_VPU3700::getTestCaseName);
@@ -99,7 +99,7 @@ std::vector<ngraph::AxisSet> axes = {{1, 2}, {0, 2}};
 const auto explicitBroadcastParams1 = ::testing::Combine(
         ::testing::Values(targetShapesExplicit[0]), ::testing::Values(axes[0]),
         ::testing::Values(ngraph::op::BroadcastType::EXPLICIT), ::testing::Values(inShapesExplicit[0]),
-        ::testing::ValuesIn(inputPrecision), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        ::testing::ValuesIn(inputPrecision), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_CASE_P(smoke_ExplicitBroadcastCheck1, VPUXBroadcastLayerTest_VPU3700, explicitBroadcastParams1,
                         VPUXBroadcastLayerTest_VPU3700::getTestCaseName);
@@ -107,7 +107,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ExplicitBroadcastCheck1, VPUXBroadcastLayerTest_VP
 const auto explicitBroadcastParams2 = ::testing::Combine(
         ::testing::Values(targetShapesExplicit[1]), ::testing::Values(axes[1]),
         ::testing::Values(ngraph::op::BroadcastType::EXPLICIT), ::testing::Values(inShapesExplicit[1]),
-        ::testing::ValuesIn(inputPrecision), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        ::testing::ValuesIn(inputPrecision), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_CASE_P(smoke_ExplicitBroadcastCheck2, VPUXBroadcastLayerTest_VPU3700, explicitBroadcastParams2,
                         VPUXBroadcastLayerTest_VPU3700::getTestCaseName);

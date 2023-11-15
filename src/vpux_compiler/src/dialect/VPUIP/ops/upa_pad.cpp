@@ -34,7 +34,7 @@ mlir::LogicalResult vpux::VPUIP::PadUPAOp::verify() {
         return errorAt(op, "PadUPAOp: Cannot expand batch");
     }
 
-    if (mode() == IE::PadMode::CONSTANT && !pad_value().hasValue()) {
+    if (mode() == IE::PadMode::CONSTANT && !pad_value().has_value()) {
         return errorAt(op, "pad_mode is CONSTANT but pad_value hasn't provided");
     }
 

@@ -20,16 +20,16 @@ func.func @DMABarrierOptimization() -> !Output_DDR {
     %bar3 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     %bar4 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
-    %input = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> !Input_DDR
-    %input0 = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> memref<1x1x224x224x!qElemType0, {order = #NHWC, strides = [150528, 1, 672, 3]}>
+    %input = VPURT.DeclareBuffer <NetworkInput> [0] <0> -> !Input_DDR
+    %input0 = VPURT.DeclareBuffer <NetworkInput> [0] <0> -> memref<1x1x224x224x!qElemType0, {order = #NHWC, strides = [150528, 1, 672, 3]}>
 
-    %output = VPURT.DeclareBuffer "DDR" <0> -> !Output_DDR
-    %output0 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x3x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>
-    %output1 = VPURT.DeclareBuffer "DDR" <3> -> memref<1x3x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>
-    %output2 = VPURT.DeclareBuffer "DDR" <6> -> memref<1x3x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>
-    %output3 = VPURT.DeclareBuffer "DDR" <9> -> memref<1x3x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>
-    %output4 = VPURT.DeclareBuffer "DDR" <12> -> memref<1x3x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>
-    %output5 = VPURT.DeclareBuffer "DDR" <15> -> memref<1x1x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>
+    %output = VPURT.DeclareBuffer <DDR> <0> -> !Output_DDR
+    %output0 = VPURT.DeclareBuffer <DDR> <0> -> memref<1x3x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>
+    %output1 = VPURT.DeclareBuffer <DDR> <3> -> memref<1x3x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>
+    %output2 = VPURT.DeclareBuffer <DDR> <6> -> memref<1x3x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>
+    %output3 = VPURT.DeclareBuffer <DDR> <9> -> memref<1x3x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>
+    %output4 = VPURT.DeclareBuffer <DDR> <12> -> memref<1x3x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>
+    %output5 = VPURT.DeclareBuffer <DDR> <15> -> memref<1x1x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>
 
     VPURT.Task updates(%bar0 : !VPURT.Barrier) attributes {cycleBegin = 1 : i64, cycleEnd = 2 : i64} {
       %0 = VPUIP.NNDMA {port = 0 : i64} inputs(%input : !Input_DDR) outputs(%output0: memref<1x3x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>) -> memref<1x3x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>
@@ -92,16 +92,16 @@ func.func @NoDMABarrierOptimization() -> !Output_DDR {
     %bar3 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     %bar4 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
-    %input = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> !Input_DDR
-    %input0 = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> memref<1x1x224x224x!qElemType0, {order = #NHWC, strides = [150528, 1, 672, 3]}>
+    %input = VPURT.DeclareBuffer <NetworkInput> [0] <0> -> !Input_DDR
+    %input0 = VPURT.DeclareBuffer <NetworkInput> [0] <0> -> memref<1x1x224x224x!qElemType0, {order = #NHWC, strides = [150528, 1, 672, 3]}>
 
-    %output = VPURT.DeclareBuffer "DDR" <0> -> !Output_DDR
-    %output0 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x3x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>
-    %output1 = VPURT.DeclareBuffer "DDR" <3> -> memref<1x3x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>
-    %output2 = VPURT.DeclareBuffer "DDR" <6> -> memref<1x3x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>
-    %output3 = VPURT.DeclareBuffer "DDR" <9> -> memref<1x3x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>
-    %output4 = VPURT.DeclareBuffer "DDR" <12> -> memref<1x3x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>
-    %output5 = VPURT.DeclareBuffer "DDR" <15> -> memref<1x1x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>
+    %output = VPURT.DeclareBuffer <DDR> <0> -> !Output_DDR
+    %output0 = VPURT.DeclareBuffer <DDR> <0> -> memref<1x3x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>
+    %output1 = VPURT.DeclareBuffer <DDR> <3> -> memref<1x3x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>
+    %output2 = VPURT.DeclareBuffer <DDR> <6> -> memref<1x3x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>
+    %output3 = VPURT.DeclareBuffer <DDR> <9> -> memref<1x3x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>
+    %output4 = VPURT.DeclareBuffer <DDR> <12> -> memref<1x3x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>
+    %output5 = VPURT.DeclareBuffer <DDR> <15> -> memref<1x1x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>
 
     VPURT.Task updates(%bar0 : !VPURT.Barrier) attributes {cycleBegin = 1 : i64, cycleEnd = 2 : i64} {
       %0 = VPUIP.NNDMA {port = 0 : i64} inputs(%input : !Input_DDR) outputs(%output0: memref<1x3x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>) -> memref<1x3x224x224x!qElemType0, {order = #NHWC, strides = [802816, 1, 3584, 16]}, @DDR>
@@ -166,14 +166,14 @@ func.func @RemoveRedundantDependenciesForProducer() -> memref<1x16x1x1xf16, #NHW
     %bar1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
     // dummy buffers
-    %buf0 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
-    %buf1 = VPURT.DeclareBuffer "CMX_NN" [0] <32> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
+    %buf0 = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
+    %buf1 = VPURT.DeclareBuffer <CMX_NN> [0] <32> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
 
-    //      DMA(port=0)
+    //      DMA(port=0)     
     //        /   \
     //       |    bar0
     //       |      |
-    //       |  DMA(port=1)
+    //       |  DMA(port=1)   
     //        \    /
     //         bar1
     //          |
@@ -204,21 +204,21 @@ func.func @RemoveRedundantDependenciesForProducer() -> memref<1x16x1x1xf16, #NHW
 
     return %buf1 : memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
 
-    //    DMA(port=0)
+    //    DMA(port=0) 
     //       |
     //      bar0
     //       |
-    //    DMA(port=1)
+    //    DMA(port=1) 
     //       |
     //      bar1
     //       |
-    //    SwKernelOp
+    //    SwKernelOp  
 
     // CHECK:  [[BAR0:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     // CHECK:  [[BAR1:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     // CHECK-NOT: VPURT.DeclareVirtual
-    // CHECK:  [[BUF0:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
-    // CHECK:  [[BUF1:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <32> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
+    // CHECK:  [[BUF0:%.*]] = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
+    // CHECK:  [[BUF1:%.*]] = VPURT.DeclareBuffer <CMX_NN> [0] <32> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
     // CHECK:  VPURT.Task updates([[BAR0]] : !VPURT.Barrier) {
     // CHECK:                 VPUIP.NNDMA {port = 0 : i64} inputs([[BUF0]] : memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>) outputs([[BUF1]] : memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>) -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
     // CHECK:  }
@@ -247,18 +247,18 @@ func.func @RemoveRedundantDependenciesForConsumer() -> memref<1x16x1x1xf16, #NHW
     %bar1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
     // dummy buffers
-    %buf0 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
-    %buf1 = VPURT.DeclareBuffer "CMX_NN" [0] <32> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
+    %buf0 = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
+    %buf1 = VPURT.DeclareBuffer <CMX_NN> [0] <32> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
 
-    //    DMA(port=0)
+    //    DMA(port=0) 
     //          |
     //         bar0
     //        /    \
-    // DMA(port=1)  |
+    // DMA(port=1)  | 
     //       |      |
-    //      bar1    |
-    //        \    /
-    //       SwkernelOp
+    //      bar1    | 
+    //        \    / 
+    //       SwkernelOp  
 
     VPURT.Task updates(%bar0 : !VPURT.Barrier) {
          VPUIP.NNDMA {port = 0 : i64}
@@ -285,11 +285,11 @@ func.func @RemoveRedundantDependenciesForConsumer() -> memref<1x16x1x1xf16, #NHW
 
     return %buf1 : memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
 
-    //    DMA(port=0)
+    //    DMA(port=0) 
     //       |
     //      bar0
     //       |
-    //    DMA(port=1)
+    //    DMA(port=1) 
     //       |
     //      bar1
     //       |
@@ -298,8 +298,8 @@ func.func @RemoveRedundantDependenciesForConsumer() -> memref<1x16x1x1xf16, #NHW
     // CHECK:  [[BAR0:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     // CHECK:  [[BAR1:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     // CHECK-NOT: VPURT.DeclareVirtual
-    // CHECK:  [[BUF0:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
-    // CHECK:  [[BUF1:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <32> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
+    // CHECK:  [[BUF0:%.*]] = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
+    // CHECK:  [[BUF1:%.*]] = VPURT.DeclareBuffer <CMX_NN> [0] <32> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
     // CHECK:  VPURT.Task updates([[BAR0]] : !VPURT.Barrier) {
     // CHECK:                 VPUIP.NNDMA {port = 0 : i64} inputs([[BUF0]] : memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>) outputs([[BUF1]] : memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>) -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
     // CHECK:  }
@@ -322,10 +322,10 @@ func.func @RemoveExplicitDependenciesWithSameTaskTypeProducer() -> memref<1x16x1
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
     // dummy buffers
-    %buf0 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x16x1x1xf16, #NHWC, @DDR>
-    %buf1 = VPURT.DeclareBuffer "DDR" <32> -> memref<1x16x1x1xf16, #NHWC, @DDR>
+    %buf0 = VPURT.DeclareBuffer <DDR> <0> -> memref<1x16x1x1xf16, #NHWC, @DDR>
+    %buf1 = VPURT.DeclareBuffer <DDR> <32> -> memref<1x16x1x1xf16, #NHWC, @DDR>
 
-    //        DMA(port=0)
+    //        DMA(port=0) 
     //             |
     //            bar0
     //           /    \
@@ -356,16 +356,16 @@ func.func @RemoveExplicitDependenciesWithSameTaskTypeProducer() -> memref<1x16x1
 
     return %buf1 : memref<1x16x1x1xf16, #NHWC, @DDR>
 
-    //        DMA(port=0)
-    //             |
+    //        DMA(port=0) 
+    //             | 
     //            bar0
-    //             |
+    //             | 
     //        DMA(port=1)   DMA(port=0)
 
     // CHECK:  [[BAR0:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
-    // CHECK:  [[BUF0:%.*]] = VPURT.DeclareBuffer "DDR" <0> -> memref<1x16x1x1xf16, #NHWC, @DDR>
-    // CHECK:  [[BUF1:%.*]] = VPURT.DeclareBuffer "DDR" <32> -> memref<1x16x1x1xf16, #NHWC, @DDR>
+    // CHECK:  [[BUF0:%.*]] = VPURT.DeclareBuffer <DDR> <0> -> memref<1x16x1x1xf16, #NHWC, @DDR>
+    // CHECK:  [[BUF1:%.*]] = VPURT.DeclareBuffer <DDR> <32> -> memref<1x16x1x1xf16, #NHWC, @DDR>
     // CHECK:  VPURT.Task updates([[BAR0]] : !VPURT.Barrier) {
     // CHECK:                 VPUIP.NNDMA {port = 0 : i64} inputs([[BUF0]] : memref<1x16x1x1xf16, #NHWC, @DDR>) outputs([[BUF1]] : memref<1x16x1x1xf16, #NHWC, @DDR>) -> memref<1x16x1x1xf16, #NHWC, @DDR>
     // CHECK:  }
@@ -388,8 +388,8 @@ func.func @RemoveExplicitDependenciesWithSameTaskTypeConsumer() -> memref<1x16x1
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
     // dummy buffers
-    %buf0 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x16x1x1xf16, #NHWC, @DDR>
-    %buf1 = VPURT.DeclareBuffer "DDR" <32> -> memref<1x16x1x1xf16, #NHWC, @DDR>
+    %buf0 = VPURT.DeclareBuffer <DDR> <0> -> memref<1x16x1x1xf16, #NHWC, @DDR>
+    %buf1 = VPURT.DeclareBuffer <DDR> <32> -> memref<1x16x1x1xf16, #NHWC, @DDR>
 
     //    DMA(port=0)  DMA(port=1)
     //           \    /
@@ -421,15 +421,15 @@ func.func @RemoveExplicitDependenciesWithSameTaskTypeConsumer() -> memref<1x16x1
     return %buf1 : memref<1x16x1x1xf16, #NHWC, @DDR>
 
     //        DMA(port=0)  DMA(port=1)
-    //             |
+    //             | 
     //            bar0
-    //             |
+    //             | 
     //        DMA(port=1)
 
     // CHECK:  [[BAR0:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
-    // CHECK:  [[BUF0:%.*]] = VPURT.DeclareBuffer "DDR" <0> -> memref<1x16x1x1xf16, #NHWC, @DDR>
-    // CHECK:  [[BUF1:%.*]] = VPURT.DeclareBuffer "DDR" <32> -> memref<1x16x1x1xf16, #NHWC, @DDR>
+    // CHECK:  [[BUF0:%.*]] = VPURT.DeclareBuffer <DDR> <0> -> memref<1x16x1x1xf16, #NHWC, @DDR>
+    // CHECK:  [[BUF1:%.*]] = VPURT.DeclareBuffer <DDR> <32> -> memref<1x16x1x1xf16, #NHWC, @DDR>
     // CHECK:  VPURT.Task updates([[BAR0]] : !VPURT.Barrier) {
     // CHECK:                 VPUIP.NNDMA {port = 0 : i64} inputs([[BUF0]] : memref<1x16x1x1xf16, #NHWC, @DDR>) outputs([[BUF1]] : memref<1x16x1x1xf16, #NHWC, @DDR>) -> memref<1x16x1x1xf16, #NHWC, @DDR>
     // CHECK:  }
@@ -458,14 +458,14 @@ func.func @MergeBarrierForCommonConsumers() -> memref<1x16x1x1xf16, #NHWC, [@CMX
     %bar1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
     // dummy buffers
-    %buf0 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
-    %buf1 = VPURT.DeclareBuffer "CMX_NN" [0] <32> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
+    %buf0 = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
+    %buf1 = VPURT.DeclareBuffer <CMX_NN> [0] <32> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
 
     //        DMA(port=0)  DMA(port=1)
     //          |             |
     //         bar0          bar1
-    //             \       /
-    //              Swkernel
+    //             \       /  
+    //              Swkernel       
 
     VPURT.Task updates(%bar0: !VPURT.Barrier) {
          VPUIP.NNDMA {port = 0 : i64}
@@ -493,15 +493,15 @@ func.func @MergeBarrierForCommonConsumers() -> memref<1x16x1x1xf16, #NHWC, [@CMX
     return %buf1 : memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
 
     //        DMA(port=0)  DMA(port=1)
-    //              \      /
+    //              \      /  
     //                bar0
     //                 |
     //             Swkernel
 
     // CHECK:  [[BAR0:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     // CHECK-NOT: VPURT.DeclareVirtual
-    // CHECK:  [[BUF0:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
-    // CHECK:  [[BUF1:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <32> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
+    // CHECK:  [[BUF0:%.*]] = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
+    // CHECK:  [[BUF1:%.*]] = VPURT.DeclareBuffer <CMX_NN> [0] <32> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
     // CHECK:  VPURT.Task updates([[BAR0]] : !VPURT.Barrier) {
     // CHECK:                 VPUIP.NNDMA {port = 0 : i64} inputs([[BUF0]] : memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>) outputs([[BUF1]] : memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>) -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
     // CHECK:  }
@@ -532,14 +532,14 @@ func.func @MergeBarrierForCommonConsumersAndImplicitDependenceTaskConsumers() ->
     %bar1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
     // dummy buffers
-    %buf0 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
-    %buf1 = VPURT.DeclareBuffer "CMX_NN" [0] <32> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
+    %buf0 = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
+    %buf1 = VPURT.DeclareBuffer <CMX_NN> [0] <32> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
 
     //        DMA(port=0)  DMA(port=1)
     //          |             |
     //         bar0          bar1
-    //       /      \       /
-    //  DMA(port1)   Swkernel
+    //       /      \       /  
+    //  DMA(port1)   Swkernel       
 
     VPURT.Task updates(%bar0: !VPURT.Barrier) {
          VPUIP.NNDMA {port = 0 : i64}
@@ -574,15 +574,15 @@ func.func @MergeBarrierForCommonConsumersAndImplicitDependenceTaskConsumers() ->
     return %buf1 : memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
 
     //        DMA(port=0)  DMA(port=1)
-    //              \      /
+    //              \      /  
     //                bar0
-    //              /      \
+    //              /      \ 
     //        DMA(port=1)  Swkernel
 
     // CHECK:  [[BAR0:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     // CHECK-NOT: VPURT.DeclareVirtual
-    // CHECK:  [[BUF0:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
-    // CHECK:  [[BUF1:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <32> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
+    // CHECK:  [[BUF0:%.*]] = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
+    // CHECK:  [[BUF1:%.*]] = VPURT.DeclareBuffer <CMX_NN> [0] <32> -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
     // CHECK:  VPURT.Task updates([[BAR0]] : !VPURT.Barrier) {
     // CHECK:                 VPUIP.NNDMA {port = 0 : i64} inputs([[BUF0]] : memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>) outputs([[BUF1]] : memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>) -> memref<1x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
     // CHECK:  }
@@ -616,19 +616,19 @@ func.func @NotMergeBarriersForTaskOpsExecutionInParallel() -> !Output_CMX {
     %bar1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     %bar2 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
-    %input = VPURT.DeclareBuffer "CMX_NN" [0] <1031680> -> !Input_CMX
+    %input = VPURT.DeclareBuffer <CMX_NN> [0] <1031680> -> !Input_CMX
 
-    %1 = VPURT.DeclareBuffer "DDR" <4591744> -> memref<120x2112x1x1xf16, {order = #NCHW, strides = [4224, 1, 1, 1]}, @DDR>
-    %2 = VPURT.DeclareBuffer "DDR" <4587520> -> memref<1x1x120x64x33xf16, {order = #NDHWC, strides = [506880, 1, 4224, 66, 2]}, @DDR>
-    %3 = VPURT.DeclareBuffer "DDR" <4587522> -> memref<1x1x120x64x33xf16, {order = #NDHWC, strides = [506880, 1, 4224, 66, 2]}, @DDR>
-    %4 = VPURT.DeclareBuffer "DDR" <5601280> -> memref<1x1x120x64x33xf16, #NDHWC, @DDR>
-    %5 = VPURT.DeclareBuffer "DDR" <6108160> -> memref<1x1x120x64x33xf16, #NDHWC, @DDR>
-    %6 = VPURT.DeclareBuffer "DDR" <5601280> -> memref<1x16x66x120xf16, #NHWC, @DDR>
-    %7 = VPURT.DeclareBuffer "DDR" <5854720> -> memref<1x16x66x120xf16, #NHWC, @DDR>
+    %1 = VPURT.DeclareBuffer <DDR> <4591744> -> memref<120x2112x1x1xf16, {order = #NCHW, strides = [4224, 1, 1, 1]}, @DDR>
+    %2 = VPURT.DeclareBuffer <DDR> <4587520> -> memref<1x1x120x64x33xf16, {order = #NDHWC, strides = [506880, 1, 4224, 66, 2]}, @DDR>
+    %3 = VPURT.DeclareBuffer <DDR> <4587522> -> memref<1x1x120x64x33xf16, {order = #NDHWC, strides = [506880, 1, 4224, 66, 2]}, @DDR>
+    %4 = VPURT.DeclareBuffer <DDR> <5601280> -> memref<1x1x120x64x33xf16, #NDHWC, @DDR>
+    %5 = VPURT.DeclareBuffer <DDR> <6108160> -> memref<1x1x120x64x33xf16, #NDHWC, @DDR>
+    %6 = VPURT.DeclareBuffer <DDR> <5601280> -> memref<1x16x66x120xf16, #NHWC, @DDR>
+    %7 = VPURT.DeclareBuffer <DDR> <5854720> -> memref<1x16x66x120xf16, #NHWC, @DDR>
 
-    %output = VPURT.DeclareBuffer "CMX_NN" [0] <778240> -> !Output_CMX
-    %8 = VPURT.DeclareBuffer "CMX_NN" [0] <778240> -> !Output_CMX
-    %9 = VPURT.DeclareBuffer "CMX_NN" [1] <778240> -> memref<1x16x66x120xf16, #NHWC , [@CMX_NN, 1]>
+    %output = VPURT.DeclareBuffer <CMX_NN> [0] <778240> -> !Output_CMX
+    %8 = VPURT.DeclareBuffer <CMX_NN> [0] <778240> -> !Output_CMX
+    %9 = VPURT.DeclareBuffer <CMX_NN> [1] <778240> -> memref<1x16x66x120xf16, #NHWC , [@CMX_NN, 1]>
 
     VPURT.Task updates(%bar0 : !VPURT.Barrier) attributes {cycleBegin = 1 : i64, cycleEnd = 2 : i64, isTrailingSWLayer = false} {
       %0 = VPUIP.NNDMA {port = 0 : i64} inputs(%input : !Input_CMX) outputs(%1 : memref<120x2112x1x1xf16, {order = #NCHW, strides = [4224, 1, 1, 1]}, @DDR>) -> memref<120x2112x1x1xf16, {order = #NCHW, strides = [4224, 1, 1, 1]}, @DDR>

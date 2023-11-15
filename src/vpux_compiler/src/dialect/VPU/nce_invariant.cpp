@@ -13,6 +13,8 @@
 
 #include "vpux/utils/core/numeric.hpp"
 
+#include <llvm/ADT/TypeSwitch.h>
+
 using namespace vpux;
 
 //
@@ -181,7 +183,7 @@ Byte vpux::VPU::NCEInvariant::getWeightsTableSize(int64_t OC) {
 //
 
 bool vpux::VPU::NCEInvariant::isChannelMajorCompatible(ArchKind arch, vpux::NDTypeInterface inputType) {
-    if (arch != ArchKind::VPUX30XX && arch != ArchKind::VPUX311X) {
+    if (arch != ArchKind::VPUX30XX) {
         return false;
     }
 
@@ -214,8 +216,7 @@ bool vpux::VPU::NCEInvariant::checkLayouts(mlir::TypeRange operandTypes, mlir::T
     for (auto resultType : resultTypes) {
         const auto actualOutLayout = resultType.cast<vpux::NDTypeInterface>().getDimsOrder();
         const auto& expectedOutLayout = DimsOrder::NHWC;
-        if (arch != VPU::ArchKind::VPUX37XX &&
-            actualOutLayout != expectedOutLayout) {
+        if (arch != VPU::ArchKind::VPUX37XX && actualOutLayout != expectedOutLayout) {
             logCb(formatv("Unsupported output layout. Expected: {0}, got: {1}", expectedOutLayout, actualOutLayout));
             return false;
         }
@@ -224,38 +225,57 @@ bool vpux::VPU::NCEInvariant::checkLayouts(mlir::TypeRange operandTypes, mlir::T
     return true;
 }
 
-//
-// Compress Convolution
-//
-
-bool vpux::VPU::NCEInvariant::isCompressConvolution(ArchKind arch, mlir::Operation* op) {
-    if (arch != ArchKind::VPUX37XX) {
-        return false;
-    }
-
-    if (auto origOp = mlir::dyn_cast<vpux::VPU::NCEConvolutionOp>(op)) {
-        if (DimsOrder::fromValue(origOp.input()) != DimsOrder::NHWC) {
-            return false;
-        }
-
-        const auto inputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
-        const auto IC = inputType.getShape()[Dims4D::Act::C];
-        if (IC != VPU::NCEInvariant::VPU_COMPRESSED_INPUT_CHANNEL_NUM) {
-            return false;
-        }
-
-        return true;
-    }
-    if (auto origOp = mlir::dyn_cast<vpux::VPU::NCECompressConvolutionOp>(op)) {
-        return true;
-    }
-
-    return false;
-}
-
 bool vpux::VPU::NCEInvariant::isSuperdenseSupported(const VPU::ArchKind arch) {
     const llvm::DenseSet<VPU::ArchKind> compatibleTargets = {
             VPU::ArchKind::VPUX37XX,
     };
     return compatibleTargets.contains(arch);
+}
+
+mlir::LogicalResult vpux::VPU::NCEInvariant::isSupported(mlir::Operation* op, Logger) {
+    const bool checkLayout = false;
+    const bool checkChannelAlignment = false;
+    const bool allowDifferentScales = true;
+    const bool allowDifferentZp = true;
+
+    return mlir::success(
+            llvm::TypeSwitch<mlir::Operation*, bool>(op)
+                    .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp origOp) {
+                        return VPU::NCEConvolutionOp::isSupported(origOp, emptyLogCb, checkLayout,
+                                                                  checkChannelAlignment);
+                    })
+                    .Case<IE::MaxPoolOp>([&](IE::MaxPoolOp origOp) {
+                        return VPU::NCEMaxPoolOp::isSupported(origOp, emptyLogCb, checkLayout, checkChannelAlignment);
+                    })
+                    .Case<IE::AvgPoolOp>([&](IE::AvgPoolOp origOp) {
+                        return VPU::NCEAveragePoolOp::isSupported(origOp, emptyLogCb, checkLayout,
+                                                                  checkChannelAlignment);
+                    })
+                    .Case<IE::AddOp>([&](IE::AddOp origOp) {
+                        return VPU::NCEEltwiseOp::isSupported(origOp, allowDifferentScales, allowDifferentZp,
+                                                              emptyLogCb, checkLayout, checkChannelAlignment);
+                    })
+                    .Case<IE::MultiplyOp>([&](IE::MultiplyOp origOp) {
+                        return VPU::NCEEltwiseOp::isSupported(origOp, allowDifferentScales, allowDifferentZp,
+                                                              emptyLogCb, checkLayout, checkChannelAlignment);
+                    })
+                    .Case<IE::SubtractOp>([&](IE::SubtractOp origOp) {
+                        return VPU::NCEEltwiseOp::isSupported(origOp, allowDifferentScales, allowDifferentZp,
+                                                              emptyLogCb, checkLayout, checkChannelAlignment);
+                    })
+                    .Case<IE::AndOp>([&](IE::AndOp origOp) {
+                        return VPU::NCEEltwiseOp::isSupported(origOp, allowDifferentScales, allowDifferentZp,
+                                                              emptyLogCb, checkLayout, checkChannelAlignment);
+                    })
+                    .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp origOp) {
+                        return VPU::NCEDepthConvolutionOp::isSupported(origOp, emptyLogCb, checkLayout,
+                                                                       checkChannelAlignment);
+                    })
+                    .Case<IE::InterpolateOp>([&](IE::InterpolateOp origOp) {
+                        return VPU::NCEInterpolateOp::isSupported(origOp, emptyLogCb, checkLayout,
+                                                                  checkChannelAlignment);
+                    })
+                    .Default([](mlir::Operation*) -> bool {
+                        return false;
+                    }));
 }

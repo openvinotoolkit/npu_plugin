@@ -24,7 +24,6 @@ uint16_t vpux::VPUIP::getProfWorkloadSize(mlir::ModuleOp module) {
     uint16_t profilingWorkloadSize;
     switch (VPU::getArch(module)) {
     case VPU::ArchKind::VPUX30XX:
-    case VPU::ArchKind::VPUX311X:
         profilingWorkloadSize = VPUIP::HW_DPU_PROFILING_SIZE_BYTES_30XX;
         break;
     case VPU::ArchKind::VPUX37XX:
@@ -80,7 +79,6 @@ int64_t vpux::VPUIP::getNumAvailableBarriers(mlir::Operation* parentOp) {
     // TODO: E#78647 refactor to use api/vpu_cmx_info_{arch}.h
     const EnumMap<VPU::ArchKind, int64_t> MAX_BARRIERS_PER_INFERENCE = {
             {VPU::ArchKind::VPUX30XX, 64 / 2},  // half barries are used (runtime limitation)
-            {VPU::ArchKind::VPUX311X, 64 / 2},  // half barries are used (runtime limitation)
             {VPU::ArchKind::VPUX37XX, 64},      //
     };
 
@@ -108,7 +106,6 @@ size_t vpux::VPUIP::getBarrierMaxVariantCount(mlir::Operation* parentOp) {
     // TODO: E#78647 refactor to use api/vpu_cmx_info_{arch}.h
     const EnumMap<VPU::ArchKind, size_t> maxVariantCount = {
             {VPU::ArchKind::VPUX30XX, 512},
-            {VPU::ArchKind::VPUX311X, 512},
             {VPU::ArchKind::VPUX37XX, 256},
     };
 
@@ -120,6 +117,15 @@ size_t vpux::VPUIP::getBarrierMaxVariantCount(mlir::Operation* parentOp) {
     return barIt->second;
 }
 
+int64_t vpux::VPUIP::getNumberOfIndependentDmaQueues(mlir::Operation* parentOp) {
+    auto module = parentOp->getParentOfType<mlir::ModuleOp>();
+    auto dmaPorts = IE::getAvailableExecutor(module, VPU::ExecutorKind::DMA_NN);
+    VPUX_THROW_UNLESS(dmaPorts != nullptr, "Failed to get DMA information");
+    auto dmaCount = dmaPorts.count();
+
+    return dmaCount;
+}
+
 //
 // DW Convolution utility
 //
@@ -128,7 +134,7 @@ namespace {
 
 mlir::Value getAlignedConstWeights(mlir::OpBuilder& builder, mlir::Location loc, Const::DeclareOp weightsConst,
                                    Shape flatWeightShape, int64_t padding) {
-    auto weightsContentAttr = weightsConst.contentAttr();
+    auto weightsContentAttr = weightsConst.getContentAttr();
     auto nchwWeightsContentAttr = weightsContentAttr.reorder(DimsOrder::NCHW);
 
     auto flatWeightsContentAttr = nchwWeightsContentAttr.reshape(flatWeightShape);
@@ -138,13 +144,13 @@ mlir::Value getAlignedConstWeights(mlir::OpBuilder& builder, mlir::Location loc,
     const auto OC = flatWeightShape[Dims4D::Filter::OC];
     const auto flatWeightChannelsCount = flatWeightShape[Dims4D::Filter::IC];
     const auto alignedWeightShape = SmallVector<int64_t>{OC, flatWeightChannelsCount + padding, 1, 1};
-    const auto origFilterType = weightsConst.output().getType().cast<vpux::NDTypeInterface>();
+    const auto origFilterType = weightsConst.getOutput().getType().cast<vpux::NDTypeInterface>();
     const auto outAllocType =
             mlir::MemRefType::get(alignedWeightShape, origFilterType.getElementType()).cast<vpux::NDTypeInterface>();
     const auto outAllocTypeNHWC = outAllocType.changeDimsOrder(DimsOrder::NHWC);
     auto alignedWeightsOp = builder.create<Const::DeclareOp>(loc, outAllocTypeNHWC, nhwcWeightsContentAttr);
 
-    return alignedWeightsOp.output();
+    return alignedWeightsOp.getOutput();
 }
 
 mlir::Value getAlignedNonConstWeights(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value origFilter,
@@ -200,7 +206,7 @@ mlir::Value getAlignedNonConstWeights(mlir::OpBuilder& builder, mlir::Location l
     auto subViewPadding = builder.create<VPUIP::SubViewOp>(loc, subViewAlloc, paddingOffsetsAttr, padShapeAttr);
 
     auto subViewFilterCopy = builder.create<VPUIP::CopyOp>(loc, flatWeightsNCHW.result(), subViewFilter);
-    auto subViewPaddingCopy = builder.create<VPUIP::CopyOp>(loc, paddedTensor.output(), subViewPadding);
+    auto subViewPaddingCopy = builder.create<VPUIP::CopyOp>(loc, paddedTensor.getOutput(), subViewPadding);
 
     auto concatViewOp = builder.create<VPUIP::ConcatViewOp>(
             loc, SmallVector<mlir::Value>{subViewFilterCopy.output(), subViewPaddingCopy.output()}, subViewAlloc);
@@ -318,20 +324,20 @@ mlir::Type getElementType(VPUIP::DistributedBufferType distributedType, ShapeRef
 
 // Get per-cluster buffers for distributed type
 SmallVector<mlir::Value> getPerClusterBuffers(mlir::MLIRContext* ctx, mlir::Location loc, StringRef bufferName,
-                                              mlir::Value clusterOperand, mlir::Value innerOperand,
+                                              mlir::Value clusterOperand, mlir::Type compactType,
                                               ArrayRef<Shape> perClusterShapes, ArrayRef<Shape> perClusterShapeOffsets,
                                               int64_t numClusters, mlir::PatternRewriter& rewriter,
                                               bool allowDiscontinuousBuffers) {
     const auto cmxNameAttr = mlir::FlatSymbolRefAttr::get(ctx, stringifyEnum(VPU::MemoryKind::CMX_NN));
 
-    auto innerOperandType = innerOperand.getType().cast<vpux::NDTypeInterface>();
+    auto compactTypeND = compactType.cast<vpux::NDTypeInterface>();
 
     auto operandType = clusterOperand.getType();
     auto distributedType = operandType.dyn_cast<VPUIP::DistributedBufferType>();
     VPUX_THROW_UNLESS(distributedType != nullptr, "Unsupported operand type {0}", operandType);
 
     const auto distribution = distributedType.getDistribution();
-    const auto distributionMode = distribution.mode().getValue();
+    const auto distributionMode = distribution.getMode().getValue();
 
     auto declBuff = clusterOperand.getDefiningOp<VPURT::DeclareBufferOp>();
     VPUX_THROW_UNLESS(declBuff != nullptr, "Can't get buffer offset for operand: {0}", clusterOperand);
@@ -342,10 +348,10 @@ SmallVector<mlir::Value> getPerClusterBuffers(mlir::MLIRContext* ctx, mlir::Loca
         auto insertionPoint = declBuff.getOperation();
         for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
             auto cmxBuffType =
-                    (allowDiscontinuousBuffers && isDiscontinuousBufferType(innerOperandType))
-                            ? changeShapeLeaveStrides(innerOperandType, innerOperandType.getStrides(),
+                    (allowDiscontinuousBuffers && isDiscontinuousBufferType(compactTypeND))
+                            ? changeShapeLeaveStrides(compactTypeND, compactTypeND.getStrides(),
                                                       perClusterShapes[clusterId], perClusterShapeOffsets[clusterId])
-                            : changeShape(innerOperandType, perClusterShapes[clusterId],
+                            : changeShape(compactTypeND, perClusterShapes[clusterId],
                                           perClusterShapeOffsets[clusterId]);
 
             const auto symbolAttr = vpux::IndexedSymbolAttr::get(ctx, {cmxNameAttr, vpux::getIntAttr(ctx, clusterId)});
@@ -355,8 +361,8 @@ SmallVector<mlir::Value> getPerClusterBuffers(mlir::MLIRContext* ctx, mlir::Loca
 
             auto newCmxBuffer = VPURT::createOp<VPURT::DeclareBufferOp>(
                     rewriter, insertionPoint, newLoc, cmxBuffType, VPURT::BufferSection::CMX_NN,
-                    getIntArrayAttr(ctx, makeArrayRef({clusterId})), declBuff.byteOffset(),
-                    declBuff.swizzlingKeyAttr());
+                    getIntArrayAttr(ctx, makeArrayRef({clusterId})), declBuff.getByteOffset(),
+                    declBuff.getSwizzlingKeyAttr());
 
             insertionPoint = newCmxBuffer.getOperation();
 
@@ -396,7 +402,7 @@ SmallVector<mlir::Value> getPerClusterBuffers(mlir::MLIRContext* ctx, mlir::Loca
 
             auto newCmxBuffer = VPURT::createOp<VPURT::DeclareBufferOp>(
                     rewriter, insertionPoint, newLoc, newDistributedType, VPURT::BufferSection::CMX_NN,
-                    getIntArrayAttr(ctx, clusters), declBuff.byteOffset(), declBuff.swizzlingKeyAttr());
+                    getIntArrayAttr(ctx, clusters), declBuff.getByteOffset(), declBuff.getSwizzlingKeyAttr());
 
             insertionPoint = newCmxBuffer.getOperation();
 
@@ -427,7 +433,7 @@ SmallVector<mlir::Value> getPerClusterBuffers(mlir::MLIRContext* ctx, mlir::Loca
             // There's a ticket E#29671 describing the work to remove such special handling for HK switch.
             // This workaround can be removed after it's done.
             const auto strides = distributedType.getStrides();
-            Byte cmxOffset{declBuff.byteOffset()};
+            Byte cmxOffset{declBuff.getByteOffset()};
             for (size_t axis = 0; axis < strides.size(); axis++) {
                 cmxOffset += static_cast<Byte>(perClusterShapeOffsets[clusterId][Dim(axis)] * strides[Dim(axis)]);
             }
@@ -436,7 +442,7 @@ SmallVector<mlir::Value> getPerClusterBuffers(mlir::MLIRContext* ctx, mlir::Loca
 
             auto newCmxBuffer = VPURT::createOp<VPURT::DeclareBufferOp>(
                     rewriter, insertionPoint, newLoc, newDistributedType, VPURT::BufferSection::CMX_NN,
-                    getIntArrayAttr(ctx, clusters), cmxOffset.count(), declBuff.swizzlingKeyAttr());
+                    getIntArrayAttr(ctx, clusters), cmxOffset.count(), declBuff.getSwizzlingKeyAttr());
 
             insertionPoint = newCmxBuffer.getOperation();
 
@@ -471,7 +477,7 @@ SmallVector<mlir::Value> getPerClusterSWBuffers(mlir::MLIRContext* ctx, mlir::Lo
     VPUX_THROW_UNLESS(distributedType != nullptr, "Unsupported operand type {0}", operandType);
 
     const auto distribution = distributedType.getDistribution();
-    const auto distributionMode = distribution.mode().getValue();
+    const auto distributionMode = distribution.getMode().getValue();
 
     auto declBuff = clusterOperand.getDefiningOp<VPURT::DeclareBufferOp>();
     VPUX_THROW_UNLESS(declBuff != nullptr, "Can't get buffer offset for operand: {0}", clusterOperand);
@@ -503,8 +509,8 @@ SmallVector<mlir::Value> getPerClusterSWBuffers(mlir::MLIRContext* ctx, mlir::Lo
             const auto newLoc = appendLoc(loc, "_{0}_cluster_{1}", bufferName, clusterId);
             auto newCmxBuffer = VPURT::createOp<VPURT::DeclareBufferOp>(
                     rewriter, insertionPoint, newLoc, cmxBuffType, VPURT::BufferSection::CMX_NN,
-                    getIntArrayAttr(ctx, makeArrayRef({clusterId})), declBuff.byteOffset(),
-                    declBuff.swizzlingKeyAttr());
+                    getIntArrayAttr(ctx, makeArrayRef({clusterId})), declBuff.getByteOffset(),
+                    declBuff.getSwizzlingKeyAttr());
 
             insertionPoint = newCmxBuffer.getOperation();
             log.trace("Insert new CMX buffer: '{0}'", newCmxBuffer);
@@ -544,7 +550,7 @@ SmallVector<mlir::Value> getPerClusterSWBuffers(mlir::MLIRContext* ctx, mlir::Lo
 
             auto newCmxBuffer = VPURT::createOp<VPURT::DeclareBufferOp>(
                     rewriter, insertionPoint, newLoc, newDistributedType, VPURT::BufferSection::CMX_NN,
-                    getIntArrayAttr(ctx, clusters), declBuff.byteOffset(), declBuff.swizzlingKeyAttr());
+                    getIntArrayAttr(ctx, clusters), declBuff.getByteOffset(), declBuff.getSwizzlingKeyAttr());
 
             log.trace("Insert new CMX buffer: '{0}'", newCmxBuffer);
             insertionPoint = newCmxBuffer.getOperation();
@@ -572,7 +578,7 @@ SmallVector<mlir::Value> getPerClusterSWBuffers(mlir::MLIRContext* ctx, mlir::Lo
                     distributedType.getMemSpace(), distributedType.getDistribution());
 
             const auto strides = distributedType.getStrides();
-            Byte cmxOffset{declBuff.byteOffset()};
+            Byte cmxOffset{declBuff.getByteOffset()};
             for (size_t axis = 0; axis < strides.size(); axis++) {
                 cmxOffset += perClusterShapeOffsets[clusterId][Dim(axis)] * static_cast<Byte>(strides[Dim(axis)]);
             }
@@ -581,7 +587,7 @@ SmallVector<mlir::Value> getPerClusterSWBuffers(mlir::MLIRContext* ctx, mlir::Lo
 
             auto newCmxBuffer = VPURT::createOp<VPURT::DeclareBufferOp>(
                     rewriter, insertionPoint, newLoc, newDistributedType, VPURT::BufferSection::CMX_NN,
-                    getIntArrayAttr(ctx, clusters), cmxOffset.count(), declBuff.swizzlingKeyAttr());
+                    getIntArrayAttr(ctx, clusters), cmxOffset.count(), declBuff.getSwizzlingKeyAttr());
 
             insertionPoint = newCmxBuffer.getOperation();
             log.trace("Insert new CMX buffer: '{0}'", newCmxBuffer);
@@ -610,10 +616,8 @@ mlir::Value vpux::VPUIP::getClusterOperand(VPUIP::NCEClusterTilingOp clusterOp, 
     return clusterOp->getOperand(blockArg.getArgNumber());
 }
 
-// Get per-cluster buffers for distributed type
-using outputBuffers = SmallVector<mlir::Value>;
-using outputItiBuffers = SmallVector<SmallVector<mlir::Value>>;
-
+// TODO: Replace this version of getPerClusterMemoryBuffers with the one that doesn't use clusterOp / innerOp
+// distinction and works purely on DistributedBufferType.
 SmallVector<mlir::Value> vpux::VPUIP::getPerClusterMemoryBuffers(mlir::MLIRContext* ctx, mlir::Location loc,
                                                                  StringRef bufferName, mlir::Value clusterOperand,
                                                                  mlir::Value innerOperand, int64_t numClusters,
@@ -629,13 +633,34 @@ SmallVector<mlir::Value> vpux::VPUIP::getPerClusterMemoryBuffers(mlir::MLIRConte
 
     auto perClusterShapes = distributedType.getPerClusterMemoryShapes();
     VPUX_THROW_UNLESS(perClusterShapes.size() == checked_cast<size_t>(numClusters),
-                      "Number of shapes '{0}' and clusters '{1}' are mismatch", perClusterShapes.size(), numClusters);
+                      "Mismatch in shapes '{0}' and clusters '{1}'", perClusterShapes.size(), numClusters);
     const auto perClusterShapeOffsets = distributedType.getPerClusterMemoryShapeOffsets();
     VPUX_THROW_UNLESS(perClusterShapeOffsets.size() == checked_cast<size_t>(numClusters),
-                      "Number of shape offsets '{0}' and clusters '{1}' are mismatch", perClusterShapeOffsets.size(),
-                      numClusters);
+                      "Number of shape offsets '{0}' and clusters '{1}'", perClusterShapeOffsets.size(), numClusters);
 
-    return getPerClusterBuffers(ctx, loc, bufferName, clusterOperand, innerOperand, perClusterShapes,
+    return getPerClusterBuffers(ctx, loc, bufferName, clusterOperand, innerOperand.getType(), perClusterShapes,
+                                perClusterShapeOffsets, numClusters, rewriter, allowDiscontinuousBuffers);
+}
+
+// NOTE: This is a temporary version of getPerClusterMemoryBuffers that works purely on DistributedBufferType.
+// It's going to replace original getPerClusterMemoryBuffers eventually.
+SmallVector<mlir::Value> vpux::VPUIP::getPerClusterMemoryBuffers(mlir::MLIRContext* ctx, mlir::Location loc,
+                                                                 StringRef bufferName, mlir::Value operand,
+                                                                 VPUIP::DistributedBufferType distributedType,
+                                                                 int64_t numClusters, mlir::PatternRewriter& rewriter,
+                                                                 bool allowDiscontinuousBuffers) {
+    if (distributedType == nullptr) {
+        return SmallVector<mlir::Value>(numClusters, nullptr);
+    }
+
+    auto perClusterShapes = distributedType.getPerClusterMemoryShapes();
+    VPUX_THROW_UNLESS(perClusterShapes.size() == checked_cast<size_t>(numClusters),
+                      "Mismatch in shapes '{0}' and clusters '{1}'", perClusterShapes.size(), numClusters);
+    const auto perClusterShapeOffsets = distributedType.getPerClusterMemoryShapeOffsets();
+    VPUX_THROW_UNLESS(perClusterShapeOffsets.size() == checked_cast<size_t>(numClusters),
+                      "Mismatch in shape offsets '{0}' and clusters '{1}'", perClusterShapeOffsets.size(), numClusters);
+
+    return getPerClusterBuffers(ctx, loc, bufferName, operand, distributedType.getCompactType(), perClusterShapes,
                                 perClusterShapeOffsets, numClusters, rewriter, allowDiscontinuousBuffers);
 }
 
@@ -654,13 +679,12 @@ SmallVector<mlir::Value> vpux::VPUIP::getPerClusterComputeBuffers(mlir::MLIRCont
 
     auto perClusterShapes = distributedType.getPerClusterComputeShapes();
     VPUX_THROW_UNLESS(perClusterShapes.size() == checked_cast<size_t>(numClusters),
-                      "Number of shapes '{0}' and clusters '{1}' are mismatch", perClusterShapes.size(), numClusters);
+                      "Mismatch in shapes '{0}' and clusters '{1}'", perClusterShapes.size(), numClusters);
     const auto perClusterShapeOffsets = distributedType.getPerClusterComputeShapeOffsets();
     VPUX_THROW_UNLESS(perClusterShapeOffsets.size() == checked_cast<size_t>(numClusters),
-                      "Number of shape offsets '{0}' and clusters '{1}' are mismatch", perClusterShapeOffsets.size(),
-                      numClusters);
+                      "Mismatch in shape offsets '{0}' and clusters '{1}'", perClusterShapeOffsets.size(), numClusters);
 
-    return getPerClusterBuffers(ctx, loc, bufferName, clusterOperand, innerOperand, perClusterShapes,
+    return getPerClusterBuffers(ctx, loc, bufferName, clusterOperand, innerOperand.getType(), perClusterShapes,
                                 perClusterShapeOffsets, numClusters, rewriter, allowDiscontinuousBuffers);
 }
 
@@ -680,11 +704,10 @@ SmallVector<mlir::Value> vpux::VPUIP::getPerClusterSWMemoryBuffers(mlir::MLIRCon
     VPUX_THROW_UNLESS(distributedType != nullptr, "Unsupported operand type {0}", operandType);
     auto perClusterShapes = distributedType.getPerClusterMemoryShapes();
     VPUX_THROW_UNLESS(perClusterShapes.size() == checked_cast<size_t>(numClusters),
-                      "Number of shapes '{0}' and clusters '{1}' are mismatch", perClusterShapes.size(), numClusters);
+                      "Mismatch in shapes '{0}' and clusters '{1}'", perClusterShapes.size(), numClusters);
     const auto perClusterShapeOffsets = distributedType.getPerClusterMemoryShapeOffsets();
     VPUX_THROW_UNLESS(perClusterShapeOffsets.size() == checked_cast<size_t>(numClusters),
-                      "Number of shape offsets '{0}' and clusters '{1}' are mismatch", perClusterShapeOffsets.size(),
-                      numClusters);
+                      "Mismatch in shape offsets '{0}' and clusters '{1}'", perClusterShapeOffsets.size(), numClusters);
 
     return getPerClusterSWBuffers(ctx, loc, bufferName, clusterOp, innerOperand, perClusterShapes,
                                   perClusterShapeOffsets, numClusters, rewriter, log, allowDiscontinuousBuffers);
@@ -707,11 +730,10 @@ SmallVector<mlir::Value> vpux::VPUIP::getPerClusterSWComputeBuffers(mlir::MLIRCo
 
     auto perClusterShapes = distributedType.getPerClusterComputeShapes();
     VPUX_THROW_UNLESS(perClusterShapes.size() == checked_cast<size_t>(numClusters),
-                      "Number of shapes '{0}' and clusters '{1}' are mismatch", perClusterShapes.size(), numClusters);
+                      "Mismatch in shapes '{0}' and clusters '{1}'", perClusterShapes.size(), numClusters);
     const auto perClusterShapeOffsets = distributedType.getPerClusterComputeShapeOffsets();
     VPUX_THROW_UNLESS(perClusterShapeOffsets.size() == checked_cast<size_t>(numClusters),
-                      "Number of shape offsets '{0}' and clusters '{1}' are mismatch", perClusterShapeOffsets.size(),
-                      numClusters);
+                      "Mismatch in shape offsets '{0}' and clusters '{1}'", perClusterShapeOffsets.size(), numClusters);
 
     return getPerClusterSWBuffers(ctx, loc, bufferName, clusterOp, innerOperand, perClusterShapes,
                                   perClusterShapeOffsets, numClusters, rewriter, log, allowDiscontinuousBuffers);
@@ -728,15 +750,15 @@ SmallVector<mlir::Value> vpux::VPUIP::getSplitBuffers(mlir::MLIRContext* ctx, ml
     auto declBuffType = declBuff.getType().cast<vpux::NDTypeInterface>();
     auto operandType = operand.getType().cast<vpux::NDTypeInterface>();
 
-    VPUX_THROW_UNLESS(shapes.size() == checked_cast<size_t>(splitNum),
-                      "Number of shapes '{0}' and buffers '{1}' are mismatch", shapes.size(), splitNum);
+    VPUX_THROW_UNLESS(shapes.size() == checked_cast<size_t>(splitNum), "Mismatch in shapes '{0}' and buffers '{1}'",
+                      shapes.size(), splitNum);
     VPUX_THROW_UNLESS(shapeOffsets.size() == checked_cast<size_t>(splitNum),
-                      "Number of shape offsets '{0}' and buffers '{1}' are mismatch", shapeOffsets.size(), splitNum);
+                      "Mismatch in shape offsets '{0}' and buffers '{1}'", shapeOffsets.size(), splitNum);
 
     const auto memSpaceId = declBuffType.getMemSpace().getIndex();
     const auto memKind = declBuffType.getMemoryKind();
-    VPUX_THROW_UNLESS(memSpaceId.hasValue(), "Failed to extract section id");
-    const auto symbolAttr = vpux::IndexedSymbolAttr::get(ctx, stringifyEnum(memKind), memSpaceId.getValue());
+    VPUX_THROW_UNLESS(memSpaceId.has_value(), "Failed to extract section id");
+    const auto symbolAttr = vpux::IndexedSymbolAttr::get(ctx, stringifyEnum(memKind), memSpaceId.value());
     const auto originStride = operandType.getStrides();
 
     auto insertionPoint = declBuff.getOperation();
@@ -747,14 +769,14 @@ SmallVector<mlir::Value> vpux::VPUIP::getSplitBuffers(mlir::MLIRContext* ctx, ml
         cmxBuffType = cmxBuffType.changeMemSpace(symbolAttr);
 
         const auto strides = operandType.getStrides();
-        Byte cmxOffset{declBuff.byteOffset()};
+        Byte cmxOffset{declBuff.getByteOffset()};
         for (size_t axis = 0; axis < strides.size(); axis++) {
             cmxOffset += static_cast<Byte>(shapeOffsets[bufferId][Dim(axis)] * strides[Dim(axis)]);
         }
 
         const auto newLoc = appendLoc(loc, "_{0}_split_{1}", bufferName, bufferId);
         auto newCmxBuffer = VPURT::createOp<VPURT::DeclareBufferOp>(rewriter, insertionPoint, newLoc, cmxBuffType,
-                                                                    declBuff.section(), cmxOffset.count());
+                                                                    declBuff.getSection(), cmxOffset.count());
         insertionPoint = newCmxBuffer.getOperation();
 
         buffers[bufferId] = newCmxBuffer;
@@ -767,127 +789,78 @@ SmallVector<mlir::Value> vpux::VPUIP::getSplitBuffers(mlir::MLIRContext* ctx, ml
 // MovePureViewOpBeforeCopy Utilities
 //
 
-bool vpux::VPUIP::isSegmentedOverH(VPU::DistributedTensorAttr distAttr) {
-    if (distAttr.mode().getValue() != VPU::DistributionMode::SEGMENTED) {
-        return false;
-    }
-    const auto numTiles = parseIntArrayAttr<int64_t>(distAttr.num_tiles());
-    if (numTiles.size() != 4 || numTiles[Dims4D::Act::N.ind()] > 1 || numTiles[Dims4D::Act::C.ind()] > 1 ||
-        numTiles[Dims4D::Act::W.ind()] > 1) {
-        return false;
-    }
-    return true;
-}
-
-bool vpux::VPUIP::isSegmentedOverC(VPU::DistributedTensorAttr distAttr) {
-    if (distAttr.mode().getValue() != VPU::DistributionMode::SEGMENTED) {
-        return false;
-    }
-    const auto numTiles = parseIntArrayAttr<int64_t>(distAttr.num_tiles());
-    if (numTiles.size() != 4 || numTiles[Dims4D::Act::N.ind()] > 1 || numTiles[Dims4D::Act::H.ind()] > 1 ||
-        numTiles[Dims4D::Act::W.ind()] > 1) {
-        return false;
-    }
-    return true;
-}
-
-bool vpux::VPUIP::isSegmentedOverN(VPU::DistributedTensorAttr distAttr) {
-    if (distAttr.mode().getValue() != VPU::DistributionMode::SEGMENTED) {
-        return false;
-    }
-    const auto numTiles = parseIntArrayAttr<int64_t>(distAttr.num_tiles());
-    if (numTiles.size() != 4 || numTiles[Dims4D::Act::C.ind()] > 1 || numTiles[Dims4D::Act::H.ind()] > 1 ||
-        numTiles[Dims4D::Act::W.ind()] > 1) {
-        return false;
-    }
-    return true;
-}
-
 VPU::DistributedTensorAttr vpux::VPUIP::getSOHDistAttrWithNewShape(mlir::MLIRContext* ctx,
                                                                    VPUIP::DistributedBufferType origDistType,
                                                                    ShapeRef newShape, VPU::ArchKind arch) {
     const auto origDistAttr = origDistType.getDistribution();
-    VPUX_THROW_UNLESS(isSegmentedOverH(origDistAttr), "Input dist type is not SEGMENTED over H");
+    VPUX_THROW_UNLESS(VPU::isSegmentedOverH(origDistAttr), "Input dist type is not SEGMENTED over H");
 
     const auto origShape = origDistType.getShape();
     if (origShape == newShape) {
         return origDistAttr;
     }
 
+    auto isInputSparse = origDistType.isa<VPUIP::SparseBufferType>();
     const auto newHeightAlignment =
-            VPU::getSOHMinimalHeightAlignment(newShape, origDistAttr.num_clusters().getInt(), arch);
+            VPU::getSOHMinimalHeightAlignment(newShape, origDistAttr.getNumClusters().getInt(), isInputSparse, arch);
     const auto newAlignment =
             newHeightAlignment == 1 ? nullptr : getIntArrayAttr(ctx, SmallVector<int64_t>{1, 1, newHeightAlignment, 1});
-    return VPU::DistributedTensorAttr::get(origDistAttr.mode(), origDistAttr.num_tiles(), origDistAttr.kernel(),
-                                           origDistAttr.pads(), origDistAttr.strides(), origDistAttr.num_clusters(),
-                                           newAlignment, origDistAttr.uniform_distributed_segments(),
-                                           origDistAttr.compute_shapes(), origDistAttr.compute_offsets(),
-                                           origDistAttr.equal_memory_and_compute_view(), ctx);
+
+    if (!VPU::isDistributedAttrWithExplicitShapesAndOffsets(origDistAttr)) {
+        return VPU::DistributedTensorAttr::get(ctx, origDistAttr.getMode(), origDistAttr.getNumTiles(),
+                                               origDistAttr.getKernel(), origDistAttr.getPads(),
+                                               origDistAttr.getStrides(), origDistAttr.getNumClusters(), newAlignment,
+                                               origDistAttr.getUniformDistributedSegments(), nullptr, nullptr, nullptr,
+                                               nullptr, origDistAttr.getEqualMemoryAndComputeView());
+    }
+
+    // When DistributedTensorAttr has explicit per cluster memory/compute shapes, recompute them for the new shape
+    // Since this method throws for any distribution mode other than SEGMENTED over H, it is safe to recompute the
+    // memory/compute view
+    auto perClusterMemoryShapes = vpux::getIntArrayOfArray(ctx, VPU::getPerClusterMemoryShapes(newShape, origDistAttr));
+    auto perClusterMemoryOffsets =
+            vpux::getIntArrayOfArray(ctx, VPU::getPerClusterMemoryShapeOffsets(newShape, origDistAttr));
+    auto perClusterComputeShapes =
+            vpux::getIntArrayOfArray(ctx, VPU::getPerClusterComputeShapes(newShape, origDistAttr));
+    auto perClusterComputeOffsets =
+            vpux::getIntArrayOfArray(ctx, VPU::getPerClusterComputeShapeOffsets(newShape, origDistAttr));
+
+    return VPU::DistributedTensorAttr::get(
+            ctx, origDistAttr.getMode(), origDistAttr.getNumTiles(), origDistAttr.getKernel(), origDistAttr.getPads(),
+            origDistAttr.getStrides(), origDistAttr.getNumClusters(), newAlignment,
+            origDistAttr.getUniformDistributedSegments(), perClusterComputeShapes, perClusterComputeOffsets,
+            perClusterMemoryShapes, perClusterMemoryOffsets, origDistAttr.getEqualMemoryAndComputeView());
 }
 
-bool vpux::VPUIP::isDistributedCompatibleAfterShapeChange(VPUIP::DistributedBufferType inDistType, ShapeRef shape,
-                                                          VPU::ArchKind arch) {
-    const auto mode = inDistType.getDistribution().mode().getValue();
-    VPUX_THROW_UNLESS(VPU::bitEnumContains(mode, VPU::DistributionMode::DUPLICATED) ||
-                              VPU::bitEnumContains(mode, VPU::DistributionMode::SEGMENTED),
-                      "Only support DUPLICATED and SEGMENTED mode.");
+bool vpux::VPUIP::isDistributedCompatibleAfterShapeChange(VPUIP::DistributedBufferType inDistType,
+                                                          VPUIP::DistributedBufferType outDistType) {
+    auto inMode = inDistType.getDistribution().getMode().getValue();
+    auto outMode = outDistType.getDistribution().getMode().getValue();
+
+    if (inMode != outMode) {
+        return false;
+    }
+
     const auto inShape = inDistType.getShape();
-    if (inShape == shape) {
+    const auto outShape = outDistType.getShape();
+
+    if (inShape.totalSize() != outShape.totalSize()) {
+        return false;
+    }
+
+    if (inShape.size() != outShape.size()) {
+        return false;
+    }
+
+    if (outDistType.getDistribution().getNumClusters() != inDistType.getDistribution().getNumClusters()) {
+        return false;
+    }
+
+    if (VPU::bitEnumContains(inMode, VPU::DistributionMode::DUPLICATED) ||
+        VPU::bitEnumContains(inMode, VPU::DistributionMode::MULTICASTED)) {
         return true;
     }
-    if (inShape.totalSize() != shape.totalSize()) {
-        return false;
-    }
-    if (VPU::bitEnumContains(mode, VPU::DistributionMode::DUPLICATED) ||
-        VPU::bitEnumContains(mode, VPU::DistributionMode::MULTICASTED)) {
-        return true;
-    }
-    // Check both original and new shape are 4D
-    if (inShape.size() != shape.size() || inShape.size() != 4) {
-        return false;
-    }
-    // Only NHWC layout is supported in SOH
-    if (inDistType.getDimsOrder() != DimsOrder::NHWC) {
-        return false;
-    }
-    // only SOH supported for SEGMENTED
-    const auto inDistAttr = inDistType.getDistribution();
-    if (!isSegmentedOverH(inDistAttr)) {
-        return false;
-    }
-    if (shape[Dims4D::Act::H] < inDistAttr.num_clusters().getInt()) {
-        return false;
-    }
 
-    const auto minHeightAlignment = VPU::getSOHMinimalHeightAlignment(shape, inDistAttr.num_clusters().getInt(), arch);
-    const auto tilingScheme = parseIntArrayAttr<int64_t>(inDistAttr.num_tiles());
-    if (inDistAttr.uniform_distributed_segments() == nullptr) {
-        auto tiledShapeHeight = divUp(shape[Dims4D::Act::H], tilingScheme[Dims4D::Act::H.ind()]);
-        tiledShapeHeight = alignValUp(tiledShapeHeight, minHeightAlignment);
-        const auto remainderTileSize =
-                shape[Dims4D::Act::H] - tiledShapeHeight * (tilingScheme[Dims4D::Act::H.ind()] - 1);
-        if (remainderTileSize <= 0) {
-            return false;
-        }
-    } else {
-        auto tiledShapeHeight = shape[Dims4D::Act::H] / tilingScheme[Dims4D::Act::H.ind()];
-        tiledShapeHeight = alignValDown(tiledShapeHeight, minHeightAlignment);
-        if (tiledShapeHeight <= 0) {
-            return false;
-        }
-
-        auto remainderCount = shape[Dims4D::Act::H] - tiledShapeHeight * tilingScheme[Dims4D::Act::H.ind()];
-        if (remainderCount % minHeightAlignment) {
-            return false;
-        }
-    }
-
-    // Create dist type with new shape
-    const auto ctx = inDistType.getContext();
-    const auto order = mlir::AffineMapAttr::get(inDistType.getDimsOrder().toAffineMap(ctx));
-    const auto newDistribution = getSOHDistAttrWithNewShape(ctx, inDistType, shape, arch);
-    const auto outDistType = VPUIP::DistributedBufferType::get(ctx, shape.raw(), inDistType.getElementType(), order,
-                                                               inDistType.getMemSpace(), newDistribution);
     // Check per-cluster shape compatible
     const auto inPerClusterShapes = inDistType.getPerClusterMemoryShapes();
     const auto inPerClusterShapeOffsets = inDistType.getPerClusterMemoryShapeOffsets();
@@ -915,19 +888,79 @@ bool vpux::VPUIP::isDistributedCompatibleAfterShapeChange(VPUIP::DistributedBuff
                             outPerClusterShapeOffsets, isPerClusterCompatible);
 }
 
-//
-// Distributed buffer type compatibility check
-//
+bool vpux::VPUIP::isDistributedCompatibleAfterShapeChange(VPUIP::DistributedBufferType inDistType, ShapeRef shape,
+                                                          VPU::ArchKind arch) {
+    const auto mode = inDistType.getDistribution().getMode().getValue();
+    VPUX_THROW_UNLESS(VPU::bitEnumContains(mode, VPU::DistributionMode::DUPLICATED) ||
+                              VPU::bitEnumContains(mode, VPU::DistributionMode::SEGMENTED),
+                      "Only support DUPLICATED and SEGMENTED mode.");
+    const auto inShape = inDistType.getShape();
+    if (inShape == shape) {
+        return true;
+    }
+    if (inShape.totalSize() != shape.totalSize()) {
+        return false;
+    }
+    if (VPU::bitEnumContains(mode, VPU::DistributionMode::DUPLICATED) ||
+        VPU::bitEnumContains(mode, VPU::DistributionMode::MULTICASTED)) {
+        return true;
+    }
+    // Check both original and new shape are 4D
+    if (inShape.size() != shape.size() || inShape.size() != 4) {
+        return false;
+    }
+    // Only NHWC layout is supported in SOH
+    if (inDistType.getDimsOrder() != DimsOrder::NHWC) {
+        return false;
+    }
+    // only SOH supported for SEGMENTED
+    const auto inDistAttr = inDistType.getDistribution();
+    if (!VPU::isSegmentedOverH(inDistAttr)) {
+        return false;
+    }
+    if (shape[Dims4D::Act::H] < inDistAttr.getNumClusters().getInt()) {
+        return false;
+    }
 
-bool vpux::VPUIP::isCompatibleForDistributedInputOutput(mlir::Operation* op,
-                                                        VPUIP::DistributedBufferType distributedInType,
-                                                        VPUIP::DistributedBufferType distributedOutType) {
-    VPUX_THROW_WHEN(op == nullptr || distributedInType == nullptr || distributedOutType == nullptr,
-                    "Need valid distributed type input and output value");
-    auto inMode = distributedInType.getDistribution().mode().getValue();
-    auto outMode = distributedInType.getDistribution().mode().getValue();
-    return inMode == outMode && (VPU::bitEnumContains(inMode, VPU::DistributionMode::DUPLICATED) ||
-                                 VPU::bitEnumContains(inMode, VPU::DistributionMode::SEGMENTED));
+    const auto isInputSparse = inDistType.isa<VPUIP::SparseBufferType>();
+    const auto minHeightAlignment =
+            VPU::getSOHMinimalHeightAlignment(shape, inDistAttr.getNumClusters().getInt(), isInputSparse, arch);
+    const auto tilingScheme = parseIntArrayAttr<int64_t>(inDistAttr.getNumTiles());
+    if (inDistAttr.getUniformDistributedSegments() == nullptr) {
+        auto tiledShapeHeight = divUp(shape[Dims4D::Act::H], tilingScheme[Dims4D::Act::H.ind()]);
+        tiledShapeHeight = alignValUp(tiledShapeHeight, minHeightAlignment);
+        const auto remainderTileSize =
+                shape[Dims4D::Act::H] - tiledShapeHeight * (tilingScheme[Dims4D::Act::H.ind()] - 1);
+        if (remainderTileSize <= 0) {
+            return false;
+        }
+    } else {
+        auto tiledShapeHeight = shape[Dims4D::Act::H] / tilingScheme[Dims4D::Act::H.ind()];
+        tiledShapeHeight = alignValDown(tiledShapeHeight, minHeightAlignment);
+        if (tiledShapeHeight <= 0) {
+            return false;
+        }
+
+        auto remainderCount = shape[Dims4D::Act::H] - tiledShapeHeight * tilingScheme[Dims4D::Act::H.ind()];
+        if (remainderCount % minHeightAlignment) {
+            return false;
+        }
+    }
+
+    // Create dist type with new shape
+    const auto ctx = inDistType.getContext();
+    const auto order = mlir::AffineMapAttr::get(inDistType.getDimsOrder().toAffineMap(ctx));
+    const auto newDistribution = getSOHDistAttrWithNewShape(ctx, inDistType, shape, arch);
+    const auto outDistType = VPUIP::DistributedBufferType::get(ctx, shape.raw(), inDistType.getElementType(), order,
+                                                               inDistType.getMemSpace(), newDistribution);
+    if (newDistribution.getAlignment()) {
+        auto newShape = outDistType.getShape();
+        auto newAlignment = parseIntArrayAttr<int64_t>(newDistribution.getAlignment());
+        if (newShape[Dims4D::Act::H] < newAlignment[Dims4D::Act::H.ind()]) {
+            return false;
+        }
+    }
+    return VPUIP::isDistributedCompatibleAfterShapeChange(inDistType, outDistType);
 }
 
 mlir::Operation* vpux::VPUIP::getRootConst(mlir::Value val) {
@@ -954,7 +987,7 @@ Optional<int64_t> getTilingDimIndexFromDistributedType(T distributedType) {
     int64_t tileIndex = -1;
 
     const auto distributionAttr = distributedType.getDistribution();
-    const auto mode = distributionAttr.mode().getValue();
+    const auto mode = distributionAttr.getMode().getValue();
 
     if (VPU::bitEnumContains(mode, VPU::DistributionMode::DUPLICATED) ||
         VPU::bitEnumContains(mode, VPU::DistributionMode::MULTICASTED)) {
@@ -962,7 +995,7 @@ Optional<int64_t> getTilingDimIndexFromDistributedType(T distributedType) {
         return None;
     }
 
-    const auto numTiles = parseIntArrayAttr<int64_t>(distributedType.getDistribution().num_tiles());
+    const auto numTiles = parseIntArrayAttr<int64_t>(distributedType.getDistribution().getNumTiles());
     for (size_t i = 0; i < numTiles.size(); ++i) {
         if (numTiles[i] > 1) {
             VPUX_THROW_WHEN(tileIndex != -1, "distributed buffer only support tiling on one axis");
@@ -989,7 +1022,7 @@ Optional<int64_t> vpux::VPUIP::getTilingDimIndex(mlir::Type type) {
 
 bool vpux::VPUIP::isMemoryContiguousWithTiling(VPUIP::DistributedBufferType distributedBufferType) {
     const auto distributionAttr = distributedBufferType.getDistribution();
-    const auto mode = distributionAttr.mode().getValue();
+    const auto mode = distributionAttr.getMode().getValue();
 
     if (VPU::bitEnumContains(mode, VPU::DistributionMode::DUPLICATED) ||
         VPU::bitEnumContains(mode, VPU::DistributionMode::MULTICASTED)) {
@@ -998,10 +1031,10 @@ bool vpux::VPUIP::isMemoryContiguousWithTiling(VPUIP::DistributedBufferType dist
 
     // Get tile index
     const auto tileIndex = VPUIP::getTilingDimIndex(distributedBufferType);
-    VPUX_THROW_UNLESS(tileIndex.hasValue(), "Can not get tiling dim for {0}", distributedBufferType);
+    VPUX_THROW_UNLESS(tileIndex.has_value(), "Can not get tiling dim for {0}", distributedBufferType);
     const auto order = distributedBufferType.getDimsOrder();
     // Get tile dim position
-    const auto tileDimPos = order.dimPos(Dim(tileIndex.getValue()));
+    const auto tileDimPos = order.dimPos(Dim(tileIndex.value()));
     const auto memShape = distributedBufferType.getMemShape().raw();
     // Check if all dims outter than tile dim is 1
     for (size_t i = 0; i < tileDimPos; ++i) {
@@ -1028,7 +1061,7 @@ bool hasTransposeAttr(Const::ContentAttr content) {
 }
 
 bool inChannelGreaterThanAlignValue(Const::DeclareOp weightsInput) {
-    auto weightsContentAttr = weightsInput.contentAttr();
+    auto weightsContentAttr = weightsInput.getContentAttr();
     const auto origShape = weightsContentAttr.getBaseContent().getType().cast<NDTypeInterface>().getShape();
     const auto channelAlignValue =
             VPU::NCEInvariant::getAlignment(weightsInput.getType().cast<NDTypeInterface>().getElementType());
@@ -1063,7 +1096,7 @@ bool vpux::VPUIP::canWeightsBeCompressed(VPUIP::NCEClusterTaskOp op) {
     }
 
     // Temporary solution until [E#57202] implementation
-    if (hasTransposeAttr(weightsInput.contentAttr())) {
+    if (hasTransposeAttr(weightsInput.getContentAttr())) {
         return false;
     }
     return !inChannelGreaterThanAlignValue(weightsInput);
@@ -1108,7 +1141,7 @@ bool vpux::VPUIP::canTilingWeightsBeCompressed(VPUIP::NCEClusterTilingOp op) {
     }
 
     // Temporary solution until [E#57202] implementation
-    if (hasTransposeAttr(weightsInput.contentAttr())) {
+    if (hasTransposeAttr(weightsInput.getContentAttr())) {
         return false;
     }
 
@@ -1161,8 +1194,23 @@ bool vpux::VPUIP::isCopyFromDDR(VPUIP::CopyOp copyOp) {
 // strides: [471859200 Bit, 1310720 Bit, 512 Bit, 16 Bit]
 // 18 * 16 bit = 288 bit < 512 bit
 // 1280 * 512 bit = 655360 bit < 1310720 bit
+//
+// Striding on current dim is useless and can be ignored in case higher dimension size is equal to one
+// For example, the tensor with the following properties has striding level 1
+// Even though 216 * 4 < 4320 and 360 * 4320 < 3110400
+// sizes:         [1, 360, 216, 4]
+// strides: [3110400, 4320, 4, 1]
 
-int64_t vpux::VPUIP::getStridingLevel(const mlir::Value val) {
+bool allHigherDimsAreEqualToOne(ArrayRef<int64_t> memDimsVec, size_t curDimInd) {
+    for (size_t i = 0; i < curDimInd; i++) {
+        if (memDimsVec[i] != 1) {
+            return false;
+        }
+    }
+    return true;
+}
+
+int64_t getStridingLevel(const mlir::Value val) {
     const auto dims = getShape(val);
     const auto strides = getStrides(val);
     const auto order = DimsOrder::fromValue(val);
@@ -1171,6 +1219,10 @@ int64_t vpux::VPUIP::getStridingLevel(const mlir::Value val) {
 
     int64_t stridingLevel = 0;
     for (size_t ind = 1; ind < dimsMemOrder.size() && ind < stridesMemOrder.size(); ind++) {
+        // Bypass current dimension if higher dimensions have size == 1
+        if (allHigherDimsAreEqualToOne(makeArrayRef(dimsMemOrder), ind)) {
+            continue;
+        }
         if (dimsMemOrder[ind] * stridesMemOrder[ind] != stridesMemOrder[ind - 1]) {
             stridingLevel++;
         }
@@ -1178,46 +1230,155 @@ int64_t vpux::VPUIP::getStridingLevel(const mlir::Value val) {
     return stridingLevel;
 }
 
-bool vpux::VPUIP::strideMoreThanOne(VPUIP::CopyOp copyOp) {
-    const auto inputStridingLevel = VPUIP::getStridingLevel(copyOp.input());
-    const auto outputStridingLevel = VPUIP::getStridingLevel(copyOp.output());
-    constexpr int64_t maxStridingLevel = 2;
-    if (inputStridingLevel < maxStridingLevel && outputStridingLevel < maxStridingLevel) {
-        return false;
+int64_t getFirstStridingMemDimIdxFromValue(mlir::Value val) {
+    const auto dims = getShape(val);
+    const auto strides = getStrides(val);
+    const auto order = DimsOrder::fromValue(val);
+    const auto dimsMemOrder = to_small_vector(order.toMemoryOrder(dims));
+    const auto stridesMemOrder = to_small_vector(order.toMemoryOrder(strides));
+
+    for (size_t ind = 1; ind < dimsMemOrder.size() && ind < stridesMemOrder.size(); ind++) {
+        // Bypass current dimension if higher dimensions have size == 1
+        if (allHigherDimsAreEqualToOne(makeArrayRef(dimsMemOrder), ind)) {
+            continue;
+        }
+        if (dimsMemOrder[ind] * stridesMemOrder[ind] != stridesMemOrder[ind - 1]) {
+            return checked_cast<int64_t>(ind);
+        }
     }
-    return true;
+    return -1;
 }
 
-int64_t vpux::VPUIP::getFirstStridingDim(VPUIP::CopyOp copyOp) {
-    auto getFirstStriding = [&](mlir::Value val) -> int64_t {
-        const auto dims = getShape(val);
-        const auto strides = getStrides(val);
-        const auto order = DimsOrder::fromValue(val);
-        const auto dimsMemOrder = to_small_vector(order.toMemoryOrder(dims));
-        const auto stridesMemOrder = to_small_vector(order.toMemoryOrder(strides));
-
-        for (size_t ind = 1; ind < dimsMemOrder.size() && ind < stridesMemOrder.size(); ind++) {
-            if (dimsMemOrder[ind] * stridesMemOrder[ind] != stridesMemOrder[ind - 1]) {
-                return checked_cast<int64_t>(ind);
-            }
-        }
-        return -1;
-    };
-
-    auto firstStridingDim = getFirstStriding(copyOp.input());
+int64_t getFirstStridingMemDimIdx(mlir::Operation* op) {
+    VPUX_THROW_WHEN(mlir::dyn_cast<VPUIP::CopyOp>(op) == nullptr && mlir::dyn_cast<VPUIP::NNDMAOp>(op) == nullptr,
+                    "getFirstStridingMemDimIdx: not a CopyOp or NNDMAOp");
+    auto firstStridingDim = getFirstStridingMemDimIdxFromValue(op->getOperand(0));
     if (firstStridingDim == -1) {
-        firstStridingDim = getFirstStriding(copyOp.output());
+        firstStridingDim = getFirstStridingMemDimIdxFromValue(op->getResult(0));
     }
 
     return firstStridingDim;
 }
 
-int64_t vpux::VPUIP::getNumberOfPlanes(VPUIP::CopyOp copyOp) {
-    const auto inputShape = getShape(copyOp.input());
-    const auto inOrder = DimsOrder::fromValue(copyOp.input());
+// For CopyOp or NNDMAOp whoes data size is greater than VPUIP::DMA_LIMIT, split the first non-batch dimension,
+// regardless the layout
+// For example: NCHW - C, NHWC - H, NWHC - W
+vpux::Dim vpux::VPUIP::getCopyDMATilingDimForLargeSize(mlir::Operation* op) {
+    VPUX_THROW_WHEN(mlir::dyn_cast<VPUIP::CopyOp>(op) == nullptr && mlir::dyn_cast<VPUIP::NNDMAOp>(op) == nullptr,
+                    "getCopyDMATilingDimForLargeSize: not a CopyOp or NNDMAOp");
+    const auto inputShape = getShape(op->getOperand(0));
+    const auto inOrder = DimsOrder::fromValue(op->getOperand(0));
+
+    size_t index = 0;
+    while (inputShape[inOrder.toDim(MemDim(index))] <= 1) {
+        VPUX_THROW_UNLESS(index < inputShape.size(), "Unable to find a dim to tile over it");
+        index++;
+    }
+
+    return inOrder.toDim(MemDim(index));
+}
+
+// For CopyOp or NNDMAOp whoes plane number is greater than VPUIP::CMX_DMA_MAX_NUM_PLANES, the next dimension of
+// firstStridingDim desribes number of planes, split the tensor on it
+// For example:
+// Tensor memref<1x4x360x216xf16, {order = #NHWC, strides = [6220800, 1, 8640, 8]}, @DDR>
+// dimW = 216 is the firstStridingDim, dim H(360) will be split
+vpux::Dim vpux::VPUIP::getCopyDMATilingDimForLargePlaneNum(mlir::Operation* op) {
+    VPUX_THROW_WHEN(mlir::dyn_cast<VPUIP::CopyOp>(op) == nullptr && mlir::dyn_cast<VPUIP::NNDMAOp>(op) == nullptr,
+                    "getCopyDMATilingDimForLargePlaneNum: not a CopyOp or NNDMAOp");
+    VPUX_THROW_UNLESS(isSplitNeededForLargePlanesNum(op),
+                      "getCopyDMATilingDimForLargePlaneNum: operation {0} does not need split for large plane number",
+                      *op);
+    const auto inOrder = DimsOrder::fromValue(op->getOperand(0));
+    auto firstStridingDim = getFirstStridingMemDimIdx(op);
+    VPUX_THROW_UNLESS(firstStridingDim != -1, "At least one of the input or output of copy has stride");
+    return inOrder.toDim(MemDim(firstStridingDim - 1));
+}
+
+int64_t vpux::VPUIP::getMaxStridingLevel(const VPU::ArchKind arch) {
+    int64_t maxStridingLevel = 0;
+    switch (arch) {
+    case VPU::ArchKind::VPUX30XX:
+    case VPU::ArchKind::VPUX37XX:
+        maxStridingLevel = VPUIP::CMX_DMA_MAX_STRIDING_LEVEL_30XX_37XX;
+        break;
+    default:
+        VPUX_THROW("Unsuported architecture for getMaxStridingLevel");
+    }
+
+    return maxStridingLevel;
+}
+
+int64_t vpux::VPUIP::getMaxNumberPlanes(const VPU::ArchKind arch) {
+    int64_t maxNumberPlanes = 0;
+    switch (arch) {
+    case VPU::ArchKind::VPUX30XX:
+    case VPU::ArchKind::VPUX37XX:
+        maxNumberPlanes = VPUIP::CMX_DMA_MAX_NUM_PLANES_30XX_37XX;
+        break;
+    default:
+        VPUX_THROW("Unsuported architecture for getMaxNumberPlanes");
+    }
+
+    return maxNumberPlanes;
+}
+
+// CopyOp or NNDMAop is split needed for large plane number in one of below two conditions:
+// 1.Input has level 2 stride and input plane number is larger than 255
+// 2.Output has level 2 stride and output plane number is larger than 255
+bool vpux::VPUIP::isSplitNeededForLargePlanesNum(mlir::Operation* op) {
+    VPUX_THROW_WHEN(mlir::dyn_cast<VPUIP::CopyOp>(op) == nullptr && mlir::dyn_cast<VPUIP::NNDMAOp>(op) == nullptr,
+                    "isSplitNeededForLargePlanesNum: not a CopyOp or NNDMAOp");
+    auto arch = VPU::getArch(op);
+    int64_t inputStridingLevel = 0;
+    int64_t outputStridingLevel = 0;
+    int64_t maxStridingLevel = 0;
+    inputStridingLevel = getStridingLevel(op->getOperand(0));
+    outputStridingLevel = getStridingLevel(op->getResult(0));
+    maxStridingLevel = getMaxStridingLevel(arch);
+    if (inputStridingLevel > maxStridingLevel || outputStridingLevel > maxStridingLevel) {
+        return false;
+    }
+
+    const auto inputShape = getShape(op->getOperand(0));
+    const auto inOrder = DimsOrder::fromValue(op->getOperand(0));
     const auto inMemShape = inOrder.toMemoryOrder(inputShape);
 
-    return checked_cast<int64_t>(inMemShape[MemDim(Dims4D::Act::C.ind())]);
+    int64_t inputNumPlane = 0;
+    int64_t outputNumPlane = 0;
+    int64_t maxNumPlane = 0;
+    if (inputStridingLevel == maxStridingLevel) {
+        auto inputFirstStridingDim = getFirstStridingMemDimIdxFromValue(op->getOperand(0));
+        inputNumPlane = inputFirstStridingDim >= 1 ? inMemShape[MemDim(inputFirstStridingDim - 1)] : 0;
+    }
+
+    if (outputStridingLevel == maxStridingLevel) {
+        auto outputFirstStridingDim = getFirstStridingMemDimIdxFromValue(op->getResult(0));
+        outputNumPlane = outputFirstStridingDim >= 1 ? inMemShape[MemDim(outputFirstStridingDim - 1)] : 0;
+    }
+
+    maxNumPlane = getMaxNumberPlanes(arch);
+
+    return inputNumPlane > maxNumPlane || outputNumPlane > maxNumPlane;
+}
+
+// CopyOp and NNDMAop with legal striding level should meet below two requirments:
+// 1.Input and output striding levels are both not larger than 2
+// 2.This operation is not split needed for large plane number
+bool vpux::VPUIP::hasLegalStridingLevel(mlir::Operation* op) {
+    VPUX_THROW_WHEN(mlir::dyn_cast<VPUIP::CopyOp>(op) == nullptr && mlir::dyn_cast<VPUIP::NNDMAOp>(op) == nullptr,
+                    "hasLegalStridingLevel: not a CopyOp or NNDMAOp");
+    auto arch = VPU::getArch(op);
+    int64_t inputStridingLevel = 0;
+    int64_t outputStridingLevel = 0;
+    inputStridingLevel = getStridingLevel(op->getOperand(0));
+    outputStridingLevel = getStridingLevel(op->getResult(0));
+    auto maxStridingLevel = getMaxStridingLevel(arch);
+    if (inputStridingLevel > maxStridingLevel || outputStridingLevel > maxStridingLevel) {
+        return false;
+    }
+
+    return !isSplitNeededForLargePlanesNum(op);
 }
 
 //
@@ -1267,4 +1428,12 @@ Byte VPUIP::getRequiredCMXSize(mlir::Operation* op) {
         }
     }
     return VPU::getRequiredCMXSize(operandTypes);
+}
+
+Shape VPUIP::backInferD2SInputShape(Shape outShape, int64_t paddedOC, int64_t paddedIC, int64_t blockSize) {
+    VPUX_THROW_UNLESS(outShape.size() == 4, "outShape does not have enough dims expected 4 got {0}", outShape.size());
+    outShape[Dims4D::Act::H] /= blockSize;
+    outShape[Dims4D::Act::W] /= blockSize;
+    outShape[Dims4D::Act::C] = (outShape[Dims4D::Act::C] - paddedOC) * (blockSize * blockSize) + paddedIC;
+    return outShape;
 }

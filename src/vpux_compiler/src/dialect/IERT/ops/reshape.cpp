@@ -14,8 +14,8 @@ using namespace vpux;
 
 mlir::LogicalResult vpux::IERT::GenericReshapeOp::verify() {
     const auto op = getOperation();
-    const auto inType = input().getType().cast<vpux::NDTypeInterface>();
-    const auto outType = output().getType().cast<vpux::NDTypeInterface>();
+    const auto inType = getInput().getType().cast<vpux::NDTypeInterface>();
+    const auto outType = getOutput().getType().cast<vpux::NDTypeInterface>();
 
     if (inType.getNumElements() != outType.getNumElements()) {
         return errorAt(op, "Reshape input and output must have the same number of elements");
@@ -35,20 +35,20 @@ mlir::LogicalResult vpux::IERT::GenericReshapeOp::verify() {
 }
 
 mlir::Value vpux::IERT::GenericReshapeOp::getViewSource() {
-    return input();
+    return getInput();
 }
 
 mlir::OpFoldResult vpux::IERT::GenericReshapeOp::fold(ArrayRef<mlir::Attribute> operands) {
-    if (input().getType() == output().getType()) {
-        return input();
+    if (getInput().getType() == getOutput().getType()) {
+        return getInput();
     }
 
-    if (input().getDefiningOp<GenericReshapeOp>() != nullptr) {
-        return output();
+    if (getInput().getDefiningOp<GenericReshapeOp>() != nullptr) {
+        return getOutput();
     }
 
     if (const auto cst = operands[0].dyn_cast_or_null<Const::ContentAttr>()) {
-        return cst.reshape(getShape(output()));
+        return cst.reshape(getShape(getOutput()));
     }
 
     return nullptr;

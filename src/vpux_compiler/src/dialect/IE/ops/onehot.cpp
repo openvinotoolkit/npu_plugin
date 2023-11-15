@@ -48,7 +48,7 @@ mlir::FailureOr<int64_t> extractDepth(mlir::Location loc, const mlir::Value& dep
         if (depthConst == nullptr) {
             return errorAt(loc, "Only constant input is supported");
         }
-        const auto depthContent = depthConst.content();
+        const auto depthContent = depthConst.getContent();
         if (!depthContent.isSplat()) {
             return errorAt(loc, "OneHot depth must be a scalar");
         }
@@ -121,9 +121,9 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::OneHotOp oneHotOp, m
         return mlir::failure();
     }
 
-    const auto depthContent = depthConst.content();
-    const auto onValueContent = onValueConst.content();
-    const auto offValueContent = offValueConst.content();
+    const auto depthContent = depthConst.getContent();
+    const auto onValueContent = onValueConst.getContent();
+    const auto offValueContent = offValueConst.getContent();
 
     if ((!depthContent.isSplat()) || (!onValueContent.isSplat()) || (!offValueContent.isSplat())) {
         return mlir::failure();

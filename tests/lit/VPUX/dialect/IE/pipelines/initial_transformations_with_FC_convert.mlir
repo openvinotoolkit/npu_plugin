@@ -37,18 +37,17 @@ func.func @MatMul4dInputsTo2d(%arg0: tensor<1x2x1x512xf32>) -> tensor<1x2x1x40xf
 
     return %0 : tensor<1x2x1x40xf32>
 
-
     // CHECK-DAG:      [[CST_0:%.*]] = const.Declare tensor<40x512xf32> = dense<1.000000e+00> : tensor<1x2x512x40xf32>, [#const.SubView<[0, 1, 0, 0], [1, 1, 512, 40]>, #const.Reshape<[512, 40]>, #const.Transpose<#map>]
     // CHECK-DAG:      [[CST_1:%.*]] = const.Declare tensor<40x512xf32> = dense<1.000000e+00> : tensor<1x2x512x40xf32>, [#const.SubView<[0, 0, 0, 0], [1, 1, 512, 40]>, #const.Reshape<[512, 40]>, #const.Transpose<#map>]
     // CHECK:          [[IN_1:%.*]] = IE.Slice %arg0 [0, 0, 0, 0] [1, 1, 1, 512] : tensor<1x2x1x512xf32> to tensor<1x1x1x512xf32>
-    // CHECK:          [[IN_1_2D:%.*]] = IE.AffineReshape([[IN_1]])
+    // CHECK:          [[IN_1_2D:%.*]] = IE.AffineReshape([[IN_1]]) 
     // CHECK-SAME{LITERAL}: {dim_mapping = [[0], [0], [0], [1]], shape_value = [1, 512]} : tensor<1x1x1x512xf32> -> tensor<1x512xf32>
     // CHECK:          [[IN_2:%.*]] = IE.Slice %arg0 [0, 1, 0, 0] [1, 1, 1, 512] : tensor<1x2x1x512xf32> to tensor<1x1x1x512xf32>
     // CHECK:          [[IN_2_2D:%.*]] = IE.AffineReshape([[IN_2]])
     // CHECK-SAME{LITERAL}: {dim_mapping = [[0], [0], [0], [1]], shape_value = [1, 512]} : tensor<1x1x1x512xf32> -> tensor<1x512xf32>
+
     // CHECK:          [[IN_1_4D:%.*]] = IE.Reshape([[IN_1_2D]]) {shape_value = [1, 512, 1, 1]} : tensor<1x512xf32> -> tensor<1x512x1x1xf32>
     // CHECK:          [[WEIGHTS_1:%.*]] = IE.Reshape([[CST_1]]) {shape_value = [40, 512, 1, 1]} : tensor<40x512xf32> -> tensor<40x512x1x1xf32>
-
     // CHECK:          [[CONV_1:%.*]] = IE.Convolution([[IN_1_4D]], [[WEIGHTS_1]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<1x512x1x1xf32>, tensor<40x512x1x1xf32> -> tensor<1x40x1x1xf32>
     // CHECK:          [[OUT_1_2D:%.*]] = IE.Reshape([[CONV_1]]) {shape_value = [1, 40]} : tensor<1x40x1x1xf32> -> tensor<1x40xf32>
 
@@ -57,10 +56,13 @@ func.func @MatMul4dInputsTo2d(%arg0: tensor<1x2x1x512xf32>) -> tensor<1x2x1x40xf
     // CHECK:          [[CONV_2:%.*]] = IE.Convolution([[IN_2_4D]], [[WEIGHTS_2]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<1x512x1x1xf32>, tensor<40x512x1x1xf32> -> tensor<1x40x1x1xf32>
     // CHECK:          [[OUT_2_2D:%.*]] = IE.Reshape([[CONV_2]]) {shape_value = [1, 40]} : tensor<1x40x1x1xf32> -> tensor<1x40xf32>
 
-    // CHECK:          [[CONCAT:%.*]] = IE.Concat([[OUT_1_2D]], [[OUT_2_2D]])
-    // CHECK-SAME{LITERAL}: {static_offsets = [[0, 0], [1, 0]]} : tensor<1x40xf32>, tensor<1x40xf32> -> tensor<2x40xf32>
-    // CHECK:          [[OUT:%.*]] = IE.AffineReshape([[CONCAT]])
+    // CHECK:          [[OUT_1_4D:%.*]] = IE.AffineReshape([[OUT_1_2D]])
+    // CHECK-SAME{LITERAL}: {dim_mapping = [[0, 1, 2], [3]], shape_value = [1, 1, 1, 40]} : tensor<1x40xf32> -> tensor<1x1x1x40xf32>
+    // CHECK:          [[OUT_2_4D:%.*]] = IE.AffineReshape([[OUT_2_2D]])
+    // CHECK-SAME{LITERAL}: {dim_mapping = [[0, 1, 2], [3]], shape_value = [1, 1, 1, 40]} : tensor<1x40xf32> -> tensor<1x1x1x40xf32>
 
-    // CHECK-SAME{LITERAL}: {dim_mapping = [[0, 1, 2], [3]], shape_value = [1, 2, 1, 40]} : tensor<2x40xf32> -> tensor<1x2x1x40xf32>
+    // CHECK:          [[CONCAT:%.*]] = IE.Concat([[OUT_1_4D]], [[OUT_2_4D]])
+    // CHECK-SAME{LITERAL}: {static_offsets = [[0, 0, 0, 0], [0, 1, 0, 0]]} : tensor<1x1x1x40xf32>, tensor<1x1x1x40xf32> -> tensor<1x2x1x40xf32>
+
     // CHECK return [[OUT]] : tensor<1x2x1x40xf32>
 }

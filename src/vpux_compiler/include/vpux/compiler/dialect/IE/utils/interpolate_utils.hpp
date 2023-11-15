@@ -35,5 +35,14 @@ mlir::FailureOr<SmallVector<int64_t>> calcOutputShapes(mlir::Location loc, IE::I
 // It can be convert to NEAREST with ASYMMETRIC mode that will benefit from SEP feature.
 bool isBroadCastInterpolate(IE::InterpolateOp op);
 
+// Generation of interpolation fraction coefficients
+std::pair<double, double> computeFractionCoefficients(double fraction);
+
+// Function prototype for coodinate transformation mode
+using MapCoordFuncT = llvm::function_ref<std::pair<int32_t, double>(int32_t, double, int32_t, int32_t)>;
+
+// Determine the coordintate transformation function
+MapCoordFuncT getMapCoordMethod(InterpolateCoordMode coordMode);
+
 }  // namespace IE
 }  // namespace vpux

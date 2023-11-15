@@ -47,19 +47,17 @@ mlir::LogicalResult vpux::IE::EmbeddingBagOffsetsSumOp::inferReturnTypeComponent
         return mlir::failure();
     }
 
-    const auto inTypeEmbTable = embeddingBag.input().getType().cast<mlir::ShapedType>();
-    const auto inShape = inTypeEmbTable.getShape();
+    const auto inTypeEmbTable = embeddingBag.emb_table().getType().cast<mlir::ShapedType>();
 
-    SmallVector<int64_t> outShape;
-    for (size_t i = 0; i < inShape.size(); i++)
-        outShape.emplace_back(inShape[i]);
+    auto embTableShape = to_small_vector(inTypeEmbTable.getShape());
+    SmallVector<int64_t> outShape(embTableShape);
 
     if (embeddingBag.offsets() != nullptr) {
         const auto inTypeOffsets = embeddingBag.offsets().getType().cast<mlir::ShapedType>();
         const auto offsetsShape = inTypeOffsets.getShape();
-        outShape[0] = offsetsShape.size();
-    } else if (embeddingBag.offsets_value().hasValue()) {
-        const auto offsetsAttr = parseIntArrayAttr<int32_t>(embeddingBag.offsets_value().getValue());
+        outShape[0] = checked_cast<int64_t>(offsetsShape[0]);
+    } else if (embeddingBag.offsets_value().has_value()) {
+        const auto offsetsAttr = parseIntArrayAttr<int32_t>(embeddingBag.offsets_value().value());
         outShape[0] = offsetsAttr.size();
     } else
         return errorAt(loc, "Offsets input was not provided properly");
@@ -69,12 +67,11 @@ mlir::LogicalResult vpux::IE::EmbeddingBagOffsetsSumOp::inferReturnTypeComponent
 }
 
 //
-// ConvertConstToAttr
+// ConvertConstToAttrVPUX30XX
 //
 
 namespace {
-
-class ConvertConstToAttr final : public mlir::OpRewritePattern<IE::EmbeddingBagOffsetsSumOp> {
+class ConvertConstToAttrVPUX30XX final : public mlir::OpRewritePattern<IE::EmbeddingBagOffsetsSumOp> {
 public:
     using mlir::OpRewritePattern<IE::EmbeddingBagOffsetsSumOp>::OpRewritePattern;
 
@@ -83,31 +80,96 @@ public:
                                         mlir::PatternRewriter& rewriter) const final;
 };
 
-mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::EmbeddingBagOffsetsSumOp embeddingBagOffsetsSumOp,
-                                                        mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult ConvertConstToAttrVPUX30XX::matchAndRewrite(IE::EmbeddingBagOffsetsSumOp embeddingBagOffsetsSumOp,
+                                                                mlir::PatternRewriter& rewriter) const {
+    const auto arch = VPU::getArch(embeddingBagOffsetsSumOp);
+    if (arch != VPU::ArchKind::VPUX30XX) {
+        return mlir::failure();
+    }
+
+    if ((embeddingBagOffsetsSumOp.indices_valueAttr() != nullptr) &&
+        (embeddingBagOffsetsSumOp.offsets_valueAttr() != nullptr) &&
+        (embeddingBagOffsetsSumOp.default_index_valueAttr() != nullptr) &&
+        (embeddingBagOffsetsSumOp.per_sample_weights_valueAttr() != nullptr)) {
+        return mlir::failure();
+    }
+
     auto indicesAttr = vpux::IE::getIntArrayAttrValue(embeddingBagOffsetsSumOp.indices());
     auto offsetsAttr = vpux::IE::getIntArrayAttrValue(embeddingBagOffsetsSumOp.offsets());
     auto defaultIndexAttr = vpux::IE::getIntAttrValue(embeddingBagOffsetsSumOp.default_index(), rewriter);
-    auto weightsAttr = vpux::IE::getFloatArrayAttrValue(embeddingBagOffsetsSumOp.weights());
-    if ((embeddingBagOffsetsSumOp.default_index_valueAttr() == nullptr) && (defaultIndexAttr == nullptr)) {
-        int32_t defaultValueDefaultIndex = 0;
+    auto perSampleWeightsAttr = vpux::IE::getFloatArrayAttrValue(embeddingBagOffsetsSumOp.per_sample_weights());
+
+    if (defaultIndexAttr == nullptr) {
+        // The OpenVINO spec expects default value 0. However, the ACT Shave kernel implementation
+        // fills the empty segments with zero when a negative value is provided.
+        int32_t defaultValueDefaultIndex = -1;
         defaultIndexAttr = rewriter.getI32IntegerAttr(defaultValueDefaultIndex);
     }
-    if ((embeddingBagOffsetsSumOp.weights_valueAttr() == nullptr) && (weightsAttr == nullptr)) {
-        SmallVector<float> defaultValueWeights(indicesAttr.size(), 1);
-        weightsAttr = getFPArrayAttr(embeddingBagOffsetsSumOp.getContext(), defaultValueWeights);
+
+    if ((embeddingBagOffsetsSumOp.per_sample_weights_valueAttr() == nullptr) && (perSampleWeightsAttr == nullptr)) {
+        SmallVector<float> defaultValuePerSampleWeights(indicesAttr.size(), 1);
+        perSampleWeightsAttr = getFPArrayAttr(embeddingBagOffsetsSumOp.getContext(), defaultValuePerSampleWeights);
     }
+
     if ((indicesAttr == nullptr) && (offsetsAttr == nullptr) && (defaultIndexAttr == nullptr) &&
-        (weightsAttr == nullptr)) {
+        (perSampleWeightsAttr == nullptr)) {
         return mlir::failure();
     }
+
     const auto indices = (indicesAttr == nullptr) ? embeddingBagOffsetsSumOp.indices() : nullptr;
     const auto offsets = (offsetsAttr == nullptr) ? embeddingBagOffsetsSumOp.offsets() : nullptr;
-    const auto weights = (weightsAttr == nullptr) ? embeddingBagOffsetsSumOp.weights() : nullptr;
     const auto defaultIndex = (defaultIndexAttr == nullptr) ? embeddingBagOffsetsSumOp.default_index() : nullptr;
+    const auto perSampleWeights =
+            (perSampleWeightsAttr == nullptr) ? embeddingBagOffsetsSumOp.per_sample_weights() : nullptr;
+
     rewriter.replaceOpWithNewOp<IE::EmbeddingBagOffsetsSumOp>(
-            embeddingBagOffsetsSumOp, embeddingBagOffsetsSumOp.getType(), embeddingBagOffsetsSumOp.input(), indices,
-            offsets, defaultIndex, weights, indicesAttr, offsetsAttr, defaultIndexAttr, weightsAttr);
+            embeddingBagOffsetsSumOp, embeddingBagOffsetsSumOp.getType(), embeddingBagOffsetsSumOp.emb_table(), indices,
+            offsets, defaultIndex, perSampleWeights, indicesAttr, offsetsAttr, defaultIndexAttr, perSampleWeightsAttr);
+
+    return mlir::success();
+}
+
+}  // namespace
+
+//
+// ConvertConstToAttrVPUX37XX
+//
+
+namespace {
+
+class ConvertConstToAttrVPUX37XX final : public mlir::OpRewritePattern<IE::EmbeddingBagOffsetsSumOp> {
+public:
+    using mlir::OpRewritePattern<IE::EmbeddingBagOffsetsSumOp>::OpRewritePattern;
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::EmbeddingBagOffsetsSumOp EmbeddingBagOffsetsSumOp,
+                                        mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult ConvertConstToAttrVPUX37XX::matchAndRewrite(IE::EmbeddingBagOffsetsSumOp embeddingBagOffsetsSumOp,
+                                                                mlir::PatternRewriter& rewriter) const {
+    const auto arch = VPU::getArch(embeddingBagOffsetsSumOp);
+    if (arch != VPU::ArchKind::VPUX37XX) {
+        return mlir::failure();
+    }
+
+    auto defaultIndexAttr = vpux::IE::getIntAttrValue(embeddingBagOffsetsSumOp.default_index(), rewriter);
+
+    if ((embeddingBagOffsetsSumOp.default_index_valueAttr() == nullptr) && (defaultIndexAttr == nullptr)) {
+        int32_t defaultValueDefaultIndex = -1;
+        defaultIndexAttr = rewriter.getI32IntegerAttr(defaultValueDefaultIndex);
+    }
+
+    if (defaultIndexAttr == nullptr) {
+        return mlir::failure();
+    }
+
+    rewriter.replaceOpWithNewOp<IE::EmbeddingBagOffsetsSumOp>(
+            embeddingBagOffsetsSumOp, embeddingBagOffsetsSumOp.getType(), embeddingBagOffsetsSumOp.emb_table(),
+            embeddingBagOffsetsSumOp.indices(), embeddingBagOffsetsSumOp.offsets(), nullptr /*defaultIndex*/,
+            embeddingBagOffsetsSumOp.per_sample_weights(), nullptr /*indicesAttr*/, nullptr /*offsetsAttr*/,
+            defaultIndexAttr, nullptr);
+
     return mlir::success();
 }
 
@@ -115,5 +177,6 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::EmbeddingBagOffsetsS
 
 void vpux::IE::EmbeddingBagOffsetsSumOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns,
                                                                      mlir::MLIRContext* context) {
-    patterns.add<ConvertConstToAttr>(context);
+    patterns.add<ConvertConstToAttrVPUX30XX>(context);
+    patterns.add<ConvertConstToAttrVPUX37XX>(context);
 }

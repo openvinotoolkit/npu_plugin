@@ -170,7 +170,7 @@ mlir::DenseSet<mlir::Operation*> findInvalidSparseOps(VPU::NCEOpInterface nceOp)
 
     Optional<int64_t> numChannels = None;
     auto invalidWorkloads = llvm::any_of(workloadsChannels, [&](int64_t channels) -> bool {
-        if (!numChannels.hasValue()) {
+        if (!numChannels.has_value()) {
             numChannels = channels;
         }
         return !isPowerOfTwo(channels) || (channels != numChannels);
@@ -217,10 +217,10 @@ mlir::DenseSet<mlir::Operation*> findInvalidPermuteQuantizeOps(const mlir::Dense
         const auto workloads = nceOp.workloads().getOps<VPU::DPUWorkloadOp>();
         const auto nonZeroPadding = llvm::any_of(workloads, [&](VPU::DPUWorkloadOp workload) -> bool {
             const auto pads = workload.pad();
-            const auto top = pads.top().getInt();
-            const auto bottom = pads.bottom().getInt();
-            const auto left = pads.left().getInt();
-            const auto right = pads.right().getInt();
+            const auto top = pads.getTop().getInt();
+            const auto bottom = pads.getBottom().getInt();
+            const auto left = pads.getLeft().getInt();
+            const auto right = pads.getRight().getInt();
             const auto zeroPadding = top == 0 && bottom == 0 && left == 0 && right == 0;
             const auto wlOffsets = parseIntArrayAttr<int64_t>(workload.outOffsetsAttr());
             const auto isZeroPredicate = [](const int64_t value) -> bool {
@@ -311,14 +311,14 @@ void splitWorkload(VPU::DPUWorkloadOp dpuWorkloadOp, ArrayRef<int64_t> supported
     auto padsAttr = dpuWorkloadOp.pad();
     if (removePadding) {
         const auto pads = dpuWorkloadOp.pad();
-        const auto top = pads.top().getInt();
-        const auto bottom = pads.bottom().getInt();
-        const auto left = pads.left().getInt();
-        const auto right = pads.right().getInt();
+        const auto top = pads.getTop().getInt();
+        const auto bottom = pads.getBottom().getInt();
+        const auto left = pads.getLeft().getInt();
+        const auto right = pads.getRight().getInt();
         wlSizes[Dims4D::Act::H.ind()] -= (top + bottom);
         wlSizes[Dims4D::Act::W.ind()] -= (left + right);
         if (!offsetsCorrectionForPermuteQuantize.empty()) {
-            const auto clusterId = dpuWorkloadOp.cluster_id().getValue();
+            const auto clusterId = dpuWorkloadOp.cluster_id().value();
             const auto offsetsCorrectionPerCluster = offsetsCorrectionForPermuteQuantize[clusterId].raw();
             std::transform(wlOffsets.begin(), wlOffsets.end(), offsetsCorrectionPerCluster.begin(), wlOffsets.begin(),
                            std::minus<int64_t>());

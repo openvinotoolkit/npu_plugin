@@ -3,12 +3,9 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/utils/core/mem_size.hpp"
-#include "vpux/utils/core/quant_params.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 
 #include <ie_blob.h>
@@ -55,12 +52,10 @@ InferenceEngine::MemoryBlob::Ptr copyBlob(const InferenceEngine::MemoryBlob::Ptr
 // cvtBlobPrecision
 //
 
-void cvtBlobPrecision(const InferenceEngine::MemoryBlob::Ptr& in, const InferenceEngine::MemoryBlob::Ptr& out,
-                      const Optional<QuantizationParam>& outQuantParams);
+void cvtBlobPrecision(const InferenceEngine::MemoryBlob::Ptr& in, const InferenceEngine::MemoryBlob::Ptr& out);
 
 InferenceEngine::MemoryBlob::Ptr toPrecision(const InferenceEngine::MemoryBlob::Ptr& in,
                                              const InferenceEngine::Precision& precision,
-                                             const Optional<QuantizationParam>& outQuantParams = None,
                                              const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr,
                                              void* ptr = nullptr);
 InferenceEngine::MemoryBlob::Ptr toDefPrecision(const InferenceEngine::MemoryBlob::Ptr& in,
@@ -70,12 +65,12 @@ InferenceEngine::MemoryBlob::Ptr toDefPrecision(const InferenceEngine::MemoryBlo
 inline InferenceEngine::MemoryBlob::Ptr toFP32(const InferenceEngine::MemoryBlob::Ptr& in,
                                                const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr,
                                                void* ptr = nullptr) {
-    return toPrecision(in, InferenceEngine::Precision::FP32, None, allocator, ptr);
+    return toPrecision(in, InferenceEngine::Precision::FP32, allocator, ptr);
 }
 inline InferenceEngine::MemoryBlob::Ptr toFP16(const InferenceEngine::MemoryBlob::Ptr& in,
                                                const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr,
                                                void* ptr = nullptr) {
-    return toPrecision(in, InferenceEngine::Precision::FP16, None, allocator, ptr);
+    return toPrecision(in, InferenceEngine::Precision::FP16, allocator, ptr);
 }
 
 //

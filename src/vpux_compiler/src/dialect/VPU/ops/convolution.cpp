@@ -71,22 +71,6 @@ mlir::LogicalResult vpux::VPU::ConvolutionOp::inferReturnTypes(mlir::MLIRContext
     return mlir::success();
 }
 
-void vpux::VPU::ConvolutionOp::inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) {
-    // SW Convolution Op
-    auto expectedFilterLayout = mlir::isa<IE::GroupConvolutionOp>(origOp) ? DimsOrder::OIYX : DimsOrder::YXOI;
-
-    const auto module = origOp->getParentOfType<mlir::ModuleOp>();
-    const auto arch = VPU::getArch(module);
-
-    if (arch == VPU::ArchKind::VPUX37XX) {
-        expectedFilterLayout = DimsOrder::OIYX;
-    }
-
-    info.setInput(0, DimsOrder::NCHW);
-    info.setInput(1, expectedFilterLayout);
-    info.setOutput(0, DimsOrder::NCHW);
-}
-
 //
 // serialize
 //
@@ -132,6 +116,6 @@ void vpux::VPU::ConvolutionOp::adjustAttrs(const TilingInfo& inputTiling, const 
     IE::adjustPaddings(this, inputTiling);
 }
 
-OutputTiling vpux::VPU::ConvolutionOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
+mlir::FailureOr<OutputTiling> vpux::VPU::ConvolutionOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
     return vpux::getSWLayerTilingStrategy(this->getOperation(), tilingMode, log);
 }

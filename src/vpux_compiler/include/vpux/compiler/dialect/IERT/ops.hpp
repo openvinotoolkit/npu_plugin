@@ -29,7 +29,7 @@
 // Generated
 //
 
-#include <vpux/compiler/dialect/IERT/generated/dialect.hpp.inc>
+#include <vpux/compiler/dialect/IERT/dialect.hpp.inc>
 
 #define GET_OP_CLASSES
-#include <vpux/compiler/dialect/IERT/generated/ops.hpp.inc>
+#include <vpux/compiler/dialect/IERT/ops.hpp.inc>

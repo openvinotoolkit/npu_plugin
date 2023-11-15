@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "common/functions.h"
 #include "test_model/kmb_test_base.hpp"
 #include "vpux_private_config.hpp"
@@ -76,7 +74,7 @@ static const std::vector<ConfigMap> baseInferConfigs = {
         {{"PERF_COUNT", "YES"}},
         {{"PERF_COUNT", "NO"}},
         {{"DEVICE_ID", ""}},
-        {{"VPUX_PLATFORM", PlatformEnvironment::PLATFORM}},
+        {{"NPU_PLATFORM", PlatformEnvironment::PLATFORM}},
 };
 
 static const auto allBaseConfigurations = ::testing::Combine(

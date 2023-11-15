@@ -11,6 +11,7 @@
 #include "vpux/compiler/core/type_interfaces.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
+#include "vpux/compiler/utils/quantization.hpp"
 
 #include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/mem_size.hpp"
@@ -124,5 +125,9 @@ NDTypeInterface getEffectiveSparseOutputType(mlir::Type dataType, mlir::Type seT
 
 bool areTypesCompatible(mlir::TypeRange lhs, mlir::TypeRange rhs, IE::TypeComparisonMode elemComparisonMode,
                         bool checkDimsOrder, bool checkMemSpace);
+
+// Checks if the only difference between two UniformQuantizedPerAxisType is the quantized dimension
+bool isQuantizedDimensionPermutation(mlir::quant::UniformQuantizedPerAxisType inputElemType,
+                                     mlir::quant::UniformQuantizedPerAxisType newElemType);
 
 }  // namespace vpux

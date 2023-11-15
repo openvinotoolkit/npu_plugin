@@ -1,6 +1,6 @@
 //
-// Copyright (C) 2022 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "functional_test_utils/skip_tests_config.hpp"
@@ -9,10 +9,11 @@
 #include <string>
 #include <vector>
 
+#include <vpux/utils/core/logger.hpp>
 #include "common/functions.h"
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 class BackendName {
 public:
@@ -21,7 +22,7 @@ public:
         if (corePtr != nullptr) {
             _name = getBackendName(*corePtr);
         } else {
-            std::cout << "Failed to get IE Core!" << std::endl;
+            _log.error("Failed to get IE Core from cache!");
         }
     }
 
@@ -51,6 +52,7 @@ public:
 
 private:
     std::string _name;
+    vpux::Logger _log = vpux::Logger::global().nest("BackendName", 0);
 };
 
 class AvailableDevices {
@@ -60,7 +62,7 @@ public:
         if (corePtr != nullptr) {
             _availableDevices = ::getAvailableDevices(*corePtr);
         } else {
-            std::cout << "Failed to get IE Core!" << std::endl;
+            _log.error("Failed to get IE Core from cache!");
         }
     }
 
@@ -86,6 +88,7 @@ public:
 
 private:
     std::vector<std::string> _availableDevices;
+    vpux::Logger _log = vpux::Logger::global().nest("AvailableDevices", 0);
 };
 
 class Platform {
@@ -130,7 +133,7 @@ public:
             for (const auto& pattern : entry._patterns) {
                 std::regex re(pattern);
                 if (std::regex_match(testName, re)) {
-                    std::cout << entry._comment << "; Pattern: " << pattern << std::endl;
+                    _log.info("{0}; Pattern: {1}", entry._comment, pattern);
                     return pattern;
                 }
             }
@@ -150,6 +153,7 @@ private:
     };
 
     std::vector<Entry> _registry;
+    vpux::Logger _log = vpux::Logger::global().nest("SkipRegistry", 0);
 };
 
 std::string getCurrentTestName() {
@@ -194,7 +198,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO
         // [Track number: E#30815]
         _skipRegistry.addPatterns(
-                "VPUX Plugin doesn't handle DEVICE_ID in QueryNetwork implementation", {
+                "NPU Plugin doesn't handle DEVICE_ID in QueryNetwork implementation", {
                 ".*OVClassQueryNetworkTest.*",
         });
 
@@ -228,7 +232,7 @@ std::vector<std::string> disabledTestPatterns() {
 
         // TODO:
         _skipRegistry.addPatterns(
-                "GetExecGraphInfo function is not implemented for VPUX plugin", {
+                "GetExecGraphInfo function is not implemented for VPU plugin", {
                 ".*checkGetExecGraphInfoIsNotNullptr.*",
                 ".*CanCreateTwoExeNetworksAndCheckFunction.*",
                 ".*CheckExecGraphInfo.*",
@@ -249,7 +253,7 @@ std::vector<std::string> disabledTestPatterns() {
 
         // TODO:
         _skipRegistry.addPatterns(
-                "SetConfig function is not implemented for ExecutableNetwork interface (implemented only for vpux plugin)", {
+                "SetConfig function is not implemented for ExecutableNetwork interface (implemented only for vpu plugin)", {
                 ".*ExecutableNetworkBaseTest.canSetConfigToExecNet.*",
                 ".*ExecutableNetworkBaseTest.canSetConfigToExecNetAndCheckConfigAndCheck.*",
                 ".*CanSetConfigToExecNet.*",
@@ -286,25 +290,25 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*OVInferenceChaining.*",
         });
 
-        // Current OV logic with FULL_DEVICE_NAME metric differs from VPUX Plugin
-        _skipRegistry.addPatterns(
-                "Plugin throws an exception in case of absence VPUX devices in system", {
-                ".*IEClassGetMetricTest_FULL_DEVICE_NAME.*GetMetricAndPrintNoThrow.*",
-        });
-
         _skipRegistry.addPatterns(
                 "Tests with unsupported precision", {
                 ".*InferRequestCheckTensorPrecision.*type=boolean.*",
                 ".*InferRequestCheckTensorPrecision.*type=bf16.*",
                 ".*InferRequestCheckTensorPrecision.*type=f64.*",
-                ".*InferRequestCheckTensorPrecision.*type=i4.*",
-                ".*InferRequestCheckTensorPrecision.*type=i16.*",
                 ".*InferRequestCheckTensorPrecision.*type=i64.*",
-                ".*InferRequestCheckTensorPrecision.*type=u1.*",
-                ".*InferRequestCheckTensorPrecision.*type=u4.*",
-                ".*InferRequestCheckTensorPrecision.*type=u16.*",
-                ".*InferRequestCheckTensorPrecision.*type=u32.*",
                 ".*InferRequestCheckTensorPrecision.*type=u64.*",
+                ".*InferRequestCheckTensorPrecision.*type=i4.*",
+                ".*InferRequestCheckTensorPrecision.*type=u4.*",
+                ".*InferRequestCheckTensorPrecision.*type=u1\\D.*",
+        });
+
+        _skipRegistry.addPatterns(!backendName.isZero() || !devices.has3720(),
+                "Tests enabled only for L0 VPU3720", {
+                // [Track number: E#70764]
+                ".*InferRequestCheckTensorPrecision.*",
+                ".*InferRequestIOTensorSetPrecisionTest.*",
+                ".*VpuxDriverCompilerAdapterDowngradeInterpolate11Test.*",
+                ".*VpuxDriverCompilerAdapterInputsOutputsTest.*",
         });
 
         // TODO
@@ -331,7 +335,7 @@ std::vector<std::string> disabledTestPatterns() {
         _skipRegistry.addPatterns(
                 "Cannot call setShape for Blobs", {
                 R"(.*(smoke_Behavior|smoke_Multi_Behavior).*OVInferRequestIOTensorTest.*canInferAfterIOBlobReallocation.*)",
-                R"(.*(smoke_Behavior|smoke_Multi_Behavior).*OVInferRequestIOTensorTest.*InferStaticNetworkSetChangedInputTensorThrow.*targetDevice=(VPUX_|MULTI_configItem=MULTI_DEVICE_PRIORITIES_VPUX).*)"
+                R"(.*(smoke_Behavior|smoke_Multi_Behavior).*OVInferRequestIOTensorTest.*InferStaticNetworkSetChangedInputTensorThrow.*targetDevice=(VPU_|VPUX_|NPU_|MULTI_configItem=MULTI_DEVICE_PRIORITIES_VPU|MULTI_configItem=MULTI_DEVICE_PRIORITIES_NPU).*)"
         });
 
         // [Track number: E#67743]
@@ -343,7 +347,7 @@ std::vector<std::string> disabledTestPatterns() {
         // [Track number: E#67747]
         _skipRegistry.addPatterns(
                 "AUTOload all devices fail", {
-                ".*Auto_Behavior.*InferRequestIOBBlobTest.*canReallocateExternalBlobViaGet.*MULTI_DEVICE_PRIORITIES_VPUX_.*",
+                ".*Auto_Behavior.*InferRequestIOBBlobTest.*canReallocateExternalBlobViaGet.*MULTI_DEVICE_PRIORITIES_VPU_.*",
         });
 
         // [Track number: E#67749]
@@ -354,13 +358,13 @@ std::vector<std::string> disabledTestPatterns() {
 
         // [Track number: E#73523]
         _skipRegistry.addPatterns(
-                "VPUX Plugin currently fails to get a valid output in these test cases", {
-                "smoke_precommit_VPU3720_BehaviorTestsPreprocess/InferRequestPreprocessTest.SetMeanImagePreProcessGetBlob.*",
-                "smoke_precommit_VPU3720_BehaviorTestsPreprocess/InferRequestPreprocessTest.SetMeanImagePreProcessSetBlob.*",
-                "smoke_precommit_VPU3720_BehaviorTestsPreprocess/InferRequestPreprocessTest.SetMeanValuePreProcessGetBlob.*",
-                "smoke_precommit_VPU3720_BehaviorTestsPreprocess/InferRequestPreprocessTest.SetMeanValuePreProcessSetBlob.*",
-                "smoke_precommit_VPU3720_BehaviorTestsPreprocess/InferRequestPreprocessTest.SetScalePreProcessGetBlob.*",
-                "smoke_precommit_VPU3720_BehaviorTestsPreprocess/InferRequestPreprocessTest.SetScalePreProcessSetBlob.*",
+                "NPU Plugin currently fails to get a valid output in these test cases", {
+                "smoke_precommit_.*BehaviorTestsPreprocess/InferRequestPreprocessTest.SetMeanImagePreProcessGetBlob.*",
+                "smoke_precommit_.*BehaviorTestsPreprocess/InferRequestPreprocessTest.SetMeanImagePreProcessSetBlob.*",
+                "smoke_precommit_.*BehaviorTestsPreprocess/InferRequestPreprocessTest.SetMeanValuePreProcessGetBlob.*",
+                "smoke_precommit_.*BehaviorTestsPreprocess/InferRequestPreprocessTest.SetMeanValuePreProcessSetBlob.*",
+                "smoke_precommit_.*BehaviorTestsPreprocess/InferRequestPreprocessTest.SetScalePreProcessGetBlob.*",
+                "smoke_precommit_.*BehaviorTestsPreprocess/InferRequestPreprocessTest.SetScalePreProcessSetBlob.*",
         });
 
 
@@ -375,7 +379,7 @@ std::vector<std::string> disabledTestPatterns() {
         // [Track number: E#77755]
         _skipRegistry.addPatterns(
                 "OV requires the plugin to throw on network load when config file is incorrect, but plugin does not throw", {
-                R"(.*smoke_Auto_BehaviorTests.*IncorrectConfigTests.CanNotLoadNetworkWithIncorrectConfig.*AUTO_config.*unknown_file_MULTI_DEVICE_PRIORITIES=(VPUX_|VPUX,CPU_).*)"
+                R"(.*smoke_Auto_BehaviorTests.*IncorrectConfigTests.CanNotLoadNetworkWithIncorrectConfig.*AUTO_config.*unknown_file_MULTI_DEVICE_PRIORITIES=(VPU_|VPU|VPUX_|VPUX|NPU_|NPU,CPU_).*)"
         });
 
         // [Track number: E#77756]
@@ -386,7 +390,7 @@ std::vector<std::string> disabledTestPatterns() {
 
         // [Track number: E#68776]
         _skipRegistry.addPatterns(
-                "Plugin can not perform SetConfig for value like: device=VPUX config key=LOG_LEVEL value=0", {
+                "Plugin can not perform SetConfig for value like: device=VPU config key=LOG_LEVEL value=0", {
                 "smoke_BehaviorTests/DefaultValuesConfigTests.CanSetDefaultValueBackToPlugin.*",
         });
 
@@ -394,7 +398,6 @@ std::vector<std::string> disabledTestPatterns() {
                 "Disabled with ticket number", {
                 // [Track number: E#48480]
                 ".*OVExecutableNetworkBaseTest.*",
-                ".*OVInferRequestCheckTensorPrecision.*",
 
                 // [Track number: E#63708]
                 ".*smoke_BehaviorTests.*InferStaticNetworkSetInputTensor.*",
@@ -406,8 +409,20 @@ std::vector<std::string> disabledTestPatterns() {
 
         // [Track number: E#73598]
         _skipRegistry.addPatterns(
-                "The test tries to concatenate an extra .0123 after the typical VPUX.0123 name, and it fails currently", {
+                "The test tries to concatenate an extra .0123 after the typical VPU.0123 name, and it fails currently", {
                 "smoke_InterfaceTests.TestEngineClassGetMetric*",
+        });
+
+        // [Tracking number: E#86380]
+        _skipRegistry.addPatterns(
+                "The output tensor gets freed when the inference request structure's destructor is called. The issue is unrelated to the caching feature.", {
+                ".*CacheTestBase.CompareWithRefImpl.*",
+        });
+
+        // [Tracking number: E#90079]
+        _skipRegistry.addPatterns(
+                "Compiling the model leads to segmentation fault/\"double free or corruption\" error.", {
+                ".*smoke_Split/VPUXSplitLayerTest_VPU3720.HW/IS=.*_numSplits=.*_axis=0_ISnetPRC=.*_inPRC=FP32_outPRC=FP16_inL=NHWC_outL=NHWC.*",
         });
 
         //
@@ -421,6 +436,7 @@ std::vector<std::string> disabledTestPatterns() {
                                           ".*VPU3720.*",
                                           // [Track number: E#84621]
                                           ".*VpuxDriverCompilerAdapterDowngradeInterpolate11Test.*",
+                                          ".*VpuxDriverCompilerAdapterInputsOutputsTest.*",
                                   });
 
         _skipRegistry.addPatterns(
@@ -452,6 +468,7 @@ std::vector<std::string> disabledTestPatterns() {
                         ".*OVClassNetworkTestP.*SetAffinityWithKSO.*",
                         ".*OVClassNetworkTestP.*LoadNetwork.*",
                         ".*FailGracefullyTest.*",
+                        ".*VpuxDriverCompilerAdapterInputsOutputsTest.*",
 
                         // Exception in case of network compilation without devices in system
                         // [Track number: E#30824]
@@ -459,6 +476,7 @@ std::vector<std::string> disabledTestPatterns() {
                         ".*OVClassLoadNetworkTest.*LoadNetwork.*",
                         // [Track number: E#84621]
                         ".*VpuxDriverCompilerAdapterDowngradeInterpolate11Test.*",
+                        ".*VPUQueryNetworkTest.*",                 
                 });
 
         _skipRegistry.addPatterns(backendName.isZero() && devices.has3700(),
@@ -473,17 +491,50 @@ std::vector<std::string> disabledTestPatterns() {
         _skipRegistry.addPatterns(backendName.isZero() && devices.has3700(), "Convert layer is not supported by dKMB platform",
                                  {".*PreprocessingPrecisionConvertTest.*", ".*InferRequestPreprocess.*"});
 
-        _skipRegistry.addPatterns(backendName.isZero(), "Most KmbProfilingTest instances break sporadically, only stable instances are left, #65844", {
-                                                ".*precommit_profilingDisabled/KmbProfilingTest.*",
-                                                ".*precommit_profilingDisabled_drv/KmbProfilingTest.*",
-                                                ".*precommit_profilingNonMatchedName_drv/KmbProfilingTest.*",
-                                                ".*precommit_profilingMatchedName_drv/KmbProfilingTest.*",
+        _skipRegistry.addPatterns(backendName.isZero() && devices.has3700(), "Tests hang when run one after another",
+                                  // [Tracking number: E#90056]
+                                  {".*OVInferConsistencyTest.*"});
+
+        _skipRegistry.addPatterns(!(backendName.isZero()), "These tests runs only on LevelZero backend",
+                                  {".*InferRequestRunTests.*",
+                                   ".*OVClassGetMetricAndPrintNoThrow.*",
+                                   ".*IEClassGetMetricAndPrintNoThrow.*",
+                                   ".*CompileModelLoadFromFileTestBase.*",
+                                   ".*CorrectConfigTests.*"});
+
+        _skipRegistry.addPatterns(!(devices.has3720()), "Runs only on 3720 device with Level Zero enabled. E#85493",
+                                  {".*InferRequestRunTests.MultipleExecutorStreamsTestsSyncInfers.*"});
+
+        _skipRegistry.addPatterns("DEVICE_BATCH doesn't allow to set VPU config with OV1.0 and CACHE_DIR + MLIR is not supported",
+                                  {".*smoke_AutoBatch_BehaviorTests/CorrectConfigTests.CanUseCache.*"});
+
+        _skipRegistry.addPatterns("Disable tests till the CiD version will be updated",
+                                  {
+                                   // [Tracking number: E#88007]
+                                   ".*CompileModelLoadFromFileTestBase.*",
+                                   ".*CorrectConfigTests.CanUseCache.*",
+                                   // [Tracking number: E#88357]
+                                   ".*CorrectConfigTests.CanLoadNetworkWithCorrectConfig.*",
+                                   ".*VpuxDriverCompilerAdapterDowngradeInterpolate11Test.CheckOpsetVersion.*",
+                                   ".*VpuxDriverCompilerAdapterInputsOutputsTest.CheckInOutputs.*",
+                                   ".*VpuDriverCompilerAdapterExpectedThrow.CheckWrongGraphExtAndThrow.*"});
+
+        _skipRegistry.addPatterns(backendName.isZero(), "Most ProfilingTest_VPU3700 instances break sporadically, only stable instances are left, #65844", {
+                                                ".*precommit_profilingDisabled/ProfilingTest_VPU3700.*",
+                                                ".*precommit_profilingDisabled_drv/ProfilingTest_VPU3700.*",
+                                                ".*precommit_profilingNonMatchedName_drv/ProfilingTest_VPU3700.*",
+                                                ".*precommit_profilingMatchedName_drv/ProfilingTest_VPU3700.*",
                                                 });
 
         _skipRegistry.addPatterns(backendName.isIMD(), "IMD/Simics do not support the tests",
                                   {
                                         // [Tracking number: E#81065]
-                                        ".*smoke_VPUXClassPluginPropertiesTest/VPUXClassPluginPropertiesTestSuite2.CanNotSetImmutableProperty.*",
+                                        ".*smoke_VPUXClassPluginProperties.*DEVICE_UUID.*",
+                                  });
+        _skipRegistry.addPatterns(backendName.isIMD(), "Run long time on IMD/Simics",
+                                  {
+                                        // [Tracking number: E#85488]
+                                        ".*VpuxPreprocessingPrecisionConvertTest.*",
                                   });
 
         _skipRegistry.addPatterns(platform.isARM(), "CumSum layer is not supported by ARM platform",
@@ -505,9 +556,14 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*smoke_MemoryLSTMCellTest.*",
         });
 
+        _skipRegistry.addPatterns(!backendName.isZero() || !devices.has3720(),
+                "QueryNetwork is only supported by 3720 platform", {
+                ".*VPUQueryNetworkTest.*"
+        });
+
         _skipRegistry.addPatterns(
                 devices.count() > 1,
-                "Some VPUX Plugin metrics require single device to work in auto mode or set particular device",
+                "Some VPU Plugin metrics require single device to work in auto mode or set particular device",
                 {
                         ".*OVClassGetConfigTest.*GetConfigNoThrow.*",
                         ".*OVClassGetConfigTest.*GetConfigHeteroNoThrow.*",
@@ -517,6 +573,7 @@ std::vector<std::string> disabledTestPatterns() {
         _skipRegistry.addPatterns(backendName.isZero() && devices.has3720(), "E#77822", {".*CTCGreedyDecoder.*"});
         _skipRegistry.addPatterns(backendName.isZero() && devices.has3720(), "E#78232", {".*smoke_Tile3720_tiling_2.*"});
         _skipRegistry.addPatterns(backendName.isZero() && devices.has3720(), "E#78232", {".*smoke_Tile3720_tiling_3.*"});
+        _skipRegistry.addPatterns(backendName.isZero() && devices.has3720(), "E#93069", {".*InferRequestCheckTensorPrecision.*type=u32.*"});
 #endif
 
         return _skipRegistry;

@@ -4,14 +4,19 @@
 //
 
 // XFAIL: *
-// VPUX translate expectedly failed dueto unsupported DDR memory for actshave
-// RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" %s | vpux-translate --export-VPUIP -o %t
+// VPU translate expectedly failed dueto unsupported DDR memory for actshave
+// RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX allow-custom-values=true" %s | vpux-translate --export-VPUIP -o %t
 
 module @Test {
 
 module @UsedMemory {
     IE.MemoryResource 2048 bytes of @DDR
-    IE.MemoryResource 1048576 bytes of @CMX_NN
+}
+
+IE.ExecutorResource 1 of @NCE {
+    builtin.module @UsedMemory {
+        IE.MemoryResource 1048576 bytes of @CMX_NN
+    }
 }
 
 IE.CNNNetwork
@@ -25,12 +30,12 @@ IE.CNNNetwork
 
 VPURT.SW.Runtime entryPoint : @VPU.SW::@runtime stack_configuration : [4096, 4096, 4096, 4096]
 module @VPU.SW  {
-    func.func private @builtin_Softmax(memref<*xf16>, memref<*xf16>) attributes {VPU.kernel_code = "single_shave_softmax.cpp", VPU.kernel_entry = "singleShaveSoftmax"}
+    func.func private @builtin_Softmax(memref<*xf16>, memref<*xf16>) attributes {VPU.kernel_code = "singleShaveSoftmax.cpp", VPU.kernel_entry = "singleShaveSoftmax"}
     func.func private @runtime() attributes {VPU.kernel_code = "nnActEntry"}
 }
 
 func.func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
-    %0 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x1x1x1000xf16, @DDR>
+    %0 = VPURT.DeclareBuffer <DDR> <0> -> memref<1x1x1x1000xf16, @DDR>
     %1 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     VPURT.Task updates(%1 : !VPURT.Barrier) {
         %2 = VPUIP.SW.Kernel {result_segment_sizes = dense<[1, 0]> : vector<2xi32>}
@@ -100,6 +105,12 @@ func.func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) ->
 
 // CHECK:   options: [
 // CHECK:   ],
+
+// CHECK:   memory_sizes: [
+// CHECK:     item: "DDR",
+// CHECK:     number: 2048.0
+// CHECK:     item: "NN_CMX",
+// CHECK:     number: 1048576.0
 
 // CHECK:   in_tensor_desc: [
 // CHECK:     {

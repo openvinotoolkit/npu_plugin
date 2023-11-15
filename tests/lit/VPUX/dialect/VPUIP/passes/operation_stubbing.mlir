@@ -12,7 +12,7 @@
 
 // CHECK-LABEL: @StubIEMemPermute
 func.func @StubIEMemPermute(%arg0: tensor<1x16x2x3xf32>) -> tensor<1x3x16x2xf32> {
-
+    
     %0 = IE.MemPermute(%arg0) {dst_order = #NCHW, mem_perm = #map} :
         tensor<1x16x2x3xf32> -> tensor<1x3x16x2xf32>
 
@@ -27,7 +27,7 @@ func.func @StubIEMemPermute(%arg0: tensor<1x16x2x3xf32>) -> tensor<1x3x16x2xf32>
 
 // CHECK-LABEL: @StubVPUMemPermute
 func.func @StubVPUMemPermute(%arg0: tensor<1x16x2x3xf32>) -> tensor<1x3x16x2xf32> {
-
+    
     %0 = VPU.MemPermute(%arg0) {dst_order = #NCHW, mem_perm = #map} :
         tensor<1x16x2x3xf32> -> tensor<1x3x16x2xf32>
 

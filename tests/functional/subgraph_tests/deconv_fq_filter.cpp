@@ -1,9 +1,9 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 #include <ngraph_functions/builders.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -35,7 +35,7 @@ struct DeconvFQTestParams {
 };
 
 class VPUXDeconvFQTest_VPU3700 :
-        public LayerTestsUtils::KmbLayerTestsCommon,
+        public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<DeconvFQTestParams> {
     void SetUp() override {
         const auto test_params = GetParam();
@@ -100,15 +100,15 @@ TEST_P(VPUXDeconvFQTest_VPU3700, HW) {
 
 INSTANTIATE_TEST_CASE_P(smoke_DeconvFQ, VPUXDeconvFQTest_VPU3700,
                         ::testing::Values(DeconvFQTestParams{
-                                LayerTestsUtils::testPlatformTargetDevice,  // device
-                                {1, 3, 8, 14},                              // in dims
-                                {16, 3, 4, 4},                              // weights dims
-                                {1, 1},                                     // conv_strides
-                                {0, 0},                                     // conv_pads_begin
-                                {0, 0},                                     // conv_pads_end
-                                {4, 4},                                     // deconv_strides
-                                {2, 2},                                     // deconv_pads_begin
-                                {2, 2},                                     // deconv_pads_end
-                                {0, 0}                                      // deconv_output_padding
+                                LayerTestsUtils::testPlatformTargetDevice(),  // device
+                                {1, 3, 8, 14},                                // in dims
+                                {16, 3, 4, 4},                                // weights dims
+                                {1, 1},                                       // conv_strides
+                                {0, 0},                                       // conv_pads_begin
+                                {0, 0},                                       // conv_pads_end
+                                {4, 4},                                       // deconv_strides
+                                {2, 2},                                       // deconv_pads_begin
+                                {2, 2},                                       // deconv_pads_end
+                                {0, 0}                                        // deconv_output_padding
                         }));
 }  // namespace

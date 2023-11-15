@@ -74,7 +74,7 @@ public:
     TaskSet getBarrierConsumers(VPURT::DeclareVirtualBarrierOp barrierOp);
     TaskSet getBarrierProducers(size_t barrierIdn);
     TaskSet getBarrierConsumers(size_t barrierIdn);
-
+    SmallVector<TaskSet> createLegalVariantBatches(const TaskSet& tasks, size_t availableSlots);
     Optional<VPURT::TaskQueueType> haveSameImplicitDependencyTaskQueueType(const TaskSet& taskInds);
     bool canBarriersBeMerged(const TaskSet& barrierProducersA, const TaskSet& barrierConsumersA,
                              const TaskSet& barrierProducersB, const TaskSet& barrierConsumersB,

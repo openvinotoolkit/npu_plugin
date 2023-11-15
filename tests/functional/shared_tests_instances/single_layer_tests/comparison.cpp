@@ -1,17 +1,17 @@
 //
-// Copyright (C) 2022 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "single_layer_tests/comparison.hpp"
 #include <vector>
 #include "common/functions.h"
-#include "kmb_layer_test.hpp"
 #include "ngraph_functions/builders.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
-class VPUXComparisonLayerTest : public ComparisonLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXComparisonLayerTest : public ComparisonLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void SetUp() override {
         ComparisonParams::InputShapesTuple inputShapes;
         InferenceEngine::Precision ngInputsPrecision;
@@ -77,11 +77,6 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> inputShapes = {
         {{2, 200}, {{1}, {200}, {1, 200}, {2, 200}, {2, 2, 200}}},
         {{1, 3, 20}, {{20}, {2, 1, 1}}},
         {{2, 17, 3, 4}, {{2, 1, 3, 4}}},
-
-        // The same as for eltwise:
-        // [Track number: E#15146]
-        // Initialization disabled partly
-        // {{2, 17, 3, 4}, {{4}, {1, 3, 4}}},
 };
 
 std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -106,7 +101,7 @@ const auto ComparisonTestParams_MLIR = ::testing::Combine(
         ::testing::ValuesIn(comparisonOpTypes_MLIR), ::testing::ValuesIn(secondInputTypes),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice), ::testing::Values(additional_config));
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_CompareWithRefs, VPUXComparisonLayerTest_VPU3700, ComparisonTestParams_MLIR,
                         VPUXComparisonLayerTest_VPU3700::getTestCaseName);
@@ -119,6 +114,7 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> inShapesVPUX = {
         {{5}, {{1}}},
         {{10, 1}, {{1, 50}}},
         {{1, 16, 32}, {{1, 16, 32}}},
+        {{2, 17, 3, 4}, {{4}, {1, 3, 4}}},
 };
 
 std::vector<InferenceEngine::Precision> precision_VPUX = {
@@ -131,7 +127,7 @@ const auto comparison_params_VPUX = ::testing::Combine(
         ::testing::ValuesIn(comparisonOpTypes_MLIR), ::testing::ValuesIn(secondInputTypes),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice), ::testing::Values(additional_config));
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(additional_config));
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> precommit_inShapesVPUX = {
         {{1, 16, 32}, {{1, 1, 32}}},
@@ -142,10 +138,13 @@ const auto precommit_comparison_params_VPUX = ::testing::Combine(
         ::testing::ValuesIn(precision_VPUX), ::testing::ValuesIn(comparisonOpTypes_MLIR),
         ::testing::ValuesIn(secondInputTypes), ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice), ::testing::Values(additional_config));
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_CASE_P(smoke_Comparison_VPU3720, VPUXComparisonLayerTest_SW_VPU3720, comparison_params_VPUX,
                         VPUXComparisonLayerTest_SW_VPU3720::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_precommit_Comparison_VPU3720, VPUXComparisonLayerTest_SW_VPU3720,
+                        precommit_comparison_params_VPUX, VPUXComparisonLayerTest_SW_VPU3720::getTestCaseName);
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> tiling_inShapesVPU3720 = {
         {{1, 10, 256, 256}, {{1, 10, 256, 256}}},
@@ -156,7 +155,7 @@ const auto tiling_comparison_params_VPU3720 = ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(ngraph::helpers::ComparisonTypes::EQUAL),
         ::testing::ValuesIn(secondInputTypes), ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice), ::testing::Values(additional_config));
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_CASE_P(smoke_tiling_Comparison_VPU3720, VPUXComparisonLayerTest_HW_VPU3720,
                         tiling_comparison_params_VPU3720, VPUXComparisonLayerTest_HW_VPU3720::getTestCaseName);

@@ -85,10 +85,10 @@ func.func @SparseConv(%arg0: memref<1x16x64x64xf16, #NHWC>, %arg1: memref<1x16x6
 
     %conv_out:2 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+            kernel_padding = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>,
             kernel_size = [3, 3],
             kernel_strides = [1, 1],
-            task_type = "CONV"
+            task_type = #VPUIP.nce_task_type<CONV>
         }
         input(%in_data : memref<1x16x64x64xf16, #NHWC, @CMX_NN>)
         input_sparsity_map(%in_sm : memref<1x16x64x64xi1, #NHWC, @CMX_NN>)
@@ -103,7 +103,7 @@ func.func @SparseConv(%arg0: memref<1x16x64x64xf16, #NHWC>, %arg1: memref<1x16x6
         output_sparsity_map(%out_sm : memref<1x32x64x64xi1, #NHWC, @CMX_NN>)
             -> memref<1x32x64x64xf16, #NHWC, @CMX_NN>, memref<1x32x64x64xi1, #NHWC, @CMX_NN>
         variants :  {
-            DPUTask {cluster_id = 0 : i64, outEnd = [32, 64, 64], mpe_mode = "VECTOR_FP16", pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, outStart = [0, 0, 0]}
+            DPUTask {cluster_id = 0 : i64, outEnd = [32, 64, 64], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>, outStart = [0, 0, 0]}
         } PPE :  {
         }
 
@@ -165,7 +165,7 @@ func.func @SparseConv(%arg0: memref<1x16x64x64xf16, #NHWC>, %arg1: memref<1x16x6
     // CHECK-SAME:      output_sparsity_map([[OUT_SM]]
     // CHECK-SAME:          -> memref<1x32x64x64xf16, #NHWC, @CMX_NN>, memref<1x32x64x64xi1, #NHWC, @CMX_NN>
     // CHECK-SAME:      variants : {
-    // CHECK:               DPUTask {cluster_id = 0 : i64, mpe_mode = "VECTOR_FP16", outEnd = [32, 64, 64], outStart = [0, 0, 0], pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}}
+    // CHECK:               DPUTask {cluster_id = 0 : i64, mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, outEnd = [32, 64, 64], outStart = [0, 0, 0], pad = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>}
     // CHECK:           } PPE : {
     // CHECK:           }
 
@@ -318,10 +318,10 @@ func.func @SparseConvDistributed(%arg0: !IODistributed, %arg1: !IOSMDistributed,
 
         %conv_out:2 = VPUIP.NCEClusterTask {
             activation_window_channel_length = 27 : i64,
-            kernel_padding = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+            kernel_padding = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>,
             kernel_size = [3, 3],
             kernel_strides = [1, 1],
-            task_type = "CONV"
+            task_type = #VPUIP.nce_task_type<CONV>
         }
             input(%arg4 : !IOBuffer)
             input_sparsity_map(%arg5 : !IOSMBuffer)
@@ -336,7 +336,7 @@ func.func @SparseConvDistributed(%arg0: !IODistributed, %arg1: !IOSMDistributed,
             output_sparsity_map(%arg10 : !IOSMBuffer)
                 -> !IOBuffer, !IOSMBuffer
         variants :  {
-            DPUTask {cluster_id = 0 : i64, outEnd = [32, 64, 64], mpe_mode = "VECTOR_FP16", pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, outStart = [0, 0, 0]}
+            DPUTask {cluster_id = 0 : i64, outEnd = [32, 64, 64], mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, pad = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>, outStart = [0, 0, 0]}
         } PPE :  {
         }
     }
@@ -376,7 +376,7 @@ func.func @SparseConvDistributed(%arg0: !IODistributed, %arg1: !IOSMDistributed,
     // CHECK-SAME:      output_sparsity_map([[INNER_OUT_SM]]
     // CHECK-SAME:      -> memref<1x16x64x64xf16, #NHWC, @CMX_NN>, memref<1x16x64x64xi1, #NHWC, @CMX_NN>
     // CHECK-SAME:      variants : {
-    // CHECK:           DPUTask {cluster_id = 0 : i64, mpe_mode = "VECTOR_FP16", outEnd = [32, 64, 64], outStart = [0, 0, 0], pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}}
+    // CHECK:           DPUTask {cluster_id = 0 : i64, mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, outEnd = [32, 64, 64], outStart = [0, 0, 0], pad = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>}
     // CHECK:         } PPE : {
     // CHECK:         }
     // CHECK:       }

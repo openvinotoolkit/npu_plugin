@@ -240,13 +240,13 @@ private:
 
     template <typename RetT, class Caller>
     static RetT dispatchByElemType(mlir::Type elemType, Caller&& caller) {
-        if (elemType.isUnsignedInteger(8)) {
+        if (elemType.isUnsignedInteger(8) || elemType.isSignlessInteger(8)) {
             return caller(uint8_t(0));
-        } else if (elemType.isUnsignedInteger(16)) {
+        } else if (elemType.isUnsignedInteger(16) || elemType.isSignlessInteger(16)) {
             return caller(uint16_t(0));
-        } else if (elemType.isUnsignedInteger(32)) {
+        } else if (elemType.isUnsignedInteger(32) || elemType.isSignlessInteger(32)) {
             return caller(uint32_t(0));
-        } else if (elemType.isUnsignedInteger(64)) {
+        } else if (elemType.isUnsignedInteger(64) || elemType.isSignlessInteger(64)) {
             return caller(uint64_t(0));
         } else if (elemType.isSignedInteger(8)) {
             return caller(int8_t(0));

@@ -76,21 +76,6 @@ DimsOrder extractLayoutFromStrides(const llvm::ArrayRef<float>& inStrides) {
     return tensorLayout;
 }
 
-DimsOrder orderVectorToLayout(const llvm::ArrayRef<float>& inStrides) {
-    std::function<bool(const std::pair<DimsOrder, llvm::ArrayRef<float>>&)> mapSearchPredicate =
-            [inStrides](const std::pair<DimsOrder, llvm::ArrayRef<float>>& orderPair) -> bool {
-        size_t orderSize = inStrides.size();
-        size_t pairSize = orderPair.second.size();
-        return (orderSize == pairSize) && std::equal(inStrides.begin(), inStrides.end(), orderPair.second.begin());
-    };
-    std::unordered_map<DimsOrder, std::vector<float>>::const_iterator mapIter =
-            std::find_if(orderMapping.begin(), orderMapping.end(), mapSearchPredicate);
-    if (mapIter == orderMapping.end()) {
-        IE_THROW() << "orderToLayout: failed to convert input order";
-    }
-    return mapIter->first;
-}
-
 Data deserializeTensor(const elf::TensorRef* tensor,
                        DimsOrder (*backupStridesToLayoutConvertor)(const llvm::ArrayRef<float>&)) {
     const auto* dims = tensor->dimensions;
@@ -127,50 +112,18 @@ Data deserializeTensor(const elf::TensorRef* tensor,
 
 using TensorReferenceVector = flatbuffers::Vector<flatbuffers::Offset<MVCNN::TensorReference>>;
 
-DataMap deserializeDataMap(elf::TensorRef* tensors, uint32_t count,
-                           DimsOrder (*backupStridesToLayoutConvertor)(const llvm::ArrayRef<float>&)) {
-    DataMap out;
+NetworkIOVector deserializeIOVector(elf::TensorRef* tensors, uint32_t count,
+                                    DimsOrder (*backupStridesToLayoutConvertor)(const llvm::ArrayRef<float>&)) {
+    NetworkIOVector out;
 
     for (uint32_t i = 0; i < count; ++i) {
         auto tensor = tensors + i;
         const auto ieData = deserializeTensor(tensor, backupStridesToLayoutConvertor);
 
-        out.emplace(ieData.getName(), std::make_shared<Data>(ieData));
+        out.emplace_back(ieData.getName(), std::make_shared<Data>(ieData));
     }
 
     return out;
-}
-
-const EnumMap<elf::PreProcessColorSpace, InferenceEngine::ColorFormat> mapPreProcessColorFormatIE = {
-        {elf::PreProcessColorSpace::PreProcessColorSpace_BGR, ColorFormat::BGR},
-        {elf::PreProcessColorSpace::PreProcessColorSpace_RGB, ColorFormat::RGB},
-        {elf::PreProcessColorSpace::PreProcessColorSpace_NV12, ColorFormat::NV12},
-        {elf::PreProcessColorSpace::PreProcessColorSpace_I420, ColorFormat::I420},
-        {elf::PreProcessColorSpace::PreProcessColorSpace_DEFAULT, ColorFormat::RAW},
-};
-
-const EnumMap<elf::PreProcessResizeAlgorithm, InferenceEngine::ResizeAlgorithm> mapPreProcessResizeAlgorithmIE = {
-        {elf::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_BILINEAR, ResizeAlgorithm::RESIZE_BILINEAR},
-        {elf::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_AREA, ResizeAlgorithm::RESIZE_AREA},
-        {elf::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_NO_RESIZE, ResizeAlgorithm::NO_RESIZE},
-};
-
-void deserializePreprocessInfo(elf::PreprocessingInfo* preprocessInfo, uint32_t count,
-                               std::unordered_map<std::string, InferenceEngine::PreProcessInfo>& preProcInfo) {
-    // Check for the existence of a field in a blob. In older versions of the blob, this field may not exist
-    if (count == 0)
-        return;
-
-    preProcInfo.clear();
-    for (uint32_t i = 0; i < count; i++) {
-        if (auto* pr = preprocessInfo + i) {
-            auto preprocess = InferenceEngine::PreProcessInfo();
-
-            preprocess.setColorFormat(mapPreProcessColorFormatIE.at(pr->input_format));
-            preprocess.setResizeAlgorithm(mapPreProcessResizeAlgorithmIE.at(pr->algorithm));
-            preProcInfo[pr->input_name] = preprocess;
-        }
-    }
 }
 
 const EnumMap<elf::OVNodeType, ov::element::Type_t> mapElementTypeIE = {
@@ -233,8 +186,7 @@ std::vector<OVRawNode> deserializeOVNodes(elf::OVNode* OVNode, uint32_t count) {
 
 }  // namespace
 
-vpux::VPUMI37XX::NetworkDescription::NetworkDescription(std::vector<char> blob)
-        : _compiledNetwork(std::move(blob)), _quantParams{} {
+vpux::VPUMI37XX::NetworkDescription::NetworkDescription(std::vector<char> blob): _compiledNetwork(std::move(blob)) {
     OV_ITT_TASK_CHAIN(NETWORK_DESCRIPTION, itt::domains::VPUXPlugin, "NetworkDescription::NetworkDescription",
                       "elfReader");
     VPUX_THROW_UNLESS(!_compiledNetwork.empty(), "Got NULL pointer");
@@ -259,15 +211,6 @@ vpux::VPUMI37XX::NetworkDescription::NetworkDescription(std::vector<char> blob)
 
     VPUX_THROW_UNLESS(metadata != nullptr, "METADATA NOT FOUND IN ELF");
 
-    OV_ITT_TASK_NEXT(NETWORK_DESCRIPTION, "deserializeDataMap");
-    _networkInputs = deserializeDataMap(metadata->in_tensor_desc, metadata->in_tenosr_count, orderVectorToLayout);
-    _networkOutputs = deserializeDataMap(metadata->out_tensor_desc, metadata->out_tensor_count, orderVectorToLayout);
-
-    OV_ITT_TASK_NEXT(NETWORK_DESCRIPTION, "deserializePreprocessInfo");
-    const auto preProcTable = metadata->pre_process_info;
-    if (preProcTable != nullptr)
-        deserializePreprocessInfo(preProcTable, metadata->pre_process_info_count, _iePreprocessInfo);
-
     OV_ITT_TASK_NEXT(NETWORK_DESCRIPTION, "deserializeOVNodes");
     const auto ovParams = metadata->ov_parameters;
     if (ovParams != nullptr) {
@@ -278,13 +221,12 @@ vpux::VPUMI37XX::NetworkDescription::NetworkDescription(std::vector<char> blob)
         _ovResults = deserializeOVNodes(ovResults, metadata->ov_results_count);
     }
 
-    OV_ITT_TASK_NEXT(NETWORK_DESCRIPTION, "deserializeDataMap");
-    _deviceInputs = deserializeDataMap(metadata->net_input, metadata->net_input_count, extractLayoutFromStrides);
-    _deviceOutputs = deserializeDataMap(metadata->net_output, metadata->net_output_count, extractLayoutFromStrides);
+    OV_ITT_TASK_NEXT(NETWORK_DESCRIPTION, "deserializeIOVector");
+    _deviceInputs = deserializeIOVector(metadata->net_input, metadata->net_input_count, extractLayoutFromStrides);
+    _deviceOutputs = deserializeIOVector(metadata->net_output, metadata->net_output_count, extractLayoutFromStrides);
     _deviceProfilingOutputs =
-            deserializeDataMap(metadata->profiling_output, metadata->profiling_output_count, extractLayoutFromStrides);
+            deserializeIOVector(metadata->profiling_output, metadata->profiling_output_count, extractLayoutFromStrides);
 
-    VPUX_THROW_UNLESS(!_networkOutputs.empty(), "Metadata structure does not contain info on network outputs");
     VPUX_THROW_UNLESS(!_deviceOutputs.empty(), "Metadata structure does not contain info on device outputs");
 
     _numStreams = metadata->resource_requirements.nn_slice_count_;

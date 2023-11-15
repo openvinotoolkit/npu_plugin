@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/aliases_info.hpp"
 #include "vpux/compiler/core/ops_interfaces.hpp"
 
@@ -331,4 +329,110 @@ TEST(MLIR_AliasesInfo, AsyncRegions) {
 
     const auto& aliases = info.getAllAliases(funcArg);
     EXPECT_EQ(aliases.size(), 8) << "%arg aliases: %arg, %0, %1+%f1, %1+%2+%f2, %2";
+}
+
+TEST(MLIR_AliasesInfo, RemoveAlias) {
+    mlir::DialectRegistry registry;
+    registry.insert<mlir::memref::MemRefDialect>();
+    registry.insert<mlir::func::FuncDialect>();
+    registry.insert<AlisesInfoTest::TestDialect>();
+
+    mlir::MLIRContext ctx(registry);
+
+    constexpr StringLiteral inputIR = R"(
+        module @test {
+            func.func @main(%arg: memref<100xf32>) -> memref<100xf32> {
+                %0 = memref.alloc(): memref<50xf32>
+                %1 = "test.groupedview"(%arg, %0) : (memref<100xf32>, memref<50xf32>) -> memref<100xf32>
+                return %1 : memref<100xf32>
+            }
+        }
+    )";
+
+    auto module = mlir::parseSourceString<mlir::ModuleOp>(inputIR, &ctx);
+    ASSERT_TRUE(module.get() != nullptr);
+
+    auto func = module.get().lookupSymbol<mlir::func::FuncOp>("main");
+    ASSERT_TRUE(func != nullptr);
+
+    vpux::AliasesInfo info(func);
+
+    func.walk([&](mlir::Operation* op) {
+        if (auto allocOp = mlir::dyn_cast<mlir::memref::AllocOp>(op)) {
+            const auto allocRes = allocOp.getResult();
+
+            const auto allocSource = info.getSource(allocRes);
+            EXPECT_TRUE(allocSource == nullptr);
+
+            const auto allocRoots = info.getRoots(allocRes);
+            EXPECT_EQ(allocRoots.size(), 1) << "allocRes roots: %0";
+            EXPECT_TRUE(*allocRoots.begin() == allocRes);
+
+            const auto& allocAliases = info.getAllAliases(allocRes);
+            EXPECT_EQ(allocAliases.size(), 2) << "%0 aliases: %0, %1";
+            for (const auto alias : allocAliases) {
+                auto* producerOp = alias.getDefiningOp();
+                ASSERT_TRUE(producerOp != nullptr);
+
+                EXPECT_TRUE(mlir::isa<mlir::memref::AllocOp>(producerOp) ||
+                            mlir::isa<AlisesInfoTest::TestGroupedViewOp>(producerOp))
+                        << "producerOp = " << producerOp->getName().getStringRef().data();
+            }
+
+            info.removeAlias(allocRes);
+            info.addAlias(allocRes, allocRes);
+
+            const auto newAllocSource = info.getSource(allocRes);
+            EXPECT_TRUE(newAllocSource == nullptr);
+
+            const auto newAllocRoots = info.getRoots(allocRes);
+            EXPECT_EQ(newAllocRoots.size(), 1) << "new allocRes roots: %0";
+            EXPECT_TRUE(*newAllocRoots.begin() == allocRes);
+
+            const auto& newAllocAliases = info.getAllAliases(allocRes);
+            EXPECT_EQ(newAllocAliases.size(), 1) << "new %0 aliases: %0";
+            EXPECT_TRUE(*newAllocAliases.begin() == allocRes);
+
+            auto alias = *newAllocAliases.begin();
+            auto* newProducerOp = alias.getDefiningOp();
+            ASSERT_TRUE(newProducerOp != nullptr);
+            EXPECT_TRUE(mlir::isa<mlir::memref::AllocOp>(newProducerOp))
+                    << "producerOp = " << newProducerOp->getName().getStringRef().data();
+        } else if (auto viewOp = mlir::dyn_cast<AlisesInfoTest::TestGroupedViewOp>(op)) {
+            const auto viewRes = viewOp->getResult(0);
+
+            const auto viewSources = info.getSources(viewRes);
+            EXPECT_EQ(viewSources.size(), 2) << "test.groupedview sources: %arg, %0";
+            EXPECT_TRUE(viewSources.size() == viewOp.getViewSources().size());
+            for (const auto& source : viewOp.getViewSources()) {
+                EXPECT_TRUE(viewSources.count(source) > 0);
+            }
+
+            const auto viewRoots = info.getRoots(viewRes);
+            EXPECT_EQ(viewRoots.size(), 2) << "test.groupedview roots: %arg, %0";
+            for (const auto& root : viewRoots) {
+                EXPECT_TRUE(root.isa<mlir::BlockArgument>() || mlir::isa<mlir::memref::AllocOp>(root.getDefiningOp()));
+            }
+
+            info.removeAlias(viewRes);
+            info.addAlias(viewRes, viewRes);
+
+            const auto newViewSources = info.getSource(viewRes);
+            EXPECT_TRUE(newViewSources == nullptr);
+
+            const auto newViewRoots = info.getRoots(viewRes);
+            EXPECT_EQ(newViewRoots.size(), 1) << "new test.groupedview roots: %1";
+            EXPECT_TRUE(*newViewRoots.begin() == viewRes);
+
+            const auto& newViewAliases = info.getAllAliases(viewRes);
+            EXPECT_EQ(newViewAliases.size(), 1) << "new %1 aliases: %1";
+            EXPECT_TRUE(*newViewAliases.begin() == viewRes);
+
+            auto alias = *newViewAliases.begin();
+            auto* newProducerOp = alias.getDefiningOp();
+            ASSERT_TRUE(newProducerOp != nullptr);
+            EXPECT_TRUE(mlir::isa<AlisesInfoTest::TestGroupedViewOp>(newProducerOp))
+                    << "producerOp = " << newProducerOp->getName().getStringRef().data();
+        }
+    });
 }

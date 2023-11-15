@@ -16,7 +16,6 @@
 #include "zero_pipeline.h"
 #include "zero_profiling.h"
 #include "zero_utils.h"
-#include "zero_wrappers.h"
 
 #include <ze_api.h>
 #include <ze_graph_ext.h>
@@ -31,7 +30,7 @@ public:
                               const Config& config, const std::string& netName,
                               const std::vector<std::shared_ptr<const ov::Node>>& parameters,
                               const std::vector<std::shared_ptr<const ov::Node>>& results,
-                              const vpux::DataMap& networkStatesInfo,
+                              const vpux::NetworkIOVector& networkStatesInfo,
                               const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr);
 
     void InferImpl() override;
@@ -42,17 +41,13 @@ public:
     void GetResult() override;
 
 private:
-    void push(const InferenceEngine::BlobMap& inputs);
-    void pull(InferenceEngine::BlobMap& outputs);
-
-    std::unique_ptr<Pipeline> makePipeline();
-
     const Executor::Ptr _executorPtr;
+    const ZeroExecutor* _executor;
     const Config _config;
     Logger _logger;
     std::shared_ptr<InferenceEngine::IAllocator> _allocator;
 
-    const vpux::DataMap _statesInfo;
+    const vpux::NetworkIOVector _statesInfo;
     std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> _states{};
     std::once_flag _fillStatesOnceFlag;
 

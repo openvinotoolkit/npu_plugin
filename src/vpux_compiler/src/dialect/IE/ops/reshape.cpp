@@ -5,6 +5,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
+#include "vpux/compiler/dialect/IE/utils/propagate_quantize_dequantize_utils.hpp"
 #include "vpux/compiler/dialect/IE/utils/reshape_utils.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -28,15 +29,15 @@ using namespace vpux;
 namespace {
 
 mlir::FailureOr<SmallVector<int64_t>> getOutShape(IE::ReshapeOpAdaptor reshape, mlir::Location loc) {
-    if (reshape.shape() != nullptr && reshape.shape_value().hasValue()) {
+    if (reshape.shape() != nullptr && reshape.shape_value().has_value()) {
         return errorAt(loc, "Ambiguous shape representation");
     }
-    if (reshape.shape() == nullptr && !reshape.shape_value().hasValue()) {
+    if (reshape.shape() == nullptr && !reshape.shape_value().has_value()) {
         return errorAt(loc, "Missed shape representation");
     }
 
-    if (reshape.shape_value().hasValue()) {
-        return parseIntArrayAttr<int64_t>(reshape.shape_value().getValue());
+    if (reshape.shape_value().has_value()) {
+        return parseIntArrayAttr<int64_t>(reshape.shape_value().value());
     }
 
     auto shapeConst = reshape.shape().getDefiningOp<Const::DeclareOp>();
@@ -44,7 +45,7 @@ mlir::FailureOr<SmallVector<int64_t>> getOutShape(IE::ReshapeOpAdaptor reshape, 
         return errorAt(loc, "Only constant input is supported for shape");
     }
 
-    const auto shapeContent = shapeConst.content();
+    const auto shapeContent = shapeConst.getContent();
     auto shapeVec = to_small_vector(shapeContent.getValues<int64_t>());
 
     const auto specialZero = reshape.special_zero();
@@ -122,9 +123,10 @@ mlir::LogicalResult vpux::IE::ReshapeOp::inferReturnTypeComponents(
 
     const auto inType = reshape.input().getType().cast<mlir::RankedTensorType>();
 
-    const auto outDesc = IE::getTensorAttr(ctx, DimsOrder::fromNumDims(outShape->size()), IE::getMemorySpace(inType));
+    const auto outDesc =
+            vpux::getTensorAttr(ctx, DimsOrder::fromNumDims(outShape->size()), vpux::getMemorySpace(inType));
 
-    inferredReturnShapes.emplace_back(outShape.getValue(), inType.getElementType(), outDesc);
+    inferredReturnShapes.emplace_back(outShape.value(), inType.getElementType(), outDesc);
     return mlir::success();
 }
 
@@ -133,30 +135,13 @@ mlir::LogicalResult vpux::IE::ReshapeOp::inferReturnTypeComponents(
 //
 
 void vpux::IE::ReshapeOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    const auto inputElemType = info.getInput(0);
-
-    // Do not propagate element type down in per channel case.
-    // E#31030
-    if (inputElemType != nullptr && inputElemType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
-        return;
-    }
-
-    for (size_t outputInd = 0; outputInd < info.getNumOutputs(); ++outputInd) {
-        info.setOutput(outputInd, inputElemType);
-    }
+    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
+    propagateElementTypeDown(info);
 }
 
 void vpux::IE::ReshapeOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    const auto outputElemType = info.getOutput(0);
-
-    if (outputElemType != nullptr && outputElemType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
-        // E#31029: implement propagate type up for per channel, currently it leads to failures in later passes.
-        return;
-    }
-
-    for (size_t inputInd = 0; inputInd < info.getNumInputs(); ++inputInd) {
-        info.setInput(inputInd, outputElemType);
-    }
+    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
+    propagateElementTypeUp(info);
 }
 
 //
@@ -171,7 +156,7 @@ mlir::OpFoldResult vpux::IE::ReshapeOp::fold(ArrayRef<mlir::Attribute> operands)
     VPUX_THROW_UNLESS(!operands.empty(), "Wrong number of operands : {0}", operands.size());
 
     if (const auto attr = operands[0].dyn_cast_or_null<Const::ContentAttr>()) {
-        return attr.reshape(getShape(output()));
+        return attr.reshape(vpux::getShape(output()));
     }
 
     return nullptr;
@@ -224,7 +209,7 @@ public:
 };
 
 mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::ReshapeOp origOp, mlir::PatternRewriter& rewriter) const {
-    if (origOp.shape_value().hasValue()) {
+    if (origOp.shape_value().has_value()) {
         return mlir::failure();
     }
 
@@ -233,7 +218,7 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::ReshapeOp origOp, ml
         return mlir::failure();
     }
 
-    const auto outShapeAttr = getIntArrayAttr(getContext(), outShape.getValue());
+    const auto outShapeAttr = getIntArrayAttr(getContext(), outShape.value());
 
     rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, origOp.input(), nullptr, false, outShapeAttr);
     return mlir::success();
@@ -275,7 +260,7 @@ mlir::LogicalResult ConvertToAffineReshape::matchAndRewrite(IE::ReshapeOp origOp
     }
 
     rewriter.replaceOpWithNewOp<IE::AffineReshapeOp>(
-            origOp, origOp.input(), getIntArrayOfArray(getContext(), reassociationMap.getValue()), outShapeAttr);
+            origOp, origOp.input(), getIntArrayOfArray(getContext(), reassociationMap.value()), outShapeAttr);
     return mlir::success();
 }
 

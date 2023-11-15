@@ -46,5 +46,6 @@ bool MaxPoolStrategy::isOperationSplitOverHeightCompatible(VPU::ClusteredOpInter
         inputShape = computerShape.tiles[0].shape;
     }
 
-    return isSOHSupportedByDPU(inputShape, _numClusters, true, VPU::getArch(nceOp.getOperation()));
+    auto inputType = origOp.input().getType().cast<NDTypeInterface>();
+    return isSOHSupportedByDPU(inputType, inputShape, _numClusters, true, VPU::getArch(nceOp.getOperation()));
 }

@@ -27,15 +27,15 @@ using namespace vpux;
 namespace {
 
 mlir::FailureOr<SmallVector<int64_t>> getOutShape(VPU::ReshapeOpAdaptor reshape, mlir::Location loc) {
-    if (reshape.shape() != nullptr && reshape.shape_value().hasValue()) {
+    if (reshape.shape() != nullptr && reshape.shape_value().has_value()) {
         return errorAt(loc, "Ambiguous shape representation");
     }
-    if (reshape.shape() == nullptr && !reshape.shape_value().hasValue()) {
+    if (reshape.shape() == nullptr && !reshape.shape_value().has_value()) {
         return errorAt(loc, "Missed shape representation");
     }
 
-    if (reshape.shape_value().hasValue()) {
-        return parseIntArrayAttr<int64_t>(reshape.shape_value().getValue());
+    if (reshape.shape_value().has_value()) {
+        return parseIntArrayAttr<int64_t>(reshape.shape_value().value());
     }
 
     auto shapeConst = reshape.shape().getDefiningOp<Const::DeclareOp>();
@@ -43,7 +43,7 @@ mlir::FailureOr<SmallVector<int64_t>> getOutShape(VPU::ReshapeOpAdaptor reshape,
         return errorAt(loc, "Only constant input is supported for shape");
     }
 
-    const auto shapeContent = shapeConst.content();
+    const auto shapeContent = shapeConst.getContent();
     auto shapeVec = to_small_vector(shapeContent.getValues<int64_t>());
 
     const auto specialZero = reshape.special_zero();
@@ -118,9 +118,8 @@ mlir::LogicalResult vpux::VPU::ReshapeOp::inferReturnTypes(mlir::MLIRContext* ct
 
     const auto inType = reshape.input().getType().cast<vpux::NDTypeInterface>();
 
-    const auto typeComponents = TypeComponents()
-                                        .setShape(Shape(outShape.getValue()))
-                                        .setDimsOrder(DimsOrder::fromNumDims(outShape->size()));
+    const auto typeComponents =
+            TypeComponents().setShape(Shape(outShape.value())).setDimsOrder(DimsOrder::fromNumDims(outShape->size()));
     auto outType = inType.changeTypeComponents(typeComponents);
 
     inferredReturnTypes.push_back(outType);

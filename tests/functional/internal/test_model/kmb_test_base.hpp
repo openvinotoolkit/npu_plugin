@@ -3,12 +3,9 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "kmb_test_model.hpp"
-#include "kmb_test_utils.hpp"
 
 #include "kmb_test_mvn_def.hpp"
 #include "kmb_test_power_def.hpp"

@@ -24,7 +24,8 @@ public:
     explicit PartitionerValidator(const Partitioner& p): _p(p) {
         validate();
     }
-
+    PartitionerValidator(const PartitionerValidator& other) = delete;
+    PartitionerValidator& operator=(const PartitionerValidator&) = delete;
     ~PartitionerValidator() {
         validate();
     }

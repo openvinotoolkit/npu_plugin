@@ -6,13 +6,15 @@
 #include <llvm/ADT/None.h>
 #include <mlir/IR/BuiltinTypes.h>
 
-#include "vpux/compiler/dialect/VPU37XX/api/vpu_nnrt_api.h"
 #include "vpux/compiler/dialect/VPUMI37XX/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 
+#include "vpux/compiler/utils/elf_utils.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_writer.hpp"
+
+#include <vpu_nnrt_api_37xx.h>
 
 #include <stdint.h>
 #include <stdio.h>
@@ -50,7 +52,7 @@ void vpux::VPUMI37XX::DPUInvariantOp::serialize(elf::writer::BinaryDataSection<u
     SetupKernel(*this, registers);
     SetupOutput(writer, *this, registers);
 
-    auto taskType = task_type();
+    auto taskType = getNceTaskType();
     switch (taskType) {
     case VPUIP::NCETaskType::CONV:
         SetupInvariant_Convolution(writer, *this, registers);
@@ -81,19 +83,22 @@ void vpux::VPUMI37XX::DPUInvariantOp::serialize(elf::writer::BinaryDataSection<u
         registers.base_offset_a = 0x200;
         registers.base_offset_b = 0x602;
 
+        registers.act_offset[2] = 0;
+        registers.act_offset[3] = 0;
+
         registers.se_sp_addr[1].se_addr = ((1 * SLICE_LENGTH) >> 4);
         registers.se_sp_addr[2].se_addr = ((1 * SLICE_LENGTH) >> 4);
         registers.se_sp_addr[3].se_addr = ((1 * SLICE_LENGTH) >> 4);
 
-        if (task_type() == VPUIP::NCETaskType::ELTWISE) {
-            auto weightsOffs = mlir::cast<VPURT::DeclareBufferOp>(weights().getDefiningOp()).byteOffset();
-            auto actOffs = mlir::cast<VPURT::DeclareBufferOp>(input().getDefiningOp()).byteOffset();
+        if (getNceTaskType() == VPUIP::NCETaskType::ELTWISE) {
+            auto weightsOffs = mlir::cast<VPURT::DeclareBufferOp>(getWeights().getDefiningOp()).getByteOffset();
+            auto actOffs = mlir::cast<VPURT::DeclareBufferOp>(getInput().getDefiningOp()).getByteOffset();
 
             registers.tensor_start = std::max(static_cast<int64_t>(0), (actOffs - weightsOffs) >> 4);
             registers.weight_start = std::max(static_cast<int64_t>(0), (weightsOffs - actOffs) >> 4);
         }
 
-        llvm::SmallVector<mlir::Value> outputs(output_buffs());
+        llvm::SmallVector<mlir::Value> outputs(getOutputBuffs());
         llvm::sort(outputs.begin(), outputs.end(), [](mlir::Value lhs, mlir::Value rhs) {
             auto lhsIdx = lhs.getType().cast<vpux::NDTypeInterface>().getMemSpace().getIndex().value_or(0);
             auto rhsIdx = rhs.getType().cast<vpux::NDTypeInterface>().getMemSpace().getIndex().value_or(0);
@@ -112,27 +117,32 @@ void vpux::VPUMI37XX::DPUInvariantOp::serialize(elf::writer::BinaryDataSection<u
         }
     }
 
-    auto bufOp = input().getDefiningOp<VPURT::DeclareBufferOp>();
+    auto bufOp = getInput().getDefiningOp<VPURT::DeclareBufferOp>();
     VPUX_THROW_UNLESS(bufOp, "Parent of DPU op is not a declareBufferOp");
 
     taskWrapper.cluster_ = bufOp.getNonEmptySectionIndex()[0];  // TODO:E#54007 use from memref and don't assume index 0
 
-    taskWrapper.is_cont_conv_ = is_continued().value_or(false);
+    taskWrapper.is_cont_conv_ = getIsContinued().value_or(false);
 
-    if (auto profBuffer = profiling_data()) {
+    if (auto profBuffer = getProfilingData()) {
         auto profBufOp = profBuffer.getDefiningOp<VPURT::DeclareBufferOp>();
-        taskWrapper.hwp_cmx_base_offset_ = profBufOp.byteOffset();
+        taskWrapper.hwp_cmx_base_offset_ = profBufOp.getByteOffset();
+    } else {
+        taskWrapper.hwp_cmx_base_offset_ = -1;
     }
 
     // Barriers setup
-    taskWrapper.barriers_.wait_mask_ = VPUMI37XX::computeMask(waitBarriers());
-    taskWrapper.barriers_.post_mask_ = VPUMI37XX::computeMask(updateBarriers());
+    taskWrapper.barriers_.wait_mask_ = VPUMI37XX::computeMask(getWaitBarriers());
+    taskWrapper.barriers_.post_mask_ = VPUMI37XX::computeMask(getUpdateBarriers());
 
-    taskWrapper.barriers_.group_ = 0;  // will not support barrier grouping for now
+    taskWrapper.barriers_.group_ = 0;
     taskWrapper.barriers_.mask_ = 0;
 
-    taskWrapper.barriers_sched_.start_after_ = start_after();
-    taskWrapper.barriers_sched_.clean_after_ = clean_after();
+    std::tie(taskWrapper.barriers_.group_, taskWrapper.barriers_.mask_) =
+            reduceWaitMaskTo8bit(taskWrapper.barriers_.wait_mask_);
+
+    taskWrapper.barriers_sched_.start_after_ = getStartAfter();
+    taskWrapper.barriers_sched_.clean_after_ = getCleanAfter();
 
     uint32_t variant_count = 0;
     for (auto& user : getResult().getUses()) {
@@ -184,7 +194,7 @@ void vpux::VPUMI37XX::DPUVariantOp::serialize(elf::writer::BinaryDataSection<uin
 
     VPUIP::BlobWriter writer(logger, VPU::getArch(parentModule));
 
-    auto invariant = Invariant().getDefiningOp<vpux::VPUMI37XX::DPUInvariantOp>();
+    auto invariant = getInvariant().getDefiningOp<vpux::VPUMI37XX::DPUInvariantOp>();
     VPUX_THROW_WHEN(invariant == nullptr, "variant not pointing to an invariant");
 
     nn_public::VpuDPUVariant taskWrapper{};
@@ -196,10 +206,10 @@ void vpux::VPUMI37XX::DPUVariantOp::serialize(elf::writer::BinaryDataSection<uin
     taskWrapper.invariant_ = invariant.getType().getValue();
     taskWrapper.cluster_ = 0;
 
-    auto opType = invariant.task_type();
+    auto opType = invariant.getNceTaskType();
     if (opType == VPUIP::NCETaskType::ELTWISE) {
-        auto weightsOffs = mlir::cast<VPURT::DeclareBufferOp>(invariant.weights().getDefiningOp()).byteOffset();
-        auto actOffs = mlir::cast<VPURT::DeclareBufferOp>(invariant.input().getDefiningOp()).byteOffset();
+        auto weightsOffs = mlir::cast<VPURT::DeclareBufferOp>(invariant.getWeights().getDefiningOp()).getByteOffset();
+        auto actOffs = mlir::cast<VPURT::DeclareBufferOp>(invariant.getInput().getDefiningOp()).getByteOffset();
 
         auto weight_start = std::max(static_cast<int64_t>(0), (weightsOffs - actOffs) >> 4);
         taskWrapper.weight_table_offset_ += weight_start;
@@ -207,7 +217,7 @@ void vpux::VPUMI37XX::DPUVariantOp::serialize(elf::writer::BinaryDataSection<uin
 
     // in case of disabled profiling runtime expects default (empty) value
     // to be -1 instead of 0
-    taskWrapper.wload_id_ = workload_id().value_or(-1);
+    taskWrapper.wload_id_ = getWorkloadId().value_or(-1);
 
     auto ptrCharTmp = reinterpret_cast<uint8_t*>(&taskWrapper);
     binDataSection.appendData(ptrCharTmp, getBinarySize());
@@ -222,7 +232,7 @@ size_t vpux::VPUMI37XX::DPUVariantOp::getAlignmentRequirements() {
 }
 
 mlir::FailureOr<uint64_t> vpux::VPUMI37XX::DPUVariantOp::getOffsetOfWithinOperation(mlir::Value value) {
-    if (value == Invariant()) {
+    if (value == getInvariant()) {
         return offsetof(nn_public::VpuDPUVariant, invariant_);
     }
 

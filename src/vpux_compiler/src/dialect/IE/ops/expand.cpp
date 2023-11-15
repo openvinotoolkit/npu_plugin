@@ -4,7 +4,10 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/propagate_quantize_dequantize_utils.hpp"
 
+#include "vpux/compiler/dialect/IE/utils/expand_utils.hpp"
+#include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
@@ -15,14 +18,14 @@ using namespace vpux;
 
 void vpux::IE::ExpandOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                Optional<ShapeRef> pads_begin, Optional<ShapeRef> pads_end) {
-    VPUX_THROW_UNLESS(pads_begin.hasValue() || pads_end.hasValue(),
+    VPUX_THROW_UNLESS(pads_begin.has_value() || pads_end.has_value(),
                       "pads_begin and/or pads_end must be provided for IE::ExpandOp");
 
     const auto origShape = getShape(input);
 
     const auto getPadsAttr = [&](Optional<ShapeRef> pads) {
-        if (pads.hasValue()) {
-            return getIntArrayAttr(builder.getContext(), pads.getValue());
+        if (pads.has_value()) {
+            return getIntArrayAttr(builder.getContext(), pads.value());
         }
 
         const SmallVector<int64_t> zero(origShape.size(), 0);
@@ -60,6 +63,20 @@ mlir::LogicalResult vpux::IE::ExpandOp::inferReturnTypeComponents(
 }
 
 //
+// inferElemTypeInfo
+//
+
+void vpux::IE::ExpandOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
+    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
+    propagateElementTypeDown(info);
+}
+
+void vpux::IE::ExpandOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
+    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
+    propagateElementTypeUp(info);
+}
+
+//
 // fold
 //
 
@@ -71,6 +88,18 @@ mlir::OpFoldResult vpux::IE::ExpandOp::fold(ArrayRef<mlir::Attribute> operands) 
     // Check for Slice->Expand pair which can be optimized if ExpandOp
     // output is same as SliceOp input
     if (auto sliceOp = input().getDefiningOp<IE::SliceOp>()) {
+        // If we got multiple eltwise ops in a chain, for example:
+        //       Expand->Add->(Slice->Expand)->Add->Slice
+        // We will want to keep the Expand between the 2 Adds instead of folding with Slice.
+        // So that we can utilize AdjustInputShapeForEltwise pass to optimize the 2nd Add.
+        if (this->getResult().hasOneUse()) {
+            auto childOp = *output().getUsers().begin();
+            auto unExpandedShape = input().getType().cast<vpux::NDTypeInterface>().getShape().toValues();
+            auto expandedShape = output().getType().cast<vpux::NDTypeInterface>().getShape().toValues();
+            if (beneficialToKeepExpand(unExpandedShape, expandedShape, childOp)) {
+                return nullptr;
+            }
+        }
         if (sliceOp.source().getType() == output().getType()) {
             return sliceOp.source();
         }

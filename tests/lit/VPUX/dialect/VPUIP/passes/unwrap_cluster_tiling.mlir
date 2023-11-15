@@ -73,21 +73,21 @@ func.func @UnwrapDmaActShaveNCEWithProfiling(%input: !Input_DDR, %output: !Outpu
     %weights_table_cst = const.Declare memref<16x1x1x4xsi32> = dense<1> : tensor<16x1x1x4xsi32>
 
     // DDR buffers
-    %parent_in = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> !Input_DDR
-    %parent_out = VPURT.DeclareBuffer "NetworkOutput" [0] <0> -> !Output_DDR
-    %profiling_out = VPURT.DeclareBuffer "ProfilingOutput" [0] <0> -> !Profiling_DDR
+    %parent_in = VPURT.DeclareBuffer <NetworkInput> [0] <0> -> !Input_DDR
+    %parent_out = VPURT.DeclareBuffer <NetworkOutput> [0] <0> -> !Output_DDR
+    %profiling_out = VPURT.DeclareBuffer <ProfilingOutput> [0] <0> -> !Profiling_DDR
 
     // CMX buffers
-    %nce_input_cmx = VPURT.DeclareBuffer "CMX_NN" <0> -> !InputDistributed
-    %nce_out_cmx = VPURT.DeclareBuffer "CMX_NN" <17408> -> !OutputDistributed
-    %weights = VPURT.DeclareBuffer "CMX_NN" [0, 1] <34816> -> !WeightsDistributed
-    %weights_table = VPURT.DeclareBuffer "CMX_NN" [0, 1] <35328> -> !WeightsTableDistributed
+    %nce_input_cmx = VPURT.DeclareBuffer <CMX_NN> <0> -> !InputDistributed
+    %nce_out_cmx = VPURT.DeclareBuffer <CMX_NN> <17408> -> !OutputDistributed
+    %weights = VPURT.DeclareBuffer <CMX_NN> [0, 1] <34816> -> !WeightsDistributed
+    %weights_table = VPURT.DeclareBuffer <CMX_NN> [0, 1] <35328> -> !WeightsTableDistributed
 
-    %act_in_cmx = VPURT.DeclareBuffer "CMX_NN" <17408> -> !OutputDistributed
-    %act_out_cmx = VPURT.DeclareBuffer "CMX_NN" <17408> -> !OutputDistributed
+    %act_in_cmx = VPURT.DeclareBuffer <CMX_NN> <17408> -> !OutputDistributed
+    %act_out_cmx = VPURT.DeclareBuffer <CMX_NN> <17408> -> !OutputDistributed
 
     // Profiling buffers
-    %prof_buffer_cmx = VPURT.DeclareBuffer "CMX_NN" <353584> -> !ProfilingDistributed
+    %prof_buffer_cmx = VPURT.DeclareBuffer <CMX_NN> <353584> -> !ProfilingDistributed
 
     // Upload input
     VPURT.Task updates(%bar0: !VPURT.Barrier) {
@@ -124,10 +124,10 @@ func.func @UnwrapDmaActShaveNCEWithProfiling(%input: !Input_DDR, %output: !Outpu
                      -> (!OutputDistributed, !ProfilingDistributed)  {
 
                %1:2 = VPUIP.NCEClusterTask {
-                         kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+                         kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
                          kernel_size = [1, 1],
                          kernel_strides = [1, 1],
-                         task_type = "CONV"
+                         task_type = #VPUIP.nce_task_type<CONV>
                      }  input(%arg0 : !InputStub_CMX)
                          weights(%arg1 : !WeightsStub_CMX)
                          weight_table(%arg2 : !WeightsTableStub_CMX)
@@ -138,14 +138,14 @@ func.func @UnwrapDmaActShaveNCEWithProfiling(%input: !Input_DDR, %output: !Outpu
                              -> !OutputStub_CMX, !Profiling_CMX variants :  {
                             DPUTask {
                                 outStart = [0, 0, 0], outEnd = [31, 16, 31],
-                                mpe_mode = "VECTOR_FP16",
-                                pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+                                mpe_mode = #VPU.mpe_mode<VECTOR_FP16>,
+                                pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
                                 cluster_id = 0 : i64
                             }
                             DPUTask {
                                 outStart = [0, 17, 0], outEnd = [31, 32, 31],
-                                mpe_mode = "VECTOR_FP16",
-                                pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+                                mpe_mode = #VPU.mpe_mode<VECTOR_FP16>,
+                                pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
                                 cluster_id = 1 : i64
                             }
                          } PPE :  {
@@ -188,16 +188,16 @@ func.func @UnwrapDmaActShaveNCEWithProfiling(%input: !Input_DDR, %output: !Outpu
     //CHECK:    [[WEIGHTS_CST:%.*]] = const.Declare memref<16x16x1x1xf16, #NHWC>
     //CHECK:    [[WEIGHTS_TABLE_CST:%.*]] = const.Declare memref<16x1x1x4xsi32>
 
-    //CHECK:    [[NET_IN:%.*]] = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> memref<1x16x33x32xf16, #NHWC, @DDR>
-    //CHECK:    [[NET_OUT:%.*]] = VPURT.DeclareBuffer "NetworkOutput" [0] <0> -> memref<1x16x33x32xf16, #NHWC, @DDR>
-    //CHECK:    [[PROF_OUT:%.*]] = VPURT.DeclareBuffer "ProfilingOutput" [0] <0> -> memref<4xui64>
-    //CHECK:    [[NCE_IN:%.*]] = VPURT.DeclareBuffer "CMX_NN" <0> -> !VPUIP.DistributedBuffer<1x16x33x32xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>
-    //CHECK:    [[NCE_OUT:%.*]] = VPURT.DeclareBuffer "CMX_NN" <17408> -> !VPUIP.DistributedBuffer<1x16x33x32xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>
-    //CHECK:    [[WEIGHTS_BUF:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0, 1] <34816> -> !VPUIP.DistributedBuffer<16x16x1x1xf16, #NHWC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}>
-    //CHECK:    [[WEIGHTS_TABLE_BUF:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0, 1] <35328> -> !VPUIP.DistributedBuffer<16x1x1x4xsi32, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}>
-    //CHECK:    [[ACT_SHAVE_IN:%.*]] = VPURT.DeclareBuffer "CMX_NN" <17408> -> !VPUIP.DistributedBuffer<1x16x33x32xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>
-    //CHECK:    [[ACT_SHAVE_OUT:%.*]] = VPURT.DeclareBuffer "CMX_NN" <17408> -> !VPUIP.DistributedBuffer<1x16x33x32xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>
-    //CHECK:    [[PROF_BUF:%.*]] = VPURT.DeclareBuffer "CMX_NN" <353584> -> !VPUIP.DistributedBuffer<4xui64, affine_map<(d0) -> (d0)>, @CMX_NN, {mode = "SEGMENTED", num_tiles = [2], num_clusters = 2 : i64}>
+    //CHECK:    [[NET_IN:%.*]] = VPURT.DeclareBuffer <NetworkInput> [0] <0> -> memref<1x16x33x32xf16, #NHWC, @DDR>
+    //CHECK:    [[NET_OUT:%.*]] = VPURT.DeclareBuffer <NetworkOutput> [0] <0> -> memref<1x16x33x32xf16, #NHWC, @DDR>
+    //CHECK:    [[PROF_OUT:%.*]] = VPURT.DeclareBuffer <ProfilingOutput> [0] <0> -> memref<4xui64>
+    //CHECK:    [[NCE_IN:%.*]] = VPURT.DeclareBuffer <CMX_NN> <0> -> !VPUIP.DistributedBuffer<1x16x33x32xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>
+    //CHECK:    [[NCE_OUT:%.*]] = VPURT.DeclareBuffer <CMX_NN> <17408> -> !VPUIP.DistributedBuffer<1x16x33x32xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>
+    //CHECK:    [[WEIGHTS_BUF:%.*]] = VPURT.DeclareBuffer <CMX_NN> [0, 1] <34816> -> !VPUIP.DistributedBuffer<16x16x1x1xf16, #NHWC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}>
+    //CHECK:    [[WEIGHTS_TABLE_BUF:%.*]] = VPURT.DeclareBuffer <CMX_NN> [0, 1] <35328> -> !VPUIP.DistributedBuffer<16x1x1x4xsi32, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}>
+    //CHECK:    [[ACT_SHAVE_IN:%.*]] = VPURT.DeclareBuffer <CMX_NN> <17408> -> !VPUIP.DistributedBuffer<1x16x33x32xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>
+    //CHECK:    [[ACT_SHAVE_OUT:%.*]] = VPURT.DeclareBuffer <CMX_NN> <17408> -> !VPUIP.DistributedBuffer<1x16x33x32xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>
+    //CHECK:    [[PROF_BUF:%.*]] = VPURT.DeclareBuffer <CMX_NN> <353584> -> !VPUIP.DistributedBuffer<4xui64, affine_map<(d0) -> (d0)>, @CMX_NN, {mode = "SEGMENTED", num_tiles = [2], num_clusters = 2 : i64}>
 
     // Upload input
     //CHECK:        VPURT.Task updates([[BAR0]] : !VPURT.Barrier) {

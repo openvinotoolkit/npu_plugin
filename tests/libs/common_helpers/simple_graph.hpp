@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <ie_layouts.h>
 #include <device_helpers.hpp>
 #include <ie_core.hpp>
@@ -36,32 +34,32 @@ inline std::shared_ptr<ngraph::Function> buildSimpleGraph(const ngraph::Shape& i
 }
 
 inline std::shared_ptr<InferenceEngine::ExecutableNetwork> getExeNetwork(
-        const std::string& deviceId = "VPUX", const InferenceEngine::SizeVector& dims = {1, 3, 224, 224},
+        const std::string& deviceId = "NPU", const InferenceEngine::SizeVector& dims = {1, 3, 224, 224},
         const std::string& inputName = "input", const std::string& outputName = "output",
         const std::string& outputDevName = "output_dev") {
     std::string devId = deviceId;
     InferenceEngine::Core ie;
     std::map<std::string, std::string> config = {};
     config[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
-    if (deviceId == "VPUX") {
+    if (deviceId == "NPU") {
         const auto availDevices = ie.GetAvailableDevices();
         auto vpuxDevIt =
                 std::find_if(availDevices.cbegin(), availDevices.cend(), [](const std::string& devName) -> bool {
-                    return (devName.find("VPUX") == 0);
+                    return (devName.find("NPU") == 0);
                 });
         if (vpuxDevIt != availDevices.end()) {
-            devId = std::string("VPUX.") + ie.GetMetric(*vpuxDevIt, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>();
+            devId = std::string("NPU.") + ie.GetMetric(*vpuxDevIt, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>();
         } else {
-            devId = "VPUX.3700";
+            devId = "NPU.3700";
         }
         // ***********************************************
         // TODO Get rid of this hack - VPU311X is detected as KMB B0 (swID by XLink is incorrect)
         const auto numDev3700 =
                 std::count_if(availDevices.cbegin(), availDevices.cend(), [](const std::string& devName) -> bool {
-                    return (devName.find("VPUX.3700.") == 0);
+                    return (devName.find("NPU.3700.") == 0);
                 });
         if (numDev3700 > 1) {
-            devId = "VPUX";
+            devId = "NPU";
             config[VPUX_CONFIG_KEY(PLATFORM)] = "3900";
         }
         // ***********************************************

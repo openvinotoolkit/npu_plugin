@@ -11,6 +11,8 @@
 #include "vpux/utils/core/numeric.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 
+#include "common/utils.hpp"
+
 #include <mlir/IR/MLIRContext.h>
 
 #include <gtest/gtest.h>
@@ -25,10 +27,9 @@ constexpr vpux::StringRef DDR_NAME = "DDR";
 
 }  // namespace
 
-TEST(MLIR_NDTypeInterface, SparseBufferType_Weights) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
+using MLIR_NDTypeInterface = MLIR_UnitBase;
 
+TEST_F(MLIR_NDTypeInterface, SparseBufferType_Weights) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -191,10 +192,7 @@ TEST(MLIR_NDTypeInterface, SparseBufferType_Weights) {
     EXPECT_EQ(sparsePaddedType.getSparsityMap().cast<NDTypeInterface>().getShape(), ShapeRef(paddedSMShape));
 }
 
-TEST(MLIR_NDTypeInterface, SparseBufferType_Activation) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
+TEST_F(MLIR_NDTypeInterface, SparseBufferType_Activation) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -371,10 +369,7 @@ TEST(MLIR_NDTypeInterface, SparseBufferType_Activation) {
               ShapeRef(paddedSETableShape));
 }
 
-TEST(MLIR_NDTypeInterface, SparseBufferType__SETable_Interp_NEAREST) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
+TEST_F(MLIR_NDTypeInterface, SparseBufferType__SETable_Interp_NEAREST) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -399,11 +394,11 @@ TEST(MLIR_NDTypeInterface, SparseBufferType__SETable_Interp_NEAREST) {
             mlir::MemRefType::get(seTableShape.raw(), mlir::IntegerType::get(&ctx, 32), layout, memSpace);
 
     const auto modeAttr = VPU::NCEInterpolateModeAttr::get(&ctx, VPU::NCEInterpolateMode::NEAREST);
-    const auto coordTransformModeAttr =
-            VPU::NCEInterpolateCoordModeAttr::get(&ctx, VPU::NCEInterpolateCoordMode::ASYMMETRIC);
-    const auto nearestModeAttr = VPU::NCEInterpolateNearestModeAttr::get(&ctx, VPU::NCEInterpolateNearestMode::FLOOR);
-    const auto SEInterpolateAttr = VPU::SEInterpolateAttr::get(&ctx, modeAttr, nearestModeAttr, coordTransformModeAttr,
-                                                               scaleAttr, offsetsAttr, sizesAttr);
+    const auto coordTransformModeAttr = IE::InterpolateCoordModeAttr::get(&ctx, IE::InterpolateCoordMode::ASYMMETRIC);
+    const auto nearestModeAttr = IE::InterpolateNearestModeAttr::get(&ctx, IE::InterpolateNearestMode::FLOOR);
+    const auto SEInterpolateAttr = VPU::SEInterpolateAttr::get(
+            &ctx, modeAttr, coordTransformModeAttr, scaleAttr, nearestModeAttr, offsetsAttr, sizesAttr,
+            /*initialInputShapeAttr=*/nullptr, /*initialOutputShapeAttr=*/nullptr);
 
     const auto sparseBufferType =
             VPUIP::SparseBufferType::get(data, sparsityMap, storageElementTable, nullptr, nullptr, SEInterpolateAttr);
@@ -579,10 +574,7 @@ TEST(MLIR_NDTypeInterface, SparseBufferType__SETable_Interp_NEAREST) {
               ShapeRef(paddedSETableShape));
 }
 
-TEST(MLIR_NDTypeInterface, SparseBufferType__SETable_Interp_BILINEAR) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
+TEST_F(MLIR_NDTypeInterface, SparseBufferType__SETable_Interp_BILINEAR) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -607,10 +599,11 @@ TEST(MLIR_NDTypeInterface, SparseBufferType__SETable_Interp_BILINEAR) {
             mlir::MemRefType::get(seTableShape.raw(), mlir::IntegerType::get(&ctx, 32), layout, memSpace);
 
     const auto modeAttr = VPU::NCEInterpolateModeAttr::get(&ctx, VPU::NCEInterpolateMode::BILINEAR);
-    const auto coordTransformModeAttr =
-            VPU::NCEInterpolateCoordModeAttr::get(&ctx, VPU::NCEInterpolateCoordMode::ASYMMETRIC);
-    const auto SEInterpolateAttr = VPU::SEInterpolateAttr::get(&ctx, modeAttr, nullptr, coordTransformModeAttr,
-                                                               scaleAttr, offsetsAttr, sizesAttr);
+    const auto coordTransformModeAttr = IE::InterpolateCoordModeAttr::get(&ctx, IE::InterpolateCoordMode::ASYMMETRIC);
+    const auto SEInterpolateAttr =
+            VPU::SEInterpolateAttr::get(&ctx, modeAttr, coordTransformModeAttr, scaleAttr,
+                                        /*nearestModeAttr=*/nullptr, offsetsAttr, sizesAttr,
+                                        /*initialInputShapeAttr=*/nullptr, /*initialOutputShapeAttr=*/nullptr);
 
     const auto sparseBufferType =
             VPUIP::SparseBufferType::get(data, sparsityMap, storageElementTable, nullptr, nullptr, SEInterpolateAttr);

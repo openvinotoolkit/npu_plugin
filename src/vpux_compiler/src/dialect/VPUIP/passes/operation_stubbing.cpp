@@ -63,9 +63,9 @@ mlir::LogicalResult StubConversion::matchAndRewrite(mlir::Operation* origOp, Arr
 
 class OperationStubbing final : public VPUIP::OperationStubbingBase<OperationStubbing> {
 public:
-    explicit OperationStubbing(std::function<bool(mlir::Operation*)> condition, Logger log) {
+    explicit OperationStubbing(std::function<bool(mlir::Operation*)> condition, Logger log)
+            : _condition(std::move(condition)) {
         Base::initLogger(log, Base::getArgumentName());
-        _condition = condition;
     }
 
 private:

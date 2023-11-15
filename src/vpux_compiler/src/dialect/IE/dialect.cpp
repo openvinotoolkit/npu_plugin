@@ -37,7 +37,7 @@ IEAsmHooks::AliasResult IEAsmHooks::getAlias(mlir::Attribute attr, llvm::raw_ost
             const auto dimsOrder = DimsOrder::fromAffineMap(map);
 
             if (const auto name = dimsOrder.getCanonicalName()) {
-                os << name.getValue();
+                os << name.value();
                 return AliasResult::FinalAlias;
             }
         }
@@ -60,19 +60,19 @@ IEAsmHooks::AliasResult IEAsmHooks::getAlias(mlir::Type type, llvm::raw_ostream&
 //
 
 class TensorEncodingVerifier final :
-        public mlir::VerifiableTensorEncoding::ExternalModel<TensorEncodingVerifier, IE::TensorAttr> {
+        public mlir::VerifiableTensorEncoding::ExternalModel<TensorEncodingVerifier, vpux::TensorAttr> {
 public:
     using ConcreteEntity = mlir::DictionaryAttr;
 
     mlir::LogicalResult verifyEncoding(mlir::Attribute attr, ArrayRef<int64_t> shape, mlir::Type,
                                        FuncRef<mlir::InFlightDiagnostic()> emitError) const {
-        const auto desc = attr.dyn_cast<IE::TensorAttr>();
+        const auto desc = attr.dyn_cast<vpux::TensorAttr>();
 
         if (desc == nullptr) {
             return printTo(emitError(), "Unsupported TensorType encoding '{0}'", attr);
         }
 
-        if (const auto orderAttr = desc.order()) {
+        if (const auto orderAttr = desc.getOrder()) {
             const auto map = orderAttr.getValue();
 
             if (!map.isPermutation()) {
@@ -97,12 +97,12 @@ public:
 void vpux::IE::IEDialect::initialize() {
     addOperations<
 #define GET_OP_LIST
-#include <vpux/compiler/dialect/IE/generated/ops.cpp.inc>
+#include <vpux/compiler/dialect/IE/ops.cpp.inc>
             >();
 
     addInterfaces<IEAsmHooks>();
 
-    IE::TensorAttr::attachInterface<TensorEncodingVerifier>(*getContext());
+    vpux::TensorAttr::attachInterface<TensorEncodingVerifier>(*getContext());
 
     registerAttributes();
 }
@@ -130,4 +130,4 @@ mlir::Operation* vpux::IE::IEDialect::materializeConstant(mlir::OpBuilder& build
 // Generated
 //
 
-#include <vpux/compiler/dialect/IE/generated/dialect.cpp.inc>
+#include <vpux/compiler/dialect/IE/dialect.cpp.inc>

@@ -1,18 +1,17 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include <vector>
 
-#include "kmb_layer_test.hpp"
 #include "single_layer_tests/strided_slice.hpp"
+#include "vpu_ov1_layer_test.hpp"
 namespace LayerTestsDefinitions {
-class VPUXStridedSliceLayerTest : public StridedSliceLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
-class VPUXStridedSliceLayerTest_VPU3700 : public VPUXStridedSliceLayerTest {
-    void SkipBeforeLoad() override {
-    }
-};
+class VPUXStridedSliceLayerTest :
+        public StridedSliceLayerTest,
+        virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
+class VPUXStridedSliceLayerTest_VPU3700 : public VPUXStridedSliceLayerTest {};
 
 class VPUXStridedSliceLayerTest_VPU3720 : public VPUXStridedSliceLayerTest {};
 class VPUXStridedSliceLayerTilingTest_VPU3720 : public VPUXStridedSliceLayerTest {};
@@ -155,61 +154,63 @@ std::vector<StridedSliceSpecificParams> precomit_tiling_tests = {
         {{1, 12, 100}, {0, -6, 0}, {0, -8, 0}, {-1, -2, -1}, {1, 0, 1}, {1, 0, 1}, {}, {}, {}},
 };
 
+const std::vector<InferenceEngine::Precision> InputPrecisions = {
+        InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::U8,
+};
+
 using Config = std::map<std::string, std::string>;
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_StridedSlice, VPUXStridedSliceLayerTest_VPU3700,
                          ::testing::Combine(::testing::ValuesIn(tests),
                                             ::testing::Values(InferenceEngine::Precision::FP16),
-                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                            ::testing::ValuesIn(InputPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(Config{})),
                          StridedSliceLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_precommit_StridedSlice, VPUXStridedSliceLayerTest_VPU3720,
                          ::testing::Combine(::testing::ValuesIn(precommit_tests),
                                             ::testing::Values(InferenceEngine::Precision::FP16),
-                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                            ::testing::ValuesIn(InputPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(Config{})),
                          StridedSliceLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_StridedSlice_5D, VPUXStridedSliceLayerTest_VPU3720,
                          ::testing::Combine(::testing::ValuesIn(tests_5d),
                                             ::testing::Values(InferenceEngine::Precision::FP16),
-                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                            ::testing::ValuesIn(InputPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(Config{})),
                          StridedSliceLayerTest::getTestCaseName);
 
-// Track number [E#69806]
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_tiling_StridedSlice, VPUXStridedSliceLayerTilingTest_VPU3720,
-                         ::testing::Combine(::testing::ValuesIn(tiling_tests),
-                                            ::testing::Values(InferenceEngine::Precision::FP16),
-                                            ::testing::Values(InferenceEngine::Precision::FP16),
-                                            ::testing::Values(InferenceEngine::Precision::FP16),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
-                                            ::testing::Values(Config{})),
-                         StridedSliceLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+        smoke_tiling_StridedSlice, VPUXStridedSliceLayerTilingTest_VPU3720,
+        ::testing::Combine(::testing::ValuesIn(tiling_tests), ::testing::Values(InferenceEngine::Precision::FP16),
+                           ::testing::ValuesIn(InputPrecisions), ::testing::Values(InferenceEngine::Precision::FP16),
+                           ::testing::Values(InferenceEngine::Layout::ANY),
+                           ::testing::Values(InferenceEngine::Layout::ANY),
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(Config{})),
+        StridedSliceLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_precommit_tiling_StridedSlice, VPUXStridedSliceLayerTilingTest_VPU3720,
                          ::testing::Combine(::testing::ValuesIn(precomit_tiling_tests),
                                             ::testing::Values(InferenceEngine::Precision::FP16),
-                                            ::testing::Values(InferenceEngine::Precision::FP16),
+                                            ::testing::ValuesIn(InputPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::FP16),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(Config{})),
                          StridedSliceLayerTest::getTestCaseName);
 

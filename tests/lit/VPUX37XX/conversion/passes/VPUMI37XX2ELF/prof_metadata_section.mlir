@@ -15,13 +15,13 @@ module @dmaSwProfiling {
   }
 
   func.func @main(%arg0: memref<1x2x3x4xf16, @DDR>, %arg1: memref<1x2x3x4xf16, @DDR>, %arg2: memref<4xui32>) -> (memref<1x2x3x4xf16, @DDR>, memref<4xui32>) {
-    %profReg = VPURT.DeclareBuffer "Register" <637702144> -> memref<1xui64, @Register>
+    %profReg = VPURT.DeclareBuffer <Register> <637702144> -> memref<1xui64, @Register>
 
-    %profSlotStart = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1xui64, [@CMX_NN, 0]>
-    %profSlotEnd = VPURT.DeclareBuffer "CMX_NN" [0] <8> -> memref<1xui64, [@CMX_NN, 0]>
+    %profSlotStart = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1xui64, [@CMX_NN, 0]>
+    %profSlotEnd = VPURT.DeclareBuffer <CMX_NN> [0] <8> -> memref<1xui64, [@CMX_NN, 0]>
 
-    %profBufCmx = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<2xui64, [@CMX_NN, 0]>
-    %profOutput = VPURT.DeclareBuffer "ProfilingOutput" [0] <0> -> memref<2xui64>
+    %profBufCmx = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<2xui64, [@CMX_NN, 0]>
+    %profOutput = VPURT.DeclareBuffer <ProfilingOutput> [0] <0> -> memref<2xui64>
 
     %profDmaStart = VPUMI37XX.NNDMA {port = 0 : i64} inputs(%profReg : memref<1xui64, @Register>) outputs(%profSlotStart : memref<1xui64, [@CMX_NN, 0]>) start_after(0) clean_after(0) -> !VPURegMapped.Index<0:0:0>
     %dma = VPUMI37XX.NNDMA {port = 0 : i64} inputs(%arg0 : memref<1x2x3x4xf16, @DDR>) outputs(%arg1 : memref<1x2x3x4xf16, @DDR>) previousDMA(%profDmaStart : !VPURegMapped.Index<0:0:0>) start_after(0) clean_after(0) -> !VPURegMapped.Index<0:0:1>

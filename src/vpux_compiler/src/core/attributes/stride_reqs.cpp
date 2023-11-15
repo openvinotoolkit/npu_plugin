@@ -121,7 +121,7 @@ StrideReqs& vpux::StrideReqs::remove(MemDim memDim) {
 }
 
 bool vpux::StrideReqs::hasReqFor(MemDim memDim) const {
-    return (*this)[memDim].hasValue();
+    return (*this)[memDim].has_value();
 }
 
 Optional<DimStrideReq> vpux::StrideReqs::operator[](MemDim memDim) const {
@@ -165,7 +165,7 @@ void vpux::StrideReqs::printFormat(llvm::raw_ostream& stream) const {
 //
 
 bool vpux::StrideReqsRef::hasReqFor(MemDim memDim) const {
-    return (*this)[memDim].hasValue();
+    return (*this)[memDim].has_value();
 }
 
 Optional<DimStrideReq> vpux::StrideReqsRef::operator[](MemDim memDim) const {
@@ -217,8 +217,8 @@ void vpux::StrideReqsRef::calcStrides(MemStrides& memStrides, Bit elemSize, MemS
             memStrides[memDim] = memStrides[prevMemDim] * memShape[prevMemDim];
         }
 
-        if (req.hasValue()) {
-            memStrides[memDim] = applyStrideReq(memStrides[memDim], req.getValue());
+        if (req.has_value()) {
+            memStrides[memDim] = applyStrideReq(memStrides[memDim], req.value());
         }
     }
 }
@@ -274,17 +274,17 @@ bool vpux::StrideReqsRef::checkStrides(MemStridesRef memStrides, Bit elemSize, M
             }
         }
 
-        if (!req.hasValue()) {
+        if (!req.has_value()) {
             continue;
-        } else if (req.getValue().kind() == StrideReqKind::Fixed) {
-            if (strideVal != req.getValue().fixedValue()) {
+        } else if (req.value().kind() == StrideReqKind::Fixed) {
+            if (strideVal != req.value().fixedValue()) {
                 return false;
             }
-        } else if (req.getValue().kind() == StrideReqKind::Aligned) {
-            if (strideVal % req.getValue().alignment() != 0) {
+        } else if (req.value().kind() == StrideReqKind::Aligned) {
+            if (strideVal % req.value().alignment() != 0) {
                 return false;
             }
-        } else if (req.getValue().kind() == StrideReqKind::Compact) {
+        } else if (req.value().kind() == StrideReqKind::Compact) {
             if (ind == memShape.size() - 1) {
                 if (strideVal != elemSize) {
                     return false;
@@ -328,8 +328,8 @@ StrideReqs vpux::StrideReqsRef::join(StrideReqsRef other, Bit elemSize, MemShape
     for (const auto& curReq : *this) {
         const auto otherReq = other[curReq.memDim()];
 
-        if (otherReq.hasValue()) {
-            mergeReq(curReq, otherReq.getValue());
+        if (otherReq.has_value()) {
+            mergeReq(curReq, otherReq.value());
         } else {
             merged.add(curReq);
         }
@@ -338,8 +338,8 @@ StrideReqs vpux::StrideReqsRef::join(StrideReqsRef other, Bit elemSize, MemShape
     for (const auto& otherReq : other) {
         const auto curReq = (*this)[otherReq.memDim()];
 
-        if (curReq.hasValue()) {
-            mergeReq(curReq.getValue(), otherReq);
+        if (curReq.has_value()) {
+            mergeReq(curReq.value(), otherReq);
         } else {
             merged.add(otherReq);
         }

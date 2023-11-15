@@ -1,16 +1,16 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "single_layer_tests/softmax.hpp"
 #include <algorithm>
 #include <vector>
-#include "vpux_layer_test.hpp"
+#include "vpu_ov2_layer_test.hpp"
 
 namespace ov::test::subgraph {
 
-class VPUXSoftMaxLayerTest : public SoftMaxLayerTest, virtual public VPUXLayerTest {};
+class VPUXSoftMaxLayerTest : public SoftMaxLayerTest, virtual public VpuOv2LayerTest {};
 
 TEST_P(VPUXSoftMaxLayerTest, VPU3700_SW) {
     abs_threshold = 1e-3;
@@ -25,55 +25,13 @@ TEST_P(VPUXSoftMaxLayerTest, VPU3700_HW) {
 }
 
 TEST_P(VPUXSoftMaxLayerTest, VPU3720_SW) {
-    setSkipInferenceCallback([](std::stringstream& skip) {
-        const InputShape& inShape = std::get<3>(GetParam());
-        const auto isStatic = inShape.first.is_static();
-        if (!isStatic) {
-            return;
-        }
-
-        const auto failingShapes = std::vector<ov::Shape>{{10, 10}, {32, 76}, {1, 20, 64, 512}};
-        const auto& staticShapes = inShape.second;
-        for (const auto& badShape : failingShapes) {
-            const auto shapeEqual = [&](const ov::Shape& shape) {
-                return shape.size() == badShape.size() && std::equal(shape.begin(), shape.end(), badShape.begin());
-            };
-
-            if (std::any_of(staticShapes.begin(), staticShapes.end(), shapeEqual)) {
-                skip << "Bad shape";
-                return;
-            }
-        }
-    });
-
-    abs_threshold = 1e-3;
+    abs_threshold = 0.01;
     setReferenceSoftwareMode();
     run(VPUXPlatform::VPU3720);
 }
 
 TEST_P(VPUXSoftMaxLayerTest, VPU3720_HW) {
-    setSkipInferenceCallback([](std::stringstream& skip) {
-        const InputShape& inShape = std::get<3>(GetParam());
-        const auto isStatic = inShape.first.is_static();
-        if (!isStatic) {
-            return;
-        }
-
-        const auto failingShapes = std::vector<ov::Shape>{{10, 10}, {32, 76}, {1, 20, 64, 512}};
-        const auto& staticShapes = inShape.second;
-        for (const auto& badShape : failingShapes) {
-            const auto shapeEqual = [&](const ov::Shape& shape) {
-                return shape.size() == badShape.size() && std::equal(shape.begin(), shape.end(), badShape.begin());
-            };
-
-            if (std::any_of(staticShapes.begin(), staticShapes.end(), shapeEqual)) {
-                skip << "Bad shape";
-                return;
-            }
-        }
-    });
-
-    abs_threshold = 1e-3;
+    abs_threshold = 0.01;
     setDefaultHardwareMode();
     run(VPUXPlatform::VPU3720);
 }
@@ -121,12 +79,12 @@ const std::vector<ov::Shape> inShapes3D = {{1, 4300, 2}, {8, 182, 182}};
 
 const std::vector<size_t> axis3D = {2};
 
-const auto params2DCasses = testing::Combine(
+const auto params3D = testing::Combine(
         testing::ValuesIn(netPrecisions), testing::ValuesIn(inputPrecisions), testing::ValuesIn(outputPrecisions),
         testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes3D)), testing::ValuesIn(axis3D),
         testing::Values(targetDevice), testing::Values(ov::test::Config{}));
 
-INSTANTIATE_TEST_CASE_P(smoke_SoftMax2DCasses, VPUXSoftMaxLayerTest, params2DCasses, SoftMaxLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_SoftMax3D, VPUXSoftMaxLayerTest, params3D, SoftMaxLayerTest::getTestCaseName);
 
 //
 // Input 4D

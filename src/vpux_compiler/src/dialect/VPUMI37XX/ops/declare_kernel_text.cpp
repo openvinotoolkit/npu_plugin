@@ -20,7 +20,7 @@ using namespace vpux;
 //
 
 void vpux::VPUMI37XX::DeclareKernelTextOp::serialize(elf::writer::BinaryDataSection<uint8_t>& binDataSection) {
-    auto kernel = kernel_path();
+    auto kernel = getKernelPath();
 
     const auto& kernelInfo = ShaveBinaryResources::getInstance();
     const SmallString arch = ELF::getSwKernelArchString(VPU::getArch(this->getOperation()));
@@ -33,7 +33,7 @@ void vpux::VPUMI37XX::DeclareKernelTextOp::serialize(elf::writer::BinaryDataSect
 }
 
 size_t vpux::VPUMI37XX::DeclareKernelTextOp::getBinarySize() {
-    auto kernel = kernel_path();
+    auto kernel = getKernelPath();
 
     const auto& kernelInfo = ShaveBinaryResources::getInstance();
     const SmallString arch = ELF::getSwKernelArchString(VPU::getArch(this->getOperation()));

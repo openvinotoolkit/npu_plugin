@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "kmb_test_power_def.hpp"
 
 #include <blob_factory.hpp>

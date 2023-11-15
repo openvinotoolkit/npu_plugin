@@ -33,11 +33,11 @@ mlir::LogicalResult vpux::VPU::PadOp::inferReturnTypes(mlir::MLIRContext* ctx, m
     if (mlir::failed(padEnd)) {
         return mlir::failure();
     }
-    if (pad.mode() == IE::PadMode::CONSTANT && pad.pad_value() == nullptr && !pad.pad_value_attr().hasValue()) {
+    if (pad.mode() == IE::PadMode::CONSTANT && pad.pad_value() == nullptr && !pad.pad_value_attr().has_value()) {
         return errorAt(loc, "pad_mode is CONSTANT but pad_value hasn't provided");
     }
 
-    const auto newType = inType.pad(ShapeRef(padBegin.getValue()), ShapeRef(padEnd.getValue()));
+    const auto newType = inType.pad(ShapeRef(padBegin.value()), ShapeRef(padEnd.value()));
     inferredReturnTypes.push_back(newType);
 
     return mlir::success();
@@ -48,8 +48,8 @@ mlir::LogicalResult vpux::VPU::PadOp::inferReturnTypes(mlir::MLIRContext* ctx, m
 //
 
 EMU::BlobWriter::SpecificTask vpux::VPU::PadOp::serialize(EMU::BlobWriter& writer) {
-    const auto padsBegin = writer.createVector(parseIntArrayAttr<uint32_t>(pads_begin_attr().getValue()));
-    const auto padsEnd = writer.createVector(parseIntArrayAttr<uint32_t>(pads_end_attr().getValue()));
+    const auto padsBegin = writer.createVector(parseIntArrayAttr<uint32_t>(pads_begin_attr().value()));
+    const auto padsEnd = writer.createVector(parseIntArrayAttr<uint32_t>(pads_end_attr().value()));
 
     MVCNN::PadParamsBuilder builder(writer);
     const auto padMode = vpux::VPUIP::convertVPUXPadMode2MVCNN(mode());

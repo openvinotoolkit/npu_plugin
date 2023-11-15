@@ -22,39 +22,8 @@ private:
     void safeRunOnFunc() final;
 };
 
-// create batches of tasks such that for every batch the total used barrier slot count is legal
-SmallVector<mlir::DenseSet<size_t>> createLegalVariantBatches(const BarrierInfo::TaskSet& tasks, size_t availableSlots,
-                                                              BarrierInfo& barrierInfo) {
-    // store batches of tasks
-    SmallVector<mlir::DenseSet<size_t>> legalBatches;
-    legalBatches.push_back({});
-    // store total slot count used by batch
-    size_t totalSlotCount = 0;
-
-    const auto isLegalVariantCountWith = [&](size_t numSlotsUsedByTask) -> bool {
-        return (totalSlotCount + numSlotsUsedByTask) <= availableSlots;
-    };
-
-    // create batches for new barriers
-    for (const auto& linearizationTask : tasks) {
-        // find number of slots consumed by this task
-        auto numSlotsUsedByTask = barrierInfo.getNumOfSlotsUsed(barrierInfo.getTaskOpAtIndex(linearizationTask));
-
-        // check if new batch needs to be created
-        if (!isLegalVariantCountWith(numSlotsUsedByTask)) {
-            legalBatches.push_back({});
-            totalSlotCount = 0;
-        }
-
-        legalBatches.rbegin()->insert(linearizationTask);
-        totalSlotCount += numSlotsUsedByTask;
-    }
-
-    return legalBatches;
-}
-
-// split barriers if producer count > AVAILIBLE SLOTS
-// will produce ceil(NUM PRODUCERS / AVAILIBLE SLOTS) barriers
+// split barriers if producer count > AVAILABLE SLOTS
+// will produce ceil(NUM PRODUCERS / AVAILABLE SLOTS) barriers
 /*
     x1  x2  ... xn             x1  ... x256   x257 ... xn
      \  \   /   /               \   |   /        \  |  /
@@ -73,7 +42,7 @@ void splitBarrierProducers(VPURT::DeclareVirtualBarrierOp barrierOp, size_t avai
     // consumers remain the same for all produced batched barriers
     const auto barrierConsumers = barrierInfo.getBarrierConsumers(barrierOp);
     // crete batches for producers
-    auto producerBatches = createLegalVariantBatches(barrierProducers, availableSlots, barrierInfo);
+    auto producerBatches = barrierInfo.createLegalVariantBatches(barrierProducers, availableSlots);
 
     mlir::OpBuilder builder(barrierOp);
 
@@ -96,11 +65,11 @@ void splitBarrierProducers(VPURT::DeclareVirtualBarrierOp barrierOp, size_t avai
     }
 
     barrierInfo.resetBarrier(barrierOp);
-    log.trace("Barrier successfuly replaced with batch of barriers");
+    log.trace("Barrier successfully replaced with batch of barriers");
 }
 
-// split barriers if consumer count > AVAILIBLE SLOTS
-// will produce ceil(NUM PRODUCERS / AVAILIBLE SLOTS) barriers
+// split barriers if consumer count > AVAILABLE SLOTS
+// will produce ceil(NUM PRODUCERS / AVAILABLE SLOTS) barriers
 /*
           u0                                u0
           |                            /          \
@@ -119,7 +88,7 @@ void splitBarrierConsumers(VPURT::DeclareVirtualBarrierOp barrierOp, size_t avai
     // producers remain the same for all produced batched barriers
     const auto barrierProducers = barrierInfo.getBarrierProducers(barrierOp);
     // crete batches for consumers
-    auto consumerBatches = createLegalVariantBatches(barrierConsumers, availableSlots, barrierInfo);
+    auto consumerBatches = barrierInfo.createLegalVariantBatches(barrierConsumers, availableSlots);
 
     mlir::OpBuilder builder(barrierOp);
 
@@ -142,7 +111,7 @@ void splitBarrierConsumers(VPURT::DeclareVirtualBarrierOp barrierOp, size_t avai
     }
 
     barrierInfo.resetBarrier(barrierOp);
-    log.trace("Barrier successfuly replaced with batch of barriers");
+    log.trace("Barrier successfully replaced with batch of barriers");
 }
 
 void SplitExceedingVariantCountBarriersPass::safeRunOnFunc() {
@@ -157,7 +126,7 @@ void SplitExceedingVariantCountBarriersPass::safeRunOnFunc() {
     // for a unified solution for all architectures
     auto availableSlots = maxAvailableSlots / 2;
 
-    // verify each task individually satisifies variant count
+    // verify each task individually satisfies variant count
     func->walk([&](VPURT::TaskOp taskOp) {
         VPUX_THROW_UNLESS(!mlir::isa<VPUIP::NCEClusterTilingOp>(taskOp.getInnerTaskOp()),
                           "Inner task op wrapped with NCEClusterTilingOp '{0}'", taskOp);
@@ -168,7 +137,7 @@ void SplitExceedingVariantCountBarriersPass::safeRunOnFunc() {
 
     const auto removeBarriersWithNoUse = [&]() {
         func->walk([&](VPURT::DeclareVirtualBarrierOp barrierOp) {
-            if (barrierOp.barrier().use_empty()) {
+            if (barrierOp.getBarrier().use_empty()) {
                 barrierOp->erase();
             }
         });

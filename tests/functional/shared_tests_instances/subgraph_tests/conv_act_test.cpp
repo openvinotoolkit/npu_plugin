@@ -1,5 +1,6 @@
-// Copyright (C) 2019-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) 2019-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 // #include "single_layer_tests/convolution.hpp"
@@ -8,10 +9,10 @@
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace SubgraphTestsDefinitions {
-class VPUXConvActivationSubgraphTest : public ConvActTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXConvActivationSubgraphTest : public ConvActTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 class VPUXConvActivationSubgraphTest_VPU3700 : public VPUXConvActivationSubgraphTest {};
 
 TEST_P(VPUXConvActivationSubgraphTest_VPU3700, HW) {
@@ -64,7 +65,7 @@ const auto activationCases = ::testing::Combine(
         ::testing::ValuesIn(inputPrecisions), ::testing::ValuesIn(outputPrecisions),
         ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 const auto convCases =
         ::testing::Combine(activationCases, ::testing::ValuesIn(kernels), ::testing::ValuesIn(strides),

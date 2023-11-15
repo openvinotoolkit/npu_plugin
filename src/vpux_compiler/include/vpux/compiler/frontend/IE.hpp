@@ -13,7 +13,6 @@
 #include <mlir/Support/Timing.h>
 
 #include <cpp/ie_cnn_network.h>
-#include <vpux_compiler.hpp>
 
 // Opset versions supported
 #include <ngraph/opsets/opset1.hpp>
@@ -35,16 +34,15 @@ namespace vpux {
 namespace IE {
 
 // TODO Get rid of this function (importNetwork), move logic to compiler.cpp
-mlir::OwningOpRef<mlir::ModuleOp> importNetwork(mlir::MLIRContext* ctx, InferenceEngine::CNNNetwork cnnNet,
-                                                std::vector<PreProcessInfo>& preProcInfo, bool sharedConstants,
-                                                mlir::TimingScope& rootTiming, bool enableProfiling, bool stubLayers,
-                                                vpux::VPU::ArchKind arch, Logger log = Logger::global());
+mlir::OwningOpRef<mlir::ModuleOp> importNetwork(mlir::MLIRContext* ctx, const std::shared_ptr<ov::Model>& model,
+                                                bool sharedConstants, mlir::TimingScope& rootTiming,
+                                                bool enableProfiling, bool stubLayers, vpux::VPU::ArchKind arch,
+                                                Logger log = Logger::global());
 
 // TODO Move to separate file NGraphPasses
 class NGraphPasses final {
 public:
-    static void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph,
-                                std::vector<vpux::PreProcessInfo>& /*preProcInfo*/, mlir::TimingScope& rootTiming,
+    static void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::TimingScope& rootTiming,
                                 const vpux::VPU::ArchKind arch);
 };
 
@@ -90,6 +88,8 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Convolution>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::GroupConvolution>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ConvolutionBackpropData>& origNode);
+    void parseNode(mlir::OpBuilder& builder,
+                   const std::shared_ptr<opset_latest::GroupConvolutionBackpropData>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::AvgPool>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::MaxPool>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::AdaptiveAvgPool>& origNode);
@@ -108,6 +108,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::GatherElements>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ScatterNDUpdate>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ScatterUpdate>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ScatterElementsUpdate>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Clamp>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Elu>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Reshape>& origNode);

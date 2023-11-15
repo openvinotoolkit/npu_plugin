@@ -42,14 +42,14 @@ mlir::FailureOr<TilingStorage> calculateTilingRegions(VPU::VerticalFusionOp vfOp
                                                       Logger log,
                                                       const TilingOperationStorage::UPtr& opStorage = nullptr);
 // calculate tiling regions based on known output tiles for last operation in the block
-mlir::FailureOr<TilingStorage> calculateTilingRegions(VPU::VerticalFusionOp vfOp, OutputTiling tiles, Logger log,
+mlir::FailureOr<TilingStorage> calculateTilingRegions(VPU::VerticalFusionOp vfOp, const OutputTiling& tiles, Logger log,
                                                       const TilingOperationStorage::UPtr& opStorage = nullptr);
 // calculate recursively tiling regions for the block starting from last operation and known output tiles for it
 // function builds connection between block arguments and tiles
 // in case TilingOperationStorage pointer was passed, it filles in connection between each operation and
 // its input and output tiles
-mlir::FailureOr<TilingStorage> calculateTilingRegions(VPU::TilingBuilderOpInterface tilingBuilderOp, OutputTiling tiles,
-                                                      Logger log,
+mlir::FailureOr<TilingStorage> calculateTilingRegions(VPU::TilingBuilderOpInterface tilingBuilderOp,
+                                                      const OutputTiling& tiles, Logger log,
                                                       const TilingOperationStorage::UPtr& opStorage = nullptr,
                                                       mlir::Optional<size_t> numTile = None);
 

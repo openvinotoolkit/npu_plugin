@@ -44,7 +44,7 @@ vpux::InputTiling vpux::VPU::LogSoftmaxOp::backInferTileInfo(const vpux::TileInf
 void vpux::VPU::LogSoftmaxOp::adjustAttrs(const TilingInfo& /*inputTiling*/, const TileInfo& /*outputTile*/) {
 }
 
-OutputTiling vpux::VPU::LogSoftmaxOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
+mlir::FailureOr<OutputTiling> vpux::VPU::LogSoftmaxOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
     auto baseOp = this->getOperation();
     VPUX_THROW_WHEN(tilingMode != TilingMode::ISOLATED,
                     "Only supporting isolated tiling for LogSoftmax currently, for op {0} at '{1}'", baseOp->getName(),
@@ -60,7 +60,10 @@ OutputTiling vpux::VPU::LogSoftmaxOp::getTilingStrategy(TilingMode tilingMode, L
     const auto isSupportedTileSize = [baseOp, &tilingInfo, outputShape, log](ShapeRef nTilesOnDim,
                                                                              TilingMode tilingMode) -> bool {
         const auto tiles = fillDividedTiles(baseOp, nTilesOnDim, outputShape);
-        return tilingInfo.isSupportedTiling(tiles, tilingMode, log);
+        if (mlir::failed(tiles)) {
+            return false;
+        }
+        return tilingInfo.isSupportedTiling(tiles.value(), tilingMode, log);
     };
 
     while (!isSupportedTileSize(nTilesOnDim, tilingMode)) {

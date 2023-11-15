@@ -6,8 +6,6 @@
 #pragma once
 
 #include "vpux/utils/core/logger.hpp"
-#include "vpux/utils/core/preprocessing.hpp"
-#include "vpux_compiler.hpp"
 
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Support/Timing.h>

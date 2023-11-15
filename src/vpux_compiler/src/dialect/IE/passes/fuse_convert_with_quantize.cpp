@@ -58,12 +58,10 @@ mlir::LogicalResult ConvertQuantizeRewriter::matchAndRewrite(IE::QuantizeOp quan
                 uniformType.getExpressedType(), inDataScale, inDataZP, uniformType.getStorageTypeMin(),
                 uniformType.getStorageTypeMax());
     } else if (const auto perAxisType = originDstType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
-        SmallVector<double> scales(perAxisType.getScales().size(), inDataScale);
-        SmallVector<int64_t> zeroPoints(perAxisType.getScales().size(), inDataZP);
-
         dstType = mlir::quant::UniformQuantizedPerAxisType::getChecked(
                 quantizeOp.getLoc(), perAxisType.isSigned(), perAxisType.getStorageType(),
-                perAxisType.getExpressedType(), scales, zeroPoints, perAxisType.getQuantizedDimension(),
+                perAxisType.getExpressedType(), SmallVector<double>(perAxisType.getScales().size(), inDataScale),
+                SmallVector<int64_t>(perAxisType.getScales().size(), inDataZP), perAxisType.getQuantizedDimension(),
                 perAxisType.getStorageTypeMin(), perAxisType.getStorageTypeMax());
     } else {
         VPUX_THROW("Unsupported Quantized Type {0}", originDstType);

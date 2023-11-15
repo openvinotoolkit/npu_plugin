@@ -4,14 +4,15 @@
 //
 
 #include "vpux/utils/plugin/profiling_parser.hpp"
+
 #include "vpux/utils/IE/prefix.hpp"
 #include "vpux/utils/IE/profiling.hpp"
 #include "vpux/utils/core/profiling.hpp"
+#include "vpux/utils/plugin/profiling_meta.hpp"
 
-#include <vpux_elf/accessor.hpp>
-#include <vpux_elf/reader.hpp>
-#include <vpux_elf/utils/utils.hpp>
+#include <schema/profiling_generated.h>
 
+#include <cstring>
 #include <map>
 #include <sstream>
 #include <string>
@@ -28,17 +29,17 @@ enum class SynchronizationPointKind { DMA_TO_DPU, DPU_TO_DMA, DMA_TO_UPA, STRICT
 // These two declarations serve to make RawProfilingDMARecord class usable in other compilation units, i.e. unit tests
 template class vpux::profiling::RawProfilingDMARecord<DMA20Data_t>;
 template class vpux::profiling::RawProfilingDMARecord<DMA27Data_t>;
+template bool vpux::profiling::RawProfilingDMARecord<DMA20Data_t>::isTaskBegin(const std::string&);
+template bool vpux::profiling::RawProfilingDMARecord<DMA27Data_t>::isTaskBegin(const std::string&);
+template bool vpux::profiling::RawProfilingDMARecord<DMA20Data_t>::isTaskWorkpointRead(const std::string&);
+template bool vpux::profiling::RawProfilingDMARecord<DMA27Data_t>::isTaskWorkpointRead(const std::string&);
 
 namespace {
 
-constexpr double PROF_CLK_VALUE_MHZ = 38.4;
+constexpr double PROF_CLK_37XX_VALUE_MHZ = 38.4;
 
 struct Dma27BandwidthProvider {
     static constexpr double value = Dma27Bandwidth;
-};
-
-struct Dma40BandwidthProvider {
-    static constexpr double value = Dma40Bandwidth;
 };
 
 template <typename BandwidthProvider, bool SHARED_DMA_SW_CNT, bool SHARED_DMA_DPU_CNT>
@@ -48,7 +49,7 @@ constexpr FrequenciesSetup getFreqSetupHelper(const double vpuFreq, const double
 
 constexpr auto getFreqSetup37XXHelper = getFreqSetupHelper<Dma27BandwidthProvider, true, false>;
 
-constexpr auto MAX_37XX_FREQ_SETUP = getFreqSetup37XXHelper(975.0, 1300.0, PROF_CLK_VALUE_MHZ);
+constexpr auto MAX_37XX_FREQ_SETUP = getFreqSetup37XXHelper(975.0, 1300.0, PROF_CLK_37XX_VALUE_MHZ);
 
 FrequenciesSetup getFpgaFreqSetup(MVCNN::TargetDevice device) {
     VPUX_THROW("TargetDevice {0} is not supported ", MVCNN::EnumNameTargetDevice(device));
@@ -110,6 +111,18 @@ std::string to_string(const SynchronizationPoint& syncPoint) {
            printNames(syncPoint.second);
 }
 
+template <typename... Args>
+void warnOrFail(bool failOnError, vpux::Logger& log, bool condition, llvm::StringLiteral format, Args&&... params) {
+    if (condition) {
+        return;
+    }
+    if (failOnError) {
+        VPUX_THROW(format, std::forward<Args>(params)...);
+    } else {
+        log.warning(format, std::forward<Args>(params)...);
+    }
+}
+
 using BarriersSet = RawProfilingRecord::BarriersSet;
 
 template <class TaskType>
@@ -118,10 +131,17 @@ BarriersSet getBarriersFromTask(const TaskType* task, bool waitBarriers) {
         return {};
     }
     const auto barrierList = waitBarriers ? task->waitBarriers() : task->updateBarriers();
-    if (barrierList->size() == 0) {
-        return {};
-    }
     return BarriersSet(barrierList->cbegin(), barrierList->cend());
+}
+
+template <class TaskType>
+BarriersSet getWaitBarriersFromTask(const TaskType* task) {
+    return getBarriersFromTask(task, /*waitBarriers*/ true);
+}
+
+template <class TaskType>
+BarriersSet getUpdateBarriersFromTask(const TaskType* task) {
+    return getBarriersFromTask(task, /*waitBarriers*/ false);
 }
 
 template <>
@@ -138,19 +158,6 @@ BarriersSet getBarriersFromTask(const MVCNN::Task* task, bool waitBarriers) {
         return BarriersSet(list->cbegin(), list->cend());
     }
     return {};
-}
-
-void checkSameBarriers(const RawProfilingRecordPtr& first, const RawProfilingRecordPtr& second,
-                       bool checkWaitBarriers) {
-    auto firstBarriers = checkWaitBarriers ? first->getWaitBarriers() : first->getUpdateBarriers();
-    auto secondBarriers = checkWaitBarriers ? second->getWaitBarriers() : second->getUpdateBarriers();
-    const auto intersection = RawProfilingRecord::getBarriersIntersection(firstBarriers, secondBarriers);
-    bool barriersAreSame = intersection.size() == firstBarriers.size();
-    if (!barriersAreSame) {
-        const auto barrierKind = checkWaitBarriers ? "wait" : "update";
-        VPUX_THROW("Tasks must have same {0} barriers, but {1} != {2}", barrierKind,
-                   convertIterableToString(firstBarriers), convertIterableToString(secondBarriers));
-    }
 }
 
 RawProfilingRecords getRelatedTasksOfKind(
@@ -279,20 +286,20 @@ llvm::Optional<int64_t> getDMA2OtherTimersShift(const RawProfilingRecords& dmaTa
 
     llvm::Optional<TimeType> rawTimerShift;
     for (TimeType shiftEstimate : perBarrirShiftEstimation) {
-        if (!rawTimerShift.hasValue()) {
+        if (!rawTimerShift.has_value()) {
             rawTimerShift = shiftEstimate;
         }
         if (!inverseAlgorithm) {
-            rawTimerShift = std::max(rawTimerShift.getValue(), shiftEstimate);
+            rawTimerShift = std::max(rawTimerShift.value(), shiftEstimate);
         } else {
-            rawTimerShift = std::min(rawTimerShift.getValue(), shiftEstimate);
+            rawTimerShift = std::min(rawTimerShift.value(), shiftEstimate);
         }
     }
     if (inverseAlgorithm) {
-        rawTimerShift = -rawTimerShift.getValue();
+        rawTimerShift = -rawTimerShift.value();
     }
 
-    const auto timersShift = static_cast<int64_t>(rawTimerShift.getValue());
+    const auto timersShift = static_cast<int64_t>(rawTimerShift.value());
     return timersShift;
 }
 
@@ -321,14 +328,14 @@ llvm::Optional<uint64_t> getEarliestTaskBegin(const std::vector<TaskInfo>& tasks
 // DMA task because they are connected via the same barrier
 int64_t getTimersOffset(const llvm::Optional<int64_t> maybeTaskTimerDiff,
                         const llvm::Optional<uint64_t> maybeEarliestDmaNs, uint64_t earliestTaskNs) {
-    if (maybeTaskTimerDiff.hasValue()) {
-        return maybeTaskTimerDiff.getValue();
+    if (maybeTaskTimerDiff.has_value()) {
+        return maybeTaskTimerDiff.value();
     }
 
     // Could not calculate offset between timers(Most likely DMA profiling is disabled)
     // -> set offset based on begin time
-    if (maybeEarliestDmaNs.hasValue()) {
-        return maybeEarliestDmaNs.getValue() - earliestTaskNs;
+    if (maybeEarliestDmaNs.has_value()) {
+        return maybeEarliestDmaNs.value() - earliestTaskNs;
     } else {
         // FIXME: we do not need to mix unsigned and singed here
         // currenntly, we apply workaround to enable a strict check
@@ -351,8 +358,8 @@ void adjustZeroPoint(std::vector<vpux::profiling::TaskInfo>& taskInfo, int64_t t
 struct TaskMetadataBase {
     template <class TaskType>
     TaskMetadataBase(const TaskType* task) {
-        waitBarriers = getBarriersFromTask(task, /*waitBarriers=*/true);
-        updateBarriers = getBarriersFromTask(task, /*waitBarriers=*/false);
+        waitBarriers = getWaitBarriersFromTask(task);
+        updateBarriers = getUpdateBarriersFromTask(task);
         name = task->name()->str();
     }
 
@@ -370,17 +377,16 @@ struct DmaTaskMetadata : public TaskMetadataBase {
 
     DmaTaskMetadata(const ProfilingFB::DMATask* task): TaskMetadataBase(task) {
         isFromRegister = task->sourceLocale()->str() == "Register";
-        dmaHwpId = 0;
+        dmaHwpId = task->hwpId();
     }
 
     bool isFromRegister;
     uint32_t dmaHwpId;
 };
 
-template <class TaskType>
-RawProfilingRecords parseDmaHwTaskProfiling(const MVCNN::GraphFile* graphFile,
-                                            const flatbuffers::Vector<flatbuffers::Offset<TaskType>>* dmaTaskList,
-                                            const void* output, size_t outputLen) {
+RawProfilingRecords parseDmaHwTaskProfiling(
+        const flatbuffers::Vector<flatbuffers::Offset<ProfilingFB::DMATask>>* dmaTaskList, const void* output,
+        size_t outputLen) {
     if (dmaTaskList == nullptr) {
         return {};
     }
@@ -388,7 +394,7 @@ RawProfilingRecords parseDmaHwTaskProfiling(const MVCNN::GraphFile* graphFile,
     BarriersSet lastProfilingRecordWaitBarriers;
     uint32_t foundDmaTasks = 0;
     RawProfilingRecords rawRecords;
-    for (unsigned dmaTaskListId = 0; dmaTaskListId < (*dmaTaskList).size(); dmaTaskListId++) {
+    for (unsigned dmaTaskListId = 0; dmaTaskListId < dmaTaskList->size(); dmaTaskListId++) {
         auto task = (*dmaTaskList)[dmaTaskListId];
         const auto taskMetadata = DmaTaskMetadata(task);
         if (taskMetadata.dmaHwpId == 0) {
@@ -420,21 +426,16 @@ RawProfilingRecords parseDmaHwTaskProfiling(const MVCNN::GraphFile* graphFile,
         }
     }
 
-    size_t totalDmaTasks = outputLen / sizeof(HwpDma40Data_t);
-    if (auto* hwpBase = graphFile->header()->dma_hwp_base()) {
-        // In case if hwpBase located in DDR, first task won't contain profiling data, so decreasing totalDmaTasks
-        if (hwpBase->locale() == MVCNN::MemoryLocation_ProfilingOutput) {
-            --totalDmaTasks;
-        }
-    }
+    // First record won't contain profiling data, so decreasing totalDmaTasks by 1
+    const size_t totalDmaTasks = (outputLen / sizeof(HwpDma40Data_t)) - 1;
     VPUX_THROW_UNLESS(totalDmaTasks == foundDmaTasks, "Unexpected number of DMA tasks in profiling data: {0} != {1}",
                       totalDmaTasks, foundDmaTasks);
     return rawRecords;
 }
 
-template <class TaskType>
-RawProfilingRecords parseDmaSwTaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<TaskType>>* dmaTaskList,
-                                            const void* output, size_t outputLen, MVCNN::TargetDevice device) {
+RawProfilingRecords parseDmaSwTaskProfiling(
+        const flatbuffers::Vector<flatbuffers::Offset<ProfilingFB::DMATask>>* dmaTaskList, const void* output,
+        size_t outputLen, MVCNN::TargetDevice device) {
     if (dmaTaskList == nullptr) {
         return {};
     }
@@ -453,7 +454,7 @@ RawProfilingRecords parseDmaSwTaskProfiling(const flatbuffers::Vector<flatbuffer
     uint32_t foundDmaTasks = 0;
     unsigned lastBeginTaskId = 0;
     RawProfilingRecords rawRecords;
-    for (unsigned dmaTaskListId = 0; dmaTaskListId < (*dmaTaskList).size(); dmaTaskListId++) {
+    for (unsigned dmaTaskListId = 0; dmaTaskListId < dmaTaskList->size(); dmaTaskListId++) {
         auto task = (*dmaTaskList)[dmaTaskListId];
         const auto taskMetadata = DmaTaskMetadata(task);
         if (taskMetadata.isFromRegister) {
@@ -507,15 +508,9 @@ RawProfilingRecords parseDmaSwTaskProfiling(const flatbuffers::Vector<flatbuffer
     return rawRecords;
 }
 
-template <class TaskType>
-RawProfilingRecords parseUPATaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<TaskType>>*, const void*,
-                                          size_t) {
-    VPUX_THROW("UPA profiling is supported only by GF");
-}
-
-template <>
-RawProfilingRecords parseUPATaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<MVCNN::Task>>* upaTaskList,
-                                          const void* output, size_t outputLen) {
+RawProfilingRecords parseUPATaskProfiling(
+        const flatbuffers::Vector<flatbuffers::Offset<ProfilingFB::SWTask>>* upaTaskList, const void* output,
+        size_t outputLen) {
     if (upaTaskList == nullptr) {
         return {};
     }
@@ -526,34 +521,32 @@ RawProfilingRecords parseUPATaskProfiling(const flatbuffers::Vector<flatbuffers:
 
     RawProfilingRecords rawRecords;
     for (unsigned upaTaskListId = 0; upaTaskListId < upaTaskList->size(); upaTaskListId++) {
-        auto task = (*upaTaskList)[upaTaskListId];
-        auto taskName = task->name()->str();
+        const auto task = (*upaTaskList)[upaTaskListId];
+        const auto taskMetadata = TaskMetadataBase(task);
+        const auto taskName = taskMetadata.name;
 
         const auto upaMeta = RawProfilingUPARecord::parseTaskName(taskName);
         auto currentPos = upaMeta.prof.currentPos;
         VPUX_THROW_UNLESS(currentPos < outputLen / sizeof(UpaData_t), "Unexpected end of blob in UPA profiling data.");
         foundUpaTasks++;
 
-        auto softLayer = task->task_as_UPALayerTask();
         std::string layerName = upaMeta.meta.layerType;
-        if (softLayer != nullptr) {
-            const char* typeName = EnumNameSoftwareLayerParams(softLayer->softLayerParams_type());
-            if (typeName != nullptr) {
-                layerName = typeName;
-            }
+        if (task->taskType() != nullptr) {
+            layerName = task->taskType()->str();
         }
 
         rawRecords.push_back(std::make_shared<RawProfilingUPARecord>(
-                outputUpa[currentPos], upaMeta.meta.taskName, upaMeta.meta.layerName, layerName, task, currentPos));
+                outputUpa[currentPos], upaMeta.meta.taskName, upaMeta.meta.layerName, layerName,
+                taskMetadata.waitBarriers, taskMetadata.updateBarriers, currentPos));
         std::dynamic_pointer_cast<ThrowableAssertMixin>(rawRecords.back())->checkDataOrDie();
     }
     VPUX_THROW_UNLESS(totalUpaTasks == foundUpaTasks, "Unexpected number of UPA tasks in profiling data");
     return rawRecords;
 }
 
-template <class TaskType>
-RawProfilingRecords parseActShaveTaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<TaskType>>* shaveTaskList,
-                                               const void* output, size_t outputLen) {
+RawProfilingRecords parseActShaveTaskProfiling(
+        const flatbuffers::Vector<flatbuffers::Offset<ProfilingFB::SWTask>>* shaveTaskList, const void* output,
+        size_t outputLen) {
     if (shaveTaskList == nullptr) {
         return {};
     }
@@ -582,52 +575,50 @@ RawProfilingRecords parseActShaveTaskProfiling(const flatbuffers::Vector<flatbuf
     return rawRecords;
 }
 
-template <class TaskType>
-RawProfilingRecords parseDPUTaskProfiling(const flatbuffers::Vector<flatbuffers::Offset<TaskType>>* dpuTaskList,
-                                          const void* output, size_t outputLen, MVCNN::TargetDevice device) {
+struct DpuMetaComparator {
+    bool operator()(const ProfilingFB::DPUTask* a, const ProfilingFB::DPUTask* b) const {
+        return std::make_tuple(a->bufferId(), a->clusterId(), a->taskId()) <
+               std::make_tuple(b->bufferId(), b->clusterId(), b->taskId());
+    }
+};
+
+RawProfilingRecords parseDPUTaskProfiling(
+        const flatbuffers::Vector<flatbuffers::Offset<ProfilingFB::DPUTask>>* dpuTaskList, const void* output,
+        size_t outputLen, MVCNN::TargetDevice device, bool /* ignoreSanitizationErrors */) {
     if (dpuTaskList == nullptr) {
         return {};
     }
 
-    std::map<uint64_t, RawProfilingDPURecord::ParsedTaskNameProf> profilingMeta;
-    for (unsigned dpu_taskListId = 0; dpu_taskListId < (*dpuTaskList).size(); dpu_taskListId++) {
-        auto task = (*dpuTaskList)[dpu_taskListId];
-        const auto taskMetadata = TaskMetadataBase(task);
-        auto taskName = taskMetadata.name;
-        auto meta = RawProfilingDPURecord::parseTaskName(taskName, dpu_taskListId);
-        profilingMeta.emplace(meta.prof.getOrderDescriptor(), meta);
-    }
-
     unsigned currentPos = 0;
-    std::map<std::string, TaskInfo> profInfoAggregator;
+    std::set<const ProfilingFB::DPUTask*, DpuMetaComparator> profInfoAggregator(dpuTaskList->begin(),
+                                                                                dpuTaskList->end());
 
     RawProfilingRecords rawRecords;
-    for (const auto& iter : profilingMeta) {
-        const auto metaData = iter.second;
-        const auto task = (*dpuTaskList)[metaData.prof.taskId];
-        const auto taskMetadata = TaskMetadataBase(task);
+    for (const ProfilingFB::DPUTask* taskMeta : profInfoAggregator) {
+        for (auto variantId = 0; variantId < taskMeta->maxVariants(); variantId++) {
+            if (variantId < taskMeta->numVariants()) {
+                const auto waitBarriers = getWaitBarriersFromTask(taskMeta);
+                const auto updateBarriers = getUpdateBarriersFromTask(taskMeta);
+                const auto parsedTaskName = RawProfilingRecord::deserializeTaskName(taskMeta->name()->str(), {});
 
-        for (auto variantId = 0; variantId < metaData.prof.maxVariants; variantId++) {
-            if (variantId < metaData.prof.numVariants) {
+                const auto clusterId = taskMeta->clusterId();
                 if (device == MVCNN::TargetDevice::TargetDevice_VPUX37XX) {
                     VPUX_THROW_WHEN(currentPos >= outputLen / sizeof(HwpDpu27Mode0Data_t),
                                     "HWP profiling index is out of range");
 
-                    const HwpDpu27Mode0Data_t outputDpu =
+                    const HwpDpu27Mode0Data_t dpuTimings =
                             reinterpret_cast<const HwpDpu27Mode0Data_t*>(output)[currentPos];
                     rawRecords.push_back(std::make_shared<RawProfilingDPUHW27Record>(
-                            outputDpu, metaData.meta.taskName, metaData.meta.layerName, metaData.meta.layerType,
-                            taskMetadata.waitBarriers, taskMetadata.updateBarriers, metaData.meta.clusterId, variantId,
-                            currentPos));
+                            dpuTimings, parsedTaskName.taskName, parsedTaskName.layerName, parsedTaskName.layerType,
+                            waitBarriers, updateBarriers, clusterId, variantId, currentPos));
                 } else {
                     VPUX_THROW_WHEN(currentPos >= outputLen / sizeof(SwDpuData_t),
                                     "SW profiling index is out of range");
 
-                    const SwDpuData_t outputDpu = reinterpret_cast<const SwDpuData_t*>(output)[currentPos];
+                    const SwDpuData_t dpuTimings = reinterpret_cast<const SwDpuData_t*>(output)[currentPos];
                     rawRecords.push_back(std::make_shared<RawProfilingDPUSWRecord>(
-                            outputDpu, metaData.meta.taskName, metaData.meta.layerName, metaData.meta.layerType,
-                            taskMetadata.waitBarriers, taskMetadata.updateBarriers, metaData.meta.clusterId, variantId,
-                            currentPos));
+                            dpuTimings, parsedTaskName.taskName, parsedTaskName.layerName, parsedTaskName.layerType,
+                            waitBarriers, updateBarriers, clusterId, variantId, currentPos));
                 }
                 std::dynamic_pointer_cast<ThrowableAssertMixin>(rawRecords.back())->checkDataOrDie();
             }
@@ -641,8 +632,7 @@ RawProfilingRecords parseDPUTaskProfiling(const flatbuffers::Vector<flatbuffers:
 std::vector<std::pair<WorkpointConfiguration_t, size_t>> getWorkpointData(const void* output, size_t outputLen,
                                                                           size_t offset) {
     const auto NUM_WORKPOINTS = 2;
-    VPUX_THROW_UNLESS(outputLen == NUM_WORKPOINTS * sizeof(WorkpointConfiguration_t),
-                      "Profiling blob should have only {0} workpoint configurations", NUM_WORKPOINTS);
+    VPUX_THROW_UNLESS(outputLen == vpux::WORKPOINT_BUFFER_SIZE, "Unexpected workpoint size: {0}", outputLen);
     const auto* workpointsPtr = reinterpret_cast<const WorkpointConfiguration_t*>(output);
 
     std::vector<std::pair<WorkpointConfiguration_t, size_t>> workpoints;
@@ -654,47 +644,46 @@ std::vector<std::pair<WorkpointConfiguration_t, size_t>> getWorkpointData(const 
     return workpoints;
 }
 
-template <class DmaTaskType, class DpuTaskType, class SwTaskType>
-RawProfilingData parseProfilingTaskLists(const std::map<ExecutorType, std::pair<uint32_t, uint32_t>>& offsets,
-                                         MVCNN::TargetDevice device, const uint8_t* profData, TaskType type,
-                                         const flatbuffers::Vector<flatbuffers::Offset<DmaTaskType>>* dmaTaskList,
-                                         const flatbuffers::Vector<flatbuffers::Offset<DpuTaskType>>* dpuTaskList,
-                                         const flatbuffers::Vector<flatbuffers::Offset<SwTaskType>>* swTaskList,
-                                         const MVCNN::GraphFile* maybeGraphFile) {
+RawProfilingData parseProfilingTaskLists(const RawDataLayout& layout, MVCNN::TargetDevice device,
+                                         const uint8_t* profData, TaskType type,
+                                         const ProfilingFB::ProfilingMeta* profilingSchema,
+                                         bool ignoreSanitizationErrors) {
     RawProfilingData rawProfData;
 
-    for (const auto& p : offsets) {
+    for (const auto& p : layout.offsets) {
         const auto offset = p.second.first;
         const auto length = p.second.second;
 
         switch (p.first) {
         case ExecutorType::DMA_SW: {
-            rawProfData.dmaTasks = parseDmaSwTaskProfiling(dmaTaskList, profData + offset, length, device);
+            rawProfData.dmaTasks =
+                    parseDmaSwTaskProfiling(profilingSchema->dmaTasks(), profData + offset, length, device);
             rawProfData.parseOrder.emplace_back(ExecutorType::DMA_SW, offset);
             break;
         }
         case ExecutorType::DMA_HW: {
-            rawProfData.dmaTasks = parseDmaHwTaskProfiling(maybeGraphFile, dmaTaskList, profData + offset, length);
+            rawProfData.dmaTasks = parseDmaHwTaskProfiling(profilingSchema->dmaTasks(), profData + offset, length);
             rawProfData.parseOrder.emplace_back(ExecutorType::DMA_HW, offset);
             break;
         }
         case ExecutorType::UPA: {
             if (type == TaskType::ALL || type == TaskType::DPU_SW) {
-                rawProfData.swTasks = parseUPATaskProfiling(swTaskList, profData + offset, length);
+                rawProfData.swTasks = parseUPATaskProfiling(profilingSchema->swTasks(), profData + offset, length);
                 rawProfData.parseOrder.emplace_back(ExecutorType::UPA, offset);
             }
             break;
         }
         case ExecutorType::ACTSHAVE: {
             if (type == TaskType::ALL || type == TaskType::DPU_SW) {
-                rawProfData.swTasks = parseActShaveTaskProfiling(swTaskList, profData + offset, length);
+                rawProfData.swTasks = parseActShaveTaskProfiling(profilingSchema->swTasks(), profData + offset, length);
                 rawProfData.parseOrder.emplace_back(ExecutorType::ACTSHAVE, offset);
             }
             break;
         }
         case ExecutorType::DPU: {
             if (type == TaskType::ALL || type == TaskType::DPU_SW) {
-                rawProfData.dpuTasks = parseDPUTaskProfiling(dpuTaskList, profData + offset, length, device);
+                rawProfData.dpuTasks = parseDPUTaskProfiling(profilingSchema->dpuTasks(), profData + offset, length,
+                                                             device, ignoreSanitizationErrors);
                 rawProfData.parseOrder.emplace_back(ExecutorType::DPU, offset);
             }
             break;
@@ -722,9 +711,10 @@ FrequenciesSetup FrequenciesSetup::get30XXSetup(double nceFreq) {
     freq.dmaBandwidth = Dma20Bandwidth;
     return freq;
 }
+
 FrequenciesSetup FrequenciesSetup::get37XXSetup(uint16_t pllMult) {
-    if (pllMult < 10 || pllMult > 39) {
-        vpux::Logger::global().warning("PLL multiplier '{0}' is out of [10; 39] range. MAX freq. setup will be used.",
+    if (pllMult < 10 || pllMult > 42) {
+        vpux::Logger::global().warning("PLL multiplier '{0}' is out of [10; 42] range. MAX freq. setup will be used.",
                                        pllMult);
         return MAX_37XX_FREQ_SETUP;
     }
@@ -733,7 +723,7 @@ FrequenciesSetup FrequenciesSetup::get37XXSetup(uint16_t pllMult) {
 
     const double vpuFreq = pllMult * VPU_TO_PLL_RATIO;
     const double dpuFreq = vpuFreq * DPU_TO_VPU_RATIO;
-    return getFreqSetup37XXHelper(vpuFreq, dpuFreq, PROF_CLK_VALUE_MHZ);
+    return getFreqSetup37XXHelper(vpuFreq, dpuFreq, PROF_CLK_37XX_VALUE_MHZ);
 }
 
 double getNceFreq(const MVCNN::GraphFile* graphFile) {
@@ -762,9 +752,6 @@ double getNceFreq(const MVCNN::GraphFile* graphFile) {
                            EnumNameTargetDeviceRevision(graphFile->header()->device_revision()));
             }
             break;
-        case MVCNN::TargetDevice::TargetDevice_VPUX311X:
-            frcSpeedMhz = 700;
-            break;
         default:
             VPUX_THROW("TargetDevice {0} is not supported ", EnumNameTargetDevice(graphFile->header()->device()));
         }
@@ -773,60 +760,36 @@ double getNceFreq(const MVCNN::GraphFile* graphFile) {
     return frcSpeedMhz;
 }
 
-template <class FbType>
-std::map<ExecutorType, std::pair<uint32_t, uint32_t>> getProfilingOffsets(const FbType* profBuffer,
-                                                                          size_t actualBufferSize) {
+RawDataLayout getRawDataLayoutFB(const ProfilingFB::ProfilingBuffer* profBuffer, size_t actualBufferSize) {
     VPUX_THROW_UNLESS(profBuffer != nullptr, "Profiling buffer data must be not empty");
-    VPUX_THROW_UNLESS(profBuffer->dimensions()->size() == 1, "Dimensions must be 1D tensor");
 
-    const std::string outputName = profBuffer->name()->str();
-
-    // Profiling buffer size is defined as tensor of shape <Nxui32>
-    const uint32_t profSize = profBuffer->dimensions()->Get(0) * sizeof(uint32_t);
+    const uint32_t profSize = profBuffer->size();
     VPUX_THROW_WHEN(uint32_t(actualBufferSize) < profSize,
                     "Actual buffer size is smaller than calculated. Expected {0}, but got {1}", profSize,
                     actualBufferSize);
-    return parseProfilingOffsets(outputName, profSize);
-}
 
-std::map<ExecutorType, std::pair<uint32_t, uint32_t>> getProfilingOffsetsGf(const MVCNN::GraphFile* graphFile,
-                                                                            size_t actualBufferSize) {
-    const auto profilingOutputs = graphFile->header()->profiling_output();
-    VPUX_THROW_UNLESS(profilingOutputs, "Blob contains no profiling_output");
-    VPUX_THROW_UNLESS(profilingOutputs->size() == 1, "Blob must contain exactly one profiling output");
-
-    const auto* profBuffer = profilingOutputs->Get(0);
-    return getProfilingOffsets(profBuffer, actualBufferSize);
-}
-
-std::map<ExecutorType, std::pair<uint32_t, uint32_t>> vpux::profiling::parseProfilingOffsets(
-        const std::string& profilingOutputName, uint32_t profilingOutputSize) {
-    const std::map<std::string, ExecutorType> converter{
-            {"dma", ExecutorType::DMA_SW}, {"dmahw", ExecutorType::DMA_HW},      {"dpu", ExecutorType::DPU},
-            {"upa", ExecutorType::UPA},    {"actshave", ExecutorType::ACTSHAVE}, {"pll", ExecutorType::WORKPOINT},
-            {"pad", ExecutorType::NONE}};
-
-    const char delimiter = '_';
-    std::stringstream sstream(profilingOutputName);
-    std::string token;
-    std::vector<std::string> tokens;
-    while (std::getline(sstream, token, delimiter)) {
-        tokens.push_back(token);
-    }
-
-    // Store starting offset and size of given profiling data type
+    uint32_t usedSize = 0;
+    uint32_t prevSectionEnd = 0;
     std::map<ExecutorType, std::pair<uint32_t, uint32_t>> offsets;
-    uint32_t nextOffset = profilingOutputSize;
+    for (const auto& section : *profBuffer->sections()) {
+        const auto sectionBegin = section->offset();
+        const auto sectionSize = section->size();
+        const auto sectionEnd = sectionBegin + sectionSize;
 
-    for (auto it = tokens.crbegin(); it != tokens.crend(); ++it) {
-        const ExecutorType executorEngine = converter.at(*it);
-        ++it;
-        uint32_t currentOffset = stoul(*it);
-        offsets[executorEngine] = std::make_pair(currentOffset, static_cast<uint32_t>(nextOffset - currentOffset));
-        nextOffset = currentOffset;
+        VPUX_THROW_UNLESS((sectionBegin < profSize && sectionEnd <= profSize),
+                          "Section [{0};{1}] is out of profiling buffer size({2}b)", sectionBegin, sectionEnd,
+                          profSize);
+        VPUX_THROW_WHEN(sectionBegin < prevSectionEnd, "Section(type {0}) has overlap with previous section",
+                        section->type());
+
+        const auto execType = static_cast<ExecutorType>(section->type());
+        offsets[execType] = {sectionBegin, sectionSize};
+        usedSize += sectionSize;
+
+        prevSectionEnd = sectionEnd;
     }
-
-    return offsets;
+    size_t padsSize = profSize - usedSize;
+    return {std::move(offsets), padsSize};
 }
 
 SummaryInfo vpux::profiling::getSummary(const RawData& profData, size_t profSize) {
@@ -834,7 +797,7 @@ SummaryInfo vpux::profiling::getSummary(const RawData& profData, size_t profSize
     summary.totalBufferSize = profSize;
 
     const MVCNN::TargetDevice device = profData.device;
-    const auto offsets = profData.offsets;
+    const auto& offsets = profData.layout.offsets;
 
     for (const auto& p : offsets) {
         SummaryInfo::SectionInfo* si = nullptr;
@@ -873,7 +836,7 @@ SummaryInfo vpux::profiling::getSummary(const RawData& profData, size_t profSize
             break;
         case ExecutorType::WORKPOINT: {
             si = &(summary.workpointInfo);
-            si->entrySize = sizeof(WorkpointConfiguration_t);
+            si->entrySize = WORKPOINT_BUFFER_SIZE;
             break;
         }
         }
@@ -895,21 +858,14 @@ SummaryInfo vpux::profiling::getSummary(const RawData& profData, size_t profSize
     VPUX_THROW_WHEN(summary.swInfo.bufferSize != (summary.swInfo.entrySize * summary.swInfo.numOfTasks),
                     "Wrong number of elements in SW profiling buffer. {0} != {1} * {2}", summary.swInfo.bufferSize,
                     summary.swInfo.entrySize, summary.swInfo.numOfTasks);
-    VPUX_THROW_WHEN(summary.totalBufferSize != (summary.dmaInfo.bufferSize + summary.dpuInfo.bufferSize +
-                                                summary.swInfo.bufferSize + summary.workpointInfo.bufferSize),
-                    "Profiling buffer sizes doesn't match. Expected total size {0}.", summary.totalBufferSize);
+
+    const auto actualTotalSize = summary.dmaInfo.bufferSize + summary.dpuInfo.bufferSize + summary.swInfo.bufferSize +
+                                 summary.workpointInfo.bufferSize + profData.layout.totalPadsSize;
+    VPUX_THROW_WHEN(summary.totalBufferSize != actualTotalSize,
+                    "Profiling buffer sizes doesn't match. Expected total size {0}, but got {1}.",
+                    summary.totalBufferSize, actualTotalSize);
 
     return summary;
-}
-
-std::vector<std::string> splitBySeparator(const std::string& s, char separator) {
-    std::istringstream iss(s);
-    std::string part;
-    std::vector<std::string> parts;
-    while (std::getline(iss, part, separator)) {
-        parts.push_back(part);
-    }
-    return parts;
 }
 
 RawProfilingRecord::TokenizedTaskName RawProfilingRecord::tokenizeTaskName(const std::string& gfTaskName) {
@@ -930,20 +886,19 @@ RawProfilingRecord::TokenizedTaskName RawProfilingRecord::tokenizeTaskName(const
     VPUX_THROW_WHEN(lastNameSepPos == std::string::npos, "Unparsable task name: '{0}' (has no NAMESEP)", gfTaskName);
     auto afterNameSep = gfTaskName.substr(lastNameSepPos + 1);
     std::vector<std::string> parts = splitBySeparator(afterNameSep, LOCATION_SEPARATOR);
-    return {layerName, parts, hasMalformedMeta};
+    return {std::move(layerName), std::move(parts), hasMalformedMeta};
 }
 
-RawProfilingRecord::ParsedTaskName RawProfilingRecord::deserializeTaskName(const std::string& fullTaskName,
-                                                                           const std::string& profPrefix) {
+RawProfilingRecord::ParsedTaskName RawProfilingRecord::deserializeTaskName(
+        const std::string& fullTaskName, const llvm::Optional<std::string>& maybeProfPrefix) {
     const auto LOC_METADATA_SEPARATOR = '_';  // conventional separator used for attaching metadata to MLIR Locations
     const auto CLUSTER_ID_MARKER = "cluster";
 
     auto tokenized = tokenizeTaskName(fullTaskName);
-
     int clusterId = 0;
     std::string profTag;
     std::string layerType;
-    std::string layerName = tokenized.layerName;
+    std::string& layerName = tokenized.layerName;
     std::string reconstructedTaskName = layerName;
     bool isFirst = true;
 
@@ -953,11 +908,11 @@ RawProfilingRecord::ParsedTaskName RawProfilingRecord::deserializeTaskName(const
         auto parts = splitBySeparator(token, LOC_METADATA_SEPARATOR);
         auto partsNum = parts.size();
 
-        if (partsNum >= 1 && parts[0] == profPrefix) {
+        if (maybeProfPrefix.has_value() && partsNum >= 1 && parts[0] == maybeProfPrefix.value()) {
             profTag = token;
             continue;
         } else if (partsNum > 1 && parts[partsNum - 2] == CLUSTER_ID_MARKER) {
-            clusterId = stoi(parts[partsNum - 1]);
+            clusterId = std::stoi(parts[partsNum - 1]);
             continue;
         } else if (partsNum == 2 && parts[0] == vpux::LOCATION_LAYER_TYPE_PREFIX) {
             layerType = parts[1];
@@ -972,9 +927,11 @@ RawProfilingRecord::ParsedTaskName RawProfilingRecord::deserializeTaskName(const
         isFirst = false;
     }
 
-    VPUX_THROW_WHEN(profTag.empty(), "Couldn't find prof marker when deserializing task name: {0}", fullTaskName);
+    VPUX_THROW_WHEN(maybeProfPrefix.has_value() && profTag.empty(),
+                    "Couldn't find prof marker when deserializing task name: {0}", fullTaskName);
 
-    return {reconstructedTaskName, layerName, layerType, profTag, clusterId};
+    return {std::move(reconstructedTaskName), std::move(layerName), std::move(layerType), std::move(profTag),
+            clusterId};
 }
 
 std::string RawProfilingRecord::getLayerName(const std::string& taskName) {
@@ -1005,9 +962,9 @@ bool RawProfilingDMARecord<T>::isTaskWorkpointRead(const std::string& fullTaskNa
 template <class T>
 typename RawProfilingDMARecord<T>::ParsedTaskNameProf RawProfilingDMARecord<T>::parseTaskName(
         const std::string& fullTaskName) {
-    auto parsedName = RawProfilingRecord::deserializeTaskName(fullTaskName, PROFILING_DMA_TASK_END_PREFIX);
+    auto parsedName = RawProfilingRecord::deserializeTaskName(fullTaskName, std::string(PROFILING_DMA_TASK_END_PREFIX));
     auto parsedProf = parseProfilingTag(parsedName.profTag);
-    return {parsedName, parsedProf};
+    return {std::move(parsedName), parsedProf};
 }
 
 RawProfilingDPURecord::ParsedProf RawProfilingDPURecord::parseProfilingTag(const std::string& profTag,
@@ -1038,10 +995,10 @@ RawProfilingDPURecord::ParsedProf RawProfilingDPURecord::parseProfilingTag(const
 
 RawProfilingDPURecord::ParsedTaskNameProf RawProfilingDPURecord::parseTaskName(const std::string& fullTaskName,
                                                                                unsigned taskListId) {
-    auto parsedName = RawProfilingRecord::deserializeTaskName(fullTaskName, PROFILING_PREFIX);
+    auto parsedName = RawProfilingRecord::deserializeTaskName(fullTaskName, std::string(PROFILING_PREFIX));
     auto parsedProf = parseProfilingTag(parsedName.profTag, parsedName.clusterId, taskListId);
 
-    return {parsedName, parsedProf};
+    return {std::move(parsedName), parsedProf};
 }
 
 RawProfilingUPARecord::ParsedProf RawProfilingUPARecord::parseProfilingTag(const std::string& profTag) {
@@ -1054,10 +1011,10 @@ RawProfilingUPARecord::ParsedProf RawProfilingUPARecord::parseProfilingTag(const
 }
 
 RawProfilingUPARecord::ParsedTaskNameProf RawProfilingUPARecord::parseTaskName(const std::string& fullTaskName) {
-    auto parsedName = RawProfilingRecord::deserializeTaskName(fullTaskName, PROFILING_PREFIX);
+    auto parsedName = RawProfilingRecord::deserializeTaskName(fullTaskName, std::string(PROFILING_PREFIX));
     auto parsedProf = parseProfilingTag(parsedName.profTag);
 
-    return {parsedName, parsedProf};
+    return {std::move(parsedName), std::move(parsedProf)};
 }
 
 RawProfilingACTRecord::ParsedProf RawProfilingACTRecord::parseProfilingTag(const std::string& profTag,
@@ -1077,10 +1034,10 @@ RawProfilingACTRecord::ParsedProf RawProfilingACTRecord::parseProfilingTag(const
 }
 
 RawProfilingACTRecord::ParsedTaskNameProf RawProfilingACTRecord::parseTaskName(const std::string& fullTaskName) {
-    auto parsedName = RawProfilingRecord::deserializeTaskName(fullTaskName, PROFILING_PREFIX);
+    auto parsedName = RawProfilingRecord::deserializeTaskName(fullTaskName, std::string(PROFILING_PREFIX));
     auto parsedProf = parseProfilingTag(parsedName.profTag, parsedName.clusterId);
 
-    return {parsedName, parsedProf};
+    return {std::move(parsedName), parsedProf};
 }
 
 RawProfilingRecords RawProfilingData::getTaskOfType(ExecutorType type) const {
@@ -1113,96 +1070,33 @@ uint16_t RawProfilingData::getPllValueChecked(vpux::Logger& log) const {
     return pllMultFirst;
 }
 
-RawData getRawProfilingTasksGraphFile(const MVCNN::GraphFile* graphFile, const uint8_t* profData, size_t profSize,
-                                      TaskType type) {
-    const auto device = graphFile->header()->device();
-
-    // Finding of corresponding task list //
-    const flatbuffers::Vector<flatbuffers::Offset<MVCNN::Task>>* dmaTaskList = nullptr;
-    const flatbuffers::Vector<flatbuffers::Offset<MVCNN::Task>>* dpuTaskList = nullptr;
-    const flatbuffers::Vector<flatbuffers::Offset<MVCNN::Task>>* swTaskList = nullptr;
-    auto taskLists = graphFile->task_lists();
-    VPUX_THROW_UNLESS(taskLists, "Blob contains no taskLists");
-    for (const auto& taskListItem : *taskLists) {
-        const auto content = taskListItem->content();
-        if (content->size() == 0) {
-            continue;
-        }
-        const auto task0_type = content->Get(0)->task_type();
-        if (task0_type == MVCNN::SpecificTask_NNDMATask) {
-            dmaTaskList = taskListItem->content();
-        }
-        if (task0_type == MVCNN::SpecificTask_NCE2Task) {
-            dpuTaskList = taskListItem->content();
-        }
-        if ((task0_type == MVCNN::SpecificTask_UPALayerTask) || (task0_type == MVCNN::SpecificTask_ActKernelTask)) {
-            swTaskList = taskListItem->content();
-        }
-    }
-
-    // Finding offsets of different profiling type in the profiling output
-    const auto offsets = getProfilingOffsetsGf(graphFile, profSize);
-
-    RawProfilingData rawProfData =
-            parseProfilingTaskLists(offsets, device, profData, type, dmaTaskList, dpuTaskList, swTaskList, graphFile);
-    llvm::Optional<double> maybe30XXFreq;
-    if (device == MVCNN::TargetDevice::TargetDevice_VPUX30XX || device == MVCNN::TargetDevice::TargetDevice_VPUX311X) {
-        maybe30XXFreq = getNceFreq(graphFile);
-    }
-    return {rawProfData, device, maybe30XXFreq, offsets};
-}
-
-const elf::Reader<elf::Elf64>::Section getProfilingSection(const elf::Reader<elf::ELF_Bitness::Elf64>& reader) {
-    for (size_t i = 0; i < reader.getSectionsNum(); ++i) {
-        const auto section = reader.getSection(i);
-        const std::string secName = section.getName();
-        if (secName == ".profiling") {
-            return section;
-        }
-    }
-    VPUX_THROW("Cannot find profiling section in ELF");
-}
-
-RawData getRawProfilingTasksElf(const uint8_t* blobData, size_t blobSize, const uint8_t* profData, size_t profSize,
-                                TaskType type) {
-    const auto device = MVCNN::TargetDevice_VPUX37XX;
-
-    elf::ElfDDRAccessManager elfAccess(blobData, blobSize);
-    elf::Reader<elf::ELF_Bitness::Elf64> reader(&elfAccess);
-
-    const auto profilingSection = getProfilingSection(reader);
-    const auto sectionData = profilingSection.getData<uint8_t>();
-
-    const auto profilingDataSchema = ProfilingFB::GetProfilingMeta(sectionData);
-    VPUX_THROW_UNLESS(profilingDataSchema != nullptr, "Empty ProfilingMeta");
-
-    const auto profilingBufferMeta = profilingDataSchema->profilingBuffer();
-    const auto offsets = getProfilingOffsets(profilingBufferMeta, profSize);
-
-    RawProfilingData rawProfData =
-            parseProfilingTaskLists(offsets, device, profData, type, profilingDataSchema->dmaTasks(),
-                                    profilingDataSchema->dpuTasks(), profilingDataSchema->actShaveTasks(), nullptr);
-
-    return {rawProfData, device, /*maybe30XXFreq*/ {}, offsets};
-}
-
 RawData vpux::profiling::getRawProfilingTasks(const uint8_t* blobData, size_t blobSize, const uint8_t* profData,
-                                              size_t profSize, TaskType type) {
-    (void)blobSize;
-
+                                              size_t profSize, TaskType type, bool ignoreSanitizationErrors) {
     if ((nullptr == blobData) || (nullptr == profData)) {
         VPUX_THROW("Empty input data");
     }
 
-    auto& log = vpux::Logger::global();
-    if (elf::utils::checkELFMagic(blobData)) {
-        log.trace("Using ELF parser");
-        return getRawProfilingTasksElf(blobData, blobSize, profData, profSize, type);
+    llvm::Optional<double> maybe30XXFreq;
+    auto device = MVCNN::TargetDevice::TargetDevice_NONE;
+    if (vpux::profiling::isElfBinary(blobData, blobSize)) {
+        device = MVCNN::TargetDevice::TargetDevice_VPUX37XX;
+    } else {
+        const auto graphFile = vpux::profiling::getGraphFileVerified(blobData, blobSize);
+        device = graphFile->header()->device();
+        if (device == MVCNN::TargetDevice::TargetDevice_VPUX30XX) {
+            maybe30XXFreq = getNceFreq(graphFile);
+        }
     }
+    VPUX_THROW_WHEN(device == MVCNN::TargetDevice::TargetDevice_NONE, "Unknown device");
 
-    const auto* graphFile = MVCNN::GetGraphFile(blobData);
-    log.trace("Using GF parser");
-    return getRawProfilingTasksGraphFile(graphFile, profData, profSize, type);
+    const auto profilingDataSchema = vpux::profiling::getProfilingSectionMeta(blobData, blobSize);
+    const auto profilingBufferMeta = profilingDataSchema->profilingBuffer();
+    const auto layout = getRawDataLayoutFB(profilingBufferMeta, profSize);
+
+    RawProfilingData rawProfData =
+            ::parseProfilingTaskLists(layout, device, profData, type, profilingDataSchema, ignoreSanitizationErrors);
+
+    return {std::move(rawProfData), device, maybe30XXFreq, layout};
 }
 
 ClusterTaskArray groupClusterTasks(const RawProfilingRecords& rawTasks) {
@@ -1256,8 +1150,6 @@ RawProfilingRecords groupTasks(const ClusterTaskArray& clusterInfoTasks) {
 
             const auto first = clusters.front();
             const auto last = clusters.back();
-            checkSameBarriers(first, last, /*checkWaitBarriers=*/true);
-            checkSameBarriers(first, last, /*checkWaitBarriers=*/false);
             const auto newVariants = last->getArray();
             variants.insert(variants.end(), newVariants.begin(), newVariants.end());
         }
@@ -1288,16 +1180,15 @@ std::vector<TaskInfo> convertRawTasksToTaskInfo(const RawData& profData, bool fp
         log.trace("Got PLL value of '{0}' from binary", pllMult);
 
         frequenciesSetup = fpga ? getFpgaFreqSetup(device) : getFreqSetupFromPll(device, pllMult);
-    } else if (device == MVCNN::TargetDevice::TargetDevice_VPUX311X ||
-               device == MVCNN::TargetDevice::TargetDevice_VPUX30XX) {
-        VPUX_THROW_UNLESS(profData.maybe30XXNceFreq.hasValue(), "Missed NCE frequency for 30XX device");
-        frequenciesSetup.profClk = profData.maybe30XXNceFreq.getValue();
+    } else if (device == MVCNN::TargetDevice::TargetDevice_VPUX30XX) {
+        VPUX_THROW_UNLESS(profData.maybe30XXNceFreq.has_value(), "Missed NCE frequency for 30XX device");
+        frequenciesSetup.profClk = profData.maybe30XXNceFreq.value();
         frequenciesSetup.dmaBandwidth = Dma20Bandwidth;
     } else {
         VPUX_THROW("TargetDevice {0} is not supported ", MVCNN::EnumNameTargetDevice(device));
     }
-    log.info("Frequency setup is profClk={0}MHz, vpuClk={1}MHz, dpuClk={2}MHz", frequenciesSetup.profClk,
-             frequenciesSetup.vpuClk, frequenciesSetup.dpuClk);
+    log.trace("Frequency setup is profClk={0}MHz, vpuClk={1}MHz, dpuClk={2}MHz", frequenciesSetup.profClk,
+              frequenciesSetup.vpuClk, frequenciesSetup.dpuClk);
 
     for (const auto& taskList : {rawTasks.dmaTasks, rawTasks.dpuTasks, dpuInfoTasks}) {
         for (const auto& task : taskList) {
@@ -1317,20 +1208,19 @@ std::vector<TaskInfo> convertRawTasksToTaskInfo(const RawData& profData, bool fp
     bool swTasksMayBeTiled = device == MVCNN::TargetDevice::TargetDevice_VPUX37XX;
     if (swTasksMayBeTiled) {
         actClusterInfoTasks = groupClusterTasks(rawTasks.swTasks);
-        swInfoTasks = groupTasks(actClusterInfoTasks.getValue());
+        swInfoTasks = groupTasks(actClusterInfoTasks.value());
     }
     fillTaskInfoWithParsedRawRecords(swTaskInfo, swInfoTasks, frequenciesSetup);
 
     const auto earliestDpuNs = getEarliestTaskBegin(dpuTaskInfo);
-    if (verbosity >= VerbosityLevel::MEDIUM) {
-        fillTaskInfoWithParsedRawRecords(dpuTaskInfo, dpuClusterInfoTasks, frequenciesSetup);
-        if (swTasksMayBeTiled) {
-            fillTaskInfoWithParsedRawRecords(swTaskInfo, actClusterInfoTasks.getValue(), frequenciesSetup);
-        }
-    }
-    if (verbosity >= VerbosityLevel::HIGH) {
-        fillTaskInfoWithParsedRawRecords(dpuTaskInfo, rawTasks.dpuTasks, frequenciesSetup);
+    fillTaskInfoWithParsedRawRecords(dpuTaskInfo, dpuClusterInfoTasks, frequenciesSetup);
+    if (swTasksMayBeTiled) {
+        fillTaskInfoWithParsedRawRecords(swTaskInfo, actClusterInfoTasks.value(), frequenciesSetup);
         fillTaskInfoWithParsedRawRecords(swTaskInfo, rawTasks.swTasks, frequenciesSetup);
+    }
+
+    if (verbosity >= VerbosityLevel::MEDIUM) {
+        fillTaskInfoWithParsedRawRecords(dpuTaskInfo, rawTasks.dpuTasks, frequenciesSetup);
     }
 
     const auto earliestDmaNs = getEarliestTaskBegin(dmaTaskInfo);
@@ -1341,7 +1231,7 @@ std::vector<TaskInfo> convertRawTasksToTaskInfo(const RawData& profData, bool fp
     log.trace("Earliest SW : {0}", earliestSwNs);
 
     if (!dmaTaskInfo.empty()) {
-        adjustZeroPoint(dmaTaskInfo, 0, earliestDmaNs.getValue());
+        adjustZeroPoint(dmaTaskInfo, 0, earliestDmaNs.value());
     }
 
     if (!dpuTaskInfo.empty()) {
@@ -1350,21 +1240,15 @@ std::vector<TaskInfo> convertRawTasksToTaskInfo(const RawData& profData, bool fp
             const auto timersShift = getDMA2OtherTimersShift(rawTasks.dmaTasks, dpuInfoTasks, frequenciesSetup,
                                                              SynchronizationPointKind::STRICT_DMA_TO_DPU, log);
             log.trace("Timers DMA2DPU difference: {0}", timersShift);
-            dma2dpuOffset = getTimersOffset(timersShift, earliestDmaNs, earliestDpuNs.getValue());
+            dma2dpuOffset = getTimersOffset(timersShift, earliestDmaNs, earliestDpuNs.value());
         } else {
             // If DMA profiling enabled difference is 0, otherwise setting to earliest task without call to
             // getTimersOffset to avoid counting twice
-            dma2dpuOffset = earliestDmaNs.hasValue() ? 0 : -static_cast<int64_t>(earliestDpuNs.getValue());
+            dma2dpuOffset = earliestDmaNs.has_value() ? 0 : -static_cast<int64_t>(earliestDpuNs.value());
         }
         adjustZeroPoint(dpuTaskInfo, dma2dpuOffset, earliestDmaNs);
         // Order DPU tasks by time to make tests more stable
-        std::sort(dpuTaskInfo.begin(), dpuTaskInfo.end(), [](const TaskInfo& a, const TaskInfo& b) {
-            if (a.start_time_ns != b.start_time_ns) {
-                return a.start_time_ns < b.start_time_ns;
-            } else {
-                return std::strcmp(a.name, b.name) < 0;
-            }
-        });
+        std::sort(dpuTaskInfo.begin(), dpuTaskInfo.end(), profilingTaskStartTimeComparator<TaskInfo>);
     }
 
     if (!swTaskInfo.empty()) {
@@ -1373,11 +1257,11 @@ std::vector<TaskInfo> convertRawTasksToTaskInfo(const RawData& profData, bool fp
             const auto dma2UpaTimerShift = getDMA2OtherTimersShift(
                     rawTasks.dmaTasks, rawTasks.swTasks, frequenciesSetup, SynchronizationPointKind::DMA_TO_UPA, log);
             log.trace("Timers DMA2UPA difference: {0}", dma2UpaTimerShift);
-            dma2SwOffset = getTimersOffset(dma2UpaTimerShift, earliestDmaNs, earliestSwNs.getValue());
+            dma2SwOffset = getTimersOffset(dma2UpaTimerShift, earliestDmaNs, earliestSwNs.value());
         } else {
             // If DMA profiling enabled difference is 0, otherwise setting to earliest task without call to
             // getTimersOffset to avoid counting twice
-            dma2SwOffset = earliestDmaNs.hasValue() ? 0 : -static_cast<int64_t>(earliestSwNs.getValue());
+            dma2SwOffset = earliestDmaNs.has_value() ? 0 : -static_cast<int64_t>(earliestSwNs.value());
         }
         adjustZeroPoint(swTaskInfo, dma2SwOffset, earliestDmaNs);
     }
@@ -1392,9 +1276,10 @@ std::vector<TaskInfo> convertRawTasksToTaskInfo(const RawData& profData, bool fp
 }
 
 std::vector<TaskInfo> vpux::profiling::getTaskInfo(const uint8_t* blobData, size_t blobSize, const uint8_t* profData,
-                                                   size_t profSize, TaskType type, VerbosityLevel verbosity,
-                                                   bool fpga) try {
-    const auto rawProfData = getRawProfilingTasks(blobData, blobSize, profData, profSize, type);
+                                                   size_t profSize, TaskType type, VerbosityLevel verbosity, bool fpga,
+                                                   bool ignoreSanitizationErrors) try {
+    const auto rawProfData =
+            getRawProfilingTasks(blobData, blobSize, profData, profSize, type, ignoreSanitizationErrors);
     return convertRawTasksToTaskInfo(rawProfData, fpga, verbosity);
 } catch (const std::exception& ex) {
     vpux::Logger::global().info("Post-processing error: '{0}'", ex.what());
@@ -1402,16 +1287,15 @@ std::vector<TaskInfo> vpux::profiling::getTaskInfo(const uint8_t* blobData, size
 }
 
 std::vector<LayerInfo> vpux::profiling::getLayerInfo(const uint8_t* blobData, size_t blobSize, const uint8_t* profData,
-                                                     size_t profSize, bool fpga) {
-    std::vector<TaskInfo> taskInfo =
-            getTaskInfo(blobData, blobSize, profData, profSize, TaskType::ALL, VerbosityLevel::LOW, fpga);
-
+                                                     size_t profSize, bool fpga, bool ignoreSanitizationErrors) {
+    std::vector<TaskInfo> taskInfo = getTaskInfo(blobData, blobSize, profData, profSize, TaskType::ALL,
+                                                 VerbosityLevel::LOW, fpga, ignoreSanitizationErrors);
     return getLayerInfo(taskInfo);
 }
 
 std::vector<LayerInfo> vpux::profiling::getLayerInfo(const std::vector<TaskInfo>& taskInfo) {
-    std::vector<LayerInfo> layerInfo{};
-    for (auto& task : taskInfo) {
+    std::vector<LayerInfo> layerInfo;
+    for (const auto& task : taskInfo) {
         LayerInfo* layer;
         std::string taskName(task.name);
         if (taskName.find("cluster_") != std::string::npos) {
@@ -1420,25 +1304,22 @@ std::vector<LayerInfo> vpux::profiling::getLayerInfo(const std::vector<TaskInfo>
         }
 
         std::string layerName = RawProfilingRecord::getLayerName(taskName);
-
-        auto result = std::find_if(begin(layerInfo), end(layerInfo), [&](LayerInfo item) {
+        auto result = std::find_if(begin(layerInfo), end(layerInfo), [&](const LayerInfo& item) {
             return layerName == item.name;
         });
         if (result == end(layerInfo)) {
-            LayerInfo info = LayerInfo();
+            layerInfo.emplace_back();
+            layer = &layerInfo.back();  // TODO(C++17) use emplace_back result
+            layer->status = LayerInfo::layer_status_t::EXECUTED;
+            layer->start_time_ns = task.start_time_ns;
+            layer->duration_ns = 0;
 
-            auto length = layerName.copy(info.name, sizeof(info.name) - 1);
-            info.name[length] = '\0';
+            const auto nameLen = layerName.copy(layer->name, sizeof(layer->name) - 1);
+            layer->name[nameLen] = 0;
 
             const std::string layerTypeStr(task.layer_type);
-            length = layerTypeStr.copy(info.layer_type, sizeof(info.layer_type) - 1);
-            info.layer_type[length] = '\0';
-
-            info.status = LayerInfo::layer_status_t::EXECUTED;
-            info.start_time_ns = task.start_time_ns;
-            info.duration_ns = 0;
-            layerInfo.push_back(info);
-            layer = &layerInfo.back();
+            const auto typeLen = layerTypeStr.copy(layer->layer_type, sizeof(layer->layer_type) - 1);
+            layer->layer_type[typeLen] = 0;
         } else {
             layer = &(*result);
         }
@@ -1453,7 +1334,7 @@ std::vector<LayerInfo> vpux::profiling::getLayerInfo(const std::vector<TaskInfo>
 
         if (task.exec_type == TaskInfo::ExecType::DPU) {
             layer->dpu_ns += task.duration_ns;
-        } else if (task.exec_type == TaskInfo::ExecType::SW) {
+        } else if (task.exec_type == TaskInfo::ExecType::SW || task.exec_type == TaskInfo::ExecType::UPA) {
             layer->sw_ns += task.duration_ns;
         } else if (task.exec_type == TaskInfo::ExecType::DMA) {
             layer->dma_ns += task.duration_ns;

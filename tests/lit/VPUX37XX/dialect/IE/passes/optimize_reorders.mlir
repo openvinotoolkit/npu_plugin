@@ -8,7 +8,7 @@
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-// CHECK-LABEL: @ReorderWithSwMultiplyHasChange
+// CHECK-LABEL: @ReorderWithSwMultiplyHasChange 
 module @ReorderWithSwMultiplyHasChange {
 
 // CHECK: func.func @main([[ARG0:%arg[0-9]+]]: tensor<1x32x28x1xf16, {order = #NHWC}>) -> tensor<1x32x28x1xf16> {

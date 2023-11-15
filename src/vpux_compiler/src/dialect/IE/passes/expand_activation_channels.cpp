@@ -3,25 +3,11 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/dialect/IE/passes.hpp"
-
-#include <vpux/compiler/utils/quantization.hpp>
-#include "vpux/compiler/core/layers.hpp"
-#include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/const/ops.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/types.hpp"
-
-#include "vpux/utils/core/func_ref.hpp"
-#include "vpux/utils/core/numeric.hpp"
-
-#include <mlir/Pass/PassManager.h>
-#include <mlir/Transforms/DialectConversion.h>
+#include "vpux/compiler/dialect/IE/passes/expand_activation_channels.hpp"
 
 using namespace vpux;
 
-namespace {
+namespace vpux {
 
 //
 // calcPadsEnd
@@ -51,7 +37,6 @@ Shape calcPadsEnd(vpux::NDTypeInterface origType, int64_t channelAlignment) {
 // generalRewrite
 //
 
-//
 // Max/Avg Pooling and Convolution Ops should be handled there
 //
 // opCreator - function, which should place back operation, which being proceed, with new expanded input
@@ -105,23 +90,13 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
     return mlir::success();
 }
 
+}  // namespace vpux
+
 //
 // MaxPoolRewriter
 //
 
-class MaxPoolRewriter final : public mlir::OpRewritePattern<IE::MaxPoolOp> {
-public:
-    MaxPoolRewriter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::MaxPoolOp>(ctx), _log(log) {
-        setDebugName("MaxPoolRewriter");
-    }
-
-    mlir::LogicalResult matchAndRewrite(IE::MaxPoolOp origOp, mlir::PatternRewriter& rewriter) const final;
-
-private:
-    Logger _log;
-};
-
-mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(IE::MaxPoolOp origOp, mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult IE::MaxPoolRewriter::matchAndRewrite(IE::MaxPoolOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got MaxPool layer at '{1}'", getDebugName(), origOp->getLoc());
 
     const auto opCreator = [&](mlir::Value expandedInput, int64_t outChanPadsEnd) -> mlir::Operation* {
@@ -136,42 +111,6 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(IE::MaxPoolOp origOp, mlir:
         return rewriter.create<IE::MaxPoolOp>(origOp.getLoc(), newOutputType, expandedInput, origOp.kernel_size(),
                                               origOp.strides(), origOp.pads_begin(), origOp.pads_end(),
                                               origOp.rounding_type(), origOp.post_opAttr());
-    };
-
-    return generalRewrite(origOp, rewriter, opCreator, _log.nest());
-}
-
-//
-// AveragePoolRewriter
-//
-
-class AveragePoolRewriter final : public mlir::OpRewritePattern<IE::AvgPoolOp> {
-public:
-    AveragePoolRewriter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::AvgPoolOp>(ctx), _log(log) {
-        setDebugName("AveragePoolRewriter");
-    }
-
-    mlir::LogicalResult matchAndRewrite(IE::AvgPoolOp origOp, mlir::PatternRewriter& rewriter) const final;
-
-private:
-    Logger _log;
-};
-
-mlir::LogicalResult AveragePoolRewriter::matchAndRewrite(IE::AvgPoolOp origOp, mlir::PatternRewriter& rewriter) const {
-    _log.trace("[{0}] Got AveragePool layer at '{1}'", getDebugName(), origOp->getLoc());
-
-    const auto opCreator = [&](mlir::Value expandedInput, int64_t outChanPadsEnd) -> mlir::Operation* {
-        const Shape outPadBefore(checked_cast<size_t>(origOp.getType().getRank()), 0);
-
-        Shape outPadAfter(checked_cast<size_t>(origOp.getType().getRank()), 0);
-        outPadAfter[Dims4D::Act::C] = outChanPadsEnd;
-
-        const auto ndType = origOp.getType().cast<vpux::NDTypeInterface>();
-        const auto newOutputType = ndType.pad(outPadBefore, outPadAfter);
-
-        return rewriter.create<IE::AvgPoolOp>(origOp.getLoc(), newOutputType, expandedInput, origOp.kernel_size(),
-                                              origOp.strides(), origOp.pads_begin(), origOp.pads_end(),
-                                              origOp.rounding_type(), origOp.exclude_pads(), origOp.post_opAttr());
     };
 
     return generalRewrite(origOp, rewriter, opCreator, _log.nest());
@@ -211,7 +150,7 @@ mlir::Value concatWithZeroConst(mlir::Location loc, mlir::Value filter, ShapeRef
         };
         outputBuffer.mutate(getDataAttr);
 
-        return rewriter.create<Const::DeclareOp>(loc, padType, Const::ContentAttr::get(eleAttr)).output();
+        return rewriter.create<Const::DeclareOp>(loc, padType, Const::ContentAttr::get(eleAttr)).getOutput();
     };
 
     SmallVector<mlir::Value> concatInput;
@@ -222,20 +161,12 @@ mlir::Value concatWithZeroConst(mlir::Location loc, mlir::Value filter, ShapeRef
     return concatOp.output();
 }
 
-class ConvolutionRewriter final : public mlir::OpRewritePattern<IE::ConvolutionOp> {
-public:
-    ConvolutionRewriter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::ConvolutionOp>(ctx), _log(log) {
-        setDebugName("ConvolutionRewriter");
-    }
+//
+// ConvolutionRewriter
+//
 
-    mlir::LogicalResult matchAndRewrite(IE::ConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
-
-private:
-    Logger _log;
-};
-
-mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origOp,
-                                                         mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult IE::ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origOp,
+                                                             mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got Convolution layer at '{1}'", getDebugName(), origOp->getLoc());
 
     const auto opCreator = [&](mlir::Value expandedInput, int64_t outChanPadEnd) -> mlir::Operation* {
@@ -334,80 +265,11 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
 }
 
 //
-// EltwiseRewriter
-//
-
-template <class ConcreteOp>
-class EltwiseRewriter final : public mlir::OpRewritePattern<ConcreteOp> {
-public:
-    EltwiseRewriter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<ConcreteOp>(ctx), _log(log) {
-        this->setDebugName("EltwiseRewriter");
-    }
-
-    mlir::LogicalResult matchAndRewrite(ConcreteOp origOp, mlir::PatternRewriter& rewriter) const final;
-
-private:
-    Logger _log;
-};
-
-template <class ConcreteOp>
-mlir::LogicalResult EltwiseRewriter<ConcreteOp>::matchAndRewrite(ConcreteOp origOp,
-                                                                 mlir::PatternRewriter& rewriter) const {
-    _log.trace("[{0}] Got eltwise layer at '{1}'", this->getDebugName(), origOp->getLoc());
-
-    const auto opCreator = [&](mlir::Value expandedInput1, int64_t outChanPadEnd) -> mlir::Operation* {
-        mlir::Value expandedInput2;
-        if (origOp.input1() == origOp.input2()) {
-            expandedInput2 = expandedInput1;
-        } else if (outChanPadEnd == 0) {
-            expandedInput2 = origOp.input2();
-        } else {
-            _log.trace("Expand second input tensor");
-
-            const auto origShape = getShape(origOp.input2());
-            const auto extendedShape = getShape(expandedInput1);
-            VPUX_THROW_UNLESS(origShape.size() == extendedShape.size(), "Got non equal shapes in EltwiseRewriter");
-
-            const auto padsEnd = calcPadsEnd(origShape, extendedShape);
-
-            expandedInput2 =
-                    rewriter.createOrFold<IE::ExpandOp>(origOp->getLoc(), origOp.input2(), None, ShapeRef(padsEnd));
-        }
-
-        const Shape outPadBefore(checked_cast<size_t>(origOp.getType().getRank()), 0);
-
-        Shape outPadAfter(checked_cast<size_t>(origOp.getType().getRank()), 0);
-        outPadAfter[Dims4D::Act::C] = outChanPadEnd;
-
-        const auto ndType = origOp.getType().template cast<vpux::NDTypeInterface>();
-        const auto newOutputType = ndType.pad(outPadBefore, outPadAfter);
-
-        return rewriter.create<ConcreteOp>(origOp.getLoc(), newOutputType, expandedInput1, expandedInput2,
-                                           origOp.auto_broadcast(), origOp.post_opAttr());
-    };
-
-    return generalRewrite(origOp, rewriter, opCreator, _log.nest());
-}
-
-//
 // GroupConvolutionRewriter
 //
 
-class GroupConvolutionRewriter final : public mlir::OpRewritePattern<IE::GroupConvolutionOp> {
-public:
-    GroupConvolutionRewriter(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<IE::GroupConvolutionOp>(ctx), _log(log) {
-        setDebugName("GroupConvolutionRewriter");
-    }
-
-    mlir::LogicalResult matchAndRewrite(IE::GroupConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
-
-private:
-    Logger _log;
-};
-
-mlir::LogicalResult GroupConvolutionRewriter::matchAndRewrite(IE::GroupConvolutionOp origOp,
-                                                              mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult IE::GroupConvolutionRewriter::matchAndRewrite(IE::GroupConvolutionOp origOp,
+                                                                  mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got GroupConvolutionOp layer at '{1}'", getDebugName(), origOp->getLoc());
 
     const auto opCreator = [&](mlir::Value expandedInput, int64_t outChanPadEnd) -> mlir::Operation* {
@@ -463,20 +325,8 @@ mlir::LogicalResult GroupConvolutionRewriter::matchAndRewrite(IE::GroupConvoluti
 // InterpolateRewriter
 //
 
-class InterpolateRewriter final : public mlir::OpRewritePattern<IE::InterpolateOp> {
-public:
-    InterpolateRewriter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::InterpolateOp>(ctx), _log(log) {
-        setDebugName("InterpolateRewriter");
-    }
-
-    mlir::LogicalResult matchAndRewrite(IE::InterpolateOp origOp, mlir::PatternRewriter& rewriter) const final;
-
-private:
-    Logger _log;
-};
-
-mlir::LogicalResult InterpolateRewriter::matchAndRewrite(IE::InterpolateOp origOp,
-                                                         mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult IE::InterpolateRewriter::matchAndRewrite(IE::InterpolateOp origOp,
+                                                             mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got Interpolate layer at '{1}'", getDebugName(), origOp->getLoc());
 
     const auto opCreator = [&](mlir::Value expandedInput, int64_t outChanPadsEnd) -> mlir::Operation* {
@@ -496,94 +346,4 @@ mlir::LogicalResult InterpolateRewriter::matchAndRewrite(IE::InterpolateOp origO
     };
 
     return generalRewrite(origOp, rewriter, opCreator, _log.nest());
-}
-
-//
-// ExpandActivationChannelsPass
-//
-
-class ExpandActivationChannelsPass final : public IE::ExpandActivationChannelsBase<ExpandActivationChannelsPass> {
-public:
-    explicit ExpandActivationChannelsPass(const bool adaptSEOps, Logger log): _adaptSEOps(adaptSEOps) {
-        Base::initLogger(log, Base::getArgumentName());
-    }
-
-    mlir::LogicalResult initialize(mlir::MLIRContext* ctx) final;
-
-private:
-    void safeRunOnFunc() final;
-
-private:
-    bool _adaptSEOps;
-};
-
-mlir::LogicalResult ExpandActivationChannelsPass::initialize(mlir::MLIRContext* ctx) {
-    if (mlir::failed(Base::initialize(ctx))) {
-        return mlir::failure();
-    }
-
-    // When this parameter has a value, it probably comes from LIT test.
-    // Override the default
-    if (adaptSEOps.hasValue()) {
-        _adaptSEOps = adaptSEOps.getValue();
-    }
-
-    return mlir::success();
-}
-
-void ExpandActivationChannelsPass::safeRunOnFunc() {
-    auto& ctx = getContext();
-    auto func = getOperation();
-    const auto arch = VPU::getArch(func->getParentOfType<mlir::ModuleOp>());
-
-    const auto isLegal = [&](mlir::Operation* op) {
-        if (!_adaptSEOps && mlir::isa<IE::SEOpInterface>(op)) {
-            return true;
-        }
-        if (auto iface = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(op)) {
-            return iface.verifyChannels().succeeded();
-        }
-
-        return true;
-    };
-
-    bool isArchToSkip = arch == VPU::ArchKind::VPUX37XX;
-
-    mlir::ConversionTarget target(ctx);
-    target.markUnknownOpDynamicallyLegal(isLegal);
-    target.addLegalOp<Const::DeclareOp>();
-    target.addLegalOp<IE::ExpandOp, IE::PadOp, IE::SliceOp>();
-    if (isArchToSkip) {
-        target.addLegalOp<IE::MultiplyOp, IE::SubtractOp, IE::AndOp>();
-    }
-
-    mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<MaxPoolRewriter>(&ctx, _log);
-    if (arch == VPU::ArchKind::VPUX37XX) {
-        patterns.add<AveragePoolRewriter>(&ctx, _log);
-    }
-
-    if (!isArchToSkip) {
-        patterns.add<EltwiseRewriter<IE::MultiplyOp>>(&ctx, _log);
-        patterns.add<EltwiseRewriter<IE::SubtractOp>>(&ctx, _log);
-        patterns.add<EltwiseRewriter<IE::AndOp>>(&ctx, _log);
-    }
-
-    patterns.add<EltwiseRewriter<IE::AddOp>>(&ctx, _log);
-    patterns.add<ConvolutionRewriter>(&ctx, _log);
-    patterns.add<GroupConvolutionRewriter>(&ctx, _log);
-
-    if (_adaptSEOps) {
-        patterns.add<InterpolateRewriter>(&ctx, _log);
-    }
-
-    if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {
-        signalPassFailure();
-    }
-}
-
-}  // namespace
-
-std::unique_ptr<mlir::Pass> vpux::IE::createExpandActivationChannelsPass(const bool adaptSEOps, Logger log) {
-    return std::make_unique<ExpandActivationChannelsPass>(adaptSEOps, log);
 }

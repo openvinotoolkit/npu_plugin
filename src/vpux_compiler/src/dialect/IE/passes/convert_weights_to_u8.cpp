@@ -94,7 +94,7 @@ mlir::LogicalResult ConstRewriter::matchAndRewrite(Const::DeclareOp origOp, OpAd
 
     _log.nest().trace("Convert content from '{0}' to '{1}'", origQuantType, newQuantType);
 
-    const auto newContentAttr = origOp.contentAttr()
+    const auto newContentAttr = origOp.getContentAttr()
                                         .quantCast()
                                         .convertElemType(getInt32Type(getContext()))
                                         .add(checked_cast<double>(-storageMin))

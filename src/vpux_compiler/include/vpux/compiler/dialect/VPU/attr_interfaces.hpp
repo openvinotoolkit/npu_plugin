@@ -1,6 +1,6 @@
 //
-// Copyright (C) 2022 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #pragma once
@@ -15,4 +15,4 @@
 // Generated
 //
 
-#include <vpux/compiler/dialect/VPU/generated/attr_interfaces.hpp.inc>
+#include <vpux/compiler/dialect/VPU/attr_interfaces.hpp.inc>

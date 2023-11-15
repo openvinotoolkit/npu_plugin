@@ -33,11 +33,11 @@ std::unique_ptr<mlir::Pass> createUpdateELFSectionFlagsPass(Logger log = Logger:
 //
 
 #define GEN_PASS_CLASSES
-#include <vpux/compiler/dialect/ELF/generated/passes.hpp.inc>
+#include <vpux/compiler/dialect/ELF/passes.hpp.inc>
 #undef GEN_PASS_CLASSES
 
 #define GEN_PASS_REGISTRATION
-#include <vpux/compiler/dialect/ELF/generated/passes.hpp.inc>
+#include <vpux/compiler/dialect/ELF/passes.hpp.inc>
 #undef GEN_PASS_REGISTRATION
 
 }  // namespace ELF

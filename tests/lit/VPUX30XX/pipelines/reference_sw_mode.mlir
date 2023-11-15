@@ -30,11 +30,11 @@ func.func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
     %0 = IE.SoftMax(%arg0) {axisInd = 1} : tensor<1x1000xf16> -> tensor<1x1000xf16>
     return %0 : tensor<1x1000xf16>
 
-    // CHECK-DAG:   [[IN1:%.+]] = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> memref<1x1x1x1000xf16, @DDR>
-    // CHECK-DAG:   [[OUT1:%.+]] = VPURT.DeclareBuffer "NetworkOutput" [0] <0> -> memref<1x1000xf16, @DDR>
+    // CHECK-DAG:   [[IN1:%.+]] = VPURT.DeclareBuffer <NetworkInput> [0] <0> -> memref<1x1x1x1000xf16, @DDR>
+    // CHECK-DAG:   [[OUT1:%.+]] = VPURT.DeclareBuffer <NetworkOutput> [0] <0> -> memref<1x1000xf16, @DDR>
 
-    // CHECK-DAG:   [[VAR1:%.+]] = VPURT.DeclareBuffer "DDR" <0> -> memref<1x1x1x1000xf16, @DDR>
-    // CHECK-DAG:   [[VAR2:%.+]] = VPURT.DeclareBuffer "DDR" <0> -> memref<1x1000xf16, @DDR>
+    // CHECK-DAG:   [[VAR1:%.+]] = VPURT.DeclareBuffer <DDR> <0> -> memref<1x1x1x1000xf16, @DDR>
+    // CHECK-DAG:   [[VAR2:%.+]] = VPURT.DeclareBuffer <DDR> <0> -> memref<1x1000xf16, @DDR>
 
     // CHECK-DAG:   [[VAR3:%.+]] = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     // CHECK-NEXT:  VPURT.Task
@@ -97,14 +97,14 @@ func.func @main(%arg0: tensor<1x2x2x2xf16>) -> (tensor<1x2x2x2xf16>, tensor<1x2x
 
     return %0, %1 : tensor<1x2x2x2xf16>, tensor<1x2x2x2xf16>
 
-    // CHECK-DAG:   [[IN1:%.+]] = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> memref<1x2x2x2xf16, @DDR>
-    // CHECK-DAG:   [[OUT1:%.+]] = VPURT.DeclareBuffer "NetworkOutput" [0] <0> -> memref<1x2x2x2xf16, @DDR>
-    // CHECK-DAG:   [[OUT2:%.+]] = VPURT.DeclareBuffer "NetworkOutput" [1] <0> -> memref<1x2x2x2xf16, @DDR>
+    // CHECK-DAG:   [[IN1:%.+]] = VPURT.DeclareBuffer <NetworkInput> [0] <0> -> memref<1x2x2x2xf16, @DDR>
+    // CHECK-DAG:   [[OUT1:%.+]] = VPURT.DeclareBuffer <NetworkOutput> [0] <0> -> memref<1x2x2x2xf16, @DDR>
+    // CHECK-DAG:   [[OUT2:%.+]] = VPURT.DeclareBuffer <NetworkOutput> [1] <0> -> memref<1x2x2x2xf16, @DDR>
 
     // CHECK-DAG:   [[CST:%.+]] = const.Declare
 
-    // CHECK-DAG:   [[BUF0:%.+]] = VPURT.DeclareBuffer "DDR" <0> -> memref<1x2x2x2xf16, @DDR>
-    // CHECK-DAG:   [[BUF1:%.+]] = VPURT.DeclareBuffer "DDR" <64> -> memref<1x2x2x2xf16, @DDR>
+    // CHECK-DAG:   [[BUF0:%.+]] = VPURT.DeclareBuffer <DDR> <0> -> memref<1x2x2x2xf16, @DDR>
+    // CHECK-DAG:   [[BUF1:%.+]] = VPURT.DeclareBuffer <DDR> <64> -> memref<1x2x2x2xf16, @DDR>
 
     // CHECK-DAG:   [[BAR0:%.+]] = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     // CHECK-DAG:   [[BAR1:%.+]] = VPURT.ConfigureBarrier<1> -> !VPURT.Barrier
@@ -181,7 +181,7 @@ func.func @main() -> tensor<1x2x4x2xf16> {
 
     // CHECK-DAG:   [[CST:%.+]] = const.Declare
 
-    // CHECK-DAG:   [[OUT1:%.+]] = VPURT.DeclareBuffer "NetworkOutput" [0] <0> -> memref<1x2x4x2xf16, @DDR>
+    // CHECK-DAG:   [[OUT1:%.+]] = VPURT.DeclareBuffer <NetworkOutput> [0] <0> -> memref<1x2x4x2xf16, @DDR>
 
     // CHECK:       VPURT.Task
     // CHECK-NEXT:  VPUIP.NNDMA
@@ -204,10 +204,10 @@ module @UPA_ReLU_BadLayout {
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        DataInfo "input" : tensor<1x2x4x2xf16, {order = #NWHC}>
+        DataInfo "input" : tensor<1x2x4x2xf16>
     }
     outputsInfo : {
-        DataInfo "output" : tensor<1x2x4x2xf16, {order = #NWHC}>
+        DataInfo "output" : tensor<1x2x4x2xf16>
     }
 
 func.func @main(%arg0: tensor<1x2x4x2xf16, {order = #NWHC}>) -> tensor<1x2x4x2xf16, {order = #NWHC}> {

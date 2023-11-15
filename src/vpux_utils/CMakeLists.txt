@@ -3,15 +3,13 @@
 # SPDX-License-Identifier: Apache 2.0
 #
 
-#
-
 if(ENABLE_LTO)
     ie_enable_lto()
 endif()
 
 find_package(ZLIB)
 
-set(TARGET_NAME "vpux_utils")
+set(TARGET_NAME "npu_utils")
 
 file(GLOB_RECURSE SOURCES "*.cpp" "*.hpp")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
@@ -30,14 +28,9 @@ vpux_enable_clang_format(${TARGET_NAME})
 target_include_directories(${TARGET_NAME}
     SYSTEM PUBLIC
         $<TARGET_PROPERTY:IE::inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
+        $<BUILD_INTERFACE:${LLVM_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${LLVM_BINARY_DIR}/include>
 )
-
-foreach(include_dir IN LISTS LLVM_INCLUDE_DIRS)
-    target_include_directories(${TARGET_NAME}
-        SYSTEM PUBLIC
-            $<BUILD_INTERFACE:${include_dir}>
-    )
-endforeach()
 
 target_include_directories(${TARGET_NAME}
     SYSTEM PUBLIC
@@ -62,8 +55,8 @@ link_system_libraries(${TARGET_NAME}
 )
 
 add_dependencies(${TARGET_NAME}
-    vpux_mlir_compiler_schema
-    vpux_mlir_compiler_profiling_schema
+    npu_mlir_compiler_schema
+    npu_mlir_compiler_profiling_schema
 )
 
 add_dependencies(${TARGET_NAME}
@@ -80,7 +73,7 @@ endif()
 # targets install
 #
 
-# vpux_utils is a static library and is not required for shared library configuration
+# npu_utils is a static library and is not required for shared library configuration
 if(NOT BUILD_SHARED_LIBS)
     install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
             RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}

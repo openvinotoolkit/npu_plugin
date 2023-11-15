@@ -46,9 +46,9 @@ module @VPU.SW {
 
 func.func @main(%1: memref<1x1x1x1000xsi32>, %2: memref<1x1x1x1000xsi32>, %3: memref<1x1x1x1000xsi32>) -> memref<1x1x1x1000xsi32> {
 
-    %in0_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x1x1x1000xsi32, [@CMX_NN, 0]>
-    %in1_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <4000> -> memref<1x1x1x1000xsi32, [@CMX_NN, 0]>
-    %out_tile0_cmx = VPURT.DeclareBuffer "CMX_NN" [0] <8000> -> memref<1x1x1x1000xsi32, [@CMX_NN, 0]>
+    %in0_tile0_cmx  = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x1x1x1000xsi32, [@CMX_NN, 0]>
+    %in1_tile0_cmx  = VPURT.DeclareBuffer <CMX_NN> [0] <4000> -> memref<1x1x1x1000xsi32, [@CMX_NN, 0]>
+    %out_tile0_cmx = VPURT.DeclareBuffer <CMX_NN> [0] <8000> -> memref<1x1x1x1000xsi32, [@CMX_NN, 0]>
 
     %b0 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     %b1 = VPURT.ConfigureBarrier<1> -> !VPURT.Barrier
@@ -89,18 +89,18 @@ func.func @main(%1: memref<1x1x1x1000xsi32>, %2: memref<1x1x1x1000xsi32>, %3: me
 
 }
 
-//CHECK: %[[VAL0:.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x1x1x1000xsi32, [@CMX_NN, 0]>
-//CHECK: %[[VAL1:.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <4000> -> memref<1x1x1x1000xsi32, [@CMX_NN, 0]>
-//CHECK: %[[VAL2:.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <8000> -> memref<1x1x1x1000xsi32, [@CMX_NN, 0]>
+//CHECK: %[[VAL0:.*]] = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x1x1x1000xsi32, [@CMX_NN, 0]>
+//CHECK: %[[VAL1:.*]] = VPURT.DeclareBuffer <CMX_NN> [0] <4000> -> memref<1x1x1x1000xsi32, [@CMX_NN, 0]>
+//CHECK: %[[VAL2:.*]] = VPURT.DeclareBuffer <CMX_NN> [0] <8000> -> memref<1x1x1x1000xsi32, [@CMX_NN, 0]>
 //CHECK-NEXT: %[[VAL3:.*]] = VPUMI37XX.ConfigureBarrier {consumer_count = 1 : ui8, producer_count = 2 : ui8}<0, -1> -> !VPURegMapped.Index<0:0:0>
 //CHECK-NEXT: %[[VAL4:.*]] = VPUMI37XX.ConfigureBarrier {consumer_count = 1 : ui8, producer_count = 1 : ui8}<1, -1> -> !VPURegMapped.Index<0:0:1>
 //CHECK-NOT: VPURT.Task
 //CHECK-NEXT: %[[VAL5:.*]] = VPUMI37XX.NNDMA {port = 0 : i64} inputs(%[[VAL6:.*]] : memref<1x1x1x1000xsi32>) outputs(%[[VAL0]] : memref<1x1x1x1000xsi32, [@CMX_NN, 0]>) updates(%[[VAL3]] : !VPURegMapped.Index<0:0:0>) start_after(0) clean_after(0) -> !VPURegMapped.Index<0:0:0>
 //CHECK-NEXT: %[[VAL7:.*]] = VPUMI37XX.NNDMA {port = 0 : i64} inputs(%[[VAL8:.*]] : memref<1x1x1x1000xsi32>) outputs(%[[VAL1]] : memref<1x1x1x1000xsi32, [@CMX_NN, 0]>) previousDMA(%[[VAL5]] : !VPURegMapped.Index<0:0:0>) updates(%[[VAL3]] : !VPURegMapped.Index<0:0:0>) start_after(0) clean_after(0) -> !VPURegMapped.Index<0:0:1>
 //CHECK-NEXT: %[[VAL9:.*]] = VPUMI37XX.DeclareKernelText kernel_path([[VAL10:.*]]) -> !VPURegMapped.Index<0:0:0>
-//CHECK-NEXT: %[[VAL11:.*]] = VPUMI37XX.DeclareKernelArgs kernel_path([[VAL10]]) -> !VPURegMapped.Index<0:0:0>
-//CHECK-NEXT: %[[VAL12:.*]] = VPUMI37XX.DeclareKernelEntry kernel_path([[VAL10]]) -> !VPURegMapped.Index<0:0:0>
-//CHECK-NEXT: %[[VAL13:.*]] = VPUMI37XX.ActKernelRange kernel_text_index(%[[VAL9]] : <0:0:0>) kernel_args_index(%[[VAL11]] : <0:0:0>) kernel_entry_index(%[[VAL12]] : <0:0:0>) -> !VPURegMapped.Index<0:0:0>
+//CHECK-NEXT: %[[VAL11:.*]] = VPUMI37XX.DeclareKernelEntry kernel_path([[VAL10]]) -> !VPURegMapped.Index<0:0:0>
+//CHECK-NEXT: %[[VAL12:.*]] = VPUMI37XX.DeclareKernelArgs kernel_path([[VAL10]]) -> !VPURegMapped.Index<0:0:0>
+//CHECK-NEXT: %[[VAL13:.*]] = VPUMI37XX.ActKernelRange kernel_text_index(%[[VAL9]] : <0:0:0>) kernel_args_index(%[[VAL12]] : <0:0:0>) kernel_entry_index(%[[VAL11]] : <0:0:0>) -> !VPURegMapped.Index<0:0:0>
 //CHECK-NEXT: %[[VAL14:.*]] = VPUMI37XX.ActKernelInvocation range_index(%[[VAL13]] : <0:0:0>) waits(%[[VAL3]] : !VPURegMapped.Index<0:0:0>) updates(%[[VAL4]] : !VPURegMapped.Index<0:0:1>) tile(0) start_after(0) clean_after(0) -> !VPURegMapped.Index<0:0:0>
 //CHECK-NEXT: %[[VAL15:.*]] = VPUMI37XX.KernelParams inputs(%[[VAL0]], %[[VAL1]] : memref<1x1x1x1000xsi32, [@CMX_NN, 0]>, memref<1x1x1x1000xsi32, [@CMX_NN, 0]>) outputs(%[[VAL2]] : memref<1x1x1x1000xsi32, [@CMX_NN, 0]>) kernel_type([[VAL10]]) kernel_params({{.*}}) -> !VPURegMapped.Index<0:0:0>
 //CHECK-NOT: VPURT.Task

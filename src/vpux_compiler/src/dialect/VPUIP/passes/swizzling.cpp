@@ -71,7 +71,7 @@ private:
     void attachSwizzleTransformation(Const::DeclareOp decOp, mlir::Operation* cstLoadOp, int64_t swizzlingKey);
     bool canSwizzleWeights(VPUIP::NCEClusterTaskOp nceOp);
     bool canSwizzleActivation(VPUIP::NCEClusterTaskOp nceOp);
-    bool checkCMXUsage(mlir::Operation* op, ValuesSet newBufsToSwizzle) const;
+    bool checkCMXUsage(mlir::Operation* op, const ValuesSet& newBufsToSwizzle) const;
     SmallVector<mlir::Operation*> _opsToRemove{};
     struct OpSwizzlingFlags {
         bool activationInput{false};
@@ -98,7 +98,7 @@ void adjustReturnTypesForInputChain(mlir::Value value, int64_t swizzlingKey, VPU
 VPUIP::NCEClusterTilingOp buildNewNceClusterTilingOp(mlir::OpBuilder& builder,
                                                      VPUIP::NCEClusterTilingOp oldNceClusterTilingOp,
                                                      mlir::Operation* innerOpToClone,
-                                                     SmallVector<mlir::Type> newResultTypes) {
+                                                     ArrayRef<mlir::Type> newResultTypes) {
     SmallVector<mlir::Value> newClusterTilingWithCopyOpOperands = oldNceClusterTilingOp->getOperands();
 
     builder.setInsertionPointAfter(oldNceClusterTilingOp);
@@ -171,7 +171,7 @@ bool isSizeAlignmentRequired(Const::DeclareOp decOp, VPU::ArchKind archKind,
         return isAlignmentRequired(type);
     } else {
         const auto distributionAttr = distributedType.getDistribution();
-        const auto numClusters = distributionAttr.num_clusters().getInt();
+        const auto numClusters = distributionAttr.getNumClusters().getInt();
 
         const auto perClusterShapes = distributedType.getPerClusterMemoryShapes();
         VPUX_THROW_UNLESS(perClusterShapes.size() == checked_cast<size_t>(numClusters),
@@ -224,7 +224,7 @@ mlir::LogicalResult Swizzling::initialize(mlir::MLIRContext* ctx) {
 
 // Check if for a given operation adding swizzling for provided buffers will not cause in increase
 // of memory demand beyond CMX size
-bool Swizzling::checkCMXUsage(mlir::Operation* op, ValuesSet newBufsToSwizzle) const {
+bool Swizzling::checkCMXUsage(mlir::Operation* op, const ValuesSet& newBufsToSwizzle) const {
     ValuesSet operands(op->getOperands().begin(), op->getOperands().end());
 
     SmallVector<std::pair<int64_t, int64_t>> buffSizeAndAlignment;
@@ -470,7 +470,7 @@ void Swizzling::attachSwizzleTransformation(Const::DeclareOp cstOp, mlir::Operat
     _log.nest().trace("Constant for swizzling transformation'{0}'", cstOp->getLoc());
 
     // Extract content attrib with existing transformations
-    auto constAttr = cstOp.contentAttr();
+    auto constAttr = cstOp.getContentAttr();
 
     for (auto transAttr : constAttr.getTransformations()) {
         // Check if swizzling transformation is already attached, this can happen when constant is shared
@@ -485,11 +485,11 @@ void Swizzling::attachSwizzleTransformation(Const::DeclareOp cstOp, mlir::Operat
     auto newConstAttr = constAttr.swizzleConstant(swizzlingKey, static_cast<uint64_t>(_archKind));
     mlir::OpBuilder builder(cstOp);
 
-    auto outputType = cstOp.output().getType();
+    auto outputType = cstOp.getOutput().getType();
     outputType = vpux::setSwizzlingKey(outputType, swizzlingKey, _archKind);
 
     auto newCstOp = builder.create<Const::DeclareOp>(cstOp.getLoc(), outputType, newConstAttr);
-    cstLoadOp->setOperand(0, newCstOp.output());
+    cstLoadOp->setOperand(0, newCstOp.getOutput());
 
     if (cstOp->getUses().empty()) {
         cstOp.erase();
@@ -757,7 +757,7 @@ void Swizzling::activationBufferSwizzling(mlir::OpBuilder& builder, VPUIP::NCECl
                     builder.create<VPURT::Alloc>(newLoc, newType, addressAlignmentAttr, swizzlingSchemeAttr.getKey());
             allocOp->replaceAllUsesWith(newAlloc);
 
-            _swizzledNceOperands.insert(newAlloc.buffer());
+            _swizzledNceOperands.insert(newAlloc.getBuffer());
 
             _opsToRemove.push_back(allocOp.getOperation());
 
@@ -773,7 +773,7 @@ void Swizzling::activationBufferSwizzling(mlir::OpBuilder& builder, VPUIP::NCECl
                                                                     swizzlingSchemeAttr.getKey());
             allocOp->replaceAllUsesWith(newAlloc);
 
-            _swizzledNceOperands.insert(newAlloc.buffer());
+            _swizzledNceOperands.insert(newAlloc.getBuffer());
 
             _opsToRemove.push_back(allocOp.getOperation());
 

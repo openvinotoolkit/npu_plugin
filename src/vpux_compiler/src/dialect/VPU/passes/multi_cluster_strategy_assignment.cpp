@@ -57,7 +57,10 @@ void MultiClusterStrategyAssignmentPass::safeRunOnFunc() {
 
         StrategyManager strategyManager(func, _log.nest());
         _log.trace("Greedy Strategy Assignment");
-        strategyManager.assignMultiClusterStrategy();
+        auto module = func->getParentOfType<mlir::ModuleOp>();
+        auto enableMultiClusterForSWLayer = IE::getAvailableExecutor(module, VPU::ExecutorKind::SHAVE_ACT) != nullptr;
+        strategyManager.assignMultiClusterStrategy(enableMultiClusterForSWLayer);
+
         _log.trace("Execute Subgraph Optimization");
         strategyManager.optimizeMulticlusterStrategy();
         _log.trace("Remove Temporary Strategy");

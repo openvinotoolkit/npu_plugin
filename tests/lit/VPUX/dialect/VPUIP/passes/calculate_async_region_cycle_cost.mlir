@@ -15,21 +15,21 @@
 !MemRef2 = memref<1x62x64x32xf16, {order = #NWHC, strides = [262144, 1, 128, 8192]}, @CMX_NN>
 
 // CHECK-LABEL: module @AddCycleCostForSWMultiCluster
-module @AddCycleCostForSWMultiCluster attributes {VPU.arch = "VPUX37XX", VPU.compilationMode = "DefaultHW"} {
+module @AddCycleCostForSWMultiCluster attributes {VPU.arch = #VPU.arch_kind<VPUX37XX>, VPU.compilationMode = #VPU.compilation_mode<DefaultHW>} {
     IE.ExecutorResource 2 of @NCE at 1.300000e+03 MHz {
         IE.ExecutorResource 1 of @DPU
+        IE.ExecutorResource 2 of @SHAVE_ACT
+        IE.ExecutorResource 1 of @SHAVE_NN
+        IE.MemoryResource 1784217 bytes of @CMX_NN_FragmentationAware
+        IE.MemoryResource 1982464 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
     }
-    IE.ExecutorResource 2 of @SHAVE_ACT
-    IE.ExecutorResource 1 of @SHAVE_NN
-    IE.ExecutorResource 2 of @DMA_NN
-    IE.MemoryResource 1784217 bytes of @CMX_NN_FragmentationAware
-    IE.MemoryResource 1982464 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
+    IE.ExecutorResource 2 of @DMA_NN 
     IE.MemoryResource 524288000 bytes of @DDR {VPU.bandwidth = 8 : i64, VPU.derateFactor = 6.000000e-01 : f64}
     module @VPU.SW {
         func.func private @builtin_MVN(memref<*xf16, @CMX_NN>, memref<*xf16, @CMX_NN>, i1, i1, f64) attributes {VPU.kernel_code = "singleShaveMVN.cpp", VPU.kernel_entry = "singleShaveMVN"}
         func.func private @runtime() attributes {VPU.kernel_code = "nnActEntry"}
     }
-
+    
     func.func @AddCycleCostForSWMultiClusterTest(%arg0: !MemRef1) -> !MemRef1 {
         %0 = VPURT.AllocDistributed -> !Distributed0
         %1 = VPURT.AllocDistributed -> !Distributed0
@@ -80,15 +80,15 @@ module @AddCycleCostForSWMultiCluster attributes {VPU.arch = "VPUX37XX", VPU.com
 !MemRef2 = memref<4x2x12x16xf16, {order = #NHWC, strides = [1536, 1, 128, 8]}, [@CMX_NN, 0]>
 
 // CHECK-LABEL: module @AddCycleCostForSWSingleCluster
-module @AddCycleCostForSWSingleCluster attributes {VPU.arch = "VPUX37XX"} {
+module @AddCycleCostForSWSingleCluster attributes {VPU.arch = #VPU.arch_kind<VPUX37XX>} {
     IE.ExecutorResource 1 of @NCE at 1.300000e+03 MHz {
-    IE.ExecutorResource 1 of @DPU
+        IE.ExecutorResource 2 of @SHAVE_ACT
+        IE.ExecutorResource 1 of @SHAVE_NN
+        IE.MemoryResource 1982464 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
+        IE.ExecutorResource 1 of @DPU
     }
-    IE.ExecutorResource 2 of @SHAVE_ACT
-    IE.ExecutorResource 1 of @SHAVE_NN
     IE.ExecutorResource 1 of @DMA_NN
-    IE.MemoryResource 1982464 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
-
+    
     func.func @AddCycleCostForSWSingleClusterTest(%arg0: memref<4x8x12x16xf16, #NHWC, @DDR>, %arg1: memref<4x8x12x16xf16, @DDR>) -> memref<4x8x12x16xf16, @DDR> {
         %0 = memref.alloc() : !SingleMemRef
         %1 = memref.alloc() : !SingleMemRef

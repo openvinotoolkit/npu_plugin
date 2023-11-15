@@ -8,14 +8,14 @@
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 module @mainModule {
   IE.CNNNetwork entryPoint : @race_condition_dma_f16_f16 inputsInfo : {
-    DataInfo "input_0" : tensor<1x16x16x16xf16, {order = #NHWC}>
+    DataInfo "input_0" : tensor<1x16x16x16xf16>
   } outputsInfo : {
-    DataInfo "output_0" : tensor<1x16x16x16xf16, {order = #NHWC}>
-    DataInfo "output_1" : tensor<1x16x16x16xf16, {order = #NHWC}>
+    DataInfo "output_0" : tensor<1x16x16x16xf16>
+    DataInfo "output_1" : tensor<1x16x16x16xf16>
   }
   func.func private @race_condition_dma_f16_f16(%arg0: memref<1x16x16x16xf16, #NHWC, @DDR>, %arg1: memref<1x16x16x16xf16, #NHWC, @DDR>, %arg2: memref<1x16x16x16xf16, #NHWC, @DDR>) -> (memref<1x16x16x16xf16, #NHWC, @DDR>, memref<1x16x16x16xf16, #NHWC, @DDR>) {
-    %0 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 0]>
-    %1 = VPURT.DeclareBuffer "CMX_NN" [1] <0> -> memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 1]>
+    %0 = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 0]>
+    %1 = VPURT.DeclareBuffer <CMX_NN> [1] <0> -> memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 1]>
 
     %2 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     // CHECK: %[[BAR0:.*]] = VPUMI37XX.ConfigureBarrier {consumer_count = 2 : ui8, producer_count = 2 : ui8}<0, -1> -> !VPURegMapped.Index<0:0:0>

@@ -26,16 +26,17 @@ public:
     }
 
 public:
-    class ScatterNDUpdateOpConverter;
+    class ConvertToStridedConcat;
+    class ConvertToSliceConcat;
 
 private:
     void safeRunOnFunc() final;
 };
 
-class ConvertScatterNDUpdateToStridedConcatPass::ScatterNDUpdateOpConverter final :
+class ConvertScatterNDUpdateToStridedConcatPass::ConvertToStridedConcat final :
         public mlir::OpRewritePattern<IE::ScatterNDUpdateOp> {
 public:
-    ScatterNDUpdateOpConverter(mlir::MLIRContext* ctx, Logger log)
+    ConvertToStridedConcat(mlir::MLIRContext* ctx, Logger log)
             : mlir::OpRewritePattern<IE::ScatterNDUpdateOp>(ctx), _log(log) {
     }
 
@@ -46,7 +47,11 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult ConvertScatterNDUpdateToStridedConcatPass::ScatterNDUpdateOpConverter::matchAndRewrite(
+// For example, if there is a 1x15 tensor: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+// The Indices to update data is [0,3,6,9,12] . The data to update is [fx0,fx1,fx2,fx3,fx4]
+// The results is [fx0,2,3,fx1,5,6,fx2,8,9,fx3,11,12,fx4,14,15].
+// It equals to offset 0, stride 3, strided concat.
+mlir::LogicalResult ConvertScatterNDUpdateToStridedConcatPass::ConvertToStridedConcat::matchAndRewrite(
         IE::ScatterNDUpdateOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Get ScatterNDUpdateOp Op {0}", origOp);
     const auto greaterThanOne = [](auto dim) {
@@ -69,7 +74,7 @@ mlir::LogicalResult ConvertScatterNDUpdateToStridedConcatPass::ScatterNDUpdateOp
         return mlir::failure();
     }
 
-    const auto indicesConstValue = indicesConst.content();
+    const auto indicesConstValue = indicesConst.getContent();
     const auto indicesData = indicesConstValue.getValues<int64_t>();
 
     SmallVector<int64_t> potentialStrides;
@@ -93,6 +98,14 @@ mlir::LogicalResult ConvertScatterNDUpdateToStridedConcatPass::ScatterNDUpdateOp
     VPUX_THROW_UNLESS(axis != potentialStrides.end(), "Can not get correct Axis");
 
     auto axisIndex = std::distance(potentialStrides.begin(), axis);
+    // For example, Input shape 1x10x1, indices shape 1x1x1x3
+    // indices data [[[[0, 0, 0]]]]
+    // This case will be handled by ConvertToSliceConcat Rewriter with 1 Slice
+    // Otherwise it will need 10 Slice by ConvertToStridedConcat Rewriter
+    if (indicesShape[Dim(axisIndex)] == 1) {
+        return mlir::failure();
+    }
+
     auto stride = potentialStrides[axisIndex];
     auto offsetValue = indicesData[axisIndex];
 
@@ -151,6 +164,161 @@ mlir::LogicalResult ConvertScatterNDUpdateToStridedConcatPass::ScatterNDUpdateOp
     return mlir::success();
 }
 
+// ConvertToSliceConcat
+
+class ConvertScatterNDUpdateToStridedConcatPass::ConvertToSliceConcat final :
+        public mlir::OpRewritePattern<IE::ScatterNDUpdateOp> {
+public:
+    ConvertToSliceConcat(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IE::ScatterNDUpdateOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::ScatterNDUpdateOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+    Optional<Dim> getUpdateDim(ShapeRef inputShape, ShapeRef indicesShape, Const::DeclareOp indicesConst) const;
+
+private:
+    Logger _log;
+};
+
+Optional<Dim> ConvertScatterNDUpdateToStridedConcatPass::ConvertToSliceConcat::getUpdateDim(
+        ShapeRef inputShape, ShapeRef indicesShape, Const::DeclareOp indicesConst) const {
+    const auto indicesConstValue = indicesConst.getContent();
+    const auto indicesData = indicesConstValue.getValues<int64_t>();
+
+    const auto greaterThanOne = [](auto dimSize) {
+        return dimSize > 1;
+    };
+
+    // Scenario 1: Elements Update
+    // For example, Input shape 1x32x1, indices shape 1x3x1x3
+    // indices data [[[[0, 5, 0], [0, 6, 0], [0, 7, 0]]]]
+    // The updateDim will be Dim(1)
+    const auto inputRank = checked_cast<int64_t>(inputShape.size());
+    const auto indicesRank = checked_cast<int64_t>(indicesShape.size());
+    if (indicesShape.back() == inputRank && indicesRank - 1 == inputRank) {
+        const auto inputShapeGreaterThanOne = llvm::count_if(inputShape, greaterThanOne);
+        const auto indicesShapeGreaterThanOne =
+                std::count_if(indicesShape.begin(), indicesShape.end() - 1, greaterThanOne);
+        if (inputShapeGreaterThanOne > 1 || indicesShapeGreaterThanOne > 1) {
+            _log.trace("Elements Update: Only support ScatterNDUpdate Op update at one axis");
+            return None;
+        }
+
+        // Input shape 1x1x1, indices shape 1x1x1x3
+        // indices data [[[[0, 0, 0]]]]
+        // The updateDim will be Dim(0)
+        if (inputShapeGreaterThanOne == 0 && indicesShapeGreaterThanOne == 0) {
+            return Dim(0);
+        }
+
+        auto axis = llvm::find_if(inputShape, greaterThanOne);
+        VPUX_THROW_UNLESS(axis != inputShape.end(), "Can not get correct Axis");
+        auto updateDim = std::distance(inputShape.begin(), axis);
+
+        const auto beginOffset = indicesData[updateDim];
+        for (auto idx = 1; idx < indicesShape[Dim(updateDim)]; idx++) {
+            if (indicesData[updateDim + inputRank * idx] != beginOffset + idx) {
+                _log.trace("Elements Update: The data in indices and at the updateDim should be increase with step 1");
+                return None;
+            }
+        }
+
+        return Dim(updateDim);
+    }
+
+    // Scenario 2: Tensor Update
+    // For example, Input shape 16x32x64, indices shape 3x1
+    // indices data [[5], [6], [7]]
+    // The updateDim will be Dim(0)
+    if (indicesShape.back() == 1) {
+        const auto beginOffset = indicesData.front();
+        for (auto idx = 1; idx < indicesShape.totalSize(); idx++) {
+            if (indicesData[idx] != beginOffset + idx) {
+                _log.trace("Tensor Update: The data in indices and at the updateDim should be increase with step 1");
+                return None;
+            }
+        }
+        return Dim(0);
+    }
+
+    return None;
+}
+
+// There are two possible patterns can be converted
+// Scenario 1: Elements Update, it has the following limitations:
+// - indices.shape[-1] = input.shape.rank
+// - Only has one updateDim
+// - All dim size for indices shape[:-1] should be 1 except the updateDim
+// - All dim size for input shape should be 1 except the updateDim
+// - The data in indices and at the updateDim should be increase with step 1
+// For example, Input shape 1x32x1, indices shape 1x3x1x3
+// indices data [[[[0, 5, 0], [0, 6, 0], [0, 7, 0]]]]
+
+// Scenario 2: Tensor Update, it has the following limitations:
+// - indices.shape[-1] = 1, if not the update data shape rank will not same with input
+// - The data in indices should be increase with step 1
+// For example, Input shape 16x32x64, indices shape 3x1
+// indices data [[5], [6], [7]]
+mlir::LogicalResult ConvertScatterNDUpdateToStridedConcatPass::ConvertToSliceConcat::matchAndRewrite(
+        IE::ScatterNDUpdateOp origOp, mlir::PatternRewriter& rewriter) const {
+    _log.trace("Got '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
+
+    const auto inputShape = getShape(origOp.input());
+    const auto indices = origOp.indices();
+    const auto indicesShape = getShape(indices);
+    auto indicesConst = indices.getDefiningOp<Const::DeclareOp>();
+    if (indicesConst == nullptr) {
+        _log.trace("ScatterNDUpdate Op should with constant indices");
+        return mlir::failure();
+    }
+
+    auto dimValue = getUpdateDim(inputShape, indicesShape, indicesConst);
+    if (!dimValue.has_value()) {
+        _log.trace("ScatterNDUpdate Op can not convert to Slice and Concat");
+        return mlir::failure();
+    }
+    auto updateDim = dimValue.value().ind();
+
+    const auto indicesConstValue = indicesConst.getContent();
+    const auto indicesData = indicesConstValue.getValues<int64_t>();
+    auto beginOffset = indicesData[updateDim];
+
+    SmallVector<mlir::Value> concatInputs;
+    // Create the left Slice Op
+    auto leftSliceOffset = SmallVector<int64_t>(inputShape.size(), 0);
+    auto leftSliceShape = to_small_vector(inputShape.raw());
+    leftSliceShape[updateDim] = beginOffset;
+
+    if (beginOffset != 0) {
+        concatInputs.push_back(
+                rewriter.create<IE::SliceOp>(origOp->getLoc(), origOp.input(), leftSliceOffset, leftSliceShape)
+                        .result());
+    }
+
+    // Update data value
+    concatInputs.push_back(origOp.updates());
+
+    // Create the right Slice Op
+    auto endOffset = beginOffset + indicesShape[Dim(updateDim)];
+    auto rightSliceOffset = SmallVector<int64_t>(inputShape.size(), 0);
+    rightSliceOffset[updateDim] = endOffset;
+    auto rightSliceShape = to_small_vector(inputShape.raw());
+    rightSliceShape[updateDim] = rightSliceShape[updateDim] - endOffset;
+
+    if (rightSliceShape[updateDim] != 0) {
+        concatInputs.push_back(
+                rewriter.create<IE::SliceOp>(origOp->getLoc(), origOp.input(), rightSliceOffset, rightSliceShape)
+                        .result());
+    }
+
+    _log.trace("Replace '{0}' at '{1}' with Slice and Concat Op", origOp->getName(), origOp->getLoc());
+    rewriter.replaceOpWithNewOp<IE::ConcatOp>(origOp, concatInputs, updateDim);
+
+    return mlir::success();
+}
+
 //
 // safeRunOnFunc
 //
@@ -159,7 +327,8 @@ void ConvertScatterNDUpdateToStridedConcatPass::safeRunOnFunc() {
     auto& ctx = getContext();
     mlir::ConversionTarget target(ctx);
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<ScatterNDUpdateOpConverter>(&ctx, _log);
+    patterns.add<ConvertToStridedConcat>(&ctx, _log);
+    patterns.add<ConvertToSliceConcat>(&ctx, _log);
 
     auto func = getOperation();
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {

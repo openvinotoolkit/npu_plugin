@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <climits>
 #include <numeric>
 
@@ -34,6 +32,8 @@ void buildDMA(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
 
     SmallVector<int64_t> inShape(input.shape.begin(), input.shape.end());
     SmallVector<int64_t> outShape(output.shape.begin(), output.shape.end());
+
+    auto testArchitecture = testDesc.getArchitecture();
 
     VPUX_THROW_UNLESS(!inShape.empty(), "buildDMA: Input rank is 0");
     VPUX_THROW_UNLESS(inShape == outShape, "buildDMA: in_shape and out_shape don't match");
@@ -87,11 +87,11 @@ void buildDMA(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
         }
         auto barrier = funcbuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), barrierNumber++);
 
-        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier.barrier()),
+        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier.getBarrier()),
                                               builder.getUnknownLoc(), funcInput0,
                                               inputCMX.getOperation()->getResult(0));
 
-        waitBarriers.emplace_back(barrier.barrier());
+        waitBarriers.emplace_back(barrier.getBarrier());
         DMAinput = inputCMX.getOperation()->getResult(0);
     } else {
         VPUX_THROW("Unsupported src memory location {0}", nb::to_string(dmaParams.srcLocation));
@@ -125,18 +125,18 @@ void buildDMA(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
         VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(llvm::ArrayRef<mlir::Value>(waitBarriers)),
                                               dmaParams.dstLocation == nb::MemoryLocation::DDR
                                                       ? mlir::ValueRange()
-                                                      : mlir::ValueRange(DMAtaskBarrier.barrier()),
+                                                      : mlir::ValueRange(DMAtaskBarrier.getBarrier()),
                                               builder.getUnknownLoc(), DMAinput, DMAoutput, dmaParams.engine);
     } else {
         VPURT::wrapIntoTaskOp<VPUIP::ConvertDMAOp>(
                 funcbuilder, mlir::ValueRange(llvm::ArrayRef<mlir::Value>(waitBarriers)),
                 dmaParams.dstLocation == nb::MemoryLocation::DDR ? mlir::ValueRange()
-                                                                 : mlir::ValueRange(DMAtaskBarrier.barrier()),
+                                                                 : mlir::ValueRange(DMAtaskBarrier.getBarrier()),
                 builder.getUnknownLoc(), DMAinput, DMAoutput, dmaParams.engine);
     }
 
     if (dmaParams.dstLocation == nb::MemoryLocation::CMX0 || dmaParams.dstLocation == nb::MemoryLocation::CMX1) {
-        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(DMAtaskBarrier.barrier()),
+        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(DMAtaskBarrier.getBarrier()),
                                               mlir::ValueRange(), builder.getUnknownLoc(), DMAoutput, funcOutput);
     }
 
@@ -144,9 +144,7 @@ void buildDMA(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
     // set runtime resources
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
     Optional<int> numTiles = None;
-
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, numTiles, None,
-                                           None, log));
+    pm.addPass(VPU::createInitCompilerPass(testArchitecture, VPU::CompilationMode::DefaultHW, numTiles, None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
     // IE.CNNNetwork

@@ -7,9 +7,9 @@ if(ENABLE_LTO)
     ie_enable_lto()
 endif()
 
-set(TARGET_NAME "vpux_driver_compiler_adapter")
-set(OBJ_TARGET_NAME "vpux_driver_compiler_adapter_obj")
-set(STATIC_TARGET_NAME "vpux_driver_compiler_adapter_static")
+set(TARGET_NAME "npu_driver_compiler_adapter")
+set(OBJ_TARGET_NAME "npu_driver_compiler_adapter_obj")
+set(STATIC_TARGET_NAME "npu_driver_compiler_adapter_static")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
@@ -54,14 +54,14 @@ endif()
 link_system_libraries(${OBJ_TARGET_NAME}
     PRIVATE
         IE::inference_engine_plugin_api
-        vpux_ngraph_transformations
+        npu_ngraph_transformations
     PUBLIC
         ze_loader
 )
 
 target_link_libraries(${OBJ_TARGET_NAME}
     PUBLIC
-        vpux_al
+        npu_al
 )
 
 

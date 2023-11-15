@@ -58,51 +58,35 @@ mlir::LogicalResult ReorderRewriter::matchAndRewrite(IE::ReorderOp origOp, mlir:
         return matchFailed(_log.nest(), rewriter, origOp, "ODU permutation applies only to the last reorder");
     }
 
-    // Check that reorder is not applied to sub-byte element types:
-    const auto elemType = origOp.input().getType().cast<vpux::NDTypeInterface>();
-    const Bit elemSize = vpux::getElemTypeSize(elemType);
-    if (elemSize.count() < CHAR_BIT) {
-        return matchFailed(_log.nest(), rewriter, origOp, "ODU permutation does not apply to sub-byte types. Got {0}",
-                           elemType);
-    }
-
-    // Check that permutation is supported by ODU
-    const auto outOrder = DimsOrder::fromValue(origOp.output());
-    const std::unordered_set<DimsOrder> supportedOrders = {
-            DimsOrder::NCHW, DimsOrder::NCWH, DimsOrder::NHCW, DimsOrder::NHWC, DimsOrder::NWCH, DimsOrder::NWHC,
-    };
-    if (supportedOrders.count(outOrder) == 0) {
-        return matchFailed(_log.nest(), rewriter, origOp, "ODU permutation does not support {0}", outOrder);
-    }
-
     if (isTrivialReorder(origOp)) {
         return matchFailed(_log.nest(), rewriter, origOp, "ReorderOp is actually a permute cast");
     }
 
-    auto maybeNCEOp = origOp.input().getDefiningOp();
-    if (maybeNCEOp == nullptr) {
-        return matchFailed(_log.nest(), rewriter, origOp, "ReorderOp does not have defining operation");
-    }
-
-    if (VPUIP::NCEInvariant::verifyKernel(maybeNCEOp, _log).failed()) {
+    auto layerWithPermute = origOp.input().getDefiningOp<IE::LayerWithPermuteInterface>();
+    if (layerWithPermute == nullptr) {
         return matchFailed(_log.nest(), rewriter, origOp, "ReorderRewriter applies for NCE tasks");
     }
 
-    if (!maybeNCEOp->getResult(0).hasOneUse()) {
+    if (!layerWithPermute.isSupportedPermutation(origOp)) {
+        return matchFailed(_log.nest(), rewriter, origOp, "ODU permutation does not support {0} at {1}",
+                           origOp->getName(), origOp->getLoc());
+    }
+
+    if (!layerWithPermute->getResult(0).hasOneUse()) {
         return matchFailed(_log.nest(), rewriter, origOp,
                            "ReorderRewriter applies only for NCE tasks with one consumer");
     }
 
-    auto output = maybeNCEOp->getResult(0);
+    auto output = layerWithPermute->getResult(0);
     const auto origType = output.getType().cast<vpux::NDTypeInterface>();
     if (origType == nullptr) {
         return matchFailed(_log.nest(), rewriter, origOp, "NCE task does not implement vpux::NDTypeInterface");
     }
     const auto newType = origType.changeDimsOrder(DimsOrder::fromAffineMap(origOp.dstOrder()));
-    maybeNCEOp->getResult(0).setType(newType);
+    layerWithPermute->getResult(0).setType(newType);
 
-    _log.trace("Fuse {0} to {1}", origOp->getLoc(), maybeNCEOp->getLoc());
-    rewriter.replaceOp(origOp, maybeNCEOp->getResult(0));
+    _log.trace("Fuse {0} to {1}", origOp->getLoc(), layerWithPermute->getLoc());
+    rewriter.replaceOp(origOp, layerWithPermute->getResult(0));
 
     return mlir::success();
 }

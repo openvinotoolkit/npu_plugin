@@ -116,7 +116,7 @@ bool isEltwiseTheOnlyConsumer(VPUIP::NCEClusterTaskOp clusterTaskOp, mlir::Value
     return true;
 }
 
-void makeInPlaceEltwise(VPUIP::NCEClusterTaskOp clusterTaskOp, const AliasesInfo& aliasesInfo, Logger log) {
+void makeInPlaceEltwise(VPUIP::NCEClusterTaskOp clusterTaskOp, AliasesInfo& aliasesInfo, Logger log) {
     auto eltwiseAllInputs = clusterTaskOp.getInputs();
     // Get the root output buffer of the clusterTaskOp
     auto getOutputRootBuffOfNCEClusterTiling = [](mlir::Operation* innerOp) {
@@ -156,6 +156,7 @@ void makeInPlaceEltwise(VPUIP::NCEClusterTaskOp clusterTaskOp, const AliasesInfo
             builder.setInsertionPointAfterValue(inputRootBuff);
             auto supportView =
                     builder.create<VPUIP::ViewOp>(inputBuff.getLoc(), outputRootBuff.getType(), inputRootBuff);
+            aliasesInfo.addAlias(inputRootBuff, supportView.result());
             inputRootBuff = supportView.result();
         }
 
@@ -169,6 +170,7 @@ void makeInPlaceEltwise(VPUIP::NCEClusterTaskOp clusterTaskOp, const AliasesInfo
                 builder.setInsertionPointAfterValue(inputRootBuff);
                 auto distributedCastOp = builder.create<VPUIP::DistributedCastOp>(
                         clusterTaskOp.getLoc(), outputRootBuff.getType(), inputRootBuff);
+                aliasesInfo.addAlias(inputRootBuff, distributedCastOp.output());
                 inputRootBuff = distributedCastOp.output();
             } else {
                 nestLog.trace("Incompatible input/output dist modes {0} {1}", inDistributedType, outDistributedType);
@@ -177,6 +179,19 @@ void makeInPlaceEltwise(VPUIP::NCEClusterTaskOp clusterTaskOp, const AliasesInfo
         }
 
         outputRootBuff.replaceAllUsesWith(inputRootBuff);
+
+        const auto getEltwiseResult = [&]() {
+            if (auto nceClustOp = mlir::dyn_cast_or_null<VPUIP::NCEClusterTilingOp>(clusterTaskOp->getParentOp())) {
+                return nceClustOp->getResult(0);
+            } else {
+                return clusterTaskOp->getResult(0);
+            }
+        };
+
+        const auto eltwiseResult = getEltwiseResult();
+        aliasesInfo.removeAlias(eltwiseResult);
+        aliasesInfo.addAlias(inputRootBuff, eltwiseResult);
+
         log.trace("Eltwise input Replaced with output {0}", inputRootBuff.getLoc());
         return;
     }

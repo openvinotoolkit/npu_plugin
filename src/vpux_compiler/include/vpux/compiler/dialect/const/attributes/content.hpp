@@ -20,4 +20,4 @@
 //
 
 #define GET_ATTRDEF_CLASSES
-#include <vpux/compiler/dialect/const/generated/attributes.hpp.inc>
+#include <vpux/compiler/dialect/const/attributes.hpp.inc>

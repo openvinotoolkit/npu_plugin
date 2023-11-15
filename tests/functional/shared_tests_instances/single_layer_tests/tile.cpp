@@ -1,21 +1,18 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include <vector>
 
-#include "kmb_layer_test.hpp"
 #include "single_layer_tests/tile.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
-class VPUXTileLayerTest : public TileLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXTileLayerTest : public TileLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
-class VPUXTileLayerTest_VPU3700 : public VPUXTileLayerTest {
-    void SkipBeforeLoad() override {
-    }
-};
+class VPUXTileLayerTest_VPU3700 : public VPUXTileLayerTest {};
 
 class VPUXTileLayerTest_VPU3720_SW : public VPUXTileLayerTest {};
 class VPUXTileLayerTest_VPU3720_HW : public VPUXTileLayerTest {};
@@ -67,7 +64,7 @@ const std::vector<std::vector<int64_t>> repeats = {
         // input shapes with more than 4D is not supported by runtime yet
         // {1, 1, 1, 2, 1, 2}
 
-        // looks like this values is too big. Test fails due result mismatch between CPU an KMB
+        // looks like this values is too big. Test fails due result mismatch between CPU an VPUX
         // {1, 1, 1, 128}, {1, 1, 128, 1}, {1, 128, 1, 1}, {128, 1, 1, 1},
 };
 
@@ -87,7 +84,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Tile, VPUXTileLayerTest_VPU3700,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapes),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          VPUXTileLayerTest_VPU3700::getTestCaseName);
 
 const auto tileParamsVPUX = ::testing::Combine(
@@ -96,7 +93,7 @@ const auto tileParamsVPUX = ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(std::vector<std::vector<size_t>>({{1, 4, 3, 2}, {4, 3, 2, 1}, {4, 3, 2, 5}})),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 const auto tileParamsPrecommitVPUX = ::testing::Combine(
         ::testing::ValuesIn(std::vector<std::vector<int64_t>>({{2, 3, 1}})), ::testing::ValuesIn(netPrecisions),
@@ -104,7 +101,7 @@ const auto tileParamsPrecommitVPUX = ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(std::vector<std::vector<size_t>>({{3, 4, 2}})),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 // VPU3720
 
@@ -126,7 +123,7 @@ INSTANTIATE_TEST_SUITE_P(
                            ::testing::Values(InferenceEngine::Layout::ANY),
                            ::testing::Values(InferenceEngine::Layout::ANY),
                            ::testing::ValuesIn(std::vector<std::vector<size_t>>({{1, 1, 2880, 50}})),  // input_shape
-                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
         VPUXTileLayerTest_VPU3720_HW::getTestCaseName);
 
 // [Tracking number E#78540]
@@ -139,7 +136,7 @@ INSTANTIATE_TEST_SUITE_P(
                            ::testing::Values(InferenceEngine::Layout::ANY),
                            ::testing::Values(InferenceEngine::Layout::ANY),
                            ::testing::ValuesIn(std::vector<std::vector<size_t>>({{3, 2, 723, 25}})),  // input_shape
-                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
         VPUXTileLayerTest_VPU3720_HW::getTestCaseName);
 
 // case 3: repeats values may be 1
@@ -151,7 +148,7 @@ INSTANTIATE_TEST_SUITE_P(
                            ::testing::Values(InferenceEngine::Layout::ANY),
                            ::testing::Values(InferenceEngine::Layout::ANY),
                            ::testing::ValuesIn(std::vector<std::vector<size_t>>({{2, 3, 360, 50}})),  // input_shape
-                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
         VPUXTileLayerTest_VPU3720_HW::getTestCaseName);
 
 // model case: tensor<1x32x1x1xf16> -> tensor<1x32x1x65536xf16> , NHWC
@@ -164,7 +161,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Layout::NHWC),
                 ::testing::Values(InferenceEngine::Layout::NHWC),
                 ::testing::ValuesIn(std::vector<std::vector<size_t>>({{1, 32, 1, 1}})),  // input_shape
-                ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
         VPUXTileLayerTest_VPU3720_HW::getTestCaseName);
 
 }  // namespace

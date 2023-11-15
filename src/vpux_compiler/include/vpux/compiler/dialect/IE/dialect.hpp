@@ -17,4 +17,4 @@
 // Generated
 //
 
-#include <vpux/compiler/dialect/IE/generated/dialect.hpp.inc>
+#include <vpux/compiler/dialect/IE/dialect.hpp.inc>

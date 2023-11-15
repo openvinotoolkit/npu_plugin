@@ -62,7 +62,7 @@ void computeBasePtrs(VPUIP::StorageElementTableOp seTableOp, VPUIP::DistributedB
                      const Logger& log) {
     log.trace("Computing base pointers for '{0}' at '{1}'", seTableOp->getName(), seTableOp->getLoc());
 
-    if (seTableOp.basePtrs().hasValue()) {
+    if (seTableOp.basePtrs().has_value()) {
         log.nest().trace("Operation already has base pointers computed. Skipping");
         return;
     }

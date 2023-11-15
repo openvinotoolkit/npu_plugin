@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022 Intel Corporation.
 # SPDX-License-Identifier: Apache 2.0
 #
 
@@ -15,5 +15,5 @@ add_tool_target(
         IE::inference_engine IE::inference_engine_plugin_api IE::ngraph
         opencv_core opencv_imgproc opencv_imgcodecs
         gflags
-        vpux_utils
+        npu_utils
 )

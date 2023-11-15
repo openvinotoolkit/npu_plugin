@@ -42,11 +42,11 @@ void registerEMUPipelines();
 //
 
 #define GEN_PASS_CLASSES
-#include <vpux/compiler/dialect/EMU/generated/passes.hpp.inc>
+#include <vpux/compiler/dialect/EMU/passes.hpp.inc>
 #undef GEN_PASS_CLASSES
 
 #define GEN_PASS_REGISTRATION
-#include <vpux/compiler/dialect/EMU/generated/passes.hpp.inc>
+#include <vpux/compiler/dialect/EMU/passes.hpp.inc>
 #undef GEN_PASS_REGISTRATION
 
 }  // namespace EMU

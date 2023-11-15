@@ -46,7 +46,7 @@ mlir::LogicalResult vpux::IE::PermuteQuantizeOp::inferReturnTypeComponents(
     const auto outMemShape = applyPerm(inMemShape, memPerm);
     const auto outShape = outOrder.toLogicalOrder(outMemShape);
 
-    const auto outDesc = IE::getTensorAttr(dstOrder, nullptr);
+    const auto outDesc = vpux::getTensorAttr(dstOrder, nullptr);
 
     inferredReturnShapes.emplace_back(outShape.raw(), dstElemType, outDesc);
 

@@ -35,41 +35,41 @@ public:
                                                   vpux::NDTypeInterface outputType, mlir::ArrayAttr kernelStrides,
                                                   Logger log = Logger::global());
 
-    static mlir::LogicalResult verifyPipeliningCMX(VPU::ConvolutionOp origOp, vpux::OutputTiling tiling,
+    static mlir::LogicalResult verifyPipeliningCMX(VPU::ConvolutionOp origOp, const vpux::OutputTiling& tiling,
                                                    Logger log = Logger::global());
-    static mlir::LogicalResult verifyPipeliningCMX(VPU::MaxPoolOp origOp, vpux::OutputTiling tiling,
+    static mlir::LogicalResult verifyPipeliningCMX(VPU::MaxPoolOp origOp, const vpux::OutputTiling& tiling,
                                                    Logger log = Logger::global());
-    static mlir::LogicalResult verifyPipeliningCMX(VPU::GroupConvolutionOp origOp, vpux::OutputTiling tiling,
-                                                   Logger log = Logger::global());
-
-    static mlir::LogicalResult verifyPipeliningCMX(VPU::NCEConvolutionOp origOp, vpux::OutputTiling tiling,
-                                                   Logger log = Logger::global());
-    static mlir::LogicalResult verifyPipeliningCMX(VPU::NCEInterpolateOp origOp, vpux::OutputTiling tiling,
-                                                   Logger log = Logger::global());
-    static mlir::LogicalResult verifyPipeliningCMX(VPU::NCECompressConvolutionOp origOp, vpux::OutputTiling tiling,
-                                                   Logger log = Logger::global());
-    static mlir::LogicalResult verifyPipeliningCMX(VPU::NCEMaxPoolOp origOp, vpux::OutputTiling tiling,
-                                                   Logger log = Logger::global());
-    static mlir::LogicalResult verifyPipeliningCMX(VPU::NCEAveragePoolOp origOp, vpux::OutputTiling tiling,
-                                                   Logger log = Logger::global());
-    static mlir::LogicalResult verifyPipeliningCMX(VPU::NCEDepthConvolutionOp origOp, vpux::OutputTiling tiling,
+    static mlir::LogicalResult verifyPipeliningCMX(VPU::GroupConvolutionOp origOp, const vpux::OutputTiling& tiling,
                                                    Logger log = Logger::global());
 
-    static mlir::LogicalResult verifyPipeliningCMX(VPU::AddOp origOp, vpux::OutputTiling tiling,
+    static mlir::LogicalResult verifyPipeliningCMX(VPU::NCEConvolutionOp origOp, const vpux::OutputTiling& tiling,
                                                    Logger log = Logger::global());
-    static mlir::LogicalResult verifyPipeliningCMX(VPU::MultiplyOp origOp, vpux::OutputTiling tiling,
+    static mlir::LogicalResult verifyPipeliningCMX(VPU::NCEInterpolateOp origOp, const vpux::OutputTiling& tiling,
                                                    Logger log = Logger::global());
-    static mlir::LogicalResult verifyPipeliningCMX(VPU::SubtractOp origOp, vpux::OutputTiling tiling,
+    static mlir::LogicalResult verifyPipeliningCMX(VPU::NCECompressConvolutionOp origOp,
+                                                   const vpux::OutputTiling& tiling, Logger log = Logger::global());
+    static mlir::LogicalResult verifyPipeliningCMX(VPU::NCEMaxPoolOp origOp, const vpux::OutputTiling& tiling,
                                                    Logger log = Logger::global());
-    static mlir::LogicalResult verifyPipeliningCMX(VPU::AndOp origOp, vpux::OutputTiling tiling,
+    static mlir::LogicalResult verifyPipeliningCMX(VPU::NCEAveragePoolOp origOp, const vpux::OutputTiling& tiling,
                                                    Logger log = Logger::global());
-    static mlir::LogicalResult verifyPipeliningCMX(VPU::NCEEltwiseOp origOp, vpux::OutputTiling tiling,
+    static mlir::LogicalResult verifyPipeliningCMX(VPU::NCEDepthConvolutionOp origOp, const vpux::OutputTiling& tiling,
                                                    Logger log = Logger::global());
-    static mlir::LogicalResult verifyEltwisePipeliningCMX(mlir::Operation* op, vpux::OutputTiling tiling,
+
+    static mlir::LogicalResult verifyPipeliningCMX(VPU::AddOp origOp, const vpux::OutputTiling& tiling,
+                                                   Logger log = Logger::global());
+    static mlir::LogicalResult verifyPipeliningCMX(VPU::MultiplyOp origOp, const vpux::OutputTiling& tiling,
+                                                   Logger log = Logger::global());
+    static mlir::LogicalResult verifyPipeliningCMX(VPU::SubtractOp origOp, const vpux::OutputTiling& tiling,
+                                                   Logger log = Logger::global());
+    static mlir::LogicalResult verifyPipeliningCMX(VPU::AndOp origOp, const vpux::OutputTiling& tiling,
+                                                   Logger log = Logger::global());
+    static mlir::LogicalResult verifyPipeliningCMX(VPU::NCEEltwiseOp origOp, const vpux::OutputTiling& tiling,
+                                                   Logger log = Logger::global());
+    static mlir::LogicalResult verifyEltwisePipeliningCMX(mlir::Operation* op, const vpux::OutputTiling& tiling,
                                                           Logger log = Logger::global());
 
-    static mlir::LogicalResult verifyPrefetchCMX(mlir::Operation* op, vpux::OutputTiling tiling,
-                                                 mlir::Operation* parentOp, vpux::OutputTiling parentTiling,
+    static mlir::LogicalResult verifyPrefetchCMX(mlir::Operation* op, const vpux::OutputTiling& tiling,
+                                                 mlir::Operation* parentOp, const vpux::OutputTiling& parentTiling,
                                                  Logger log);
 
 public:
@@ -97,6 +97,7 @@ public:
     static mlir::LogicalResult verifyChannels(IE::GroupConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyChannels(VPU::NCEDepthConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyChannels(VPU::NCEPermuteQuantizeOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyChannels(VPU::NCEPermuteOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyGroupConvChannels(mlir::Location loc, vpux::NDTypeInterface inputType,
                                                        vpux::NDTypeInterface filterType, Logger log = Logger::global());
 
@@ -125,6 +126,7 @@ public:
     static mlir::LogicalResult verifyKernel(IE::GroupConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyKernel(VPU::NCEDepthConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyKernel(VPU::NCEPermuteQuantizeOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyKernel(VPU::NCEPermuteOp origOp, Logger log = Logger::global());
 
     static mlir::LogicalResult verifyKernel(mlir::Location loc, int64_t KY, int64_t KX, int64_t SY, int64_t SX,
                                             int64_t padTop, int64_t padBottom, int64_t padLeft, int64_t padRight,

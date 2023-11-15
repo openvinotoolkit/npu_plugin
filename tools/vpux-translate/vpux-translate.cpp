@@ -3,15 +3,16 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/ELF/export.hpp"
 #include "vpux/compiler/dialect/ELF/import.hpp"
 #include "vpux/compiler/dialect/EMU/graph-schema/export.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/export.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/import.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
 #include "vpux/compiler/init.hpp"
+#include "vpux/compiler/interfaces_registry.hpp"
+#include "vpux/compiler/tools/options.hpp"
 #include "vpux/hwtest/hwtest.hpp"
 
 #include "vpux/utils/core/format.hpp"
@@ -31,6 +32,7 @@
 #include <mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h>
 #include <mlir/Target/LLVMIR/Export.h>
 
+#include <llvm/Support/SourceMgr.h>
 #include <llvm/Support/TargetSelect.h>
 
 #include <mlir/IR/Dialect.h>
@@ -38,15 +40,11 @@
 #include <mlir/Tools/mlir-translate/MlirTranslateMain.h>
 #include <mlir/Tools/mlir-translate/Translation.h>
 
-#include <llvm/Support/SourceMgr.h>
-
-#include <cpp/ie_cnn_network.h>
-#include <ie_core.hpp>
-
-#include <fstream>
-#include <iostream>
+#include <openvino/runtime/core.hpp>
 
 #include <cstdlib>
+#include <fstream>
+#include <iostream>
 
 using namespace vpux;
 
@@ -64,10 +62,6 @@ llvm::cl::opt<bool> enableDummyOpReplacement{"dummy-op-replacement",
 //
 
 mlir::OwningOpRef<mlir::ModuleOp> importIE(llvm::SourceMgr& sourceMgr, mlir::MLIRContext* ctx) {
-    mlir::DialectRegistry registry;
-    registerDialects(registry);
-    ctx->appendDialectRegistry(registry);
-
     if (sourceMgr.getNumBuffers() != 1) {
         printTo(llvm::errs(),
                 "Invalid source file for IE IR, it has unsupported number of "
@@ -82,13 +76,13 @@ mlir::OwningOpRef<mlir::ModuleOp> importIE(llvm::SourceMgr& sourceMgr, mlir::MLI
         return nullptr;
     }
 
-    InferenceEngine::Core ieCore;
-    InferenceEngine::CNNNetwork cnnNet;
+    ov::Core core;
+    std::shared_ptr<ov::Model> model;
 
     try {
-        cnnNet = ieCore.ReadNetwork(netFileName.str());
+        model = core.read_model(netFileName.str());
     } catch (const std::exception& ex) {
-        printTo(llvm::errs(), "Failed to open IE IR {0} : {1}", netFileName, ex.what());
+        printTo(llvm::errs(), "Failed to read model {0} : {1}", netFileName, ex.what());
         return nullptr;
     }
 
@@ -97,11 +91,10 @@ mlir::OwningOpRef<mlir::ModuleOp> importIE(llvm::SourceMgr& sourceMgr, mlir::MLI
     try {
         mlir::DefaultTimingManager tm;
         auto rootTiming = tm.getRootScope();
-        std::vector<vpux::PreProcessInfo> preProcInfo;
         // For VPUX37XX the ngraph transformations are different compared to the rest of the platforms
         // because scales do not need to be aligned. Running with VPU::ArchKind::UNKNOWN will align scales, which can
         // result in an accuracy drop for VPUX37XX.
-        module = IE::importNetwork(ctx, cnnNet, preProcInfo, false, rootTiming, vpuxProfiling, enableDummyOpReplacement,
+        module = IE::importNetwork(ctx, model, false, rootTiming, vpuxProfiling, enableDummyOpReplacement,
                                    VPU::ArchKind::UNKNOWN);
     } catch (const std::exception& ex) {
         printTo(llvm::errs(), "Failed to translate IE IR {0} to MLIR : {1}", netFileName, ex.what());
@@ -116,10 +109,6 @@ mlir::OwningOpRef<mlir::ModuleOp> importIE(llvm::SourceMgr& sourceMgr, mlir::MLI
 //
 
 mlir::OwningOpRef<mlir::ModuleOp> importVPUIP(llvm::SourceMgr& sourceMgr, mlir::MLIRContext* ctx) {
-    mlir::DialectRegistry registry;
-    registerDialects(registry);
-    ctx->appendDialectRegistry(registry);
-
     if (sourceMgr.getNumBuffers() != 1) {
         printTo(llvm::errs(),
                 "Invalid source file for blob, it has unsupported number of "
@@ -153,10 +142,6 @@ mlir::OwningOpRef<mlir::ModuleOp> importVPUIP(llvm::SourceMgr& sourceMgr, mlir::
 //
 
 mlir::OwningOpRef<mlir::ModuleOp> importELF(llvm::SourceMgr& sourceMgr, mlir::MLIRContext* ctx) {
-    mlir::DialectRegistry registry;
-    registerDialects(registry);
-    ctx->appendDialectRegistry(registry);
-
     if (sourceMgr.getNumBuffers() != 1) {
         printTo(llvm::errs(),
                 "Invalid source file for elf, it has unsupported number of "
@@ -192,16 +177,23 @@ mlir::LogicalResult exportVPUIP(mlir::ModuleOp module, llvm::raw_ostream& output
     auto rootTiming = tm.getRootScope();
     const std::vector<std::shared_ptr<const ov::Node>> params;
     const std::vector<std::shared_ptr<const ov::Node>> results;
-    std::vector<vpux::PreProcessInfo> preProcInfo;
-    const auto buf = VPUIP::exportToBlob(module, rootTiming, preProcInfo, params, results);
+    const auto buf = VPUIP::exportToBlob(module, rootTiming, params, results);
     output.write(reinterpret_cast<const char*>(buf.data()), buf.size());
     return mlir::success();
 }
 
 mlir::LogicalResult exportELF(mlir::ModuleOp module, llvm::raw_ostream& output, StringRef /*outputFileName*/) {
     mlir::DefaultTimingManager tm;
-    const auto buf = ELF::exportToELF(module);
-    output.write(reinterpret_cast<const char*>(buf.data()), buf.size());
+
+    auto arch = VPU::getArch(module.getOperation());
+
+    if (arch == VPU::ArchKind::VPUX37XX) {
+        const auto buf = ELF::exportToELF(module);
+        output.write(reinterpret_cast<const char*>(buf.data()), buf.size());
+    } else {
+        VPUX_THROW("ELF Flow not supported for ARCH {0}", VPU::stringifyArchKind(arch));
+    }
+
     return mlir::success();
 }
 
@@ -258,8 +250,7 @@ mlir::LogicalResult exportEMU(mlir::ModuleOp module, llvm::raw_ostream& output, 
     auto rootTiming = tm.getRootScope();
     const std::vector<std::shared_ptr<const ov::Node>> params;
     const std::vector<std::shared_ptr<const ov::Node>> results;
-    std::vector<vpux::PreProcessInfo> preProcInfo;
-    const auto buf = EMU::exportToBlob(module, rootTiming, preProcInfo, params, results);
+    const auto buf = EMU::exportToBlob(module, rootTiming, params, results);
     output.write(reinterpret_cast<const char*>(buf.data()), buf.size());
     return mlir::success();
 }
@@ -268,16 +259,28 @@ mlir::LogicalResult exportEMU(mlir::ModuleOp module, llvm::raw_ostream& output, 
 
 int main(int argc, char* argv[]) {
     try {
-        mlir::TranslateToMLIRRegistration("import-IE", importIE);
-        mlir::TranslateToMLIRRegistration("import-HWTEST", importHWTEST);
-        mlir::TranslateToMLIRRegistration("import-VPUIP", importVPUIP);
-        mlir::TranslateToMLIRRegistration("import-ELF", importELF);
-        mlir::TranslateFromMLIRRegistration("export-VPUIP", exportVPUIP, registerDialects);
-        mlir::TranslateFromMLIRRegistration("export-ELF", exportELF, registerDialects);
-        mlir::TranslateFromMLIRRegistration("export-EMU", exportEMU, registerDialects);
-        mlir::TranslateFromMLIRRegistration("export-LLVMIR", exportLLVMIR, registerDialects);
+        // TODO(E#84874):
+        // currently, arch is used for both import and export
+        // however, it would be a better option to extract arch info from module for the export
+        const auto arch = vpux::parseArchKind(argc, argv);
+        auto dialectRegistration = [&](mlir::DialectRegistry& registry) {
+            registerDialects(registry);
+            vpux::registerCommonInterfaces(registry, /*enableDummyOp*/ true);
 
-        return mlir::asMainReturnCode(mlir::mlirTranslateMain(argc, argv, "VPUX Translation Testing Tool"));
+            auto interfacesRegistry = vpux::createInterfacesRegistry(arch);
+            interfacesRegistry->registerInterfaces(registry);
+        };
+        mlir::TranslateToMLIRRegistration("import-IE", importIE, dialectRegistration);
+        mlir::TranslateToMLIRRegistration("import-HWTEST", importHWTEST, dialectRegistration);
+        mlir::TranslateToMLIRRegistration("import-VPUIP", importVPUIP, dialectRegistration);
+        mlir::TranslateToMLIRRegistration("import-ELF", importELF, dialectRegistration);
+
+        mlir::TranslateFromMLIRRegistration("export-VPUIP", exportVPUIP, dialectRegistration);
+        mlir::TranslateFromMLIRRegistration("export-ELF", exportELF, dialectRegistration);
+        mlir::TranslateFromMLIRRegistration("export-EMU", exportEMU, dialectRegistration);
+        mlir::TranslateFromMLIRRegistration("export-LLVMIR", exportLLVMIR, dialectRegistration);
+
+        return mlir::asMainReturnCode(mlir::mlirTranslateMain(argc, argv, "NPU Translation Testing Tool"));
     } catch (const std::exception& e) {
         std::cerr << e.what() << std::endl;
         return EXIT_FAILURE;

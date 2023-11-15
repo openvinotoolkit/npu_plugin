@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <condition_variable>
 #include <fstream>
 #include "common/functions.h"
@@ -110,7 +108,7 @@ TEST_P(KmbClusterTestWithParams, precommit_checkInferTime) {
                                             .setUserOutputPrecision("PostProcess/stage0/x4/Sigmoid", Precision::FP16)
                                             .setUserOutputPrecision("PostProcess/stage1/x1/Sigmoid", Precision::FP16)
                                             .setUserOutputPrecision("PostProcess/stage1/x4/Sigmoid", Precision::FP16)
-                                            .setCompileConfig({{"VPU_COMPILER_NUM_CLUSTER", clusters}}),
+                                            .setCompileConfig({{"NPU_DPU_GROUPS", clusters}}),
                                     netName);
 
         std::cout << "Number of clusters: " << clusters << std::endl;

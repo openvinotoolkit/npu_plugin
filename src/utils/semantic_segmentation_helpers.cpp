@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "semantic_segmentation_helpers.hpp"
 
 #include "vpux/utils/IE/blob.hpp"

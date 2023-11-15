@@ -9,7 +9,7 @@
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 
 void vpux::ELF::PutOpInSectionOp::serialize(elf::writer::BinaryDataSection<uint8_t>& binDataSection) {
-    auto inputArgDefOp = inputArg().getDefiningOp();
+    auto inputArgDefOp = getInputArg().getDefiningOp();
 
     if (llvm::dyn_cast<vpux::VPURT::DeclareBufferOp>(inputArgDefOp) != nullptr) {
         return;
@@ -24,11 +24,11 @@ void vpux::ELF::PutOpInSectionOp::serialize(elf::writer::BinaryDataSection<uint8
 }
 
 size_t vpux::ELF::PutOpInSectionOp::getBinarySize() {
-    auto inputArgDefOp = inputArg().getDefiningOp();
+    auto inputArgDefOp = getInputArg().getDefiningOp();
 
     if (llvm::dyn_cast<vpux::VPURT::DeclareBufferOp>(inputArgDefOp) != nullptr) {
         // VPURT::DeclareBufferOp is a simple logical operation with no data to serialize.
-        auto ndTypeInterface = inputArg().getType().cast<vpux::NDTypeInterface>();
+        auto ndTypeInterface = getInputArg().getType().cast<vpux::NDTypeInterface>();
         return ndTypeInterface.getTotalAllocSize().count();
     }
 
@@ -41,7 +41,7 @@ size_t vpux::ELF::PutOpInSectionOp::getBinarySize() {
 }
 
 vpux::VPURT::BufferSection vpux::ELF::PutOpInSectionOp::getMemorySpace() {
-    mlir::Value op = inputArg();
+    mlir::Value op = getInputArg();
 
     vpux::ELF::BinaryOpInterface binaryOp = mlir::dyn_cast<vpux::ELF::BinaryOpInterface>(op.getDefiningOp());
     VPUX_THROW_UNLESS(binaryOp != nullptr,
@@ -51,7 +51,7 @@ vpux::VPURT::BufferSection vpux::ELF::PutOpInSectionOp::getMemorySpace() {
 }
 
 vpux::ELF::SectionFlagsAttr vpux::ELF::PutOpInSectionOp::getAccessingProcs() {
-    auto inputArgDefOp = inputArg().getDefiningOp();
+    auto inputArgDefOp = getInputArg().getDefiningOp();
     auto binaryIface = llvm::dyn_cast_or_null<vpux::ELF::BinaryOpInterface>(inputArgDefOp);
 
     // TODO: Add VPUX_THROW_UNLESS if the op does not implement the BinaryOpInterface once relevant VPURT ops are

@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/passes.hpp"
 #include "vpux/compiler/init.hpp"
 #include "vpux/compiler/utils/dot_printer.hpp"
+
+#include "common/utils.hpp"
 
 #include <mlir/IR/MLIRContext.h>
 #include <mlir/Parser/Parser.h>
@@ -61,10 +61,9 @@ void CheckDotFile(const std::string fileName) {
 }
 
 }  // namespace
+using MLIR_DotGraph = MLIR_UnitBase;
 
-TEST(MLIR_DotGraph, GenerateViaPass) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
+TEST_F(MLIR_DotGraph, GenerateViaPass) {
     mlir::MLIRContext ctx(registry);
 
     const std::string fileName = "output.dot";
@@ -81,9 +80,7 @@ TEST(MLIR_DotGraph, GenerateViaPass) {
     CheckDotFile(fileName);
 }
 
-TEST(MLIR_DotGraph, GenerateViaEnvVar) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
+TEST_F(MLIR_DotGraph, GenerateViaEnvVar) {
     mlir::MLIRContext ctx(registry);
 
     const std::string fileName = "output.dot";

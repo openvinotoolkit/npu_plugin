@@ -55,9 +55,10 @@ Event::~Event() {
 }
 
 CommandList::CommandList(const ze_device_handle_t& device_handle, const ze_context_handle_t& context,
-                         ze_graph_dditable_ext_t* graph_ddi_table_ext, const Config& config)
+                         ze_graph_dditable_ext_t* graph_ddi_table_ext, const Config& config,
+                         const uint32_t& group_ordinal)
         : _context(context), _graph_ddi_table_ext(graph_ddi_table_ext), _log("CommandList", config.get<LOG_LEVEL>()) {
-    ze_command_list_desc_t desc = {ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, nullptr, 0, 0};
+    ze_command_list_desc_t desc = {ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, nullptr, group_ordinal, 0};
     zeroUtils::throwOnFail("zeCommandListCreate", zeCommandListCreate(_context, device_handle, &desc, &_handle));
 }
 void CommandList::reset() const {
@@ -91,9 +92,10 @@ CommandList::~CommandList() {
 }
 
 CommandQueue::CommandQueue(const ze_device_handle_t& device_handle, const ze_context_handle_t& context,
-                           const ze_command_queue_priority_t& priority, const Config& config)
+                           const ze_command_queue_priority_t& priority, const Config& config,
+                           const uint32_t& group_ordinal)
         : _context(context), _log("CommandQueue", config.get<LOG_LEVEL>()) {
-    ze_command_queue_desc_t queue_desc = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr, 0, 0, 0,
+    ze_command_queue_desc_t queue_desc = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr, group_ordinal, 0, 0,
                                           ZE_COMMAND_QUEUE_MODE_DEFAULT,        priority};
     zeroUtils::throwOnFail("zeCommandQueueCreate",
                            zeCommandQueueCreate(_context, device_handle, &queue_desc, &_handle));

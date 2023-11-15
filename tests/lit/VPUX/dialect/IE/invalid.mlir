@@ -165,7 +165,7 @@ func.func private @extra(%arg0: tensor<16xf32, {order = affine_map<(d0, d1) -> (
 // CHECK-LABEL: @PerTensorQuant
 func.func @PerTensorQuant(%arg0: tensor<1x2x3x4x!qElemType0>, %arg1: tensor<1x2x3x4x!qElemType1>) -> tensor<1x4x3x4x!qElemType0> {
     // expected-error@+1 {{Misaligned element types}}
-    %0 = IE.Concat(%arg0, %arg1) { per_axis = {axis = 1} } : tensor<1x2x3x4x!qElemType0>, tensor<1x2x3x4x!qElemType1> -> tensor<1x4x3x4x!qElemType0>
+    %0 = IE.Concat(%arg0, %arg1) {per_axis = #IE.Concat<axis = 1>} : tensor<1x2x3x4x!qElemType0>, tensor<1x2x3x4x!qElemType1> -> tensor<1x4x3x4x!qElemType0>
     return %0 : tensor<1x4x3x4x!qElemType0>
 }
 
@@ -177,7 +177,7 @@ func.func @PerTensorQuant(%arg0: tensor<1x2x3x4x!qElemType0>, %arg1: tensor<1x2x
 // CHECK-LABEL: @PerAxisQuantOtherAxis
 func.func @PerAxisQuantOtherAxis(%arg0: tensor<1x2x3x4x!qElemType0>, %arg1: tensor<1x2x3x4x!qElemType1>) -> tensor<1x2x6x4x!qElemType0> {
     // expected-error@+1 {{Misaligned element types}}
-    %0 = IE.Concat(%arg0, %arg1) { per_axis = {axis = 2} } : tensor<1x2x3x4x!qElemType0>, tensor<1x2x3x4x!qElemType1> -> tensor<1x2x6x4x!qElemType0>
+    %0 = IE.Concat(%arg0, %arg1) {per_axis = #IE.Concat<axis = 2>} : tensor<1x2x3x4x!qElemType0>, tensor<1x2x3x4x!qElemType1> -> tensor<1x2x6x4x!qElemType0>
     return %0 : tensor<1x2x6x4x!qElemType0>
 }
 
@@ -190,6 +190,6 @@ func.func @PerAxisQuantOtherAxis(%arg0: tensor<1x2x3x4x!qElemType0>, %arg1: tens
 // CHECK-LABEL: @PerAxisQuantSameAxis
 func.func @PerAxisQuantSameAxis(%arg0: tensor<1x2x3x4x!qElemType0>, %arg1: tensor<1x2x3x4x!qElemType1>) -> tensor<1x4x3x4x!qElemType2> {
     // expected-error@+1 {{Misaligned element types}}
-    %0 = IE.Concat(%arg0, %arg1) { per_axis = {axis = 1} } : tensor<1x2x3x4x!qElemType0>, tensor<1x2x3x4x!qElemType1> -> tensor<1x4x3x4x!qElemType2>
+    %0 = IE.Concat(%arg0, %arg1) {per_axis = #IE.Concat<axis = 1>} : tensor<1x2x3x4x!qElemType0>, tensor<1x2x3x4x!qElemType1> -> tensor<1x4x3x4x!qElemType2>
     return %0 : tensor<1x4x3x4x!qElemType2>
 }

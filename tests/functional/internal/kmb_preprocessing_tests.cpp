@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #if defined(__aarch64__)
 
 #include <fcntl.h>
@@ -81,7 +79,7 @@ TEST_F(VpuPreprocessingStressTests, DISABLED_twoNetworksHDImage1000Iterations) {
     std::cout << "Input info is OK\n";
 
     std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
-            buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
+            buildAllocator(std::getenv("IE_NPU_KMB_MEMORY_ALLOCATOR_TYPE"));
 
     InferenceEngine::InferRequest::Ptr network1InferReqPtr;
     network1InferReqPtr = network1.CreateInferRequestPtr();
@@ -192,7 +190,7 @@ TEST_F(VpuPreprocessingStressTests, DISABLED_twoNetworksStressTest) {
     std::cout << "Input info is OK\n";
 
     std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
-            buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
+            buildAllocator(std::getenv("IE_NPU_KMB_MEMORY_ALLOCATOR_TYPE"));
 
     InferenceEngine::InferRequest::Ptr network1InferReqPtr;
     network1InferReqPtr = network1.CreateInferRequestPtr();
@@ -320,7 +318,7 @@ TEST_F(VpuPreprocessingStressTests, DISABLED_detectClassify4Threads) {
     InferenceEngine::ExecutableNetwork classificationNetwork = ie.ImportNetwork(classifyNetworkPath, DEVICE_NAME, {});
 
     std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
-            buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
+            buildAllocator(std::getenv("IE_NPU_KMB_MEMORY_ALLOCATOR_TYPE"));
 
     std::vector<InferenceEngine::InferRequest::Ptr> detectionRequests;
     std::vector<InferenceEngine::InferRequest::Ptr> classificationRequests;
@@ -332,7 +330,7 @@ TEST_F(VpuPreprocessingStressTests, DISABLED_detectClassify4Threads) {
     const size_t maxParallelRequests = 4;
 
     std::condition_variable condVar;
-    const char* iterCountStr = std::getenv("IE_VPU_KMB_STRESS_TEST_ITER_COUNT");
+    const char* iterCountStr = std::getenv("IE_NPU_KMB_STRESS_TEST_ITER_COUNT");
     const size_t iterationCount = (iterCountStr != nullptr) ? std::atoi(iterCountStr) : 10;
     std::vector<size_t> iterationVec(maxParallelRequests, 0);
 

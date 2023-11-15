@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "parse_layers_helpers.hpp"
 
 #include <cmath>

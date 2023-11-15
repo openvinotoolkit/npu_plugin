@@ -24,7 +24,7 @@ struct MV_TOOLS_PATH final : OptionBase<MV_TOOLS_PATH, std::string> {
     }
 
     static StringRef envVar() {
-        return "IE_VPUX_MV_TOOLS_PATH";
+        return "IE_NPU_MV_TOOLS_PATH";
     }
 
     static bool isPublic() {
@@ -50,7 +50,7 @@ struct LAUNCH_MODE final : OptionBase<LAUNCH_MODE, LaunchMode> {
     }
 
     static StringRef envVar() {
-        return "IE_VPUX_IMD_LAUNCH_MODE";
+        return "IE_NPU_IMD_LAUNCH_MODE";
     }
 
     static LaunchMode parse(StringRef val);

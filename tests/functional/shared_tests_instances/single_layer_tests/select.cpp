@@ -1,14 +1,15 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
+//
 
 #include "single_layer_tests/select.hpp"
 #include <vector>
 #include "common_test_utils/test_constants.hpp"
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
-class VPUXSelectLayerTest : public SelectLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXSelectLayerTest : public SelectLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void SetUp() override {
         std::vector<std::vector<size_t>> inputShapes(3);
         InferenceEngine::Precision inputPrecision;
@@ -62,9 +63,9 @@ const std::vector<std::vector<std::vector<size_t>>> shapes = {
         {{3, 4, 5}, {3, 4, 5}, {3, 4, 5}},
 };
 
-const auto selectTestParams = ::testing::Combine(::testing::ValuesIn(shapes), ::testing::ValuesIn(inputPrecision),
-                                                 ::testing::Values(ov::op::AutoBroadcastType::NONE),
-                                                 ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+const auto selectTestParams0 = ::testing::Combine(::testing::ValuesIn(shapes), ::testing::ValuesIn(inputPrecision),
+                                                  ::testing::Values(ov::op::AutoBroadcastType::NONE),
+                                                  ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 const std::vector<std::vector<std::vector<size_t>>> shapesHighDims = {
         {{2, 3, 4, 5}, {2, 3, 4, 5}, {2, 3, 4, 5}},
@@ -74,24 +75,23 @@ const std::vector<std::vector<std::vector<size_t>>> shapesHighDims = {
 const auto selectTestParams_highDims =
         ::testing::Combine(::testing::ValuesIn(shapesHighDims), ::testing::ValuesIn(inputPrecision),
                            ::testing::Values(ov::op::AutoBroadcastType::NONE),
-                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_CASE_P(smoke_select_common, VPUXSelectLayerTest_VPU3700, selectTestParams,
+INSTANTIATE_TEST_CASE_P(smoke_select_common, VPUXSelectLayerTest_VPU3700, selectTestParams0,
                         VPUXSelectLayerTest_VPU3700::getTestCaseName);
 
-// Blob generated from VPUIP_2 does not generate the expected result when the 4th dimension's is not 1
-// [Track number: E#26954]
+// Tracking number [E#85137]
 INSTANTIATE_TEST_CASE_P(DISABLED_smoke_select_highDims, VPUXSelectLayerTest_VPU3700, selectTestParams_highDims,
                         VPUXSelectLayerTest_VPU3700::getTestCaseName);
 
 const std::vector<std::vector<std::vector<size_t>>> inShapesVPU3720 = {{{10, 2, 1, 1}, {10, 2, 1, 1}, {1, 2, 1, 1}}};
 
-const auto selectTestParams_VPU3720 =
+const auto selectTestParams1 =
         ::testing::Combine(::testing::ValuesIn(inShapesVPU3720), ::testing::ValuesIn(inputPrecision),
                            ::testing::Values(ov::op::AutoBroadcastType::NUMPY),
-                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_CASE_P(smoke_Select_VPU3720, VPUXSelectLayerTest_VPU3720, selectTestParams_VPU3720,
+INSTANTIATE_TEST_CASE_P(smoke_Select_VPU3720, VPUXSelectLayerTest_VPU3720, selectTestParams1,
                         VPUXSelectLayerTest_VPU3720::getTestCaseName);
 
 }  // namespace

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <numeric>
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
@@ -124,8 +122,9 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     auto barrier1 = funcbuilder.create<VPURT::ConfigureBarrierOp>(loc, 1);
 
     // DMAs
-    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()),
-                                                loc, funcinput, inputcmx.getOperation()->getResult(0));
+    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(),
+                                                mlir::ValueRange(barrier0.getBarrier()), loc, funcinput,
+                                                inputcmx.getOperation()->getResult(0));
 
     // NCE Task
     auto filtersize = getIntArrayAttr(funcbuilder, filter_size);
@@ -134,7 +133,7 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
                                               padding_vec[PAD_NCETASK_TOP], padding_vec[PAD_NCETASK_BOTTOM]);
 
     auto nceTask = vpux::VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
-            funcbuilder, mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()), loc,
+            funcbuilder, mlir::ValueRange(barrier0.getBarrier()), mlir::ValueRange(barrier1.getBarrier()), loc,
             outputcmx_type, inputcmx.getOperation()->getResult(0), mlir::Value(), mlir::Value(),
             /*instruction_table_list*/ nullptr, mlir::Value(), parent_inputcmx.getOperation()->getResult(0),
             parent_outputcmx.getOperation()->getResult(0), outputcmx.getOperation()->getResult(0),
@@ -164,14 +163,15 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     // the hardware; this corresponds to CUBOID_16x16.
     createDPUTaskOp(funcbuilder, variantbuilder, out_shape, in_shape, padding_vec, VPU::MPEMode::CUBOID_16x16);
 
-    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(),
-                                                loc, outputcmx.getOperation()->getResult(0), funcoutput);
+    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.getBarrier()),
+                                                mlir::ValueRange(), loc, outputcmx.getOperation()->getResult(0),
+                                                funcoutput);
 
     funcbuilder.create<mlir::func::ReturnOp>(loc, funcoutput);
 
     // set runtime resources
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(arch, VPU::CompilationMode::DefaultHW, 1, None, None, log));
+    pm.addPass(VPU::createInitCompilerPass(arch, VPU::CompilationMode::DefaultHW, 1, None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 

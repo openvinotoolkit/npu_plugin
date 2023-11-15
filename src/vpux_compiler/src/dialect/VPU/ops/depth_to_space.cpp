@@ -5,12 +5,24 @@
 
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPU/utils/distributed_tensor_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/convert_to_dma_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
+
+bool isDistributedOutputTypeOverlapped(VPU::ClusteredOpInterface op, int64_t numClusters) {
+    auto resultType = op->getResult(0).getType().cast<vpux::NDTypeInterface>();
+    auto numClustersAttr = mlir::IntegerAttr::get(getInt64Type(op->getContext()), numClusters);
+    auto opStrategy = op.getMultiClusterStrategy().value();
+    auto outputDistributedType = getDistributedOutputTypeFromOp(op, resultType, numClustersAttr, opStrategy);
+    if (auto distributedTensor = outputDistributedType.dyn_cast<VPU::DistributedTensorType>()) {
+        return distributedTensor.getDistribution().getMode().getValue() == VPU::DistributionMode::OVERLAPPED;
+    }
+    return false;
+}
 
 bool isCompatibleWithMultiClusterNNDMA(VPU::DepthToSpaceOp op, vpux::ShapeRef nTilesOnDim) {
     if (op.mode() != IE::DepthToSpaceMode::BLOCKS_FIRST) {
@@ -33,8 +45,15 @@ bool isCompatibleWithMultiClusterNNDMA(VPU::DepthToSpaceOp op, vpux::ShapeRef nT
     if (prevOp == nullptr) {
         return false;
     }
-    auto prevOpStrategyAttr = prevOp.getMultiClusterStrategyAttr();
-    if (!prevOpStrategyAttr.hasValue() || prevOpStrategyAttr.getValue() != VPU::MultiClusterStrategy::SplitOverHeight) {
+    auto prevOpStrategyAttr = prevOp.getMultiClusterStrategy();
+    if (!prevOpStrategyAttr.has_value() || prevOpStrategyAttr.value() != VPU::MultiClusterStrategy::SplitOverHeight) {
+        return false;
+    }
+    auto module = prevOp->getParentOfType<mlir::ModuleOp>();
+    auto nceResOp = IE::getAvailableExecutor(module, VPU::ExecutorKind::NCE);
+    auto numClusters = nceResOp.count();
+
+    if (isDistributedOutputTypeOverlapped(prevOp, numClusters)) {
         return false;
     }
     // Check next ops
@@ -49,19 +68,21 @@ bool isCompatibleWithMultiClusterNNDMA(VPU::DepthToSpaceOp op, vpux::ShapeRef nT
         if (nceOp == nullptr) {
             return false;
         }
-        auto strategyAttr = nceOp.getMultiClusterStrategyAttr();
-        if (!strategyAttr.hasValue()) {
+
+        auto strategyAttr = nceOp.getMultiClusterStrategy();
+        if (!strategyAttr.has_value()) {
             return false;
         }
-        auto strategy = strategyAttr.getValue();
+        auto strategy = strategyAttr.value();
         if (strategy != VPU::MultiClusterStrategy::SplitOverHeight && strategy != VPU::MultiClusterStrategy::HKSwitch) {
             return false;
         }
+        if (isDistributedOutputTypeOverlapped(nceOp, numClusters)) {
+            return false;
+        }
     }
+
     // Only support SOH and when numTiles is smaller than numClusters
-    auto module = prevOp->getParentOfType<mlir::ModuleOp>();
-    auto nceResOp = IE::getAvailableExecutor(module, VPU::ExecutorKind::NCE);
-    auto numClusters = nceResOp.count();
     if (nTilesOnDim[Dims4D::Act::H] > numClusters) {
         return false;
     }
@@ -167,7 +188,7 @@ vpux::InputTiling vpux::VPU::DepthToSpaceOp::backInferTileInfo(const vpux::TileI
 void vpux::VPU::DepthToSpaceOp::adjustAttrs(const TilingInfo& /*inputTiling*/, const TileInfo& /*outputTile*/) {
 }
 
-OutputTiling vpux::VPU::DepthToSpaceOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
+mlir::FailureOr<OutputTiling> vpux::VPU::DepthToSpaceOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
     auto op = this->getOperation();
     auto origOp = mlir::dyn_cast<VPU::DepthToSpaceOp>(op);
     auto tilingInfo = mlir::dyn_cast<VPU::TilingInfoOpInterface>(op);
@@ -215,7 +236,10 @@ OutputTiling vpux::VPU::DepthToSpaceOp::getTilingStrategy(TilingMode tilingMode,
     const auto isSupportedTileSize = [op, &tilingInfo, outputShape, log](ShapeRef nTilesOnDim,
                                                                          TilingMode tilingMode) -> bool {
         const auto tiles = fillDividedTiles(op, nTilesOnDim, outputShape);
-        return tilingInfo.isSupportedTiling(tiles, tilingMode, log);
+        if (mlir::failed(tiles)) {
+            return false;
+        }
+        return tilingInfo.isSupportedTiling(tiles.value(), tilingMode, log);
     };
 
     int64_t maxTile = 1;
@@ -245,7 +269,7 @@ OutputTiling vpux::VPU::DepthToSpaceOp::getTilingStrategy(TilingMode tilingMode,
         }
     }
 
-    // No need to tile if d2s will be converted to MultiClusterNNDMA
+    // Explicit tiling not needed, op will be converted to multicluster DMA
     if (isCompatibleWithMultiClusterNNDMA(origOp, nTilesOnDimforDepthToSpace)) {
         nTilesOnDimforDepthToSpace = vpux::Shape(outputShape.size(), 1);
     }

@@ -25,8 +25,8 @@ module @DMAGraph {
 
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
-    %buf0 = VPURT.DeclareBuffer "CMX_NN" [0] <256> -> !dataType
-    %buf1 = VPURT.DeclareBuffer "CMX_NN" [0] <768> -> !dataType
+    %buf0 = VPURT.DeclareBuffer <CMX_NN> [0] <256> -> !dataType
+    %buf1 = VPURT.DeclareBuffer <CMX_NN> [0] <768> -> !dataType
 
     VPURT.Task updates(%bar0 : !VPURT.Barrier) attributes {cycleBegin = 1 : i64, cycleEnd = 10 : i64, isTrailingSWLayer = false} {
       %dma0 = VPUIP.NNDMA {port = 0 : i64} inputs(%arg0 : !dataType) outputs(%buf0 : !dataType) -> !dataType
@@ -46,18 +46,18 @@ module @DMAGraph {
 
 // CHECK:        profilingOutputsInfo
 // CHECK-NEXT:   DataInfo "dma" : tensor<6xui32>
-// CHECK:        func.func @main(%arg0: memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]>,
-// CHECK-SAME:       %arg1: memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]>,
+// CHECK:        func.func @main(%arg0: memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]>, 
+// CHECK-SAME:       %arg1: memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]>, 
 // CHECK-SAME:       %arg2: memref<6xui32>) ->
 // CHECK-SAME:       (memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]>,
 // CHECK-SAME:       memref<6xui32>) {
 // CHECK:    [[BAR0:%.+]] = VPURT.DeclareVirtualBarrier
-// CHECK:    [[BUF_DATA_0:%.+]] = VPURT.DeclareBuffer "CMX_NN" [0] <256> -> memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]>
-// CHECK:    [[BUF_DATA_1:%.+]] = VPURT.DeclareBuffer "CMX_NN" [0] <768> -> memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]>
+// CHECK:    [[BUF_DATA_0:%.+]] = VPURT.DeclareBuffer <CMX_NN> [0] <256> -> memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]>
+// CHECK:    [[BUF_DATA_1:%.+]] = VPURT.DeclareBuffer <CMX_NN> [0] <768> -> memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]>
 
 // Getting start time of a DMA task
-// CHECK:    [[REG_0:%.+]] = VPURT.DeclareBuffer "Register" <545390780> -> memref<1xui32, @Register>
-// CHECK:    [[PROF_BUF_0:%.+]] = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1xui32, [@CMX_NN, 0]>
+// CHECK:    [[REG_0:%.+]] = VPURT.DeclareBuffer <Register> <545390780> -> memref<1xui32, @Register>
+// CHECK:    [[PROF_BUF_0:%.+]] = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1xui32, [@CMX_NN, 0]>
 // CHECK:    VPURT.Task
 // CHECK-NEXT:    VPUIP.NNDMA {port = 0 : i64}
 // CHECK-SAME:        inputs([[REG_0]] :
@@ -70,16 +70,16 @@ module @DMAGraph {
 // CHECK-SAME:        outputs([[BUF_DATA_0]] :
 
 // Getting end time of a DMA task
-// CHECK:    [[REG_1:%.+]] = VPURT.DeclareBuffer "Register" <545390780> -> memref<1xui32, @Register>
-// CHECK:    [[PROF_BUF_1:%.+]] = VPURT.DeclareBuffer "CMX_NN" [0] <4> -> memref<1xui32, [@CMX_NN, 0]>
+// CHECK:    [[REG_1:%.+]] = VPURT.DeclareBuffer <Register> <545390780> -> memref<1xui32, @Register>
+// CHECK:    [[PROF_BUF_1:%.+]] = VPURT.DeclareBuffer <CMX_NN> [0] <4> -> memref<1xui32, [@CMX_NN, 0]>
 // CHECK:    VPURT.Task updates([[BAR0]]
 // CHECK-NEXT:    VPUIP.NNDMA {port = 0 : i64}
 // CHECK-SAME:        inputs([[REG_1]]
 // CHECK-SAME:        outputs([[PROF_BUF_1]]
 
 // Getting start time of a DMA task
-// CHECK:    [[REG_2:%.+]] = VPURT.DeclareBuffer "Register" <545390780> -> memref<1xui32, @Register>
-// CHECK:    [[PROF_BUF_2:%.+]] = VPURT.DeclareBuffer "CMX_NN" [0] <8> -> memref<1xui32, [@CMX_NN, 0]>
+// CHECK:    [[REG_2:%.+]] = VPURT.DeclareBuffer <Register> <545390780> -> memref<1xui32, @Register>
+// CHECK:    [[PROF_BUF_2:%.+]] = VPURT.DeclareBuffer <CMX_NN> [0] <8> -> memref<1xui32, [@CMX_NN, 0]>
 // CHECK:    VPURT.Task waits([[BAR0]]
 // CHECK-NEXT:    VPUIP.NNDMA {port = 0 : i64}
 // CHECK-SAME:        inputs([[REG_2]] :
@@ -92,16 +92,16 @@ module @DMAGraph {
 // CHECK-SAME:        outputs([[BUF_DATA_1]] :
 
 // Getting end time of a DMA task
-// CHECK:    [[REG_3:%.+]] = VPURT.DeclareBuffer "Register" <545390780> -> memref<1xui32, @Register>
-// CHECK:    [[PROF_BUF_3:%.+]] = VPURT.DeclareBuffer "CMX_NN" [0] <12> -> memref<1xui32, [@CMX_NN, 0]>
+// CHECK:    [[REG_3:%.+]] = VPURT.DeclareBuffer <Register> <545390780> -> memref<1xui32, @Register>
+// CHECK:    [[PROF_BUF_3:%.+]] = VPURT.DeclareBuffer <CMX_NN> [0] <12> -> memref<1xui32, [@CMX_NN, 0]>
 // CHECK:    VPURT.Task
 // CHECK-NEXT:    VPUIP.NNDMA {port = 0 : i64}
 // CHECK-SAME:        inputs([[REG_3]]
 // CHECK-SAME:        outputs([[PROF_BUF_3]]
 
 // Getting start time of a DMA task
-// CHECK:    [[REG_4:%.+]] = VPURT.DeclareBuffer "Register" <545390780> -> memref<1xui32, @Register>
-// CHECK:    [[PROF_BUF_4:%.+]] = VPURT.DeclareBuffer "CMX_NN" [0] <16> -> memref<1xui32, [@CMX_NN, 0]>
+// CHECK:    [[REG_4:%.+]] = VPURT.DeclareBuffer <Register> <545390780> -> memref<1xui32, @Register>
+// CHECK:    [[PROF_BUF_4:%.+]] = VPURT.DeclareBuffer <CMX_NN> [0] <16> -> memref<1xui32, [@CMX_NN, 0]>
 // CHECK:    VPURT.Task
 // CHECK-NEXT:    VPUIP.NNDMA {port = 0 : i64}
 // CHECK-SAME:        inputs([[REG_4]] :
@@ -114,16 +114,16 @@ module @DMAGraph {
 // CHECK-SAME:        outputs(%arg1 :
 
 // Getting end time of a DMA task
-// CHECK:    [[REG_5:%.+]] = VPURT.DeclareBuffer "Register" <545390780> -> memref<1xui32, @Register>
-// CHECK:    [[PROF_BUF_5:%.+]] = VPURT.DeclareBuffer "CMX_NN" [0] <20> -> memref<1xui32, [@CMX_NN, 0]>
+// CHECK:    [[REG_5:%.+]] = VPURT.DeclareBuffer <Register> <545390780> -> memref<1xui32, @Register>
+// CHECK:    [[PROF_BUF_5:%.+]] = VPURT.DeclareBuffer <CMX_NN> [0] <20> -> memref<1xui32, [@CMX_NN, 0]>
 // CHECK:    VPURT.Task
 // CHECK-NEXT:    VPUIP.NNDMA {port = 0 : i64}
 // CHECK-SAME:        inputs([[REG_5]]
 // CHECK-SAME:        outputs([[PROF_BUF_5]]
 
 // Copying prof buffer to DDR since no more tasks to profile
-// CHECK:    [[PROF_BUF_CMX:%.+]] = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<6xui32, [@CMX_NN, 0]>
-// CHECK:    [[PROF_OUTPUT:%.+]] = VPURT.DeclareBuffer "ProfilingOutput" [0] <0> -> memref<6xui32>
+// CHECK:    [[PROF_BUF_CMX:%.+]] = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<6xui32, [@CMX_NN, 0]>
+// CHECK:    [[PROF_OUTPUT:%.+]] = VPURT.DeclareBuffer <ProfilingOutput> [0] <0> -> memref<6xui32>
 // CHECK:    VPURT.Task
 // CHECK-NEXT:    VPUIP.NNDMA {port = 0 : i64}
 // CHECK-SAME:        inputs([[PROF_BUF_CMX]]

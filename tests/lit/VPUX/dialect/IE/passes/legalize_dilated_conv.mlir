@@ -198,7 +198,7 @@ func.func @LegalizeDilatedConvolutionTwoDimension(%arg0: tensor<1x3x30x30xf16>) 
     %filter = const.Declare tensor<32x3x3x3xf16> = dense<1.0> : tensor<32x3x3x3xf16>
     %bias = const.Declare tensor<1x32x1x1xf16> = dense<1.0> : tensor<1x32x1x1xf16>
     %0 = IE.Convolution(%arg0, %filter, %bias)
-         {dilations = [8, 6], pads_begin = [1, 2], pads_end = [3, 4], strides = [1, 1], post_op = {attrs = {}, name = "IE.ReLU"}} :
+         {dilations = [8, 6], pads_begin = [1, 2], pads_end = [3, 4], strides = [1, 1], post_op = #IE.PostOp<name = "IE.ReLU", attrs = {}>} :
          tensor<1x3x30x30xf16>, tensor<32x3x3x3xf16>, tensor<1x32x1x1xf16> -> tensor<1x32x18x24xf16>
     return %0 : tensor<1x32x18x24xf16>
 
@@ -242,7 +242,7 @@ func.func @LegalizeDilatedConvolutionTwoDimension(%arg0: tensor<1x3x30x30xf16>) 
     // CHECK: [[ADD4:%.*]] = IE.Add([[ADD3]], [[CONV5]]) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} : tensor<1x32x18x24xf16>, tensor<1x32x18x24xf16> -> tensor<1x32x18x24xf16>
     // CHECK: [[ADD5:%.*]] = IE.Add([[ADD4]], [[CONV6]]) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} : tensor<1x32x18x24xf16>, tensor<1x32x18x24xf16> -> tensor<1x32x18x24xf16>
     // CHECK: [[ADD6:%.*]] = IE.Add([[ADD5]], [[CONV7]]) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} : tensor<1x32x18x24xf16>, tensor<1x32x18x24xf16> -> tensor<1x32x18x24xf16>
-    // CHECK: [[ADD7:%.*]] = IE.Add([[ADD6]], [[CONV8]]) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>, post_op = {attrs = {}, name = "IE.ReLU"}} : tensor<1x32x18x24xf16>, tensor<1x32x18x24xf16> -> tensor<1x32x18x24xf16>
+    // CHECK: [[ADD7:%.*]] = IE.Add([[ADD6]], [[CONV8]]) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>, post_op = #IE.PostOp<name = "IE.ReLU", attrs = {}>} : tensor<1x32x18x24xf16>, tensor<1x32x18x24xf16> -> tensor<1x32x18x24xf16>
 
     // CHECK: return [[ADD7]]
 }

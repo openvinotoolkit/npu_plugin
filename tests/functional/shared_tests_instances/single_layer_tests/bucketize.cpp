@@ -1,15 +1,15 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
 #include "single_layer_tests/bucketize.hpp"
 #include <vector>
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
-class VPUXBucketizeLayerTest : public BucketizeLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXBucketizeLayerTest : public BucketizeLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void SetUp() override {
         std::tie(std::ignore /*Data shape*/, std::ignore /*Buckets shape*/, std::ignore /*Right edge of interval*/,
                  std::ignore /*Data input precision*/, std::ignore /*Buckets input precision*/, outPrc,
@@ -21,7 +21,7 @@ class VPUXBucketizeLayerTest : public BucketizeLayerTest, virtual public LayerTe
 
     void SkipBeforeLoad() override {
         if (outPrc == InferenceEngine::Precision::I64) {
-            throw LayerTestsUtils::KmbSkipTestException("I64 Precision is not supported yet!");
+            throw LayerTestsUtils::VpuSkipTestException("I64 Precision is not supported yet!");
         }
     }
 };
@@ -65,7 +65,7 @@ const std::vector<bool> with_right_bound = {true, false};
 const auto testBucketizeParams = ::testing::Combine(
         ::testing::ValuesIn(dataShapes), ::testing::ValuesIn(bucketsShapes), ::testing::ValuesIn(with_right_bound),
         ::testing::ValuesIn(dataInputPrecisions), ::testing::ValuesIn(bucketsInputPrecisions),
-        ::testing::Values(outputPrecisions[0]), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        ::testing::Values(outputPrecisions[0]), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_BucketizeTest, VPUXBucketizeLayerTest_VPU3700, testBucketizeParams,
                         VPUXBucketizeLayerTest_VPU3700::getTestCaseName);
@@ -73,7 +73,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_BucketizeTest, VPUXBucketizeLayerTest
 const auto testBucketizeParamsI64 = ::testing::Combine(
         ::testing::Values(dataShapes[0]), ::testing::ValuesIn(bucketsShapes), ::testing::ValuesIn(with_right_bound),
         ::testing::Values(dataInputPrecisions[0]), ::testing::Values(bucketsInputPrecisions[0]),
-        ::testing::Values(outputPrecisions[1]), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        ::testing::Values(outputPrecisions[1]), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_BucketizeTestI64, VPUXBucketizeLayerTest_VPU3700, testBucketizeParamsI64,
                         VPUXBucketizeLayerTest_VPU3700::getTestCaseName);

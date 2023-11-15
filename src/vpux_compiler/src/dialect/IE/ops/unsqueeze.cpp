@@ -4,7 +4,9 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/VPU/utils/layout_utils.hpp"
 
+#include "vpux/compiler/dialect/IE/utils/propagate_quantize_dequantize_utils.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -25,15 +27,15 @@ using namespace vpux;
 namespace {
 
 mlir::FailureOr<SmallVector<int64_t>> getAxes(IE::UnsqueezeOpAdaptor unsqueeze, mlir::Location loc) {
-    if (unsqueeze.axes() != nullptr && unsqueeze.axes_value().hasValue()) {
+    if (unsqueeze.axes() != nullptr && unsqueeze.axes_value().has_value()) {
         return errorAt(loc, "Ambiguous axes representation");
     }
-    if (unsqueeze.axes() == nullptr && !unsqueeze.axes_value().hasValue()) {
+    if (unsqueeze.axes() == nullptr && !unsqueeze.axes_value().has_value()) {
         return errorAt(loc, "Missed axes representation");
     }
 
-    if (unsqueeze.axes_value().hasValue()) {
-        return parseIntArrayAttr<int64_t>(unsqueeze.axes_value().getValue());
+    if (unsqueeze.axes_value().has_value()) {
+        return parseIntArrayAttr<int64_t>(unsqueeze.axes_value().value());
     }
 
     auto axesConst = unsqueeze.axes().getDefiningOp<Const::DeclareOp>();
@@ -41,7 +43,7 @@ mlir::FailureOr<SmallVector<int64_t>> getAxes(IE::UnsqueezeOpAdaptor unsqueeze, 
         return errorAt(loc, "Only constant axes are supported");
     }
 
-    const auto axesContent = axesConst.content();
+    const auto axesContent = axesConst.getContent();
     auto axes = to_small_vector(axesContent.getValues<int64_t>());
     std::sort(axes.begin(), axes.end());
 
@@ -57,40 +59,6 @@ mlir::FailureOr<SmallVector<int64_t>> getAxes(IE::UnsqueezeOpAdaptor unsqueeze, 
 
     return axes;
 }
-
-//
-// inferOutputLayout
-//
-
-DimsOrder inferOutputLayout(const DimArr& inPerm, const SmallVector<int64_t>& axes) {
-    SmallVector<vpux::Dim> perm;
-
-    // Iterate over input dims in the given order and push back corresponding output dims.
-    for (const auto& p : inPerm) {
-        auto dim = p.ind();
-        for (const auto& unsqueezedAxis : axes) {
-            if (dim > unsqueezedAxis) {
-                dim++;
-            } else if (dim == unsqueezedAxis) {
-                perm.push_back(vpux::Dim(dim));
-                dim++;
-            }
-        }
-
-        perm.push_back(vpux::Dim(dim));
-    }
-
-    // If unsqueezed 1s are at the end, push their corresponding axes in the perm vec
-    const auto sz = static_cast<int64_t>(perm.size());
-    for (const auto& unsqueezedAxis : axes) {
-        if (unsqueezedAxis >= sz) {
-            perm.push_back(vpux::Dim(unsqueezedAxis));
-        }
-    }
-
-    return DimsOrder::fromPermutation(makeArrayRef(perm));
-}
-
 }  // namespace
 
 //
@@ -108,7 +76,7 @@ mlir::LogicalResult vpux::IE::UnsqueezeOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto axes = getAxes(unsqueeze, loc);
+    const auto axes = ::getAxes(unsqueeze, loc);
     if (mlir::failed(axes)) {
         return mlir::failure();
     }
@@ -123,8 +91,8 @@ mlir::LogicalResult vpux::IE::UnsqueezeOp::inferReturnTypeComponents(
     size_t inInd = 0;
     size_t axesInd = 0;
     for (auto outInd : irange(outShape.size())) {
-        if (axesInd < axes.getValue().size()) {
-            const auto nextAxisInd = checked_cast<size_t>(axes.getValue()[axesInd]);
+        if (axesInd < axes.value().size()) {
+            const auto nextAxisInd = checked_cast<size_t>(axes.value()[axesInd]);
 
             if (nextAxisInd < outInd) {
                 return errorAt(loc, "Axis '{0}' was occurred twice", nextAxisInd);
@@ -147,24 +115,26 @@ mlir::LogicalResult vpux::IE::UnsqueezeOp::inferReturnTypeComponents(
         return errorAt(loc, "Inconsistent parameters");
     }
 
-    const auto outDesc = IE::getTensorAttr(ctx, inferOutputLayout(inOrder.toPermutation(), axes.getValue()),
-                                           IE::getMemorySpace(inType));
+    const auto outDesc = vpux::getTensorAttr(
+            ctx, vpux::VPU::inferUnsqueezeOutputLayout(inOrder.toPermutation(), axes.value(), inShape),
+            vpux::getMemorySpace(inType));
 
     inferredReturnShapes.emplace_back(makeArrayRef(outShape), inType.getElementType(), outDesc);
     return mlir::success();
 }
 
 //
-// inferLayoutInfo
+// inferElemTypeInfo
 //
 
-void vpux::IE::UnsqueezeOp::inferLayoutInfo(vpux::IE::LayerLayoutInfo& info) {
-    const auto axes = parseIntArrayAttr<int64_t>(axes_value().getValue());
-    const auto inOrder = info.getInput(0);
-    const auto inPermutation = inOrder.toPermutation();
+void vpux::IE::UnsqueezeOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
+    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
+    propagateElementTypeDown(info);
+}
 
-    info.setInput(0, inOrder);
-    info.setOutput(0, inferOutputLayout(inPermutation, axes));
+void vpux::IE::UnsqueezeOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
+    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
+    propagateElementTypeUp(info);
 }
 
 //
@@ -232,16 +202,16 @@ public:
 };
 
 mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::UnsqueezeOp origOp, mlir::PatternRewriter& rewriter) const {
-    if (origOp.axes_value().hasValue()) {
+    if (origOp.axes_value().has_value()) {
         return mlir::failure();
     }
 
-    const auto axes = getAxes(origOp, origOp->getLoc());
+    const auto axes = ::getAxes(origOp, origOp->getLoc());
     if (mlir::failed(axes)) {
         return mlir::failure();
     }
 
-    const auto axesAttr = getIntArrayAttr(getContext(), axes.getValue());
+    const auto axesAttr = getIntArrayAttr(getContext(), axes.value());
 
     rewriter.replaceOpWithNewOp<IE::UnsqueezeOp>(origOp, origOp.input(), nullptr, axesAttr);
     return mlir::success();

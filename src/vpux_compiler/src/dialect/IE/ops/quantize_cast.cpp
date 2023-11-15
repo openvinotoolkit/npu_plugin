@@ -21,7 +21,7 @@ mlir::LogicalResult vpux::IE::QuantizeCastOp::inferReturnTypeComponents(
 
     const auto inType = quantizeCast.input().getType().cast<mlir::RankedTensorType>();
     const auto dstElemType = quantizeCast.dstElemType();
-    const auto outDesc = IE::getTensorAttr(inType);
+    const auto outDesc = vpux::getTensorAttr(inType);
     unsigned int outputWidth;
     if (auto quantizedOutput = dstElemType.dyn_cast<mlir::quant::QuantizedType>()) {
         outputWidth = quantizedOutput.getStorageTypeIntegralWidth();

@@ -1165,6 +1165,12 @@ int main(int argc, char* argv[]) {
                         } else {
                             outputInfoIt->second->setLayout(ie::Layout::HWC);
                         }
+                    } else if (outputInfoIt->second->getDims().size() == 5) {
+                        if (FLAGS_ol == "NCDHW") {
+                            outputInfoIt->second->setLayout(ie::Layout::NCDHW);
+                        } else {
+                            outputInfoIt->second->setLayout(ie::Layout::NDHWC);
+                        }
                     } else {
                         if (FLAGS_ol == "NCHW") {
                             outputInfoIt->second->setLayout(ie::Layout::NCHW);

@@ -68,7 +68,7 @@ func.func @NotRemoveIdentityAvgPoolPostOp(%arg0 : tensor<1x64x10x13xf16>) -> (te
         kernel_size = [1, 1],
         pads_begin = [0, 0],
         pads_end = [0, 0],
-        post_op = {attrs = {}, name = "IE.Sigmoid"},
+        post_op = #IE.PostOp<name = "IE.Sigmoid", attrs = {}>,
         rounding_type = #IE.rounding_type<FLOOR>,
         strides = [1, 1]
     } : tensor<1x64x10x13xf16> -> tensor<1x64x10x13xf16>
@@ -83,7 +83,7 @@ func.func @NotRemoveIdentityMaxPoolPostOp(%arg0 : tensor<1x64x10x13xf16>) -> (te
         kernel_size = [1, 1],
         pads_begin = [0, 0],
         pads_end = [0, 0],
-        post_op = {attrs = {}, name = "IE.Sigmoid"},
+        post_op = #IE.PostOp<name = "IE.Sigmoid", attrs = {}>,
         rounding_type = #IE.rounding_type<FLOOR>,
         strides = [1, 1]
     } : tensor<1x64x10x13xf16> -> tensor<1x64x10x13xf16>

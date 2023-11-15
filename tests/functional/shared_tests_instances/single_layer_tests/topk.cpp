@@ -1,19 +1,16 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "single_layer_tests/topk.hpp"
 #include <vector>
 #include "common_test_utils/test_constants.hpp"
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
-class VPUXTopKLayerTest : virtual public TopKLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
-class VPUXTopKLayerTest_VPU3700 : public VPUXTopKLayerTest {
-    void SkipBeforeLoad() override {
-    }
-};
+class VPUXTopKLayerTest : virtual public TopKLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
+class VPUXTopKLayerTest_VPU3700 : public VPUXTopKLayerTest {};
 
 class VPUXTopKLayerTest_VPU3720 : public VPUXTopKLayerTest {};
 
@@ -29,7 +26,7 @@ TEST_P(VPUXTopKLayerTest_VPU3720, HW) {
     Run();
 }
 
-class VPUXTopK1LayerTest_VPU3720 : public TopKLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXTopK1LayerTest_VPU3720 : public TopKLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void SetUp() override {
         InferenceEngine::SizeVector inputShape;
         InferenceEngine::Precision netPrecision;
@@ -91,7 +88,7 @@ const std::vector<ngraph::opset4::TopK::SortType> sortTypes = {
         ngraph::opset4::TopK::SortType::SORT_VALUES,
 };
 
-// [Track number: S#41824]
+// Tracking number [E#85137]
 INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_TopK, VPUXTopKLayerTest_VPU3700,
                          ::testing::Combine(::testing::ValuesIn(k), ::testing::ValuesIn(axes),
                                             ::testing::ValuesIn(modes), ::testing::ValuesIn(sortTypes),
@@ -100,7 +97,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_TopK, VPUXTopKLayerTest_VPU3700,
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(std::vector<size_t>({10, 10, 10})),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          VPUXTopKLayerTest_VPU3700::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_precommit_TopK, VPUXTopKLayerTest_VPU3720,
@@ -111,18 +108,18 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_precommit_TopK, VPUXTopKLayerTest_VP
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(std::vector<size_t>({5, 5, 5})),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          TopKLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_precommit_TopK1, VPUXTopK1LayerTest_VPU3720,
                          ::testing::Combine(::testing::ValuesIn(k_VPU3720),
-                                            ::testing::ValuesIn(std::vector<int64_t>{0}), ::testing::ValuesIn(modes),
+                                            ::testing::ValuesIn(std::vector<int64_t>{0, 2}), ::testing::ValuesIn(modes),
                                             ::testing::ValuesIn(sortTypes), ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::FP16),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(std::vector<size_t>({5, 5, 5})),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          TopKLayerTest::getTestCaseName);
 
 const std::vector<int64_t> k_Tilling = {1};
@@ -141,8 +138,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK_Tilling, VPUXTopKLayerTest_VPU3720,
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(std::vector<size_t>({1, 5, 512, 512})),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          TopKLayerTest::getTestCaseName);
-
 
 }  // namespace

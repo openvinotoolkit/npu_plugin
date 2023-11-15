@@ -67,8 +67,6 @@ public:
     using ActShavesKernelDataMap =
             llvm::MapVector<std::string, SerializedKernelDataDesc, std::unordered_map<std::string, size_t>>;
 
-    using PreprocessingInfo = flatbuffers::Offset<MVCNN::preprocessingInfo>;
-
     using OVParameters = flatbuffers::Offset<MVCNN::OVNode>;
     using OVResults = flatbuffers::Offset<MVCNN::OVNode>;
     using OVNodes = flatbuffers::Offset<MVCNN::OVNode>;
@@ -140,6 +138,7 @@ public:
 
 public:
     BinaryData createBinaryData(ArrayRef<uint64_t> content, vpux::NDTypeInterface type, bool csram_cacheable = false);
+    BinaryData createBinaryData(ArrayRef<uint64_t> content, size_t totalBytes, bool csram_cacheable = false);
 
 public:
     Barrier createBarrier(mlir::Value val, Optional<int64_t> physicalID = None);

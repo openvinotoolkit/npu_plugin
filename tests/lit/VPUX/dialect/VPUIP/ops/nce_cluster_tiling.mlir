@@ -28,10 +28,10 @@ func.func @ParsePrintClusterTiling(%arg0: memref<1x32x16x16xf16, #NHWC, @CMX_NN>
                     -> memref<1x64x14x14xf16, #NHWC, @CMX_NN> {
 
               %4 = VPUIP.NCEClusterTask {
-                        kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+                        kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
                         kernel_size = [1, 1],
                         kernel_strides = [1, 1],
-                        task_type = "CONV"
+                        task_type = #VPUIP.nce_task_type<CONV>
                     }  input(%arg1 : memref<1x32x16x16xf16, #NHWC, @CMX_NN>)
                         weights(%arg2 : memref<64x32x3x3xf16, #NHWC, @CMX_NN>)
                         weight_table(%arg3 : memref<64x1x1x4xsi32, @CMX_NN>)
@@ -41,8 +41,8 @@ func.func @ParsePrintClusterTiling(%arg0: memref<1x32x16x16xf16, #NHWC, @CMX_NN>
                             -> memref<1x64x14x14xf16, #NHWC, @CMX_NN> variants :  {
                         DPUTask {
                             outStart = [0, 0, 0], outEnd = [31, 15, 15],
-                            mpe_mode = "VECTOR_FP16",
-                            pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
+                            mpe_mode = #VPU.mpe_mode<VECTOR_FP16>,
+                            pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>
                         }
                         } PPE :  {
                         }
@@ -94,7 +94,7 @@ func.func @ParsePrintClusterTiling(%arg0: memref<1x32x16x16xf16, #NHWC, @CMX_NN>
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 4, 1],
     kernel = [3, 3],
-    pads = {bottom = 1, left = 1, right = 1, top = 1},
+    pads = #VPU.Padding<left = 1 , right = 1, top = 1, bottom = 1>,
     strides = [1, 1],
     num_clusters = 4
 }>
@@ -178,10 +178,10 @@ func.func @ParsePrintDistributedBuffer(%input: !Input_DDR) -> !Output_DDR {
                         -> !OutputStub_CMX {
 
                   %1 = VPUIP.NCEClusterTask {
-                            kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+                            kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
                             kernel_size = [1, 1],
                             kernel_strides = [1, 1],
-                            task_type = "CONV"
+                            task_type = #VPUIP.nce_task_type<CONV>
                         }  input(%arg0 : !InputStub_CMX)
                             weights(%arg1 : !WeightsStub_CMX)
                             weight_table(%arg2 : !WeightsTableStub_CMX)
@@ -191,8 +191,8 @@ func.func @ParsePrintDistributedBuffer(%input: !Input_DDR) -> !Output_DDR {
                                 -> !OutputStub_CMX variants :  {
                             DPUTask {
                                 outStart = [0, 0, 0], outEnd = [31, 15, 15],
-                                mpe_mode = "VECTOR_FP16",
-                                pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
+                                mpe_mode = #VPU.mpe_mode<VECTOR_FP16>,
+                                pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>
                             }
                             } PPE :  {
                             }
@@ -216,11 +216,11 @@ func.func @ParsePrintDistributedBuffer(%input: !Input_DDR) -> !Output_DDR {
     //CHECK:        %cst = const.Declare memref<64x32x3x3xf16, #NHWC, @DDR>
     //CHECK:        [[INPUT_CMX:%.*]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<1x32x16x16xf16, #NHWC, @CMX_NN,
     //CHECK-SAME:                           {mode = "OVERLAPPED", num_tiles = [1, 1, 4, 1], kernel = [3, 3],
-    //CHECK-SAME:                           pads = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, strides = [1, 1], num_clusters = 4 : i64}>
+    //CHECK-SAME:                           pads = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>, strides = [1, 1], num_clusters = 4 : i64}>
     //CHECK:        %token = async.execute attributes {VPUIP.executor = @DMA_NN, VPUIP.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
     //CHECK:              %5 = VPUIP.NCEClusterTiling inputs(%arg0 as %arg1: memref<1x32x16x16xf16, #NHWC, @DDR>)
     //CHECK-SAME:               outputs([[INPUT_CMX]] as %arg2: memref<1x32x16x16xf16, #NHWC, @CMX_NN>)
-    //CHECK-SAME:               -> !VPUIP.DistributedBuffer<1x32x16x16xf16, #NHWC, @CMX_NN, {mode = "OVERLAPPED", num_tiles = [1, 1, 4, 1], kernel = [3, 3], pads = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, strides = [1, 1], num_clusters = 4 : i64}> {
+    //CHECK-SAME:               -> !VPUIP.DistributedBuffer<1x32x16x16xf16, #NHWC, @CMX_NN, {mode = "OVERLAPPED", num_tiles = [1, 1, 4, 1], kernel = [3, 3], pads = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>, strides = [1, 1], num_clusters = 4 : i64}> {
     //CHECK:                %6 = VPUIP.Copy {out_mem_space = @CMX_NN} inputs(%arg1 : memref<1x32x16x16xf16, #NHWC, @DDR>)
     //CHECK-SAME:                   outputs(%arg2 : memref<1x32x16x16xf16, #NHWC, @CMX_NN>) -> memref<1x32x16x16xf16, #NHWC, @CMX_NN>
     //CHECK:              }
@@ -260,8 +260,8 @@ func.func @ParsePrintDistributedBuffer(%input: !Input_DDR) -> !Output_DDR {
     //CHECK-SAME:                   [[WEIGHTS_TABLE_CMX]] as %arg3: memref<64x1x1x4xsi32, @CMX_NN>)
     //CHECK-SAME:               outputs([[OUTPUT_BUFF_CMX]] as %arg4: memref<1x64x16x16xf16, #NHWC, @CMX_NN>)
     //CHECK-SAME:               -> memref<1x64x16x16xf16, #NHWC, @CMX_NN> {
-    //CHECK:                %6 = VPUIP.NCEClusterTask {kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, kernel_size = [1, 1], kernel_strides = [1, 1], task_type = "CONV"} input(%arg1 : memref<1x32x16x16xf16, #NHWC, @CMX_NN>) weights(%arg2 : memref<64x32x3x3xf16, #NHWC, @CMX_NN>) weight_table(%arg3 : memref<64x1x1x4xsi32, @CMX_NN>) parent_input(%arg1 : memref<1x32x16x16xf16, #NHWC, @CMX_NN>) parent_output(%arg4 : memref<1x64x16x16xf16, #NHWC, @CMX_NN>) outputs(%arg4 : memref<1x64x16x16xf16, #NHWC, @CMX_NN>) -> memref<1x64x16x16xf16, #NHWC, @CMX_NN> variants :  {
-    //CHECK:                  DPUTask {mpe_mode = "VECTOR_FP16", outEnd = [31, 15, 15], outStart = [0, 0, 0], pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}}
+    //CHECK:                %6 = VPUIP.NCEClusterTask {kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, kernel_size = [1, 1], kernel_strides = [1, 1], task_type = #VPUIP.nce_task_type<CONV>} input(%arg1 : memref<1x32x16x16xf16, #NHWC, @CMX_NN>) weights(%arg2 : memref<64x32x3x3xf16, #NHWC, @CMX_NN>) weight_table(%arg3 : memref<64x1x1x4xsi32, @CMX_NN>) parent_input(%arg1 : memref<1x32x16x16xf16, #NHWC, @CMX_NN>) parent_output(%arg4 : memref<1x64x16x16xf16, #NHWC, @CMX_NN>) outputs(%arg4 : memref<1x64x16x16xf16, #NHWC, @CMX_NN>) -> memref<1x64x16x16xf16, #NHWC, @CMX_NN> variants :  {
+    //CHECK:                  DPUTask {mpe_mode = #VPU.mpe_mode<VECTOR_FP16>, outEnd = [31, 15, 15], outStart = [0, 0, 0], pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>}
     //CHECK:                } PPE :  {
     //CHECK:                }
     //CHECK:              }
@@ -290,12 +290,7 @@ func.func @ParsePrintDistributedBuffer(%input: !Input_DDR) -> !Output_DDR {
         mode = "SEGMENTED",
         num_tiles = [1, 1, 1, 2],
         kernel = [1, 1],
-        pads = {
-            bottom = 0 : i64,
-            left = 0 : i64,
-            right = 0 : i64,
-            top = 0 : i64
-        },
+        pads = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
         strides = [1, 1],
         num_clusters = 2 : i64,
         equal_memory_and_compute_view
@@ -312,12 +307,7 @@ func.func @ParseEqualMemAndComputeView() -> !OutputDistributed {
     // CHECK-SAME:        mode = "SEGMENTED",
     // CHECK-SAME:        num_tiles = [1, 1, 1, 2],
     // CHECK-SAME:        kernel = [1, 1],
-    // CHECK-SAME:        pads = {
-    // CHECK-SAME:            bottom = 0 : i64,
-    // CHECK-SAME:            left = 0 : i64,
-    // CHECK-SAME:            right = 0 : i64,
-    // CHECK-SAME:            top = 0 : i64
-    // CHECK-SAME:        },
+    // CHECK-SAME:        pads = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
     // CHECK-SAME:        strides = [1, 1],
     // CHECK-SAME:        num_clusters = 2 : i64,
     // CHECK-SAME:        equal_memory_and_compute_view

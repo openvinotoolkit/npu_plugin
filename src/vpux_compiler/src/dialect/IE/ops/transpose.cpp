@@ -5,6 +5,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
+#include "vpux/compiler/dialect/IE/utils/propagate_quantize_dequantize_utils.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -28,10 +29,10 @@ mlir::LogicalResult getOrder(IE::TransposeOpAdaptor transpose, SmallVector<uint6
         return orderIndices;
     };
 
-    if (transpose.order() != nullptr && transpose.order_value().hasValue()) {
+    if (transpose.order() != nullptr && transpose.order_value().has_value()) {
         return errorAt(loc, "Ambiguous order representation");
     }
-    if (transpose.order() == nullptr && !transpose.order_value().hasValue()) {
+    if (transpose.order() == nullptr && !transpose.order_value().has_value()) {
         return errorAt(loc, "Missed order representation");
     }
 
@@ -43,7 +44,7 @@ mlir::LogicalResult getOrder(IE::TransposeOpAdaptor transpose, SmallVector<uint6
             return errorAt(loc, "Only constant input is supported");
         }
 
-        const auto orderContent = orderOp.content();
+        const auto orderContent = orderOp.getContent();
         const auto orderVals = orderContent.getValues<uint64_t>();
 
         order = orderVals.empty() ? getDefaultOrder(inDataType) : to_small_vector(orderVals);
@@ -51,7 +52,7 @@ mlir::LogicalResult getOrder(IE::TransposeOpAdaptor transpose, SmallVector<uint6
         return mlir::success();
     }
 
-    const auto perm = DimsOrder::fromAffineMap(transpose.order_value().getValue());
+    const auto perm = DimsOrder::fromAffineMap(transpose.order_value().value());
     order = to_small_vector(irange(perm.numDims()) | transformed([&](uint64_t idx) {
                                 return checked_cast<uint64_t>(perm.dimAt(idx).ind());
                             }));
@@ -118,7 +119,7 @@ mlir::LogicalResult vpux::IE::TransposeOp::inferReturnTypeComponents(
     const auto permutationMap = mlir::AffineMap::getPermutationMap(makeArrayRef(uorder), ctx);
     const auto outputElemType = inferElemType(permutationMap, inDataType.getElementType());
 
-    const auto outDesc = IE::getTensorAttr(IE::getOrder(inDataType), nullptr);
+    const auto outDesc = vpux::getTensorAttr(vpux::getOrder(inDataType), nullptr);
 
     inferredReturnShapes.emplace_back(makeArrayRef(outShapeVec), outputElemType, outDesc);
     return mlir::success();
@@ -129,27 +130,16 @@ mlir::LogicalResult vpux::IE::TransposeOp::inferReturnTypeComponents(
 //
 
 void vpux::IE::TransposeOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    auto outputElemType = inferElemType((*this).order_value().getValue(), info.getInput(0));
+    auto outputElemType = inferElemType((*this).order_value().value(), info.getInput(0));
 
-    // Do not propagate element type down in per channel case.
-    if (outputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>() == nullptr) {
-        for (size_t outputInd = 0; outputInd < info.getNumOutputs(); ++outputInd) {
-            info.setOutput(outputInd, outputElemType);
-        }
+    for (size_t outputInd = 0; outputInd < info.getNumOutputs(); ++outputInd) {
+        info.setOutput(outputInd, outputElemType);
     }
 }
 
 void vpux::IE::TransposeOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    const auto outputElemType = info.getOutput(0);
-
-    if (outputElemType != nullptr && outputElemType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
-        // E#31029: implement propagate type up for per channel, currently it leads to failures in later passes.
-        return;
-    }
-
-    for (size_t inputInd = 0; inputInd < info.getNumInputs(); ++inputInd) {
-        info.setInput(inputInd, outputElemType);
-    }
+    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
+    propagateElementTypeUp(info);
 }
 
 namespace {
@@ -168,7 +158,7 @@ public:
 
 mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::TransposeOp transposeOp,
                                                         mlir::PatternRewriter& rewriter) const {
-    if (transposeOp.order_value().hasValue()) {
+    if (transposeOp.order_value().has_value()) {
         return mlir::failure();
     }
 
@@ -334,16 +324,16 @@ void vpux::IE::TransposeOp::getCanonicalizationPatterns(mlir::RewritePatternSet&
 
 mlir::OpFoldResult vpux::IE::TransposeOp::fold(ArrayRef<mlir::Attribute> operands) {
     if (const auto cst = operands[0].dyn_cast_or_null<Const::ContentAttr>()) {
-        if (order_value().hasValue()) {
-            const auto orderAttr = DimsOrder::fromAffineMap(order_value().getValue());
+        if (order_value().has_value()) {
+            const auto orderAttr = DimsOrder::fromAffineMap(order_value().value());
             return cst.transpose(orderAttr);
         }
     }
 
-    if (input().getType() == output().getType() && order_value().hasValue()) {
+    if (input().getType() == output().getType() && order_value().has_value()) {
         const auto inputRank = static_cast<uint32_t>(input().getType().cast<mlir::ShapedType>().getRank());
         const auto idMap = mlir::AffineMap::getMultiDimIdentityMap(inputRank, getContext());
-        const auto orderMap = order_value().getValue();
+        const auto orderMap = order_value().value();
         if (idMap == orderMap) {
             return input();
         }

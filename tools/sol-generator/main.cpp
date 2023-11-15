@@ -1,5 +1,7 @@
-// Copyright (C) 2022 Intel Corporation
+//
+// Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
+//
 
 #include <gflags/gflags.h>
 
@@ -101,14 +103,14 @@ int main(int argc, char* argv[]) {
             results.push_back(res);
         }
 
-        auto network =
-                std::make_shared<ngraph::Function>(ngraph::ResultVector(results), ngraph::ParameterVector(parameters));
+        auto network = std::make_shared<ngraph::Function>(ngraph::ResultVector(std::move(results)),
+                                                          ngraph::ParameterVector(std::move(parameters)));
 
         ngraph::pass::Manager passManager;
 
         const std::string graphName = FLAGS_output;
         passManager.register_pass<ngraph::pass::Serialize>(graphName + ".xml", graphName + ".bin");
-        passManager.run_passes(network);
+        passManager.run_passes(std::move(network));
     }  // try
     catch (const std::exception& ex) {
         std::cerr << "Exception: " << ex.what() << std::endl;

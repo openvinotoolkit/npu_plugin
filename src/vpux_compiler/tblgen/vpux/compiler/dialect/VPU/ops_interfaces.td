@@ -38,7 +38,7 @@ def VPU_LayerOpInterface : OpInterface<"LayerOpInterface"> {
     ];
 
     let verify = [{
-        return vpux::IE::verifyLayer($_op);
+        return vpux::VPU::verifyLayer($_op);
     }];
 }
 
@@ -57,19 +57,28 @@ def VPU_ClusteredOpInterface : OpInterface<"ClusteredOpInterface"> {
                 >,
         InterfaceMethod<
                 "Get multi-cluster strategy",
-                "llvm::Optional<vpux::VPU::MultiClusterStrategy>", "getMultiClusterStrategyAttr", (ins),
+                "llvm::Optional<vpux::VPU::MultiClusterStrategy>", "getMultiClusterStrategy", (ins),
                 [{
-                    return $_op.multiClusterStrategy();
+                    return $_op.getMultiClusterStrategy();
                 }]
                 >,
 
         InterfaceMethod<
                 "Set multi-cluster strategy attribute",
-                "void", "setMultiClusterStrategyAttr", (ins "vpux::VPU::MultiClusterStrategy":$strategy),
+                "void", "setMultiClusterStrategy", (ins "vpux::VPU::MultiClusterStrategy":$strategy),
                 [{}],
                 [{
-                    return vpux::VPU::setLayerMultiClusterStrategyAttr($_op, strategy);
+                    return vpux::VPU::setLayerMultiClusterStrategy($_op, strategy);
                 }]
+                >,
+
+        InterfaceMethod<
+                "Get DistributedTensorAttr with per cluster shapes/offsets defined explicitly, rather than through params such as kernel/pad/stride etc.",
+                "vpux::VPU::DistributedTensorAttr", "getExplicitDistributedTensorAttr",
+                (ins "vpux::ShapeRef":$shape, "vpux::VPU::DistributionMode":$distributionMode,
+                "mlir::ArrayAttr":$numTiles, "mlir::IntegerAttr":$numClusters, "mlir::ArrayAttr":$alignment,
+                "mlir::ArrayAttr":$kernel, "vpux::VPU::PaddingAttr":$pad, "mlir::ArrayAttr":$stride,
+                "mlir::UnitAttr":$uniformDistributedSegments)
                 >
     ];
 }
@@ -80,9 +89,9 @@ def VPU_ClusteredOpInterface : OpInterface<"ClusteredOpInterface"> {
 
 def VPU_SWOpInterface : OpInterface<"SWOpInterface"> {
     let description = "Interface for SW operations";
-    
+
     let cppNamespace = "vpux::VPU";
-    
+
     let methods = [
         InterfaceMethod<
             "Check if layer fits in NNCMX excluding reserved memory",
@@ -128,12 +137,12 @@ def VPU_NCEOpInterface : OpInterface<"NCEOpInterface"> {
     let methods = [
         InterfaceMethod<
             "Get NCE operation kernel size",
-            "SmallVector<int64_t>", "getKernelSize", (ins)
+            "SmallVector<int64_t>", "getKernelSizeVal", (ins)
         >,
 
         InterfaceMethod<
             "Get NCE operation kernel strides",
-            "SmallVector<int64_t>", "getStrides", (ins)
+            "SmallVector<int64_t>", "getStridesVal", (ins)
         >,
 
         InterfaceMethod<
@@ -145,7 +154,7 @@ def VPU_NCEOpInterface : OpInterface<"NCEOpInterface"> {
             "Get NCE operation PPE",
             "llvm::Optional<vpux::VPU::PPETaskAttr>", "getPPE", (ins),
             [{
-                return $_op.ppe();
+                return $_op.getPpe();
             }]
         >,
 
@@ -153,7 +162,7 @@ def VPU_NCEOpInterface : OpInterface<"NCEOpInterface"> {
             "Set NCE operation PPE",
             "void", "setPPE", (ins "vpux::VPU::PPETaskAttr":$ppe_task_attr),
             [{
-                $_op->setAttr($_op.ppeAttrName(), ppe_task_attr);
+                $_op->setAttr($_op.getPpeAttrName(), ppe_task_attr);
             }]
         >,
 
@@ -270,6 +279,16 @@ def VPU_TilingBuilderOpInterface : OpInterface<"TilingBuilderOpInterface"> {
         >,
 
         InterfaceMethod<
+            "Infer output tiles information for all outputs based on the first output tile",
+            "vpux::OutputTiling", "getOutputTiling",
+            (ins "const vpux::TileInfo&":$outputTile, "vpux::Logger":$log),
+            [{}],
+            [{
+                return vpux::OutputTiling({outputTile});
+            }]
+        >,
+
+        InterfaceMethod<
             "Adjust the operation attributes to the current tile properties",
             "void", "adjustAttrs",
             (ins "const vpux::TilingInfo&":$inputTiling, "const TileInfo&":$outputTile)
@@ -277,7 +296,7 @@ def VPU_TilingBuilderOpInterface : OpInterface<"TilingBuilderOpInterface"> {
 
         InterfaceMethod<
             "Get optimal output tiling scheme",
-            "vpux::OutputTiling", "getTilingStrategy",
+            "mlir::FailureOr<vpux::OutputTiling>", "getTilingStrategy",
             (ins "vpux::TilingMode":$tilingMode, "vpux::Logger":$log)
         >
     ];
@@ -378,70 +397,6 @@ def VPU_ViewLikeOpInterface: OpInterface<"ViewLikeOpInterface"> {
 def VPU_GroupedViewLikeOpInterface: OpInterface<"GroupedViewLikeOpInterface"> {
     let description = "Interface for grouped VPU view-like ops";
 
-    let cppNamespace = "vpux::VPU";
-}
-
-//
-// SameInOutDefaultDimsOrder
-//
-
-def VPU_SameInOutDefaultDimsOrder : NativeOpTrait<"SameInOutDefaultDimsOrder"> {
-    let cppNamespace = "vpux::VPU";
-}
-
-//
-// SameAnyDimsOrder
-//
-
-def VPU_SameAnyDimsOrder : NativeOpTrait<"SameAnyDimsOrder"> {
-    let cppNamespace = "vpux::VPU";
-}
-
-//
-// SameInOutDimsOrder_NCHW_NHWC
-//
-
-def VPU_SameInOutDimsOrder_NCHW_NHWC : NativeOpTrait<"SameInOutDimsOrder_NCHW_NHWC"> {
-    let cppNamespace = "vpux::VPU";
-}
-
-//
-// SameInOutDimsOrder_NCHW
-//
-
-def VPU_SameInOutDimsOrder_NCHW : NativeOpTrait<"SameInOutDimsOrder_NCHW"> {
-    let cppNamespace = "vpux::VPU";
-}
-
-//
-// SameInOutDimsOrder_CHW_HWC_NCHW_NHWC
-//
-
-def VPU_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC : NativeOpTrait<"SameInOutDimsOrder_CHW_HWC_NCHW_NHWC"> {
-    let cppNamespace = "vpux::VPU";
-}
-
-//
-// SameInOutDimsOrder_NCHW_CHW_NC_C
-//
-
-def SameInOutDimsOrder_NCHW_CHW_NC_C : NativeOpTrait<"SameInOutDimsOrder_NCHW_CHW_NC_C"> {
-    let cppNamespace = "vpux::VPU";
-}
-
-//
-// SameInOutDimsOrder_NC_CHW_HWC_NCHW_NHWC
-//
-
-def VPU_SameInOutDimsOrder_NC_CHW_HWC_NCHW_NHWC : NativeOpTrait<"SameInOutDimsOrder_NC_CHW_HWC_NCHW_NHWC"> {
-    let cppNamespace = "vpux::VPU";
-}
-
-//
-// AnyDimsOrder
-//
-
-def VPU_AnyDimsOrder : NativeOpTrait<"AnyDimsOrder"> {
     let cppNamespace = "vpux::VPU";
 }
 

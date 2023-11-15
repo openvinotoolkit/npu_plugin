@@ -7,21 +7,13 @@
 #include <vpux/compiler/utils/rewriter.hpp>
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
+#include "vpux/compiler/dialect/IE/utils/broadcast_utils.hpp"
 #include "vpux/compiler/dialect/IE/utils/const_attributes.hpp"
 #include "vpux/compiler/utils/strings.hpp"
 
 using namespace vpux;
 
 namespace {
-
-Const::DeclareOp createShapeConstForBroadCast(mlir::PatternRewriter& rewriter, mlir::MLIRContext* ctx,
-                                              mlir::Location loc, ShapeRef shape) {
-    auto intType = getSInt64Type(ctx);
-    const auto shapeStorageType = mlir::RankedTensorType::get({static_cast<int64_t>(shape.size())}, intType);
-    const auto shapeDenseAttr = mlir::DenseElementsAttr::get(shapeStorageType, shape.raw());
-    auto newContentAttr = Const::ContentAttr::get(shapeDenseAttr).convertElemType(getSInt32Type(ctx));
-    return rewriter.create<Const::DeclareOp>(loc, shapeStorageType, newContentAttr);
-}
 
 //
 // BroadcastInputRewriter
@@ -59,8 +51,9 @@ void BroadcastInputRewriter::createBroadcastBeforeAddOp(IE::AddOp origOp, mlir::
     const auto broadcastedLoc = appendLoc(origOpLoc, "broadcasted");
     const auto fusedLoc = appendLoc(origOpLoc, "fused");
     auto broadcastedOp = rewriter.create<IE::BroadcastOp>(
-            broadcastedLoc, broadcastInput, createShapeConstForBroadCast(rewriter, ctx, broadcastedLoc, target_shape),
-            nullptr, IE::BroadcastTypeAttr::get(ctx, IE::BroadcastType::NUMPY));
+            broadcastedLoc, broadcastInput,
+            vpux::IE::createShapeConstForBroadCast(rewriter, ctx, broadcastedLoc, target_shape), nullptr,
+            IE::BroadcastTypeAttr::get(ctx, IE::BroadcastType::NUMPY));
 
     auto newAddOp = rewriter.create<IE::AddOp>(fusedLoc, origInput, broadcastedOp, origOp.auto_broadcast(),
                                                origOp.post_opAttr());

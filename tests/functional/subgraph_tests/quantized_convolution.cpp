@@ -1,8 +1,9 @@
-// Copyright (C) Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 #include <ngraph_functions/builders.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -28,7 +29,7 @@ using QuantizedConvTestParams = std::tuple<InferenceEngine::Precision,  // inPrc
                                            std::vector<float>,          // fqRanges
                                            LayerTestsUtils::TargetDevice>;
 class VPUXQuantizedConvSubGraphTest :
-        public LayerTestsUtils::KmbLayerTestsCommon,
+        public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<QuantizedConvTestParams> {
     void SetUp() override {
         std::vector<float> dataFQRanges;
@@ -143,9 +144,9 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::
 const std::vector<InferenceEngine::Precision> netOutputPrecisions = {InferenceEngine::Precision::U8,
                                                                      InferenceEngine::Precision::FP32};
 
-const auto basicCases =
-        ::testing::Combine(::testing::ValuesIn(netPrecisions), ::testing::ValuesIn(netOutputPrecisions),
-                           ::testing::ValuesIn(fqRanges), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+const auto basicCases = ::testing::Combine(::testing::ValuesIn(netPrecisions), ::testing::ValuesIn(netOutputPrecisions),
+                                           ::testing::ValuesIn(fqRanges),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_QuantizedConv, VPUXQuantizedConvSubGraphTest_VPU3700, basicCases,
                          VPUXQuantizedConvSubGraphTest::getTestCaseName);
@@ -158,7 +159,7 @@ const std::vector<InferenceEngine::Precision> netOutputPrecisionsM = {InferenceE
 
 const auto basicCasesM = ::testing::Combine(::testing::ValuesIn(netPrecisionsM),
                                             ::testing::ValuesIn(netOutputPrecisionsM), ::testing::ValuesIn(fqRangesM),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_QuantizedConv, VPUXQuantizedConvSubGraphTest_VPU3720, basicCasesM,
                          VPUXQuantizedConvSubGraphTest::getTestCaseName);

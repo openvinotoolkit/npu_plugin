@@ -4,7 +4,7 @@
 //
 
 #include "vpux/compiler/dialect/VPURegMapped/attributes.hpp"
-#include "vpux/compiler/dialect/VPURegMapped/ops.hpp"
+#include "vpux/compiler/dialect/VPURegMapped/dialect.hpp"
 #include "vpux/utils/core/error.hpp"
 
 #include <llvm/ADT/StringExtras.h>
@@ -17,8 +17,9 @@ using namespace vpux;
 //
 
 #define GET_ATTRDEF_CLASSES
-#include <vpux/compiler/dialect/VPURegMapped/generated/attributes.cpp.inc>
-#undef GET_ATTRDEF_CLASSES
+#include <vpux/compiler/dialect/VPURegMapped/attributes.cpp.inc>
+
+#include <vpux/compiler/dialect/VPURegMapped/enums.cpp.inc>
 
 //
 // Dialect hooks
@@ -27,7 +28,7 @@ using namespace vpux;
 void vpux::VPURegMapped::VPURegMappedDialect::registerAttributes() {
     addAttributes<
 #define GET_ATTRDEF_LIST
-#include <vpux/compiler/dialect/VPURegMapped/generated/attributes.cpp.inc>
+#include <vpux/compiler/dialect/VPURegMapped/attributes.cpp.inc>
             >();
 }
 

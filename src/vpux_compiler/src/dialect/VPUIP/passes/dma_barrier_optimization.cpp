@@ -6,6 +6,7 @@
 #include "vpux/compiler/core/barrier_info.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/utils/barrier_legalization_utils.hpp"
 #include "vpux/compiler/utils/dma.hpp"
 
 #include <llvm/ADT/SetOperations.h>
@@ -92,10 +93,10 @@ void removeExplicitDependencies(mlir::func::FuncOp func, BarrierInfo& barrierInf
 
         // try to optimize consumers (1)
         auto producerTaskQueueType = barrierInfo.haveSameImplicitDependencyTaskQueueType(barrierProducers);
-        if (producerTaskQueueType.hasValue()) {
+        if (producerTaskQueueType.has_value()) {
             // barrier produced by tasks with same type
-            auto consumersToRemove = findExplicitDependencies(barrierInfo.getBarrierConsumers(barrierOp),
-                                                              producerTaskQueueType.getValue());
+            auto consumersToRemove =
+                    findExplicitDependencies(barrierInfo.getBarrierConsumers(barrierOp), producerTaskQueueType.value());
             // remove consumers
             barrierInfo.removeConsumers(barrierOp, consumersToRemove);
         }
@@ -103,14 +104,14 @@ void removeExplicitDependencies(mlir::func::FuncOp func, BarrierInfo& barrierInf
         // try to optimize producers (2)
         const auto barrierConsumers = barrierInfo.getBarrierConsumers(barrierOp);
         auto consumerTaskQueueType = barrierInfo.haveSameImplicitDependencyTaskQueueType(barrierConsumers);
-        if (consumerTaskQueueType.hasValue() || barrierConsumers.empty()) {
+        if (consumerTaskQueueType.has_value() || barrierConsumers.empty()) {
             // barrier consumed by tasks with same type
             BarrierInfo::TaskSet producersToRemove;
             // find producers to remove
             if (barrierConsumers.empty()) {
                 producersToRemove = barrierProducers;
             } else {
-                producersToRemove = findExplicitDependencies(barrierProducers, consumerTaskQueueType.getValue());
+                producersToRemove = findExplicitDependencies(barrierProducers, consumerTaskQueueType.value());
             }
 
             // remove producers
@@ -170,25 +171,6 @@ void mergeBarriers(BarrierInfo& barrierInfo, ArrayRef<BarrierInfo::TaskSet> orig
     }
 }
 
-void postProcessBarrierOps(mlir::func::FuncOp func) {
-    // move barriers to top and erase unused
-    auto barrierOps = to_small_vector(func.getOps<VPURT::DeclareVirtualBarrierOp>());
-    auto& block = func.getBody().front();
-    VPURT::DeclareVirtualBarrierOp prevBarrier = nullptr;
-    for (auto& barrierOp : barrierOps) {
-        if (barrierOp.barrier().use_empty()) {
-            barrierOp->erase();
-            continue;
-        }
-        if (prevBarrier != nullptr) {
-            barrierOp->moveAfter(prevBarrier);
-        } else {
-            barrierOp->moveBefore(&block, block.begin());
-        }
-        prevBarrier = barrierOp;
-    }
-}
-
 //
 //  DMABarrierOptimizationPass
 //
@@ -224,7 +206,7 @@ void DMABarrierOptimizationPass::safeRunOnFunc() {
     barrierInfo.updateIR();
     barrierInfo.clearAttributes();
 
-    postProcessBarrierOps(func);
+    VPURT::postProcessBarrierOps(func);
 }
 
 }  // namespace

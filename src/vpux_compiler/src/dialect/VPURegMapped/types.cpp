@@ -19,7 +19,7 @@ using namespace vpux;
 //
 
 #define GET_TYPEDEF_CLASSES
-#include <vpux/compiler/dialect/VPURegMapped/generated/types.cpp.inc>
+#include <vpux/compiler/dialect/VPURegMapped/types.cpp.inc>
 #undef GET_TYPEDEF_CLASSES
 
 //
@@ -29,7 +29,7 @@ using namespace vpux;
 void vpux::VPURegMapped::VPURegMappedDialect::registerTypes() {
     addTypes<
 #define GET_TYPEDEF_LIST
-#include <vpux/compiler/dialect/VPURegMapped/generated/types.cpp.inc>
+#include <vpux/compiler/dialect/VPURegMapped/types.cpp.inc>
             >();
 }
 
@@ -212,7 +212,7 @@ mlir::Type VPURegMapped::RegFieldType::parse(mlir::AsmParser& parser) {
     }
 
     return get(parser.getContext(), width, pos, value, name,
-               VPURegMapped::symbolizeEnum<RegFieldDataType>(dataType).getValue());
+               VPURegMapped::symbolizeEnum<RegFieldDataType>(dataType).value());
 }
 
 //
@@ -399,8 +399,8 @@ mlir::Type VPURegMapped::RegisterType::parse(mlir::AsmParser& parser) {
     if (parser.parseKeywordOrString(&allowOverlapStr)) {
         return mlir::Type();
     }
-    if (llvm::yaml::parseBool(allowOverlapStr).hasValue()) {
-        allowOverlap = llvm::yaml::parseBool(allowOverlapStr).getValue();
+    if (llvm::yaml::parseBool(allowOverlapStr).has_value()) {
+        allowOverlap = llvm::yaml::parseBool(allowOverlapStr).value();
     }
     if (parser.parseRParen()) {
         return {};
@@ -527,5 +527,5 @@ mlir::Type VPURegMapped::RegMappedType::parse(mlir::AsmParser& parser) {
         return mlir::Type();
     }
 
-    return get(parser.getContext(), name, regs);
+    return get(parser.getContext(), std::move(name), regs);
 }

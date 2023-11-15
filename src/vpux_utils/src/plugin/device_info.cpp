@@ -1,6 +1,6 @@
 //
-// Copyright (C) 2022 Intel Corporation
-// SPDX-License-Identifier: Apache 2.0.
+// Copyright (C) 2022 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "vpux/utils/plugin/device_info.hpp"
@@ -16,7 +16,7 @@ using namespace vpux;
 
 namespace {
 
-constexpr StringLiteral VPUX_PREFIX = "VPUX";
+constexpr StringLiteral VPUX_PREFIX = "NPU";
 constexpr char ANY_SYM = 'X';
 constexpr size_t VPU_GEN_NUM_COMPONENTS = 2;
 constexpr size_t SOC_NUM_COMPONENTS = 2;
@@ -129,5 +129,5 @@ bool vpux::DeviceInfo::operator!=(const DeviceInfo& other) const {
 }
 
 void vpux::DeviceInfo::printFormat(llvm::raw_ostream& os) const {
-    os << "VPUX" << strref();
+    os << "NPU" << strref();
 }

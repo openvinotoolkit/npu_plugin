@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <base/behavior_test_utils.hpp>
 #include <functional_test_utils/precision_utils.hpp>
 #include <ie_core.hpp>
@@ -55,7 +53,7 @@ TEST_P(CompileWithDummy, CompilationForSpecificPlatform) {
 const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
 
 const std::vector<std::map<std::string, std::string>> configs = {
-        {{VPUX_CONFIG_KEY(PLATFORM), "3720"}, {"VPUX_COMPILATION_MODE_PARAMS", "dummy-op-replacement=true"}}};
+        {{VPUX_CONFIG_KEY(PLATFORM), "3720"}, {"NPU_COMPILATION_MODE_PARAMS", "dummy-op-replacement=true"}}};
 // Must be successfully compiled with dummy-op-replacement=true
 
 INSTANTIATE_TEST_SUITE_P(smoke_precommit_DummyVPU3720, CompileWithDummy,

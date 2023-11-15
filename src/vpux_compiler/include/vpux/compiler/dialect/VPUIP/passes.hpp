@@ -88,7 +88,7 @@ std::unique_ptr<mlir::Pass> createSwizzlingPass(const bool enableWeightSwizzling
                                                 Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createOperationStubbingPass(ConditionFunc condition = makeStubCondition(),
                                                         Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createAdjustCompressConvInputsPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvWeightsCompressionPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createUngroupSparseBuffersPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createPropagateCompressionSchemePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createFlattenSparseWeightsTypesPass(Logger log = Logger::global());
@@ -127,6 +127,7 @@ std::unique_ptr<mlir::Pass> createConvertFuncArgsToDeclarationsPass(Logger log =
 std::unique_ptr<mlir::Pass> createConvertViewOpsToDeclarationsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertAsyncOpsToTasksPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createCompressWeightsBTCPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createNNDMATilingPass(Logger log = Logger::global());
 
 //
 // Registration
@@ -139,11 +140,11 @@ void registerVPUIPPipelines();
 //
 
 #define GEN_PASS_CLASSES
-#include <vpux/compiler/dialect/VPUIP/generated/passes.hpp.inc>
+#include <vpux/compiler/dialect/VPUIP/passes.hpp.inc>
 #undef GEN_PASS_CLASSES
 
 #define GEN_PASS_REGISTRATION
-#include <vpux/compiler/dialect/VPUIP/generated/passes.hpp.inc>
+#include <vpux/compiler/dialect/VPUIP/passes.hpp.inc>
 #undef GEN_PASS_REGISTRATION
 
 }  // namespace VPUIP

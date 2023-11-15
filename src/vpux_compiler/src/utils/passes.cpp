@@ -28,10 +28,7 @@ Optional<std::string> vpux::convertToOptional(const StrOption& strOption) {
 }
 
 bool vpux::isOptionEnabled(const BoolOption& option) {
-    if (option.hasValue()) {
-        return option.getValue();
-    }
-    return false;
+    return option.getValue();
 }
 
 //

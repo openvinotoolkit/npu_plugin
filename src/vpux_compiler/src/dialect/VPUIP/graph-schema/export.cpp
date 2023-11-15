@@ -6,9 +6,11 @@
 #include "vpux/compiler/dialect/VPUIP/graph-schema/export.hpp"
 
 #include "vpux/compiler/core/profiling.hpp"
+#include "vpux/compiler/core/profiling_metadata.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/generated/schema/gf_version.h"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_writer.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/schema.hpp"
@@ -53,12 +55,37 @@ using namespace vpux;
 
 namespace {
 
+bool isProfilingEnabled(IE::CNNNetworkOp netOp) {
+    auto profilingOutputsInfo = netOp.getProfilingOutputsDataInfo();
+    VPUX_THROW_WHEN(profilingOutputsInfo.size() > 1, "Unexpected number of profiling outputs (expected 1, got {0})",
+                    profilingOutputsInfo.size());
+    return profilingOutputsInfo.size() > 0;
+}
+
+llvm::Optional<VPUIP::ProfilingSectionOp> getProfilingSection(mlir::ModuleOp module, profiling::ExecutorType secType) {
+    IE::CNNNetworkOp netOp;
+    mlir::func::FuncOp netFunc;
+    IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
+    if (!isProfilingEnabled(netOp)) {
+        return {};
+    }
+    auto profilingOutputInfo = *netOp.getProfilingOutputsInfo().front().getOps<IE::DataInfoOp>().begin();
+
+    auto& sections = profilingOutputInfo.sections().front().front();
+    for (VPUIP::ProfilingSectionOp section : sections.getOps<VPUIP::ProfilingSectionOp>()) {
+        if (static_cast<profiling::ExecutorType>(section.sectionType()) == secType) {
+            return section;
+        }
+    }
+    return {};
+}
+
 flatbuffers::Offset<MVCNN::Version> createVersion(VPUIP::BlobWriter& writer, Logger log) {
     log.info("Blob version: majorV={0}, minorV={1}, patch={2}, hash={3}, context={4}", MVCNN_VERSION_MAJOR,
-             MVCNN_VERSION_MINOR, MVCNN_VERSION_PATCH, VPUX_PLUGIN_VERSION, "VPUX Compiler");
+             MVCNN_VERSION_MINOR, MVCNN_VERSION_PATCH, VPUX_PLUGIN_VERSION, "NPU Compiler");
 
     const auto serializedHash = writer.createString(VPUX_PLUGIN_VERSION);
-    const auto serializedContext = writer.createString("VPUX Compiler");
+    const auto serializedContext = writer.createString("NPU Compiler");
 
     MVCNN::VersionBuilder builder(writer);
     builder.add_majorV(checked_cast<uint32_t>(MVCNN_VERSION_MAJOR));
@@ -84,12 +111,11 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
     SmallVector<flatbuffers::Offset<MVCNN::ProcessorMapping>> executorsOffsets;
     SmallVector<flatbuffers::Offset<MVCNN::ProcessorMapping>> processorVec;
     module.walk([&](IE::ExecutorResourceOp res) {
-        if (const auto execKind = res.getKindAs<VPU::ExecutorKindAttr>()) {
-            if (supportedProcessors.count(execKind.getValue()) != 0) {
-                executorsOffsets.push_back(createProcessorMapping(writer, res, module));
-                if (res.hasProcessorFrequency()) {
-                    processorVec.push_back(createProcessorFreqMapping(writer, res));
-                }
+        const auto execKind = VPU::getKindValue<VPU::ExecutorKind>(res);
+        if (supportedProcessors.count(execKind) != 0) {
+            executorsOffsets.push_back(createProcessorMapping(writer, res, module));
+            if (res.hasProcessorFrequency()) {
+                processorVec.push_back(createProcessorFreqMapping(writer, res));
             }
         }
     });
@@ -165,6 +191,7 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
 
     // TODO: always extract num shaves info from VPURT::SW.Runtime, which can be extracted from module
     auto maxShaves = 4;
+
     constexpr auto defaultStackSize = Byte(4_KB).count();
     constexpr auto alignmentReq = Byte(1_KB).count();
 
@@ -179,7 +206,7 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
     if (runtimeKernelDeclared) {
         auto swRuntimeOp = *swRuntimeOps.begin();
         runtimeKernel = writer.createRuntimeKernelTask(module, swRuntimeOp);
-        runtimeStacks = parseIntArrayAttr<uint32_t>(swRuntimeOp.stacks());
+        runtimeStacks = parseIntArrayAttr<uint32_t>(swRuntimeOp.getStacks());
     }
 
     SmallVector<flatbuffers::Offset<MVCNN::KernelDataReference>> stacks(maxShaves);
@@ -235,26 +262,23 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
     return builder.Finish();
 }
 
-VPUIP::BlobWriter::TensorReference createDmaHwpBase(VPUIP::BlobWriter& writer, mlir::ModuleOp& module,
-                                                    const std::string& profilingOutputsName,
-                                                    unsigned profilingOutputsSize) {
+VPUIP::BlobWriter::TensorReference createDmaHwpBase(VPUIP::BlobWriter& writer, mlir::ModuleOp& module) {
+    auto maybeDmaSection = getProfilingSection(module, profiling::ExecutorType::DMA_HW);
+    VPUX_THROW_UNLESS(maybeDmaSection.has_value(), "Cannot find DMAHW section in profiling output");
+    auto dmaSection = maybeDmaSection.value();
+
     auto ctx = module->getContext();
-    const auto profOffsetsAndSizes = profiling::parseProfilingOffsets(profilingOutputsName, profilingOutputsSize);
-    auto dmaOffsetAndSize = profOffsetsAndSizes.at(profiling::ExecutorType::DMA_HW);
-    unsigned dmaOffset = dmaOffsetAndSize.first;
-    unsigned dmaSizeBytes = dmaOffsetAndSize.second;
+    const auto outputType = getMemRefType({dmaSection.size() / 4}, getUInt32Type(ctx), DimsOrder::C,
+                                          VPURT::BufferSection::ProfilingOutput)
+                                    .cast<vpux::NDTypeInterface>();
 
-    const auto outputType =
-            getMemRefType({dmaSizeBytes / 4}, getUInt32Type(ctx), DimsOrder::C, VPURT::BufferSection::ProfilingOutput)
-                    .cast<vpux::NDTypeInterface>();
-
-    return writer.createTensorRef("dma_hwp_base", outputType, VPURT::BufferSection::ProfilingOutput, 0, dmaOffset);
+    return writer.createTensorRef("dma_hwp_base", outputType, VPURT::BufferSection::ProfilingOutput, 0,
+                                  dmaSection.offset());
 }
 
 flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
         VPUIP::BlobWriter& writer, mlir::ModuleOp module, IE::CNNNetworkOp netOp, mlir::func::FuncOp netFunc,
         bool withDynamicBarriers, mlir::TimingScope& rootTiming,
-        const std::vector<vpux::PreProcessInfo>& preprocessInfo,
         const std::vector<std::shared_ptr<const ov::Node>>& parameters,
         const std::vector<std::shared_ptr<const ov::Node>>& results, Logger log) {
     auto scopeTiming = rootTiming.nest("Create summary header");
@@ -264,9 +288,9 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
     const auto taskCount =
             std::distance(allTasks.begin(), allTasks.end()) + std::distance(allBarriers.begin(), allBarriers.end());
 
-    auto inputsInfo = netOp.getInputsInfo();
-    auto outputsInfo = netOp.getOutputsInfo();
-    auto profilingOutputsInfo = netOp.getProfilingOutputsInfo();
+    auto inputsInfo = netOp.getInputsDataInfo();
+    auto outputsInfo = netOp.getOutputsDataInfo();
+    auto profilingOutputsInfo = netOp.getProfilingOutputsDataInfo();
 
     SmallVector<VPUIP::BlobWriter::TensorReference> graphInputs, userInputs;
     graphInputs.reserve(inputsInfo.size());
@@ -289,8 +313,6 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
     graphOutputs.reserve(outputsInfo.size());
     userOutputs.reserve(outputsInfo.size());
     graphProfilingOutputs.reserve(profilingOutputsInfo.size());
-    std::string profilingOutputsName;
-    unsigned profilingOutputsSize = 0;
 
     for (const auto& p : outputsInfo | indexed) {
         const auto ind = p.index();
@@ -308,18 +330,15 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
                 writer.createTensorRef(userInfo.name(), userType, VPURT::BufferSection::NetworkOutput, ind, 0));
     }
 
-    if (profilingOutputsInfo.size() > 0) {
-        VPUX_THROW_WHEN(profilingOutputsInfo.size() > 1, "Unexpected number of profiling outputs (expected 1, got {0})",
-                        profilingOutputsInfo.size());
+    if (isProfilingEnabled(netOp)) {
         auto profilingOutputInfo = profilingOutputsInfo.front();
+        const auto profilingOutputsName = profilingOutputInfo.name().str();
 
         const auto funcArgInd = inputsInfo.size() + outputsInfo.size();
         const auto val = netFunc.getArgument(checked_cast<uint32_t>(funcArgInd));
-        profilingOutputsName = profilingOutputInfo.name().str();
-        profilingOutputsSize = val.getType().cast<vpux::NDTypeInterface>().getTotalAllocSize().count();  // bytes
 
         graphProfilingOutputs.push_back(
-                writer.createTensorRef(val, profilingOutputInfo.name(), VPURT::BufferSection::ProfilingOutput, 0, 0));
+                writer.createTensorRef(val, profilingOutputsName, VPURT::BufferSection::ProfilingOutput, 0, 0));
     }
 
     auto createOVNodes = [&](const std::vector<std::shared_ptr<const ov::Node>>& nodes, const bool isResult) {
@@ -350,16 +369,6 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
     const auto ovParam = createOVNodes(parameters, false);
     const auto ovRes = createOVNodes(results, true);
 
-    SmallVector<VPUIP::BlobWriter::PreprocessingInfo> preprocInfo;
-    preprocInfo.reserve(preprocessInfo.size());
-
-    for (const auto& pr : preprocessInfo) {
-        preprocInfo.push_back(MVCNN::CreatepreprocessingInfo(writer, writer.createString(pr._inputName),
-                                                             VPUIP::mapPreProcessColorFormat.at(pr._inputFormat),
-                                                             VPUIP::mapPreProcessColorFormat.at(pr._outputFormat),
-                                                             VPUIP::mapPreProcessResizeAlgorithm.at(pr._algorithm)));
-    }
-
     SmallVector<int8_t> options;
     if (withDynamicBarriers) {
         options.push_back(static_cast<int8_t>(MVCNN::ExecutionFlag_DynamicBarriers));
@@ -376,13 +385,12 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
     const auto serializedResources = createResources(writer, module);
     const auto serializedParameters = writer.createVector(ovParam);
     const auto serializedResults = writer.createVector(ovRes);
-    const auto serializedPreProcInfo = writer.createVector(preprocInfo);
     const auto serializedActKernelsRuntime = createActKernelRuntime(writer, module, netFunc, log);
     const auto serializedPerformanceMetrics = createPerformanceMetrics(writer);
     VPUIP::BlobWriter::TensorReference serializedDmaHwpBase;
-    const bool isDmaHwpUsed = isDmaHwpUsedInVPURT(netFunc);
+    const bool isDmaHwpUsed = isDmaHwpUsedInVPURT(module);
     if (isDmaHwpUsed) {
-        serializedDmaHwpBase = createDmaHwpBase(writer, module, profilingOutputsName, profilingOutputsSize);
+        serializedDmaHwpBase = createDmaHwpBase(writer, module);
     }
     VPUIP::BlobWriter::TensorReference serializedWorkpointSectionOutput = {};
 
@@ -399,7 +407,6 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
     builder.add_out_tensor_desc(serializedUserOutputs);
     builder.add_ov_parameters(serializedParameters);
     builder.add_ov_results(serializedResults);
-    builder.add_pre_process_info(serializedPreProcInfo);
     builder.add_device(VPUIP::mapTargetDevice(VPU::getArch(module)));
     builder.add_device_revision(VPUIP::mapTargetDeviceRevision(VPU::getArch(module)));
     builder.add_act_kernel_runtime(serializedActKernelsRuntime);
@@ -426,14 +433,14 @@ void serializeTensorDecls(VPUIP::BlobWriter& writer, mlir::func::FuncOp netFunc,
         Optional<int64_t> storageElementOffset = None;
         if (sparsityMap != nullptr) {
             auto buffer = sparsityMap.getDefiningOp<VPURT::DeclareBufferOp>();
-            sparsityMapOffset = buffer.byteOffset();
+            sparsityMapOffset = buffer.getByteOffset();
         }
         if (storageElementTable != nullptr) {
             auto buffer = storageElementTable.getDefiningOp<VPURT::DeclareBufferOp>();
-            storageElementOffset = buffer.byteOffset();
+            storageElementOffset = buffer.getByteOffset();
         }
 
-        if (sparsityMapOffset.hasValue() || storageElementOffset.hasValue()) {
+        if (sparsityMapOffset.has_value() || storageElementOffset.has_value()) {
             if (sparsityInfo.find(dataBuffer) != sparsityInfo.end()) {
                 return;
             }
@@ -458,9 +465,9 @@ void serializeTensorDecls(VPUIP::BlobWriter& writer, mlir::func::FuncOp netFunc,
                                      const Optional<int64_t> storageElementOffset = None,
                                      const Optional<int64_t> storageElementSize = None) {
         auto sectionIndex = bufOp.getNonEmptySectionIndex();
-        writer.createTensorRef(bufOp.buffer(), printToString("temp-{0}", tempTensorInd), bufOp.section(), sectionIndex,
-                               bufOp.byteOffset(), sparsityMapOffset, storageElementOffset, storageElementSize,
-                               bufOp.swizzlingKey());
+        writer.createTensorRef(bufOp.getBuffer(), printToString("temp-{0}", tempTensorInd), bufOp.getSection(),
+                               sectionIndex, bufOp.getByteOffset(), sparsityMapOffset, storageElementOffset,
+                               storageElementSize, bufOp.getSwizzlingKey());
         tempTensorInd++;
     };
 
@@ -476,16 +483,36 @@ void serializeTensorDecls(VPUIP::BlobWriter& writer, mlir::func::FuncOp netFunc,
     });
 }
 
+void extendBinaryDataWithProfilingSchema(VPUIP::BlobWriter& writer, IE::CNNNetworkOp netOp, mlir::func::FuncOp netFunc,
+                                         SmallVector<VPUIP::BlobWriter::BinaryData>& binaryData, Logger log) {
+    log.trace("Got profiling metadata");
+    auto profilingData = buildProfilingMetaVPURT(netOp, netFunc, log);
+    const auto dataSize = profilingData.size();
+
+    // Binary data is stored as vector of uint64_t, while FB return array of uint8_t. Align buffer to be compatible with
+    // FB schema
+    const auto alignedDstBufferSize = alignValUp(dataSize, sizeof(uint64_t)) / sizeof(uint64_t);
+    std::vector<uint64_t> alignedBuffer(alignedDstBufferSize, 0);
+    std::memcpy(alignedBuffer.data(), profilingData.data(), dataSize);
+
+    binaryData.push_back(writer.createBinaryData(alignedBuffer, dataSize));
+}
+
 SmallVector<VPUIP::BlobWriter::BinaryData> serializeBinaryData(VPUIP::BlobWriter& writer, mlir::func::FuncOp netFunc,
-                                                               mlir::TimingScope& rootTiming, Logger log) {
+                                                               IE::CNNNetworkOp netOp, mlir::TimingScope& rootTiming,
+                                                               Logger log) {
     auto scopeTiming = rootTiming.nest("Serialize binary data");
 
     auto constOps = to_small_vector(netFunc.getOps<Const::DeclareOp>());
+    size_t opsToSerializeCount = constOps.size();
+    if (isProfilingEnabled(netOp)) {
+        ++opsToSerializeCount;
+    }
 
-    SmallVector<std::vector<uint64_t>> bufs(constOps.size());
+    SmallVector<std::vector<uint64_t>> bufs(opsToSerializeCount);
 
     loop_1d(LoopExecPolicy::Parallel, checked_cast<int64_t>(constOps.size()), [&](int64_t ind) {
-        const auto attr = constOps[static_cast<size_t>(ind)].contentAttr();
+        const auto attr = constOps[static_cast<size_t>(ind)].getContentAttr();
 
         const auto type = attr.getType();
         const auto content = attr.fold();
@@ -509,7 +536,7 @@ SmallVector<VPUIP::BlobWriter::BinaryData> serializeBinaryData(VPUIP::BlobWriter
 
         binaryData[constTensorInd] = writer.createBinaryData(content, constOp.getType().cast<vpux::NDTypeInterface>());
 
-        writer.createTensorRef(constOp.output(), printToString("constant-{0}", constTensorInd),
+        writer.createTensorRef(constOp.getOutput(), printToString("constant-{0}", constTensorInd),
                                VPURT::BufferSection::Constant, checked_cast<uint32_t>(constTensorInd), 0);
     }
 
@@ -537,7 +564,7 @@ SmallVector<VPUIP::BlobWriter::Barrier> serializeVirtBarriers(VPUIP::BlobWriter&
 
         VPUX_THROW_UNLESS(withDynamicBarriers, "Compiler was not configured for virtual barriers usage");
 
-        const auto virtBarrier = writer.createBarrier(barrierOp.barrier());
+        const auto virtBarrier = writer.createBarrier(barrierOp.getBarrier());
         virtBarriers.push_back(virtBarrier);
     });
 
@@ -612,7 +639,6 @@ flatbuffers::Offset<MVCNN::GraphFile> createGraphFile(VPUIP::BlobWriter& writer,
 }  // namespace
 
 flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
-                                                      const std::vector<vpux::PreProcessInfo>& preprocessInfo,
                                                       const std::vector<std::shared_ptr<const ov::Node>>& parameters,
                                                       const std::vector<std::shared_ptr<const ov::Node>>& results,
                                                       Logger log) {
@@ -627,11 +653,15 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
 
     const auto withDynamicBarriers = !netFunc.getOps<VPURT::DeclareVirtualBarrierOp>().empty();
 
-    const auto header = createSummaryHeader(writer, module, netOp, netFunc, withDynamicBarriers, rootTiming,
-                                            preprocessInfo, parameters, results, log);
+    const auto header = createSummaryHeader(writer, module, netOp, netFunc, withDynamicBarriers, rootTiming, parameters,
+                                            results, log);
 
     serializeTensorDecls(writer, netFunc, rootTiming);
-    const auto binaryData = serializeBinaryData(writer, netFunc, rootTiming, log);
+    auto binaryData = serializeBinaryData(writer, netFunc, netOp, rootTiming, log);
+    if (isProfilingEnabled(netOp)) {
+        extendBinaryDataWithProfilingSchema(writer, netOp, netFunc, binaryData, log);
+    }
+
     const auto virtBarriers = serializeVirtBarriers(writer, netFunc, withDynamicBarriers, rootTiming, log);
     const auto taskLists = serializeTaskLists(writer, netFunc, rootTiming, log);
     const auto kernelData = serializeKernelData(writer, netFunc, rootTiming, log);

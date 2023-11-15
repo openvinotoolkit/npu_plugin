@@ -1,44 +1,60 @@
 //
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
+//
 
 #include "zero_compiler_in_driver.h"
+#include <regex>
 #include "ie_layouts.h"
 #include "vpux/al/config/common.hpp"
 #include "vpux/utils/IE/itt.hpp"
 #include "vpux/utils/IE/prefix.hpp"
+
 #define UNUSED(x) (void)(x)
 
 namespace vpux {
 namespace driverCompilerAdapter {
 
-namespace IE = InferenceEngine;
+namespace ie = InferenceEngine;
 //------------------------------------------------------------------------------
 //      Helpers
 //------------------------------------------------------------------------------
 // TODO #-30200 : Not all Precision from IE listed in ze_graph_ext
 // TODO #-30406 : Remove helpers-converters duplications between driver compiler adapter and zero backend
-IE::Precision toIEPrecision(const ze_graph_argument_precision_t zePrecision) {
+ie::Precision toIEPrecision(const ze_graph_argument_precision_t zePrecision) {
     switch (zePrecision) {
-    case ZE_GRAPH_ARGUMENT_PRECISION_FP32:
-        return IE::Precision::FP32;
-    case ZE_GRAPH_ARGUMENT_PRECISION_FP16:
-        return IE::Precision::FP16;
-    case ZE_GRAPH_ARGUMENT_PRECISION_UINT16:
-        return IE::Precision::U16;
-    case ZE_GRAPH_ARGUMENT_PRECISION_UINT8:
-        return IE::Precision::U8;
-    case ZE_GRAPH_ARGUMENT_PRECISION_INT32:
-        return IE::Precision::I32;
-    case ZE_GRAPH_ARGUMENT_PRECISION_INT16:
-        return IE::Precision::I16;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT4:
+        return ie::Precision::I4;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT4:
+        return ie::Precision::U4;
     case ZE_GRAPH_ARGUMENT_PRECISION_INT8:
-        return IE::Precision::I8;
+        return ie::Precision::I8;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT8:
+        return ie::Precision::U8;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT16:
+        return ie::Precision::I16;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT16:
+        return ie::Precision::U16;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT32:
+        return ie::Precision::I32;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT32:
+        return ie::Precision::U32;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT64:
+        return ie::Precision::I64;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT64:
+        return ie::Precision::U64;
+    case ZE_GRAPH_ARGUMENT_PRECISION_BF16:
+        return ie::Precision::BF16;
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP16:
+        return ie::Precision::FP16;
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP32:
+        return ie::Precision::FP32;
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP64:
+        return ie::Precision::FP64;
     case ZE_GRAPH_ARGUMENT_PRECISION_BIN:
-        return IE::Precision::BIN;
-
+        return ie::Precision::BIN;
     default:
-        return IE::Precision::UNSPECIFIED;
+        return ie::Precision::UNSPECIFIED;
     }
 }
 
@@ -85,61 +101,104 @@ ov::element::Type_t toOVElementType(const ze_graph_metadata_type zeElementType) 
     }
 }
 
-// TODO #-30406 : Remove helpers-converters duplications between driver compiler adapter and zero backend
-IE::Layout toIELayout(const ze_graph_argument_layout_t zeLayout) {
-    switch (zeLayout) {
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NCHW:
-        return IE::Layout::NCHW;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NHWC:
-        return IE::Layout::NHWC;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NCDHW:
-        return IE::Layout::NCDHW;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NDHWC:
-        return IE::Layout::NDHWC;
-
-    case ZE_GRAPH_ARGUMENT_LAYOUT_OIHW:
-        return IE::Layout::OIHW;
-
-    case ZE_GRAPH_ARGUMENT_LAYOUT_C:
-        return IE::Layout::C;
-
-    case ZE_GRAPH_ARGUMENT_LAYOUT_CHW:
-        return IE::Layout::CHW;
-
-    case ZE_GRAPH_ARGUMENT_LAYOUT_HW:
-        return IE::Layout::HW;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NC:
-        return IE::Layout::NC;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_CN:
-        return IE::Layout::CN;
-
-    case ZE_GRAPH_ARGUMENT_LAYOUT_BLOCKED:
-        return IE::Layout::BLOCKED;
+ov::element::Type_t toOVElementType(const ze_graph_argument_precision_t zeElementType) {
+    switch (zeElementType) {
+    case ZE_GRAPH_ARGUMENT_PRECISION_UNKNOWN:
+        return ov::element::Type_t::undefined;
+    case ZE_GRAPH_ARGUMENT_PRECISION_DYNAMIC:
+        return ov::element::Type_t::dynamic;
+    case ZE_GRAPH_ARGUMENT_PRECISION_BOOLEAN:
+        return ov::element::Type_t::boolean;
+    case ZE_GRAPH_ARGUMENT_PRECISION_BF16:
+        return ov::element::Type_t::bf16;
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP16:
+        return ov::element::Type_t::f16;
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP32:
+        return ov::element::Type_t::f32;
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP64:
+        return ov::element::Type_t::f64;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT4:
+        return ov::element::Type_t::i4;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT8:
+        return ov::element::Type_t::i8;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT16:
+        return ov::element::Type_t::i16;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT32:
+        return ov::element::Type_t::i32;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT64:
+        return ov::element::Type_t::i64;
+    case ZE_GRAPH_ARGUMENT_PRECISION_BIN:
+        return ov::element::Type_t::u1;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT4:
+        return ov::element::Type_t::u4;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT8:
+        return ov::element::Type_t::u8;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT16:
+        return ov::element::Type_t::u16;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT32:
+        return ov::element::Type_t::u32;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT64:
+        return ov::element::Type_t::u64;
     default:
-        return IE::Layout::ANY;
+        return ov::element::Type_t::undefined;
     }
 }
 
 // TODO #-30406 : Remove helpers-converters duplications between driver compiler adapter and zero backend
-size_t getDimCount(const IE::Layout layout) {
+ie::Layout toIELayout(const ze_graph_argument_layout_t zeLayout) {
+    switch (zeLayout) {
+    case ZE_GRAPH_ARGUMENT_LAYOUT_NCHW:
+        return ie::Layout::NCHW;
+    case ZE_GRAPH_ARGUMENT_LAYOUT_NHWC:
+        return ie::Layout::NHWC;
+    case ZE_GRAPH_ARGUMENT_LAYOUT_NCDHW:
+        return ie::Layout::NCDHW;
+    case ZE_GRAPH_ARGUMENT_LAYOUT_NDHWC:
+        return ie::Layout::NDHWC;
+
+    case ZE_GRAPH_ARGUMENT_LAYOUT_OIHW:
+        return ie::Layout::OIHW;
+
+    case ZE_GRAPH_ARGUMENT_LAYOUT_C:
+        return ie::Layout::C;
+
+    case ZE_GRAPH_ARGUMENT_LAYOUT_CHW:
+        return ie::Layout::CHW;
+
+    case ZE_GRAPH_ARGUMENT_LAYOUT_HW:
+        return ie::Layout::HW;
+    case ZE_GRAPH_ARGUMENT_LAYOUT_NC:
+        return ie::Layout::NC;
+    case ZE_GRAPH_ARGUMENT_LAYOUT_CN:
+        return ie::Layout::CN;
+
+    case ZE_GRAPH_ARGUMENT_LAYOUT_BLOCKED:
+        return ie::Layout::BLOCKED;
+    default:
+        return ie::Layout::ANY;
+    }
+}
+
+// TODO #-30406 : Remove helpers-converters duplications between driver compiler adapter and zero backend
+size_t getDimCount(const ie::Layout layout) {
     switch (layout) {
-    case IE::Layout::C:
+    case ie::Layout::C:
         return 1;
-    case IE::Layout::CN:
+    case ie::Layout::CN:
         return 2;
-    case IE::Layout::HW:
+    case ie::Layout::HW:
         return 2;
-    case IE::Layout::NC:
+    case ie::Layout::NC:
         return 2;
-    case IE::Layout::CHW:
+    case ie::Layout::CHW:
         return 3;
-    case IE::Layout::NCHW:
+    case ie::Layout::NCHW:
         return 4;
-    case IE::Layout::NHWC:
+    case ie::Layout::NHWC:
         return 4;
-    case IE::Layout::NCDHW:
+    case ie::Layout::NCDHW:
         return 5;
-    case IE::Layout::NDHWC:
+    case ie::Layout::NDHWC:
         return 5;
     default:
         // TODO #-30200 Extend to support all cases
@@ -150,34 +209,34 @@ size_t getDimCount(const IE::Layout layout) {
 }
 
 // TODO #-30406 : Remove helpers-converters duplications between driver compiler adapter and zero backend
-ze_graph_argument_layout_t toZeLayout(const IE::Layout layout) {
+ze_graph_argument_layout_t toZeLayout(const ie::Layout layout) {
     switch (layout) {
-    case IE::Layout::NCHW:
+    case ie::Layout::NCHW:
         return ZE_GRAPH_ARGUMENT_LAYOUT_NCHW;
-    case IE::Layout::NHWC:
+    case ie::Layout::NHWC:
         return ZE_GRAPH_ARGUMENT_LAYOUT_NHWC;
-    case IE::Layout::NCDHW:
+    case ie::Layout::NCDHW:
         return ZE_GRAPH_ARGUMENT_LAYOUT_NCDHW;
-    case IE::Layout::NDHWC:
+    case ie::Layout::NDHWC:
         return ZE_GRAPH_ARGUMENT_LAYOUT_NDHWC;
 
-    case IE::Layout::OIHW:
+    case ie::Layout::OIHW:
         return ZE_GRAPH_ARGUMENT_LAYOUT_OIHW;
 
-    case IE::Layout::C:
+    case ie::Layout::C:
         return ZE_GRAPH_ARGUMENT_LAYOUT_C;
 
-    case IE::Layout::CHW:
+    case ie::Layout::CHW:
         return ZE_GRAPH_ARGUMENT_LAYOUT_CHW;
 
-    case IE::Layout::HW:
+    case ie::Layout::HW:
         return ZE_GRAPH_ARGUMENT_LAYOUT_HW;
-    case IE::Layout::NC:
+    case ie::Layout::NC:
         return ZE_GRAPH_ARGUMENT_LAYOUT_NC;
-    case IE::Layout::CN:
+    case ie::Layout::CN:
         return ZE_GRAPH_ARGUMENT_LAYOUT_CN;
 
-    case IE::Layout::BLOCKED:
+    case ie::Layout::BLOCKED:
         return ZE_GRAPH_ARGUMENT_LAYOUT_BLOCKED;
     default:
         return ZE_GRAPH_ARGUMENT_LAYOUT_ANY;
@@ -185,23 +244,37 @@ ze_graph_argument_layout_t toZeLayout(const IE::Layout layout) {
 }
 
 // TODO #-30406 : Remove helpers-converters duplications between driver compiler adapter and zero backend
-ze_graph_argument_precision_t toZePrecision(const IE::Precision precision) {
+ze_graph_argument_precision_t toZePrecision(const ie::Precision precision) {
     switch (precision) {
-    case IE::Precision::I8:
+    case ie::Precision::I4:
+        return ZE_GRAPH_ARGUMENT_PRECISION_INT4;
+    case ie::Precision::U4:
+        return ZE_GRAPH_ARGUMENT_PRECISION_UINT4;
+    case ie::Precision::I8:
         return ZE_GRAPH_ARGUMENT_PRECISION_INT8;
-    case IE::Precision::U8:
+    case ie::Precision::U8:
         return ZE_GRAPH_ARGUMENT_PRECISION_UINT8;
-    case IE::Precision::I16:
+    case ie::Precision::I16:
         return ZE_GRAPH_ARGUMENT_PRECISION_INT16;
-    case IE::Precision::U16:
+    case ie::Precision::U16:
         return ZE_GRAPH_ARGUMENT_PRECISION_UINT16;
-    case IE::Precision::I32:
+    case ie::Precision::I32:
         return ZE_GRAPH_ARGUMENT_PRECISION_INT32;
-    case IE::Precision::FP16:
+    case ie::Precision::U32:
+        return ZE_GRAPH_ARGUMENT_PRECISION_UINT32;
+    case ie::Precision::I64:
+        return ZE_GRAPH_ARGUMENT_PRECISION_INT64;
+    case ie::Precision::U64:
+        return ZE_GRAPH_ARGUMENT_PRECISION_UINT64;
+    case ie::Precision::BF16:
+        return ZE_GRAPH_ARGUMENT_PRECISION_BF16;
+    case ie::Precision::FP16:
         return ZE_GRAPH_ARGUMENT_PRECISION_FP16;
-    case IE::Precision::FP32:
+    case ie::Precision::FP32:
         return ZE_GRAPH_ARGUMENT_PRECISION_FP32;
-    case IE::Precision::BIN:
+    case ie::Precision::FP64:
+        return ZE_GRAPH_ARGUMENT_PRECISION_FP64;
+    case ie::Precision::BIN:
         return ZE_GRAPH_ARGUMENT_PRECISION_BIN;
     default:
         return ZE_GRAPH_ARGUMENT_PRECISION_UNKNOWN;
@@ -226,21 +299,12 @@ using SerializedIR = std::vector<uint8_t>;
  */
 template <typename TableExtension>
 SerializedIR LevelZeroCompilerInDriver<TableExtension>::serializeIR(const std::vector<char>& xml,
-                                                                    const std::vector<char>& weights) {
+                                                                    const std::vector<char>& weights,
+                                                                    ze_graph_compiler_version_info_t& compilerVersion) {
     // Contract between adapter and compiler in driver
     const uint32_t maxNumberOfElements = 10;
     const uint64_t maxSizeOfXML = std::numeric_limits<uint64_t>::max() / 3;
     const uint64_t maxSizeOfWeights = maxSizeOfXML * 2;
-
-    ze_device_graph_properties_t deviceGraphProperties{};
-
-    auto result = _graphDdiTableExt->pfnDeviceGetGraphProperties(_deviceHandle, &deviceGraphProperties);
-
-    if (ZE_RESULT_SUCCESS != result) {
-        IE_THROW() << "LevelZeroCompilerInDriver: Failed to get graph properties from compiler";
-    }
-
-    const auto compilerVersion = deviceGraphProperties.compilerVersion;
 
     const uint32_t numberOfInputData = 2;
     const uint64_t xmlSize = static_cast<uint64_t>(xml.size());
@@ -394,46 +458,201 @@ std::string toString(const ze_graph_argument_layout_t& layout) {
     }
 }
 
-static std::string serializeConfig(const vpux::Config& config) {
-    return "--config " + config.toString();
+static std::string serializeConfig(const vpux::Config& config, ze_graph_compiler_version_info_t& compilerVersion) {
+    std::string content = config.toString();
+    // From 5.0.0, driver compiler start to use NPU_ prefix, the old version uses VPU_ prefix
+    if (compilerVersion.major < 5) {
+        std::regex reg("NPU_");
+        content = std::regex_replace(content, reg, "VPU_");
+        // From 4.0.0, driver compiler start to use VPU_ prefix, the old version uses VPUX_ prefix
+        if (compilerVersion.major < 4) {
+            // Replace VPU_ with VPUX_ for old driver compiler
+            std::regex reg("VPU_");
+            content = std::regex_replace(content, reg, "VPUX_");
+        }
+    }
+    return "--config " + content;
+}
+
+// Parse the result string of query from foramt <name_0><name_1><name_2> to unordered_set of string
+static std::unordered_set<std::string> parseQueryResult(std::vector<char>& data) {
+    std::string dataString(data.begin(), data.end());
+    std::unordered_set<std::string> result;
+    size_t i = 0, start = 0;
+    while (i < dataString.length()) {
+        if (dataString[i] == '<') {
+            start = ++i;
+        } else if (dataString[i] == '>') {
+            std::string temp(dataString.begin() + start, dataString.begin() + i);
+            result.insert(temp);
+            i++;
+        } else {
+            i++;
+        }
+    }
+    return result;
+}
+
+// For ext version < 1.3, query is unsupported, return empty result and add debug log here
+template <typename TableExtension>
+template <typename T, std::enable_if_t<NotSupportQuery(T), bool>>
+std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::queryImpl(const std::vector<char>& xml,
+                                                                                     const std::vector<char>& weights,
+                                                                                     const vpux::Config& config) {
+    UNUSED(xml);
+    UNUSED(weights);
+    UNUSED(config);
+    _logger.debug("Driver version is less than 1.3, queryNetwork is unsupported.");
+    return std::unordered_set<std::string>();
+}
+
+// For ext version >= 1.3, query is supported, calling querynetwork api in _graphDdiTableExt
+template <typename TableExtension>
+template <typename T, std::enable_if_t<!NotSupportQuery(T), bool>>
+std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::queryImpl(const std::vector<char>& xml,
+                                                                                     const std::vector<char>& weights,
+                                                                                     const vpux::Config& config) {
+    _logger.debug("Calling queryNetwork of 1.3 version.");
+
+    std::string buildFlags;
+    ze_device_graph_properties_t deviceGraphProperties{};
+    auto result = _graphDdiTableExt->pfnDeviceGetGraphProperties(_deviceHandle, &deviceGraphProperties);
+    if (ZE_RESULT_SUCCESS != result) {
+        IE_THROW() << "LevelZeroCompilerInDriver: Failed to get graph properties from compiler";
+    }
+    ze_graph_compiler_version_info_t& compilerVersion = deviceGraphProperties.compilerVersion;
+    buildFlags += serializeConfig(config, compilerVersion);
+    _logger.debug("Build flags : {0}", buildFlags);
+
+    auto serializedIR = serializeIR(xml, weights, compilerVersion);
+
+    ze_graph_desc_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
+                            nullptr,
+                            ZE_GRAPH_FORMAT_NGRAPH_LITE,
+                            serializedIR.size(),
+                            serializedIR.data(),
+                            buildFlags.c_str()};
+    ze_graph_query_network_handle_t hGraphQueryNetwork;
+
+    // Create querynetwork handle
+    result = _graphDdiTableExt->pfnQueryNetworkCreate(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
+
+    if (ZE_RESULT_SUCCESS != result) {
+        _graphDdiTableExt->pfnQueryNetworkDestroy(hGraphQueryNetwork);
+        IE_THROW() << "Failed to Create query network. Error code: " << std::hex << result;
+    }
+
+    // Get the size of query result
+    size_t size = 0;
+    result = _graphDdiTableExt->pfnQueryNetworkGetSupportedLayers(hGraphQueryNetwork, &size, nullptr);
+    if (ZE_RESULT_SUCCESS != result) {
+        _graphDdiTableExt->pfnQueryNetworkDestroy(hGraphQueryNetwork);
+        IE_THROW() << "Failed to get size of querynetwork result. Error code: " << std::hex << result;
+    }
+
+    // Get the result data of query
+    std::vector<char> supportedLayers(size);
+    result = _graphDdiTableExt->pfnQueryNetworkGetSupportedLayers(hGraphQueryNetwork, &size, supportedLayers.data());
+    if (ZE_RESULT_SUCCESS != result) {
+        _graphDdiTableExt->pfnQueryNetworkDestroy(hGraphQueryNetwork);
+        IE_THROW() << "Failed to get data of querynetwork result. Error code: " << std::hex << result;
+    }
+
+    result = _graphDdiTableExt->pfnQueryNetworkDestroy(hGraphQueryNetwork);
+    if (ZE_RESULT_SUCCESS != result) {
+        IE_THROW() << "Failed to destroy graph query network handle. Error code: " << std::hex << result;
+    }
+
+    return parseQueryResult(supportedLayers);
+}
+
+template <typename TableExtension>
+std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::getQueryResult(
+        const std::vector<char>& xml, const std::vector<char>& weights, const vpux::Config& config) {
+    _logger.setLevel(config.get<LOG_LEVEL>());
+    _logger.debug("LevelZeroCompilerInDriver::getQueryResult");
+    auto queryResult = queryImpl(xml, weights, config);
+    _logger.debug("LevelZeroCompilerInDriver::getQueryResult end");
+    return queryResult;
+}
+
+// For ext version <1.5, calling pfnCreate api in _graphDdiTableExt
+template <typename TableExtension>
+template <typename T, std::enable_if_t<NotSupportGraph2(T), bool>>
+ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_graph_format_t& format,
+                                                                   const std::vector<uint8_t>& serializedIR,
+                                                                   const std::string& buildFlags, const uint32_t& flags,
+                                                                   ze_graph_handle_t* graph) {
+    UNUSED(flags);
+    ze_graph_desc_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
+                            nullptr,
+                            format,
+                            serializedIR.size(),
+                            serializedIR.data(),
+                            buildFlags.c_str()};
+
+    // Create querynetwork handle
+    return _graphDdiTableExt->pfnCreate(_context, _deviceHandle, &desc, graph);
+}
+
+// For ext version >= 1.5, calling pfnCreate2 api in _graphDdiTableExt
+template <typename TableExtension>
+template <typename T, std::enable_if_t<!NotSupportGraph2(T), bool>>
+ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_graph_format_t& format,
+                                                                   const std::vector<uint8_t>& serializedIR,
+                                                                   const std::string& buildFlags, const uint32_t& flags,
+                                                                   ze_graph_handle_t* graph) {
+    ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
+                              nullptr,
+                              format,
+                              serializedIR.size(),
+                              serializedIR.data(),
+                              buildFlags.c_str(),
+                              flags};
+
+    // Create querynetwork handle
+    return _graphDdiTableExt->pfnCreate2(_context, _deviceHandle, &desc, graph);
 }
 
 template <typename TableExtension>
 INetworkDescription::Ptr LevelZeroCompilerInDriver<TableExtension>::compileIR(
         const std::string& graphName, const std::vector<char>& xml, const std::vector<char>& weights,
-        const IE::InputsDataMap& inputsInfo, const IE::OutputsDataMap& outputsInfo, const vpux::Config& config) {
+        const ie::InputsDataMap& inputMetadata, const ie::OutputsDataMap& outputMetadata, const vpux::Config& config) {
     _logger.setLevel(config.get<LOG_LEVEL>());
     _logger.debug("LevelZeroCompilerInDriver::compileIR");
-    auto serializedIR = serializeIR(xml, weights);
+
+    ze_device_graph_properties_t deviceGraphProperties{};
+    auto result = _graphDdiTableExt->pfnDeviceGetGraphProperties(_deviceHandle, &deviceGraphProperties);
+    if (ZE_RESULT_SUCCESS != result) {
+        IE_THROW() << "LevelZeroCompilerInDriver: Failed to get graph properties from compiler";
+    }
+    ze_graph_compiler_version_info_t& compilerVersion = deviceGraphProperties.compilerVersion;
+
+    auto serializedIR = serializeIR(xml, weights, compilerVersion);
 
     ze_graph_format_t format = ZE_GRAPH_FORMAT_NGRAPH_LITE;
 
-    if (inputsInfo.empty() || outputsInfo.empty()) {
-        THROW_IE_EXCEPTION << "Information about inputs or outputs is not provided.";
-    }
-
     std::string buildFlags;
 
-    buildFlags += serializeIOInfo(inputsInfo, outputsInfo);
+    buildFlags += serializeIOInfo(inputMetadata, outputMetadata);
     buildFlags += " ";
-    buildFlags += serializeConfig(config);
+    buildFlags += serializeConfig(config, compilerVersion);
 
     _logger.debug("Build flags : {0}", buildFlags);
-
-    ze_graph_desc_t desc{ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
-                         nullptr,
-                         format,
-                         serializedIR.size(),
-                         serializedIR.data(),
-                         buildFlags.c_str()};
-
     // TODO #-30202 Store graph_handle inside NetworkDesc instead of blob. But this will require changes in zeroAPI
 
     // Graph handle should be used only in scope of compile / parse functions.
     ze_graph_handle_t graphHandle;
 
+    // If OV cache is enabled, disable driver caching
+    uint32_t flags = ZE_GRAPH_FLAG_NONE;
+    const auto set_cache_dir = config.get<CACHE_DIR>();
+    if (!set_cache_dir.empty()) {
+        flags = flags | ZE_GRAPH_FLAG_DISABLE_CACHING;
+    }
+
     _logger.info("Using extension version: {0}", typeid(TableExtension).name());
-    auto result = _graphDdiTableExt->pfnCreate(_context, _deviceHandle, &desc, &graphHandle);
+    result = createGraph(format, serializedIR, buildFlags, flags, &graphHandle);
 
     VPUX_THROW_WHEN(result != ZE_RESULT_SUCCESS,
                     "LevelZeroCompilerInDriver: Failed to compile network. Error code: {0}. {1}", result,
@@ -522,29 +741,21 @@ size_t LevelZeroCompilerInDriver<TableExtension>::getSupportedOpset() {
 
 template <typename TableExtension>
 template <typename T>
-void LevelZeroCompilerInDriver<TableExtension>::getNetDevInOutputs(DataMap& netInputs, DataMap& devInputs,
-                                                                   DataMap& netOutputs, DataMap& devOutputs,
-                                                                   const T& arg) {
-    IE::Precision netPrecision = toIEPrecision(arg.networkPrecision);
-    IE::Layout netLayout = toIELayout(arg.networkLayout);
-    IE::SizeVector netDims(arg.dims, arg.dims + getDimCount(netLayout));
-    IE::TensorDesc netDataDesc(netPrecision, netDims, netLayout);
-
-    IE::Precision dev_precision = toIEPrecision(arg.devicePrecision);
-    IE::Layout devLayout = toIELayout(arg.deviceLayout);
-    IE::SizeVector devDims(arg.dims, arg.dims + getDimCount(devLayout));
-    IE::TensorDesc devDataDesc(dev_precision, devDims, devLayout);
+void LevelZeroCompilerInDriver<TableExtension>::getDeviceIO(NetworkIOVector& devInputs, NetworkIOVector& devOutputs,
+                                                            const T& arg) {
+    ie::Precision dev_precision = toIEPrecision(arg.devicePrecision);
+    ie::Layout devLayout = toIELayout(arg.deviceLayout);
+    ie::SizeVector devDims(arg.dims, arg.dims + getDimCount(devLayout));
+    ie::TensorDesc devDataDesc(dev_precision, devDims, devLayout);
 
     if (ZE_GRAPH_ARGUMENT_TYPE_INPUT == arg.type) {
         _logger.info("Found input \"{0}\"", arg.name);
-        netInputs.emplace(arg.name, std::make_shared<IE::Data>(arg.name, netDataDesc));
-        devInputs.emplace(arg.name, std::make_shared<IE::Data>(arg.name, devDataDesc));
+        devInputs.emplace_back(arg.name, std::make_shared<ie::Data>(arg.name, devDataDesc));
     }
 
     if (ZE_GRAPH_ARGUMENT_TYPE_OUTPUT == arg.type) {
         _logger.info("Found output \"{0}\"", arg.name);
-        netOutputs.emplace(arg.name, std::make_shared<IE::Data>(arg.name, netDataDesc));
-        devOutputs.emplace(arg.name, std::make_shared<IE::Data>(arg.name, devDataDesc));
+        devOutputs.emplace_back(arg.name, std::make_shared<ie::Data>(arg.name, devDataDesc));
     }
 }
 
@@ -563,39 +774,56 @@ void getOVNodes(std::vector<OVRawNode>& ovInfo, ze_graph_argument_metadata_t& me
     ovInfo.push_back({metaData.friendly_name, nodeType, nodeShape, std::move(nodeTensorsNames), metaData.input_name});
 }
 
+void getOVNodes(std::vector<OVRawNode>& ovInfo, ze_graph_argument_properties_3_t& arg) {
+    ov::Shape nodeShape;
+    std::unordered_set<std::string> nodeTensorsNames;
+    for (uint32_t id = 0; id < arg.associated_tensor_names_count; id++) {
+        nodeTensorsNames.insert(arg.associated_tensor_names[id]);
+    }
+    for (uint32_t id = 0; id < arg.dims_count; id++) {
+        nodeShape.push_back(arg.dims[id]);
+    }
+    ov::element::Type_t nodeType = toOVElementType(arg.devicePrecision);
+    ovInfo.push_back({arg.debug_friendly_name, nodeType, nodeShape, std::move(nodeTensorsNames), arg.name});
+}
+
 template <>
 void LevelZeroCompilerInDriver<ze_graph_dditable_ext_t>::getMetaData(ze_graph_dditable_ext_t* graphDdiTableExt,
                                                                      ze_graph_handle_t graphHandle, uint32_t index,
-                                                                     DataMap& netInputs, DataMap& devInputs,
-                                                                     DataMap& netOutputs, DataMap& devOutputs,
+                                                                     NetworkIOVector& devInputs,
+                                                                     NetworkIOVector& devOutputs,
                                                                      std::vector<OVRawNode>& ovResults,
                                                                      std::vector<OVRawNode>& ovParameters) {
     ze_graph_argument_properties_t arg;
     auto result = graphDdiTableExt->pfnGetArgumentProperties(graphHandle, index, &arg);
     if (ZE_RESULT_SUCCESS != result) {
-        IE_THROW() << "LevelZeroCompilerInDriver: Failed to get information about inputs/outputs.";
+        IE_THROW() << "LevelZeroCompilerInDriver: LevelZeroCompilerInDriver:Failed to call pfnGetArgumentProperties. "
+                      "Error code: "
+                   << std::hex << result;
     }
 
-    getNetDevInOutputs(netInputs, devInputs, netOutputs, devOutputs, arg);
+    getDeviceIO(devInputs, devOutputs, arg);
     _logger.warning("ovResults is unsupported, thus stays unchanged.");
     _logger.warning("ovParameters is unsupported, thus stays unchanged.");
     UNUSED(ovResults);
     UNUSED(ovParameters);
 }
 
-template <typename TableExtension>
-void LevelZeroCompilerInDriver<TableExtension>::getMetaData(TableExtension* graphDdiTableExt,
-                                                            ze_graph_handle_t graphHandle, uint32_t index,
-                                                            DataMap& netInputs, DataMap& devInputs, DataMap& netOutputs,
-                                                            DataMap& devOutputs, std::vector<OVRawNode>& ovResults,
-                                                            std::vector<OVRawNode>& ovParameters) {
+template <>
+void LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_1_t>::getMetaData(ze_graph_dditable_ext_1_1_t* graphDdiTableExt,
+                                                                         ze_graph_handle_t graphHandle, uint32_t index,
+                                                                         NetworkIOVector& devInputs,
+                                                                         NetworkIOVector& devOutputs,
+                                                                         std::vector<OVRawNode>& ovResults,
+                                                                         std::vector<OVRawNode>& ovParameters) {
     ze_graph_argument_properties_2_t arg;
     auto result = graphDdiTableExt->pfnGetArgumentProperties2(graphHandle, index, &arg);
     if (ZE_RESULT_SUCCESS != result) {
-        IE_THROW() << "LevelZeroCompilerInDriver: Failed to get information about inputs/outputs.";
+        IE_THROW() << "LevelZeroCompilerInDriver: Failed to call pfnGetArgumentProperties2. Error code: " << std::hex
+                   << result;
     }
 
-    getNetDevInOutputs(netInputs, devInputs, netOutputs, devOutputs, arg);
+    getDeviceIO(devInputs, devOutputs, arg);
 
     // The I/O data corresponding to the states of the model is not found within the OpenVINO 2.0 attributes contained
     // by the compiled model, thus we should not query them
@@ -603,7 +831,8 @@ void LevelZeroCompilerInDriver<TableExtension>::getMetaData(TableExtension* grap
         ze_graph_argument_metadata_t metaData;
         result = graphDdiTableExt->pfnGraphGetArgumentMetadata(graphHandle, index, &metaData);
         if (ZE_RESULT_SUCCESS != result) {
-            IE_THROW() << "LevelZeroCompilerInDriver: Failed to get information about inputs/outputs.";
+            IE_THROW() << "LevelZeroCompilerInDriver: Failed to call pfnGraphGetArgumentMetadata. Error code: "
+                       << std::hex << result;
         }
 
         if (ZE_GRAPH_ARGUMENT_TYPE_INPUT == arg.type) {
@@ -612,6 +841,30 @@ void LevelZeroCompilerInDriver<TableExtension>::getMetaData(TableExtension* grap
 
         if (ZE_GRAPH_ARGUMENT_TYPE_OUTPUT == arg.type) {
             getOVNodes(ovResults, metaData);
+        }
+    }
+}
+
+template <typename TableExtension>
+void LevelZeroCompilerInDriver<TableExtension>::getMetaData(TableExtension* graphDdiTableExt,
+                                                            ze_graph_handle_t graphHandle, uint32_t index,
+                                                            NetworkIOVector& devInputs, NetworkIOVector& devOutputs,
+                                                            std::vector<OVRawNode>& ovResults,
+                                                            std::vector<OVRawNode>& ovParameters) {
+    ze_graph_argument_properties_3_t arg;
+    auto result = graphDdiTableExt->pfnGetArgumentProperties3(graphHandle, index, &arg);
+    if (ZE_RESULT_SUCCESS != result) {
+        IE_THROW() << "pfnGetArgumentProperties3, Failed to get information about inputs/outputs. Error code: "
+                   << std::hex << result;
+    }
+    getDeviceIO(devInputs, devOutputs, arg);
+    if (!isStateInputName(arg.name) && !isStateOutputName(arg.name)) {
+        if (ZE_GRAPH_ARGUMENT_TYPE_INPUT == arg.type) {
+            getOVNodes(ovParameters, arg);
+        }
+
+        if (ZE_GRAPH_ARGUMENT_TYPE_OUTPUT == arg.type) {
+            getOVNodes(ovResults, arg);
         }
     }
 }
@@ -626,26 +879,17 @@ NetworkMeta LevelZeroCompilerInDriver<TableExtension>::getNetworkMeta(ze_graph_h
         IE_THROW() << "LevelZeroCompilerInDriver: Failed to get information about graph.";
     }
 
-    DataMap netInputs;
-    DataMap devInputs;
-
-    DataMap netOutputs;
-    DataMap devOutputs;
+    NetworkIOVector devInputs;
+    NetworkIOVector devOutputs;
 
     std::vector<OVRawNode> ovResults;
     std::vector<OVRawNode> ovParameters;
     for (uint32_t index = 0; index < graphProperties.numGraphArgs; ++index) {
-        getMetaData(_graphDdiTableExt, graphHandle, index, netInputs, devInputs, netOutputs, devOutputs, ovResults,
-                    ovParameters);
+        getMetaData(_graphDdiTableExt, graphHandle, index, devInputs, devOutputs, ovResults, ovParameters);
     }
     // TODO: support this information in CiD [track: E#33479]
     int numStreams = 1;
-    return NetworkMeta{std::move(netInputs),
-                       std::move(netOutputs),
-                       std::move(devInputs),
-                       std::move(devOutputs),
-                       std::move(ovResults),
-                       std::move(ovParameters),
+    return NetworkMeta{std::move(devInputs), std::move(devOutputs), std::move(ovResults), std::move(ovParameters),
                        numStreams};
 }
 
@@ -682,10 +926,12 @@ std::string LevelZeroCompilerInDriver<TableExtension>::getLatestBuildError() {
     return logContent;
 }
 
-// Explicit template instantiations to avoid linker errors
 template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_t>;
 template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_1_t>;
+template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_2_t>;
+template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_3_t>;
 template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_4_t>;
+template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_5_t>;
 
 }  // namespace driverCompilerAdapter
 }  // namespace vpux

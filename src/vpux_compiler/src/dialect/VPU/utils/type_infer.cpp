@@ -44,6 +44,11 @@ mlir::LogicalResult inferReduceReturnTypes(mlir::Location loc, mlir::Value input
         }
     }
 
+    // If axes contains all dimensions of input data, a single reduction value is calculated for the entire input tensor
+    if (outShape.size() == 0) {
+        outShape = {1};
+    }
+
     const auto newOutputType =
             TypeComponents()
                     .setDimsOrder(keepDims ? inType.getDimsOrder()

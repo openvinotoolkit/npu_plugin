@@ -37,14 +37,14 @@ func.func @fusePadIntoGroupConv(%arg0: tensor<1x8x13x29xf16>) -> tensor<1x8x12x2
                         : tensor<1x8x13x29xf16> -> tensor<1x8x16x32xf16>
     %WEIGHT = const.Declare tensor<8x1x5x5xf16> = dense<1.0> : tensor<8x1x5x5xf16>
     %BIAS = const.Declare tensor<1x8x1x1xf16> = dense<0.0> : tensor<1x8x1x1xf16>
-    %3 = IE.GroupConvolution(%0, %WEIGHT, %BIAS)
+    %3 = IE.GroupConvolution(%0, %WEIGHT, %BIAS) 
     {
         dilations = [1, 1],
         groups = 8 : i64,
         pads_begin = [0, 0],
         pads_end = [0, 0],
         strides = [1, 1]
-    } :
+    } : 
     tensor<1x8x16x32xf16>, tensor<8x1x5x5xf16>, tensor<1x8x1x1xf16> -> tensor<1x8x12x28xf16>
     return %3 : tensor<1x8x12x28xf16>
 

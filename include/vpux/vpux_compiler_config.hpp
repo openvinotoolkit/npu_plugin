@@ -19,18 +19,18 @@
 
 #include "ie_plugin_config.hpp"
 
-#define VPU_COMPILER_CONFIG_KEY(name) InferenceEngine::VPUXConfigParams::_CONFIG_KEY(VPU_COMPILER_##name)
-#define VPU_COMPILER_CONFIG_VALUE(name) InferenceEngine::VPUXConfigParams::VPU_COMPILER_##name
+#define VPU_COMPILER_CONFIG_KEY(name) InferenceEngine::VPUXConfigParams::_CONFIG_KEY(NPU_COMPILER_##name)
+#define VPU_COMPILER_CONFIG_VALUE(name) InferenceEngine::VPUXConfigParams::NPU_COMPILER_##name
 
-#define DECLARE_VPU_COMPILER_CONFIG_KEY(name) DECLARE_CONFIG_KEY(VPU_COMPILER_##name)
-#define DECLARE_VPU_COMPILER_CONFIG_VALUE(name) DECLARE_CONFIG_VALUE(VPU_COMPILER_##name)
+#define DECLARE_VPU_COMPILER_CONFIG_KEY(name) DECLARE_CONFIG_KEY(NPU_COMPILER_##name)
+#define DECLARE_VPU_COMPILER_CONFIG_VALUE(name) DECLARE_CONFIG_VALUE(NPU_COMPILER_##name)
 
 namespace InferenceEngine {
 namespace VPUXConfigParams {
 
 /**
  * @brief [Only for vpu compiler]
- * Describe log level for mcmCompiler
+ * Describe log level for compiler
  * This option should be used with values: PluginConfigParams::LOG_INFO (default),
  * PluginConfigParams::LOG_ERROR, PluginConfigParams::LOG_WARNING,
  * PluginConfigParams::LOG_NONE, PluginConfigParams::LOG_DEBUG, PluginConfigParams::LOG_TRACE

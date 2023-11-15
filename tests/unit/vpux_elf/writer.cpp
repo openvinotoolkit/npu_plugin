@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <array>
 
 #include <vpux_elf/accessor.hpp>

@@ -23,7 +23,7 @@ mlir::LogicalResult vpux::IE::ShapeCastOp::inferReturnTypeComponents(
     const auto outShape = parseIntArrayAttr<int64_t>(shapeCast.shape());
 
     const auto inType = shapeCast.source().getType().cast<vpux::NDTypeInterface>();
-    const auto outDesc = IE::getTensorAttr(ctx, inType.getDimsOrder(), inType.getMemSpace());
+    const auto outDesc = vpux::getTensorAttr(ctx, inType.getDimsOrder(), inType.getMemSpace());
     inferredReturnTypes.emplace_back(outShape, inType.getElementType(), outDesc);
     return mlir::success();
 }

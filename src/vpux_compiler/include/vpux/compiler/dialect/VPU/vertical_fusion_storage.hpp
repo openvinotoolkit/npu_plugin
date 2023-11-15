@@ -35,7 +35,7 @@ public:
 
     // insert new element in container, in case there is already
     // info for object and tile, max element is chosen based on comparator
-    void insert(VFKey key, size_t tile, VFValue src);
+    void insert(VFKey key, size_t tile, const VFValue& src);
 
     // get information about object for exact tile
     mlir::Optional<VFValue> get(VFKey key, size_t tile);
@@ -70,8 +70,8 @@ void vpux::VPU::VFContainer<VFKey, VFValue, Compare>::merge(const VFContainer<VF
 }
 
 template <class VFKey, class VFValue, class Compare>
-void vpux::VPU::VFContainer<VFKey, VFValue, Compare>::insert(VFKey key, size_t tile, VFValue src) {
-    auto foundTileItem = llvm::find_if(vfContainer[key], [&](auto i) {
+void vpux::VPU::VFContainer<VFKey, VFValue, Compare>::insert(VFKey key, size_t tile, const VFValue& src) {
+    auto foundTileItem = llvm::find_if(vfContainer[key], [&](const auto& i) {
         return tile == i.first;
     });
 
@@ -101,7 +101,7 @@ mlir::Optional<VFValue> vpux::VPU::VFContainer<VFKey, VFValue, Compare>::get(VFK
 
 template <class VFKey, class VFValue, class Compare>
 std::vector<VFValue> vpux::VPU::VFContainer<VFKey, VFValue, Compare>::gatherValue(VFKey key) {
-    return to_std_vector(vfContainer[key] | transformed([](auto item) {
+    return to_std_vector(vfContainer[key] | transformed([](const auto& item) {
                              return item.second;
                          }));
 }

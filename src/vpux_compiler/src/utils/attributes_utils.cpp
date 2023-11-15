@@ -17,4 +17,22 @@ int64_t getPositiveAxisInd(mlir::IntegerAttr axisIndAttr, int64_t rank) {
     return axis;
 }
 
+mlir::FailureOr<int64_t> getConstOrAttrValue(mlir::Value input, mlir::IntegerAttr attr) {
+    if (input) {
+        auto op = input.getDefiningOp<Const::DeclareOp>();
+        if (op == nullptr) {
+            return mlir::failure();
+        }
+
+        const auto content = op.getContent();
+        if (!content.isSplat()) {
+            return mlir::failure();
+        }
+
+        return content.getSplatValue<int64_t>();
+    }
+
+    return attr.getValue().getSExtValue();
+}
+
 }  // namespace vpux

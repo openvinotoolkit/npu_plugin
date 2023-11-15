@@ -17,4 +17,4 @@
 // Generated
 //
 
-#include <vpux/compiler/dialect/VPUIP/generated/dialect.hpp.inc>
+#include <vpux/compiler/dialect/VPUIP/dialect.hpp.inc>

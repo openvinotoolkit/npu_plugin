@@ -16,7 +16,7 @@ func.func @ApplyTilingNCEConv(%arg0: tensor<1x32x64x64xf16, {order = #NHWC}>) ->
     %weights_table = const.Declare tensor<256x1x1x4xsi32, {order = #NCHW}> = dense<10> : tensor<256x1x1x4xsi32>
 
     %0 = VPU.NCE.Convolution(%arg0, %weights, %weights_table) {
-        pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+        pad = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>,
         rawFilterShape = [256, 32, 3, 3],
         strides = [1, 1],
         tilingStrategy = [1, 1, 2, 1]
@@ -31,7 +31,7 @@ func.func @ApplyTilingNCEConv(%arg0: tensor<1x32x64x64xf16, {order = #NHWC}>) ->
     // CHECK-SAME:      : tensor<1x32x64x64xf16, {order = #NHWC}> to tensor<1x32x33x64xf16, {order = #NHWC}>
 
     // CHECK:        [[OUTPUT_TILE0:%.+]] = VPU.NCE.Convolution([[ACTIVATION_TILE_0]], [[FILTER]], [[WEIGHTS_TABLE]])
-    // CHECK-SAME:          pad = {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}
+    // CHECK-SAME:          pad = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 0 : i64>
     // CHECK-SAME:          rawFilterShape = [256, 32, 3, 3], strides = [1, 1]
     // CHECK-SAME:          -> tensor<1x256x32x64xf16, {order = #NHWC}>
 
@@ -39,7 +39,7 @@ func.func @ApplyTilingNCEConv(%arg0: tensor<1x32x64x64xf16, {order = #NHWC}>) ->
     // CHECK-SAME:      : tensor<1x32x64x64xf16, {order = #NHWC}> to tensor<1x32x33x64xf16, {order = #NHWC}>
 
     // CHECK:        [[OUTPUT_TILE1:%.+]] = VPU.NCE.Convolution([[ACTIVATION_TILE_1]], [[FILTER]], [[WEIGHTS_TABLE]])
-    // CHECK-SAME:          pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64
+    // CHECK-SAME:          pad = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 0 : i64, bottom = 1 : i64>
     // CHECK-SAME:          rawFilterShape = [256, 32, 3, 3], strides = [1, 1]
     // CHECK-SAME:          -> tensor<1x256x32x64xf16, {order = #NHWC}>
 
@@ -66,7 +66,7 @@ func.func @ApplyTilingMaxPool(%arg0: tensor<1x16x200x200xf16, {order = #NHWC}>) 
     %0 = VPU.NCE.MaxPool(%arg0, %weights_table, %activation_window) {
         activation_window_channel_length = 18 : i64,
         kernel_size = [3, 3],
-        pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+        pad = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>,
         strides = [1, 1],
         tilingStrategy = [1, 1, 2, 1]
     } -> tensor<1x16x200x200xf16, {order = #NHWC}>
@@ -84,7 +84,7 @@ func.func @ApplyTilingMaxPool(%arg0: tensor<1x16x200x200xf16, {order = #NHWC}>) 
 
     // CHECK:       [[OUTPUT_TILE0:%.+]] = VPU.NCE.MaxPool([[INPUT_TILE0]], [[WEIGHTS_TABLE]], [[ACTIVATION_WINDOW]]) {
     // CHECK-SAME:      activation_window_channel_length = 18 : i64,
-    // CHECK-SAME:      pad = {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+    // CHECK-SAME:      pad = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 0 : i64>,
     // CHECK-SAME:      } -> tensor<1x16x100x200xf16, {order = #NHWC}>
 
     // Tile 1
@@ -95,7 +95,7 @@ func.func @ApplyTilingMaxPool(%arg0: tensor<1x16x200x200xf16, {order = #NHWC}>) 
 
     // CHECK:       [[OUTPUT_TILE1:%.+]] = VPU.NCE.MaxPool([[INPUT_TILE1]], [[WEIGHTS_TABLE]], [[ACTIVATION_WINDOW]]) {
     // CHECK-SAME:      activation_window_channel_length = 18 : i64,
-    // CHECK-SAME:      pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64},
+    // CHECK-SAME:      pad = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 0 : i64, bottom = 1 : i64>,
     // CHECK-SAME:      } -> tensor<1x16x100x200xf16, {order = #NHWC}>
 
     // CHECK:       [[OUTPUT:%.+]] = VPU.Concat([[OUTPUT_TILE0]], [[OUTPUT_TILE1]])
@@ -113,9 +113,9 @@ func.func @ApplyTilingMaxPool(%arg0: tensor<1x16x200x200xf16, {order = #NHWC}>) 
 // CHECK-SAME:      [[INPUT:%arg[0-9]]]: tensor<1x16x7x12960xf16, {order = #NHWC}>
 func.func @ApplyTilingAvgPool(%arg0: tensor<1x16x7x12960xf16, {order = #NHWC}>) -> tensor<1x16x1x12960xf16, {order = #NHWC}> {
     %0 = VPU.NCE.AveragePool(%arg0) {
-        kernel_size = [7, 1],
-        pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
-        ppe = {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "NOOP", quant_scale = [2.500000e-01]},
+        kernel_size = [7, 1], 
+        pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, 
+        ppe = #VPU.PPETask<mode = <NOOP>, clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, quant_scale = [2.500000e-01]>, 
         strides = [1, 1],
         tilingStrategy = [1, 1, 1, 3]
         } -> tensor<1x16x1x12960xf16, {order = #NHWC}>
@@ -166,8 +166,8 @@ func.func @ApplyTilingAvgPool(%arg0: tensor<1x16x7x12960xf16, {order = #NHWC}>) 
 // CHECK-SAME:      [[INPUT:%arg[0-9]]]: tensor<1x2048x14x14xf16, {order = #NHWC}>
 func.func @ApplyTilingNCEEltwise(%arg0: tensor<1x2048x14x14xf16, {order = #NHWC}>) -> tensor<1x2048x14x14xf16, {order = #NHWC}> {
     %0 = VPU.NCE.Eltwise(%arg0, %arg0) {
-        op_type = "ADD",
-        ppe = {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "ADD"},
+        op_type = #VPU.eltwise_type<ADD>,
+        ppe = #VPU.PPETask<mode = <ADD>, clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64>,
         tilingStrategy = [1, 2, 1, 1]
     } -> tensor<1x2048x14x14xf16, {order = #NHWC}>
 
@@ -180,7 +180,7 @@ func.func @ApplyTilingNCEEltwise(%arg0: tensor<1x2048x14x14xf16, {order = #NHWC}
     // CHECK-SAME:      to tensor<1x1024x14x14xf16, {order = #NHWC}>
 
     // CHECK:       [[OUTPUT_TILE0:%.+]] = VPU.NCE.Eltwise([[INPUT_TILE0]], [[INPUT_TILE0]]) {
-    // CHECK-SAME:      op_type = "ADD"
+    // CHECK-SAME:      op_type = #VPU.eltwise_type<ADD>
     // CHECK-SAME:      } -> tensor<1x1024x14x14xf16, {order = #NHWC}>
 
     // CHECK:       [[INPUT_TILE1:%.+]] = VPU.Slice [[INPUT]] [0, 1024, 0, 0] [1, 1024, 14, 14]
@@ -188,7 +188,7 @@ func.func @ApplyTilingNCEEltwise(%arg0: tensor<1x2048x14x14xf16, {order = #NHWC}
     // CHECK-SAME:      to tensor<1x1024x14x14xf16, {order = #NHWC}>
 
     // CHECK:       [[OUTPUT_TILE1:%.+]] = VPU.NCE.Eltwise([[INPUT_TILE1]], [[INPUT_TILE1]]) {
-    // CHECK-SAME:      op_type = "ADD"
+    // CHECK-SAME:      op_type = #VPU.eltwise_type<ADD>
     // CHECK-SAME:      } -> tensor<1x1024x14x14xf16, {order = #NHWC}>
 
     // CHECK:       [[OUTPUT:%.+]] = VPU.Concat([[OUTPUT_TILE0]], [[OUTPUT_TILE1]])
@@ -213,7 +213,7 @@ func.func @ApplyTilingSparseNCEConv(%arg0: tensor<1x32x80x60xf16, {order = #NHWC
     %weights_table = const.Declare tensor<160x1x1x4xsi32, {order = #NCHW}> = dense<10> : tensor<160x1x1x4xsi32>
 
     %0 = VPU.NCE.Convolution(%arg0, %weights_sparse, %weights_table) {
-        pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+        pad = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>,
         rawFilterShape = [160, 32, 3, 3],
         strides = [1, 1],
         tilingStrategy = [1, 1, 2, 1]
@@ -238,7 +238,7 @@ func.func @ApplyTilingSparseNCEConv(%arg0: tensor<1x32x80x60xf16, {order = #NHWC
     // CHECK-SAME:      : tensor<1x32x80x60xf16, {order = #NHWC}> to tensor<1x32x41x60xf16, {order = #NHWC}>
 
     // CHECK:        [[OUTPUT_TILE0:%.+]] = VPU.NCE.Convolution([[ACTIVATION_1]], [[WEIGHTS_SPARSE_TILE]], [[WEIGHTS_TABLE_TILE]])
-    // CHECK-SAME:          pad = {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+    // CHECK-SAME:          pad = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 0 : i64>,
     // CHECK-SAME:          rawFilterShape = [160, 32, 3, 3],
     // CHECK-SAME:          -> tensor<1x160x40x60xf16, {order = #NHWC}>
 
@@ -246,7 +246,7 @@ func.func @ApplyTilingSparseNCEConv(%arg0: tensor<1x32x80x60xf16, {order = #NHWC
     // CHECK-SAME:      : tensor<1x32x80x60xf16, {order = #NHWC}> to tensor<1x32x41x60xf16, {order = #NHWC}>
 
     // CHECK:        [[OUTPUT_TILE1:%.+]] = VPU.NCE.Convolution([[ACTIVATION_2]], [[WEIGHTS_SPARSE_TILE]], [[WEIGHTS_TABLE_TILE]])
-    // CHECK-SAME:          pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64},
+    // CHECK-SAME:          pad = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 0 : i64, bottom = 1 : i64>,
     // CHECK-SAME:          rawFilterShape = [160, 32, 3, 3],
     // CHECK-SAME:          -> tensor<1x160x40x60xf16, {order = #NHWC}>
 
@@ -276,7 +276,7 @@ func.func @ApplyTilingSparseQuantNCEConv(%arg0: tensor<1x32x80x80x!qElemType0, {
     %weights_table = const.Declare tensor<320x1x1x4xsi32, {order = #NCHW}> = dense<10> : tensor<320x1x1x4xsi32>
 
     %0 = VPU.NCE.Convolution(%arg0, %weights_sparse, %weights_table) {
-        pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+        pad = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 1 : i64>,
         rawFilterShape = [320, 32, 3, 3],
         strides = [1, 1],
         tilingStrategy = [1, 1, 2, 1]
@@ -300,7 +300,7 @@ func.func @ApplyTilingSparseQuantNCEConv(%arg0: tensor<1x32x80x80x!qElemType0, {
     // CHECK-SAME:      : tensor<1x32x80x80x!qElemType0, {order = #NHWC}> to tensor<1x32x41x80x!qElemType0, {order = #NHWC}>
 
     // CHECK:        [[OUTPUT_TILE0:%.+]] = VPU.NCE.Convolution([[ACTIVATION_0]], [[WEIGHTS_SPARSE_TILE]], [[WEIGHTS_TABLE_TILE]])
-    // CHECK-SAME:          pad = {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+    // CHECK-SAME:          pad = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 1 : i64, bottom = 0 : i64>,
     // CHECK-SAME:          rawFilterShape = [320, 32, 3, 3],
     // CHECK-SAME:          -> tensor<1x320x40x80x!qElemType1, {order = #NHWC}>
 
@@ -308,7 +308,7 @@ func.func @ApplyTilingSparseQuantNCEConv(%arg0: tensor<1x32x80x80x!qElemType0, {
     // CHECK-SAME:      : tensor<1x32x80x80x!qElemType0, {order = #NHWC}> to tensor<1x32x41x80x!qElemType0, {order = #NHWC}>
 
     // CHECK:        [[OUTPUT_TILE1:%.+]] = VPU.NCE.Convolution([[ACTIVATION_1]], [[WEIGHTS_SPARSE_TILE]], [[WEIGHTS_TABLE_TILE]])
-    // CHECK-SAME:          pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64},
+    // CHECK-SAME:          pad = #VPU.Padding<left = 1 : i64, right = 1 : i64, top = 0 : i64, bottom = 1 : i64>,
     // CHECK-SAME:          rawFilterShape = [320, 32, 3, 3],
     // CHECK-SAME:          -> tensor<1x320x40x80x!qElemType1, {order = #NHWC}>
 
@@ -321,32 +321,34 @@ func.func @ApplyTilingSparseQuantNCEConv(%arg0: tensor<1x32x80x80x!qElemType0, {
 
 // -----
 
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
 // CHECK-LABEL: func.func @ApplyTilingDepthToSpace
-func.func @ApplyTilingDepthToSpace(%arg0: tensor<1x384x10x120xf16>) -> tensor<1x24x40x480xf16> {
+func.func @ApplyTilingDepthToSpace(%arg0: tensor<1x384x10x120xf16, {order = #NHWC}>) -> tensor<1x24x40x480xf16, {order = #NHWC}> {
     %0 = VPU.DepthToSpace(%arg0) {
-        block_size = 4 : i64,
+        block_size = 4 : i64, 
         mode = #IE.depth_to_space_mode<BLOCKS_FIRST>,
         tilingStrategy = [1, 1, 2, 1]
-    } : tensor<1x384x10x120xf16> -> tensor<1x24x40x480xf16>
-    return %0 : tensor<1x24x40x480xf16>
+    } : tensor<1x384x10x120xf16, {order = #NHWC}> -> tensor<1x24x40x480xf16, {order = #NHWC}>
+    return %0 : tensor<1x24x40x480xf16, {order = #NHWC}>
 
-    // CHECK:           [[SLICE0:%.+]] = VPU.Slice %arg0 [0, 0, 0, 0] [1, 384, 5, 120] : tensor<1x384x10x120xf16> to tensor<1x384x5x120xf16>
+    // CHECK:           [[SLICE0:%.+]] = VPU.Slice %arg0 [0, 0, 0, 0] [1, 384, 5, 120] : tensor<1x384x10x120xf16, {order = #NHWC}> to tensor<1x384x5x120xf16, {order = #NHWC}>
     // CHECK:           [[D2S0:%.+]] = VPU.DepthToSpace([[SLICE0]])
     // CHECK-SAME:              block_size = 4 : i64
     // CHECK-SAME:              mode = #IE.depth_to_space_mode<BLOCKS_FIRST>
-    // CHECK-SAME:          : tensor<1x384x5x120xf16> -> tensor<1x24x20x480xf16>
+    // CHECK-SAME:          : tensor<1x384x5x120xf16, {order = #NHWC}> -> tensor<1x24x20x480xf16, {order = #NHWC}>
 
-    // CHECK:           [[SLICE1:%.+]] = VPU.Slice %arg0 [0, 0, 5, 0] [1, 384, 5, 120] : tensor<1x384x10x120xf16> to tensor<1x384x5x120xf16>
+    // CHECK:           [[SLICE1:%.+]] = VPU.Slice %arg0 [0, 0, 5, 0] [1, 384, 5, 120] : tensor<1x384x10x120xf16, {order = #NHWC}> to tensor<1x384x5x120xf16, {order = #NHWC}>
     // CHECK:           [[D2S1:%.+]] = VPU.DepthToSpace([[SLICE1]])
     // CHECK-SAME:              block_size = 4 : i64
     // CHECK-SAME:              mode = #IE.depth_to_space_mode<BLOCKS_FIRST>
-    // CHECK-SAME:          : tensor<1x384x5x120xf16> -> tensor<1x24x20x480xf16>
+    // CHECK-SAME:          : tensor<1x384x5x120xf16, {order = #NHWC}> -> tensor<1x24x20x480xf16, {order = #NHWC}>
 
-    // CHECK:           [[CONCAT:%.+]] = VPU.Concat([[D2S0]], [[D2S1]])
+    // CHECK:           [[CONCAT:%.+]] = VPU.Concat([[D2S0]], [[D2S1]]) 
     // CHECK-SAME{LITERAL}:     static_offsets = [[0, 0, 0, 0], [0, 0, 20, 0]]
-    // CHECK-SAME:          : tensor<1x24x20x480xf16>, tensor<1x24x20x480xf16> -> tensor<1x24x40x480xf16>
+    // CHECK-SAME:          : tensor<1x24x20x480xf16, {order = #NHWC}>, tensor<1x24x20x480xf16, {order = #NHWC}> -> tensor<1x24x40x480xf16, {order = #NHWC}>
 
-    // CHECK:           return [[CONCAT]] : tensor<1x24x40x480xf16>
+    // CHECK:           return [[CONCAT]] : tensor<1x24x40x480xf16, {order = #NHWC}>
 }
 
 // -----
@@ -354,7 +356,7 @@ func.func @ApplyTilingDepthToSpace(%arg0: tensor<1x384x10x120xf16>) -> tensor<1x
 // CHECK-LABEL:   func.func @ApplyTilingSpaceToDepth
 func.func @ApplyTilingSpaceToDepth(%arg0: tensor<1x48x160x80xf16>) -> tensor<1x768x40x20xf16> {
     %0 = VPU.SpaceToDepthOp(%arg0) {
-        block_size = 4 : i64,
+        block_size = 4 : i64, 
         mode = #IE.space_to_depth_mode<BLOCKS_FIRST>,
         tilingStrategy = [1, 1, 1, 2]
     } : tensor<1x48x160x80xf16> -> tensor<1x768x40x20xf16>
@@ -372,7 +374,7 @@ func.func @ApplyTilingSpaceToDepth(%arg0: tensor<1x48x160x80xf16>) -> tensor<1x7
     // CHECK-SAME:              mode = #IE.space_to_depth_mode<BLOCKS_FIRST>
     // CHECK-SAME:          : tensor<1x48x160x40xf16> -> tensor<1x768x40x10xf16>
 
-    // CHECK:           [[CONCAT:%.+]] = VPU.Concat([[S2D0]], [[S2D1]])
+    // CHECK:           [[CONCAT:%.+]] = VPU.Concat([[S2D0]], [[S2D1]]) 
     // CHECK-SAME{LITERAL}:     static_offsets = [[0, 0, 0, 0], [0, 0, 0, 10]]
     // CHECK-SAME:          : tensor<1x768x40x10xf16>, tensor<1x768x40x10xf16> -> tensor<1x768x40x20xf16>
 
@@ -428,7 +430,7 @@ func.func @ApplyTilingSigmoid(%arg0: tensor<1x8x80x960xf16>) -> tensor<1x8x80x96
     // CHECK:       [[INPUT_TILE0:%.+]] = VPU.Slice [[INPUT]] [0, 0, 0, 0] [1, 8, 80, 480]
     // CHECK-SAME:  : tensor<1x8x80x960xf16> to tensor<1x8x80x480xf16>
 
-    // CHECK:       [[OUTPUT_TILE0:%.+]] = VPU.Sigmoid([[INPUT_TILE0]])
+    // CHECK:       [[OUTPUT_TILE0:%.+]] = VPU.Sigmoid([[INPUT_TILE0]]) 
     // CHECK-SAME:      : tensor<1x8x80x480xf16> -> tensor<1x8x80x480xf16>
 
     // CHECK:       [[INPUT_TILE1:%.+]] = VPU.Slice [[INPUT]] [0, 0, 0, 480] [1, 8, 80, 480]
@@ -537,7 +539,7 @@ func.func @ApplyTilingSqrt(%arg0: tensor<1x8x80x960xf16>) -> tensor<1x8x80x960xf
 // CHECK-SAME:  [[INPUT:%arg[0-9]]]: tensor<1x8x80x960xf16>) -> tensor<1x8x80x960xf16>
 func.func @ApplyTilingClamp(%arg0: tensor<1x8x80x960xf16>) -> tensor<1x8x80x960xf16> {
     %0 = VPU.Clamp(%arg0) {
-        max = 1.000000e+00 : f64,
+        max = 1.000000e+00 : f64, 
         min = -1.000000e+00 : f64,
         tilingStrategy = [1, 1, 1, 2]
     } : tensor<1x8x80x960xf16> -> tensor<1x8x80x960xf16>
@@ -720,6 +722,71 @@ func.func @SplitSwGroupConvOverOC(
     // CHECK:       return [[OUTPUT]] : tensor<1x64x56x56xf16>
 }
 
+// -----
+
+// CHECK-LABEL: func.func @SplitSwGroupConvOverOCLessOCThanGroup
+// CHECK-SAME:        [[INPUT_0:%arg[0-9]]]: tensor<1x10x224x224xf16>,
+// CHECK-SAME:        [[INPUT_1:%arg[0-9]]]: tensor<4x5x5x5xf16>
+func.func @SplitSwGroupConvOverOCLessOCThanGroup(
+        %input: tensor<1x10x224x224xf16>,
+        %filter: tensor<4x5x5x5xf16>)
+            -> tensor<1x4x224x224xf16> {
+    %1 = VPU.GroupConvolution(%input, %filter) {
+        dilations = [1, 1],
+        pads_begin = [2, 2],
+        pads_end = [2, 2],
+        strides = [1, 1],
+        groups = 2 : i64,
+        tilingStrategy = [1, 4, 1, 1]
+
+    } : tensor<1x10x224x224xf16>, tensor<4x5x5x5xf16> -> tensor<1x4x224x224xf16>
+    return %1 : tensor<1x4x224x224xf16>
+
+    // CHECK:        [[ACTIVATION_TILE_0:%.+]] = VPU.Slice [[INPUT_0]] [0, 0, 0, 0] [1, 5, 224, 224]
+    // CHECK-SAME:      : tensor<1x10x224x224xf16> to tensor<1x5x224x224xf16>
+    // CHECK:        [[WEIGHTS_TILE_0:%.+]] = VPU.Slice [[INPUT_1]] [0, 0, 0, 0] [1, 5, 5, 5]
+    // CHECK-SAME:      : tensor<4x5x5x5xf16> to tensor<1x5x5x5xf16>
+
+    // CHECK:        [[OUTPUT_TILE0:%.+]] = VPU.GroupConvolution([[ACTIVATION_TILE_0]], [[WEIGHTS_TILE_0]]
+    // CHECK-SAME:          groups = 1 : i64
+    // CHECK-SAME:          -> tensor<1x1x224x224xf16>
+
+    // CHECK:        [[ACTIVATION_TILE_1:%.+]] = VPU.Slice [[INPUT_0]] [0, 0, 0, 0] [1, 5, 224, 224]
+    // CHECK-SAME:      : tensor<1x10x224x224xf16> to tensor<1x5x224x224xf16>
+    // CHECK:        [[WEIGHTS_TILE_1:%.+]] = VPU.Slice [[INPUT_1]] [1, 0, 0, 0] [1, 5, 5, 5]
+    // CHECK-SAME:      : tensor<4x5x5x5xf16> to tensor<1x5x5x5xf16>
+
+    // CHECK:        [[OUTPUT_TILE1:%.+]] = VPU.GroupConvolution([[ACTIVATION_TILE_1]], [[WEIGHTS_TILE_1]]
+    // CHECK-SAME:          groups = 1 : i64
+    // CHECK-SAME:          -> tensor<1x1x224x224xf16>
+
+    // CHECK:        [[ACTIVATION_TILE_2:%.+]] = VPU.Slice [[INPUT_0]] [0, 5, 0, 0] [1, 5, 224, 224]
+    // CHECK-SAME:      : tensor<1x10x224x224xf16> to tensor<1x5x224x224xf16>
+    // CHECK:        [[WEIGHTS_TILE_2:%.+]] = VPU.Slice [[INPUT_1]] [2, 0, 0, 0] [1, 5, 5, 5]
+    // CHECK-SAME:      : tensor<4x5x5x5xf16> to tensor<1x5x5x5xf16>
+
+    // CHECK:        [[OUTPUT_TILE2:%.+]] = VPU.GroupConvolution([[ACTIVATION_TILE_2]], [[WEIGHTS_TILE_2]]
+    // CHECK-SAME:          groups = 1 : i64
+    // CHECK-SAME:          -> tensor<1x1x224x224xf16>
+
+    // CHECK:        [[ACTIVATION_TILE_3:%.+]] = VPU.Slice [[INPUT_0]] [0, 5, 0, 0] [1, 5, 224, 224]
+    // CHECK-SAME:      : tensor<1x10x224x224xf16> to tensor<1x5x224x224xf16>
+    // CHECK:        [[WEIGHTS_TILE_3:%.+]] = VPU.Slice [[INPUT_1]] [3, 0, 0, 0] [1, 5, 5, 5]
+    // CHECK-SAME:      : tensor<4x5x5x5xf16> to tensor<1x5x5x5xf16>
+
+    // CHECK:        [[OUTPUT_TILE3:%.+]] = VPU.GroupConvolution([[ACTIVATION_TILE_3]], [[WEIGHTS_TILE_3]]
+    // CHECK-SAME:          groups = 1 : i64
+    // CHECK-SAME:          -> tensor<1x1x224x224xf16>
+
+    // Concat
+
+    // CHECK:        [[OUTPUT:%.+]] = VPU.Concat(
+    // CHECK-SAME:          [[OUTPUT_TILE0]], [[OUTPUT_TILE1]], [[OUTPUT_TILE2]], [[OUTPUT_TILE3]]
+    // CHECK-SAME{LITERAL}:    static_offsets = [[0, 0, 0, 0], [0, 1, 0, 0], [0, 2, 0, 0], [0, 3, 0, 0]]
+    // CHECK-SAME:          -> tensor<1x4x224x224xf16>
+
+    // CHECK:       return [[OUTPUT]] : tensor<1x4x224x224xf16>
+}
 
 // -----
 
@@ -761,3 +828,4 @@ func.func @SplitSwGroupConvOverH(
 
     // CHECK:       return [[OUTPUT]] : tensor<1x64x56x56xf16>
 }
+

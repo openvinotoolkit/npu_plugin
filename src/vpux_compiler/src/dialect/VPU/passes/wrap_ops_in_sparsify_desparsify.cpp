@@ -22,8 +22,19 @@ namespace {
 
 VPU::ActivationSparsityProfile getSparsityProfile(const std::string& sparsityProfile) {
     const auto profile = VPU::symbolizeActivationSparsityProfile(sparsityProfile);
-    VPUX_THROW_UNLESS(profile.hasValue(), "Unsupported activation sparsity profile '{0}'", sparsityProfile);
-    return profile.getValue();
+    VPUX_THROW_UNLESS(profile.has_value(), "Unsupported activation sparsity profile '{0}'", sparsityProfile);
+    return profile.value();
+}
+
+// There're several reasons to enable act. sparsity for operations, which work on tensor, where channels count is power
+// of 2. Main one is workloads division. Number of channels need satisfy the power of 2 restriction of the se_z_split
+// register. If number of channels is not power of 2, for example 48, 3 workloads with 16 channels will be produced,
+// while for 64/128 and so only one
+bool hasPowerOf2Channels(mlir::Value operand) {
+    const auto tensorType = operand.getType().cast<vpux::NDTypeInterface>();
+    const auto tensorShape = tensorType.getShape();
+    const uint64_t numChannels = static_cast<uint64_t>(tensorShape[Dims4D::Act::C]);
+    return llvm::isPowerOf2_64(numChannels);
 }
 
 //
@@ -93,6 +104,9 @@ void WrapOpsInSparsifyDesparsifyPairsPass::safeRunOnFunc() {
         builder.setInsertionPointAfter(producerOp);
 
         auto result = producerOp->getResult(0);
+        if (!hasPowerOf2Channels(result)) {
+            return;
+        }
         const auto sparsifyOp = builder.create<VPU::SparsifyOp>(loc, result);
         const auto desparsifyOp = builder.create<VPU::DesparsifyOp>(loc, sparsifyOp->getResult(0));
         result.replaceAllUsesExcept(desparsifyOp->getResult(0), sparsifyOp);
@@ -107,6 +121,9 @@ void WrapOpsInSparsifyDesparsifyPairsPass::safeRunOnFunc() {
         }
 
         const auto producer = consumerOp->getOperand(operandId);
+        if (!hasPowerOf2Channels(producer)) {
+            return;
+        }
         const auto sparsifyOp = builder.create<VPU::SparsifyOp>(loc, producer);
         auto newResult = sparsifyOp->getResult(0);
         if (_sparsityProfile == ActivationSparsityProfile::S1) {

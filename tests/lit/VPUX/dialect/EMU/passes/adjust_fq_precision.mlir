@@ -16,7 +16,7 @@ func.func @AdjustFQPrecision(%arg0: tensor<1x3x16x16xf16>) -> tensor<1x3x16x16xf
     %fq = VPU.FakeQuantize(%arg0, %input_low, %input_high, %output_low, %output_high)
         { auto_broadcast = #IE.auto_broadcast_type<NUMPY>, levels = 256 } :
         tensor<1x3x16x16xf16>, tensor<f32>, tensor<f32>, tensor<f32>, tensor<f32> -> tensor<1x3x16x16xf16>
-
+    
     return %fq : tensor<1x3x16x16xf16>
     // CHECK-DAG:   %[[ILOW:.*]] = const.Declare tensor<f16> = dense<0.000000e+00> : tensor<f32>, [#const.ConvertElemType<f16>]
     // CHECK-DAG:   %[[IHIGH:.*]] = const.Declare tensor<f16> = dense<2.550000e+02> : tensor<f32>, [#const.ConvertElemType<f16>]
@@ -36,7 +36,7 @@ func.func @AdjustFQPrecisionAliased(%arg0: tensor<1x3x16x16xf16>) -> tensor<1x3x
     %fq = VPU.FakeQuantize(%arg0, %input_low, %input_high, %input_low, %input_high)
         { auto_broadcast = #IE.auto_broadcast_type<NUMPY>, levels = 256 } :
         tensor<1x3x16x16xf16>, tensor<f32>, tensor<f32>, tensor<f32>, tensor<f32> -> tensor<1x3x16x16xf16>
-
+    
     return %fq : tensor<1x3x16x16xf16>
     // CHECK-DAG:   %[[LOW:.*]] = const.Declare tensor<f16> = dense<0.000000e+00> : tensor<f32>, [#const.ConvertElemType<f16>]
     // CHECK-DAG:   %[[HIGH:.*]] = const.Declare tensor<f16> = dense<2.550000e+02> : tensor<f32>, [#const.ConvertElemType<f16>]

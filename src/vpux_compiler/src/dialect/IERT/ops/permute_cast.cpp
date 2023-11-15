@@ -8,5 +8,5 @@
 using namespace vpux;
 
 mlir::Value vpux::IERT::PermuteCastOp::getViewSource() {
-    return source();
+    return getSource();
 }

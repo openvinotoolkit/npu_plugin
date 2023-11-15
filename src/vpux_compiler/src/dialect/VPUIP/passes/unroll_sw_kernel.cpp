@@ -123,7 +123,18 @@ bool SwKernelRewriter::needUnroll(VPUIP::SwKernelOp swKernelOp) const {
     if (mlir::isa<VPUIP::NCEClusterTilingOp>(swKernelOp->getParentOp())) {
         return false;
     }
-    return hasMultiSwKernelRun(swKernelOp);
+    auto hasMultiSwKernelRunFlag = hasMultiSwKernelRun(swKernelOp);
+    if (!hasMultiSwKernelRunFlag && swKernelOp.profiling_data() == nullptr) {
+        // SW task is not going to be unrolled, update its name to indicate
+        // its cluster and tile index to align with name structure in case of unrolling
+        auto oldLoc = swKernelOp->getLoc();
+        if (stringifyLocation(oldLoc).find("/tile_") == std::string::npos &&
+            stringifyLocation(oldLoc).find("?tile_") == std::string::npos) {
+            auto newLoc = appendLoc(oldLoc, "tile_0");
+            swKernelOp->setLoc(appendLoc(newLoc, "cluster_0"));
+        }
+    }
+    return hasMultiSwKernelRunFlag;
 }
 
 VPURT::TaskOp SwKernelRewriter::createNewTaskOp(VPUIP::SwKernelOp swKernelOp, VPUIP::SwKernelRun swKernelRun,
@@ -154,16 +165,20 @@ VPURT::TaskOp SwKernelRewriter::createNewTaskOp(VPUIP::SwKernelOp swKernelOp, VP
 
         const auto newMemType = profilingBufferNDType.changeShape({numEl});
         auto newProfilingBufferDecl = rewriter.create<VPURT::DeclareBufferOp>(
-                profilingBufferDecl->getLoc(), newMemType, profilingBufferDecl.sectionAttr(),
-                profilingBufferDecl.sectionIndexAttr(),
-                getIntAttr(_ctx, profilingBufferDecl.byteOffset() + VPUIP::HW_ACT_SHAVE_PROFILING_SIZE_BYTES * index),
+                profilingBufferDecl->getLoc(), newMemType, profilingBufferDecl.getSectionAttr(),
+                profilingBufferDecl.getSectionIndexAttr(),
+                getIntAttr(_ctx,
+                           profilingBufferDecl.getByteOffset() + VPUIP::HW_ACT_SHAVE_PROFILING_SIZE_BYTES * index),
                 nullptr);
 
-        newProfilingBuffer = newProfilingBufferDecl.buffer();
+        newProfilingBuffer = newProfilingBufferDecl.getBuffer();
+    } else {
+        opLoc = appendLoc(opLoc, "tile_{0}", index);
+        opLoc = appendLoc(opLoc, "cluster_0");
     }
 
     auto newSwKernelOp = VPURT::wrapIntoTaskOp<VPUIP::SwKernelOp>(
-            rewriter, origTaskOp.waitBarriers(), origTaskOp.updateBarriers(), opLoc, newInputs, newOutBuffers,
+            rewriter, origTaskOp.getWaitBarriers(), origTaskOp.getUpdateBarriers(), opLoc, newInputs, newOutBuffers,
             newProfilingBuffer, swKernelOp.kernelFunctionAttr(), swKernelOp.tileIndexAttr());
     VPUIP::initSwKernel(newSwKernelOp, swKernelRun, _log);
     return newSwKernelOp->getParentOfType<VPURT::TaskOp>();
@@ -188,7 +203,16 @@ bool ClusterSwKernelRewriter::needUnroll(VPUIP::SwKernelOp swKernelOp) const {
     if (!mlir::isa<VPUIP::NCEClusterTilingOp>(swKernelOp->getParentOp())) {
         return false;
     }
-    return hasMultiSwKernelRun(swKernelOp);
+    auto hasMultiSwKernelRunFlag = hasMultiSwKernelRun(swKernelOp);
+    if (!hasMultiSwKernelRunFlag && swKernelOp.profiling_data() == nullptr) {
+        // SW task is not going to be unrolled, update its name to indicate
+        // its tile index to align with name structure in case of unrolling
+        auto oldLoc = swKernelOp->getLoc();
+        if (stringifyLocation(oldLoc).find("/tile_") == std::string::npos) {
+            swKernelOp->setLoc(appendLoc(oldLoc, "tile_0"));
+        }
+    }
+    return hasMultiSwKernelRunFlag;
 }
 
 VPURT::TaskOp ClusterSwKernelRewriter::createNewTaskOp(VPUIP::SwKernelOp swKernelOp, VPUIP::SwKernelRun swKernelRun,
@@ -221,17 +245,19 @@ VPURT::TaskOp ClusterSwKernelRewriter::createNewTaskOp(VPUIP::SwKernelOp swKerne
         VPUX_THROW_WHEN(distProfBufType == nullptr, "Porfiling buffer is not of distributed type - '{0}'",
                         profilingOuterOperand.getType());
 
-        int64_t numEl = distProfBufType.getDistribution().num_clusters().getInt() *
+        int64_t numEl = distProfBufType.getDistribution().getNumClusters().getInt() *
                         VPUIP::HW_ACT_SHAVE_PROFILING_SIZE_BYTES /
                         vpux::Byte(distProfBufType.getElemTypeSize()).count();
-        int64_t offset = profilingBufferDecl.byteOffset() + VPUIP::HW_ACT_SHAVE_PROFILING_SIZE_BYTES * index;
+        int64_t offset = profilingBufferDecl.getByteOffset() + VPUIP::HW_ACT_SHAVE_PROFILING_SIZE_BYTES * index;
 
         const auto newMemType = distProfBufType.changeShape({numEl});
         auto newProfilingBufferDecl = rewriter.create<VPURT::DeclareBufferOp>(
-                profilingBufferDecl->getLoc(), newMemType, profilingBufferDecl.sectionAttr(),
-                profilingBufferDecl.sectionIndexAttr(), getIntAttr(_ctx, offset), nullptr);
+                profilingBufferDecl->getLoc(), newMemType, profilingBufferDecl.getSectionAttr(),
+                profilingBufferDecl.getSectionIndexAttr(), getIntAttr(_ctx, offset), nullptr);
 
-        outerOperand.push_back(newProfilingBufferDecl.buffer());
+        outerOperand.push_back(newProfilingBufferDecl.getBuffer());
+    } else {
+        opLoc = appendLoc(opLoc, "tile_{0}", index);
     }
 
     const auto bodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange operands) {
@@ -254,8 +280,8 @@ VPURT::TaskOp ClusterSwKernelRewriter::createNewTaskOp(VPUIP::SwKernelOp swKerne
     for (; iter != outerOperand.end(); iter++) {
         resultTypes.push_back(iter->getType());
     }
-    auto newClusterTilingOp = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTilingOp>(rewriter, origTaskOp.waitBarriers(),
-                                                                               origTaskOp.updateBarriers(), opLoc,
+    auto newClusterTilingOp = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTilingOp>(rewriter, origTaskOp.getWaitBarriers(),
+                                                                               origTaskOp.getUpdateBarriers(), opLoc,
                                                                                resultTypes, outerOperand, bodyBuilder);
     return newClusterTilingOp->getParentOfType<VPURT::TaskOp>();
 }

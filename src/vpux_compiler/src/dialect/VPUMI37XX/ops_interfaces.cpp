@@ -36,4 +36,4 @@ mlir::LogicalResult vpux::VPUMI37XX::verifySingleOutputAsIndexOp(mlir::Operation
 // Generated
 //
 
-#include <vpux/compiler/dialect/VPUMI37XX/generated/ops_interfaces.cpp.inc>
+#include <vpux/compiler/dialect/VPUMI37XX/ops_interfaces.cpp.inc>

@@ -24,7 +24,7 @@ func.func @MatMulInputsTo2d(%arg0: tensor<2x1x512xf32>) -> tensor<2x1x40xf32> {
     // CHECK:       %[[CST_2_2D:.*]] = IE.Reshape(%[[CST_2]]) {shape_value = [512, 40]} : tensor<1x512x40xf32> -> tensor<512x40xf32>
     // CHECK:       %[[MATMUL_1:.*]] = IE.MatMul(%[[IN_1_2D]], %[[CST_1_2D]]) : tensor<1x512xf32>, tensor<512x40xf32> -> tensor<1x40xf32>
     // CHECK:       %[[MATMUL_2:.*]] = IE.MatMul(%[[IN_2_2D]], %[[CST_2_2D]]) : tensor<1x512xf32>, tensor<512x40xf32> -> tensor<1x40xf32>
-    // CHECK:       %[[CONCAT:.*]] = IE.Concat(%[[MATMUL_1]], %[[MATMUL_2]]) {per_axis = {axis = 0 : i64}} : tensor<1x40xf32>, tensor<1x40xf32> -> tensor<2x40xf32>
+    // CHECK:       %[[CONCAT:.*]] = IE.Concat(%[[MATMUL_1]], %[[MATMUL_2]]) {per_axis = #IE.Concat<axis = 0 : i64>} : tensor<1x40xf32>, tensor<1x40xf32> -> tensor<2x40xf32>
     // CHECK:       %[[OUT:.*]] = IE.Reshape(%[[CONCAT]]) {shape_value = [2, 1, 40]} : tensor<2x40xf32> -> tensor<2x1x40xf32>
     // CHECK:       return %[[OUT]] : tensor<2x1x40xf32>
 }
@@ -47,7 +47,7 @@ func.func @MatMul4dInputsTo2d(%arg0: tensor<1x2x1x512xf32>) -> tensor<1x2x1x40xf
     // CHECK:       %[[CST_2_2D:.*]] = IE.Reshape(%[[CST_2]]) {shape_value = [512, 40]} : tensor<1x1x512x40xf32> -> tensor<512x40xf32>
     // CHECK:       %[[MATMUL_1:.*]] = IE.MatMul(%[[IN_1_2D]], %[[CST_1_2D]]) : tensor<1x512xf32>, tensor<512x40xf32> -> tensor<1x40xf32>
     // CHECK:       %[[MATMUL_2:.*]] = IE.MatMul(%[[IN_2_2D]], %[[CST_2_2D]]) : tensor<1x512xf32>, tensor<512x40xf32> -> tensor<1x40xf32>
-    // CHECK:       %[[CONCAT:.*]] = IE.Concat(%[[MATMUL_1]], %[[MATMUL_2]]) {per_axis = {axis = 0 : i64}} : tensor<1x40xf32>, tensor<1x40xf32> -> tensor<2x40xf32>
+    // CHECK:       %[[CONCAT:.*]] = IE.Concat(%[[MATMUL_1]], %[[MATMUL_2]]) {per_axis = #IE.Concat<axis = 0 : i64>} : tensor<1x40xf32>, tensor<1x40xf32> -> tensor<2x40xf32>
     // CHECK:       %[[OUT:.*]] = IE.Reshape(%[[CONCAT]]) {shape_value = [1, 2, 1, 40]} : tensor<2x40xf32> -> tensor<1x2x1x40xf32>
     // CHECK:       return %[[OUT]] : tensor<1x2x1x40xf32>
 }
@@ -109,7 +109,8 @@ func.func @MatMul4dInputWithMulChannel3dWeightsTo2d(%arg0: tensor<1x2x16x2xf32>)
     // CHECK:       %[[CST_2D:.*]] = IE.Reshape(%[[CST]]) {shape_value = [2, 2]} : tensor<1x2x2xf32> -> tensor<2x2xf32>
     // CHECK:       %[[MATMUL_1:.*]] = IE.MatMul(%[[IN_1_2D]], %[[CST_2D]]) : tensor<16x2xf32>, tensor<2x2xf32> -> tensor<16x2xf32>
     // CHECK:       %[[MATMUL_2:.*]] = IE.MatMul(%[[IN_2_2D]], %[[CST_2D]]) : tensor<16x2xf32>, tensor<2x2xf32> -> tensor<16x2xf32>
-    // CHECK:       %[[CONCAT:.*]] = IE.Concat(%[[MATMUL_1]], %[[MATMUL_2]]) {per_axis = {axis = 0 : i64}} : tensor<16x2xf32>, tensor<16x2xf32> -> tensor<32x2xf32>
+    // CHECK:       %[[CONCAT:.*]] = IE.Concat(%[[MATMUL_1]], %[[MATMUL_2]]) {per_axis = #IE.Concat<axis = 0 : i64>} : tensor<16x2xf32>, tensor<16x2xf32> -> tensor<32x2xf32>
     // CHECK:       %[[OUT:.*]] = IE.Reshape(%[[CONCAT]]) {shape_value = [1, 2, 16, 2]} : tensor<32x2xf32> -> tensor<1x2x16x2xf32>
     // CHECK:       return %[[OUT]] : tensor<1x2x16x2xf32>
 }
+

@@ -314,7 +314,7 @@ mlir::LogicalResult ConvertToDMAPass::SwKernelMemPermuteConverter::matchAndRewri
     _log.trace("Got Mempermute SwKernel '{0}' at '{1}'", swKernelOp->getName(), swKernelOp->getLoc());
 
     auto memPerm = VPUIP::getMemPermFromSwKernel(swKernelOp);
-    VPUX_THROW_UNLESS(memPerm.hasValue(), "Cannot extract mem_perm attribute from permute SwKernel '{0}'.",
+    VPUX_THROW_UNLESS(memPerm.has_value(), "Cannot extract mem_perm attribute from permute SwKernel '{0}'.",
                       swKernelOp.getLoc());
 
     VPUX_THROW_UNLESS(swKernelOp->getNumOperands() == 2, "Unexpected operand number for VPUIP.SwKernelOp at '{0}'",
@@ -325,9 +325,9 @@ mlir::LogicalResult ConvertToDMAPass::SwKernelMemPermuteConverter::matchAndRewri
     const auto outputBuf = swKernelOp.getOperand(1);
     // Check for inversed permutation which needs split into 2 consecutive permuteDMAs
     // e.g. pattern [d0, d1, d2, d3] -> [d0, d3, d2, d1]
-    if (!VPUIP::isSplitNeededForPermuteDMA(inType, memPerm.getValue())) {
+    if (!VPUIP::isSplitNeededForPermuteDMA(inType, memPerm.value())) {
         rewriter.replaceOpWithNewOp<VPUIP::PermuteDMAOp>(swKernelOp, input, outputBuf,
-                                                         mlir::AffineMapAttr::get(memPerm.getValue()), nullptr);
+                                                         mlir::AffineMapAttr::get(memPerm.value()), nullptr);
 
         _log.nest().trace("Rewrite Mempermute SwKernel '{0}' at '{1}' to PermuteDMA.", swKernelOp->getName(),
                           swKernelOp->getLoc());
@@ -410,11 +410,11 @@ mlir::LogicalResult ConvertToDMAPass::SwKernelDepthToSpaceConverter::matchAndRew
     _log.trace("Got DepthToSpace SwKernel '{0}' at '{1}'", swKernelOp->getName(), swKernelOp->getLoc());
 
     auto depthToSpaceAttrs = VPUIP::getDepthToSpaceSwKernelAttr(swKernelOp);
-    VPUX_THROW_UNLESS(depthToSpaceAttrs.hasValue(),
+    VPUX_THROW_UNLESS(depthToSpaceAttrs.has_value(),
                       "Cannot extract depthToSpace attribute from depthToSpace SwKernel '{0}'.", swKernelOp.getLoc());
-    auto modeAttr = std::get<0>(depthToSpaceAttrs.getValue());
-    auto blockSizeAttr = std::get<1>(depthToSpaceAttrs.getValue());
-    auto paddedChannel = std::get<2>(depthToSpaceAttrs.getValue());
+    auto modeAttr = std::get<0>(depthToSpaceAttrs.value());
+    auto blockSizeAttr = std::get<1>(depthToSpaceAttrs.value());
+    auto paddedChannel = std::get<2>(depthToSpaceAttrs.value());
 
     VPUX_THROW_UNLESS(swKernelOp->getNumOperands() == 2, "Unexpected operand number for VPUIP.SwKernelOp at '{0}'",
                       swKernelOp);
@@ -455,10 +455,10 @@ mlir::LogicalResult ConvertToDMAPass::SwKernelSpaceToDepthConverter::matchAndRew
     _log.trace("Got SpaceToDepth SwKernel '{0}' at '{1}'", swKernelOp->getName(), swKernelOp->getLoc());
 
     auto spaceToDepthAttrs = VPUIP::getSpaceToDepthSwKernelAttr(swKernelOp);
-    VPUX_THROW_UNLESS(spaceToDepthAttrs.hasValue(),
+    VPUX_THROW_UNLESS(spaceToDepthAttrs.has_value(),
                       "Cannot extract spaceToDepth attribute from spaceToDepth SwKernel '{0}'.", swKernelOp.getLoc());
-    auto modeAttr = spaceToDepthAttrs.getValue().first;
-    auto blockSizeAttr = spaceToDepthAttrs.getValue().second;
+    auto modeAttr = spaceToDepthAttrs.value().first;
+    auto blockSizeAttr = spaceToDepthAttrs.value().second;
 
     VPUX_THROW_UNLESS(swKernelOp->getNumOperands() == 2, "Unexpected operand number for VPUIP.SwKernelOp at '{0}'",
                       swKernelOp);

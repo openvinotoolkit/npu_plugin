@@ -52,8 +52,8 @@ bool RatioBasedWeightsSparsityStrategy::shouldSparsifyWeights(Logger& log, mlir:
     }
 
     auto sparsityRatioThreshold = hasFloatInput ? _floatRatioThreshold : _intRatioThreshold;
-    if (_manualThreshold.hasValue()) {
-        sparsityRatioThreshold = _manualThreshold.getValue();
+    if (_manualThreshold.has_value()) {
+        sparsityRatioThreshold = _manualThreshold.value();
     }
 
     log.trace("Sparsity ratio {0}, threshold {1}", actualSparsityRatio, sparsityRatioThreshold);
@@ -96,8 +96,8 @@ bool CMXConsumptionBasedWeightsSparsityStrategy::shouldSparsifyWeights(Logger& l
     const auto weightsOp = sparsifyCandidateOperand.getDefiningOp<Const::DeclareOp>();
 
     double sparsityRatioThreshold = 0.0;
-    if (_manualThreshold.hasValue()) {
-        sparsityRatioThreshold = _manualThreshold.getValue();
+    if (_manualThreshold.has_value()) {
+        sparsityRatioThreshold = _manualThreshold.value();
     } else {
         const auto weightsType = sparsifyCandidateOperand.getType().cast<vpux::NDTypeInterface>();
         const auto weightsSize = weightsType.getTotalAllocSize();

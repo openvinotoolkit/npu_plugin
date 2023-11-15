@@ -6,7 +6,7 @@
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch% allow-custom-values=true" --canonicalize %s | FileCheck %s
 // REQUIRES: arch-VPUX37XX
 
-module @SingleLayer attributes {VPU.compilationMode = "ReferenceSW"}  {
+module @SingleLayer attributes {VPU.compilationMode = #VPU.compilation_mode<ReferenceSW>}  {
   module @UsedMemory  {
     IE.MemoryResource 2048 bytes of @DDR
   }
@@ -28,8 +28,8 @@ module @SingleLayer attributes {VPU.compilationMode = "ReferenceSW"}  {
     }
     // CHECK:    %[[VAL4:.*]] = ELF.CreateRelocationSection secName(".rela.output") sourceSymbolTableSection(%[[VAL3]]) targetSection(%[[VAL0]]) secFlags("SHF_INFO_LINK|VPU_SHF_JIT|VPU_SHF_USEROUTPUT")
     %3 = ELF.CreateRelocationSection secName(".rela.output") sourceSymbolTableSection(%2) targetSection(%0) secFlags("SHF_INFO_LINK|VPU_SHF_JIT|VPU_SHF_USEROUTPUT") -> !ELF.Section  {
-      // CHECK:      ELF.RelocImmOffset offset(24) "R_VPU_64" %[[VAL1]] 0
-      ELF.RelocImmOffset offset(24) "R_VPU_64" %1 0
+      // CHECK:      ELF.RelocImmOffset offset(24) <R_VPU_64> %[[VAL1]] 0
+      ELF.RelocImmOffset offset(24) <R_VPU_64> %1 0
     }
     // CHECK:    return %[[VAL2]] : memref<1x1000xf16>
     return %arg1 : memref<1x1000xf16>

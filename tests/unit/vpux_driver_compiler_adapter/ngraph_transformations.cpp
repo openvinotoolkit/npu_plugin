@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
 #include "ngraph_transformations.h"
 #include <gtest/gtest.h>
 #include "vpux_driver_compiler_adapter.h"

@@ -9,9 +9,9 @@
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 
 void vpux::ELF::PadOp::serialize(elf::writer::BinaryDataSection<uint8_t>& binDataSection) {
-    auto padSize = paddingSize();
+    auto padSize = getPaddingSize();
 
-    auto padValue = paddingValue().value_or(0);
+    auto padValue = getPaddingValue().value_or(0);
 
     SmallVector<uint8_t> padding(padSize, padValue);
 
@@ -19,7 +19,7 @@ void vpux::ELF::PadOp::serialize(elf::writer::BinaryDataSection<uint8_t>& binDat
 }
 
 size_t vpux::ELF::PadOp::getBinarySize() {
-    return paddingSize();
+    return getPaddingSize();
 }
 
 size_t vpux::ELF::PadOp::getAlignmentRequirements() {

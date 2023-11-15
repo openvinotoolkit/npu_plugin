@@ -118,17 +118,26 @@ void constructAvgOpParams(ArrayRef<int64_t> inputShape, ArrayRef<int64_t> output
             kernel[axis - 2] = inputShape[axis];
         }
     }
+
+    // In case both spatial dimensions are reduced, we should try to make them balanced
+    // For example, global pooling kernel [77, 1] should be converted to [11, 7]
+    if (shapeBegin[Dims4D::Act::H.ind()] == kernel[Dims4D::Kernel::Y.ind()] &&
+        shapeBegin[Dims4D::Act::W.ind()] == kernel[Dims4D::Kernel::X.ind()]) {
+        const int64_t spatialSize = kernel[Dims4D::Kernel::Y.ind()] * kernel[Dims4D::Kernel::X.ind()];
+        const auto factor = getFactorsList(spatialSize).back();
+        if (shapeBegin[Dims4D::Act::H.ind()] != factor.second) {
+            shapeBegin[Dims4D::Act::H.ind()] = factor.first;
+            shapeBegin[Dims4D::Act::W.ind()] = factor.second;
+            kernel.assign({factor.first, factor.second});
+        }
+    }
 }
 
 mlir::LogicalResult generalReduceRewrite(
-        mlir::Operation* origOp, mlir::PatternRewriter& rewriter,
+        mlir::Operation* origOp, mlir::PatternRewriter& rewriter, llvm::SmallVector<int64_t> axes,
         FuncRef<mlir::Operation*(mlir::Location, mlir::Value, PoolingAttr)> makeOperations) {
     auto inputShape = getShape(origOp->getOperand(0)).raw();
     const auto outputShape = getShape(origOp->getResult(0)).raw();
-    auto valueConst = origOp->getOperand(1).getDefiningOp<Const::DeclareOp>();
-    VPUX_THROW_UNLESS(valueConst != nullptr, "Failed to get axes in Reduce operation");
-    const auto valueContent = valueConst.content();
-    auto axes = to_small_vector(valueContent.getValues<int64_t>());
     auto* ctx = origOp->getContext();
     // If axis is negative, it indicates indexing from the end.
     // For example -1 represents the last dimension, -2 represents the penultimate dimension
@@ -188,7 +197,7 @@ mlir::LogicalResult generalReduceRewrite(
         auto newH = VPU::NCEInvariant::VPU_CHANNEL_ALIGNMENT;
         auto newW = inputShape[Dims4D::Act::W.ind()] * inputShape[Dims4D::Act::H.ind()] / newH;
         Shape newShape{newN, newC, newH, newW};
-        const auto newShapeAttr = getIntArrayAttr(ctx, newShape);
+        const auto newShapeAttr = getIntArrayAttr(ctx, ShapeRef(newShape));
         input = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), input, nullptr, false, newShapeAttr);
 
         DimArr perm{Dims4D::Act::N, Dims4D::Act::H, Dims4D::Act::C, Dims4D::Act::W};
@@ -199,7 +208,7 @@ mlir::LogicalResult generalReduceRewrite(
     }
 
     if (shapeBegin != inputShape) {
-        const auto shapeBeginAttr = getIntArrayAttr(ctx, shapeBegin);
+        const auto shapeBeginAttr = getIntArrayAttr(ctx, makeArrayRef(shapeBegin));
         input = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), input, nullptr, false, shapeBeginAttr);
     }
 
@@ -215,7 +224,7 @@ mlir::LogicalResult generalReduceRewrite(
     input = newOp->getResult(0);
 
     if (shapeEnd != to_small_vector(getShape(input))) {
-        const auto shapeEndAttr = getIntArrayAttr(ctx, shapeEnd);
+        const auto shapeEndAttr = getIntArrayAttr(ctx, makeArrayRef(shapeEnd));
         input = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), input, nullptr, false, shapeEndAttr);
     }
 
@@ -242,8 +251,9 @@ private:
 mlir::LogicalResult ReduceMeanRewriter::matchAndRewrite(IE::ReduceMeanOp origOp,
                                                         mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got ReduceMean layer at '{1}'", getDebugName(), origOp->getLoc());
+    const auto axes = parseIntArrayAttr<int64_t>(origOp.axes_value().value());
     return generalReduceRewrite(
-            origOp, rewriter, [&](mlir::Location loc, mlir::Value input, PoolingAttr attr) -> mlir::Operation* {
+            origOp, rewriter, axes, [&](mlir::Location loc, mlir::Value input, PoolingAttr attr) -> mlir::Operation* {
                 return rewriter.create<IE::AvgPoolOp>(loc, input, attr.kernelAttr, attr.stridesAttr, attr.padBeginAttr,
                                                       attr.padEndAttr, attr.roundingAttr, attr.excludePadsAttr,
                                                       nullptr);
@@ -268,8 +278,9 @@ private:
 
 mlir::LogicalResult ReduceMaxRewriter::matchAndRewrite(IE::ReduceMaxOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got ReduceMax layer at '{1}'", getDebugName(), origOp->getLoc());
+    const auto axes = parseIntArrayAttr<int64_t>(origOp.axes_value().value());
     return generalReduceRewrite(
-            origOp, rewriter, [&](mlir::Location loc, mlir::Value input, PoolingAttr attr) -> mlir::Operation* {
+            origOp, rewriter, axes, [&](mlir::Location loc, mlir::Value input, PoolingAttr attr) -> mlir::Operation* {
                 return rewriter.create<IE::MaxPoolOp>(loc, input, attr.kernelAttr, attr.stridesAttr, attr.padBeginAttr,
                                                       attr.padEndAttr, attr.roundingAttr, nullptr);
             });
@@ -293,8 +304,9 @@ private:
 
 mlir::LogicalResult ReduceSumRewriter::matchAndRewrite(IE::ReduceSumOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got ReduceSum layer at '{1}'", getDebugName(), origOp->getLoc());
+    const auto axes = parseIntArrayAttr<int64_t>(origOp.axes_value().value());
     return generalReduceRewrite(
-            origOp, rewriter, [&](mlir::Location loc, mlir::Value input, PoolingAttr attr) -> mlir::Operation* {
+            origOp, rewriter, axes, [&](mlir::Location loc, mlir::Value input, PoolingAttr attr) -> mlir::Operation* {
                 input = rewriter.create<IE::AvgPoolOp>(loc, input, attr.kernelAttr, attr.stridesAttr, attr.padBeginAttr,
                                                        attr.padEndAttr, attr.roundingAttr, attr.excludePadsAttr,
                                                        nullptr);
@@ -302,10 +314,8 @@ mlir::LogicalResult ReduceSumRewriter::matchAndRewrite(IE::ReduceSumOp origOp, m
                 mlir::MLIRContext* ctx = origOp->getContext();
                 const auto dataStorageTensor = mlir::RankedTensorType::get({1}, mlir::Float16Type::get(ctx));
                 const auto inputShape = getShape(origOp.input()).raw();
-                auto valueConst = origOp.axes().getDefiningOp<Const::DeclareOp>();
-                VPUX_THROW_UNLESS(valueConst != nullptr, "Failed to get axes in Reduce operation");
-                const auto valueContent = valueConst.content();
-                auto axes = to_small_vector(valueContent.getValues<int64_t>());
+
+                auto axes = parseIntArrayAttr<int64_t>(origOp.axes_value().value());
                 for (size_t i = 0; i < axes.size(); i++) {
                     if (axes[i] < 0) {
                         axes[i] += inputShape.size();
@@ -322,7 +332,7 @@ mlir::LogicalResult ReduceSumRewriter::matchAndRewrite(IE::ReduceSumOp origOp, m
                 auto cst = rewriter.create<Const::DeclareOp>(loc, dataStorageTensor, Const::ContentAttr::get(baseAttr));
 
                 const auto broadCastAttr = IE::AutoBroadcastTypeAttr::get(ctx, IE::AutoBroadcastType::NUMPY);
-                return rewriter.create<IE::MultiplyOp>(loc, input, cst.output(), broadCastAttr, nullptr);
+                return rewriter.create<IE::MultiplyOp>(loc, input, cst.getOutput(), broadCastAttr, nullptr);
             });
 }
 
@@ -344,8 +354,9 @@ private:
 
 mlir::LogicalResult ReduceMinRewriter::matchAndRewrite(IE::ReduceMinOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got ReduceMin layer at '{1}'", getDebugName(), origOp->getLoc());
+    const auto axes = parseIntArrayAttr<int64_t>(origOp.axes_value().value());
     return generalReduceRewrite(
-            origOp, rewriter, [&](mlir::Location loc, mlir::Value input, PoolingAttr attr) -> mlir::Operation* {
+            origOp, rewriter, axes, [&](mlir::Location loc, mlir::Value input, PoolingAttr attr) -> mlir::Operation* {
                 auto scale1 = rewriter.create<IE::NegativeOp>(loc, input.getType(), input);
                 auto maxPool =
                         rewriter.create<IE::MaxPoolOp>(loc, scale1.output(), attr.kernelAttr, attr.stridesAttr,
@@ -374,16 +385,23 @@ void ConvertReduceToPoolingPass::safeRunOnFunc() {
 
     const auto isLegalOp = [&](mlir::Operation* op) {
         const auto inputShape = getShape(op->getOperand(0)).raw();
+        int64_t mergedDim = 1;
 
         // Check that axes are consecutive otherwise this conversion is not applicable
-        auto valueConst = op->getOperand(1).getDefiningOp<Const::DeclareOp>();
-        VPUX_THROW_UNLESS(valueConst != nullptr, "Failed to get axes in Reduce operation");
-        const auto valueContent = valueConst.content();
-        auto axes = to_small_vector(valueContent.getValues<int64_t>());
+        llvm::SmallVector<int64_t> axes = {0};
+        if (op->hasAttr("axes_value")) {
+            if (auto axesValue = op->getAttr("axes_value").dyn_cast_or_null<mlir::ArrayAttr>()) {
+                axes = parseIntArrayAttr<int64_t>(axesValue);
+            }
+        } else {
+            VPUX_THROW("Operator has no axes_value attribute");
+        }
+
         for (size_t i = 0; i < axes.size(); i++) {
             if (axes[i] < 0) {
                 axes[i] += inputShape.size();
             }
+            mergedDim *= inputShape[axes[i]];
         }
         std::sort(axes.begin(), axes.end());
         for (size_t i = 1; i < axes.size(); i++) {
@@ -392,29 +410,29 @@ void ConvertReduceToPoolingPass::safeRunOnFunc() {
             }
         }
 
+        // Check that handleLargeKernels supports this op
+        const bool dpuCompatible = (axes.size() == 2) ? (vpux::IE::isPoolingKernelSizeValid(inputShape[axes[0]]) &&
+                                                         vpux::IE::isPoolingKernelSizeValid(inputShape[axes[1]]))
+                                                      : vpux::IE::isPoolingKernelSizeValid(mergedDim);
+
+        const bool isHWCompilationMode = VPU::getCompilationMode(op) == VPU::CompilationMode::ReferenceHW ||
+                                         VPU::getCompilationMode(op) == VPU::CompilationMode::DefaultHW;
+
         auto module = getOperation();
         const auto arch = VPU::getArch(module);
         // TODO: #71539
-        if (arch == VPU::ArchKind::VPUX30XX || arch == VPU::ArchKind::VPUX311X) {
+        if (arch == VPU::ArchKind::VPUX30XX) {
             // Check that axis dimensions <= 255 otherwise this conversion is not applicable
-            bool upaCompatible = true;
-            int64_t mergedDim = 1;
-            for (const auto& axis : axes) {
-                mergedDim *= inputShape[axis];
-                if (inputShape[axis] > 255 || mergedDim > 255) {
-                    upaCompatible = false;
-                }
-            }
-
-            // Check that handleLargeKernels supports this op
-            const bool dpuCompatible = (axes.size() == 2) ? (vpux::IE::isPoolingKernelSizeValid(inputShape[axes[0]]) &&
-                                                             vpux::IE::isPoolingKernelSizeValid(inputShape[axes[1]]))
-                                                          : vpux::IE::isPoolingKernelSizeValid(mergedDim);
-
-            const bool isHWCompilationMode = VPU::getCompilationMode(op) == VPU::CompilationMode::ReferenceHW ||
-                                             VPU::getCompilationMode(op) == VPU::CompilationMode::DefaultHW;
+            const int upaMaxAxisDimensions = 255;
+            auto upaCompatible = mergedDim <= upaMaxAxisDimensions;
 
             return !((upaCompatible && !isHWCompilationMode) || (dpuCompatible && isHWCompilationMode));
+        }
+
+        // If MaxPool cannot be run on DPU, it is more efficient if we do not convert ReduceMin.
+        // Ticket for optimizing the performance of the other reduce operators: #87367
+        if (mlir::isa<IE::ReduceMinOp>(op)) {
+            return !(dpuCompatible && isHWCompilationMode);
         }
 
         return false;

@@ -17,10 +17,6 @@ public:
             : _config(config), _network(network), _logger("EmulatorBackend", config.get<LOG_LEVEL>()) {
     }
 
-    Executor::Ptr clone() const override {
-        return std::make_shared<EmulatorExecutor>(this->_network, this->_config);
-    }
-
     NetworkDescription& getNetworkDesc() {
         return *_network.get();
     }

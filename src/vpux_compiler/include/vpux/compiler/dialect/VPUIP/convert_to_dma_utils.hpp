@@ -59,7 +59,7 @@ Optional<mlir::AffineMap> getMemPermFromSwKernel(VPUIP::SwKernelOp swKernelTask)
 bool isMemPermSwKernel(VPUIP::SwKernelOp swKernelTask);
 
 // Replace DepthToSpace with DMA
-using DepthToSpaceReturnType = std::tuple<IE::DepthToSpaceModeAttr, mlir::IntegerAttr, IE::ChannelPadding>;
+using DepthToSpaceReturnType = std::tuple<IE::DepthToSpaceModeAttr, mlir::IntegerAttr, IE::ChannelPaddingAttr>;
 Optional<DepthToSpaceReturnType> getDepthToSpaceSwKernelAttr(VPUIP::SwKernelOp swKernelTask);
 bool isDepthToSpaceSwKernel(VPUIP::SwKernelOp swKernelTask);
 
@@ -90,7 +90,7 @@ SmallVector<vpux::Shape> getPerAxisTileDMASubShapes(vpux::ShapeRef shape);
 bool doesSWLayerFitIntoCMX(mlir::Operation* op, vpux::Logger log);
 bool isLegalConvertToDMA(mlir::Operation* op, vpux::Logger log);
 bool isLegalAndBeneficialConvertToDMA(mlir::Operation* op, vpux::Logger log);
-VPUIP::DmaDescriptorAttr updateNumPlanes(VPUIP::DmaDescriptorAttr dmaDescriptor, int64_t numPlane);
+VPUIP::DMADescriptorAttr updateNumPlanes(VPUIP::DMADescriptorAttr dmaDescriptor, int64_t numPlane);
 
 VPURT::DeclareBufferOp createNewDeclareBuffer(mlir::PatternRewriter& rewriter, mlir::Operation* insertionPoint,
                                               VPURT::DeclareBufferOp declBuff, vpux::NDTypeInterface newType,

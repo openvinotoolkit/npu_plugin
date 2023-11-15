@@ -39,13 +39,13 @@ mlir::FailureOr<StridedSliceInputData> extractData(mlir::Location loc, IE::Strid
             return mlir::failure();
         }
 
-        return StridedSliceInputData{begins.getValue(), ends.getValue(), strides.getValue()};
+        return StridedSliceInputData{begins.value(), ends.value(), strides.value()};
     }
 
-    if (stridedSlice.begins_attr().hasValue()) {
-        auto begins = parseIntArrayAttr<int64_t>(stridedSlice.begins_attr().getValue());
-        auto ends = parseIntArrayAttr<int64_t>(stridedSlice.ends_attr().getValue());
-        auto strides = parseIntArrayAttr<int64_t>(stridedSlice.strides_attr().getValue());
+    if (stridedSlice.begins_attr().has_value()) {
+        auto begins = parseIntArrayAttr<int64_t>(stridedSlice.begins_attr().value());
+        auto ends = parseIntArrayAttr<int64_t>(stridedSlice.ends_attr().value());
+        auto strides = parseIntArrayAttr<int64_t>(stridedSlice.strides_attr().value());
 
         return StridedSliceInputData{std::move(begins), std::move(ends), std::move(strides)};
     }
@@ -87,9 +87,9 @@ mlir::LogicalResult vpux::IE::StridedSliceOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto begins = to_std_vector(inputData.getValue().begins);
-    const auto ends = to_std_vector(inputData.getValue().ends);
-    const auto strides = to_std_vector(inputData.getValue().strides);
+    const auto begins = to_std_vector(inputData.value().begins);
+    const auto ends = to_std_vector(inputData.value().ends);
+    const auto strides = to_std_vector(inputData.value().strides);
 
     const auto beginMask = getAxisSetArr(slice.begin_mask());
     const auto endMask = getAxisSetArr(slice.end_mask());
@@ -104,7 +104,10 @@ mlir::LogicalResult vpux::IE::StridedSliceOp::inferReturnTypeComponents(
     const auto shapeI64 = to_small_vector(outputShape.get_shape() | transformed([](size_t val) {
                                               return checked_cast<int64_t>(val);
                                           }));
-    inferredReturnShapes.emplace_back(shapeI64, inDataType.getElementType());
+    auto inType = slice.input().getType().cast<NDTypeInterface>();
+    const auto outType = inType.changeShape(Shape(shapeI64)).cast<mlir::RankedTensorType>();
+
+    inferredReturnShapes.emplace_back(outType.getShape(), outType.getElementType(), outType.getEncoding());
 
     return mlir::success();
 }
@@ -122,8 +125,8 @@ bool vpux::IE::StridedSliceOp::isSimplified() {
             llvm::all_of(parseIntArrayAttr<int64_t>(ellipsis_mask()), isZero) &&
             llvm::all_of(parseIntArrayAttr<int64_t>(begin_mask()), isZero) &&
             llvm::all_of(parseIntArrayAttr<int64_t>(end_mask()), isZero) &&
-            llvm::all_of(parseIntArrayAttr<int64_t>(begins_attr().getValue()), isPositive) &&
-            llvm::all_of(parseIntArrayAttr<int64_t>(ends_attr().getValue()), isPositive));
+            llvm::all_of(parseIntArrayAttr<int64_t>(begins_attr().value()), isPositive) &&
+            llvm::all_of(parseIntArrayAttr<int64_t>(ends_attr().value()), isPositive));
 }
 
 //
@@ -164,16 +167,16 @@ mlir::LogicalResult ComposeStridedSlice::matchAndRewrite(IE::StridedSliceOp orig
         return mlir::failure();
     }
 
-    const auto firstBegin = parseIntArrayAttr<int64_t>(producerSliceOp.begins_attr().getValue());
-    const auto nextBegin = parseIntArrayAttr<int64_t>(origOp.begins_attr().getValue());
+    const auto firstBegin = parseIntArrayAttr<int64_t>(producerSliceOp.begins_attr().value());
+    const auto nextBegin = parseIntArrayAttr<int64_t>(origOp.begins_attr().value());
     auto resultBegin = SmallVector<int64_t>(nextBegin.size());
 
-    const auto firstEnd = parseIntArrayAttr<int64_t>(producerSliceOp.ends_attr().getValue());
-    const auto nextEnd = parseIntArrayAttr<int64_t>(origOp.ends_attr().getValue());
+    const auto firstEnd = parseIntArrayAttr<int64_t>(producerSliceOp.ends_attr().value());
+    const auto nextEnd = parseIntArrayAttr<int64_t>(origOp.ends_attr().value());
     auto resultEnd = SmallVector<int64_t>(nextEnd.size());
 
-    const auto firstStride = parseIntArrayAttr<int64_t>(producerSliceOp.strides_attr().getValue());
-    const auto nextStride = parseIntArrayAttr<int64_t>(origOp.strides_attr().getValue());
+    const auto firstStride = parseIntArrayAttr<int64_t>(producerSliceOp.strides_attr().value());
+    const auto nextStride = parseIntArrayAttr<int64_t>(origOp.strides_attr().value());
     auto resultStride = SmallVector<int64_t>(nextStride.size());
 
     for (auto i : irange(firstBegin.size())) {
@@ -181,6 +184,7 @@ mlir::LogicalResult ComposeStridedSlice::matchAndRewrite(IE::StridedSliceOp orig
         resultEnd[i] = firstBegin[i] + nextEnd[i] * firstStride[i];
         resultStride[i] = firstStride[i] * nextStride[i];
     }
+
     // Stride on more than 1 axis is not supported
     const auto greaterThanOne = [](auto ele) {
         return ele > 1;
@@ -228,9 +232,9 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::StridedSliceOp slice
         return mlir::failure();
     }
 
-    const auto beginsAttr = getIntArrayAttr(getContext(), inputData.getValue().begins);
-    const auto endsAttr = getIntArrayAttr(getContext(), inputData.getValue().ends);
-    const auto stridesAttr = getIntArrayAttr(getContext(), inputData.getValue().strides);
+    const auto beginsAttr = getIntArrayAttr(getContext(), inputData.value().begins);
+    const auto endsAttr = getIntArrayAttr(getContext(), inputData.value().ends);
+    const auto stridesAttr = getIntArrayAttr(getContext(), inputData.value().strides);
 
     rewriter.replaceOpWithNewOp<IE::StridedSliceOp>(
             slice, slice.input(), nullptr, nullptr, nullptr, beginsAttr, endsAttr, stridesAttr, slice.begin_mask(),

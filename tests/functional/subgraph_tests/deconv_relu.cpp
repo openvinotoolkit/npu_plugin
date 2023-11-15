@@ -1,10 +1,10 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "common/functions.h"
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 #include <ngraph_functions/builders.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -12,13 +12,7 @@
 
 namespace {
 
-class VPUXDeconvReluTest_VPU3700 : public LayerTestsUtils::KmbLayerTestsCommon {
-    // [Track number: E#26428]
-    void SkipBeforeLoad() override {
-        if (getBackendName(*getCore()) == "VPUAL") {
-            throw LayerTestsUtils::KmbSkipTestException("LoadNetwork throws an exception");
-        }
-    }
+class VPUXDeconvReluTest_VPU3700 : public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void ConfigureNetwork() override {
         cnnNetwork.getInputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NHWC);
         cnnNetwork.getInputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
@@ -26,7 +20,7 @@ class VPUXDeconvReluTest_VPU3700 : public LayerTestsUtils::KmbLayerTestsCommon {
     }
 
     void SetUp() override {
-        targetDevice = LayerTestsUtils::testPlatformTargetDevice;
+        targetDevice = LayerTestsUtils::testPlatformTargetDevice();
         constexpr int inChan = 3;
         constexpr int outChan = 16;
         constexpr int inWidth = 14;

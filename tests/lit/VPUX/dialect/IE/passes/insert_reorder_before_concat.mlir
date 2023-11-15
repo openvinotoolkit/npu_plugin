@@ -88,7 +88,7 @@ func.func @InsertReorderBeforeReshapeConcat(%arg0: tensor<1x8x512x64xf16>, %arg1
     // CHECK-DAG:   %[[CONSTANT_1:.*]] = const.Declare tensor<64x2x1x1xf16> = dense<1.000000e+00>
     // CHECK-SAME:  : tensor<64x2x1x1xf32>, [#const.ConvertElemType<f16>]
 
-    // CHECK:   %[[RESHAPE:.*]] = IE.AffineReshape(%arg0)
+    // CHECK:   %[[RESHAPE:.*]] = IE.AffineReshape(%arg0) 
     // CHECK-SAME   : tensor<1x8x512x64xf16> -> tensor<1x64x8x512xf16>
 
     // CHECK:   %[[CONV2D:.*]] = IE.Convolution(%arg1, %[[CONSTANT_1]]) {

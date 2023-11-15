@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2022 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
+
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IE/utils/const_attributes.hpp"
@@ -110,7 +111,7 @@ void gatherFQs(mlir::Operation* currentOp, SmallVector<IE::FakeQuantizeOp>& fqOp
 bool isPerTensorFQ(ArrayRef<IE::FakeQuantizeOp> fqOpsToAlign) {
     for (const auto& fqOpToAlign : fqOpsToAlign) {
         const auto axis = IE::getFQAxisIndex(fqOpToAlign);
-        if (axis != None && axis.hasValue()) {
+        if (axis != None && axis.has_value()) {
             return false;
         }
     }
@@ -118,7 +119,7 @@ bool isPerTensorFQ(ArrayRef<IE::FakeQuantizeOp> fqOpsToAlign) {
 }
 
 Const::details::ContentRange<float> getConst(Const::DeclareOp declOp) {
-    const auto content = declOp.contentAttr().fold();
+    const auto content = declOp.getContentAttr().fold();
     return content.getValues<float>();
 }
 
@@ -204,7 +205,7 @@ Const::DeclareOp createFQConst(mlir::MLIRContext* ctx, mlir::Location loc, float
     return rewriter.create<Const::DeclareOp>(loc, argType, cstAttr);
 }
 
-void adjustFqsToAlign(SmallVector<IE::FakeQuantizeOp>& fqOpsToAlign) {
+SmallVector<IE::FakeQuantizeOp> selectFqsToAlign(ArrayRef<IE::FakeQuantizeOp> fqOpsToAlign) {
     auto minRange = std::numeric_limits<float>::max();
     SmallVector<IE::FakeQuantizeOp> filteredFQOpsToAlign;
     const float maxFqRangeRatio = 5.0;
@@ -225,7 +226,7 @@ void adjustFqsToAlign(SmallVector<IE::FakeQuantizeOp>& fqOpsToAlign) {
         }
         filteredFQOpsToAlign.push_back(fqOpToAlign);
     }
-    fqOpsToAlign = filteredFQOpsToAlign;
+    return filteredFQOpsToAlign;
 }
 
 void findMinMax(MutableArrayRef<IE::FakeQuantizeOp> fqOpsToAlign, float& min, float& max, float& range,
@@ -347,7 +348,7 @@ mlir::LogicalResult AlignConcatScalesRewriter::matchAndRewrite(IE::ConcatOp orig
     }
 
     // 4. Keep only the FQs whose ranges are relatively close in terms of intervals
-    adjustFqsToAlign(fqOpsToAlign);
+    fqOpsToAlign = selectFqsToAlign(fqOpsToAlign);
     if (fqOpsToAlign.size() < 2) {
         _log.trace("Failed because the FQs have too different quantization ranges.");
         return mlir::failure();

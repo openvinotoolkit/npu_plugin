@@ -3,16 +3,16 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-// RUN: env IE_VPUX_LOG_FILTER="dump-statistics-of-task-ops" vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX37XX" --dump-statistics-of-task-ops -o /dev/null %s | FileCheck %s
+// RUN: env IE_NPU_LOG_FILTER="dump-statistics-of-task-ops" vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX37XX" --dump-statistics-of-task-ops -o /dev/null %s | FileCheck %s
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 !qElemType = !quant.uniform<u8:f16, 1.000000e-01>
 
-module @DumpOpsStatistics attributes {VPU.compilationMode = "DefaultHW"} {
+module @DumpOpsStatistics attributes {VPU.compilationMode = #VPU.compilation_mode<DefaultHW>} {
 
     func.func @WeightsCompressionStatistics() -> memref<1x512x3x3x!qElemType, [@CMX_NN, 0]> {
         %cst_0 = const.Declare memref<1x512x3x3x!qElemType> = dense<1> : tensor<1x512x3x3xui8>, [#const.QuantCast<!qElemType>]
-        %0 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x512x3x3x!qElemType, [@CMX_NN, 0]>
+        %0 = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x512x3x3x!qElemType, [@CMX_NN, 0]>
         VPURT.Task attributes {cycleBegin = 0 : i64, cycleEnd = 1 : i64, isTrailingSWLayer = false} {
             %1 = VPUIP.NNDMA {port = 0 : i64, set_crit = false, set_ord = true}
                 inputs(%cst_0 : memref<1x512x3x3x!qElemType>)
@@ -21,13 +21,13 @@ module @DumpOpsStatistics attributes {VPU.compilationMode = "DefaultHW"} {
         }
 
         %cst_1 = const.Declare memref<15200x1x1x1xui8> = dense<1> : tensor<15200x1x1x1xui8>
-        %2 = VPURT.DeclareBuffer "CMX_NN" <1605632> -> !VPUIP.DistributedBuffer<50176x1x1x1xui8, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}>
+        %2 = VPURT.DeclareBuffer <CMX_NN> <1605632> -> !VPUIP.DistributedBuffer<50176x1x1x1xui8, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}>
         VPURT.Task attributes {cycleBegin = 1 : i64, cycleEnd = 2 : i64, isTrailingSWLayer = false} {
             %4 = VPUIP.DecompressDMAOp {port = 0 : i64} inputs(%cst_1 : memref<15200x1x1x1xui8>) outputs(%2 : !VPUIP.DistributedBuffer<50176x1x1x1xui8, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}>) -> !VPUIP.DistributedBuffer<50176x1x1x1xui8, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}>
         }
 
         %cst_2 = const.Declare memref<1408x1x1x1xui8> = dense<1> : tensor<1408x1x1x1xui8>
-        %3 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<4608x1x1x1xui8, [@CMX_NN, 0]>
+        %3 = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<4608x1x1x1xui8, [@CMX_NN, 0]>
         VPURT.Task attributes {cycleBegin = 2 : i64, cycleEnd = 3 : i64, isTrailingSWLayer = false} {
             %4 = VPUIP.DecompressDMAOp {port = 0 : i64} inputs(%cst_2 : memref<1408x1x1x1xui8>) outputs(%3 : memref<4608x1x1x1xui8, [@CMX_NN, 0]>) -> memref<4608x1x1x1xui8, [@CMX_NN, 0]>
         }
@@ -37,10 +37,10 @@ module @DumpOpsStatistics attributes {VPU.compilationMode = "DefaultHW"} {
 
     // CHECK: VPUIP tasks statistics:
     // CHECK: VPUIP Tasks - 3 ops
-    // CHECK:   VPUIP.NNDMA - 1 ops
-    // CHECK:     DDR2CMX - 1 ops
-    // CHECK:   VPUIP.DecompressDMAOp - 2 ops
-    // CHECK:     DDR2CMX - 2 ops
+    // CHECK:   VPUIP.NNDMA - 1 ops : Size - 4.50 KB
+    // CHECK:     DDR2CMX - 1 ops : Size - 4.50 KB
+    // CHECK:   VPUIP.DecompressDMAOp - 2 ops : Size - 53.50 KB
+    // CHECK:     DDR2CMX - 2 ops : Size - 53.50 KB
 
     // CHECK: Weights compression statistics:
     // CHECK: Constants size before compression: 59392 bytes
@@ -109,11 +109,11 @@ module @VPU.SW {
 func.func @main(%1: memref<1x4x512x1xf16, {order = #NCWH}>,
            %2: memref<1x4x512x1xf16, {order = #NCWH}>) -> memref<1x4x512x1xf16, {order = #NCWH}> {
 
-    %in_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x4x512x1xf16, {order = #NCWH}, [@CMX_NN, 0]>
-    %out_tile0_cmx0 = VPURT.DeclareBuffer "CMX_NN" [0] <2000> -> memref<1x4x512x1xf16, {order = #NCWH}, [@CMX_NN, 0] >
-    %out_tile0_cmx1 = VPURT.DeclareBuffer "CMX_NN" [0] <4000> -> memref<1x4x512x1xf16, {order = #NCWH}, [@CMX_NN, 0] >
-    %out_tile0_cmx2 = VPURT.DeclareBuffer "CMX_NN" [0] <6000> -> memref<1x4x512x1xf16, {order = #NCWH}, [@CMX_NN, 0] >
-    %out_tile0_cmx3 = VPURT.DeclareBuffer "CMX_NN" [0] <8000> -> memref<1x4x512x1xf16, {order = #NCWH}, [@CMX_NN, 0] >
+    %in_tile0_cmx  = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x4x512x1xf16, {order = #NCWH}, [@CMX_NN, 0]>
+    %out_tile0_cmx0 = VPURT.DeclareBuffer <CMX_NN> [0] <2000> -> memref<1x4x512x1xf16, {order = #NCWH}, [@CMX_NN, 0] >
+    %out_tile0_cmx1 = VPURT.DeclareBuffer <CMX_NN> [0] <4000> -> memref<1x4x512x1xf16, {order = #NCWH}, [@CMX_NN, 0] >
+    %out_tile0_cmx2 = VPURT.DeclareBuffer <CMX_NN> [0] <6000> -> memref<1x4x512x1xf16, {order = #NCWH}, [@CMX_NN, 0] >
+    %out_tile0_cmx3 = VPURT.DeclareBuffer <CMX_NN> [0] <8000> -> memref<1x4x512x1xf16, {order = #NCWH}, [@CMX_NN, 0] >
 
     %b0 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     %b1 = VPURT.ConfigureBarrier<1> -> !VPURT.Barrier
@@ -189,9 +189,9 @@ func.func @main(%1: memref<1x4x512x1xf16, {order = #NCWH}>,
 
 // CHECK: VPUIP tasks statistics:
 // CHECK: VPUIP Tasks - 5 ops
-// CHECK: VPUIP.NNDMA - 2 ops
-// CHECK: CMX2DDR - 1 ops
-// CHECK: DDR2CMX - 1 ops
+// CHECK: VPUIP.NNDMA - 2 ops : Sized - 8.00 KB
+// CHECK: CMX2DDR - 1 ops : Size - 4.00 KB
+// CHECK: DDR2CMX - 1 ops : Size - 4.00 KB
 // CHECK: VPUIP.SW.Kernel - 3 ops
 // CHECK: builtin_clamp - 1 ops
 // CHECK: builtin_mvn - 2 ops

@@ -13,7 +13,7 @@ func.func @StaticAlloc() -> (memref<1x1x1x1000xf16, @DDR>, memref<1x1x1x2048xf16
 
     return %0, %1 : memref<1x1x1x1000xf16, @DDR>, memref<1x1x1x2048xf16, [@CMX_NN, 0]>
 
-    // CHECK:       [[VAR0:%.*]] = VPURT.DeclareBuffer "DDR" <0> -> memref<1x1x1x1000xf16, @DDR>
-    // CHECK:       [[VAR1:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <2000> -> memref<1x1x1x2048xf16, [@CMX_NN, 0]>
+    // CHECK:       [[VAR0:%.*]] = VPURT.DeclareBuffer <DDR> <0> -> memref<1x1x1x1000xf16, @DDR>
+    // CHECK:       [[VAR1:%.*]] = VPURT.DeclareBuffer <CMX_NN> [0] <2000> -> memref<1x1x1x2048xf16, [@CMX_NN, 0]>
     // CHECK: return [[VAR0]], [[VAR1]] : memref<1x1x1x1000xf16, @DDR>, memref<1x1x1x2048xf16, [@CMX_NN, 0]>
 }

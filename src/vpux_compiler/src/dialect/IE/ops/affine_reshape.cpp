@@ -5,7 +5,9 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
+#include "vpux/compiler/dialect/IE/utils/propagate_quantize_dequantize_utils.hpp"
 #include "vpux/compiler/dialect/IE/utils/reshape_utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/layout_utils.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -21,49 +23,6 @@
 using namespace vpux;
 
 namespace {
-
-//
-// inferOutputLayout
-//
-
-mlir::FailureOr<DimsOrder> inferOutputLayout(const DimArr& inPerm, mlir::ArrayAttr dimMapAttr) {
-    const auto dimMapping = parseIntArrayOfArrayAttr<int64_t>(dimMapAttr);
-    SmallVector<vpux::Dim> perm;
-
-    // Iterate over input dims in the given order and push back corresponding output dims as indicated by the op's
-    // dim_mapping. The result is the permutation of output dims.
-    bool layoutInferFail = false;
-    for (auto pIt = inPerm.begin(); pIt != inPerm.end(); ++pIt) {
-        const auto outputDims = dimMapping[pIt->ind()];
-        for (const auto& dim : outputDims) {
-            const auto outDim = vpux::Dim(dim);
-
-            // Ensure input dim order is not switched.
-            // E.g. nchw -> c'h'w', with n = c', c = h', h * w = w'
-            // Layouts 0123 and 0132 would both produce 012 output layout, but
-            // the content of w' would not be the same.
-            if (!perm.empty() && perm.back() == outDim) {
-                layoutInferFail = std::prev(pIt)->ind() > pIt->ind();
-                if (layoutInferFail == true) {
-                    return mlir::failure();
-                }
-
-                continue;
-            }
-            perm.push_back(outDim);
-        }
-    }
-
-    // Check that the resulting output permutation does not have duplicate dims
-    SmallVector<vpux::Dim> temp(perm);
-    llvm::sort(temp.begin(), temp.end(), [](const vpux::Dim& dim0, const vpux::Dim& dim1) {
-        return dim0.ind() < dim1.ind();
-    });
-
-    if (std::adjacent_find(temp.begin(), temp.end()) != temp.end())
-        return mlir::failure();
-    return DimsOrder::fromPermutation(makeArrayRef(perm));
-}
 
 mlir::FailureOr<mlir::Type> inferElemType(IE::AffineReshapeOpAdaptor affineReshapeOp, mlir::Type inputElemType) {
     const auto perAxisQType = inputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>();
@@ -133,18 +92,19 @@ mlir::LogicalResult vpux::IE::AffineReshapeOp::inferReturnTypeComponents(
     const auto ndInType = inType.cast<vpux::NDTypeInterface>();
     const auto inOrder = DimsOrder::fromValue(input);
 
-    const auto outputLayout = inferOutputLayout(inOrder.toPermutation(), affineReshape.dim_mapping());
+    const auto outputLayout =
+            vpux::VPU::inferAffineReshapeOutputLayout(inOrder.toPermutation(), affineReshape.dim_mapping());
     if (mlir::failed(outputLayout)) {
         return mlir::failure();
     }
 
-    const auto outDesc = IE::getTensorAttr(ctx, outputLayout.getValue(), ndInType.getMemSpace());
+    const auto outDesc = vpux::getTensorAttr(ctx, outputLayout.value(), ndInType.getMemSpace());
 
     const auto elemTypeInferResult = inferElemType(affineReshape, ndInType.getElementType());
     if (mlir::failed(elemTypeInferResult)) {
         inferredReturnShapes.emplace_back(outShape, ndInType.getElementType(), outDesc);
     } else {
-        inferredReturnShapes.emplace_back(outShape, elemTypeInferResult.getValue(), outDesc);
+        inferredReturnShapes.emplace_back(outShape, elemTypeInferResult.value(), outDesc);
     }
 
     return mlir::success();
@@ -161,38 +121,13 @@ void vpux::IE::AffineReshapeOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::
     }
 
     for (size_t outputInd = 0; outputInd < info.getNumOutputs(); ++outputInd) {
-        info.setOutput(outputInd, outputElemType.getValue());
+        info.setOutput(outputInd, outputElemType.value());
     }
 }
 
 void vpux::IE::AffineReshapeOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    const auto outputElemType = info.getOutput(0);
-
-    if (outputElemType != nullptr && outputElemType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
-        // E#31029: implement propagate type up for per channel, currently it leads to failures in later passes.
-        return;
-    }
-
-    for (size_t inputInd = 0; inputInd < info.getNumInputs(); ++inputInd) {
-        info.setInput(inputInd, outputElemType);
-    }
-}
-
-//
-// inferLayoutInfo
-//
-
-void vpux::IE::AffineReshapeOp::inferLayoutInfo(vpux::IE::LayerLayoutInfo& info) {
-    const auto inOrder = info.getInput(0);
-    const auto inPermutation = inOrder.toPermutation();
-    const auto outPermutation = inferOutputLayout(inPermutation, dim_mapping());
-    if (mlir::failed(outPermutation)) {
-        IE::fillDefaultLayoutInfo(info);
-        return;
-    }
-
-    info.setInput(0, inOrder);
-    info.setOutput(0, outPermutation.getValue());
+    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
+    propagateElementTypeUp(info);
 }
 
 //
@@ -220,13 +155,23 @@ mlir::LogicalResult vpux::IE::AffineReshapeOp::verify() {
 //
 
 mlir::OpFoldResult vpux::IE::AffineReshapeOp::fold(ArrayRef<mlir::Attribute> operands) {
-    if (input().getType() == output().getType()) {
+    auto inputType = input().getType().cast<vpux::NDTypeInterface>();
+    auto outputType = output().getType().cast<vpux::NDTypeInterface>();
+    if (inputType == outputType) {
         return input();
     }
 
     VPUX_THROW_UNLESS(!operands.empty(), "Wrong number of operands : {0}", operands.size());
 
     if (const auto attr = operands[0].dyn_cast_or_null<Const::ContentAttr>()) {
+        const auto inputElemType =
+                inputType.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>();
+        const auto outputElemType =
+                outputType.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>();
+        if (inputElemType && outputElemType && isQuantizedDimensionPermutation(inputElemType, outputElemType)) {
+            const auto newShape = outputType.getShape();
+            return attr.changeShapeAndElemType(newShape, outputElemType);
+        }
         return attr.reshape(getShape(output()));
     }
 
@@ -278,7 +223,7 @@ mlir::LogicalResult FuseAffineReshapes::matchAndRewrite(IE::AffineReshapeOp orig
         }
 
         rewriter.replaceOpWithNewOp<IE::AffineReshapeOp>(
-                origOp, prevOp.input(), getIntArrayOfArray(getContext(), reassociationMap.getValue()), outputShapeAttr);
+                origOp, prevOp.input(), getIntArrayOfArray(getContext(), reassociationMap.value()), outputShapeAttr);
         return mlir::success();
     }
     // Reshape's output dim order is limited to NCHW, so the compiler will not fuse the ops in this case

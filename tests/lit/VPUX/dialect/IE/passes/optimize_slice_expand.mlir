@@ -59,7 +59,7 @@ func.func @main(%arg0: tensor<1x80x28x28x!qElemType0>) -> (tensor<1x70x28x28x!qE
     %3 = IE.Expand(%2) {pads_begin = [0, 0, 0, 0], pads_end = [0, 10, 0, 0]} : tensor<1x70x28x28x!qElemType1> -> tensor<1x80x28x28x!qElemType1>
     return %1, %3 : tensor<1x70x28x28x!qElemType0, {order = #NHWC}>, tensor<1x80x28x28x!qElemType1>
 
-    // CHECK:       [[VAR0:%.+]] = IE.Slice %arg0
+    // CHECK:       [[VAR0:%.+]] = IE.Slice %arg0 
     // CHECK-SAME:  [0, 0, 0, 0] [1, 70, 28, 28] : tensor<1x80x28x28x!qElemType0> to tensor<1x70x28x28x!qElemType0>
     // CHECK:       [[VAR1:%.+]] = IE.Reorder([[VAR0]])
     // CHECK-SAME:  {dstOrder = #NHWC} : tensor<1x70x28x28x!qElemType0> -> tensor<1x70x28x28x!qElemType0, {order = #NHWC}>
@@ -100,10 +100,10 @@ func.func @main(%arg0: tensor<1x16x28x28x!qElemType0>) -> tensor<1x4x28x28x!qEle
 module @OptimizeSliceConcatExpand {
 
 func.func @main(%arg0: tensor<1x80x4x4xf16>, %arg1: tensor<1x80x4x24xf16>) -> tensor<1x80x4x28xf16> {
-
+   
    %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 70, 4, 4] : tensor<1x80x4x4xf16> to tensor<1x70x4x4xf16>
    %1 = IE.Slice %arg1 [0, 0, 0, 0] [1, 70, 4, 24] : tensor<1x80x4x24xf16> to tensor<1x70x4x24xf16>
-   %2 = IE.Concat(%0, %1) {per_axis = {axis = 3 : i64}} : tensor<1x70x4x4xf16>, tensor<1x70x4x24xf16> -> tensor<1x70x4x28xf16>
+   %2 = IE.Concat(%0, %1) {per_axis = #IE.Concat<axis = 3 : i64>} : tensor<1x70x4x4xf16>, tensor<1x70x4x24xf16> -> tensor<1x70x4x28xf16>
    %3 = IE.Expand(%2) {pads_begin = [0, 0, 0, 0], pads_end = [0, 10, 0, 0]} : tensor<1x70x4x28xf16> -> tensor<1x80x4x28xf16>
    return %3 : tensor<1x80x4x28xf16>
 
@@ -120,10 +120,10 @@ func.func @main(%arg0: tensor<1x80x4x4xf16>, %arg1: tensor<1x80x4x24xf16>) -> te
 module @NoOptimizeSliceConcatExpand {
 
 func.func @main(%arg0: tensor<1x80x4x24xf16>, %arg1: tensor<1x80x4x24xf16>) -> tensor<1x144x4x24xf16> {
-
+   
    %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 70, 4, 24] : tensor<1x80x4x24xf16> to tensor<1x70x4x24xf16>
    %1 = IE.Slice %arg1 [0, 0, 0, 0] [1, 70, 4, 24] : tensor<1x80x4x24xf16> to tensor<1x70x4x24xf16>
-   %2 = IE.Concat(%0, %1) {per_axis = {axis = 1 : i64}} : tensor<1x70x4x24xf16>, tensor<1x70x4x24xf16> -> tensor<1x140x4x24xf16>
+   %2 = IE.Concat(%0, %1) {per_axis = #IE.Concat<axis = 1 : i64>} : tensor<1x70x4x24xf16>, tensor<1x70x4x24xf16> -> tensor<1x140x4x24xf16>
    %3 = IE.Expand(%2) {pads_begin = [0, 0, 0, 0], pads_end = [0, 4, 0, 0]} : tensor<1x140x4x24xf16> -> tensor<1x144x4x24xf16>
    return %3 : tensor<1x144x4x24xf16>
 
@@ -145,10 +145,10 @@ func.func @main(%arg0: tensor<1x80x4x24xf16>, %arg1: tensor<1x80x4x24xf16>) -> t
 module @NoOptimizeSliceConcatAxisHExpand {
 
 func.func @main(%arg0: tensor<1x70x20x24xf16>, %arg1: tensor<1x70x20x24xf16>) -> tensor<1x80x20x24xf16> {
-
+   
    %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 70, 10, 24] : tensor<1x70x20x24xf16> to tensor<1x70x10x24xf16>
    %1 = IE.Slice %arg1 [0, 0, 0, 0] [1, 70, 10, 24] : tensor<1x70x20x24xf16> to tensor<1x70x10x24xf16>
-   %2 = IE.Concat(%0, %1) {per_axis = {axis = 2 : i64}} : tensor<1x70x10x24xf16>, tensor<1x70x10x24xf16> -> tensor<1x70x20x24xf16>
+   %2 = IE.Concat(%0, %1) {per_axis = #IE.Concat<axis = 2 : i64>} : tensor<1x70x10x24xf16>, tensor<1x70x10x24xf16> -> tensor<1x70x20x24xf16>
    %3 = IE.Expand(%2) {pads_begin = [0, 0, 0, 0], pads_end = [0, 10, 0, 0]} : tensor<1x70x20x24xf16> -> tensor<1x80x20x24xf16>
    return %3 : tensor<1x80x20x24xf16>
 
@@ -170,10 +170,10 @@ func.func @main(%arg0: tensor<1x70x20x24xf16>, %arg1: tensor<1x70x20x24xf16>) ->
 module @NoOptimizeSliceConcatAxisHExpand2 {
 
 func.func @main(%arg0: tensor<1x80x20x24xf16>, %arg1: tensor<1x80x20x24xf16>) -> tensor<1x70x30x24xf16> {
-
+   
    %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 70, 10, 24] : tensor<1x80x20x24xf16> to tensor<1x70x10x24xf16>
    %1 = IE.Slice %arg1 [0, 0, 0, 0] [1, 70, 10, 24] : tensor<1x80x20x24xf16> to tensor<1x70x10x24xf16>
-   %2 = IE.Concat(%0, %1) {per_axis = {axis = 2 : i64}} : tensor<1x70x10x24xf16>, tensor<1x70x10x24xf16> -> tensor<1x70x20x24xf16>
+   %2 = IE.Concat(%0, %1) {per_axis = #IE.Concat<axis = 2 : i64>} : tensor<1x70x10x24xf16>, tensor<1x70x10x24xf16> -> tensor<1x70x20x24xf16>
    %3 = IE.Expand(%2) {pads_begin = [0, 0, 0, 0], pads_end = [0, 0, 10, 0]} : tensor<1x70x20x24xf16> -> tensor<1x70x30x24xf16>
    return %3 : tensor<1x70x30x24xf16>
 
@@ -195,8 +195,8 @@ func.func @main(%arg0: tensor<1x80x20x24xf16>, %arg1: tensor<1x80x20x24xf16>) ->
 module @NoOptimizeSliceExpand {
 
 func.func @main(%arg0: tensor<1x70x4x4xf16>) -> tensor<1x80x3x4xf16> {
-
-   %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 70, 3, 4] : tensor<1x70x4x4xf16> to tensor<1x70x3x4xf16>
+   
+   %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 70, 3, 4] : tensor<1x70x4x4xf16> to tensor<1x70x3x4xf16> 
    %1 = IE.Expand(%0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 10, 0, 0]} : tensor<1x70x3x4xf16> -> tensor<1x80x3x4xf16>
    return %1 : tensor<1x80x3x4xf16>
 
@@ -234,7 +234,7 @@ func.func @main(%arg0: tensor<1x70x4x4xf16>) -> tensor<1x20x4x4xf16> {
 module @DeleteSliceExpand {
 
 func.func @main(%arg0: tensor<1x70x4x4xf16>) -> tensor<1x80x4x4xf16> {
-
+   
    %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 60, 4, 4] : tensor<1x70x4x4xf16> to tensor<1x60x4x4xf16>
    %1 = IE.Expand(%0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 20, 0, 0]} : tensor<1x60x4x4xf16> -> tensor<1x80x4x4xf16>
    return %1 : tensor<1x80x4x4xf16>
@@ -253,7 +253,7 @@ func.func @main(%arg0: tensor<1x70x4x4xf16>) -> tensor<1x80x4x4xf16> {
 module @NoSliceExpand {
 
 func.func @main(%arg0: tensor<1x70x4x4xf16>) -> tensor<1x80x4x4xf16> {
-
+   
    %0 = IE.Slice %arg0 [0, 10, 0, 0] [1, 60, 4, 4] : tensor<1x70x4x4xf16> to tensor<1x60x4x4xf16>
    %1 = IE.Expand(%0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 20, 0, 0]} : tensor<1x60x4x4xf16> -> tensor<1x80x4x4xf16>
    return %1 : tensor<1x80x4x4xf16>
@@ -274,7 +274,7 @@ module @OptimizeTwoBranchesSliceExpand {
 func.func @main(%arg0: tensor<1x80x4x4xf16>) -> (tensor<1x70x3x4xf16, {order = #NHWC}>, tensor<1x80x3x4xf16>) {
 
 
-   %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 70, 3, 4] : tensor<1x80x4x4xf16> to tensor<1x70x3x4xf16>
+   %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 70, 3, 4] : tensor<1x80x4x4xf16> to tensor<1x70x3x4xf16> 
    %1 = IE.Reorder(%0) {dstOrder = #NHWC} : tensor<1x70x3x4xf16> -> tensor<1x70x3x4xf16, {order = #NHWC}>
    %2 = IE.Expand(%0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 10, 0, 0]} : tensor<1x70x3x4xf16> -> tensor<1x80x3x4xf16>
    return %1, %2 : tensor<1x70x3x4xf16, {order = #NHWC}>, tensor<1x80x3x4xf16>
@@ -329,7 +329,7 @@ func.func @OptimizeExpandSlicePatternToExpand(%arg0: tensor<1x3x32x32xf16>) -> t
    return %1 : tensor<1x4x32x32xf16>
 
    // CHECK:        [[EXPAND:%.+]] = IE.Expand([[INPUT]]) {pads_begin = [0, 0, 0, 0], pads_end = [0, 1, 0, 0]} : tensor<1x3x32x32xf16> -> tensor<1x4x32x32xf16>
-   // CHECK-NOT:    IE.Slice
+   // CHECK-NOT:    IE.Slice 
    // CHECK:        [[EXPAND]] : tensor<1x4x32x32xf16>
 }
 
@@ -343,6 +343,64 @@ func.func @OptimizeExpandSlicePatternToSlice(%arg0: tensor<1x5x32x32xf16>) -> te
    return %1 : tensor<1x4x32x32xf16>
 
    // CHECK-NOT:    IE.Expand
-   // CHECK:        [[SLICE:%.+]] = IE.Slice [[INPUT]] [0, 0, 0, 0] [1, 4, 32, 32] : tensor<1x5x32x32xf16> to tensor<1x4x32x32xf16>
+   // CHECK:        [[SLICE:%.+]] = IE.Slice [[INPUT]] [0, 0, 0, 0] [1, 4, 32, 32] : tensor<1x5x32x32xf16> to tensor<1x4x32x32xf16> 
    // CHECK:        [[SLICE]] : tensor<1x4x32x32xf16>
+}
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+// CHECK-LABEL: @OptimizeSliceHSwishExpand
+module @OptimizeSliceHSwishExpand {
+
+func.func @main(%arg0: tensor<1x16x257x257xf16, {order = #NHWC}>) -> tensor<1x16x257x257xf16, {order = #NHWC}> {
+   %3 = IE.Slice %arg0 [0, 0, 0, 0] [1, 8, 257, 257] : tensor<1x16x257x257xf16, {order = #NHWC}> to tensor<1x8x257x257xf16, {order = #NHWC}>
+   %4 = IE.HSwish(%3) : tensor<1x8x257x257xf16, {order = #NHWC}> -> tensor<1x8x257x257xf16, {order = #NHWC}>
+   %5 = IE.Expand(%4) {pads_begin = [0, 0, 0, 0], pads_end = [0, 8, 0, 0]} : tensor<1x8x257x257xf16, {order = #NHWC}> -> tensor<1x16x257x257xf16, {order = #NHWC}>
+   return %5 : tensor<1x16x257x257xf16, {order = #NHWC}>
+
+   // CHECK:       [[VAR0:%.+]] = IE.HSwish(%arg0)
+   // CHECK-SAME:      tensor<1x16x257x257xf16, {order = #NHWC}> -> tensor<1x16x257x257xf16, {order = #NHWC}>
+   // CHECK:       return [[VAR0]] : tensor<1x16x257x257xf16, {order = #NHWC}>
+
+}
+}
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+// CHECK-LABEL: @OptimizeSliceSwishExpand
+module @OptimizeSliceSwishExpand {
+
+func.func @main(%arg0: tensor<1x16x257x257xf16, {order = #NHWC}>) -> tensor<1x16x257x257xf16, {order = #NHWC}> {
+   %3 = IE.Slice %arg0 [0, 0, 0, 0] [1, 8, 257, 257] : tensor<1x16x257x257xf16, {order = #NHWC}> to tensor<1x8x257x257xf16, {order = #NHWC}>
+   %4 = IE.Swish(%3) : tensor<1x8x257x257xf16, {order = #NHWC}> -> tensor<1x8x257x257xf16, {order = #NHWC}>
+   %5 = IE.Expand(%4) {pads_begin = [0, 0, 0, 0], pads_end = [0, 8, 0, 0]} : tensor<1x8x257x257xf16, {order = #NHWC}> -> tensor<1x16x257x257xf16, {order = #NHWC}>
+   return %5 : tensor<1x16x257x257xf16, {order = #NHWC}>
+
+   // CHECK:       [[VAR0:%.+]] = IE.Swish(%arg0)
+   // CHECK-SAME:      tensor<1x16x257x257xf16, {order = #NHWC}> -> tensor<1x16x257x257xf16, {order = #NHWC}>
+   // CHECK:       return [[VAR0]] : tensor<1x16x257x257xf16, {order = #NHWC}>
+
+}
+}
+
+// -----
+
+// CHECK-LABEL: @OptimizeExpandOverSameDimWithSingleSlice
+module @OptimizeExpandOverSameDimWithSingleSlice {
+
+func.func @main(%arg0: tensor<1x96x180x320xf16>, %arg1: tensor<1x96x180x320xf16>) -> tensor<1x192x180x320xf16> {
+
+   %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 84, 180, 320] : tensor<1x96x180x320xf16> to tensor<1x84x180x320xf16>
+   %1 = IE.Concat(%arg1, %0) {static_offsets = [[0, 0, 0, 0], [0, 96, 0, 0]]} : tensor<1x96x180x320xf16>, tensor<1x84x180x320xf16> -> tensor<1x180x180x320xf16>
+   %2 = IE.Expand(%1) {pads_begin = [0, 0, 0, 0], pads_end = [0, 12, 0, 0]} : tensor<1x180x180x320xf16> -> tensor<1x192x180x320xf16>
+   return %2 : tensor<1x192x180x320xf16>
+
+   // CHECK:       IE.Concat
+   // CHECK-SAME:      tensor<1x96x180x320xf16>, tensor<1x96x180x320xf16> -> tensor<1x192x180x320xf16>
+
+}
 }

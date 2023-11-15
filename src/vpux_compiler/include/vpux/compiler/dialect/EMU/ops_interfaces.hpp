@@ -16,4 +16,4 @@
 // Generated
 //
 
-#include <vpux/compiler/dialect/EMU/generated/ops_interfaces.hpp.inc>
+#include <vpux/compiler/dialect/EMU/ops_interfaces.hpp.inc>

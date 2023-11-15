@@ -49,25 +49,25 @@ void vpux::VPURT::DeclareBufferOp::build(mlir::OpBuilder& builder, ::mlir::Opera
 mlir::LogicalResult vpux::VPURT::DeclareBufferOp::verify() {
     const auto op = getOperation();
     const auto type = getType().cast<vpux::NDTypeInterface>();
-    const auto opSection = section();
+    const auto opSection = getSection();
 
     if (!VPURT::isMemoryCompatible(opSection, type)) {
         return errorAt(op, "BufferSection '{0}' is not compatible with memory space '{1}'", opSection,
                        type.getMemSpace());
     }
 
-    const auto maybeSectionIndex = sectionIndex();
-    if (maybeSectionIndex.hasValue()) {
-        if (maybeSectionIndex.getValue().empty()) {
+    const auto maybeSectionIndex = getSectionIndex();
+    if (maybeSectionIndex.has_value()) {
+        if (maybeSectionIndex.value().empty()) {
             return errorAt(op, "Empty section index is not supported");
         }
     }
 
-    if (section() == VPURT::BufferSection::CMX_NN) {
+    if (getSection() == VPURT::BufferSection::CMX_NN) {
         const auto checkSectionIndex = [&op, &type](ArrayRef<int64_t> sectionIdx) {
             if (auto distributedType = type.dyn_cast<VPUIP::DistributedBufferType>()) {
                 const auto distribution = distributedType.getDistribution();
-                const auto numClusters = checked_cast<size_t>(distribution.num_clusters().getInt());
+                const auto numClusters = checked_cast<size_t>(distribution.getNumClusters().getInt());
                 if (numClusters != sectionIdx.size()) {
                     return errorAt(op, "Number of clusters '{0}' and section indexes '{1}' mismatch for op = {2}",
                                    numClusters, sectionIdx.size(), op);
@@ -81,14 +81,14 @@ mlir::LogicalResult vpux::VPURT::DeclareBufferOp::verify() {
                 }
 
                 const auto maybeIdx = memSpace.getIndex();
-                if (!maybeIdx.hasValue()) {
+                if (!maybeIdx.has_value()) {
                     return errorAt(op,
                                    "Output type must have memory space index equal to '{0}', but it doesn't. declare "
                                    "buffer op = {1}",
                                    sectionIdx[0], op);
                 }
 
-                const auto memSpaceIdx = maybeIdx.getValue();
+                const auto memSpaceIdx = maybeIdx.value();
                 if (memSpaceIdx != sectionIdx[0]) {
                     return errorAt(op, "Section index '{0}' and memory space index '{1}' mismatch for op = {2}",
                                    sectionIdx[0], memSpaceIdx, op);
@@ -109,23 +109,23 @@ mlir::LogicalResult vpux::VPURT::DeclareBufferOp::verify() {
             return mlir::success();
         };
 
-        if (!maybeSectionIndex.hasValue()) {
+        if (!maybeSectionIndex.has_value()) {
             if (!type.isa<VPUIP::DistributedBufferType>()) {
                 return errorAt(op, "Section index is missing");
             }
         } else {
-            const auto sectionIdx = parseIntArrayAttr<int64_t>(maybeSectionIndex.getValue());
+            const auto sectionIdx = parseIntArrayAttr<int64_t>(maybeSectionIndex.value());
             if (checkSectionIndex(sectionIdx).failed()) {
                 return mlir::failure();
             }
         }
-    } else if (section() == VPURT::BufferSection::DDR) {
+    } else if (getSection() == VPURT::BufferSection::DDR) {
         if (type.getMemSpace() == nullptr) {
             return errorAt(op, "Output type must have DDR memory space");
         }
 
-        if (maybeSectionIndex.hasValue()) {
-            const auto sectionIndex = parseIntArrayAttr<int64_t>(maybeSectionIndex.getValue());
+        if (maybeSectionIndex.has_value()) {
+            const auto sectionIndex = parseIntArrayAttr<int64_t>(maybeSectionIndex.value());
             if (sectionIndex.size() == 1 && sectionIndex[0] != 0) {
                 return errorAt(op, "Wrong section index value for DDR memory space: '{0}'", sectionIndex[0]);
             }
@@ -140,8 +140,8 @@ mlir::LogicalResult vpux::VPURT::DeclareBufferOp::verify() {
 }
 
 SmallVector<int64_t> vpux::VPURT::DeclareBufferOp::getNonEmptySectionIndex() {
-    if (sectionIndex().hasValue()) {
-        return parseIntArrayAttr<int64_t>(sectionIndex().getValue());
+    if (getSectionIndex().has_value()) {
+        return parseIntArrayAttr<int64_t>(getSectionIndex().value());
     }
     return SmallVector<int64_t>({0});
 }
@@ -151,7 +151,7 @@ void vpux::VPURT::DeclareBufferOp::serialize(elf::writer::BinaryDataSection<uint
 }
 
 size_t vpux::VPURT::DeclareBufferOp::getBinarySize() {
-    const auto type = buffer().getType().cast<vpux::NDTypeInterface>();
+    const auto type = getBuffer().getType().cast<vpux::NDTypeInterface>();
     return type.getTotalAllocSize().count();
 }
 
@@ -160,7 +160,7 @@ size_t vpux::VPURT::DeclareBufferOp::getAlignmentRequirements() {
 }
 
 vpux::VPURT::BufferSection vpux::VPURT::DeclareBufferOp::getMemorySpace() {
-    return section();
+    return getSection();
 }
 
 vpux::ELF::SectionFlagsAttr vpux::VPURT::DeclareBufferOp::getAccessingProcs() {

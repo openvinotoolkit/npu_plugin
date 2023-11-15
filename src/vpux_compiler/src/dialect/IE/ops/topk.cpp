@@ -6,6 +6,7 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/utils/attributes_utils.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
@@ -17,6 +18,10 @@ using namespace vpux;
 //
 
 mlir::LogicalResult vpux::IE::TopKOp::verify() {
+    if (!k()) {
+        return mlir::success();
+    }
+
     auto kNumElements = k().getType().cast<vpux::NDTypeInterface>().getNumElements();
     if (kNumElements != 1) {
         return errorAt(*this, "K should have only 1 element, while it has {0}", kNumElements);
@@ -39,16 +44,10 @@ mlir::LogicalResult vpux::IE::TopKOp::inferReturnTypeComponents(
     const auto inType = topK.input().getType().cast<mlir::ShapedType>();
     const auto inputShape = inType.getShape();
 
-    auto reshapeK = topK.k().getDefiningOp<IE::ReshapeOp>();
-    auto kConst = (reshapeK != nullptr) ? reshapeK.input().getDefiningOp<Const::DeclareOp>()
-                                        : topK.k().getDefiningOp<Const::DeclareOp>();
-    if (kConst == nullptr) {
-        return errorAt(loc, "Only constant input is supported for k");
-    }
+    const auto kValue = getConstOrAttrValue(topK.k(), topK.k_valueAttr());
 
-    const auto kContent = kConst.content();
-    if (!kContent.isSplat()) {
-        return errorAt(loc, "K input must be scalar");
+    if (mlir::failed(kValue)) {
+        return mlir::failure();
     }
 
     SmallVector<int64_t> outShape;
@@ -61,7 +60,7 @@ mlir::LogicalResult vpux::IE::TopKOp::inferReturnTypeComponents(
         axis += inRank;
     }
 
-    outShape[axis] = kContent.getSplatValue<int64_t>();
+    outShape[axis] = kValue.value();
 
     inferredReturnShapes.emplace_back(outShape, inType.getElementType());
     inferredReturnShapes.emplace_back(outShape, topK.element_type());
@@ -70,13 +69,45 @@ mlir::LogicalResult vpux::IE::TopKOp::inferReturnTypeComponents(
 }
 
 //
-// inferLayoutInfo
+// ConvertConstToAttr
 //
 
-void vpux::IE::TopKOp::inferLayoutInfo(vpux::IE::LayerLayoutInfo& info) {
-    const auto inOrder = info.getInput(0);
+namespace {
 
-    info.setInput(0, inOrder);
-    info.setOutput(0, inOrder);
-    info.setOutput(1, inOrder);
+class ConvertConstToAttr final : public mlir::OpRewritePattern<IE::TopKOp> {
+public:
+    using mlir::OpRewritePattern<IE::TopKOp>::OpRewritePattern;
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::TopKOp topKOp, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::TopKOp topKOp, mlir::PatternRewriter& rewriter) const {
+    auto arch = VPU::getArch(topKOp->getParentOfType<mlir::ModuleOp>());
+    if (!(arch == VPU::ArchKind::VPUX37XX)) {
+        return mlir::failure();
+    }
+
+    if (topKOp.k_value()) {
+        return mlir::failure();
+    }
+
+    const auto kValue = getConstOrAttrValue(topKOp.k(), topKOp.k_valueAttr());
+
+    if (mlir::failed(kValue)) {
+        return mlir::failure();
+    }
+
+    const auto kValueAttr = getIntAttr(rewriter.getContext(), kValue.value());
+
+    rewriter.replaceOpWithNewOp<IE::TopKOp>(topKOp, topKOp.input(), nullptr, kValueAttr, topKOp.axis(), topKOp.mode(),
+                                            topKOp.sort(), topKOp.element_type());
+
+    return mlir::success();
+}
+
+}  // namespace
+
+void vpux::IE::TopKOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* context) {
+    patterns.add<ConvertConstToAttr>(context);
 }

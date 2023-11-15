@@ -391,7 +391,7 @@ func.func @ConcatSparseMemRefBuf(%arg0: memref<1x32x16x16xf16, #NHWC, @CMX_NN>, 
     // CHECK-SAME:                                                                                  sparsity_map=memref<1x1x1x8192xi1, #NHWC, @CMX_NN>, is_weights>)
     // CHECK-SAME:                                  -> !VPUIP.SparseBuffer<data=memref<1x32x16x16xf16, {order = #NHWC, strides = [12288, 1, 512, 32]}, @CMX_NN>,
     // CHECK-SAME:                                                         sparsity_map=memref<1x1x1x8192xi1, #NHWC, @CMX_NN>, is_weights>
-
+        
     // CHECK:       {{%.+}} = VPUIP.ConcatView inputs([[COPY_1_RES]], [[COPY_2_RES]] :
     // CHECK-SAME:                                    !VPUIP.SparseBuffer<data=memref<1x32x16x16xf16, {order = #NHWC, strides = [12288, 1, 512, 32]}, @CMX_NN>,
     // CHECK-SAME:                                                        sparsity_map=memref<1x1x1x8192xi1, #NHWC, @CMX_NN>, is_weights>,
@@ -407,11 +407,11 @@ func.func @ConcatSparseMemRefBuf(%arg0: memref<1x32x16x16xf16, #NHWC, @CMX_NN>, 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 !InputBufferDistributed = !VPUIP.DistributedBuffer<
-    1x32x16x16xf16, #NHWC, @CMX_NN, { mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 }
+    1x32x16x16xf16, #NHWC, @CMX_NN, { mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 }
 >
 
 !InputSMBufferDistributed = !VPUIP.DistributedBuffer<
-    1x32x16x16xi1, #NHWC, @CMX_NN, { mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 }
+    1x32x16x16xi1, #NHWC, @CMX_NN, { mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 }
 >
 
 !InputSparseBufferDistributed = !VPUIP.SparseBuffer<
@@ -421,11 +421,11 @@ func.func @ConcatSparseMemRefBuf(%arg0: memref<1x32x16x16xf16, #NHWC, @CMX_NN>, 
 >
 
 !OutputBufferDistributed = !VPUIP.DistributedBuffer<
-    1x32x24x16xf16, #NHWC, @CMX_NN, { mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64 }
+    1x32x32x16xf16, #NHWC, @CMX_NN, { mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64 }
 >
 
 !OutputSMBufferDistributed = !VPUIP.DistributedBuffer<
-    1x32x24x16xi1, #NHWC, @CMX_NN, { mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64 }
+    1x32x32x16xi1, #NHWC, @CMX_NN, { mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64 }
 >
 
 !OutputSparseBufferDistributed = !VPUIP.SparseBuffer<
@@ -435,11 +435,11 @@ func.func @ConcatSparseMemRefBuf(%arg0: memref<1x32x16x16xf16, #NHWC, @CMX_NN>, 
 >
 
 !InputTensorDistributed = !VPU.DistributedTensor<
-    1x32x16x16xf16, #NHWC, @CMX_NN, { mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 }
+    1x32x16x16xf16, #NHWC, @CMX_NN, { mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 }
 >
 
 !InputSMTensorDistributed = !VPU.DistributedTensor<
-    1x32x16x16xi1, #NHWC, @CMX_NN, { mode = "SEGMENTED",  num_tiles = [1, 1, 2, 1], num_clusters = 2}
+    1x32x16x16xi1, #NHWC, @CMX_NN, { mode = "SEGMENTED",  num_tiles = [1, 1, 1, 2], num_clusters = 2}
 >
 
 !InputSparseTensorDistributed = !VPU.SparseTensor<
@@ -449,11 +449,11 @@ func.func @ConcatSparseMemRefBuf(%arg0: memref<1x32x16x16xf16, #NHWC, @CMX_NN>, 
 >
 
 !OutputTensorDistributed = !VPU.DistributedTensor<
-    1x32x24x16xf16, #NHWC, @CMX_NN, { mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64 }
+    1x32x32x16xf16, #NHWC, @CMX_NN, { mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64 }
 >
 
 !OutputSMTensorDistributed = !VPU.DistributedTensor<
-    1x32x24x16xi1, #NHWC, @CMX_NN, { mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64 }
+    1x32x32x16xi1, #NHWC, @CMX_NN, { mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64 }
 >
 
 !OutputSparseTensorDistributed = !VPU.SparseTensor<
@@ -471,72 +471,132 @@ func.func @ConcatSparseDistributedBuf(%arg0: !InputBufferDistributed, %arg1: !In
     %st1 = builtin.unrealized_conversion_cast %sb1 : !InputSparseBufferDistributed to !InputSparseTensorDistributed
     %st2 = builtin.unrealized_conversion_cast %sb2 : !InputSparseBufferDistributed to !InputSparseTensorDistributed
 
-    %conc_res = VPU.Concat(%st1, %st2) {static_offsets = [[0, 0, 0, 0], [0, 0, 8, 0]]}: !InputSparseTensorDistributed, !InputSparseTensorDistributed -> !OutputSparseTensorDistributed
+    %conc_res = VPU.Concat(%st1, %st2) {static_offsets = [[0, 0, 0, 0], [0, 0, 16, 0]]}: !InputSparseTensorDistributed, !InputSparseTensorDistributed -> !OutputSparseTensorDistributed
     %res = builtin.unrealized_conversion_cast %conc_res : !OutputSparseTensorDistributed to !OutputSparseBufferDistributed
     return %res : !OutputSparseBufferDistributed
 
-    // CHECK:       [[ALLOC_DATA_BUF:%.+]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<1x32x24x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>
-    // CHECK:       [[ALLOC_SM_BUF:%.+]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<1x32x24x16xi1, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>
-    // CHECK:       [[ALLOC_SPARSE_BUF:%.+]] = VPUIP.GroupSparseBuffer([[ALLOC_DATA_BUF]], [[ALLOC_SM_BUF]]) {is_weights} -> !VPUIP.SparseBuffer<data=!VPUIP.DistributedBuffer<1x32x24x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
-    // CHECK-SAME:                                                                                                                               sparsity_map=!VPUIP.DistributedBuffer<1x32x24x16xi1, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
-    // CHECK-SAME:                                                                                                                               is_weights>
+    // CHECK:       [[ALLOC_IN0_SPARSE_BUF:%.+]] = VPUIP.GroupSparseBuffer(%arg0, %arg1) {is_weights}
+    // CHECK-SAME:         -> !VPUIP.SparseBuffer<
+    // CHECK-SAME:              data=!VPUIP.DistributedBuffer<1x32x16x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}>
+    // CHECK-SAME:              sparsity_map=!VPUIP.DistributedBuffer<1x32x16x16xi1, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}>
+    // CHECK-SAME:              is_weights>
+
+    // CHECK:       [[ALLOC_IN1_SPARSE_BUF:%.+]] = VPUIP.GroupSparseBuffer(%arg2, %arg3) {is_weights}
+    // CHECK-SAME:         -> !VPUIP.SparseBuffer<
+    // CHECK-SAME:              data=!VPUIP.DistributedBuffer<1x32x16x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}>
+    // CHECK-SAME:              sparsity_map=!VPUIP.DistributedBuffer<1x32x16x16xi1, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}>
+    // CHECK-SAME:              is_weights>
+
+    // CHECK:       [[ALLOC_DATA_BUF:%.+]] = VPURT.AllocDistributed
+    // CHECK-SAME:         -> !VPUIP.DistributedBuffer<1x32x32x16xf16, #NHWC, @CMX_NN
+    // CHECK-SAME:              {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}
+
+    // CHECK:       [[ALLOC_SM_BUF:%.+]] = VPURT.AllocDistributed
+    // CHECK-SAME:         -> !VPUIP.DistributedBuffer<1x32x32x16xi1, #NHWC, @CMX_NN
+    // CHECK-SAME:              {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}
+
+    // CHECK:       [[ALLOC_SPARSE_BUF:%.+]] = VPUIP.GroupSparseBuffer([[ALLOC_DATA_BUF]], [[ALLOC_SM_BUF]]) {is_weights}
+    // CHECK-SAME:         -> !VPUIP.SparseBuffer<
+    // CHECK-SAME:              data=!VPUIP.DistributedBuffer<1x32x32x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}>
+    // CHECK-SAME:              sparsity_map=!VPUIP.DistributedBuffer<1x32x32x16xi1, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}>
+    // CHECK-SAME:              is_weights>
 
     // CHECK:       [[SUBVIEW_1_RES:%.+]] = VPUIP.SubView [[ALLOC_SPARSE_BUF]] [0, 0, 0, 0] [1, 32, 16, 16] :
-    // CHECK-SAME:                              !VPUIP.SparseBuffer<data=!VPUIP.DistributedBuffer<1x32x24x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
-    // CHECK-SAME:                                                  sparsity_map=!VPUIP.DistributedBuffer<1x32x24x16xi1, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
-    // CHECK-SAME:                                                  is_weights>
-    // CHECK-SAME:                               to !VPUIP.SparseBuffer<data=!VPUIP.DistributedBuffer<1x32x16x16xf16, {order = #NHWC, strides = [12288, 1, 512, 32]}, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
-    // CHECK-SAME:                                                      sparsity_map=!VPUIP.DistributedBuffer<1x1x1x8192xi1, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
-    // CHECK-SAME:                                                      is_weights>
+    // CHECK-SAME:            !VPUIP.SparseBuffer<
+    // CHECK-SAME:              data=!VPUIP.DistributedBuffer<1x32x32x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}>,
+    // CHECK-SAME:              sparsity_map=!VPUIP.DistributedBuffer<1x32x32x16xi1, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}>,
+    // CHECK-SAME:              is_weights>
+    // CHECK-SAME:         to !VPUIP.SparseBuffer<
+    // CHECK-SAME:              data=!VPUIP.DistributedBuffer<1x32x16x16xf16, {order = #NHWC, strides = [16384, 1, 512, 32]}, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}>,
+    // CHECK-SAME:              sparsity_map=!VPUIP.DistributedBuffer<1x1x1x8192xi1, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}>,
+    // CHECK-SAME:              is_weights>
 
-    // CHECK:       [[COPY_1_RES:%.+]] = VPUIP.NCEClusterTiling inputs({{%.+}} as [[ARG2:%.+]]: !VPUIP.SparseBuffer<data=memref<1x32x16x16xf16, #NHWC, @CMX_NN>, sparsity_map=memref<1x32x16x16xi1, #NHWC, @CMX_NN>, is_weights>)
-    // CHECK-SAME:                                              outputs([[SUBVIEW_1_RES]] as [[ARG3:%.+]]: !VPUIP.SparseBuffer<data=memref<1x32x16x16xf16, {order = #NHWC, strides = [12288, 1, 512, 32]}, @CMX_NN>,
-    // CHECK-SAME:                                                                                                             sparsity_map=memref<1x1x1x8192xi1, #NHWC, @CMX_NN>, is_weights>)
-    // CHECK-SAME:                          -> !VPUIP.SparseBuffer<data=!VPUIP.DistributedBuffer<1x32x16x16xf16, {order = #NHWC, strides = [12288, 1, 512, 32]}, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
-    // CHECK-SAME:                                                 sparsity_map=!VPUIP.DistributedBuffer<1x1x1x8192xi1, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
-    // CHECK-SAME:                                                 is_weights>
-    // CHECK-SAME:                 {
-    // CHECK:                          {{%.+}} = VPUIP.Copy inputs([[ARG2]] : !VPUIP.SparseBuffer<data=memref<1x32x16x16xf16, #NHWC, @CMX_NN>, sparsity_map=memref<1x32x16x16xi1, #NHWC, @CMX_NN>, is_weights>)
-    // CHECK-SAME:                                          outputs([[ARG3]] : !VPUIP.SparseBuffer<data=memref<1x32x16x16xf16, {order = #NHWC, strides = [12288, 1, 512, 32]}, @CMX_NN>,
-    // CHECK-SAME:                                                                                 sparsity_map=memref<1x1x1x8192xi1, #NHWC, @CMX_NN>, is_weights>)
-    // CHECK-SAME:                                          -> !VPUIP.SparseBuffer<data=memref<1x32x16x16xf16, {order = #NHWC, strides = [12288, 1, 512, 32]}, @CMX_NN>,
+    // CHECK:       [[COPY_1_RES:%.+]] = VPUIP.NCEClusterTiling
+    // CHECK-SAME:          inputs([[ALLOC_IN0_SPARSE_BUF]] as [[ARG2:[^:]+]]:
+    // CHECK-SAME:                      !VPUIP.SparseBuffer<data=memref<1x32x16x16xf16, #NHWC, @CMX_NN>,
+    // CHECK-SAME:                                          sparsity_map=memref<1x32x16x16xi1, #NHWC, @CMX_NN>, is_weights>)
+    // CHECK-SAME:          outputs([[SUBVIEW_1_RES]] as [[ARG3:[^:]+]]:
+    // CHECK-SAME:                      !VPUIP.SparseBuffer<data=memref<1x32x16x16xf16, {order = #NHWC, strides = [16384, 1, 512, 32]}, @CMX_NN>,
+    // CHECK-SAME:                                          sparsity_map=memref<1x1x1x8192xi1, #NHWC, @CMX_NN>, is_weights>)
+    // CHECK-SAME:          -> !VPUIP.SparseBuffer<
+    // CHECK-SAME:               data=!VPUIP.DistributedBuffer<1x32x16x16xf16, {order = #NHWC, strides = [16384, 1, 512, 32]}, @CMX_NN,
+    // CHECK-SAME:                       {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}>,
+    // CHECK-SAME:               sparsity_map=!VPUIP.DistributedBuffer<1x1x1x8192xi1, #NHWC, @CMX_NN,
+    // CHECK-SAME:                       {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}>,
+    // CHECK-SAME:               is_weights> {
+
+    // CHECK:                {{%.+}} = VPUIP.Copy
+    // CHECK-SAME:               inputs([[ARG2]] : !VPUIP.SparseBuffer<
+    // CHECK-SAME:                                   data=memref<1x32x16x16xf16, #NHWC, @CMX_NN>,
+    // CHECK-SAME:                                   sparsity_map=memref<1x32x16x16xi1, #NHWC, @CMX_NN>, is_weights>)
+    // CHECK-SAME:               outputs([[ARG3]] : !VPUIP.SparseBuffer<
+    // CHECK-SAME:                                    data=memref<1x32x16x16xf16, {order = #NHWC, strides = [16384, 1, 512, 32]}, @CMX_NN>,
+    // CHECK-SAME:                                    sparsity_map=memref<1x1x1x8192xi1, #NHWC, @CMX_NN>, is_weights>)
+    // CHECK-SAME:               -> !VPUIP.SparseBuffer<data=memref<1x32x16x16xf16, {order = #NHWC, strides = [16384, 1, 512, 32]}, @CMX_NN>,
     // CHECK-SAME:                                                                 sparsity_map=memref<1x1x1x8192xi1, #NHWC, @CMX_NN>, is_weights>
-    // CHECK:                       }
 
-    // CHECK:       [[SUBVIEW_2_RES:%.+]] = VPUIP.SubView [[ALLOC_SPARSE_BUF]] [0, 0, 8, 0] [1, 32, 16, 16] :
-    // CHECK-SAME:                              !VPUIP.SparseBuffer<data=!VPUIP.DistributedBuffer<1x32x24x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
-    // CHECK-SAME:                                                  sparsity_map=!VPUIP.DistributedBuffer<1x32x24x16xi1, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
-    // CHECK-SAME:                                                  is_weights>
-    // CHECK-SAME:                               to !VPUIP.SparseBuffer<data=!VPUIP.DistributedBuffer<1x32x16x16xf16, {order = #NHWC, strides = [12288, 1, 512, 32]}, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
-    // CHECK-SAME:                                                      sparsity_map=!VPUIP.DistributedBuffer<1x1x1x8192xi1, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
-    // CHECK-SAME:                                                      is_weights>
+    // CHECK:       [[SUBVIEW_2_RES:%.+]] = VPUIP.SubView [[ALLOC_SPARSE_BUF]] [0, 0, 16, 0] [1, 32, 16, 16] :
+    // CHECK-SAME:            !VPUIP.SparseBuffer<
+    // CHECK-SAME:               data=!VPUIP.DistributedBuffer<1x32x32x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}>,
+    // CHECK-SAME:               sparsity_map=!VPUIP.DistributedBuffer<1x32x32x16xi1, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}
+    // CHECK-SAME:               is_weights>
+    // CHECK-SAME:         to !VPUIP.SparseBuffer<
+    // CHECK-SAME:               data=!VPUIP.DistributedBuffer<1x32x16x16xf16, {order = #NHWC, strides = [16384, 1, 512, 32]}, @CMX_NN,
+    // CHECK-SAME:                      {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}>,
+    // CHECK-SAME:               sparsity_map=!VPUIP.DistributedBuffer<1x1x1x8192xi1, #NHWC, @CMX_NN,
+    // CHECK-SAME:                      {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}>,
+    // CHECK-SAME:               is_weights>
 
-    // CHECK:       [[COPY_2_RES:%.+]] = VPUIP.NCEClusterTiling inputs({{%.+}} as [[ARG2:%.+]]: !VPUIP.SparseBuffer<data=memref<1x32x16x16xf16, #NHWC, @CMX_NN>, sparsity_map=memref<1x32x16x16xi1, #NHWC, @CMX_NN>, is_weights>)
-    // CHECK-SAME:                                              outputs([[SUBVIEW_2_RES]] as [[ARG3:%.+]]: !VPUIP.SparseBuffer<data=memref<1x32x16x16xf16, {order = #NHWC, strides = [12288, 1, 512, 32]}, @CMX_NN>,
-    // CHECK-SAME:                                                                                                             sparsity_map=memref<1x1x1x8192xi1, #NHWC, @CMX_NN>, is_weights>)
-    // CHECK-SAME:                          -> !VPUIP.SparseBuffer<data=!VPUIP.DistributedBuffer<1x32x16x16xf16, {order = #NHWC, strides = [12288, 1, 512, 32]}, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
-    // CHECK-SAME:                                                 sparsity_map=!VPUIP.DistributedBuffer<1x1x1x8192xi1, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
-    // CHECK-SAME:                                                 is_weights>
-    // CHECK-SAME:                 {
-    // CHECK:                          {{%.+}} = VPUIP.Copy inputs([[ARG2]] : !VPUIP.SparseBuffer<data=memref<1x32x16x16xf16, #NHWC, @CMX_NN>, sparsity_map=memref<1x32x16x16xi1, #NHWC, @CMX_NN>, is_weights>)
-    // CHECK-SAME:                                          outputs([[ARG3]] : !VPUIP.SparseBuffer<data=memref<1x32x16x16xf16, {order = #NHWC, strides = [12288, 1, 512, 32]}, @CMX_NN>,
-    // CHECK-SAME:                                                                                 sparsity_map=memref<1x1x1x8192xi1, #NHWC, @CMX_NN>, is_weights>)
-    // CHECK-SAME:                                          -> !VPUIP.SparseBuffer<data=memref<1x32x16x16xf16, {order = #NHWC, strides = [12288, 1, 512, 32]}, @CMX_NN>,
-    // CHECK-SAME:                                                                 sparsity_map=memref<1x1x1x8192xi1, #NHWC, @CMX_NN>, is_weights>
-    // CHECK:                      }
+    // CHECK:       [[COPY_2_RES:%.+]] = VPUIP.NCEClusterTiling
+    // CHECK-SAME:         inputs([[ALLOC_IN1_SPARSE_BUF]] as [[ARG4:[^:]+]]:
+    // CHECK-SAME:             !VPUIP.SparseBuffer<data=memref<1x32x16x16xf16, #NHWC, @CMX_NN>, sparsity_map=memref<1x32x16x16xi1, #NHWC, @CMX_NN>, is_weights>)
+    // CHECK-SAME:         outputs([[SUBVIEW_2_RES]] as [[ARG5:[^:]+]]:
+    // CHECK-SAME:             !VPUIP.SparseBuffer<
+    // CHECK-SAME:                 data=memref<1x32x16x16xf16, {order = #NHWC, strides = [16384, 1, 512, 32]}, @CMX_NN>,
+    // CHECK-SAME:                 sparsity_map=memref<1x1x1x8192xi1, #NHWC, @CMX_NN>, is_weights>)
+    // CHECK-SAme:         -> !VPUIP.SparseBuffer<
+    // CHECK-SAME:               data=!VPUIP.DistributedBuffer<1x32x16x16xf16, {order = #NHWC, strides = [16384, 1, 512, 32]}, @CMX_NN,
+    // CHECK-SAME:                       {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}>,
+    // CHECK-SAME:               sparsity_map=!VPUIP.DistributedBuffer<1x1x1x8192xi1, #NHWC, @CMX_NN,
+    // CHECK-SAME:                       {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}>,
+    // CHECK-SAME:               is_weights> {
 
-    // CHECK:       {{%.+}} = VPUIP.ConcatView inputs([[COPY_1_RES]], [[COPY_2_RES]] : !VPUIP.SparseBuffer<data=!VPUIP.DistributedBuffer<1x32x16x16xf16, {order = #NHWC, strides = [12288, 1, 512, 32]}, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
-    // CHECK-SAME:                                                                                         sparsity_map=!VPUIP.DistributedBuffer<1x1x1x8192xi1, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
-    // CHECK-SAME:                                                                                         is_weights>,
-    // CHECK-SAME:                                     !VPUIP.SparseBuffer<data=!VPUIP.DistributedBuffer<1x32x16x16xf16, {order = #NHWC, strides = [12288, 1, 512, 32]}, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
-    // CHECK-SAME:                                                         sparsity_map=!VPUIP.DistributedBuffer<1x1x1x8192xi1, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
-    // CHECK-SAME:                                                         is_weights>)
-    // CHECK-SAME:                             outputs([[ALLOC_SPARSE_BUF]] : !VPUIP.SparseBuffer<data=!VPUIP.DistributedBuffer<1x32x24x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
-    // CHECK-SAME:                                                                                sparsity_map=!VPUIP.DistributedBuffer<1x32x24x16xi1, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
-    // CHECK-SAME:                                                                                is_weights>)
-    // CHECK-SAME:            -> !VPUIP.SparseBuffer<data=!VPUIP.DistributedBuffer<1x32x24x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
-    // CHECK-SAME:                                   sparsity_map=!VPUIP.DistributedBuffer<1x32x24x16xi1, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
-    // CHECK-SAME:                                   is_weights>
+    // CHECK:                {{%.+}} = VPUIP.Copy
+    // CHECK-SAME:               inputs([[ARG4]] : !VPUIP.SparseBuffer<
+    // CHECK-SAME:                                    data=memref<1x32x16x16xf16, #NHWC, @CMX_NN>,
+    // CHECK-SAME:                                    sparsity_map=memref<1x32x16x16xi1, #NHWC, @CMX_NN>, is_weights>)
+    // CHECK-SAME:               outputs([[ARG5]] : !VPUIP.SparseBuffer<
+    // CHECK-SAME:                                    data=memref<1x32x16x16xf16, {order = #NHWC, strides = [16384, 1, 512, 32]}, @CMX_NN>,
+    // CHECK-SAME:                                    sparsity_map=memref<1x1x1x8192xi1, #NHWC, @CMX_NN>, is_weights>)
+    // CHECK-SAME:             -> !VPUIP.SparseBuffer<
+    // CHECK-SAME:                   data=memref<1x32x16x16xf16, {order = #NHWC, strides = [16384, 1, 512, 32]}, @CMX_NN>,
+    // CHECK-SAME:                   sparsity_map=memref<1x1x1x8192xi1, #NHWC, @CMX_NN>, is_weights>
+
+    // CHECK:       {{%.+}} = VPUIP.ConcatView
+    // CHECK-SAME:      inputs([[COPY_1_RES]], [[COPY_2_RES]] :
+    // CHECK-SAME:          !VPUIP.SparseBuffer<
+    // CHECK-SAME:             data=!VPUIP.DistributedBuffer<1x32x16x16xf16, {order = #NHWC, strides = [16384, 1, 512, 32]}, @CMX_NN,
+    // CHECK-SAME:                     {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}>,
+    // CHECK-SAME:             sparsity_map=!VPUIP.DistributedBuffer<1x1x1x8192xi1, #NHWC, @CMX_NN,
+    // CHECK-SAME:                     {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}>,
+    // CHECK-SAME:             is_weights>,
+    // CHECK-SAME:          !VPUIP.SparseBuffer<
+    // CHECK-SAME:             data=!VPUIP.DistributedBuffer<1x32x16x16xf16, {order = #NHWC, strides = [16384, 1, 512, 32]}, @CMX_NN,
+    // CHECK-SAME:                     {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}>,
+    // CHECK-SAME:             sparsity_map=!VPUIP.DistributedBuffer<1x1x1x8192xi1, #NHWC, @CMX_NN,
+    // CHECK-SAME:                     {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}>,
+    // CHECK-SAME:             is_weights>)
+    // CHECK-SAME:       outputs([[ALLOC_SPARSE_BUF]] :
+    // CHECK-SAME:          !VPUIP.SparseBuffer<
+    // CHECK-SAME:             data=!VPUIP.DistributedBuffer<1x32x32x16xf16, #NHWC, @CMX_NN,
+    // CHECK-SAME:                     {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}>,
+    // CHECK-SAME:             sparsity_map=!VPUIP.DistributedBuffer<1x32x32x16xi1, #NHWC, @CMX_NN,
+    // CHECK-SAME:                     {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}>,
+    // CHECK-SAME:             is_weights>)
+    // CHECK-SAME:     -> !VPUIP.SparseBuffer<
+    // CHECK-SAME:           data=!VPUIP.DistributedBuffer<1x32x32x16xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}>,
+    // CHECK-SAME:           sparsity_map=!VPUIP.DistributedBuffer<1x32x32x16xi1, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 1, 2], num_clusters = 2 : i64}>,
+    // CHECK-SAME:           is_weights>
 }
 
 // -----

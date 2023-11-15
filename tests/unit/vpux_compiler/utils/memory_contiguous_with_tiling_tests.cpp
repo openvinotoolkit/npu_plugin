@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/types.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
@@ -13,6 +11,8 @@
 #include "vpux/utils/core/mem_size.hpp"
 #include "vpux/utils/core/numeric.hpp"
 #include "vpux/utils/core/small_vector.hpp"
+
+#include "common/utils.hpp"
 
 #include <mlir/IR/MLIRContext.h>
 
@@ -26,10 +26,9 @@ constexpr vpux::StringRef CMX_NAME = "CMX_NN";
 
 }  // namespace
 
-TEST(MLIR_MemoryContiguousWithTilingTest, SegmentedDistributedBufferType) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
+using MLIR_MemoryContiguousWithTilingTest = MLIR_UnitBase;
 
+TEST_F(MLIR_MemoryContiguousWithTilingTest, SegmentedDistributedBufferType) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -38,9 +37,9 @@ TEST(MLIR_MemoryContiguousWithTilingTest, SegmentedDistributedBufferType) {
         const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 2, 1}));
         const auto numClustersAttr = getIntAttr(&ctx, 2);
-        const auto distributedAttr =
-                VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                                numClustersAttr, nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
+        const auto distributedAttr = VPU::DistributedTensorAttr::get(
+                &ctx, distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr, numClustersAttr, nullptr, nullptr,
+                nullptr, nullptr, nullptr, nullptr, nullptr);
 
         const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
         const auto elemType = mlir::Float16Type::get(&ctx);
@@ -64,9 +63,9 @@ TEST(MLIR_MemoryContiguousWithTilingTest, SegmentedDistributedBufferType) {
         const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 2, 1, 1}));
         const auto numClustersAttr = getIntAttr(&ctx, 2);
-        const auto distributedAttr =
-                VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                                numClustersAttr, nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
+        const auto distributedAttr = VPU::DistributedTensorAttr::get(
+                &ctx, distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr, numClustersAttr, nullptr, nullptr,
+                nullptr, nullptr, nullptr, nullptr, nullptr);
 
         const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
         const auto elemType = mlir::Float16Type::get(&ctx);
@@ -90,9 +89,9 @@ TEST(MLIR_MemoryContiguousWithTilingTest, SegmentedDistributedBufferType) {
         const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 2, 1, 1}));
         const auto numClustersAttr = getIntAttr(&ctx, 2);
-        const auto distributedAttr =
-                VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                                numClustersAttr, nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
+        const auto distributedAttr = VPU::DistributedTensorAttr::get(
+                &ctx, distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr, numClustersAttr, nullptr, nullptr,
+                nullptr, nullptr, nullptr, nullptr, nullptr);
 
         const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
         const auto elemType = mlir::Float16Type::get(&ctx);
@@ -112,10 +111,7 @@ TEST(MLIR_MemoryContiguousWithTilingTest, SegmentedDistributedBufferType) {
     }
 }
 
-TEST(MLIR_MemoryContiguousWithTilingTest, OverlappedDistributedBufferType) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
+TEST_F(MLIR_MemoryContiguousWithTilingTest, OverlappedDistributedBufferType) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -136,22 +132,19 @@ TEST(MLIR_MemoryContiguousWithTilingTest, OverlappedDistributedBufferType) {
 
     // SOH overlapped, 1x1s1p0
     const auto kernel = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1}));
-    const auto pads = VPU::PaddingAttr::get(getIntAttr(&ctx, 0), getIntAttr(&ctx, 0), getIntAttr(&ctx, 0),
-                                            getIntAttr(&ctx, 0), &ctx);
+    const auto pads = VPU::PaddingAttr::get(&ctx, getIntAttr(&ctx, 0), getIntAttr(&ctx, 0), getIntAttr(&ctx, 0),
+                                            getIntAttr(&ctx, 0));
     const auto strides = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1}));
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads, strides, numClustersAttr,
-                                            nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, kernel, pads,
+                                                                 strides, numClustersAttr, nullptr, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr);
     const auto distributedBufferType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
     EXPECT_EQ(VPUIP::isMemoryContiguousWithTiling(distributedBufferType), true);
 }
 
-TEST(MLIR_MemoryContiguousWithTilingTest, SegmentedDuplicatedDistributedBufferType) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
+TEST_F(MLIR_MemoryContiguousWithTilingTest, SegmentedDuplicatedDistributedBufferType) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -159,9 +152,9 @@ TEST(MLIR_MemoryContiguousWithTilingTest, SegmentedDuplicatedDistributedBufferTy
             VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::DUPLICATED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 2, 1}));
     const auto numClustersAttr = getIntAttr(&ctx, 2);
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                            numClustersAttr, nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, nullptr,
+                                                                 nullptr, nullptr, numClustersAttr, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr, nullptr);
 
     const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
     const auto elemType = mlir::Float16Type::get(&ctx);
@@ -179,18 +172,15 @@ TEST(MLIR_MemoryContiguousWithTilingTest, SegmentedDuplicatedDistributedBufferTy
     EXPECT_EQ(VPUIP::isMemoryContiguousWithTiling(distributedBufferType), true);
 }
 
-TEST(MLIR_MemoryContiguousWithTilingTest, DuplicatedDistributedBufferType) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
+TEST_F(MLIR_MemoryContiguousWithTilingTest, DuplicatedDistributedBufferType) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
     const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::DUPLICATED);
     const auto numClustersAttr = getIntAttr(&ctx, 2);
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, nullptr, nullptr, nullptr, nullptr, numClustersAttr,
-                                            nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, nullptr, nullptr, nullptr,
+                                                                 nullptr, numClustersAttr, nullptr, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr);
 
     const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
     const auto elemType = mlir::Float16Type::get(&ctx);

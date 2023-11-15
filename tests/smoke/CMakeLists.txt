@@ -1,9 +1,11 @@
 #
-# Copyright (C) 2022 Intel Corporation
-# SPDX-License-Identifier: Apache-2.0
+# Copyright (C) 2022 Intel Corporation.
+# SPDX-License-Identifier: Apache 2.0
 #
 
-set(TARGET_NAME vpuxSmokeTests)
+set(TARGET_NAME npuSmokeTests)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 addIeTargetTest(
     NAME ${TARGET_NAME}

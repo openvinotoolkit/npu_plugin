@@ -1,15 +1,15 @@
 //
-// Copyright (C) 2018-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2018-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "single_layer_tests/gru_cell.hpp"
 #include <vector>
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
-class VPUXGRUCellLayerTest_VPU3720 : public GRUCellTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXGRUCellLayerTest_VPU3720 : public GRUCellTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void SetUp() override {
         inPrc = InferenceEngine::Precision::FP16;
         outPrc = InferenceEngine::Precision::FP16;
@@ -44,6 +44,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_GRUCell_VPU3720, VPUXGRUCellLayerTest_VPU3720,
                                             ::testing::ValuesIn(activations), ::testing::ValuesIn(clip),
                                             ::testing::ValuesIn(shouldLinearBeforeReset),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          GRUCellTest::getTestCaseName);
 }  // namespace

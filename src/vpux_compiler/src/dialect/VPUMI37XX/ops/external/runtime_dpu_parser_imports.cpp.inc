@@ -2,11 +2,10 @@
 // Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
-//
+
 #include <llvm/ADT/None.h>
 #include <mlir/IR/BuiltinTypes.h>
 
-#include "vpux/compiler/dialect/VPU37XX/api/vpu_nnrt_api.h"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/types.hpp"
 #include "vpux/compiler/dialect/VPUMI37XX/ops.hpp"
@@ -15,6 +14,8 @@
 #include "vpux/utils/core/checked_cast.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_writer.hpp"
+
+#include <vpu_nnrt_api_37xx.h>
 
 #include <stdint.h>
 #include <stdio.h>
@@ -68,8 +69,8 @@ FlatBufferAccessor<MVCNN::TensorReference> createTensorRef(vpux::VPUIP::BlobWrit
                                                            Optional<int64_t> storageElementOffset,
                                                            Optional<int64_t> storageElementSize) {
     auto sectionIndex = bufOp.getNonEmptySectionIndex();
-    return createTensorRef(writer, bufOp.buffer(), "none", bufOp.section(), sectionIndex, bufOp.byteOffset(),
-                           sparsityMapOffset, storageElementOffset, storageElementSize, bufOp.swizzlingKey());
+    return createTensorRef(writer, bufOp.getBuffer(), "none", bufOp.getSection(), sectionIndex, bufOp.getByteOffset(),
+                           sparsityMapOffset, storageElementOffset, storageElementSize, bufOp.getSwizzlingKey());
 }
 
 std::tuple<FlatBufferAccessor<MVCNN::TensorReference>, FlatBufferAccessor<MVCNN::TensorReference>,
@@ -91,13 +92,13 @@ createTensorRef(vpux::VPUIP::BlobWriter& writer, mlir::Value input, mlir::Value 
 
     if (sparsityMap) {
         auto sparseBufferOp = sparsityMap.getDefiningOp<VPURT::DeclareBufferOp>();
-        sparsityMapOffset = sparseBufferOp.byteOffset();
+        sparsityMapOffset = sparseBufferOp.getByteOffset();
 
         sparsityMapTensorRef = createTensorRef(writer, sparseBufferOp, None, None, None);
 
         if (storageElementTable) {
             auto seTableBufferOp = storageElementTable.getDefiningOp<VPURT::DeclareBufferOp>();
-            storageElementOffset = seTableBufferOp.byteOffset();
+            storageElementOffset = seTableBufferOp.getByteOffset();
 
             storageElementTableRef = createTensorRef(writer, seTableBufferOp, None, None, None);
         }
@@ -116,10 +117,10 @@ FlatBufferAccessor<MVCNN::TensorReference> createTensorRef(
         ArrayRef<int64_t> ppeQuantMult, ArrayRef<int64_t> ppeQuantShift, int64_t ppeQuantPostShift,
         ArrayRef<uint8_t> quantZeroPoints, Optional<int64_t> sparsityMapOffset, Optional<int64_t> storageElementOffset,
         Optional<int64_t> storageElementSize) {
-    auto offset = writer.createTensorRef(name, type, bufferOp.section(), bufferOp.getNonEmptySectionIndex(),
-                                         bufferOp.byteOffset(), ppeQuantMult, ppeQuantShift, ppeQuantPostShift,
+    auto offset = writer.createTensorRef(name, type, bufferOp.getSection(), bufferOp.getNonEmptySectionIndex(),
+                                         bufferOp.getByteOffset(), ppeQuantMult, ppeQuantShift, ppeQuantPostShift,
                                          quantZeroPoints, sparsityMapOffset, storageElementOffset, storageElementSize,
-                                         bufferOp.swizzlingKey());
+                                         bufferOp.getSwizzlingKey());
     return {&writer, offset};
 }
 
@@ -721,9 +722,9 @@ inline uint8_t ConfigMpeActivationWeightDtype(uint8_t atype, uint8_t wtype) {
 }
 
 void SetupInvariant_Grid(vpux::VPUMI37XX::DPUInvariantOp fb_invariant, nn_public::VpuDPUInvariantRegisters& invariant) {
-    auto mpe_frequent_mode = fb_invariant.mpe_frequent_mode();
+    auto mpe_frequent_mode = fb_invariant.getMpeFrequentMode();
     // Hardware only supports MPE_Mode_CUBOID_8x16 for Elementwise addition
-    if (fb_invariant.task_type() == VPUIP::NCETaskType::ELTWISE) {
+    if (fb_invariant.getNceTaskType() == VPUIP::NCETaskType::ELTWISE) {
         mpe_frequent_mode = VPU::MPEMode::CUBOID_8x16;
     }
     // Sets up on NTHW on IDU
@@ -765,8 +766,8 @@ unsigned int SetupVariant_SOH(vpux::VPUMI37XX::DPUInvariantOp fb_invariant, vpux
                               FlatBufferAccessor<MVCNN::TensorReference> out_tensor,
                               FlatBufferAccessor<MVCNN::TensorReference> parent_out_tensor,
                               nn_public::VpuDPUVariant& variant, unsigned int clusters) {
-    auto workload_start = parseIntArrayAttr<int64_t>(fb_variant.startAttr());
-    auto workload_end = parseIntArrayAttr<int64_t>(fb_variant.endAttr());
+    auto workload_start = parseIntArrayAttr<int64_t>(fb_variant.getStartAttr());
+    auto workload_end = parseIntArrayAttr<int64_t>(fb_variant.getEndAttr());
 
     auto output_start_y = static_cast<int16_t>(workload_start[1]);
     auto output_end_y = static_cast<int16_t>(workload_end[1]);
@@ -790,18 +791,19 @@ unsigned int SetupVariant_SOH(vpux::VPUMI37XX::DPUInvariantOp fb_invariant, vpux
         // We can't access that field from DPUVariantOp serialization
         // Logic breakdown concludes that we can check for segmentation to be off OR the task type to be ELTWISE
         // If the task type is ELTWISE sp_se_tbl_segment does not get set even if segmentation is ON
-        if (!fb_invariant.is_segmented().value_or(false) || fb_invariant.task_type() == VPUIP::NCETaskType::ELTWISE) {
+        if (!fb_invariant.getIsSegmented().value_or(false) ||
+            fb_invariant.getNceTaskType() == VPUIP::NCETaskType::ELTWISE) {
             int64_t kernelStridesH = 1;
-            if (fb_invariant.kernel_stridesAttr() != nullptr) {
-                const auto kernelStrides = parseIntArrayAttr<int64_t>(fb_invariant.kernel_stridesAttr());
+            if (fb_invariant.getKernelStridesAttr() != nullptr) {
+                const auto kernelStrides = parseIntArrayAttr<int64_t>(fb_invariant.getKernelStridesAttr());
                 kernelStridesH = kernelStrides[0];
             }
             int64_t kernelPadTop = 0;
-            if (fb_invariant.kernel_paddingAttr() != nullptr) {
-                kernelPadTop = checked_cast<int16_t>(fb_invariant.kernel_paddingAttr().top().getInt());
+            if (fb_invariant.getKernelPaddingAttr() != nullptr) {
+                kernelPadTop = checked_cast<int16_t>(fb_invariant.getKernelPaddingAttr().getTop().getInt());
             }
 
-            int64_t variantPadTop = fb_variant.padAttr().top().getInt();
+            int64_t variantPadTop = fb_variant.getPadAttr().getTop().getInt();
 
             auto stride_h = kernelStridesH;
             auto global_PT = kernelPadTop;
@@ -834,13 +836,13 @@ void SetupInput(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI37XX::DPUInvariantOp
                 nn_public::VpuDPUInvariantRegisters& registers) {
     // Parent input override is required for PermuteQuantize.
     // Needed because input dimensions are read from parent input
-    const auto isPermuteQuantize = op.is_permute_quantizeAttr() != nullptr;
-    const auto overrideParentIn = isPermuteQuantize && (op.parent_input().getType() != op.input().getType());
-    auto parentInput = overrideParentIn ? op.input() : op.parent_input();
+    const auto isPermuteQuantize = op.getIsPermuteQuantizeAttr() != nullptr;
+    const auto overrideParentIn = isPermuteQuantize && (op.getParentInput().getType() != op.getInput().getType());
+    auto parentInput = overrideParentIn ? op.getInput() : op.getParentInput();
 
-    auto parentInputSparsityMap = op.parent_input_sparsity_map();
-    auto parentInputSETables = op.parent_input_storage_element_table();
-    auto inputSESize = op.input_se_size();
+    auto parentInputSparsityMap = op.getParentInputSparsityMap();
+    auto parentInputSETables = op.getParentInputStorageElementTable();
+    auto inputSESize = op.getInputSeSize();
     FlatBufferAccessor<MVCNN::TensorReference> parentInputRef, parentInputSparsityMapRef, parentInputSETableRef;
     std::tie(parentInputRef, parentInputSparsityMapRef, parentInputSETableRef) =
             createTensorRef(writer, parentInput, parentInputSparsityMap, parentInputSETables, inputSESize);
@@ -851,9 +853,9 @@ void SetupInput(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI37XX::DPUInvariantOp
 
     registers.z_config.z_config_bf.addr_format_sel = 1;
 
-    auto input = op.input();
-    auto inputSparsityMap = op.input_sparsity_map();
-    auto inputSETables = op.input_storage_element_table();
+    auto input = op.getInput();
+    auto inputSparsityMap = op.getInputSparsityMap();
+    auto inputSETables = op.getParentInputStorageElementTable();
     FlatBufferAccessor<MVCNN::TensorReference> inputRef, inputSparsityMapRef, inputSETableRef;
     std::tie(inputRef, inputSparsityMapRef, inputSETableRef) =
             createTensorRef(writer, input, inputSparsityMap, inputSETables, inputSESize);
@@ -882,28 +884,28 @@ void SetupInput(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI37XX::DPUInvariantOp
 
 void SetupWeights(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI37XX::DPUInvariantOp op,
                   nn_public::VpuDPUInvariantRegisters& registers) {
-    if (op.task_type() == vpux::VPUIP::NCETaskType::MAXPOOL) {
+    if (op.getNceTaskType() == vpux::VPUIP::NCETaskType::MAXPOOL) {
         registers.tensor_mode.tensor_mode_bf.wmode = static_cast<unsigned int>(nn_public::VpuInputTensorDType::I8);
         return;
     }
 
-    auto input = op.input();
-    auto inputSparsityMap = op.input_sparsity_map();
-    auto inputSETables = op.input_storage_element_table();
-    auto inputSESize = op.input_se_size();
+    auto input = op.getInput();
+    auto inputSparsityMap = op.getInputSparsityMap();
+    auto inputSETables = op.getParentInputStorageElementTable();
+    auto inputSESize = op.getInputSeSize();
     FlatBufferAccessor<MVCNN::TensorReference> inputRef, inputSparsityMapRef, inputSETableRef;
     std::tie(inputRef, inputSparsityMapRef, inputSETableRef) =
             createTensorRef(writer, input, inputSparsityMap, inputSETables, inputSESize);
 
-    auto weights = op.weights();
-    auto weightsSparsityMap = op.weights_sparsity_map();
+    auto weights = op.getWeights();
+    auto weightsSparsityMap = op.getWeightsSparsityMap();
     FlatBufferAccessor<MVCNN::TensorReference> weightsRef, weightsSparsityMapRef, weightsSETableRef;
     std::tie(weightsRef, weightsSparsityMapRef, weightsSETableRef) =
             createTensorRef(writer, weights, weightsSparsityMap, nullptr, None);
 
     MVCNN::DType wmode;
 
-    if (op.task_type() == vpux::VPUIP::NCETaskType::AVEPOOL) {
+    if (op.getNceTaskType() == vpux::VPUIP::NCETaskType::AVEPOOL) {
         wmode = inputRef->data_dtype();
         switch (wmode) {
         case MVCNN::DType::DType_U8:
@@ -950,13 +952,13 @@ void SetupKernel(vpux::VPUMI37XX::DPUInvariantOp op, nn_public::VpuDPUInvariantR
 
     int64_t kernelSizeH = 1, kernelSizeW = 1;
     int64_t kernelStridesH = 1, kernelStridesW = 1;
-    if (op.kernel_sizeAttr() != nullptr) {
-        const auto kernelSize = parseIntArrayAttr<int64_t>(op.kernel_sizeAttr());
+    if (op.getKernelSizeAttr() != nullptr) {
+        const auto kernelSize = parseIntArrayAttr<int64_t>(op.getKernelSizeAttr());
         kernelSizeH = kernelSize[0];
         kernelSizeW = kernelSize[1];
     }
-    if (op.kernel_stridesAttr() != nullptr) {
-        const auto kernelStrides = parseIntArrayAttr<int64_t>(op.kernel_stridesAttr());
+    if (op.getKernelStridesAttr() != nullptr) {
+        const auto kernelStrides = parseIntArrayAttr<int64_t>(op.getKernelStridesAttr());
         kernelStridesH = kernelStrides[0];
         kernelStridesW = kernelStrides[1];
     }
@@ -979,15 +981,15 @@ void SetupKernel(vpux::VPUMI37XX::DPUInvariantOp op, nn_public::VpuDPUInvariantR
 
 void SetupOutput(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI37XX::DPUInvariantOp op,
                  nn_public::VpuDPUInvariantRegisters& registers) {
-    auto output = op.output_buffs()[0];
-    auto outputSparsityMap = op.output_sparsity_map_buff();
-    auto outputSESize = op.output_se_size();
+    auto output = op.getOutputBuffs()[0];
+    auto outputSparsityMap = op.getOutputSparsityMapBuff();
+    auto outputSESize = op.getOutputSeSize();
     FlatBufferAccessor<MVCNN::TensorReference> outputRef, outputSparsityMapRef, outputSETableRef;
     std::tie(outputRef, outputSparsityMapRef, outputSETableRef) =
             createTensorRef(writer, output, outputSparsityMap, nullptr, outputSESize);
 
-    auto parentOutput = op.parent_output();
-    auto parentOutputSparsityMap = op.parent_output_sparsity_map();
+    auto parentOutput = op.getParentOutput();
+    auto parentOutputSparsityMap = op.getParentOutputSparsityMap();
     FlatBufferAccessor<MVCNN::TensorReference> parentOutputRef, parentOutputSparsityMapRef, parentOutputSETableRef;
     std::tie(parentOutputRef, parentOutputSparsityMapRef, parentOutputSETableRef) =
             createTensorRef(writer, parentOutput, parentOutputSparsityMap, nullptr, outputSESize);
@@ -1004,7 +1006,7 @@ void SetupOutput(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI37XX::DPUInvariantO
 
     registers.odu_cfg.odu_cfg_bf.dtype = dtype;
 
-    registers.odu_cfg.odu_cfg_bf.mode = static_cast<uint32_t>(op.is_superdense().value_or(false));
+    registers.odu_cfg.odu_cfg_bf.mode = static_cast<uint32_t>(op.getIsSuperdense().value_or(false));
 
     registers.odu_cfg.odu_cfg_bf.grid = static_cast<unsigned int>(nn_public::VpuODUGrid::ODU_GRID_4x4);
 
@@ -1170,9 +1172,9 @@ MVCNN::MPE_Mode getMPEMode(VPU::MPEMode mpeMode) {
 }
 
 void SetupVariant_NTHW_NTK(vpux::VPUMI37XX::DPUInvariantOp invariant, nn_public::VpuDPUVariantRegisters& registers) {
-    auto mpe_frequent_mode = getMPEMode(invariant.mpe_frequent_mode());
+    auto mpe_frequent_mode = getMPEMode(invariant.getMpeFrequentMode());
     // Hardware only supports MPE_Mode_CUBOID_8x16 for Elementwise addition
-    if (invariant.task_type() == VPUIP::NCETaskType::ELTWISE) {
+    if (invariant.getNceTaskType() == VPUIP::NCETaskType::ELTWISE) {
         mpe_frequent_mode = MVCNN::MPE_Mode_CUBOID_8x16;
     }
 
@@ -1226,6 +1228,10 @@ void SetupInvariant_SOH(FlatBufferAccessor<MVCNN::TensorReference> in_tensor,
                 // for dense_se=1 (no SE pointer table) we apply the same scaling as the act_dense case
                 invariantRegisters.se_sp_size[i].se_sp_size_bf.se_seg_size = (seg_size >> 2) * num_ses;
                 invariantRegisters.se_sp_size[i].se_sp_size_bf.sp_seg_size = sp_size >> 4;
+
+                if (in_tensor->data()->storage_element_index() != DEFAULT_INDEX) {
+                    invariantRegisters.se_sp_size[i].se_sp_size_bf.se_seg_size = seg_size * num_ses;
+                }
             }
 
             switch (i + 1) {
@@ -1282,37 +1288,37 @@ void SetupInvariant_Input_SE_Size(FlatBufferAccessor<MVCNN::TensorReference> in_
 
 size_t getInputClusterCount(mlir::Value parentInput) {
     if (auto distributedBufferType = parentInput.getType().dyn_cast<VPUIP::DistributedBufferType>()) {
-        return distributedBufferType.getDistribution().num_clusters().getInt();
+        return distributedBufferType.getDistribution().getNumClusters().getInt();
     }
     return 1;
 }
 
 void SetupInvariant_Convolution(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI37XX::DPUInvariantOp op,
                                 nn_public::VpuDPUInvariantRegisters& registers) {
-    auto input = op.input();
-    auto inputSparsityMap = op.input_sparsity_map();
-    auto inputSETables = op.input_storage_element_table();
-    auto inputSESize = op.input_se_size();
+    auto input = op.getInput();
+    auto inputSparsityMap = op.getInputSparsityMap();
+    auto inputSETables = op.getParentInputStorageElementTable();
+    auto inputSESize = op.getInputSeSize();
     FlatBufferAccessor<MVCNN::TensorReference> inputRef, inputSparsityMapRef, inputSETableRef;
     std::tie(inputRef, inputSparsityMapRef, inputSETableRef) =
             createTensorRef(writer, input, inputSparsityMap, inputSETables, inputSESize);
 
-    auto weights = op.weights();
-    auto weightsSparsityMap = op.weights_sparsity_map();
+    auto weights = op.getWeights();
+    auto weightsSparsityMap = op.getWeightsSparsityMap();
     FlatBufferAccessor<MVCNN::TensorReference> weightsRef, weightsSparsityMapRef, weightsSETableRef;
     std::tie(weightsRef, weightsSparsityMapRef, weightsSETableRef) =
             createTensorRef(writer, weights, weightsSparsityMap, nullptr, None);
 
-    auto parentInput = op.parent_input();
-    auto parentInputSparsityMap = op.parent_input_sparsity_map();
-    auto parentInputSETables = op.parent_input_storage_element_table();
+    auto parentInput = op.getParentInput();
+    auto parentInputSparsityMap = op.getParentInputSparsityMap();
+    auto parentInputSETables = op.getParentInputStorageElementTable();
     FlatBufferAccessor<MVCNN::TensorReference> parentInputRef, parentInputSparsityMapRef, parentInputSETableRef;
     std::tie(parentInputRef, parentInputSparsityMapRef, parentInputSETableRef) =
             createTensorRef(writer, parentInput, parentInputSparsityMap, parentInputSETables, inputSESize);
 
-    auto output = op.output_buffs()[0];
-    auto outputSparsityMap = op.output_sparsity_map_buff();
-    auto outputSESize = op.output_se_size();
+    auto output = op.getOutputBuffs()[0];
+    auto outputSparsityMap = op.getOutputSparsityMapBuff();
+    auto outputSESize = op.getOutputSeSize();
     FlatBufferAccessor<MVCNN::TensorReference> outputRef, outputSparsityMapRef, outputSETableRef;
     std::tie(outputRef, outputSparsityMapRef, outputSETableRef) =
             createTensorRef(writer, output, outputSparsityMap, nullptr, outputSESize);
@@ -1322,13 +1328,13 @@ void SetupInvariant_Convolution(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI37XX
     registers.tensor_mode.tensor_mode_bf.zm_input = 1;
     registers.kernel_pad_cfg.kernel_pad_cfg_bf.dynamic_bw_en = 1;
 
-    bool is_wt_dense = op.weights_sparsity_map() == nullptr;
+    bool is_wt_dense = op.getWeightsSparsityMap() == nullptr;
     registers.kernel_pad_cfg.kernel_pad_cfg_bf.wt_dense = is_wt_dense;
 
-    const uint16_t cm_sp_pattern = op.cm_sp_pattern().value_or(0);
+    const uint16_t cm_sp_pattern = op.getCmSpPattern().value_or(0);
     bool is_cm_mode = cm_sp_pattern != 0;
 
-    SetupInvariant_SOH(inputRef, parentInputRef, registers, inputClusterCount, op.is_segmented().value_or(false));
+    SetupInvariant_SOH(inputRef, parentInputRef, registers, inputClusterCount, op.getIsSegmented().value_or(false));
 
     SetupInvariant_SOH_Input(inputRef, parentInputRef, registers);
 
@@ -1352,7 +1358,7 @@ void SetupInvariant_Convolution(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI37XX
 
         registers.z_config.z_config_bf.cm_sp_pattern = cm_sp_pattern;
 
-        registers.kernel_pad_cfg.kernel_pad_cfg_bf.layer1_cmp_en = op.input_channels_compression().value_or(0);
+        registers.kernel_pad_cfg.kernel_pad_cfg_bf.layer1_cmp_en = op.getInputChannelsCompression().value_or(0);
 
         if (outputRef->data_dtype() == MVCNN::DType::DType_FP16) {
             registers.odu_cfg.odu_cfg_bf.grid = static_cast<unsigned int>(nn_public::VpuODUGrid::ODU_GRID_4x4);
@@ -1362,17 +1368,17 @@ void SetupInvariant_Convolution(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI37XX
 
 void SetupInvariant_MaxPool(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI37XX::DPUInvariantOp op,
                             nn_public::VpuDPUInvariantRegisters& registers) {
-    auto input = op.input();
-    auto inputSparsityMap = op.input_sparsity_map();
-    auto inputSETables = op.input_storage_element_table();
-    auto inputSESize = op.input_se_size();
+    auto input = op.getInput();
+    auto inputSparsityMap = op.getInputSparsityMap();
+    auto inputSETables = op.getParentInputStorageElementTable();
+    auto inputSESize = op.getInputSeSize();
     FlatBufferAccessor<MVCNN::TensorReference> inputRef, inputSparsityMapRef, inputSETableRef;
     std::tie(inputRef, inputSparsityMapRef, inputSETableRef) =
             createTensorRef(writer, input, inputSparsityMap, inputSETables, inputSESize);
 
-    auto parentInput = op.parent_input();
-    auto parentInputSparsityMap = op.parent_input_sparsity_map();
-    auto parentInputSETables = op.parent_input_storage_element_table();
+    auto parentInput = op.getParentInput();
+    auto parentInputSparsityMap = op.getParentInputSparsityMap();
+    auto parentInputSETables = op.getParentInputStorageElementTable();
     FlatBufferAccessor<MVCNN::TensorReference> parentInputRef, parentInputSparsityMapRef, parentInputSETableRef;
     std::tie(parentInputRef, parentInputSparsityMapRef, parentInputSETableRef) =
             createTensorRef(writer, parentInput, parentInputSparsityMap, parentInputSETables, inputSESize);
@@ -1387,28 +1393,28 @@ void SetupInvariant_MaxPool(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI37XX::DP
     registers.kernel_pad_cfg.kernel_pad_cfg_bf.dw_wt_sp_ins = 1;
     registers.elops_wload.elops_wload_bf.pool_wt_rd_dis = 1;
 
-    SetupInvariant_SOH(inputRef, parentInputRef, registers, inputClusterCount, op.is_segmented().value_or(false));
+    SetupInvariant_SOH(inputRef, parentInputRef, registers, inputClusterCount, op.getIsSegmented().value_or(false));
 }
 
 void SetupInvariant_DwConvolution(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI37XX::DPUInvariantOp op,
                                   nn_public::VpuDPUInvariantRegisters& registers) {
-    auto input = op.input();
-    auto inputSparsityMap = op.input_sparsity_map();
-    auto inputSETables = op.input_storage_element_table();
-    auto inputSESize = op.input_se_size();
+    auto input = op.getInput();
+    auto inputSparsityMap = op.getInputSparsityMap();
+    auto inputSETables = op.getParentInputStorageElementTable();
+    auto inputSESize = op.getInputSeSize();
     FlatBufferAccessor<MVCNN::TensorReference> inputRef, inputSparsityMapRef, inputSETableRef;
     std::tie(inputRef, inputSparsityMapRef, inputSETableRef) =
             createTensorRef(writer, input, inputSparsityMap, inputSETables, inputSESize);
 
-    auto parentInput = op.parent_input();
-    auto parentInputSparsityMap = op.parent_input_sparsity_map();
-    auto parentInputSETables = op.parent_input_storage_element_table();
+    auto parentInput = op.getParentInput();
+    auto parentInputSparsityMap = op.getParentInputSparsityMap();
+    auto parentInputSETables = op.getParentInputStorageElementTable();
     FlatBufferAccessor<MVCNN::TensorReference> parentInputRef, parentInputSparsityMapRef, parentInputSETableRef;
     std::tie(parentInputRef, parentInputSparsityMapRef, parentInputSETableRef) =
             createTensorRef(writer, parentInput, parentInputSparsityMap, parentInputSETables, inputSESize);
 
-    auto weights = op.weights();
-    auto weightsSparsityMap = op.weights_sparsity_map();
+    auto weights = op.getWeights();
+    auto weightsSparsityMap = op.getWeightsSparsityMap();
     FlatBufferAccessor<MVCNN::TensorReference> weightsRef, weightsSparsityMapRef, weightsSETableRef;
     std::tie(weightsRef, weightsSparsityMapRef, weightsSETableRef) =
             createTensorRef(writer, weights, weightsSparsityMap, nullptr, None);
@@ -1427,53 +1433,53 @@ void SetupInvariant_DwConvolution(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI37
     bool is_wt_dense = weightsRef ? weightsRef->data()->sparsity_index() == DEFAULT_INDEX : true;
     registers.kernel_pad_cfg.kernel_pad_cfg_bf.wt_dense = is_wt_dense;
 
-    SetupInvariant_SOH(inputRef, parentInputRef, registers, inputClusterCount, op.is_segmented().value_or(false));
+    SetupInvariant_SOH(inputRef, parentInputRef, registers, inputClusterCount, op.getIsSegmented().value_or(false));
 }
 
 bool SetupInvariant_Eltwise(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI37XX::DPUInvariantOp op,
                             nn_public::VpuDPUInvariantRegisters& registers) {
-    auto input = op.input();
-    auto inputSparsityMap = op.input_sparsity_map();
-    auto inputSETables = op.input_storage_element_table();
-    auto inputSESize = op.input_se_size();
+    auto input = op.getInput();
+    auto inputSparsityMap = op.getInputSparsityMap();
+    auto inputSETables = op.getParentInputStorageElementTable();
+    auto inputSESize = op.getInputSeSize();
     FlatBufferAccessor<MVCNN::TensorReference> inputRef, inputSparsityMapRef, inputSETableRef;
     std::tie(inputRef, inputSparsityMapRef, inputSETableRef) =
             createTensorRef(writer, input, inputSparsityMap, inputSETables, inputSESize);
 
     // Parent input override is required for PermuteQuantize.
     // PermuteQuantize is always an ELTWISE op.
-    const auto isPermuteQuantize = op.is_permute_quantizeAttr() != nullptr;
-    const auto overrideParentIn = isPermuteQuantize && (op.parent_input().getType() != op.input().getType());
-    auto parentInput = overrideParentIn ? op.input() : op.parent_input();
+    const auto isPermuteQuantize = op.getIsPermuteQuantizeAttr() != nullptr;
+    const auto overrideParentIn = isPermuteQuantize && (op.getParentInput().getType() != op.getInput().getType());
+    auto parentInput = overrideParentIn ? op.getInput() : op.getParentInput();
 
-    auto parentInputSparsityMap = op.parent_input_sparsity_map();
-    auto parentInputSETables = op.parent_input_storage_element_table();
+    auto parentInputSparsityMap = op.getParentInputSparsityMap();
+    auto parentInputSETables = op.getParentInputStorageElementTable();
     FlatBufferAccessor<MVCNN::TensorReference> parentInputRef, parentInputSparsityMapRef, parentInputSETableRef;
     std::tie(parentInputRef, parentInputSparsityMapRef, parentInputSETableRef) =
             createTensorRef(writer, parentInput, parentInputSparsityMap, parentInputSETables, inputSESize);
 
-    auto output = op.output_buffs()[0];
-    auto outputSparsityMap = op.output_sparsity_map_buff();
-    auto outputSESize = op.output_se_size();
+    auto output = op.getOutputBuffs()[0];
+    auto outputSparsityMap = op.getOutputSparsityMapBuff();
+    auto outputSESize = op.getOutputSeSize();
     FlatBufferAccessor<MVCNN::TensorReference> outputRef, outputSparsityMapRef, outputSETableRef;
     std::tie(outputRef, outputSparsityMapRef, outputSETableRef) =
             createTensorRef(writer, output, outputSparsityMap, nullptr, outputSESize);
 
-    auto parentOutput = op.parent_output();
-    auto parentOutputSparsityMap = op.parent_output_sparsity_map();
+    auto parentOutput = op.getParentOutput();
+    auto parentOutputSparsityMap = op.getParentOutputSparsityMap();
     FlatBufferAccessor<MVCNN::TensorReference> parentOutputRef, parentOutputSparsityMapRef, parentOutputSETableRef;
     std::tie(parentOutputRef, parentOutputSparsityMapRef, parentOutputSETableRef) =
             createTensorRef(writer, parentOutput, parentOutputSparsityMap, nullptr, outputSESize);
 
-    auto weights = op.weights();
-    auto weightsSparsityMap = op.weights_sparsity_map();
+    auto weights = op.getWeights();
+    auto weightsSparsityMap = op.getWeightsSparsityMap();
     FlatBufferAccessor<MVCNN::TensorReference> weightsRef, weightsSparsityMapRef, weightsSETableRef;
     std::tie(weightsRef, weightsSparsityMapRef, weightsSETableRef) =
             createTensorRef(writer, weights, weightsSparsityMap, nullptr, None);
 
     int64_t kernelSizeH = 1, kernelSizeW = 1;
-    if (op.kernel_sizeAttr() != nullptr) {
-        const auto kernelSize = parseIntArrayAttr<int64_t>(op.kernel_sizeAttr());
+    if (op.getKernelSizeAttr() != nullptr) {
+        const auto kernelSize = parseIntArrayAttr<int64_t>(op.getKernelSizeAttr());
         kernelSizeH = kernelSize[0];
         kernelSizeW = kernelSize[1];
     }
@@ -1499,36 +1505,37 @@ bool SetupInvariant_Eltwise(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI37XX::DP
     ::llvm::Optional<SmallVector<int64_t>> in1QuantMult;
     ::llvm::Optional<SmallVector<int64_t>> in2QuantMult;
 
-    for (auto ppeOp : op.ppe().getOps<VPUIP::PPETaskOp>()) {
-        if (ppeOp.in1_quant_mult().hasValue()) {
-            in1QuantMult = parseIntArrayAttr<int64_t>(ppeOp.in1_quant_mult().getValue());
+    for (auto ppeOp : op.getPpe().getOps<VPUIP::PPETaskOp>()) {
+        if (ppeOp.in1_quant_mult().has_value()) {
+            in1QuantMult = parseIntArrayAttr<int64_t>(ppeOp.in1_quant_mult().value());
         }
-        if (ppeOp.in2_quant_mult().hasValue()) {
-            in2QuantMult = parseIntArrayAttr<int64_t>(ppeOp.in2_quant_mult().getValue());
+        if (ppeOp.in2_quant_mult().has_value()) {
+            in2QuantMult = parseIntArrayAttr<int64_t>(ppeOp.in2_quant_mult().value());
         }
     }
 
-    VPUX_THROW_WHEN(in1QuantMult.hasValue() != in2QuantMult.hasValue(), "Both inputs must be either quantized or not.");
-    const auto isInputQuantizationProvided = in1QuantMult.hasValue() && in2QuantMult.hasValue();
+    VPUX_THROW_WHEN(in1QuantMult.has_value() != in2QuantMult.has_value(),
+                    "Both inputs must be either quantized or not.");
+    const auto isInputQuantizationProvided = in1QuantMult.has_value() && in2QuantMult.has_value();
 
     if (isInputQuantizationProvided) {
         // Shifts must be set 0 for VPUX37XX runtime to be considered, otherwise runtime will ignore inputs
         // MULT.
         const auto inputSparsityMapOffset =
                 inputSparsityMap
-                        ? Optional<int64_t>{inputSparsityMap.getDefiningOp<VPURT::DeclareBufferOp>().byteOffset()}
+                        ? Optional<int64_t>{inputSparsityMap.getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset()}
                         : None;
         const auto inputStorageElementOffset =
-                inputSETables ? Optional<int64_t>{inputSETables.getDefiningOp<VPURT::DeclareBufferOp>().byteOffset()}
+                inputSETables ? Optional<int64_t>{inputSETables.getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset()}
                               : None;
-        inputRef = getTensorReferenceWithUpdatedQuantParams(writer, in1QuantMult.getValue(), {0}, 0, input,
+        inputRef = getTensorReferenceWithUpdatedQuantParams(writer, in1QuantMult.value(), {0}, 0, input,
                                                             inputSparsityMapOffset, inputStorageElementOffset,
                                                             inputSESize);
         const auto weightsSparsityMapOffset =
                 weightsSparsityMap
-                        ? Optional<int64_t>{weightsSparsityMap.getDefiningOp<VPURT::DeclareBufferOp>().byteOffset()}
+                        ? Optional<int64_t>{weightsSparsityMap.getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset()}
                         : None;
-        weightsRef = getTensorReferenceWithUpdatedQuantParams(writer, in2QuantMult.getValue(), {0}, 0, weights,
+        weightsRef = getTensorReferenceWithUpdatedQuantParams(writer, in2QuantMult.value(), {0}, 0, weights,
                                                               weightsSparsityMapOffset, None, None);
     }
 
@@ -1580,41 +1587,41 @@ FlatBufferAccessor<MVCNN::PPETask> getPPETask(vpux::VPUIP::BlobWriter& writer, v
     ::llvm::Optional<float> ppeQuantScale;
     float fpPReluAlpha = 1.f;
 
-    for (auto ppeOp : op.ppe().getOps<VPUIP::PPETaskOp>()) {
+    for (auto ppeOp : op.getPpe().getOps<VPUIP::PPETaskOp>()) {
         const auto type = getPPELayerType(ppeOp.ppe_layer_type());
         if (type != MVCNN::PPELayerType_NOOP) {
             ppeList.push_back(type);
         }
-        if (ppeOp.clamp_low().hasValue()) {
-            clampLow = checked_cast<int32_t>(ppeOp.clamp_low().getValue());
+        if (ppeOp.clamp_low().has_value()) {
+            clampLow = checked_cast<int32_t>(ppeOp.clamp_low().value());
         }
-        if (ppeOp.clamp_high().hasValue()) {
-            clampHigh = checked_cast<int32_t>(ppeOp.clamp_high().getValue());
+        if (ppeOp.clamp_high().has_value()) {
+            clampHigh = checked_cast<int32_t>(ppeOp.clamp_high().value());
         }
-        if (ppeOp.lrelu_mult().hasValue()) {
-            LreluMult = checked_cast<int32_t>(ppeOp.lrelu_mult().getValue());
+        if (ppeOp.lrelu_mult().has_value()) {
+            LreluMult = checked_cast<int32_t>(ppeOp.lrelu_mult().value());
         }
-        if (ppeOp.lrelu_shift().hasValue()) {
-            LreluShift = checked_cast<uint32_t>(ppeOp.lrelu_shift().getValue());
+        if (ppeOp.lrelu_shift().has_value()) {
+            LreluShift = checked_cast<uint32_t>(ppeOp.lrelu_shift().value());
         }
-        if (ppeOp.quant_mult().hasValue()) {
-            ppeQuantMult = parseIntArrayAttr<int64_t>(ppeOp.quant_mult().getValue());
+        if (ppeOp.quant_mult().has_value()) {
+            ppeQuantMult = parseIntArrayAttr<int64_t>(ppeOp.quant_mult().value());
         }
-        if (ppeOp.quant_shift().hasValue()) {
-            ppeQuantShift = parseIntArrayAttr<int64_t>(ppeOp.quant_shift().getValue());
+        if (ppeOp.quant_shift().has_value()) {
+            ppeQuantShift = parseIntArrayAttr<int64_t>(ppeOp.quant_shift().value());
         }
-        if (ppeOp.quant_post_shift().hasValue()) {
-            ppeQuantPostShift = checked_cast<int64_t>(ppeOp.quant_post_shift().getValue());
+        if (ppeOp.quant_post_shift().has_value()) {
+            ppeQuantPostShift = checked_cast<int64_t>(ppeOp.quant_post_shift().value());
         }
-        if (ppeOp.quant_scale().hasValue()) {
+        if (ppeOp.quant_scale().has_value()) {
             auto floatScaleAttr = ppeOp.quant_scaleAttr().getValue()[0];
             ppeQuantScale = static_cast<float>(floatScaleAttr.dyn_cast_or_null<mlir::FloatAttr>().getValueAsDouble());
         }
-        if (ppeOp.fp_prelu_alpha().hasValue()) {
+        if (ppeOp.fp_prelu_alpha().has_value()) {
             // For values like prelu_alpha=0.1, checked_cast fails, due to loss in precision when converting
             // from double to float and back, due to the static_cast<double>(static_cast<float>(value)) == value check
             // Use static_cast instead
-            fpPReluAlpha = static_cast<float>(ppeOp.fp_prelu_alpha().getValue().convertToDouble());
+            fpPReluAlpha = static_cast<float>(ppeOp.fp_prelu_alpha().value().convertToDouble());
         }
     }
     VPUX_THROW_UNLESS(ppeList.size() <= 1, "Cannot set more than one PPE task");
@@ -1636,23 +1643,23 @@ static bool applyClamping(nn_public::VpuDPUInvariantRegisters& regs, const activ
 
 static void setupTaskTypeDPUEltwise(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI37XX::DPUInvariantOp op,
                                     nn_public::VpuDPUInvariantRegisters& regs) {
-    auto input = op.input();
-    auto inputSparsityMap = op.input_sparsity_map();
-    auto inputSETables = op.input_storage_element_table();
-    auto inputSESize = op.input_se_size();
+    auto input = op.getInput();
+    auto inputSparsityMap = op.getInputSparsityMap();
+    auto inputSETables = op.getParentInputStorageElementTable();
+    auto inputSESize = op.getInputSeSize();
     FlatBufferAccessor<MVCNN::TensorReference> inputRef, inputSparsityMapRef, inputSETableRef;
     std::tie(inputRef, inputSparsityMapRef, inputSETableRef) =
             createTensorRef(writer, input, inputSparsityMap, inputSETables, inputSESize);
 
-    auto output = op.output_buffs()[0];
-    auto outputSparsityMap = op.output_sparsity_map_buff();
-    auto outputSESize = op.output_se_size();
+    auto output = op.getOutputBuffs()[0];
+    auto outputSparsityMap = op.getOutputSparsityMapBuff();
+    auto outputSESize = op.getOutputSeSize();
     FlatBufferAccessor<MVCNN::TensorReference> outputRef, outputSparsityMapRef, outputSETableRef;
     std::tie(outputRef, outputSparsityMapRef, outputSETableRef) =
             createTensorRef(writer, output, outputSparsityMap, nullptr, outputSESize);
 
-    auto weights = op.weights();
-    auto weightsSparsityMap = op.weights_sparsity_map();
+    auto weights = op.getWeights();
+    auto weightsSparsityMap = op.getWeightsSparsityMap();
     FlatBufferAccessor<MVCNN::TensorReference> weightsRef, weightsSparsityMapRef, weightsSETableRef;
     std::tie(weightsRef, weightsSparsityMapRef, weightsSETableRef) =
             createTensorRef(writer, weights, weightsSparsityMap, nullptr, None);
@@ -1666,35 +1673,35 @@ static void setupTaskTypeDPUEltwise(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI
     ::llvm::Optional<SmallVector<int64_t>> in1QuantMult;
     ::llvm::Optional<SmallVector<int64_t>> in2QuantMult;
 
-    for (auto ppeOp : op.ppe().getOps<VPUIP::PPETaskOp>()) {
-        if (ppeOp.quant_mult().hasValue()) {
-            ppeQuantMult = parseIntArrayAttr<int64_t>(ppeOp.quant_mult().getValue());
+    for (auto ppeOp : op.getPpe().getOps<VPUIP::PPETaskOp>()) {
+        if (ppeOp.quant_mult().has_value()) {
+            ppeQuantMult = parseIntArrayAttr<int64_t>(ppeOp.quant_mult().value());
         }
-        if (ppeOp.quant_shift().hasValue()) {
-            ppeQuantShift = parseIntArrayAttr<int64_t>(ppeOp.quant_shift().getValue());
+        if (ppeOp.quant_shift().has_value()) {
+            ppeQuantShift = parseIntArrayAttr<int64_t>(ppeOp.quant_shift().value());
         }
-        if (ppeOp.quant_post_shift().hasValue()) {
-            ppeQuantPostShift = checked_cast<int64_t>(ppeOp.quant_post_shift().getValue());
+        if (ppeOp.quant_post_shift().has_value()) {
+            ppeQuantPostShift = checked_cast<int64_t>(ppeOp.quant_post_shift().value());
         }
-        if (ppeOp.in1_quant_mult().hasValue()) {
-            in1QuantMult = parseIntArrayAttr<int64_t>(ppeOp.in1_quant_mult().getValue());
+        if (ppeOp.in1_quant_mult().has_value()) {
+            in1QuantMult = parseIntArrayAttr<int64_t>(ppeOp.in1_quant_mult().value());
         }
-        if (ppeOp.in2_quant_mult().hasValue()) {
-            in2QuantMult = parseIntArrayAttr<int64_t>(ppeOp.in2_quant_mult().getValue());
+        if (ppeOp.in2_quant_mult().has_value()) {
+            in2QuantMult = parseIntArrayAttr<int64_t>(ppeOp.in2_quant_mult().value());
         }
     }
 
     const auto isQuantizationProvided =
-            ppeQuantMult.hasValue() && ppeQuantShift.hasValue() && ppeQuantPostShift.hasValue();
+            ppeQuantMult.has_value() && ppeQuantShift.has_value() && ppeQuantPostShift.has_value();
 
     if (isQuantizationProvided) {
         const auto outputSparsityMapOffset =
                 outputSparsityMap
-                        ? Optional<int64_t>{outputSparsityMap.getDefiningOp<VPURT::DeclareBufferOp>().byteOffset()}
+                        ? Optional<int64_t>{outputSparsityMap.getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset()}
                         : None;
-        outputRef = getTensorReferenceWithUpdatedQuantParams(writer, ppeQuantMult.getValue(), ppeQuantShift.getValue(),
-                                                             ppeQuantPostShift.getValue(), output,
-                                                             outputSparsityMapOffset, None, outputSESize);
+        outputRef = getTensorReferenceWithUpdatedQuantParams(writer, ppeQuantMult.value(), ppeQuantShift.value(),
+                                                             ppeQuantPostShift.value(), output, outputSparsityMapOffset,
+                                                             None, outputSESize);
     }
 
     // PPE scale override is required for both scenarios: when the input is float or quant.
@@ -1750,17 +1757,17 @@ static void setupTaskTypeDPUEltwise(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI
 
 static void setupTaskTypeDPUMaxPool(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI37XX::DPUInvariantOp op,
                                     nn_public::VpuDPUInvariantRegisters& regs) {
-    auto input = op.input();
-    auto inputSparsityMap = op.input_sparsity_map();
-    auto inputSETables = op.input_storage_element_table();
-    auto inputSESize = op.input_se_size();
+    auto input = op.getInput();
+    auto inputSparsityMap = op.getInputSparsityMap();
+    auto inputSETables = op.getParentInputStorageElementTable();
+    auto inputSESize = op.getInputSeSize();
     FlatBufferAccessor<MVCNN::TensorReference> inputRef, inputSparsityMapRef, inputSETableRef;
     std::tie(inputRef, inputSparsityMapRef, inputSETableRef) =
             createTensorRef(writer, input, inputSparsityMap, inputSETables, inputSESize);
 
-    auto output = op.output_buffs()[0];
-    auto outputSparsityMap = op.output_sparsity_map_buff();
-    auto outputSESize = op.output_se_size();
+    auto output = op.getOutputBuffs()[0];
+    auto outputSparsityMap = op.getOutputSparsityMapBuff();
+    auto outputSESize = op.getOutputSeSize();
     FlatBufferAccessor<MVCNN::TensorReference> outputRef, outputSparsityMapRef, outputSETableRef;
     std::tie(outputRef, outputSparsityMapRef, outputSETableRef) =
             createTensorRef(writer, output, outputSparsityMap, nullptr, outputSESize);
@@ -1806,17 +1813,17 @@ static void setupTaskTypeDPUMaxPool(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI
 
 static void setupTaskTypeDPUAvgPool(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI37XX::DPUInvariantOp op,
                                     nn_public::VpuDPUInvariantRegisters& regs) {
-    auto input = op.input();
-    auto inputSparsityMap = op.input_sparsity_map();
-    auto inputSETables = op.input_storage_element_table();
-    auto inputSESize = op.input_se_size();
+    auto input = op.getInput();
+    auto inputSparsityMap = op.getInputSparsityMap();
+    auto inputSETables = op.getParentInputStorageElementTable();
+    auto inputSESize = op.getInputSeSize();
     FlatBufferAccessor<MVCNN::TensorReference> inputRef, inputSparsityMapRef, inputSETableRef;
     std::tie(inputRef, inputSparsityMapRef, inputSETableRef) =
             createTensorRef(writer, input, inputSparsityMap, inputSETables, inputSESize);
 
-    auto output = op.output_buffs()[0];
-    auto outputSparsityMap = op.output_sparsity_map_buff();
-    auto outputSESize = op.output_se_size();
+    auto output = op.getOutputBuffs()[0];
+    auto outputSparsityMap = op.getOutputSparsityMapBuff();
+    auto outputSESize = op.getOutputSeSize();
     FlatBufferAccessor<MVCNN::TensorReference> outputRef, outputSparsityMapRef, outputSETableRef;
     std::tie(outputRef, outputSparsityMapRef, outputSETableRef) =
             createTensorRef(writer, output, outputSparsityMap, nullptr, outputSESize);
@@ -1827,16 +1834,16 @@ static void setupTaskTypeDPUAvgPool(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI
     ::llvm::Optional<SmallVector<int64_t>> ppeQuantMult;
     ::llvm::Optional<SmallVector<int64_t>> ppeQuantShift;
 
-    for (auto ppeOp : op.ppe().getOps<VPUIP::PPETaskOp>()) {
+    for (auto ppeOp : op.getPpe().getOps<VPUIP::PPETaskOp>()) {
         const auto type = getPPELayerType(ppeOp.ppe_layer_type());
         if (type != MVCNN::PPELayerType_NOOP) {
             ppeList.push_back(type);
         }
-        if (ppeOp.quant_mult().hasValue()) {
-            ppeQuantMult = parseIntArrayAttr<int64_t>(ppeOp.quant_mult().getValue());
+        if (ppeOp.quant_mult().has_value()) {
+            ppeQuantMult = parseIntArrayAttr<int64_t>(ppeOp.quant_mult().value());
         }
-        if (ppeOp.quant_shift().hasValue()) {
-            ppeQuantShift = parseIntArrayAttr<int64_t>(ppeOp.quant_shift().getValue());
+        if (ppeOp.quant_shift().has_value()) {
+            ppeQuantShift = parseIntArrayAttr<int64_t>(ppeOp.quant_shift().value());
         }
     }
 
@@ -1855,13 +1862,13 @@ static void setupTaskTypeDPUAvgPool(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI
     case MVCNN::DType_I4:
     case MVCNN::DType_U4: {
         // Scale is provided as a pair of integer mult and shift values.
-        if (ppeQuantMult.hasValue()) {
-            regs.ppe_scale.ppe_scale_bf.ppe_scale_mult = ppeQuantMult.getValue()[0];
+        if (ppeQuantMult.has_value()) {
+            regs.ppe_scale.ppe_scale_bf.ppe_scale_mult = ppeQuantMult.value()[0];
         } else {
             regs.ppe_scale.ppe_scale_bf.ppe_scale_mult = 1;
         }
-        if (ppeQuantShift.hasValue()) {
-            regs.ppe_scale.ppe_scale_bf.ppe_scale_shift = ppeQuantShift.getValue()[0];
+        if (ppeQuantShift.has_value()) {
+            regs.ppe_scale.ppe_scale_bf.ppe_scale_shift = ppeQuantShift.value()[0];
         } else {
             regs.ppe_scale.ppe_scale_bf.ppe_scale_shift = 0;
         }
@@ -1892,17 +1899,17 @@ static void setupTaskTypeDPUAvgPool(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI
 
 static void setupTaskTypeDPUDwConv(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI37XX::DPUInvariantOp op,
                                    nn_public::VpuDPUInvariantRegisters& regs) {
-    auto input = op.input();
-    auto inputSparsityMap = op.input_sparsity_map();
-    auto inputSETables = op.input_storage_element_table();
-    auto inputSESize = op.input_se_size();
+    auto input = op.getInput();
+    auto inputSparsityMap = op.getInputSparsityMap();
+    auto inputSETables = op.getParentInputStorageElementTable();
+    auto inputSESize = op.getInputSeSize();
     FlatBufferAccessor<MVCNN::TensorReference> inputRef, inputSparsityMapRef, inputSETableRef;
     std::tie(inputRef, inputSparsityMapRef, inputSETableRef) =
             createTensorRef(writer, input, inputSparsityMap, inputSETables, inputSESize);
 
-    auto output = op.output_buffs()[0];
-    auto outputSparsityMap = op.output_sparsity_map_buff();
-    auto outputSESize = op.output_se_size();
+    auto output = op.getOutputBuffs()[0];
+    auto outputSparsityMap = op.getOutputSparsityMapBuff();
+    auto outputSESize = op.getOutputSeSize();
     FlatBufferAccessor<MVCNN::TensorReference> outputRef, outputSparsityMapRef, outputSETableRef;
     std::tie(outputRef, outputSparsityMapRef, outputSETableRef) =
             createTensorRef(writer, output, outputSparsityMap, nullptr, outputSESize);
@@ -1922,13 +1929,13 @@ static void setupTaskTypeDPUDwConv(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI3
 
 static void setupTaskType(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI37XX::DPUInvariantOp op,
                           nn_public::VpuDPUInvariantRegisters& regs) {
-    if (op.task_type() == VPUIP::NCETaskType::ELTWISE) {
+    if (op.getNceTaskType() == VPUIP::NCETaskType::ELTWISE) {
         setupTaskTypeDPUEltwise(writer, op, regs);
-    } else if (op.task_type() == VPUIP::NCETaskType::MAXPOOL) {
+    } else if (op.getNceTaskType() == VPUIP::NCETaskType::MAXPOOL) {
         setupTaskTypeDPUMaxPool(writer, op, regs);
-    } else if (op.task_type() == VPUIP::NCETaskType::AVEPOOL && regs.elops_wload.elops_wload_bf.pool_wt_rd_dis) {
+    } else if (op.getNceTaskType() == VPUIP::NCETaskType::AVEPOOL && regs.elops_wload.elops_wload_bf.pool_wt_rd_dis) {
         setupTaskTypeDPUAvgPool(writer, op, regs);
-    } else if (op.task_type() == VPUIP::NCETaskType::DWCONV) {
+    } else if (op.getNceTaskType() == VPUIP::NCETaskType::DWCONV) {
         setupTaskTypeDPUDwConv(writer, op, regs);
     } else {
         // do nothing
@@ -1937,17 +1944,17 @@ static void setupTaskType(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI37XX::DPUI
 
 bool Setup_PPE(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI37XX::DPUInvariantOp op,
                nn_public::VpuDPUInvariantRegisters& regs) {
-    auto input = op.input();
-    auto inputSparsityMap = op.input_sparsity_map();
-    auto inputSETables = op.input_storage_element_table();
-    auto inputSESize = op.input_se_size();
+    auto input = op.getInput();
+    auto inputSparsityMap = op.getInputSparsityMap();
+    auto inputSETables = op.getParentInputStorageElementTable();
+    auto inputSESize = op.getInputSeSize();
     FlatBufferAccessor<MVCNN::TensorReference> inputRef, inputSparsityMapRef, inputSETableRef;
     std::tie(inputRef, inputSparsityMapRef, inputSETableRef) =
             createTensorRef(writer, input, inputSparsityMap, inputSETables, inputSESize);
 
-    auto output = op.output_buffs()[0];
-    auto outputSparsityMap = op.output_sparsity_map_buff();
-    auto outputSESize = op.output_se_size();
+    auto output = op.getOutputBuffs()[0];
+    auto outputSparsityMap = op.getOutputSparsityMapBuff();
+    auto outputSESize = op.getOutputSeSize();
     FlatBufferAccessor<MVCNN::TensorReference> outputRef, outputSparsityMapRef, outputSETableRef;
     std::tie(outputRef, outputSparsityMapRef, outputSETableRef) =
             createTensorRef(writer, output, outputSparsityMap, nullptr, outputSESize);
@@ -1985,7 +1992,7 @@ bool Setup_PPE(vpux::VPUIP::BlobWriter& writer, vpux::VPUMI37XX::DPUInvariantOp 
     regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_bypass = 1;   // Set based on data types, if we see float point - don't bypass!
     regs.ppe_fp_cfg.ppe_fp_cfg_bf.ppe_fp_convert = 0;  // Default to no conversion but set based on output data type
 
-    uint8_t out_zero_point = (outputRef->quant_zero()->size() && op.task_type() != VPUIP::NCETaskType::MAXPOOL)
+    uint8_t out_zero_point = (outputRef->quant_zero()->size() && op.getNceTaskType() != VPUIP::NCETaskType::MAXPOOL)
                                      ? outputRef->quant_zero()->Get(0)
                                      : 0;
 
@@ -2034,36 +2041,36 @@ void parseVariant(vpux::VPUMI37XX::DPUVariantOp op, vpux::VPUMI37XX::DPUInvarian
                   nn_public::VpuDPUVariant& taskWrapper, VPUIP::BlobWriter& writer) {
     nn_public::VpuDPUVariantRegisters& registers = taskWrapper.registers_;
 
-    auto input = invariant.input();
-    auto inputSparsityMap = invariant.input_sparsity_map();
-    auto inputSETables = invariant.input_storage_element_table();
-    auto inputSESize = invariant.input_se_size();
+    auto input = invariant.getInput();
+    auto inputSparsityMap = invariant.getInputSparsityMap();
+    auto inputSETables = invariant.getParentInputStorageElementTable();
+    auto inputSESize = invariant.getInputSeSize();
     FlatBufferAccessor<MVCNN::TensorReference> inputRef, inputSparsityMapRef, inputSETableRef;
     std::tie(inputRef, inputSparsityMapRef, inputSETableRef) =
             createTensorRef(writer, input, inputSparsityMap, inputSETables, inputSESize);
 
-    auto output = invariant.output_buffs()[0];
-    auto outputSparsityMap = invariant.output_sparsity_map_buff();
-    auto outputSESize = invariant.output_se_size();
+    auto output = invariant.getOutputBuffs()[0];
+    auto outputSparsityMap = invariant.getOutputSparsityMapBuff();
+    auto outputSESize = invariant.getOutputSeSize();
     FlatBufferAccessor<MVCNN::TensorReference> outputRef, outputSparsityMapRef, outputSETableRef;
     std::tie(outputRef, outputSparsityMapRef, outputSETableRef) =
             createTensorRef(writer, output, outputSparsityMap, nullptr, outputSESize);
 
-    auto weights = invariant.weights();
-    auto weightsSparsityMap = invariant.weights_sparsity_map();
+    auto weights = invariant.getWeights();
+    auto weightsSparsityMap = invariant.getWeightsSparsityMap();
     FlatBufferAccessor<MVCNN::TensorReference> weightsRef, weightsSparsityMapRef, weightsSETableRef;
     std::tie(weightsRef, weightsSparsityMapRef, weightsSETableRef) =
             createTensorRef(writer, weights, weightsSparsityMap, nullptr, None);
 
-    auto parentInput = invariant.parent_input();
-    auto parentInputSparsityMap = invariant.parent_input_sparsity_map();
-    auto parentInputSETables = invariant.parent_input_storage_element_table();
+    auto parentInput = invariant.getParentInput();
+    auto parentInputSparsityMap = invariant.getParentInputSparsityMap();
+    auto parentInputSETables = invariant.getParentInputStorageElementTable();
     FlatBufferAccessor<MVCNN::TensorReference> parentInputRef, parentInputSparsityMapRef, parentInputSETableRef;
     std::tie(parentInputRef, parentInputSparsityMapRef, parentInputSETableRef) =
             createTensorRef(writer, parentInput, parentInputSparsityMap, parentInputSETables, inputSESize);
 
-    auto parentOutput = invariant.parent_output();
-    auto parentOutputSparsityMap = invariant.parent_output_sparsity_map();
+    auto parentOutput = invariant.getParentOutput();
+    auto parentOutputSparsityMap = invariant.getParentOutputSparsityMap();
     FlatBufferAccessor<MVCNN::TensorReference> parentOutputRef, parentOutputSparsityMapRef, parentOutputSETableRef;
     std::tie(parentOutputRef, parentOutputSparsityMapRef, parentOutputSETableRef) =
             createTensorRef(writer, parentOutput, parentOutputSparsityMap, nullptr, outputSESize);
@@ -2073,30 +2080,30 @@ void parseVariant(vpux::VPUMI37XX::DPUVariantOp op, vpux::VPUMI37XX::DPUInvarian
     int64_t kernelSizeH = 1, kernelSizeW = 1;
     int64_t kernelStridesH = 1, kernelStridesW = 1;
     int64_t kernelPadL = 0, kernelPadT = 0;
-    if (invariant.kernel_sizeAttr() != nullptr) {
-        const auto kernelSize = parseIntArrayAttr<int64_t>(invariant.kernel_sizeAttr());
+    if (invariant.getKernelSizeAttr() != nullptr) {
+        const auto kernelSize = parseIntArrayAttr<int64_t>(invariant.getKernelSizeAttr());
         kernelSizeH = kernelSize[0];
         kernelSizeW = kernelSize[1];
     }
-    if (invariant.kernel_stridesAttr() != nullptr) {
-        const auto kernelStrides = parseIntArrayAttr<int64_t>(invariant.kernel_stridesAttr());
+    if (invariant.getKernelStridesAttr() != nullptr) {
+        const auto kernelStrides = parseIntArrayAttr<int64_t>(invariant.getKernelStridesAttr());
         kernelStridesH = kernelStrides[0];
         kernelStridesW = kernelStrides[1];
     }
-    if (invariant.kernel_paddingAttr() != nullptr) {
-        const auto kernelPadding = invariant.kernel_paddingAttr();
-        kernelPadL = kernelPadding.left().getInt();
-        kernelPadT = kernelPadding.top().getInt();
+    if (invariant.getKernelPaddingAttr() != nullptr) {
+        const auto kernelPadding = invariant.getKernelPaddingAttr();
+        kernelPadL = kernelPadding.getLeft().getInt();
+        kernelPadT = kernelPadding.getTop().getInt();
     }
 
-    const auto localPadding = op.padAttr();
-    auto local_PL = localPadding.left().getInt();
-    auto local_PR = localPadding.right().getInt();
-    auto local_PT = localPadding.top().getInt();
-    auto local_PB = localPadding.bottom().getInt();
+    const auto localPadding = op.getPadAttr();
+    auto local_PL = localPadding.getLeft().getInt();
+    auto local_PR = localPadding.getRight().getInt();
+    auto local_PT = localPadding.getTop().getInt();
+    auto local_PB = localPadding.getBottom().getInt();
 
-    auto workload_start = parseIntArrayAttr<int64_t>(op.startAttr());
-    auto workload_end = parseIntArrayAttr<int64_t>(op.endAttr());
+    auto workload_start = parseIntArrayAttr<int64_t>(op.getStartAttr());
+    auto workload_end = parseIntArrayAttr<int64_t>(op.getEndAttr());
 
     auto output_start_x = static_cast<int16_t>(workload_start[0]);
     auto output_start_y = static_cast<int16_t>(workload_start[1]);
@@ -2109,7 +2116,7 @@ void parseVariant(vpux::VPUMI37XX::DPUVariantOp op, vpux::VPUMI37XX::DPUInvarian
     auto op_size_y = output_end_y - output_start_y + 1;
     auto op_size_z = output_end_z - output_start_z + 1;
 
-    int workload_id = op.workload_id().value_or(-1);
+    int workload_id = op.getWorkloadId().value_or(-1);
     if (workload_id < 0) {
         registers.offset_addr.offset_addr_bf.idu_stat_en = 0;
         registers.offset_addr.offset_addr_bf.odu_stat_en = 0;
@@ -2120,7 +2127,7 @@ void parseVariant(vpux::VPUMI37XX::DPUVariantOp op, vpux::VPUMI37XX::DPUInvarian
 
     registers.weight_num = op_size_z;
 
-    auto task_type = invariant.task_type();
+    auto task_type = invariant.getNceTaskType();
     switch (task_type) {
     case VPUIP::NCETaskType::CONV:
         if (inputRef->dimensions()->Get(Z) < 16) {
@@ -2146,7 +2153,7 @@ void parseVariant(vpux::VPUMI37XX::DPUVariantOp op, vpux::VPUMI37XX::DPUInvarian
 
     registers.offset_addr.offset_addr_bf.dense_se = inputRef->data()->storage_element_index() != DEFAULT_INDEX ? 0 : 1;
 
-    registers.offset_addr.offset_addr_bf.conv_cond = invariant.is_continued().value_or(false);
+    registers.offset_addr.offset_addr_bf.conv_cond = invariant.getIsContinued().value_or(false);
 
     registers.workload_size0.workload_size0_bf.workload_size_x =
             kernelStridesW * (op_size_x - 1) + kernelSizeW - local_PL - local_PR;
@@ -2196,8 +2203,8 @@ void parseVariant(vpux::VPUMI37XX::DPUVariantOp op, vpux::VPUMI37XX::DPUInvarian
         // Fathom style split logic. out_channel_offset may be set when it is not needed
         // Split calculation logic may not be correct, in flux from Fathom
 
-        if (invariant.output_buffs().size() > 1) {
-            auto wto = (output_start_z - invariant.out_channel_offset().value_or(0)) % outputRef->dimensions()->Get(Z);
+        if (invariant.getOutputBuffs().size() > 1) {
+            auto wto = (output_start_z - invariant.getOutChannelOffset().value_or(0)) % outputRef->dimensions()->Get(Z);
             taskWrapper.weight_table_offset_ = wto;
         }
     }

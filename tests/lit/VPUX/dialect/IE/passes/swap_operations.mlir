@@ -411,7 +411,7 @@ func.func @SwapConcatWithClamp(%arg0: tensor<4x512x1x1xf16>, %arg1: tensor<4x512
    %cst_1 = const.Declare tensor<2048x512x1x1xf16> = dense<2.000000e+00> : tensor<2048x512xf16>, [#const.Reshape<[2048, 512, 1, 1]>]
    %0 = IE.Convolution(%arg0, %cst) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<4x512x1x1xf16>, tensor<2048x512x1x1xf16> -> tensor<4x2048x1x1xf16>
    %1 = IE.Convolution(%arg1, %cst_1) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<4x512x1x1xf16>, tensor<2048x512x1x1xf16> -> tensor<4x2048x1x1xf16>
-   %2 = IE.Concat(%0, %1) {per_axis = {axis = 3 : i64, offset = 1 : i64, stride = 2 : i64}} : tensor<4x2048x1x1xf16>, tensor<4x2048x1x1xf16> -> tensor<4x2048x1x2xf16>
+   %2 = IE.Concat(%0, %1) {per_axis = #IE.Concat<axis = 3 : i64, offset = 1 : i64, stride = 2 : i64>} : tensor<4x2048x1x1xf16>, tensor<4x2048x1x1xf16> -> tensor<4x2048x1x2xf16> 
    %3 = IE.Clamp(%2) {min = 1.0, max = 3.0} : tensor<4x2048x1x2xf16> -> tensor<4x2048x1x2xf16>
 
    return %3 : tensor<4x2048x1x2xf16>
@@ -422,7 +422,7 @@ func.func @SwapConcatWithClamp(%arg0: tensor<4x512x1x1xf16>, %arg1: tensor<4x512
    // CHECK:      [[CONV_2:%.*]] = IE.Convolution(%arg1, [[FILTER_2]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<4x512x1x1xf16>, tensor<2048x512x1x1xf16> -> tensor<4x2048x1x1xf16>
    // CHECK:      [[CLAMP_1:%.*]] = IE.Clamp([[CONV_1]]) {max = 3.000000e+00 : f64, min = 1.000000e+00 : f64} : tensor<4x2048x1x1xf16> -> tensor<4x2048x1x1xf16>
    // CHECK:      [[CLAMP_2:%.*]] = IE.Clamp([[CONV_2]]) {max = 3.000000e+00 : f64, min = 1.000000e+00 : f64} : tensor<4x2048x1x1xf16> -> tensor<4x2048x1x1xf16>
-   // CHECK:      [[CONCAT:%.*]] = IE.Concat([[CLAMP_1]], [[CLAMP_2]]) {per_axis = {axis = 3 : i64, offset = 1 : i64, stride = 2 : i64}} : tensor<4x2048x1x1xf16>, tensor<4x2048x1x1xf16> -> tensor<4x2048x1x2xf16>
+   // CHECK:      [[CONCAT:%.*]] = IE.Concat([[CLAMP_1]], [[CLAMP_2]]) {per_axis = #IE.Concat<axis = 3 : i64, offset = 1 : i64, stride = 2 : i64>} : tensor<4x2048x1x1xf16>, tensor<4x2048x1x1xf16> -> tensor<4x2048x1x2xf16>
    // CHECK:      return [[CONCAT]] : tensor<4x2048x1x2xf16>
 }
 
@@ -465,4 +465,87 @@ func.func @SkipSwapExpandWithPerChannelQuantizeCast(%arg0: tensor<1x3x416x416x!q
     // CHECK:       [[QUANTCAST:%.*]] = IE.QuantizeCast([[EXPAND]]) {dstElemType = !qElemType1} : tensor<1x4x416x416x!qElemType2>
     // CHECK-SAME:          -> tensor<1x4x416x416x!qElemType1>
     // CHECK:       return [[QUANTCAST]] : tensor<1x4x416x416x!qElemType1>
+}
+
+// -----
+
+#NHCW = affine_map<(d0, d1, d2, d3) -> (d0, d2, d1, d3)>
+
+// CHECK-LABEL: @SwapWithClampAndLRelu
+func.func @SwapWithClampAndLRelu(%arg0: tensor<4x512x1x1xf16>) -> tensor<1x2048x4x1xf16> {
+   %cst = const.Declare tensor<2048x512x1x1xf16> = dense<1.000000e+00> : tensor<2048x512xf16>, [#const.Reshape<[2048, 512, 1, 1]>]
+   %0 = IE.Convolution(%arg0, %cst) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<4x512x1x1xf16>, tensor<2048x512x1x1xf16> -> tensor<4x2048x1x1xf16>
+   %1 = IE.AffineReshape(%0) {dim_mapping = [[0, 1], [2], [3], [3]], shape_value = [1, 4, 2048, 1]} : tensor<4x2048x1x1xf16> -> tensor<1x4x2048x1xf16>
+   %2 = IE.Transpose(%1) {order_value = #NHCW} : tensor<1x4x2048x1xf16> -> tensor<1x2048x4x1xf16>
+   %3 = IE.Clamp(%2) {min = 1.0, max = 2.0} : tensor<1x2048x4x1xf16> -> tensor<1x2048x4x1xf16>
+   %4 = IE.LeakyRelu(%3) {negative_slope = 2.500000e-01 : f64} : tensor<1x2048x4x1xf16> -> tensor<1x2048x4x1xf16>
+
+    return %4 : tensor<1x2048x4x1xf16>
+
+  // CHECK: [[FILTER_1:%.*]] = const.Declare tensor<2048x512x1x1xf16> = dense<1.000000e+00> : tensor<2048x512xf16>, [#const.Reshape<[2048, 512, 1, 1]>]
+  //CHECK: [[VAL0:%.*]] =  IE.Convolution(%arg0, [[FILTER_1]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<4x512x1x1xf16>, tensor<2048x512x1x1xf16> -> tensor<4x2048x1x1xf16>
+  //CHECK: [[VAL1:%.*]] =  IE.LeakyRelu([[VAL0]]) {negative_slope = 2.500000e-01 : f64} : tensor<4x2048x1x1xf16> -> tensor<4x2048x1x1xf16>
+  //CHECK: [[VAL2:%.*]] =  IE.Clamp([[VAL1]]) {max = 2.000000e+00 : f64, min = 1.000000e+00 : f64} : tensor<4x2048x1x1xf16> -> tensor<4x2048x1x1xf16>
+  //CHECK: [[VAL3:%.*]] =  IE.AffineReshape([[VAL2]])
+  //CHECK-SAME{LITERAL}: {dim_mapping = [[0, 1], [2], [3], [3]], shape_value = [1, 4, 2048, 1]} : tensor<4x2048x1x1xf16> -> tensor<1x4x2048x1xf16>
+  //CHECK: [[VAL4:%.*]] =  IE.Transpose([[VAL3]]) {order_value = #NHCW} : tensor<1x4x2048x1xf16> -> tensor<1x2048x4x1xf16>
+  //CHECK: return [[VAL4]] :  tensor<1x2048x4x1xf16>
+}
+
+// -----
+
+// CHECK-LABEL: @SwapWithAffineReshapeAndLRelu
+func.func @SwapWithAffineReshapeAndLRelu(%arg0: tensor<4x2048x1x1xf16>) -> tensor<1x4x2048x1xf16> {
+   %0 = IE.AffineReshape(%arg0) {dim_mapping = [[0, 1], [2], [3], [3]], shape_value = [1, 4, 2048, 1]} : tensor<4x2048x1x1xf16> -> tensor<1x4x2048x1xf16>
+   %1 = IE.LeakyRelu(%0) {negative_slope = 2.500000e-01 : f64} : tensor<1x4x2048x1xf16> -> tensor<1x4x2048x1xf16>
+
+    return %1 : tensor<1x4x2048x1xf16>
+
+  //CHECK: [[VAL0:%.*]] =   IE.LeakyRelu(%arg0) {negative_slope = 2.500000e-01 : f64} : tensor<4x2048x1x1xf16> -> tensor<4x2048x1x1xf16>
+  //CHECK: [[VAL1:%.*]] =  IE.AffineReshape([[VAL0]])
+  //CHECK-SAME{LITERAL}: {dim_mapping = [[0, 1], [2], [3], [3]], shape_value = [1, 4, 2048, 1]} : tensor<4x2048x1x1xf16> -> tensor<1x4x2048x1xf16>
+
+  //CHECK: return [[VAL1]] :  tensor<1x4x2048x1xf16>
+}
+
+// -----
+
+// CHECK-LABEL: @NoSwapWithAffineReshapeAndLReluNot4D
+func.func @NoSwapWithAffineReshapeAndLReluNot4D(%arg0: tensor<3x62x62xf16>) -> tensor<1x3x62x62xf16> {
+   %0 = IE.AffineReshape(%arg0) {dim_mapping = [[0, 1], [2], [3]], shape_value = [1, 3, 62, 62]} : tensor<3x62x62xf16> -> tensor<1x3x62x62xf16>
+   %1 = IE.LeakyRelu(%0) {negative_slope = 2.500000e-01 : f64} : tensor<1x3x62x62xf16> -> tensor<1x3x62x62xf16>
+
+    return %1 : tensor<1x3x62x62xf16>
+
+  //CHECK: [[VAL0:%.*]] =  IE.AffineReshape(%arg0)
+  //CHECK-SAME{LITERAL}: {dim_mapping = [[0, 1], [2], [3]], shape_value = [1, 3, 62, 62]} : tensor<3x62x62xf16> -> tensor<1x3x62x62xf16>
+  //CHECK: [[VAL1:%.*]] = IE.LeakyRelu([[VAL0]]) {negative_slope = 2.500000e-01 : f64} : tensor<1x3x62x62xf16> -> tensor<1x3x62x62xf16>
+
+  //CHECK: return [[VAL1]] :  tensor<1x3x62x62xf16>
+
+}
+
+// -----
+
+#NHCW = affine_map<(d0, d1, d2, d3) -> (d0, d2, d1, d3)>
+
+// CHECK-LABEL: @NoSwapWithActivation
+func.func @NoSwapWithActivation(%arg0: tensor<4x512x1x1xf16>) -> tensor<1x4x2048x1xf16> {
+   %cst = const.Declare tensor<2048x512x1x1xf16> = dense<1.000000e+00> : tensor<2048x512xf16>, [#const.Reshape<[2048, 512, 1, 1]>]
+   %0 = IE.Convolution(%arg0, %cst) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<4x512x1x1xf16>, tensor<2048x512x1x1xf16> -> tensor<4x2048x1x1xf16>
+   %1 = IE.AffineReshape(%0) {dim_mapping = [[0, 1], [2], [3], [3]], shape_value = [1, 4, 2048, 1]} : tensor<4x2048x1x1xf16> -> tensor<1x4x2048x1xf16>
+   %2 = IE.MaxPool(%1) {kernel_size = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], rounding_type = #IE.rounding_type<FLOOR>, strides = [1, 1]} : tensor<1x4x2048x1xf16> -> tensor<1x4x2048x1xf16>
+   %3 = IE.LeakyRelu(%2) {negative_slope = 2.500000e-01 : f64} : tensor<1x4x2048x1xf16> -> tensor<1x4x2048x1xf16>
+
+    return %3 : tensor<1x4x2048x1xf16>
+
+  // CHECK: [[FILTER_1:%.*]] = const.Declare tensor<2048x512x1x1xf16> = dense<1.000000e+00> : tensor<2048x512xf16>, [#const.Reshape<[2048, 512, 1, 1]>]
+  //CHECK: [[VAL0:%.*]] = IE.Convolution(%arg0, [[FILTER_1]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<4x512x1x1xf16>, tensor<2048x512x1x1xf16> -> tensor<4x2048x1x1xf16>
+  //CHECK: [[VAL1:%.*]] =  IE.AffineReshape([[VAL0]])
+  //CHECK-SAME{LITERAL}: {dim_mapping = [[0, 1], [2], [3], [3]], shape_value = [1, 4, 2048, 1]} : tensor<4x2048x1x1xf16> -> tensor<1x4x2048x1xf16>
+  //CHECK: [[VAL2:%.*]] =   IE.MaxPool([[VAL1]]) {kernel_size = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], rounding_type = #IE.rounding_type<FLOOR>, strides = [1, 1]} : tensor<1x4x2048x1xf16> -> tensor<1x4x2048x1xf16>
+  //CHECK: [[VAL3:%.*]] = IE.LeakyRelu([[VAL2]]) {negative_slope = 2.500000e-01 : f64} : tensor<1x4x2048x1xf16> -> tensor<1x4x2048x1xf16>
+
+  //CHECK: return [[VAL3]] :  tensor<1x4x2048x1xf16>
+
 }

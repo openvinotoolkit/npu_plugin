@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/types.hpp"
 #include "vpux/compiler/init.hpp"
@@ -13,6 +11,9 @@
 #include "vpux/utils/core/numeric.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 
+#include "common/utils.hpp"
+
+#include <mlir/IR/DialectRegistry.h>
 #include <mlir/IR/MLIRContext.h>
 
 #include <gtest/gtest.h>
@@ -26,23 +27,20 @@ constexpr vpux::StringRef DDR_NAME = "DDR";
 
 }  // namespace
 
-using MLIR_NDTypeInterface = testing::Test;
-using MLIR_ClusterShapeUtils = testing::Test;
-using MLIR_ClusterShapeUtilsDeathTest = testing::Test;
+using MLIR_NDTypeInterface = MLIR_UnitBase;
+using MLIR_ClusterShapeUtils = MLIR_NDTypeInterface;
+using MLIR_ClusterShapeUtilsDeathTest = MLIR_NDTypeInterface;
 
 TEST_F(MLIR_NDTypeInterface, SegmentedDistributedBufferType) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
     const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
     const auto numClustersAttr = getIntAttr(&ctx, 4);
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                            numClustersAttr, nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, nullptr,
+                                                                 nullptr, nullptr, numClustersAttr, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr, nullptr);
 
     const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
     const auto elemType = mlir::Float16Type::get(&ctx);
@@ -136,9 +134,6 @@ TEST_F(MLIR_NDTypeInterface, SegmentedDistributedBufferType) {
 }
 
 TEST_F(MLIR_NDTypeInterface, SegmentedDuplicatedDistributedBufferType) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -146,9 +141,9 @@ TEST_F(MLIR_NDTypeInterface, SegmentedDuplicatedDistributedBufferType) {
             VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::DUPLICATED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
     const auto numClustersAttr = getIntAttr(&ctx, 4);
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                            numClustersAttr, nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, nullptr,
+                                                                 nullptr, nullptr, numClustersAttr, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr, nullptr);
 
     const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
     const auto elemType = mlir::Float16Type::get(&ctx);
@@ -243,18 +238,15 @@ TEST_F(MLIR_NDTypeInterface, SegmentedDuplicatedDistributedBufferType) {
 }
 
 TEST_F(MLIR_NDTypeInterface, CompressedSegmentedDistributedBufferType) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
     const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({4, 1, 1, 1}));
     const auto numClustersAttr = getIntAttr(&ctx, 4);
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                            numClustersAttr, nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, nullptr,
+                                                                 nullptr, nullptr, numClustersAttr, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr, nullptr);
 
     const auto shape = SmallVector<int64_t>({64, 16, 1, 1});
     const auto elemType = mlir::Float16Type::get(&ctx);
@@ -298,18 +290,15 @@ TEST_F(MLIR_NDTypeInterface, CompressedSegmentedDistributedBufferType) {
 }
 
 TEST_F(MLIR_NDTypeInterface, CompressedDuplicatedDistributedBufferType) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
     const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::DUPLICATED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({4, 1, 1, 1}));
     const auto numClustersAttr = getIntAttr(&ctx, 4);
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                            numClustersAttr, nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, nullptr,
+                                                                 nullptr, nullptr, numClustersAttr, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr, nullptr);
 
     const auto shape = SmallVector<int64_t>({64, 80, 1, 1});
     const auto elemType = mlir::Float16Type::get(&ctx);
@@ -357,18 +346,15 @@ TEST_F(MLIR_NDTypeInterface, CompressedDuplicatedDistributedBufferType) {
 }
 
 TEST_F(MLIR_ClusterShapeUtils, SegmentedBufferDistribution) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
     const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
     const auto numClustersAttr = getIntAttr(&ctx, 4);
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                            numClustersAttr, nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, nullptr,
+                                                                 nullptr, nullptr, numClustersAttr, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr, nullptr);
     // SOH
     const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
     const auto elemType = mlir::Float16Type::get(&ctx);
@@ -410,7 +396,7 @@ TEST_F(MLIR_ClusterShapeUtils, SegmentedBufferDistribution) {
 
     const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 64, 4, 16}));
-    const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedBufferType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
     }
@@ -440,9 +426,6 @@ TEST_F(MLIR_ClusterShapeUtils, SegmentedBufferDistribution) {
 }
 
 TEST_F(MLIR_ClusterShapeUtils, SegmentedBufferUniformDistribution) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -451,8 +434,8 @@ TEST_F(MLIR_ClusterShapeUtils, SegmentedBufferUniformDistribution) {
     const auto numClustersAttr = getIntAttr(&ctx, 4);
     const auto uniformDistributedSegments = mlir::UnitAttr::get(&ctx);
     const auto distributedAttr = VPU::DistributedTensorAttr::get(
-            distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr, numClustersAttr, nullptr,
-            uniformDistributedSegments, nullptr, nullptr, nullptr, &ctx);
+            &ctx, distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr, numClustersAttr, nullptr,
+            uniformDistributedSegments, nullptr, nullptr, nullptr, nullptr, nullptr);
     // SOH
     const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
     const auto elemType = mlir::Float16Type::get(&ctx);
@@ -494,7 +477,7 @@ TEST_F(MLIR_ClusterShapeUtils, SegmentedBufferUniformDistribution) {
 
     const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 64, 4, 16}));
-    const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedBufferType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
     }
@@ -524,18 +507,15 @@ TEST_F(MLIR_ClusterShapeUtils, SegmentedBufferUniformDistribution) {
 }
 
 TEST_F(MLIR_ClusterShapeUtils, SegmentedBufferDistributionStrideOnW) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
     const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
     const auto numClustersAttr = getIntAttr(&ctx, 4);
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                            numClustersAttr, nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, nullptr,
+                                                                 nullptr, nullptr, numClustersAttr, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr, nullptr);
     // SOH, W strided
     const auto shape = SmallVector<int64_t>({1, 64, 13, 4});
     const auto elemType = mlir::Float16Type::get(&ctx);
@@ -577,7 +557,7 @@ TEST_F(MLIR_ClusterShapeUtils, SegmentedBufferDistributionStrideOnW) {
 
     const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 64, 4, 4}));
-    const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedBufferType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
     }
@@ -607,9 +587,6 @@ TEST_F(MLIR_ClusterShapeUtils, SegmentedBufferDistributionStrideOnW) {
 }
 
 TEST_F(MLIR_ClusterShapeUtils, SegmentedBufferUniformDistributionStrideOnW) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -618,8 +595,8 @@ TEST_F(MLIR_ClusterShapeUtils, SegmentedBufferUniformDistributionStrideOnW) {
     const auto numClustersAttr = getIntAttr(&ctx, 4);
     const auto uniformDistributedSegments = mlir::UnitAttr::get(&ctx);
     const auto distributedAttr = VPU::DistributedTensorAttr::get(
-            distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr, numClustersAttr, nullptr,
-            uniformDistributedSegments, nullptr, nullptr, nullptr, &ctx);
+            &ctx, distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr, numClustersAttr, nullptr,
+            uniformDistributedSegments, nullptr, nullptr, nullptr, nullptr, nullptr);
     // SOH, W strided
     const auto shape = SmallVector<int64_t>({1, 64, 13, 4});
     const auto elemType = mlir::Float16Type::get(&ctx);
@@ -661,7 +638,7 @@ TEST_F(MLIR_ClusterShapeUtils, SegmentedBufferUniformDistributionStrideOnW) {
 
     const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 64, 4, 4}));
-    const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedBufferType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
     }
@@ -691,9 +668,6 @@ TEST_F(MLIR_ClusterShapeUtils, SegmentedBufferUniformDistributionStrideOnW) {
 }
 
 TEST_F(MLIR_ClusterShapeUtils, SegmentedDuplicatedBufferDistribution) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -702,9 +676,9 @@ TEST_F(MLIR_ClusterShapeUtils, SegmentedDuplicatedBufferDistribution) {
             VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::DUPLICATED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
     const auto numClustersAttr = getIntAttr(&ctx, 4);
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                            numClustersAttr, nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, nullptr,
+                                                                 nullptr, nullptr, numClustersAttr, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr, nullptr);
 
     const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
     const auto elemType = mlir::Float16Type::get(&ctx);
@@ -746,7 +720,7 @@ TEST_F(MLIR_ClusterShapeUtils, SegmentedDuplicatedBufferDistribution) {
 
     const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 64, 4, 16}));
-    const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedBufferType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
     }
@@ -773,9 +747,6 @@ TEST_F(MLIR_ClusterShapeUtils, SegmentedDuplicatedBufferDistribution) {
 }
 
 TEST_F(MLIR_ClusterShapeUtils, SegmentedDuplicatedBufferUniformDistribution) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -786,8 +757,8 @@ TEST_F(MLIR_ClusterShapeUtils, SegmentedDuplicatedBufferUniformDistribution) {
     const auto numClustersAttr = getIntAttr(&ctx, 4);
     const auto uniformDistributedSegments = mlir::UnitAttr::get(&ctx);
     const auto distributedAttr = VPU::DistributedTensorAttr::get(
-            distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr, numClustersAttr, nullptr,
-            uniformDistributedSegments, nullptr, nullptr, nullptr, &ctx);
+            &ctx, distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr, numClustersAttr, nullptr,
+            uniformDistributedSegments, nullptr, nullptr, nullptr, nullptr, nullptr);
 
     const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
     const auto elemType = mlir::Float16Type::get(&ctx);
@@ -829,7 +800,7 @@ TEST_F(MLIR_ClusterShapeUtils, SegmentedDuplicatedBufferUniformDistribution) {
 
     const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 64, 4, 16}));
-    const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedBufferType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
     }
@@ -856,9 +827,6 @@ TEST_F(MLIR_ClusterShapeUtils, SegmentedDuplicatedBufferUniformDistribution) {
 }
 
 TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferDistribution1x1KernelStride1) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -879,12 +847,12 @@ TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferDistribution1x1KernelStride1) {
 
     // SOH overlapped, 1x1s1p0
     const auto kernel = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1}));
-    const auto pads = VPU::PaddingAttr::get(getIntAttr(&ctx, 0), getIntAttr(&ctx, 0), getIntAttr(&ctx, 0),
-                                            getIntAttr(&ctx, 0), &ctx);
+    const auto pads = VPU::PaddingAttr::get(&ctx, getIntAttr(&ctx, 0), getIntAttr(&ctx, 0), getIntAttr(&ctx, 0),
+                                            getIntAttr(&ctx, 0));
     const auto strides = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1}));
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads, strides, numClustersAttr,
-                                            nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, kernel, pads,
+                                                                 strides, numClustersAttr, nullptr, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr);
     const auto distributedBufferType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -916,7 +884,7 @@ TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferDistribution1x1KernelStride1) {
 
     const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 64, 4, 16}));
-    const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedBufferType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
     }
@@ -946,9 +914,6 @@ TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferDistribution1x1KernelStride1) {
 }
 
 TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferDistribution3x3KernelStride1) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -968,12 +933,12 @@ TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferDistribution3x3KernelStride1) {
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
     // SOH overlapped, 3x3s1p1
     const auto kernel = getIntArrayAttr(&ctx, SmallVector<int64_t>({3, 3}));
-    const auto pads = VPU::PaddingAttr::get(getIntAttr(&ctx, 1), getIntAttr(&ctx, 1), getIntAttr(&ctx, 1),
-                                            getIntAttr(&ctx, 1), &ctx);
+    const auto pads = VPU::PaddingAttr::get(&ctx, getIntAttr(&ctx, 1), getIntAttr(&ctx, 1), getIntAttr(&ctx, 1),
+                                            getIntAttr(&ctx, 1));
     const auto strides = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1}));
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads, strides, numClustersAttr,
-                                            nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, kernel, pads,
+                                                                 strides, numClustersAttr, nullptr, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr);
     const auto distributedBufferType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -1005,7 +970,7 @@ TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferDistribution3x3KernelStride1) {
 
     const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 64, 4, 16}));
-    const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedBufferType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
     }
@@ -1035,9 +1000,6 @@ TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferDistribution3x3KernelStride1) {
 }
 
 TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferDistribution3x3KernelStride1EqualMemoryCompute) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -1057,13 +1019,13 @@ TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferDistribution3x3KernelStride1Equal
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
     // SOH overlapped, 3x3s1p1
     const auto kernel = getIntArrayAttr(&ctx, SmallVector<int64_t>({3, 3}));
-    const auto pads = VPU::PaddingAttr::get(getIntAttr(&ctx, 1), getIntAttr(&ctx, 1), getIntAttr(&ctx, 1),
-                                            getIntAttr(&ctx, 1), &ctx);
+    const auto pads = VPU::PaddingAttr::get(&ctx, getIntAttr(&ctx, 1), getIntAttr(&ctx, 1), getIntAttr(&ctx, 1),
+                                            getIntAttr(&ctx, 1));
     const auto strides = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1}));
     const auto equalMemoryAndComputeView = mlir::UnitAttr::get(&ctx);
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads, strides, numClustersAttr,
-                                            nullptr, nullptr, nullptr, nullptr, equalMemoryAndComputeView, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, kernel, pads,
+                                                                 strides, numClustersAttr, nullptr, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, equalMemoryAndComputeView);
     const auto distributedBufferType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -1091,7 +1053,7 @@ TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferDistribution3x3KernelStride1Equal
 
     const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 64, 6, 16}));
-    const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedBufferType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedMemoryShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
     }
@@ -1121,9 +1083,6 @@ TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferDistribution3x3KernelStride1Equal
 }
 
 TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferDistribution3x3KernelStride2) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -1143,12 +1102,12 @@ TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferDistribution3x3KernelStride2) {
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
     // SOH overlapped, 3x3s2p1
     const auto kernel = getIntArrayAttr(&ctx, SmallVector<int64_t>({3, 3}));
-    const auto pads = VPU::PaddingAttr::get(getIntAttr(&ctx, 1), getIntAttr(&ctx, 1), getIntAttr(&ctx, 1),
-                                            getIntAttr(&ctx, 1), &ctx);
+    const auto pads = VPU::PaddingAttr::get(&ctx, getIntAttr(&ctx, 1), getIntAttr(&ctx, 1), getIntAttr(&ctx, 1),
+                                            getIntAttr(&ctx, 1));
     const auto strides = getIntArrayAttr(&ctx, SmallVector<int64_t>({2, 2}));
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads, strides, numClustersAttr,
-                                            nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, kernel, pads,
+                                                                 strides, numClustersAttr, nullptr, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr);
     const auto distributedBufferType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -1180,7 +1139,7 @@ TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferDistribution3x3KernelStride2) {
 
     const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 64, 4, 16}));
-    const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedBufferType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
     }
@@ -1210,9 +1169,6 @@ TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferDistribution3x3KernelStride2) {
 }
 
 TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferUniformDistribution1x1KernelStride1) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -1233,13 +1189,13 @@ TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferUniformDistribution1x1KernelStrid
 
     // SOH overlapped, 1x1s1p0
     const auto kernel = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1}));
-    const auto pads = VPU::PaddingAttr::get(getIntAttr(&ctx, 0), getIntAttr(&ctx, 0), getIntAttr(&ctx, 0),
-                                            getIntAttr(&ctx, 0), &ctx);
+    const auto pads = VPU::PaddingAttr::get(&ctx, getIntAttr(&ctx, 0), getIntAttr(&ctx, 0), getIntAttr(&ctx, 0),
+                                            getIntAttr(&ctx, 0));
     const auto strides = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1}));
     const auto uniformDistributedSegments = mlir::UnitAttr::get(&ctx);
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads, strides, numClustersAttr,
-                                            nullptr, uniformDistributedSegments, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(
+            &ctx, distributionModeAttr, numTilesAttr, kernel, pads, strides, numClustersAttr, nullptr,
+            uniformDistributedSegments, nullptr, nullptr, nullptr, nullptr, nullptr);
     const auto distributedBufferType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -1271,7 +1227,7 @@ TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferUniformDistribution1x1KernelStrid
 
     const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 64, 4, 16}));
-    const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedBufferType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
     }
@@ -1301,9 +1257,6 @@ TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferUniformDistribution1x1KernelStrid
 }
 
 TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferUniformDistribution3x3KernelStride1) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -1323,13 +1276,13 @@ TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferUniformDistribution3x3KernelStrid
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
     // SOH overlapped, 3x3s1p1
     const auto kernel = getIntArrayAttr(&ctx, SmallVector<int64_t>({3, 3}));
-    const auto pads = VPU::PaddingAttr::get(getIntAttr(&ctx, 1), getIntAttr(&ctx, 1), getIntAttr(&ctx, 1),
-                                            getIntAttr(&ctx, 1), &ctx);
+    const auto pads = VPU::PaddingAttr::get(&ctx, getIntAttr(&ctx, 1), getIntAttr(&ctx, 1), getIntAttr(&ctx, 1),
+                                            getIntAttr(&ctx, 1));
     const auto strides = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1}));
     const auto uniformDistributedSegments = mlir::UnitAttr::get(&ctx);
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads, strides, numClustersAttr,
-                                            nullptr, uniformDistributedSegments, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(
+            &ctx, distributionModeAttr, numTilesAttr, kernel, pads, strides, numClustersAttr, nullptr,
+            uniformDistributedSegments, nullptr, nullptr, nullptr, nullptr, nullptr);
     const auto distributedBufferType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -1361,7 +1314,7 @@ TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferUniformDistribution3x3KernelStrid
 
     const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 64, 4, 16}));
-    const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedBufferType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
     }
@@ -1391,9 +1344,6 @@ TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferUniformDistribution3x3KernelStrid
 }
 
 TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferUniformDistribution3x3KernelStride2) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -1413,13 +1363,13 @@ TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferUniformDistribution3x3KernelStrid
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
     // SOH overlapped, 3x3s2p1
     const auto kernel = getIntArrayAttr(&ctx, SmallVector<int64_t>({3, 3}));
-    const auto pads = VPU::PaddingAttr::get(getIntAttr(&ctx, 1), getIntAttr(&ctx, 1), getIntAttr(&ctx, 1),
-                                            getIntAttr(&ctx, 1), &ctx);
+    const auto pads = VPU::PaddingAttr::get(&ctx, getIntAttr(&ctx, 1), getIntAttr(&ctx, 1), getIntAttr(&ctx, 1),
+                                            getIntAttr(&ctx, 1));
     const auto strides = getIntArrayAttr(&ctx, SmallVector<int64_t>({2, 2}));
     const auto uniformDistributedSegments = mlir::UnitAttr::get(&ctx);
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads, strides, numClustersAttr,
-                                            nullptr, uniformDistributedSegments, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(
+            &ctx, distributionModeAttr, numTilesAttr, kernel, pads, strides, numClustersAttr, nullptr,
+            uniformDistributedSegments, nullptr, nullptr, nullptr, nullptr, nullptr);
     const auto distributedBufferType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -1451,7 +1401,7 @@ TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferUniformDistribution3x3KernelStrid
 
     const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 64, 7, 16}));
-    const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedBufferType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
     }
@@ -1480,10 +1430,7 @@ TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferUniformDistribution3x3KernelStrid
     EXPECT_EQ(distributedBufferType.getCompactAllocSize().count(), 64 * 8 * 16 * 2);
 }
 
-TEST(MLIR_ClusterShapeUtils, OverlappedBufferWithComputeShapesAndOffsets) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
+TEST_F(MLIR_ClusterShapeUtils, OverlappedBufferWithComputeShapesAndOffsets) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -1515,9 +1462,9 @@ TEST(MLIR_ClusterShapeUtils, OverlappedBufferWithComputeShapesAndOffsets) {
     computeOffsets.push_back(SmallVector<int64_t>({0, 0, 8, 0}));
     const auto computeOffsetsAttr = vpux::getIntArrayOfArray(&ctx, computeOffsets);
 
-    const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr,
-                                                                 nullptr, numClustersAttr, nullptr, nullptr,
-                                                                 computeShapesAttr, computeOffsetsAttr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(
+            &ctx, distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr, numClustersAttr, nullptr, nullptr,
+            computeShapesAttr, computeOffsetsAttr, computeShapesAttr, computeOffsetsAttr, nullptr);
 
     const auto distributedBufferType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
@@ -1551,7 +1498,7 @@ TEST(MLIR_ClusterShapeUtils, OverlappedBufferWithComputeShapesAndOffsets) {
 
     const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 64, 4, 16}));
-    const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedBufferType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
     }
@@ -1585,9 +1532,6 @@ TEST(MLIR_ClusterShapeUtils, OverlappedBufferWithComputeShapesAndOffsets) {
 
 // Single axis H alignment, H SEGMENTED mode
 TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisSegmentedMode) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -1604,9 +1548,9 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisSegmentedMode) {
     const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
     const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 9, 1}));
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                            numClustersAttr, alignment, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, nullptr,
+                                                                 nullptr, nullptr, numClustersAttr, alignment, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr, nullptr);
     const auto distributedType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -1636,7 +1580,7 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisSegmentedMode) {
 
     const auto largestComputeShape = distributedType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 60, 18, 16}));
-    const auto numClusters = distributedType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedType.getCompactShape(clusterIdx));
     }
@@ -1649,10 +1593,8 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisSegmentedMode) {
 }
 
 // Multiple axis H and K alignment, H SEGMENTED mode
+// TODO: why disabled?
 TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferMultiAxisSegmentedMode) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -1669,9 +1611,9 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferMultiAxisSegmentedMode) {
     const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
     const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 16, 9, 1}));
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                            numClustersAttr, alignment, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, nullptr,
+                                                                 nullptr, nullptr, numClustersAttr, alignment, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr, nullptr);
     const auto distributedType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -1701,7 +1643,7 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferMultiAxisSegmentedMode) {
 
     const auto largestComputeShape = distributedType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 64, 18, 16}));
-    const auto numClusters = distributedType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedType.getCompactShape(clusterIdx));
     }
@@ -1715,9 +1657,6 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferMultiAxisSegmentedMode) {
 
 // Single axis H alignment, DUPLICATED mode
 TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisDuplicatedMode) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -1734,9 +1673,9 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisDuplicatedMode) {
     const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::DUPLICATED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
     const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 9, 1}));
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                            numClustersAttr, alignment, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, nullptr,
+                                                                 nullptr, nullptr, numClustersAttr, alignment, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr, nullptr);
     const auto distributedType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -1766,7 +1705,7 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisDuplicatedMode) {
 
     const auto largestComputeShape = distributedType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 60, 63, 16}));
-    const auto numClusters = distributedType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedType.getCompactShape(clusterIdx));
     }
@@ -1781,9 +1720,6 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisDuplicatedMode) {
 // Single axis H alignment, SEGMENTED|DUPLICATED mode
 
 TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisSegmentedDuplicatedMode) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -1801,9 +1737,9 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisSegmentedDuplicat
             VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::DUPLICATED | VPU::DistributionMode::SEGMENTED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
     const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 9, 1}));
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                            numClustersAttr, alignment, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, nullptr,
+                                                                 nullptr, nullptr, numClustersAttr, alignment, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr, nullptr);
     const auto distributedType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -1833,7 +1769,7 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisSegmentedDuplicat
 
     const auto largestComputeShape = distributedType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 60, 18, 16}));
-    const auto numClusters = distributedType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedType.getCompactShape(clusterIdx));
     }
@@ -1847,9 +1783,6 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisSegmentedDuplicat
 
 // Multiple axis H and K alignment, SEGMENTED|DUPLICATED mode
 TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferMultiAxisSegmentedDuplicatedMode) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -1867,9 +1800,9 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferMultiAxisSegmentedDuplicate
             VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::DUPLICATED | VPU::DistributionMode::SEGMENTED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
     const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 16, 9, 1}));
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                            numClustersAttr, alignment, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, nullptr,
+                                                                 nullptr, nullptr, numClustersAttr, alignment, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr, nullptr);
     const auto distributedType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -1899,7 +1832,7 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferMultiAxisSegmentedDuplicate
 
     const auto largestComputeShape = distributedType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 64, 18, 16}));
-    const auto numClusters = distributedType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedType.getCompactShape(clusterIdx));
     }
@@ -1913,9 +1846,6 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferMultiAxisSegmentedDuplicate
 
 // Single axis K alignment, SEGMENTED mode, K tiling
 TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisSegmentedModeKTiling) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -1932,9 +1862,9 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisSegmentedModeKTil
     const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 4, 1, 1}));
     const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 16, 1, 1}));
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                            numClustersAttr, alignment, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, nullptr,
+                                                                 nullptr, nullptr, numClustersAttr, alignment, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr, nullptr);
     const auto distributedType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -1964,7 +1894,7 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisSegmentedModeKTil
 
     const auto largestComputeShape = distributedType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 32, 59, 16}));
-    const auto numClusters = distributedType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedType.getCompactShape(clusterIdx));
     }
@@ -1978,9 +1908,6 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisSegmentedModeKTil
 
 // Single axis K alignment, SEGMENTED mode, K tiling, invalid 4 cluster tiling
 TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisSegmentedModeKTilingInvalid4Clusters) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -1997,9 +1924,9 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisSegmentedModeKTil
     const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 4, 1, 1}));
     const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 16, 1, 1}));
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                            numClustersAttr, alignment, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, nullptr,
+                                                                 nullptr, nullptr, numClustersAttr, alignment, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr, nullptr);
     const auto distributedType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -2008,7 +1935,7 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisSegmentedModeKTil
     EXPECT_ANY_THROW(distributedType.getPerClusterMemoryShapes());
     EXPECT_ANY_THROW(distributedType.getPerClusterMemoryShapeOffsets());
     EXPECT_ANY_THROW(distributedType.getLargestCompactShape());
-    const auto numClusters = distributedType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_ANY_THROW(distributedType.getCompactShape(clusterIdx));
     }
@@ -2022,9 +1949,6 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisSegmentedModeKTil
 
 // Single axis K alignment, SEGMENTED mode, K tiling, valid 3 cluster tiling
 TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisSegmentedModeKTilingValid3Clusters) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -2040,9 +1964,9 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisSegmentedModeKTil
     const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 3, 1, 1}));
     const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 16, 1, 1}));
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                            numClustersAttr, alignment, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, nullptr,
+                                                                 nullptr, nullptr, numClustersAttr, alignment, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr, nullptr);
     const auto distributedType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -2071,7 +1995,7 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisSegmentedModeKTil
 
     const auto largestComputeShape = distributedType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 32, 59, 16}));
-    const auto numClusters = distributedType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedType.getCompactShape(clusterIdx));
     }
@@ -2085,9 +2009,6 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisSegmentedModeKTil
 
 // Single axis K alignment, SEGMENTED|DUPLICATED mode, K tiling, valid 3 cluster tiling
 TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisSegmentedDuplicatedModeKTilingValid3Clusters) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -2104,9 +2025,9 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisSegmentedDuplicat
             VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::DUPLICATED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 3, 1, 1}));
     const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 16, 1, 1}));
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                            numClustersAttr, alignment, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, nullptr,
+                                                                 nullptr, nullptr, numClustersAttr, alignment, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr, nullptr);
     const auto distributedType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -2135,7 +2056,7 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisSegmentedDuplicat
 
     const auto largestComputeShape = distributedType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 32, 59, 16}));
-    const auto numClusters = distributedType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedType.getCompactShape(clusterIdx));
     }
@@ -2149,9 +2070,6 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisSegmentedDuplicat
 
 // Single axis K alignment, OVERLAPPED mode, H tiling
 TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisOverlappedModeHTiling) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -2161,8 +2079,8 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisOverlappedModeHTi
     const auto dimsOrder = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(&ctx));
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
     const auto kernel = getIntArrayAttr(&ctx, SmallVector<int64_t>({3, 3}));
-    const auto pads = VPU::PaddingAttr::get(getIntAttr(&ctx, 1), getIntAttr(&ctx, 1), getIntAttr(&ctx, 1),
-                                            getIntAttr(&ctx, 1), &ctx);
+    const auto pads = VPU::PaddingAttr::get(&ctx, getIntAttr(&ctx, 1), getIntAttr(&ctx, 1), getIntAttr(&ctx, 1),
+                                            getIntAttr(&ctx, 1));
     const auto strides = getIntArrayAttr(&ctx, SmallVector<int64_t>({2, 2}));
     const auto shape = SmallVector<int64_t>({1, 60, 13, 15});
     const auto elemStrides = SmallVector<int64_t>({60 * 15 * 13, 1, 60 * 15, 60});
@@ -2172,9 +2090,9 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisOverlappedModeHTi
     const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::OVERLAPPED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
     const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 16, 1, 1}));
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads, strides, numClustersAttr,
-                                            alignment, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, kernel, pads,
+                                                                 strides, numClustersAttr, alignment, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr);
     const auto distributedType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -2206,7 +2124,7 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisOverlappedModeHTi
 
     const auto largestComputeShape = distributedType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 64, 5, 15}));
-    const auto numClusters = distributedType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedType.getCompactShape(clusterIdx));
     }
@@ -2220,9 +2138,6 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferSingleAxisOverlappedModeHTi
 
 // Single axis W alignment, OVERLAPPED mode, H tiling
 TEST_F(MLIR_ClusterShapeUtils, DISABLED_WidthAlignedBufferSingleAxisOverlappedModeHTiling) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -2232,8 +2147,8 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_WidthAlignedBufferSingleAxisOverlappedMo
     const auto dimsOrder = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(&ctx));
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
     const auto kernel = getIntArrayAttr(&ctx, SmallVector<int64_t>({3, 3}));
-    const auto pads = VPU::PaddingAttr::get(getIntAttr(&ctx, 1), getIntAttr(&ctx, 1), getIntAttr(&ctx, 1),
-                                            getIntAttr(&ctx, 1), &ctx);
+    const auto pads = VPU::PaddingAttr::get(&ctx, getIntAttr(&ctx, 1), getIntAttr(&ctx, 1), getIntAttr(&ctx, 1),
+                                            getIntAttr(&ctx, 1));
     const auto strides = getIntArrayAttr(&ctx, SmallVector<int64_t>({2, 2}));
     const auto shape = SmallVector<int64_t>({1, 60, 13, 15});
     const auto elemStrides = SmallVector<int64_t>({60 * 15 * 13, 1, 60 * 15, 60});
@@ -2243,9 +2158,9 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_WidthAlignedBufferSingleAxisOverlappedMo
     const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::OVERLAPPED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
     const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 1, 16}));
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads, strides, numClustersAttr,
-                                            alignment, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, kernel, pads,
+                                                                 strides, numClustersAttr, alignment, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr);
     const auto distributedType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -2277,7 +2192,7 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_WidthAlignedBufferSingleAxisOverlappedMo
 
     const auto largestComputeShape = distributedType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 60, 5, 16}));
-    const auto numClusters = distributedType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedType.getCompactShape(clusterIdx));
     }
@@ -2291,9 +2206,6 @@ TEST_F(MLIR_ClusterShapeUtils, DISABLED_WidthAlignedBufferSingleAxisOverlappedMo
 
 TEST_F(MLIR_ClusterShapeUtilsDeathTest, AlignedBufferDistribution) {
     testing::GTEST_FLAG(death_test_style) = "threadsafe";
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -2305,8 +2217,8 @@ TEST_F(MLIR_ClusterShapeUtilsDeathTest, AlignedBufferDistribution) {
 
     // Single axis H alignment, OVERLAPPED mode, H tiling, invalid alignment axis same as tiling axis
     const auto kernel = getIntArrayAttr(&ctx, SmallVector<int64_t>({3, 3}));
-    const auto pads = VPU::PaddingAttr::get(getIntAttr(&ctx, 1), getIntAttr(&ctx, 1), getIntAttr(&ctx, 1),
-                                            getIntAttr(&ctx, 1), &ctx);
+    const auto pads = VPU::PaddingAttr::get(&ctx, getIntAttr(&ctx, 1), getIntAttr(&ctx, 1), getIntAttr(&ctx, 1),
+                                            getIntAttr(&ctx, 1));
     const auto strides = getIntArrayAttr(&ctx, SmallVector<int64_t>({2, 2}));
     const auto shape = SmallVector<int64_t>({1, 60, 59, 15});
     const auto elemStrides = SmallVector<int64_t>({60 * 15 * 59, 1, 60 * 15, 60});
@@ -2316,9 +2228,9 @@ TEST_F(MLIR_ClusterShapeUtilsDeathTest, AlignedBufferDistribution) {
     const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::OVERLAPPED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
     const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 9, 1}));
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads, strides, numClustersAttr,
-                                            alignment, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, kernel, pads,
+                                                                 strides, numClustersAttr, alignment, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr);
 
 #if !defined(NDEBUG)
     EXPECT_DEATH(VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr),
@@ -2334,9 +2246,6 @@ TEST_F(MLIR_ClusterShapeUtilsDeathTest, AlignedBufferDistribution) {
 
 // SOH, K striding
 TEST_F(MLIR_ClusterShapeUtils, StridedBufferSegmentedDistributionKStride) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -2355,9 +2264,9 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferSegmentedDistributionKStride) {
 
     const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                            numClustersAttr, nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, nullptr,
+                                                                 nullptr, nullptr, numClustersAttr, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr, nullptr);
     const auto distributedBufferType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -2387,7 +2296,7 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferSegmentedDistributionKStride) {
 
     const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 64, 4, 16}));
-    const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedBufferType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
     }
@@ -2418,9 +2327,6 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferSegmentedDistributionKStride) {
 
 // Overlapped, K striding
 TEST_F(MLIR_ClusterShapeUtils, StridedBufferOverlappedDistributionKStride) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -2433,8 +2339,8 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferOverlappedDistributionKStride) {
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 
     const auto kernel = getIntArrayAttr(&ctx, SmallVector<int64_t>({3, 3}));
-    const auto pads = VPU::PaddingAttr::get(getIntAttr(&ctx, 1), getIntAttr(&ctx, 1), getIntAttr(&ctx, 1),
-                                            getIntAttr(&ctx, 1), &ctx);
+    const auto pads = VPU::PaddingAttr::get(&ctx, getIntAttr(&ctx, 1), getIntAttr(&ctx, 1), getIntAttr(&ctx, 1),
+                                            getIntAttr(&ctx, 1));
     const auto strides = getIntArrayAttr(&ctx, SmallVector<int64_t>({2, 2}));
 
     const auto elemStrides = SmallVector<int64_t>({64 * 2 * 16 * 13, 1, 64 * 2 * 16, 64 * 2});
@@ -2444,9 +2350,9 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferOverlappedDistributionKStride) {
 
     const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::OVERLAPPED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads, strides, numClustersAttr,
-                                            nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, kernel, pads,
+                                                                 strides, numClustersAttr, nullptr, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr);
     const auto distributedBufferType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -2479,7 +2385,7 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferOverlappedDistributionKStride) {
     const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 64, 4, 16}));
 
-    const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedBufferType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
     }
@@ -2510,9 +2416,6 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferOverlappedDistributionKStride) {
 
 // SOK, H striding
 TEST_F(MLIR_ClusterShapeUtils, StridedBufferKSegmentedDuplicatedDistributionHStride) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -2532,9 +2435,9 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferKSegmentedDuplicatedDistributionHStr
     const auto distributionModeAttr =
             VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::DUPLICATED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 4, 1, 1}));
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                            numClustersAttr, nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, nullptr,
+                                                                 nullptr, nullptr, numClustersAttr, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr, nullptr);
     const auto distributedBufferType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -2564,7 +2467,7 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferKSegmentedDuplicatedDistributionHStr
 
     const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 16, 13, 16}));
-    const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedBufferType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
     }
@@ -2595,9 +2498,6 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferKSegmentedDuplicatedDistributionHStr
 
 // SOK, no duplication, H striding
 TEST_F(MLIR_ClusterShapeUtils, StridedBufferKSegmentedDistributionHStride) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -2616,9 +2516,9 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferKSegmentedDistributionHStride) {
 
     const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 4, 1, 1}));
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                            numClustersAttr, nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, nullptr,
+                                                                 nullptr, nullptr, numClustersAttr, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr, nullptr);
     const auto distributedBufferType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -2648,7 +2548,7 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferKSegmentedDistributionHStride) {
 
     const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 16, 13, 16}));
-    const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedBufferType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
     }
@@ -2679,9 +2579,6 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferKSegmentedDistributionHStride) {
 
 // SOK, weights set (IC*Kw*Kh) striding
 TEST_F(MLIR_ClusterShapeUtils, StridedBufferKSegmentedDistributionWeightSetStride) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -2701,9 +2598,9 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferKSegmentedDistributionWeightSetStrid
 
     const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({4, 1, 1, 1}));
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                            numClustersAttr, nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, nullptr,
+                                                                 nullptr, nullptr, numClustersAttr, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr, nullptr);
     const auto distributedBufferType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -2733,7 +2630,7 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferKSegmentedDistributionWeightSetStrid
 
     const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({16, 1, 1, 27}));
-    const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedBufferType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
     }
@@ -2764,9 +2661,6 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferKSegmentedDistributionWeightSetStrid
 
 // SOK, K striding
 TEST_F(MLIR_ClusterShapeUtils, StridedBufferKSegmentedDuplicatedDistributionKStride) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -2786,9 +2680,9 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferKSegmentedDuplicatedDistributionKStr
     const auto distributionModeAttr =
             VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::DUPLICATED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 4, 1, 1}));
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                            numClustersAttr, nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, nullptr,
+                                                                 nullptr, nullptr, numClustersAttr, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr, nullptr);
     const auto distributedBufferType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -2818,7 +2712,7 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferKSegmentedDuplicatedDistributionKStr
 
     const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 16, 13, 16}));
-    const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedBufferType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
     }
@@ -2849,9 +2743,6 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferKSegmentedDuplicatedDistributionKStr
 
 // SOK, H + K striding
 TEST_F(MLIR_ClusterShapeUtils, StridedBufferKSegmentedDuplicatedDistributionHAndKStride) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -2871,9 +2762,9 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferKSegmentedDuplicatedDistributionHAnd
     const auto distributionModeAttr =
             VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::DUPLICATED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 4, 1, 1}));
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                            numClustersAttr, nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, nullptr,
+                                                                 nullptr, nullptr, numClustersAttr, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr, nullptr);
     const auto distributedBufferType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -2903,7 +2794,7 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferKSegmentedDuplicatedDistributionHAnd
 
     const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 16, 13, 16}));
-    const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedBufferType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
     }
@@ -2934,9 +2825,6 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferKSegmentedDuplicatedDistributionHAnd
 
 // SOH, W + K striding
 TEST_F(MLIR_ClusterShapeUtils, StridedBufferHSegmentedDistributionWAndKStride) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -2955,9 +2843,9 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferHSegmentedDistributionWAndKStride) {
 
     const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                            numClustersAttr, nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, nullptr,
+                                                                 nullptr, nullptr, numClustersAttr, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr, nullptr);
     const auto distributedBufferType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -2987,7 +2875,7 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferHSegmentedDistributionWAndKStride) {
 
     const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 64, 4, 16}));
-    const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedBufferType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
     }
@@ -3018,9 +2906,6 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferHSegmentedDistributionWAndKStride) {
 
 // SOH, H striding - unsupported
 TEST_F(MLIR_ClusterShapeUtils, StridedBufferHSegmentedDistributionHStrideUnsupported) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -3039,9 +2924,9 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferHSegmentedDistributionHStrideUnsuppo
 
     const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                            numClustersAttr, nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, nullptr,
+                                                                 nullptr, nullptr, numClustersAttr, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr, nullptr);
     const auto distributedBufferType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -3071,7 +2956,7 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferHSegmentedDistributionHStrideUnsuppo
 
     const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 64, 4, 16}));
-    const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedBufferType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
     }
@@ -3088,9 +2973,6 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferHSegmentedDistributionHStrideUnsuppo
 
 // SOK, no duplication, K striding - unsupported
 TEST_F(MLIR_ClusterShapeUtils, StridedBufferKSegmentedDistributionKStrideUnsupported) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
@@ -3109,9 +2991,9 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferKSegmentedDistributionKStrideUnsuppo
 
     const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 4, 1, 1}));
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
-                                            numClustersAttr, nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(&ctx, distributionModeAttr, numTilesAttr, nullptr,
+                                                                 nullptr, nullptr, numClustersAttr, nullptr, nullptr,
+                                                                 nullptr, nullptr, nullptr, nullptr, nullptr);
     const auto distributedBufferType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -3141,7 +3023,7 @@ TEST_F(MLIR_ClusterShapeUtils, StridedBufferKSegmentedDistributionKStrideUnsuppo
 
     const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 16, 13, 16}));
-    const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedBufferType.getDistribution().getNumClusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedComputeShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
     }

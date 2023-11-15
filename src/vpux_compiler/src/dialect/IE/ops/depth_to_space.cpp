@@ -5,6 +5,7 @@
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/propagate_quantize_dequantize_utils.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -66,9 +67,9 @@ mlir::LogicalResult vpux::IE::DepthToSpaceOp::inferReturnTypeComponents(
     int64_t paddedOC = 0;
 
     auto blockSizeSquare = block_size * block_size;
-    if (paddedChannels.hasValue()) {
-        paddedIC = paddedChannels.getValue().input() ? paddedChannels.getValue().input().getInt() : 0;
-        paddedOC = paddedChannels.getValue().output() ? paddedChannels.getValue().output().getInt() : 0;
+    if (paddedChannels.has_value()) {
+        paddedIC = paddedChannels.value().getInput() ? paddedChannels.value().getInput().getInt() : 0;
+        paddedOC = paddedChannels.value().getOutput() ? paddedChannels.value().getOutput().getInt() : 0;
 
         auto unpaddedChannels = inShape[Dims4D::Act::C] - paddedIC;
         if (unpaddedChannels % blockSizeSquare != 0) {
@@ -91,52 +92,37 @@ mlir::LogicalResult vpux::IE::DepthToSpaceOp::inferReturnTypeComponents(
                                   checked_cast<int64_t>(H_out), checked_cast<int64_t>(W_out)};
 
     const auto inputType = depthToSpace.input().getType().cast<vpux::NDTypeInterface>();
-    const auto outDesc = IE::getTensorAttr(ctx, inputType.getDimsOrder(), inputType.getMemSpace());
+    const auto outDesc = vpux::getTensorAttr(ctx, inputType.getDimsOrder(), inputType.getMemSpace());
     inferredReturnShapes.emplace_back(outShape, inType, outDesc);
     return mlir::success();
 }
 
 //
-// inferLayoutInfo
+// inferElemTypeInfo
 //
 
-// After support layout with NCHW convert to DMA, can remove this function
-// This is ticket E#41656 to support NCHW layout
-void vpux::IE::DepthToSpaceOp::inferLayoutInfo(vpux::IE::LayerLayoutInfo& info) {
-    info.setInput(0, DimsOrder::NHWC);
-    info.setOutput(0, DimsOrder::NHWC);
-}
+void vpux::IE::DepthToSpaceOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
+    auto arch = VPU::getArch(*this);
 
-namespace {
-class ConvertInputToFP16 final : public mlir::OpRewritePattern<IE::DepthToSpaceOp> {
-public:
-    using mlir::OpRewritePattern<IE::DepthToSpaceOp>::OpRewritePattern;
-
-public:
-    mlir::LogicalResult matchAndRewrite(IE::DepthToSpaceOp Op, mlir::PatternRewriter& rewriter) const final;
-};
-
-mlir::LogicalResult ConvertInputToFP16::matchAndRewrite(IE::DepthToSpaceOp op, mlir::PatternRewriter& rewriter) const {
-    const auto module = op->getParentOfType<mlir::ModuleOp>();
-    const auto arch = VPU::getArch(module);
-    const auto inputType = op.input().getType().cast<mlir::ShapedType>().getElementType();
-    if (arch != VPU::ArchKind::VPUX37XX && inputType.isUnsignedInteger(8)) {
-        auto convertOpBefore =
-                rewriter.create<IE::ConvertOp>(op.getLoc(), op.input(), mlir::Float16Type::get(getContext()));
-        auto depthtospaceOp =
-                rewriter.create<IE::DepthToSpaceOp>(op.getLoc(), convertOpBefore.output(), op.block_size(), op.mode());
-
-        rewriter.replaceOpWithNewOp<IE::ConvertOp>(op, depthtospaceOp.output(), inputType);
-        return mlir::success();
+    if (arch == VPU::ArchKind::VPUX30XX) {
+        // Workaround : Do not propagate for VPU30XX.
+        return;
     }
-    return mlir::failure();
+
+    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
+    propagateElementTypeDown(info);
 }
 
-}  // namespace
+void vpux::IE::DepthToSpaceOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
+    auto arch = VPU::getArch(*this);
 
-void vpux::IE::DepthToSpaceOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns,
-                                                           mlir::MLIRContext* context) {
-    patterns.add<ConvertInputToFP16>(context);
+    if (arch == VPU::ArchKind::VPUX30XX) {
+        // Workaround : Do not propagate for VPU30XX.
+        return;
+    }
+
+    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
+    propagateElementTypeUp(info);
 }
 
 mlir::OpFoldResult vpux::IE::DepthToSpaceOp::fold(ArrayRef<mlir::Attribute> operands) {

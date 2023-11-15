@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include <cpp/ie_cnn_network.h>
@@ -44,4 +42,4 @@ inline InferenceEngine::CNNNetwork LoadModel(const std::string& modelName) {
     return ie.ReadNetwork(modelFilePath, weightsFilePath);
 }
 
-}
+}  // namespace ModelLoader_Helper

@@ -7,20 +7,22 @@
 
 #include "vpux/compiler/dialect/ELF/ops.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/VPU37XX/api/vpu_nnrt_api.h"
 #include "vpux/compiler/dialect/VPUMI37XX/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/utils/core/logger.hpp"
-#include "vpux/utils/core/preprocessing.hpp"
-#include "vpux_compiler.hpp"
+
+#include <vpu_nnrt_api_37xx.h>
 
 #include <flatbuffers/flatbuffers.h>
 
 #include <vpux_elf/reader.hpp>
 #include <vpux_elf/types/section_header.hpp>
 
-#include <vpux_loader/vpux_loader.hpp>
+#include <vpux_elf/types/vpu_extensions.hpp>
+#include <vpux_headers/array_ref.hpp>
+#include <vpux_headers/buffer_specs.hpp>
+#include <vpux_headers/device_buffer.hpp>
 
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Support/Timing.h>
@@ -95,7 +97,6 @@ private:
                                                 const uint64_t& offset, const uint32_t bufferSize,
                                                 const elf::Elf_Xword& flag, const mlir::BlockArgument& funcArg);
 
-    elf::BufferManager* _importerBufMgr = nullptr;
     elf::AccessManager* _accessor = nullptr;
     elf::Reader<elf::ELF_Bitness::Elf64> _elfReader;
     mlir::MLIRContext* _ctx;

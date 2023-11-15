@@ -1,5 +1,6 @@
-// Copyright (C) Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #pragma once
@@ -120,7 +121,7 @@ private:
 };
 
 TEST_P(FailGracefullyTest, OnUnsupprotedOperator) {
-    auto compilerType = configuration["VPUX_COMPILER_TYPE"].as<std::string>();
+    auto compilerType = configuration["NPU_COMPILER_TYPE"].as<std::string>();
     try {
         core->compile_model(function, target_device, configuration);
     } catch (std::exception& ex) {

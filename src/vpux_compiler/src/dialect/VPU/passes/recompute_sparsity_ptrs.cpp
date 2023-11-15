@@ -59,7 +59,7 @@ void RecomputeSparsityPtrsPass::safeRunOnFunc() {
 
         _log.trace("Recomputing sparsity pointers for '{0}' at '{1}'", nceOp->getName(), nceOp->getLoc());
 
-        const auto weightsTableContent = weightsTableConstOp.content();
+        const auto weightsTableContent = weightsTableConstOp.getContent();
         const auto weightsTableContentRange = weightsTableContent.getValues<int32_t>();
         std::vector<int32_t> weightsTableValues(weightsTableContentRange.begin(), weightsTableContentRange.end());
 

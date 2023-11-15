@@ -39,8 +39,8 @@ module @DMANetworkOutputAsInput {
   }
 
   func.func @main(%arg0: memref<1x2x3x4xf16, @DDR>, %arg1: memref<1x2x3x4xf16, @DDR>) -> memref<1x2x3x4xf16, @DDR> {
-    %input = VPURT.DeclareBuffer "NetworkOutput" [0] <0> -> memref<1x2x3x4xf16, @DDR>
-    // CHECK:       %[[INPUT:.*]] = VPURT.DeclareBuffer "NetworkOutput" [0] <0> -> memref<1x2x3x4xf16, @DDR>
+    %input = VPURT.DeclareBuffer <NetworkOutput> [0] <0> -> memref<1x2x3x4xf16, @DDR>
+    // CHECK:       %[[INPUT:.*]] = VPURT.DeclareBuffer <NetworkOutput> [0] <0> -> memref<1x2x3x4xf16, @DDR>
     VPURT.Task attributes {isTrailingSWLayer = false} {
       %0 = VPUIP.NNDMA {port = 0 : i64} inputs(%input : memref<1x2x3x4xf16, @DDR>) outputs(%arg1 : memref<1x2x3x4xf16, @DDR>) -> memref<1x2x3x4xf16, @DDR>
     }

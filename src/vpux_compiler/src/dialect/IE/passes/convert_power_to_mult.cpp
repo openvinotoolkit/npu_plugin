@@ -42,7 +42,7 @@ mlir::LogicalResult PowerToMultRewriter::matchAndRewrite(IE::PowerOp powerOp, ml
     auto cstOp = powerOp.input2().getDefiningOp<Const::DeclareOp>();
     VPUX_THROW_WHEN(cstOp == nullptr, "PowerOp exponent input is not a constant");
 
-    auto constAttr = cstOp.contentAttr().fold();
+    auto constAttr = cstOp.getContentAttr().fold();
 
     auto exponent = constAttr.getSplatValue<double>();
     VPUX_THROW_UNLESS(exponent == 2, "For now only exponent equal to 2 is supported for conversion to multiplication");
@@ -84,7 +84,7 @@ void ConvertPowerToMultPass::safeRunOnFunc() {
         if (auto cstOp = powerOp.input2().getDefiningOp<Const::DeclareOp>()) {
             // Exponent constant must be a scalar or tensor with
             // all elements equal
-            auto constAttr = cstOp.contentAttr().fold();
+            auto constAttr = cstOp.getContentAttr().fold();
             if (!constAttr.isSplat()) {
                 return true;
             }

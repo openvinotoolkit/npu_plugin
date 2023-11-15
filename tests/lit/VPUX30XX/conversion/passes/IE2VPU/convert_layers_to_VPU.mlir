@@ -5,6 +5,35 @@
 
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX30XX compilation-mode=DefaultHW" --convert-layers-to-VPU %s | FileCheck %s
 
+// CHECK-LABEL: @EmbeddingBagOffsetsSumWithWeights
+func.func @EmbeddingBagOffsetsSumWithWeights(%arg0: tensor<5x6xui8>) -> tensor<2x6xui8> {
+    %cst = const.Declare tensor<5xsi32> = dense<[0, 1, 2, 2, 3]> : tensor<5xsi32>
+    %cst_0 = const.Declare tensor<2xsi32> = dense<[0, 2]> : tensor<2xsi32>
+    %cst_1 = const.Declare tensor<si32> = dense<0> : tensor<si32>
+    %cst_2 = const.Declare tensor<5xui8> = dense<[1, 5, 10, 8, 10]> : tensor<5xui8>
+    %0 = IE.EmbeddingBagOffsetsSum(%arg0, %cst, %cst_0, %cst_1, %cst_2) {default_index_value = 0 : i32, indices_value = [0, 1, 2, 2, 3], offsets_value = [0, 2], operand_segment_sizes = dense<1> : vector<5xi32>, per_sample_weights_value = [1.000000e+00, 5.000000e+00, 1.000000e+01, 8.000000e+00, 1.000000e+01]} : tensor<5x6xui8>, tensor<5xsi32>, tensor<2xsi32>, tensor<si32>, tensor<5xui8> -> tensor<2x6xui8>
+    return %0 : tensor<2x6xui8>
+
+    // CHECK: [[VAR0:%.+]] = VPU.EmbeddingBagOffsetsSum(%arg0) {default_index_value = 0 : i32, indices_value = [0, 1, 2, 2, 3], offsets_value = [0, 2], operand_segment_sizes = dense<[1, 0, 0, 0]> : vector<4xi32>, per_sample_weights_value = [1.000000e+00, 5.000000e+00, 1.000000e+01, 8.000000e+00, 1.000000e+01]} : tensor<5x6xui8> -> tensor<2x6xui8>
+    // CHECK: return [[VAR0]] : tensor<2x6xui8>
+}
+
+// -----
+
+// CHECK-LABEL: @EmbeddingBagOffsetsSumNoWeights
+func.func @EmbeddingBagOffsetsSumNoWeights(%arg0: tensor<5x6xui8>) -> tensor<2x6xui8> {
+    %cst = const.Declare tensor<5xsi32> = dense<[0, 1, 2, 2, 3]> : tensor<5xsi32>
+    %cst_0 = const.Declare tensor<2xsi32> = dense<[0, 2]> : tensor<2xsi32>
+    %cst_1 = const.Declare tensor<si32> = dense<0> : tensor<si32>
+    %0 = IE.EmbeddingBagOffsetsSum(%arg0, %cst, %cst_0, %cst_1) {default_index_value = 0 : i32, indices_value = [0, 1, 2, 2, 3], offsets_value = [0, 2], operand_segment_sizes = dense<[1, 1, 1, 1, 0]> : vector<5xi32>, per_sample_weights_value = [1.000000e+00, 1.000000e+00, 1.000000e+00, 1.000000e+00, 1.000000e+00]} : tensor<5x6xui8>, tensor<5xsi32>, tensor<2xsi32>, tensor<si32> -> tensor<2x6xui8>
+    return %0 : tensor<2x6xui8>
+
+    // CHECK: [[VAR0:%.+]] = VPU.EmbeddingBagOffsetsSum(%arg0) {default_index_value = 0 : i32, indices_value = [0, 1, 2, 2, 3], offsets_value = [0, 2], operand_segment_sizes = dense<[1, 0, 0, 0]> : vector<4xi32>, per_sample_weights_value = [1.000000e+00, 1.000000e+00, 1.000000e+00, 1.000000e+00, 1.000000e+00]} : tensor<5x6xui8> -> tensor<2x6xui8>
+    // CHECK: return [[VAR0]] : tensor<2x6xui8>
+}
+
+// -----
+
 // CHECK-LABEL: @EmbeddingSegmentsSumWithWeights
 func.func @EmbeddingSegmentsSumWithWeights(%arg0: tensor<5x6x4xui8>) -> tensor<7x6x4xui8> {
     %cst = const.Declare tensor<5xsi32> = dense<[0, 1, 2, 2, 3]> : tensor<5xsi32>
@@ -16,7 +45,7 @@ func.func @EmbeddingSegmentsSumWithWeights(%arg0: tensor<5x6x4xui8>) -> tensor<7
     // CHECK-DAG: [[CST:%.+]] = const.Declare tensor<5xsi32> = dense<[0, 1, 2, 2, 3]> : tensor<5xsi32>
     // CHECK-DAG: [[CST0:%.+]] = const.Declare tensor<5xsi32> = dense<[0, 1, 2, 3, 4]> : tensor<5xsi32>
     // CHECK-DAG: [[CST1:%.+]] = const.Declare tensor<5xui8> = dense<[1, 5, 10, 8, 10]> : tensor<5xui8>
-    // CHECK: [[VAR0:%.+]] = VPU.EmbeddingSegmentsSum(%arg0) {default_index_value = 0 : i32, num_segments_value = 7 : i32, operand_segment_sizes = dense<[1, 0, 0, 0]> : vector<4xi32>} : tensor<5x6x4xui8> -> tensor<7x6x4xui8>
+    // CHECK: [[VAR0:%.+]] = VPU.EmbeddingSegmentsSum(%arg0) {default_index_value = 0 : i32, num_segments_value = 7 : i32, operand_segment_sizes = dense<[1, 0, 0, 0]> : vector<4xi32>} : tensor<5x6x4xui8> -> tensor<7x6x4xui8> 
     // CHECK: return [[VAR0]] : tensor<7x6x4xui8>
 }
 
@@ -31,6 +60,6 @@ func.func @EmbeddingSegmentsSumNoWeights(%arg0: tensor<5x6x4xui8>) -> tensor<7x6
 
     // CHECK-DAG: [[CST:%.+]] = const.Declare tensor<5xsi32> = dense<[0, 1, 2, 2, 3]> : tensor<5xsi32>
     // CHECK-DAG: [[CST0:%.+]] = const.Declare tensor<5xsi32> = dense<[0, 1, 2, 3, 4]> : tensor<5xsi32>
-    // CHECK: [[VAR0:%.+]] = VPU.EmbeddingSegmentsSum(%arg0) {default_index_value = -1 : i32, num_segments_value = 7 : i32, operand_segment_sizes = dense<[1, 0, 0, 0]> : vector<4xi32>} : tensor<5x6x4xui8> -> tensor<7x6x4xui8>
+    // CHECK: [[VAR0:%.+]] = VPU.EmbeddingSegmentsSum(%arg0) {default_index_value = -1 : i32, num_segments_value = 7 : i32, operand_segment_sizes = dense<[1, 0, 0, 0]> : vector<4xi32>} : tensor<5x6x4xui8> -> tensor<7x6x4xui8> 
     // CHECK: return [[VAR0]] : tensor<7x6x4xui8>
 }

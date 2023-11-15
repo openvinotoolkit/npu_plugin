@@ -15,7 +15,7 @@ class ZeroStructsInitializer;
 
 class ZeroEngineBackend final : public vpux::IEngineBackend {
 public:
-    ZeroEngineBackend();
+    ZeroEngineBackend(const Config& config);
     virtual ~ZeroEngineBackend();
     virtual const std::shared_ptr<IDevice> getDevice() const override;
     virtual const std::shared_ptr<IDevice> getDevice(const std::string&) const override;

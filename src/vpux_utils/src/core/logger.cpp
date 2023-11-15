@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/utils/core/logger.hpp"
 
 #include "vpux/utils/core/optional.hpp"
@@ -95,7 +93,7 @@ Logger vpux::Logger::unnest(size_t inc) const {
 bool vpux::Logger::isActive(LogLevel msgLevel) const {
 #if defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
     static const auto logFilter = []() -> llvm::Regex {
-        if (const auto env = std::getenv("IE_VPUX_LOG_FILTER")) {
+        if (const auto env = std::getenv("IE_NPU_LOG_FILTER")) {
             const StringRef filter(env);
 
             if (!filter.empty()) {

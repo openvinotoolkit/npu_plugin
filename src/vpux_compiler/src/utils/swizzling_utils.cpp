@@ -2,6 +2,7 @@
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 #include "vpux/compiler/utils/swizzling_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/types.hpp"
@@ -34,7 +35,7 @@ VPUIP::SwizzlingSchemeAttr vpux::createSwizzlingSchemeAttr(mlir::MLIRContext* ct
     return swizzlingSchemeAttr;
 }
 
-int64_t vpux::getAddressAlignmentForSwizzling(int64_t swizzlingKey, VPU::ArchKind /*archKind*/) {
+int64_t vpux::getAddressAlignmentForSwizzling(int64_t swizzlingKey, VPU::ArchKind /* archKind */) {
     if (swizzlingKey < 1 || swizzlingKey > 5) {
         return 0;
     }

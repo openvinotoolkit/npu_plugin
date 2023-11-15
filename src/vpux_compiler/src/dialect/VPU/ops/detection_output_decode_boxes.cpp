@@ -4,8 +4,6 @@
 //
 
 #include "vpux/compiler/dialect/VPU/ops.hpp"
-#include "vpux/compiler/utils/error.hpp"
-#include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
 
@@ -36,4 +34,29 @@ mlir::LogicalResult VPU::DetectionOutputDecodeBoxesOp::inferReturnTypes(
 
 EMU::BlobWriter::SpecificTask VPU::DetectionOutputDecodeBoxesOp::serialize(EMU::BlobWriter&) {
     VPUX_THROW("VPU::DetectionOutputDecodeBoxesOp is not supported by EMU");
+}
+
+//
+// TilingBuilderOpInterface
+//
+
+InputTiling vpux::VPU::DetectionOutputDecodeBoxesOp::backInferTileInfo(const vpux::TileInfo& outputTile,
+                                                                       vpux::Logger /*log*/) {
+    // The batch dimension of 2nd input might be equal to 1, or to N
+    const auto priorBoxShape = getShape(prior_boxes());
+    auto priorBoxesTile = TileInfo(priorBoxShape);
+
+    // Use a whole priorBoxes tensor, except when we are tiling on H dimension
+    priorBoxesTile.shape[Dims4D::Act::H] = outputTile.shape[Dims4D::Act::H];
+    priorBoxesTile.offsets[Dims4D::Act::H] = outputTile.offsets[Dims4D::Act::H];
+
+    return InputTiling{{outputTile, std::move(priorBoxesTile)}};
+}
+
+void vpux::VPU::DetectionOutputDecodeBoxesOp::adjustAttrs(const TilingInfo&, const TileInfo&) {
+}
+
+mlir::FailureOr<OutputTiling> vpux::VPU::DetectionOutputDecodeBoxesOp::getTilingStrategy(TilingMode tilingMode,
+                                                                                         Logger log) {
+    return vpux::getSWLayerTilingStrategy(this->getOperation(), tilingMode, log);
 }

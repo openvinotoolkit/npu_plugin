@@ -45,7 +45,13 @@ public:
 
     // Add needed for profiling buffers/views/copies
     void addProfilingOps(unsigned& currentDDROffset, SmallVector<mlir::Value>& clusterResults,
-                         mlir::BlockArgument& profilingResult, int& nceId);
+                         mlir::BlockArgument& profilingResult);
+
+    static unsigned getNextBufferId();
+
+    // In case of tests same class may be called several times, so counter will be reused. Not a problem for parser, but
+    // for clarity better to reset
+    static void resetBufferIdCounter();
 
 protected:
     // Region of logic, which depends on amount of clusters. By default operates on distributed types
@@ -65,12 +71,15 @@ protected:
     unsigned _profilingWorkloadSize;
     unsigned _profilingElementSize;
     std::deque<unsigned> _profilingBufferSizes;
-    SmallVector<NCETaskSignature> _nceTaskSignatures{};
+    SmallVector<NCETaskSignature> _nceTaskSignatures;
     mlir::OpBuilder& _builder;
     mlir::MLIRContext* _ctx;
     mlir::func::FuncOp _netFunc;
     vpux::IndexedSymbolAttr _memKindAttr;
     std::shared_ptr<NameUniqifier> _uniqifier;
+
+private:
+    static inline unsigned uniqBufferId = 0;
 };
 
 class SingleClusterScheduler : public BaseClusterBufferScheduler {

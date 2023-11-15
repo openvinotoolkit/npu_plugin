@@ -52,7 +52,7 @@ mlir::LogicalResult vpux::VPU::GroupConvolutionOp::inferReturnTypes(
                            filterShape.size());
         }
 
-        groups = conv.groups().getValue();
+        groups = conv.groups().value();
     } else {
         if (filterShape.size() != inShape.size() + 1) {
             return errorAt(loc, "Input size '{0}' does not match filter size '{1}'. (groups == 0)", inShape.size() + 1,
@@ -92,8 +92,10 @@ InputTiling vpux::VPU::GroupConvolutionOp::backInferTileInfo(const vpux::TileInf
     const auto origFilterShape = getShape(filter());
     const auto origBiasShape = bias() != nullptr ? getShape(bias()) : ShapeRef();
     const auto origPadding = PadInfo(pads_begin(), pads_end());
+    const auto origGroups = groups().value_or(1);
 
-    return backInferGroupConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides(), origPadding);
+    return backInferGroupConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides(), origPadding,
+                                  origGroups);
 }
 
 //
@@ -132,7 +134,7 @@ void vpux::VPU::GroupConvolutionOp::adjustAttrs(const TilingInfo& inputTiling, c
     groupsAttr(groupsNewAttr);
 }
 
-OutputTiling vpux::VPU::GroupConvolutionOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
+mlir::FailureOr<OutputTiling> vpux::VPU::GroupConvolutionOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
     return vpux::getSWLayerTilingStrategy(this->getOperation(), tilingMode, log);
 }
 
@@ -153,14 +155,14 @@ EMU::BlobWriter::SpecificTask vpux::VPU::GroupConvolutionOp::serialize(EMU::Blob
     const auto kernel =
             MVCNN::order3(checked_cast<uint8_t>(filterShape[dX]), checked_cast<uint8_t>(filterShape[dY]), 0);
 
-    if (groups().getValue() > 1) {
+    if (groups().value() > 1) {
         MVCNN::ConvolutionParamsBuilder builder(writer);
         builder.add_kernel(&kernel);
         builder.add_strides(&strides);
         builder.add_dilations(&dilations);
         builder.add_pads_begin(&padsBegin);
         builder.add_pads_end(&padsEnd);
-        builder.add_group(checked_cast<int32_t>(groups().getValue()));
+        builder.add_group(checked_cast<int32_t>(groups().value()));
         const auto paramsOff = builder.Finish();
         return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ConvolutionParams});
     } else {
@@ -170,7 +172,7 @@ EMU::BlobWriter::SpecificTask vpux::VPU::GroupConvolutionOp::serialize(EMU::Blob
         builder.add_dilations(&dilations);
         builder.add_pads_begin(&padsBegin);
         builder.add_pads_end(&padsEnd);
-        builder.add_group(checked_cast<int32_t>(groups().getValue()));
+        builder.add_group(checked_cast<int32_t>(groups().value()));
         const auto paramsOff = builder.Finish();
         return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_SWConvolutionParams});
     }

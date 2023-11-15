@@ -11,26 +11,26 @@
 // CHECK-LABEL: @AddWeightsTableToEltwiseOps
 func.func @AddWeightsTableToEltwiseOps(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>, %arg1: tensor<1x16x16x16xf16, {order = #NHWC}>) -> tensor<1x16x16x16xf16, {order = #NHWC}> {
     %0 = EMU.NCEClusterTask {
-            task_type = "ELTWISE"
+            task_type = #VPUIP.nce_task_type<ELTWISE>
         }
         input(%arg0 : tensor<1x16x16x16xf16, {order = #NHWC}>)
         weights(%arg1 : tensor<1x16x16x16xf16, {order = #NHWC}>)
         -> tensor<1x16x16x16xf16, {order = #NHWC}>
         PPE : {
-            PPETask "ADD" {clamp_high = 2147483647, clamp_low = 0, lrelu_mult = 1, lrelu_shift = 0}
+            PPETask <ADD> {clamp_high = 2147483647, clamp_low = 0, lrelu_mult = 1, lrelu_shift = 0}
         }
 
     return %0 : tensor<1x16x16x16xf16, {order = #NHWC}>
 
     // CHECK-DAG:       [[CST0:%.+]] = const.Declare tensor<16x1x1x4xsi32> = dense<{{.*}}> : tensor<16x1x1x4xsi32>
-
+    
     // CHECK:       [[VAL0:%.+]] = EMU.NCEClusterTask
-    // CHECK-SAME:      task_type = "ELTWISE"
+    // CHECK-SAME:      task_type = #VPUIP.nce_task_type<ELTWISE>
     // CHECK-SAME:      input(%arg0 : tensor<1x16x16x16xf16, {order = #NHWC}>)
     // CHECK-SAME:      weights(%arg1 : tensor<1x16x16x16xf16, {order = #NHWC}>)
     // CHECK-SAME:      weight_table([[CST0]] : tensor<16x1x1x4xsi32>)
     // CHECK-SAME:      -> tensor<1x16x16x16xf16, {order = #NHWC}>
-    // CHECK:       PPETask "ADD" {clamp_high = 2147483647 : i64, clamp_low = 0 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64}
+    // CHECK:       PPETask <ADD> {clamp_high = 2147483647 : i64, clamp_low = 0 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64}
 
     // CHECK:       return [[VAL0]] : tensor<1x16x16x16xf16, {order = #NHWC}>
 }
@@ -42,7 +42,7 @@ func.func @AddWeightsTableToEltwiseOps(%arg0: tensor<1x16x16x16xf16, {order = #N
 // CHECK-LABEL: @AddWeightsTableToAvgPoolOps
 func.func @AddWeightsTableToAvgPoolOps(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>, %arg1: tensor<1x16x16x16xf16, {order = #NHWC}>) -> tensor<1x16x16x16xf16, {order = #NHWC}> {
     %0 = EMU.NCEClusterTask {
-            task_type = "AVEPOOL",
+            task_type = #VPUIP.nce_task_type<AVEPOOL>,
             kernel_padding = [1, 1, 1, 1],
             kernel_size = [3, 3],
             kernel_strides = [1, 1]
@@ -50,22 +50,22 @@ func.func @AddWeightsTableToAvgPoolOps(%arg0: tensor<1x16x16x16xf16, {order = #N
         input(%arg0 : tensor<1x16x16x16xf16, {order = #NHWC}>)
         -> tensor<1x16x16x16xf16, {order = #NHWC}>
         PPE : {
-            PPETask "NOOP" {clamp_high = 2147483647, clamp_low = -2147483648, lrelu_mult = 1, lrelu_shift = 0, quant_mult = [28835], quant_shift = [18]}
+            PPETask <NOOP> {clamp_high = 2147483647, clamp_low = -2147483648, lrelu_mult = 1, lrelu_shift = 0, quant_mult = [28835], quant_shift = [18]}
         }
 
     return %0 : tensor<1x16x16x16xf16, {order = #NHWC}>
 
     // CHECK-DAG:       [[CST0:%.+]] = const.Declare tensor<16x1x1x4xsi32> = dense<{{.*}}> : tensor<16x1x1x4xsi32>
-
+    
     // CHECK:       [[VAL0:%.+]] = EMU.NCEClusterTask
     // CHECK-SAME:      kernel_padding = [1, 1, 1, 1],
     // CHECK-SAME:      kernel_size = [3, 3],
     // CHECK-SAME:      kernel_strides = [1, 1],
-    // CHECK-SAME:      task_type = "AVEPOOL"
+    // CHECK-SAME:      task_type = #VPUIP.nce_task_type<AVEPOOL>
     // CHECK-SAME:      input(%arg0 : tensor<1x16x16x16xf16, {order = #NHWC}>)
     // CHECK-SAME:      weight_table([[CST0]] : tensor<16x1x1x4xsi32>)
     // CHECK-SAME:      -> tensor<1x16x16x16xf16, {order = #NHWC}>
-    // CHECK:       PPETask "NOOP" {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, quant_mult = [28835], quant_shift = [18]}
+    // CHECK:       PPETask <NOOP> {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, quant_mult = [28835], quant_shift = [18]}
 
     // CHECK:       return [[VAL0]] : tensor<1x16x16x16xf16, {order = #NHWC}>
 }

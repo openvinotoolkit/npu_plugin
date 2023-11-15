@@ -17,7 +17,7 @@ func.func @SwapQuantizeCast(%arg0: tensor<1x16x8x8xf16>) -> tensor<1x16x8x8x!qEl
       %0 = IE.Add(%arg0, %arg0) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} : tensor<1x16x8x8xf16>, tensor<1x16x8x8xf16> -> tensor<1x16x8x8x!qElemType0>
       %1 = IE.QuantizeCast(%0) {dstElemType = !qElemType1} : tensor<1x16x8x8x!qElemType0> -> tensor<1x16x8x8x!qElemType1>
       %2 = IE.Clamp(%1) {max = 5.000000e+00, min = 1.000000e+00} : tensor<1x16x8x8x!qElemType1> -> tensor<1x16x8x8x!qElemType1>
-
+ 
       return %2 : tensor<1x16x8x8x!qElemType1>
 
       // CHECK: [[VAR0:%.+]] = IE.Add(%arg0, %arg0) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>}
@@ -39,13 +39,13 @@ func.func @NoSwapTwoConsumers(%arg0: tensor<1x16x8x8xf16>) -> (tensor<1x16x8x8x!
       %0 = IE.Add(%arg0, %arg0) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} : tensor<1x16x8x8xf16>, tensor<1x16x8x8xf16> -> tensor<1x16x8x8x!qElemType0>
       %1 = IE.QuantizeCast(%0) {dstElemType = !qElemType1} : tensor<1x16x8x8x!qElemType0> -> tensor<1x16x8x8x!qElemType1>
       %2 = IE.Clamp(%1) {max = 5.000000e+00, min = 1.000000e+00} : tensor<1x16x8x8x!qElemType1> -> tensor<1x16x8x8x!qElemType1>
-
+ 
       return %1, %2 : tensor<1x16x8x8x!qElemType1>, tensor<1x16x8x8x!qElemType1>
 
       // CHECK: [[VAR0:%.+]] = IE.Add(%arg0, %arg0) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>}
       // CHECK: [[VAR1:%.+]] = IE.QuantizeCast([[VAR0]]) {dstElemType = !qElemType0}
       // CHECK: [[VAR2:%.+]] = IE.Clamp([[VAR1]]) {max = 5.000000e+00 : f64, min = 1.000000e+00 : f64}
-
+ 
       // CHECK: return [[VAR1]], [[VAR2]]
 }
 
@@ -57,11 +57,11 @@ func.func @NoSwapTwoConsumers(%arg0: tensor<1x16x8x8xf16>) -> (tensor<1x16x8x8x!
 func.func @NoSwapIntInput(%arg0: tensor<1x16x8x8xui8>) -> tensor<1x16x8x8x!qElemType0> {
       %0 = IE.QuantizeCast(%arg0) {dstElemType = !qElemType0} : tensor<1x16x8x8xui8> -> tensor<1x16x8x8x!qElemType0>
       %1 = IE.Clamp(%0) {max = 5.000000e+00, min = 1.000000e+00} : tensor<1x16x8x8x!qElemType0> -> tensor<1x16x8x8x!qElemType0>
-
+ 
       return %1 : tensor<1x16x8x8x!qElemType0>
 
       // CHECK: [[VAR0:%.+]] = IE.QuantizeCast(%arg0) {dstElemType = !qElemType}
       // CHECK: [[VAR1:%.+]] = IE.Clamp([[VAR0]]) {max = 5.000000e+00 : f64, min = 1.000000e+00 : f64}
-
+ 
       // CHECK: return [[VAR1]]
 }

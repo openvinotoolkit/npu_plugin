@@ -159,7 +159,7 @@ public:
         return verifySameInOutDimsOrder(op);
     }
 
-    static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
+    static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/) {
         inferLayoutInfoSameInOutDimsOrder(info);
     }
 };
@@ -187,4 +187,4 @@ public:
 // Generated
 //
 
-#include <vpux/compiler/dialect/VPUIP/generated/ops_interfaces.hpp.inc>
+#include <vpux/compiler/dialect/VPUIP/ops_interfaces.hpp.inc>

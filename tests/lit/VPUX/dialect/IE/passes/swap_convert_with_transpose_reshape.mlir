@@ -57,7 +57,7 @@ func.func @SwapAffineReshapeWithConvert(%arg0: tensor<1x70x1x28xui8>) -> tensor<
     %1 = IE.AffineReshape(%0) {dim_mapping = [[0], [1], [2], [2], [3], [3]], shape_value = [1, 1, 28, 70]} : tensor<1x70x1x28xf16> -> tensor<1x1x28x70xf16>
     return %1 : tensor<1x1x28x70xf16>
 
-    // CHECK:   %[[AFFINERESHAPE:.*]] = IE.AffineReshape(%arg0)
+    // CHECK:   %[[AFFINERESHAPE:.*]] = IE.AffineReshape(%arg0) 
     // CHECK-SAME{LITERAL} {dim_mapping = [[0], [1], [2], [2], [3], [3]], shape_value = [1, 1, 28, 70]}
     // CHECK-SAME:  : tensor<1x70x1x28xui8> -> tensor<1x1x28x70xui8>
 
@@ -129,7 +129,7 @@ func.func @DoNotSwapTransposeWithConvert(%arg0: tensor<1x70x1x28xui8>) -> tensor
 
     // CHECK:   %[[ADD:.*]] = IE.Add(%[[VAR0]], %[[VAR0]]) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>}
     // CHECK-SAME:  : tensor<1x70x1x28x!qElemType>, tensor<1x70x1x28x!qElemType> -> tensor<1x70x1x28x!qElemType>
-
+    
     // CHECK:   %[[CONVERT:.*]] = IE.Convert(%[[ADD]]) {dstElemType = f16} : tensor<1x70x1x28x!qElemType> -> tensor<1x70x1x28xf16>
     // CHECK:   %[[TRANSPOSE:.*]] = IE.Transpose(%[[CONVERT]]) {order_value = #NHWC}
     // CHECK-SAME:  : tensor<1x70x1x28xf16> -> tensor<1x1x28x70xf16>

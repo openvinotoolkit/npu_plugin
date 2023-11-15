@@ -46,10 +46,6 @@ mlir::LogicalResult vpux::VPU::NonMaxSuppressionOp::inferReturnTypes(
     return mlir::success();
 }
 
-void vpux::VPU::NonMaxSuppressionOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
-    IE::fillDefaultLayoutInfo(info);
-}
-
 //
 // serialize
 //

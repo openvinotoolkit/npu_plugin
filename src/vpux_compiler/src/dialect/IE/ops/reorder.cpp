@@ -5,6 +5,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
+#include "vpux/compiler/dialect/IE/utils/propagate_quantize_dequantize_utils.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/permute_utils.hpp"
 
@@ -51,7 +52,7 @@ mlir::LogicalResult vpux::IE::ReorderOp::inferReturnTypeComponents(
 
     const auto inType = reorder.input().getType().cast<mlir::RankedTensorType>();
 
-    const auto outDesc = IE::getTensorAttr(reorder.dstOrder(), nullptr);
+    const auto outDesc = vpux::getTensorAttr(reorder.dstOrder(), nullptr);
 
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType(), outDesc);
 
@@ -71,16 +72,8 @@ void vpux::IE::ReorderOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>&
 }
 
 void vpux::IE::ReorderOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    const auto outputElemType = info.getOutput(0);
-
-    if (outputElemType != nullptr && outputElemType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
-        // E#31029: implement propagate type up for per channel, currently it leads to failures in later passes.
-        return;
-    }
-
-    for (size_t inputInd = 0; inputInd < info.getNumInputs(); ++inputInd) {
-        info.setInput(inputInd, outputElemType);
-    }
+    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
+    propagateElementTypeUp(info);
 }
 
 //
@@ -89,7 +82,7 @@ void vpux::IE::ReorderOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type
 
 namespace {
 
-#include <vpux/compiler/dialect/IE/rewriters/generated/reorder.hpp.inc>
+#include <vpux/compiler/dialect/IE/reorder.hpp.inc>
 
 }  // namespace
 

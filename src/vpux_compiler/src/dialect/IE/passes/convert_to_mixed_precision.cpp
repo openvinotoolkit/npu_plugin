@@ -27,7 +27,7 @@ bool hasLeakyReLUPostOp(mlir::Operation* op) {
     }
 
     const auto postOpName = layerWithPostOp.getPostOp();
-    return postOpName.hasValue() && postOpName.getValue().getStringRef() == IE::LeakyReluOp::getOperationName();
+    return postOpName.has_value() && postOpName.value().getStringRef() == IE::LeakyReluOp::getOperationName();
 }
 
 bool isMixPrecisionSupported(mlir::Operation* origOp, const VPU::ArchKind& arch, const bool isPReLUSupported,
@@ -36,8 +36,9 @@ bool isMixPrecisionSupported(mlir::Operation* origOp, const VPU::ArchKind& arch,
         return false;
     }
 
-    const std::set<VPU::ArchKind> compatibleTargets = {
-            VPU::ArchKind::VPUX37XX,
+    // The old arch VPUX30XX is not supported.
+    const std::set<VPU::ArchKind> incompatibleTargets = {
+            VPU::ArchKind::VPUX30XX,
     };
 
     // Check that the kernel size are not exceding the NCE HW limits
@@ -55,12 +56,12 @@ bool isMixPrecisionSupported(mlir::Operation* origOp, const VPU::ArchKind& arch,
             return false;
     }
 
-    // Mixed precision for average pooling is supported only for VPUX37XX targets
-    if (mlir::isa<IE::AvgPoolOp>(origOp) && compatibleTargets.count(arch) == 0) {
+    // Mixed precision for average pooling is not supported for VPUX30XX target
+    if (mlir::isa<IE::AvgPoolOp>(origOp) && incompatibleTargets.count(arch) > 0) {
         return false;
     }
 
-    if (compatibleTargets.count(arch) > 0) {
+    if (incompatibleTargets.count(arch) == 0) {
         // Float input with quantized output supports leaky ReLU when quantize out is per-tensor.
         // Further checks are not necessary, bail out.
         if (isPReLUSupported) {
@@ -113,14 +114,14 @@ mlir::LogicalResult checkRescaledBiasRange(ConcreteOp op) {
         auto biasConstOp = biasAttr.template getDefiningOp<Const::DeclareOp>();
         Const::ContentAttr bias;
         if (biasConstOp) {
-            bias = biasConstOp.contentAttr();
+            bias = biasConstOp.getContentAttr();
         } else {
             auto biasDequantOp = biasAttr.template getDefiningOp<IE::DequantizeOp>();
             if (!biasDequantOp) {
                 return mlir::failure();
             }
             auto inputConst = biasDequantOp.input().template getDefiningOp<Const::DeclareOp>();
-            const auto newConstAttr = inputConst.contentAttr().dequantize();
+            const auto newConstAttr = inputConst.getContentAttr().dequantize();
             bias = newConstAttr;
         }
         const auto OC = getShape(op.filter())[Dims4D::Filter::OC];
@@ -272,6 +273,38 @@ mlir::LogicalResult FloatOutMaxPoolRewriter::matchAndRewrite(IE::MaxPoolOp maxPo
     rewriter.replaceOpWithNewOp<IE::MaxPoolOp>(
             maxPoolOp, maxPoolOp.getType(), dequantizeOp.input(), maxPoolOp.kernel_size(), maxPoolOp.strides(),
             maxPoolOp.pads_begin(), maxPoolOp.pads_end(), maxPoolOp.rounding_type(), maxPoolOp.post_opAttr());
+
+    return mlir::success();
+}
+
+class FloatOutAvgPoolRewriter final : public mlir::OpRewritePattern<IE::AvgPoolOp> {
+public:
+    FloatOutAvgPoolRewriter(mlir::MLIRContext* ctx, const VPU::ArchKind& arch, Logger log)
+            : mlir::OpRewritePattern<IE::AvgPoolOp>(ctx), _arch(arch), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::AvgPoolOp avgPoolOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    const VPU::ArchKind _arch;
+    Logger _log;
+};
+
+mlir::LogicalResult FloatOutAvgPoolRewriter::matchAndRewrite(IE::AvgPoolOp avgPoolOp,
+                                                             mlir::PatternRewriter& rewriter) const {
+    if (areAnyUserQuantizeOps(avgPoolOp) || !isMixPrecisionSupported(avgPoolOp, _arch, false, _log)) {
+        return mlir::failure();
+    }
+    auto dequantizeOp = avgPoolOp.input().getDefiningOp<IE::DequantizeOp>();
+    if (dequantizeOp == nullptr) {
+        return mlir::failure();
+    }
+
+    rewriter.replaceOpWithNewOp<IE::AvgPoolOp>(avgPoolOp, avgPoolOp.getType(), dequantizeOp.input(),
+                                               avgPoolOp.kernel_size(), avgPoolOp.strides(), avgPoolOp.pads_begin(),
+                                               avgPoolOp.pads_end(), avgPoolOp.rounding_typeAttr(),
+                                               avgPoolOp.exclude_padsAttr(), avgPoolOp.post_opAttr());
 
     return mlir::success();
 }
@@ -586,11 +619,11 @@ void ConvertToMixedPrecisionPass::safeRunOnFunc() {
     // patterns.add<FloatOutMaxPoolRewriter>(&ctx, arch, _log);
     patterns.add<FloatOutAddRewriter>(&ctx, arch, _log);
 
-    const std::set<VPU::ArchKind> compatibleTargets = {
-            VPU::ArchKind::VPUX37XX,
+    const std::set<VPU::ArchKind> incompatibleTargets = {
+            VPU::ArchKind::VPUX30XX,
     };
 
-    if (_convertFloatInQuantOut && compatibleTargets.count(arch) > 0) {
+    if (_convertFloatInQuantOut && incompatibleTargets.count(arch) == 0) {
         // Max pooling is omitted intentionally.
         // When we do floating point maxpool the activation datatype appears into the PPE.
         // However, the PPE has only conversion functions from float32, not float16.
@@ -600,7 +633,8 @@ void ConvertToMixedPrecisionPass::safeRunOnFunc() {
         patterns.add<FloatInAddRewriter>(&ctx, arch, _log);
     }
 
-    if (compatibleTargets.count(arch) > 0) {
+    if (incompatibleTargets.count(arch) == 0) {
+        patterns.add<FloatOutAvgPoolRewriter>(&ctx, arch, _log);
         patterns.add<QuantizeWithNCERewriter>(&ctx, arch, _log);
     }
 

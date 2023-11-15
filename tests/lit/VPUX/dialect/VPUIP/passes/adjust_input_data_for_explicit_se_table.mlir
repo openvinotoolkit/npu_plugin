@@ -16,16 +16,16 @@ func.func @SparseConvSETable(%arg0: memref<1x48x10x10xf16, #NHWC, [@CMX_NN, 0]>,
 
   %barrier = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
-  %input = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x48x6x10xf16, #NHWC, [@CMX_NN, 0]>
-  %input_sm = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x48x12x21xi1, #NHWC, [@CMX_NN, 0]>
-  %input_se = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x3x12x21xi32, #NHWC, [@CMX_NN, 0]>
-  %output = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x48x3x3xf16, #NHWC, [@CMX_NN, 0]>
-  %parent_input = VPURT.DeclareBuffer "CMX_NN" <0> -> !VPUIP.DistributedBuffer<1x48x10x10xf16, #NHWC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64, alignment = [1, 16, 1, 1]}>
-  %parent_input_sm = VPURT.DeclareBuffer "CMX_NN" <0> -> !VPUIP.DistributedBuffer<1x48x21x21xi1, #NHWC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64, alignment = [1, 16, 1, 1]}>
-  %parent_input_se = VPURT.DeclareBuffer "CMX_NN" <0> -> !VPUIP.DistributedBuffer<1x3x21x21xi32, #NHWC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64, alignment = [1, 1, 1, 1]}>
-  %parent_output = VPURT.DeclareBuffer "CMX_NN" <0> -> !VPUIP.DistributedBuffer<1x48x20x20xf16, #NHWC, @CMX_NN, {mode = "DUPLICATED|SEGMENTED", num_tiles = [1, 2, 1, 1], num_clusters = 2 : i64, alignment = [1, 16, 1, 1]}>
-  %weights = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<48x48x1x1xf16, #NHWC, [@CMX_NN, 0]>
-  %weights_table = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<48x1x1x4xsi32, [@CMX_NN, 0]>
+  %input = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x48x6x10xf16, #NHWC, [@CMX_NN, 0]>
+  %input_sm = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x48x12x21xi1, #NHWC, [@CMX_NN, 0]>
+  %input_se = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x3x12x21xi32, #NHWC, [@CMX_NN, 0]>
+  %output = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x48x3x3xf16, #NHWC, [@CMX_NN, 0]>
+  %parent_input = VPURT.DeclareBuffer <CMX_NN> <0> -> !VPUIP.DistributedBuffer<1x48x10x10xf16, #NHWC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64, alignment = [1, 16, 1, 1]}>
+  %parent_input_sm = VPURT.DeclareBuffer <CMX_NN> <0> -> !VPUIP.DistributedBuffer<1x48x21x21xi1, #NHWC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64, alignment = [1, 16, 1, 1]}>
+  %parent_input_se = VPURT.DeclareBuffer <CMX_NN> <0> -> !VPUIP.DistributedBuffer<1x3x21x21xi32, #NHWC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64, alignment = [1, 1, 1, 1]}>
+  %parent_output = VPURT.DeclareBuffer <CMX_NN> <0> -> !VPUIP.DistributedBuffer<1x48x20x20xf16, #NHWC, @CMX_NN, {mode = "DUPLICATED|SEGMENTED", num_tiles = [1, 2, 1, 1], num_clusters = 2 : i64, alignment = [1, 16, 1, 1]}>
+  %weights = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<48x48x1x1xf16, #NHWC, [@CMX_NN, 0]>
+  %weights_table = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<48x1x1x4xsi32, [@CMX_NN, 0]>
 
   VPURT.Task updates(%barrier : !VPURT.Barrier) attributes {cycleBegin = 0 : i64, cycleEnd = 100 : i64, isTrailingSWLayer = false} {
     %out = VPUIP.NNDMA {port = 0 : i64} inputs(%cst_weights : memref<48x48x1x1xf16, #NHWC>) outputs(%weights : memref<48x48x1x1xf16, #NHWC, [@CMX_NN, 0]>) -> memref<48x48x1x1xf16, #NHWC, [@CMX_NN, 0]>
@@ -41,7 +41,7 @@ func.func @SparseConvSETable(%arg0: memref<1x48x10x10xf16, #NHWC, [@CMX_NN, 0]>,
   }
 
   VPURT.Task waits(%barrier : !VPURT.Barrier) attributes {cycleBegin = 400 : i64, cycleEnd = 500 : i64, isTrailingSWLayer = false} {
-    %out = VPUIP.NCEClusterTask {input_se_size = 16 : i64, kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, kernel_size = [1, 1], kernel_strides = [1, 1], task_type = "CONV"}
+    %out = VPUIP.NCEClusterTask {input_se_size = 16 : i64, kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, kernel_size = [1, 1], kernel_strides = [1, 1], task_type = #VPUIP.nce_task_type<CONV>}
             input(%input : memref<1x48x6x10xf16, #NHWC, [@CMX_NN, 0]>)
             input_sparsity_map(%input_sm : memref<1x48x12x21xi1, #NHWC, [@CMX_NN, 0]>)
             input_storage_element_table(%input_se : memref<1x3x12x21xi32, #NHWC, [@CMX_NN, 0]>)
@@ -53,9 +53,9 @@ func.func @SparseConvSETable(%arg0: memref<1x48x10x10xf16, #NHWC, [@CMX_NN, 0]>,
             parent_output(%parent_output : !VPUIP.DistributedBuffer<1x48x20x20xf16, #NHWC, @CMX_NN, {mode = "DUPLICATED|SEGMENTED", num_tiles = [1, 2, 1, 1], num_clusters = 2 : i64, alignment = [1, 16, 1, 1]}>)
             outputs(%output : memref<1x48x3x3xf16, #NHWC, [@CMX_NN, 0]>)
     -> memref<1x48x3x3xf16, #NHWC, [@CMX_NN, 0]> variants : {
-      DPUTask {cluster_id = 0 : i64, mpe_mode = "CUBOID_16x16", outEnd = [15, 2, 63], outStart = [0, 0, 0], pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}}
+      DPUTask {cluster_id = 0 : i64, mpe_mode = #VPU.mpe_mode<CUBOID_16x16>, outEnd = [15, 2, 63], outStart = [0, 0, 0], pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>}
     } PPE : {
-      PPETask "NOOP" {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, fp_prelu_alpha = 1.000000e+00 : f64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64}
+      PPETask <NOOP> {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, fp_prelu_alpha = 1.000000e+00 : f64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64}
     }
   }
 

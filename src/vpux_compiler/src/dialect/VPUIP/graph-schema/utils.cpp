@@ -8,6 +8,7 @@
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/layers.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPURT/attributes.hpp"
 
 using namespace vpux;
@@ -35,28 +36,10 @@ const EnumMap<ov::element::Type_t, MVCNN::OVNodeType> VPUIP::mapElementType = {
         {ov::element::Type_t::u64, MVCNN::OVNodeType::OVNodeType_U64},
 };
 
-const EnumMap<PreProcessColorSpace, MVCNN::PreProcessColorSpace> VPUIP::mapPreProcessColorFormat = {
-        {PreProcessColorSpace::BGR, MVCNN::PreProcessColorSpace::PreProcessColorSpace_BGR},
-        {PreProcessColorSpace::RGB, MVCNN::PreProcessColorSpace::PreProcessColorSpace_RGB},
-        {PreProcessColorSpace::NV12, MVCNN::PreProcessColorSpace::PreProcessColorSpace_NV12},
-        {PreProcessColorSpace::I420, MVCNN::PreProcessColorSpace::PreProcessColorSpace_I420},
-        {PreProcessColorSpace::NONE, MVCNN::PreProcessColorSpace::PreProcessColorSpace_DEFAULT},
-};
-
-const EnumMap<PreProcessResizeAlgorithm, MVCNN::PreProcessResizeAlgorithm> VPUIP::mapPreProcessResizeAlgorithm = {
-        {PreProcessResizeAlgorithm::RESIZE_BILINEAR,
-         MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_BILINEAR},
-        {PreProcessResizeAlgorithm::RESIZE_AREA,
-         MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_AREA},
-        {PreProcessResizeAlgorithm::NO_RESIZE, MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_NO_RESIZE},
-};
-
 MVCNN::TargetDevice VPUIP::mapTargetDevice(VPU::ArchKind kind) {
     switch (kind) {
     case VPU::ArchKind::VPUX30XX:
         return MVCNN::TargetDevice::TargetDevice_VPUX30XX;
-    case VPU::ArchKind::VPUX311X:
-        return MVCNN::TargetDevice::TargetDevice_VPUX311X;
     case VPU::ArchKind::VPUX37XX:
         return MVCNN::TargetDevice::TargetDevice_VPUX37XX;
     default:
@@ -76,7 +59,6 @@ MVCNN::TargetDeviceRevision VPUIP::mapTargetDeviceRevision(VPU::ArchKind kind) {
 MVCNN::PerfDataMode VPUIP::mapProfilingMode(VPU::ArchKind kind) {
     switch (kind) {
     case VPU::ArchKind::VPUX30XX:
-    case VPU::ArchKind::VPUX311X:
     case VPU::ArchKind::VPUX37XX:
         return MVCNN::PerfDataMode_MODE0;
     default:
@@ -336,7 +318,7 @@ void setActivityFactor(VPU::ExecutorKind execKind, MVCNN::ProcessorMappingBuilde
     // TODO: calc this value during compilation
     static const float activityFactor = 0.6f;
     const auto arch = VPU::getArch(module);
-    if (arch == VPU::ArchKind::VPUX30XX || arch == VPU::ArchKind::VPUX311X) {
+    if (arch == VPU::ArchKind::VPUX30XX) {
         if (execKind == VPU::ExecutorKind::NCE || execKind == VPU::ExecutorKind::SHAVE_UPA) {
             builder.add_activity_factor(activityFactor);
         }
@@ -352,10 +334,7 @@ void setActivityFactor(VPU::ExecutorKind execKind, MVCNN::ProcessorMappingBuilde
 flatbuffers::Offset<MVCNN::ProcessorMapping> VPUIP::createProcessorMapping(flatbuffers::FlatBufferBuilder& fbb,
                                                                            IE::ExecutorResourceOp res,
                                                                            mlir::ModuleOp module) {
-    const auto execKindAttr = res.getKindAs<VPU::ExecutorKindAttr>();
-    VPUX_THROW_UNLESS(execKindAttr != nullptr, "Got unknown executor kind '{0}'", res.getKind());
-
-    const auto execKind = execKindAttr.getValue();
+    const auto execKind = VPU::getKindValue<VPU::ExecutorKind>(res);
     MVCNN::ProcessorMappingBuilder builder(fbb);
     builder.add_item(createPhysicalProcessor(execKind));
     builder.add_number(checked_cast<double>(res.count()));
@@ -366,11 +345,9 @@ flatbuffers::Offset<MVCNN::ProcessorMapping> VPUIP::createProcessorMapping(flatb
 
 flatbuffers::Offset<MVCNN::ProcessorMapping> VPUIP::createProcessorFreqMapping(flatbuffers::FlatBufferBuilder& fbb,
                                                                                IE::ExecutorResourceOp res) {
-    const auto execKindAttr = res.getKindAs<VPU::ExecutorKindAttr>();
-    VPUX_THROW_UNLESS(execKindAttr != nullptr, "Got unknown executor kind '{0}'", res.getKind());
-
+    const auto execKind = VPU::getKindValue<VPU::ExecutorKind>(res);
     MVCNN::ProcessorMappingBuilder builder(fbb);
-    builder.add_item(createPhysicalProcessor(execKindAttr.getValue()));
+    builder.add_item(createPhysicalProcessor(execKind));
     builder.add_number(res.getProcessorFrequency().getValueAsDouble());
     builder.add_is_bitmask(false);
     return builder.Finish();
@@ -396,21 +373,21 @@ flatbuffers::Offset<MVCNN::MemoryRelationshipMapping> VPUIP::createBandwidthMapp
                                                                                     IE::MemoryResourceOp dst,
                                                                                     double bandwidth) {
     MVCNN::MemoryRelationshipMappingBuilder builder(fbb);
-    const auto srcKind = src.getKindAs<VPU::MemoryKindAttr>();
-    const auto dstKind = dst.getKindAs<VPU::MemoryKindAttr>();
+    const auto srcKind = VPU::getKindValue<VPU::MemoryKind>(src);
+    const auto dstKind = VPU::getKindValue<VPU::MemoryKind>(dst);
 
-    builder.add_from_item(createPhysicalMem(srcKind.getValue()));
-    builder.add_to_item(createPhysicalMem(dstKind.getValue()));
+    builder.add_from_item(createPhysicalMem(srcKind));
+    builder.add_to_item(createPhysicalMem(dstKind));
     builder.add_number(bandwidth);
     return builder.Finish();
 }
 
 flatbuffers::Offset<MVCNN::MemoryMapping> VPUIP::createMemoryMapping(flatbuffers::FlatBufferBuilder& fbb,
                                                                      IE::MemoryResourceOp res) {
-    const auto memKindAttr = res.getKindAs<VPU::MemoryKindAttr>();
+    const auto memKind = VPU::getKindValue<VPU::MemoryKind>(res);
 
     MVCNN::MemoryMappingBuilder builder(fbb);
-    builder.add_item(createPhysicalMem(memKindAttr.getValue()));
+    builder.add_item(createPhysicalMem(memKind));
     builder.add_number(checked_cast<double>(res.byteSize()));
     return builder.Finish();
 }

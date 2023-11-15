@@ -12,7 +12,7 @@ mlir::LogicalResult vpux::VPU::GatherTreeOp::inferReturnTypes(mlir::MLIRContext*
                                                               mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                               mlir::RegionRange /*regions*/,
                                                               mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::GatherTreeOpAdaptor gatherTree(operands, attrs);
     if (mlir::failed(gatherTree.verify(loc))) {
@@ -23,10 +23,6 @@ mlir::LogicalResult vpux::VPU::GatherTreeOp::inferReturnTypes(mlir::MLIRContext*
     inferredReturnTypes.push_back(stepIdsType);
 
     return mlir::success();
-}
-
-void vpux::VPU::GatherTreeOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
-    IE::fillDefaultLayoutInfo(info);
 }
 
 //

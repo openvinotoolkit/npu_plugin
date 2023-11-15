@@ -97,7 +97,7 @@ def ClusterTypeInterface : TypeInterface<"ClusterTypeInterface"> {
             @brief Retrieve the array of padding for each cluster
             @warning This function is needed for getting padding in OVERLAPPED mode
             }],
-            "SmallVector<vpux::PadInfo>", "getPerClusterPadding", (ins)
+            "SmallVector<vpux::PadInfo>", "getPerClusterPadding", (ins "vpux::PadInfo":$kernel_padding)
         >,
 
        InterfaceMethod<[{
@@ -125,6 +125,55 @@ def ClusterTypeInterface : TypeInterface<"ClusterTypeInterface"> {
                      of broadcasting.
             }],
             "StridedShape", "getStridedShape", (ins "int64_t":$tileInd)
+        >,
+
+        InterfaceMethod<[{
+            @brief When having explicit per cluster memory/compute shapes/offsets, changing the type's shapes invalidates
+            them. This method creates DistributedType with requested shape and DistributedAttr with
+            memory_shapes/memory_offsets/computes_shapes/compute_offets adjusted for the new shape.
+            }],
+            "vpux::NDTypeInterface", "changeShapeForExplicitDistribution",
+                (ins "vpux::ShapeRef":$shape, "vpux::VPU::DistributedTensorAttr":$distributedAttr)
+        >,
+
+        InterfaceMethod<[{
+            @brief When having explicit per cluster memory/compute shapes/offsets, changing the type's shapes invalidates
+            them. This method creates DistributedType with requested shape and element type and DistributedAttr with
+            memory_shapes/memory_offsets/computes_shapes/compute_offets adjusted for the new shape.
+            }],
+            "vpux::NDTypeInterface", "changeShapeElemTypeForExplicitDistribution",
+                (ins "vpux::ShapeRef":$shape, "mlir::Type":$elemType, "vpux::VPU::DistributedTensorAttr":$distributedAttr)
+        >,
+
+        InterfaceMethod<[{
+            @brief When having explicit per cluster memory/compute shapes/offsets, changing the type's shapes invalidates
+            them. This method creates DistributedType with requested type components. If shape is one of the changed
+            components, it will also update the DistributedAttr with memory_shapes/memory_offsets/computes_shapes/compute_offets
+            adjusted for the new shape. Otherwise, it leaves the DistributedAttr untouched.
+            }],
+            "vpux::NDTypeInterface", "changeTypeComponentsForExplicitDistribution",
+                (ins "const TypeComponents&":$typeComponents, "vpux::VPU::DistributedTensorAttr":$distributedAttr)
+        >,
+
+        InterfaceMethod<[{
+            @brief When having explicit per cluster memory/compute shapes/offsets, changing the type's shapes invalidates
+            them. This method creates DistributedType obtained by extracting a dense tile from the original DistributedType.
+            It will also update the DistributedAttr with memory_shapes/memory_offsets/computes_shapes/compute_offets
+            adjusted for the resulting dense tile.
+            }],
+            "vpux::NDTypeInterface", "extractDenseTileForExplicitDistribution",
+                (ins "vpux::ShapeRef":$tileOffsets, "vpux::ShapeRef":$tileShape, "vpux::VPU::DistributedTensorAttr":$distributedAttr)
+        >,
+
+        InterfaceMethod<[{
+            @brief When having explicit per cluster memory/compute shapes/offsets, changing the type's shapes invalidates
+            them. This method creates DistributedType obtained by extracting a view tile from the original DistributedType.
+            It will also update the DistributedAttr with memory_shapes/memory_offsets/computes_shapes/compute_offets
+            adjusted for the resulting view tile.
+            }],
+            "vpux::NDTypeInterface", "extractViewTileForExplicitDistribution",
+                (ins "vpux::ShapeRef":$tileOffsets, "vpux::ShapeRef":$tileShape, "vpux::ShapeRef":$tileElemStrides,
+                "vpux::VPU::DistributedTensorAttr":$distributedAttr)
         >,
     ];
 }

@@ -45,33 +45,33 @@ mlir::FloatAttr getFPAttr(mlir::Builder& b, T val) {
 //
 
 template <class Range>
-mlir::ArrayAttr getIntArrayAttr(mlir::MLIRContext* ctx, Range range) {
+mlir::ArrayAttr getIntArrayAttr(mlir::MLIRContext* ctx, Range&& range) {
     SmallVector<mlir::Attribute> attrs;
 
-    for (const auto val : range) {
+    for (auto&& val : range) {
         attrs.push_back(getIntAttr(ctx, val));
     }
 
     return mlir::ArrayAttr::get(ctx, attrs);
 }
 template <class Range>
-mlir::ArrayAttr getIntArrayAttr(mlir::Builder& b, Range range) {
-    return getIntArrayAttr(b.getContext(), range);
+mlir::ArrayAttr getIntArrayAttr(mlir::Builder& b, Range&& range) {
+    return getIntArrayAttr(b.getContext(), std::forward<Range>(range));
 }
 
 template <class Range>
-mlir::ArrayAttr getFPArrayAttr(mlir::MLIRContext* ctx, Range range) {
+mlir::ArrayAttr getFPArrayAttr(mlir::MLIRContext* ctx, Range&& range) {
     SmallVector<mlir::Attribute> attrs;
 
-    for (const auto val : range) {
+    for (auto&& val : range) {
         attrs.push_back(getFPAttr(ctx, val));
     }
 
     return mlir::ArrayAttr::get(ctx, attrs);
 }
 template <class Range>
-mlir::ArrayAttr getFPArrayAttr(mlir::Builder& b, Range range) {
-    return getFPArrayAttr(b.getContext(), range);
+mlir::ArrayAttr getFPArrayAttr(mlir::Builder& b, Range&& range) {
+    return getFPArrayAttr(b.getContext(), std::forward<Range>(range));
 }
 
 //

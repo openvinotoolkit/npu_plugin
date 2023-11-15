@@ -49,7 +49,7 @@ private:
         llvm::SmallVector<mlir::Value> results;
         auto distribution = distributedOutput.getDistribution();
         auto outputMode =
-                static_cast<std::underlying_type<VPU::DistributionMode>::type>(distribution.mode().getValue());
+                static_cast<std::underlying_type<VPU::DistributionMode>::type>(distribution.getMode().getValue());
         auto duplicatedMode =
                 static_cast<std::underlying_type<VPU::DistributionMode>::type>(VPU::DistributionMode::DUPLICATED);
         auto multicastedMode =
@@ -59,10 +59,10 @@ private:
 
             auto compactType = distributedOutput.getCompactType();
 
-            auto totalClusters = distribution.num_clusters().getInt();
+            auto totalClusters = distribution.getNumClusters().getInt();
 
-            auto byteOffset = definingOp.byteOffset();
-            auto swizzlingKey = definingOp.swizzlingKey();
+            auto byteOffset = definingOp.getByteOffset();
+            auto swizzlingKey = definingOp.getSwizzlingKey();
             auto buffSec = definingOp.getMemorySpace();
 
             for (int64_t cluster = 0; cluster < totalClusters; cluster++) {
@@ -72,9 +72,9 @@ private:
                 auto newMemSpace = vpux::IndexedSymbolAttr::get(currMemLocation, static_cast<size_t>(cluster));
                 auto memType = mlir::MemRefType::get(compactType.getShape(), compactType.getElementType(),
                                                      compactType.getLayout(), newMemSpace);
-                if (swizzlingKey.hasValue()) {
+                if (swizzlingKey.has_value()) {
                     res = builder.create<VPURT::DeclareBufferOp>(output.getLoc(), memType, buffSec, cluster, byteOffset,
-                                                                 swizzlingKey.getValue());
+                                                                 swizzlingKey.value());
                 } else {
                     res = builder.create<VPURT::DeclareBufferOp>(output.getLoc(), memType, buffSec, cluster,
                                                                  byteOffset);
@@ -92,14 +92,14 @@ private:
     template <typename DMAType, typename CreatorFunc>
     void lowerDMA(CreatorFunc&& creator, VPURT::TaskOp taskOp, mlir::SmallVector<mlir::Value>& previousDMA,
                   mlir::SmallVector<int64_t>& dmaCount, bool& found) {
-        for (auto op : llvm::make_early_inc_range(taskOp.body().getOps<DMAType>())) {
+        for (auto op : llvm::make_early_inc_range(taskOp.getBody().getOps<DMAType>())) {
             found = true;
             mlir::OpBuilder builderBlk(taskOp);
             auto port = op.port();
             auto indexType = VPURegMapped::IndexType::get(taskOp.getContext(), dmaCount[port]);
 
-            auto waitBarriers = taskOp.waitBarriers();
-            auto updateBarriers = taskOp.updateBarriers();
+            auto waitBarriers = taskOp.getWaitBarriers();
+            auto updateBarriers = taskOp.getUpdateBarriers();
 
             auto trivialIndexType = VPURegMapped::IndexType::get(taskOp.getContext(), 0);
 
@@ -157,11 +157,11 @@ private:
                                           "DMA op shape size should be 2 or 3. but got shape {0}", dataShape);
 
                         const auto dmaDescriptor = permuteDMAOp.dma_descriptor();
-                        VPUX_THROW_UNLESS(dmaDescriptor.hasValue(), "DMA descriptor attr not found at '{0}'",
+                        VPUX_THROW_UNLESS(dmaDescriptor.has_value(), "DMA descriptor attr not found at '{0}'",
                                           permuteDMAOp->getLoc());
-                        const auto dmaDescriptorValue = dmaDescriptor.getValue();
+                        const auto dmaDescriptorValue = dmaDescriptor.value();
 
-                        const auto numPlanes = checked_cast<uint32_t>(dmaDescriptorValue.numPlanes().getInt());
+                        const auto numPlanes = checked_cast<uint32_t>(dmaDescriptorValue.getNumPlanes().getInt());
                         VPUX_THROW_UNLESS(numPlanes <= VPUIP::DMA_MAX_NUMBER_PLANES,
                                           "NUM PLANES should be less than or equal to {0}, but got {1}.",
                                           VPUIP::DMA_MAX_NUMBER_PLANES, numPlanes);
@@ -184,11 +184,11 @@ private:
                                   mlir::Value previousDMA, VPURegMapped::IndexType indexType,
                                   mlir::ValueRange waitBarriers, mlir::ValueRange updateBarriers) {
                         const auto dmaDescriptor = upsamplingDMAOp.dma_descriptor();
-                        VPUX_THROW_UNLESS(dmaDescriptor.hasValue(), "DMA descriptor attr not found at '{0}'",
+                        VPUX_THROW_UNLESS(dmaDescriptor.has_value(), "DMA descriptor attr not found at '{0}'",
                                           upsamplingDMAOp->getLoc());
-                        const auto dmaDescriptorValue = dmaDescriptor.getValue();
+                        const auto dmaDescriptorValue = dmaDescriptor.value();
 
-                        const auto numPlanes = checked_cast<uint32_t>(dmaDescriptorValue.numPlanes().getInt());
+                        const auto numPlanes = checked_cast<uint32_t>(dmaDescriptorValue.getNumPlanes().getInt());
                         VPUX_THROW_UNLESS(numPlanes <= VPUIP::DMA_MAX_NUMBER_PLANES,
                                           "NUM PLANES should be less than or equal to {0}, but got {1}.",
                                           VPUIP::DMA_MAX_NUMBER_PLANES, numPlanes);
@@ -210,11 +210,11 @@ private:
                                   mlir::Value previousDMA, VPURegMapped::IndexType indexType,
                                   mlir::ValueRange waitBarriers, mlir::ValueRange updateBarriers) {
                         const auto dmaDescriptor = perAxisTileDMAOp.dma_descriptor();
-                        VPUX_THROW_UNLESS(dmaDescriptor.hasValue(), "DMA descriptor attr not found at '{0}'",
+                        VPUX_THROW_UNLESS(dmaDescriptor.has_value(), "DMA descriptor attr not found at '{0}'",
                                           perAxisTileDMAOp->getLoc());
-                        const auto dmaDescriptorValue = dmaDescriptor.getValue();
+                        const auto dmaDescriptorValue = dmaDescriptor.value();
 
-                        const auto numPlanes = checked_cast<uint32_t>(dmaDescriptorValue.numPlanes().getInt());
+                        const auto numPlanes = checked_cast<uint32_t>(dmaDescriptorValue.getNumPlanes().getInt());
                         VPUX_THROW_UNLESS(numPlanes <= VPUIP::DMA_MAX_NUMBER_PLANES,
                                           "NUM PLANES should be less than or equal to {0}, but got {1}.",
                                           VPUIP::DMA_MAX_NUMBER_PLANES, numPlanes);
@@ -256,7 +256,7 @@ private:
                                 expandDMAOp->getLoc(), indexType, expandDMAOp.input(), dmaResults, previousDMA,
                                 mlir::ValueRange(waitBarriers), mlir::ValueRange(updateBarriers), false, 0, 0,
                                 expandDMAOp.is_out_of_order(), expandDMAOp.is_critical(), expandDMAOp.port(),
-                                expandDMAOp.dma_descriptor().getValue());
+                                expandDMAOp.dma_descriptor().value());
                     },
                     taskOp, previousDMA, dmaCount, found);
 
@@ -272,8 +272,7 @@ private:
                         return builderBlk.create<VPUMI37XX::NNDMAOp>(
                                 spaceToDepthDMAOp->getLoc(), indexType, spaceToDepthDMAOp.input(), dmaResults,
                                 previousDMA, mlir::ValueRange(waitBarriers), mlir::ValueRange(updateBarriers), false, 0,
-                                0, false, true, spaceToDepthDMAOp.port(),
-                                spaceToDepthDMAOp.dma_descriptor().getValue());
+                                0, false, true, spaceToDepthDMAOp.port(), spaceToDepthDMAOp.dma_descriptor().value());
                     },
                     taskOp, previousDMA, dmaCount, found);
 
@@ -293,11 +292,11 @@ private:
                                           inOrder);
 
                         const auto dmaDescriptor = depthToSpaceDMAOp.dma_descriptor();
-                        VPUX_THROW_UNLESS(dmaDescriptor.hasValue(), "DMA descriptor attr not found at '{0}'",
+                        VPUX_THROW_UNLESS(dmaDescriptor.has_value(), "DMA descriptor attr not found at '{0}'",
                                           depthToSpaceDMAOp->getLoc());
-                        const auto dmaDescriptorValue = dmaDescriptor.getValue();
+                        const auto dmaDescriptorValue = dmaDescriptor.value();
 
-                        const auto numPlanes = checked_cast<uint32_t>(dmaDescriptorValue.numPlanes().getInt());
+                        const auto numPlanes = checked_cast<uint32_t>(dmaDescriptorValue.getNumPlanes().getInt());
                         VPUX_THROW_UNLESS(numPlanes <= VPUIP::DMA_MAX_NUMBER_PLANES,
                                           "NUM PLANES should be less than or equal to {0}, but got {1}.",
                                           VPUIP::DMA_MAX_NUMBER_PLANES, numPlanes);
@@ -323,6 +322,22 @@ private:
 
         auto shave_task_count = 0;
 
+        llvm::DenseMap<mlir::StringAttr, std::pair<VPUMI37XX::DeclareKernelTextOp, VPUMI37XX::DeclareKernelEntryOp>>
+                kernelTextEntryMap;
+        auto findKernelTextAndEntryOps = [&](mlir::OpBuilder builderBlk, vpux::VPUIP::SwKernelOp op,
+                                             VPURegMapped::IndexType indexType, mlir::StringAttr kernelElf)
+                -> std::pair<VPUMI37XX::DeclareKernelTextOp, VPUMI37XX::DeclareKernelEntryOp> {
+            if (kernelTextEntryMap.find(kernelElf) == kernelTextEntryMap.end()) {
+                auto kernelTextOp =
+                        builderBlk.create<VPUMI37XX::DeclareKernelTextOp>(op->getLoc(), indexType, kernelElf);
+                auto kernelEntryOp =
+                        builderBlk.create<VPUMI37XX::DeclareKernelEntryOp>(op->getLoc(), indexType, kernelElf);
+                kernelTextEntryMap.insert(std::make_pair(kernelElf, std::make_pair(kernelTextOp, kernelEntryOp)));
+            }
+
+            return kernelTextEntryMap[kernelElf];
+        };
+
         // Forever loop that runs until there are no more changes performed by
         //   the inner loop (so the algorithm has converged).
 
@@ -335,8 +350,8 @@ private:
 
                 auto indexType = VPURegMapped::IndexType::get(ctx, shave_task_count);
 
-                auto wait_bars = taskOp.waitBarriers();
-                auto update_bars = taskOp.updateBarriers();
+                auto wait_bars = taskOp.getWaitBarriers();
+                auto update_bars = taskOp.getUpdateBarriers();
 
                 auto trivialIndexType = VPURegMapped::IndexType::get(ctx, 0);
 
@@ -361,13 +376,10 @@ private:
 
                 long int paramsSize = (long int)(paramsVector.size());
 
-                auto kernelTextOp = builderBlk.create<VPUMI37XX::DeclareKernelTextOp>(
-                        op->getLoc(), indexType, mlir::StringAttr::get(ctx, kernel_elf));
+                auto [kernelTextOp, kernelEntryOp] =
+                        findKernelTextAndEntryOps(builderBlk, op, indexType, mlir::StringAttr::get(ctx, kernel_elf));
 
                 auto kernelArgsOp = builderBlk.create<VPUMI37XX::DeclareKernelArgsOp>(
-                        op->getLoc(), indexType, mlir::StringAttr::get(ctx, kernel_elf));
-
-                auto kernelEntryOp = builderBlk.create<VPUMI37XX::DeclareKernelEntryOp>(
                         op->getLoc(), indexType, mlir::StringAttr::get(ctx, kernel_elf));
 
                 auto kernelRangeOp = builderBlk.create<VPUMI37XX::ActKernelRangeOp>(
@@ -382,7 +394,8 @@ private:
                         /* start_after= */ 0, /* clean_after= */ 0);
 
                 builderBlk.create<VPUMI37XX::KernelParamsOp>(
-                        op->getLoc(), indexType, op.inputs(), op.output_buffs(), mlir::StringAttr::get(ctx, kernel_elf),
+                        op->getLoc(), indexType, op.inputs(), op.output_buffs(),
+                        /*input_dims*/ nullptr, /*output_dims*/ nullptr, mlir::StringAttr::get(ctx, kernel_elf),
                         mlir::DenseIntElementsAttr::get(mlir::VectorType::get({paramsSize}, uint8Type), paramsVector));
 
                 shave_task_count++;
@@ -403,12 +416,12 @@ private:
 
             _log.trace("replaceNCEClusterTaskOpWithDPUOps(): taskOp = {0}", taskOp);
 
-            for (auto op : llvm::make_early_inc_range(taskOp.body().getOps<VPUIP::NCEClusterTaskOp>())) {
+            for (auto op : llvm::make_early_inc_range(taskOp.getBody().getOps<VPUIP::NCEClusterTaskOp>())) {
                 found = true;
                 mlir::OpBuilder builderBlk(taskOp);
 
-                auto wait_barriers = taskOp.waitBarriers();
-                auto update_barriers = taskOp.updateBarriers();
+                auto wait_barriers = taskOp.getWaitBarriers();
+                auto update_barriers = taskOp.getUpdateBarriers();
 
                 auto trivialIndexType = VPURegMapped::IndexType::get(ctx, 0);
 
@@ -451,7 +464,8 @@ private:
                         op.is_continuedAttr(), op.cm_sp_patternAttr(), op.is_segmentedAttr(),
                         op.input_channels_compressionAttr(), op.out_channel_offsetAttr(), op.is_superdenseAttr(),
                         op.is_inplaceAttr(), op.input_se_sizeAttr(), op.output_se_sizeAttr(),
-                        op.is_permute_quantizeAttr(), wait_barriers, update_barriers, startAfterAttr, cleanAfterAttr);
+                        op.is_permute_quantizeAttr(), op.profilingMetadataAttr(), wait_barriers, update_barriers,
+                        startAfterAttr, cleanAfterAttr);
 
                 invariant_task_count++;
 
@@ -466,7 +480,7 @@ private:
 
                 if (op.ppe().hasOneBlock()) {
                     mlir::BlockAndValueMapping mapper;
-                    op.ppe().cloneInto(&inv.ppe(), mapper);
+                    op.ppe().cloneInto(&inv.getPpe(), mapper);
                 }
             }
 
@@ -533,7 +547,7 @@ private:
 
         for (size_t listIdx = 0; listIdx < dmaCount.size(); ++listIdx) {
             auto dmaPortCond = [listIdx](auto op) {
-                return op.port() == static_cast<int64_t>(listIdx);
+                return op.getPort() == static_cast<int64_t>(listIdx);
             };
             dmaCount[listIdx] = countTasksIf<VPUMI37XX::NNDMAOp>(funcOp, dmaPortCond);
             auto dmaListHead = findTaskIf<VPUMI37XX::NNDMAOp>(funcOp, dmaPortCond);
@@ -617,7 +631,7 @@ public:
         rewriter.replaceOpWithNewOp<VPUMI37XX::ConfigureBarrierOp>(
                 origOp,
                 trivialIndexType,                                   // setup all barriers with the trivial index (0)
-                origOp.id(),                                        // real_id
+                origOp.getId(),                                     // real_id
                 -1,                                                 // int32_t next_same_id()
                 mlir::IntegerAttr::get(uint8Type, producer_count),  // origOp.producer_countAttr(),
                 mlir::IntegerAttr::get(uint8Type, consumer_count)   // origOp.consumer_countAttr(),

@@ -6,9 +6,9 @@
 #pragma once
 
 #include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/core/attributes/strided_shape.hpp"
+#include "vpux/compiler/core/tiling.hpp"
 #include "vpux/compiler/dialect/VPU/attr_interfaces.hpp"
-#include "vpux/compiler/dialect/VPU/type_interfaces.hpp"
-
 #include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/func_ref.hpp"
@@ -35,11 +35,12 @@ class PaddingAttr;
 // Generated
 //
 
-#include <vpux/compiler/dialect/VPU/generated/attributes/enums.hpp.inc>
-#include <vpux/compiler/dialect/VPU/generated/attributes/structs.hpp.inc>
+#include <vpux/compiler/dialect/IE/attributes.hpp.inc>
+#include <vpux/compiler/dialect/VPU/enums.hpp.inc>
+#include <vpux/compiler/dialect/VPU/structs.hpp.inc>
 
 #define GET_ATTRDEF_CLASSES
-#include <vpux/compiler/dialect/VPU/generated/attributes.hpp.inc>
+#include <vpux/compiler/dialect/VPU/attributes.hpp.inc>
 
 namespace vpux {
 namespace VPU {
@@ -123,7 +124,7 @@ Byte getTotalCMXFragmentationAwareSize(mlir::ModuleOp module);
 //
 
 void setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numOfDPUGroups = None,
-             Optional<int> numOfDMAPorts = None, Optional<int> ddrHeapSize = None, bool allowCustomChanges = false);
+             Optional<int> numOfDMAPorts = None, bool allowCustomChanges = false);
 
 ArchKind getArch(mlir::Operation* op);
 bool isArchVPUX3XXX(VPU::ArchKind arch);
@@ -183,10 +184,17 @@ SmallVector<Shape> getPerClusterComputeShapes(ShapeRef shapeRef, DistributedTens
 SmallVector<Shape> getPerClusterComputeShapeOffsets(ShapeRef shapeRef, DistributedTensorAttr distributionAttr);
 SmallVector<Shape> getPerClusterMemoryShapes(ShapeRef shapeRef, DistributedTensorAttr distributionAttr);
 SmallVector<Shape> getPerClusterMemoryShapeOffsets(ShapeRef shapeRef, DistributedTensorAttr distributionAttr);
-SmallVector<PadInfo> getPerClusterPadding(DistributedTensorAttr distributionAttr);
+SmallVector<PadInfo> getPerClusterPadding(DistributedTensorAttr distributionAttr, PadInfo kernelPadding);
 SmallVector<StridedShape> getPerClusterMemoryStridedShapes(ShapeRef shape, StridesRef strides, DimsOrder dimsOrder,
-                                                           DistributedTensorAttr distributionAttr);
+                                                           DistributionModeAttr mode, ArrayRef<Shape> memoryShapes);
 int64_t getDistributedTilingAxis(ArrayRef<int64_t> tilingScheme);
+bool isDistributedAttrWithExplicitShapesAndOffsets(DistributedTensorAttr distributionAttr);
+SmallVector<Shape> arrayAttrToVecOfShapes(mlir::ArrayAttr arr);
+
+bool isSegmentedOverH(VPU::DistributedTensorAttr distAttr);
+bool isSegmentedOverC(VPU::DistributedTensorAttr distAttr);
+bool isSegmentedOverN(VPU::DistributedTensorAttr distAttr);
+bool isOverlappedOverH(VPU::DistributedTensorAttr distAttr);
 
 //
 // CompressionSchemeAttr
@@ -197,6 +205,18 @@ mlir::Type setCompressionSchemeAttr(mlir::Type type, VPU::CompressionSchemeAttr 
 
 VPU::CompressionSchemeAttr tileCompressionScheme(VPU::CompressionSchemeAttr compressionScheme, ShapeRef tileOffsets,
                                                  ShapeRef tileShape);
+
+//
+// Resource kind value getter
+//
+
+template <typename ConcreteKind, typename ResourceOp>
+ConcreteKind getKindValue(ResourceOp op) {
+    VPUX_THROW_WHEN(!op.getKind(), "Can't find attributes for Operation");
+    const auto maybeKind = vpux::VPU::symbolizeEnum<ConcreteKind>(op.getKind());
+    VPUX_THROW_WHEN(!maybeKind.has_value(), "Unsupported attribute kind");
+    return maybeKind.value();
+}
 
 }  // namespace VPU
 }  // namespace vpux

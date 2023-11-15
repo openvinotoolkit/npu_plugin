@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022 Intel Corporation.
 # SPDX-License-Identifier: Apache 2.0
 #
 
@@ -7,7 +7,7 @@ if(ENABLE_LTO)
     ie_enable_lto()
 endif()
 
-set(TARGET_NAME "vpux_ngraph_transformations")
+set(TARGET_NAME "npu_ngraph_transformations")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <fstream>
 #include <string>
 
@@ -33,8 +31,8 @@ inline void procMemUsage(double& vm_usage, double& res_usage) {
     long rss;
 
     stat_stream >> pid >> comm >> state >> ppid >> pgrp >> session >> tty_nr >> tpgid >> flags >> minflt >> cminflt >>
-        majflt >> cmajflt >> utime >> stime >> cutime >> cstime >> priority >> nice >> O >> itrealvalue >> starttime >>
-        vsize >> rss;
+            majflt >> cmajflt >> utime >> stime >> cutime >> cstime >> priority >> nice >> O >> itrealvalue >>
+            starttime >> vsize >> rss;
 
     stat_stream.close();
 
@@ -43,4 +41,4 @@ inline void procMemUsage(double& vm_usage, double& res_usage) {
     res_usage = rss * page_size_kb;
 #endif
 }
-}
+}  // namespace MemoryUsage

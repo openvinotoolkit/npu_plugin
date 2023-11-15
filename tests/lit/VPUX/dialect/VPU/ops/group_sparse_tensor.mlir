@@ -78,21 +78,21 @@ func.func @ParsePrintGroupSparseSeAttrTensor(%arg0: tensor<1x32x16x16xf16>) -> t
     %0 = const.Declare tensor<1x32x32x32xi1> = dense<1> : tensor<1x32x32x32xi1>
     %1 = const.Declare tensor<1x1x32x32xi32> = dense<1> : tensor<1x1x32x32xi32>
 
-    %2 = VPU.GroupSparseTensor(%arg0, %0, %1) {seAttr = #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 32, 32, 32]>}
-            -> !VPU.SparseTensor<data=tensor<1x32x16x16xf16>, sparsity_map=tensor<1x32x32x32xi1>, storage_element_table=tensor<1x1x32x32xi32>, #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 32, 32, 32]>>
+    %2 = VPU.GroupSparseTensor(%arg0, %0, %1) {seAttr = #VPU.SEInterpolate<mode = <NEAREST>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], nearest_mode = <FLOOR>, offsets = [0, 0, 0, 0], sizes = [1, 32, 32, 32]>}
+            -> !VPU.SparseTensor<data=tensor<1x32x16x16xf16>, sparsity_map=tensor<1x32x32x32xi1>, storage_element_table=tensor<1x1x32x32xi32>, #VPU.SEInterpolate<mode = <NEAREST>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], nearest_mode = <FLOOR>, offsets = [0, 0, 0, 0], sizes = [1, 32, 32, 32]>>
     %3:3 = builtin.unrealized_conversion_cast %2
-            : !VPU.SparseTensor<data=tensor<1x32x16x16xf16>, sparsity_map=tensor<1x32x32x32xi1>, storage_element_table=tensor<1x1x32x32xi32>, #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 32, 32, 32]>>
+            : !VPU.SparseTensor<data=tensor<1x32x16x16xf16>, sparsity_map=tensor<1x32x32x32xi1>, storage_element_table=tensor<1x1x32x32xi32>, #VPU.SEInterpolate<mode = <NEAREST>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], nearest_mode = <FLOOR>, offsets = [0, 0, 0, 0], sizes = [1, 32, 32, 32]>>
             to tensor<1x32x16x16xf16>, tensor<1x32x32x32xi1>, tensor<1x1x32x32xi32>
     return %3#0 : tensor<1x32x16x16xf16>
 
     // CHECK-DAG:   [[SM:%.*]] = const.Declare tensor<1x32x32x32xi1> = dense<true> : tensor<1x32x32x32xi1>
     // CHECK-DAG:   [[SE:%.*]] = const.Declare tensor<1x1x32x32xi32> = dense<1> : tensor<1x1x32x32xi32>
     // CHECK:       [[VAL0:%.*]] = VPU.GroupSparseTensor(%arg0, [[SM]], [[SE]])
-    // CHECK-SAME:                 {seAttr = #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 32, 32, 32]>}
-    // CHECK-SAME:                 -> !VPU.SparseTensor<data=tensor<1x32x16x16xf16>, sparsity_map=tensor<1x32x32x32xi1>, storage_element_table=tensor<1x1x32x32xi32>, #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 32, 32, 32]>>
-
+    // CHECK-SAME:                 {seAttr = #VPU.SEInterpolate<mode = <NEAREST>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], nearest_mode = <FLOOR>, offsets = [0, 0, 0, 0], sizes = [1, 32, 32, 32]>}
+    // CHECK-SAME:                 -> !VPU.SparseTensor<data=tensor<1x32x16x16xf16>, sparsity_map=tensor<1x32x32x32xi1>, storage_element_table=tensor<1x1x32x32xi32>, #VPU.SEInterpolate<mode = <NEAREST>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], nearest_mode = <FLOOR>, offsets = [0, 0, 0, 0], sizes = [1, 32, 32, 32]>>
+    
     // CHECK:       [[VAL1:%.*]]:3 = builtin.unrealized_conversion_cast [[VAL0]] :
-    // CHECK-SAME:                   !VPU.SparseTensor<data=tensor<1x32x16x16xf16>, sparsity_map=tensor<1x32x32x32xi1>, storage_element_table=tensor<1x1x32x32xi32>, #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 32, 32, 32]>>
+    // CHECK-SAME:                   !VPU.SparseTensor<data=tensor<1x32x16x16xf16>, sparsity_map=tensor<1x32x32x32xi1>, storage_element_table=tensor<1x1x32x32xi32>, #VPU.SEInterpolate<mode = <NEAREST>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], nearest_mode = <FLOOR>, offsets = [0, 0, 0, 0], sizes = [1, 32, 32, 32]>>
     // CHECK-SAME:                   to tensor<1x32x16x16xf16>, tensor<1x32x32x32xi1>, tensor<1x1x32x32xi32>
 
     // CHECK:       return [[VAL1]]#0 : tensor<1x32x16x16xf16>
@@ -182,31 +182,31 @@ func.func @CanonicalizeSEAttrSlice(%arg0: tensor<1x64x4x4xf16, {order = #NHWC}>)
         -> !VPU.SparseTensor<data=tensor<1x64x3x4xf16, {mem_space = @CMX_NN, order = #NHWC}>,
                              sparsity_map=tensor<1x64x5x9xi1>,
                              storage_element_table=tensor<1x1x5x9xi32, {order = #NHWC}>,
-                             #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>> {
+                             #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>> {
     %data_cmx = VPU.Copy(%arg0)  {out_mem_space = @CMX_NN} : tensor<1x64x4x4xf16, {order = #NHWC}> -> tensor<1x64x4x4xf16, {mem_space = @CMX_NN, order = #NHWC}>
     %cst_sm = const.Declare tensor<1x64x9x9xi1> = dense<true> : tensor<1x64x9x9xi1>
-    %se_table = VPU.StorageElementTable { dataElemType = f16, dataShape=[1, 64, 4, 4], seDepth = 1 : i64, seSize = 64 : i64, seAttr = #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 9, 9]> } -> tensor<1x1x9x9xi32, {order = #NHWC}>
+    %se_table = VPU.StorageElementTable { dataElemType = f16, dataShape=[1, 64, 4, 4], seDepth = 1 : i64, seSize = 64 : i64, seAttr = #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 9, 9]> } -> tensor<1x1x9x9xi32, {order = #NHWC}>
 
-    %sparse = VPU.GroupSparseTensor(%data_cmx, %cst_sm, %se_table)  {seAttr =  #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 9, 9]>}
+    %sparse = VPU.GroupSparseTensor(%data_cmx, %cst_sm, %se_table)  {seAttr =  #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 9, 9]>}
         -> !VPU.SparseTensor<data=tensor<1x64x4x4xf16, {mem_space = @CMX_NN, order = #NHWC}>,
                              sparsity_map=tensor<1x64x9x9xi1>,
                              storage_element_table=tensor<1x1x9x9xi32, {order = #NHWC}>,
-                             #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 9, 9]>>
+                             #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 9, 9]>>
 
     %sparse_slice = VPU.Slice %sparse [0, 0, 0, 0] [1, 64, 5, 9] :
         !VPU.SparseTensor<data=tensor<1x64x4x4xf16, {mem_space = @CMX_NN, order = #NHWC}>,
                           sparsity_map=tensor<1x64x9x9xi1>,
                           storage_element_table=tensor<1x1x9x9xi32, {order = #NHWC}>,
-                          #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 9, 9]>> to
+                          #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 9, 9]>> to
         !VPU.SparseTensor<data=tensor<1x64x3x4xf16, {mem_space = @CMX_NN, order = #NHWC}>,
                           sparsity_map=tensor<1x64x5x9xi1>,
                           storage_element_table=tensor<1x1x5x9xi32, {order = #NHWC}>,
-                          #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>>
+                          #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>>
 
     return %sparse_slice : !VPU.SparseTensor<data=tensor<1x64x3x4xf16, {mem_space = @CMX_NN, order = #NHWC}>,
                                              sparsity_map=tensor<1x64x5x9xi1>,
                                              storage_element_table=tensor<1x1x5x9xi32, {order = #NHWC}>,
-                                             #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>>
+                                             #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>>
 
     // CHECK:       [[SM:%.*]] = const.Declare tensor<1x64x5x9xi1> = dense<true> : tensor<1x64x9x9xi1>, [#const.SubView<[0, 0, 0, 0], [1, 64, 5, 9]>]
     // CHECK:       [[DATA:%.*]] = VPU.Copy(%arg0) {out_mem_space = @CMX_NN} : tensor<1x64x4x4xf16, {order = #NHWC}> -> tensor<1x64x4x4xf16, {mem_space = @CMX_NN, order = #NHWC}>
@@ -214,22 +214,22 @@ func.func @CanonicalizeSEAttrSlice(%arg0: tensor<1x64x4x4xf16, {order = #NHWC}>)
     // CHECK:       [[SE_TABLE:%.*]] = VPU.StorageElementTable {
     // CHECK-SAME:                       dataElemType = f16,
     // CHECK-SAME:                       dataShape = [1, 64, 3, 4],
-    // CHECK-SAME:                       seAttr = #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>,
+    // CHECK-SAME:                       seAttr = #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>,
     // CHECK-SAME:                       seDepth = 1 : i64,
-    // CHECK-SAME:                       seSize = 64 : i64}
+    // CHECK-SAME:                       seSize = 64 : i64} 
     // CHECK-SAME:                     -> tensor<1x1x5x9xi32, {order = #NHWC}>
 
     // CHECK:       [[DATA_SLICE:%.*]] = VPU.Slice [[DATA]] [0, 0, 0, 0] [1, 64, 3, 4] : tensor<1x64x4x4xf16, {mem_space = @CMX_NN, order = #NHWC}>
     // CHECK-SAME:                          to tensor<1x64x3x4xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
-    // CHECK:       [[GROUP_OP:%.*]] = VPU.GroupSparseTensor([[DATA_SLICE]], [[SM]], [[SE_TABLE]])
-    // CHECK-SAME:                      {seAttr = #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>}
+    // CHECK:       [[GROUP_OP:%.*]] = VPU.GroupSparseTensor([[DATA_SLICE]], [[SM]], [[SE_TABLE]]) 
+    // CHECK-SAME:                      {seAttr = #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>}
     // CHECK-SAME:                     -> !VPU.SparseTensor<
     // CHECK-SAME:                          data=tensor<1x64x3x4xf16, {mem_space = @CMX_NN, order = #NHWC}>,
     // CHECK-SAME:                          sparsity_map=tensor<1x64x5x9xi1>,
-    // CHECK-SAME:                          storage_element_table=tensor<1x1x5x9xi32, {order = #NHWC}>, #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>>
+    // CHECK-SAME:                          storage_element_table=tensor<1x1x5x9xi32, {order = #NHWC}>, #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>>
 
-    // CHECK:       return [[GROUP_OP]] : !VPU.SparseTensor<data=tensor<1x64x3x4xf16, {mem_space = @CMX_NN, order = #NHWC}>, sparsity_map=tensor<1x64x5x9xi1>, storage_element_table=tensor<1x1x5x9xi32, {order = #NHWC}>, #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>>
+    // CHECK:       return [[GROUP_OP]] : !VPU.SparseTensor<data=tensor<1x64x3x4xf16, {mem_space = @CMX_NN, order = #NHWC}>, sparsity_map=tensor<1x64x5x9xi1>, storage_element_table=tensor<1x1x5x9xi32, {order = #NHWC}>, #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>>
 }
 
 // -----
@@ -241,50 +241,50 @@ func.func @CanonicalizeSEAttrMultipleSlice(%arg0: tensor<1x64x4x4xf16, {order = 
         -> (!VPU.SparseTensor<data=tensor<1x64x3x4xf16, {mem_space = @CMX_NN, order = #NHWC}>,
                              sparsity_map=tensor<1x64x5x9xi1>,
                              storage_element_table=tensor<1x1x5x9xi32, {order = #NHWC}>,
-                             #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>>,
+                             #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>>,
             !VPU.SparseTensor<data=tensor<1x64x2x4xf16, {mem_space = @CMX_NN, order = #NHWC}>,
                                              sparsity_map=tensor<1x64x4x9xi1>,
                                              storage_element_table=tensor<1x1x4x9xi32, {order = #NHWC}>,
-                                             #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1., 1., 2., 2.], offsets = [0, 0, 1, 0], sizes = [1, 64, 4, 9]>>) {
+                                             #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1., 1., 2., 2.], offsets = [0, 0, 1, 0], sizes = [1, 64, 4, 9]>>) {
     %data_cmx = VPU.Copy(%arg0)  {out_mem_space = @CMX_NN} : tensor<1x64x4x4xf16, {order = #NHWC}> -> tensor<1x64x4x4xf16, {mem_space = @CMX_NN, order = #NHWC}>
     %cst_sm = const.Declare tensor<1x64x9x9xi1> = dense<true> : tensor<1x64x9x9xi1>
-    %se_table = VPU.StorageElementTable { dataElemType = f16, dataShape=[1, 64, 4, 4], seDepth = 1 : i64, seSize = 64 : i64, seAttr =  #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 9, 9]>} -> tensor<1x1x9x9xi32, {order = #NHWC}>
+    %se_table = VPU.StorageElementTable { dataElemType = f16, dataShape=[1, 64, 4, 4], seDepth = 1 : i64, seSize = 64 : i64, seAttr =  #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 9, 9]>} -> tensor<1x1x9x9xi32, {order = #NHWC}>
 
-    %sparse = VPU.GroupSparseTensor(%data_cmx, %cst_sm, %se_table)  {seAttr =  #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 9, 9]>}
+    %sparse = VPU.GroupSparseTensor(%data_cmx, %cst_sm, %se_table)  {seAttr =  #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 9, 9]>}
         -> !VPU.SparseTensor<data=tensor<1x64x4x4xf16, {mem_space = @CMX_NN, order = #NHWC}>,
                              sparsity_map=tensor<1x64x9x9xi1>,
                              storage_element_table=tensor<1x1x9x9xi32, {order = #NHWC}>,
-                             #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 9, 9]>>
+                             #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 9, 9]>>
 
     // Tile over H
     %sparse_slice_0 = VPU.Slice %sparse [0, 0, 0, 0] [1, 64, 5, 9] :
         !VPU.SparseTensor<data=tensor<1x64x4x4xf16, {mem_space = @CMX_NN, order = #NHWC}>,
                           sparsity_map=tensor<1x64x9x9xi1>,
                           storage_element_table=tensor<1x1x9x9xi32, {order = #NHWC}>,
-                          #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 9, 9]>> to
+                          #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 9, 9]>> to
         !VPU.SparseTensor<data=tensor<1x64x3x4xf16, {mem_space = @CMX_NN, order = #NHWC}>,
                           sparsity_map=tensor<1x64x5x9xi1>,
                           storage_element_table=tensor<1x1x5x9xi32, {order = #NHWC}>,
-                          #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>>
+                          #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>>
 
     %sparse_slice_1 = VPU.Slice %sparse [0, 0, 5, 0] [1, 64, 4, 9] :
         !VPU.SparseTensor<data=tensor<1x64x4x4xf16, {mem_space = @CMX_NN, order = #NHWC}>,
                           sparsity_map=tensor<1x64x9x9xi1>,
                           storage_element_table=tensor<1x1x9x9xi32, {order = #NHWC}>,
-                          #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 9, 9]>> to
+                          #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 9, 9]>> to
         !VPU.SparseTensor<data=tensor<1x64x2x4xf16, {mem_space = @CMX_NN, order = #NHWC}>,
                           sparsity_map=tensor<1x64x4x9xi1>,
                           storage_element_table=tensor<1x1x4x9xi32, {order = #NHWC}>,
-                          #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1., 1., 2., 2.], offsets = [0, 0, 1, 0], sizes = [1, 64, 4, 9]>>
+                          #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1., 1., 2., 2.], offsets = [0, 0, 1, 0], sizes = [1, 64, 4, 9]>>
 
     return %sparse_slice_0, %sparse_slice_1: !VPU.SparseTensor<data=tensor<1x64x3x4xf16, {mem_space = @CMX_NN, order = #NHWC}>,
                                              sparsity_map=tensor<1x64x5x9xi1>,
                                              storage_element_table=tensor<1x1x5x9xi32, {order = #NHWC}>,
-                                             #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>>,
+                                             #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1., 1., 2., 2.], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>>,
                                              !VPU.SparseTensor<data=tensor<1x64x2x4xf16, {mem_space = @CMX_NN, order = #NHWC}>,
                                              sparsity_map=tensor<1x64x4x9xi1>,
                                              storage_element_table=tensor<1x1x4x9xi32, {order = #NHWC}>,
-                                             #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1., 1., 2., 2.], offsets = [0, 0, 1, 0], sizes = [1, 64, 4, 9]>>
+                                             #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1., 1., 2., 2.], offsets = [0, 0, 1, 0], sizes = [1, 64, 4, 9]>>
 
     // Sparsity map is constant, SliceOp was fused into it
     // CHECK:       [[SM_SLICE_0:%.*]] = const.Declare tensor<1x64x4x9xi1> = dense<true> : tensor<1x64x9x9xi1>, [#const.SubView<[0, 0, 5, 0], [1, 64, 4, 9]>]
@@ -297,7 +297,7 @@ func.func @CanonicalizeSEAttrMultipleSlice(%arg0: tensor<1x64x4x4xf16, {order = 
     // CHECK:       [[SET_SLICE_0:%.*]] = VPU.StorageElementTable {
     // CHECK-SAME:                          dataElemType = f16,
     // CHECK-SAME:                          dataShape = [1, 64, 3, 4],
-    // CHECK-SAME:                          seAttr = #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>,
+    // CHECK-SAME:                          seAttr = #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>,
     // CHECK-SAME:                          seDepth = 1 : i64,
     // CHECK-SAME:                          seSize = 64 : i64}
     // CHECK-SAME:                        -> tensor<1x1x5x9xi32, {order = #NHWC}>
@@ -305,7 +305,7 @@ func.func @CanonicalizeSEAttrMultipleSlice(%arg0: tensor<1x64x4x4xf16, {order = 
     // CHECK:       [[SET_SLICE_1:%.*]] = VPU.StorageElementTable {
     // CHECK-SAME:                          dataElemType = f16,
     // CHECK-SAME:                          dataShape = [1, 64, 2, 4],
-    // CHECK-SAME:                          seAttr = #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 1, 0], sizes = [1, 64, 4, 9]>,
+    // CHECK-SAME:                          seAttr = #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 1, 0], sizes = [1, 64, 4, 9]>,
     // CHECK-SAME:                          seDepth = 1 : i64,
     // CHECK-SAME:                          seSize = 64 : i64}
     // CHECK-SAME:                          -> tensor<1x1x4x9xi32, {order = #NHWC}>
@@ -315,23 +315,23 @@ func.func @CanonicalizeSEAttrMultipleSlice(%arg0: tensor<1x64x4x4xf16, {order = 
 
     // Two VPU.GroupSparseTensor operations have been created, one for each slice
     // CHECK:       [[GROUP_SLICE_0:%.*]] = VPU.GroupSparseTensor([[DATA_SLICE_0]], [[SM_SLICE_0]], [[SET_SLICE_1]])
-    // CHECK-SAME:                          {seAttr = #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 1, 0], sizes = [1, 64, 4, 9]>}
+    // CHECK-SAME:                          {seAttr = #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 1, 0], sizes = [1, 64, 4, 9]>}
     // CHECK-SAME:                          -> !VPU.SparseTensor<
     // CHECK-SAME:                              data=tensor<1x64x2x4xf16, {mem_space = @CMX_NN, order = #NHWC}>,
     // CHECK-SAME:                              sparsity_map=tensor<1x64x4x9xi1>,
     // CHECK-SAME:                              storage_element_table=tensor<1x1x4x9xi32, {order = #NHWC}>,
-    // CHECK-SAME:                              #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 1, 0], sizes = [1, 64, 4, 9]>>
+    // CHECK-SAME:                              #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 1, 0], sizes = [1, 64, 4, 9]>>
 
     // CHECK:       [[DATA_SLICE_1:%.*]] = VPU.Slice [[DATA]] [0, 0, 0, 0] [1, 64, 3, 4] : tensor<1x64x4x4xf16, {mem_space = @CMX_NN, order = #NHWC}>
     // CHECK-SAME:                          to tensor<1x64x3x4xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
     // CHECK:       [[GROUP_SLICE_1:%.*]] = VPU.GroupSparseTensor([[DATA_SLICE_1]], [[SM_SLICE_1]], [[SET_SLICE_0]])
-    // CHECK-SAME:                              {seAttr = #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>}
-    // CHECK-SAME:                          -> !VPU.SparseTensor<data=tensor<1x64x3x4xf16, {mem_space = @CMX_NN, order = #NHWC}>, sparsity_map=tensor<1x64x5x9xi1>, storage_element_table=tensor<1x1x5x9xi32, {order = #NHWC}>, #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>>
+    // CHECK-SAME:                              {seAttr = #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>}
+    // CHECK-SAME:                          -> !VPU.SparseTensor<data=tensor<1x64x3x4xf16, {mem_space = @CMX_NN, order = #NHWC}>, sparsity_map=tensor<1x64x5x9xi1>, storage_element_table=tensor<1x1x5x9xi32, {order = #NHWC}>, #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>>
 
     // CHECK:       return [[GROUP_SLICE_1]], [[GROUP_SLICE_0]] :
     // CHECK-SAME:      !VPU.SparseTensor<data=tensor<1x64x3x4xf16, {mem_space = @CMX_NN, order = #NHWC}>, sparsity_map=tensor<1x64x5x9xi1>, storage_element_table=tensor<1x1x5x9xi32, {order = #NHWC}>,
-    // CHECK-SAME:          #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>>,
+    // CHECK-SAME:          #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 64, 5, 9]>>,
     // CHECK-SAME:      !VPU.SparseTensor<data=tensor<1x64x2x4xf16, {mem_space = @CMX_NN, order = #NHWC}>, sparsity_map=tensor<1x64x4x9xi1>, storage_element_table=tensor<1x1x4x9xi32, {order = #NHWC}>,
-    // CHECK-SAME:          #VPU.SEInterpolate<mode = "BILINEAR", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC", scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 1, 0], sizes = [1, 64, 4, 9]>>
+    // CHECK-SAME:          #VPU.SEInterpolate<mode = <BILINEAR>, coordinate_transformation_mode = <ASYMMETRIC>, scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 1, 0], sizes = [1, 64, 4, 9]>>
 }

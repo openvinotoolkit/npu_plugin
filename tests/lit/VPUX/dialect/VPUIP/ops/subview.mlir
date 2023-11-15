@@ -70,3 +70,106 @@ func.func @ComposeSubView(%arg0: memref<1x3x8x4xf32>) -> memref<1x3x8x4xf32> {
 
     // CHECK:       return [[VAR2]] : memref<1x3x8x4xf32>
 }
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+!InputDistributed = !VPUIP.DistributedBuffer<
+    1x1x96x160xf16, #NHWC, @CMX_NN, {
+    mode = "OVERLAPPED",
+    num_tiles = [1, 1, 2, 1],
+    num_clusters = 2 : i64,
+    compute_shapes = [[1, 1, 49, 160], [1, 1, 49, 160]],
+    compute_offsets = [[0, 0, 0, 0], [0, 0, 47, 0]],
+    memory_shapes = [[1, 1, 49, 160], [1, 1, 49, 160]],
+    memory_offsets = [[0, 0, 0, 0], [0, 0, 47, 0]]
+}>
+
+!OutputDistributed = !VPUIP.DistributedBuffer<
+    1x1x49x160xf16, {order = #NHWC, strides = [15360, 1, 160, 1]}, @CMX_NN, {
+    mode = "OVERLAPPED",
+    num_tiles = [1, 1, 2, 1],
+    num_clusters = 2 : i64,
+    compute_shapes = [[1, 1, 26, 160], [1, 1, 25, 160]],
+    compute_offsets = [[0, 0, 0, 0], [0, 0, 24, 0]],
+    memory_shapes = [[1, 1, 26, 160], [1, 1, 25, 160]],
+    memory_offsets = [[0, 0, 0, 0], [0, 0, 24, 0]]
+}>
+
+// CHECK-LABEL: SubviewWithExplicitOverlappedDistributedTensorType
+func.func @SubviewWithExplicitOverlappedDistributedTensorType(%arg0: !InputDistributed)
+    -> (!OutputDistributed, !OutputDistributed) {
+
+    %0 = VPUIP.SubView %arg0 [0, 0, 0, 0] [1, 1, 49, 160] : !InputDistributed to !OutputDistributed
+    %1 = VPUIP.SubView %arg0 [0, 0, 47, 0] [1, 1, 49, 160] : !InputDistributed to !OutputDistributed
+    return %0, %1 : !OutputDistributed, !OutputDistributed
+
+    // CHECK:        [[SUBVIEW0:%.*]] = VPUIP.SubView %arg0 [0, 0, 0, 0] [1, 1, 49, 160]
+    // CHECK-SAME:         !VPUIP.DistributedBuffer<1x1x96x160xf16, #NHWC, @CMX_NN
+    // CHECK-SAME:         to !VPUIP.DistributedBuffer<1x1x49x160xf16, {order = #NHWC, strides = [15360, 1, 160, 1]}, @CMX_NN
+    // CHECK-SAME:             mode = "OVERLAPPED"
+    // CHECK-SAME:             num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64
+    // CHECK-SAME{LITERAL}:    compute_shapes = [[1, 1, 26, 160], [1, 1, 25, 160]], compute_offsets = [[0, 0, 0, 0], [0, 0, 24, 0]],
+    // CHECK-SAME{LITERAL}:    memory_shapes = [[1, 1, 26, 160], [1, 1, 25, 160]], memory_offsets = [[0, 0, 0, 0], [0, 0, 24, 0]]
+
+    // CHECK:        [[SUBVIEW1:%.*]] = VPUIP.SubView %arg0 [0, 0, 47, 0] [1, 1, 49, 160]
+    // CHECK-SAME:         !VPUIP.DistributedBuffer<1x1x96x160xf16, #NHWC, @CMX_NN
+    // CHECK-SAME:         to !VPUIP.DistributedBuffer<1x1x49x160xf16, {order = #NHWC, strides = [15360, 1, 160, 1]}, @CMX_NN
+    // CHECK-SAME:             mode = "OVERLAPPED"
+    // CHECK-SAME:             num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64
+    // CHECK-SAME{LITERAL}:    compute_shapes = [[1, 1, 26, 160], [1, 1, 25, 160]], compute_offsets = [[0, 0, 0, 0], [0, 0, 24, 0]],
+    // CHECK-SAME{LITERAL}:    memory_shapes = [[1, 1, 26, 160], [1, 1, 25, 160]], memory_offsets = [[0, 0, 0, 0], [0, 0, 24, 0]]
+}
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+!InputDistributed = !VPUIP.DistributedBuffer<
+    1x16x88x128xf16, #NHWC, @CMX_NN, {
+    mode = "SEGMENTED",
+    num_tiles = [1, 1, 2, 1],
+    num_clusters = 2 : i64,
+    compute_shapes = [[1, 16, 44, 128], [1, 16, 44, 128]],
+    compute_offsets = [[0, 0, 0, 0], [0, 0, 44, 0]],
+    memory_shapes = [[1, 16, 44, 128], [1, 16, 44, 128]],
+    memory_offsets = [[0, 0, 0, 0], [0, 0, 44, 0]]
+}>
+
+!OutputDistributed = !VPUIP.DistributedBuffer<
+    1x16x44x128xf16, {order = #NHWC, strides = [180224, 1, 2048, 16]}, @CMX_NN, {
+    mode = "SEGMENTED",
+    num_tiles = [1, 1, 2, 1],
+    num_clusters = 2 : i64,
+    compute_shapes = [[1, 16, 22, 128], [1, 16, 22, 128]],
+    compute_offsets = [[0, 0, 0, 0], [0, 0, 22, 0]],
+    memory_shapes = [[1, 16, 22, 128], [1, 16, 22, 128]],
+    memory_offsets = [[0, 0, 0, 0], [0, 0, 22, 0]]
+}>
+
+// CHECK-LABEL: SubviewWithExplicitSegmentedDistributedTensorType
+func.func @SubviewWithExplicitSegmentedDistributedTensorType(%arg0: !InputDistributed)
+    -> (!OutputDistributed, !OutputDistributed) {
+
+     %0 = VPUIP.SubView %arg0 [0, 0, 0, 0] [1, 16, 44, 128] : !InputDistributed to !OutputDistributed
+     %1 = VPUIP.SubView %arg0 [0, 0, 44, 0] [1, 16, 44, 128] : !InputDistributed to !OutputDistributed
+    return %0, %1 : !OutputDistributed, !OutputDistributed
+
+    // CHECK:        [[SUBVIEW0:%.*]] = VPUIP.SubView %arg0 [0, 0, 0, 0] [1, 16, 44, 128]
+    // CHECK-SAME:         !VPUIP.DistributedBuffer<1x16x88x128xf16, #NHWC, @CMX_NN
+    // CHECK-SAME:         to !VPUIP.DistributedBuffer<1x16x44x128xf16, {order = #NHWC, strides = [180224, 1, 2048, 16]}, @CMX_NN
+    // CHECK-SAME:             mode = "SEGMENTED"
+    // CHECK-SAME:             num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64
+    // CHECK-SAME{LITERAL}:    compute_shapes = [[1, 16, 22, 128], [1, 16, 22, 128]], compute_offsets = [[0, 0, 0, 0], [0, 0, 22, 0]]
+    // CHECK-SAME{LITERAL}:    memory_shapes = [[1, 16, 22, 128], [1, 16, 22, 128]], memory_offsets = [[0, 0, 0, 0], [0, 0, 22, 0]]
+
+    // CHECK:        [[SUBVIEW1:%.*]] = VPUIP.SubView %arg0 [0, 0, 44, 0] [1, 16, 44, 128]
+    // CHECK-SAME:         !VPUIP.DistributedBuffer<1x16x88x128xf16, #NHWC, @CMX_NN
+    // CHECK-SAME:         to !VPUIP.DistributedBuffer<1x16x44x128xf16, {order = #NHWC, strides = [180224, 1, 2048, 16]}, @CMX_NN
+    // CHECK-SAME:             mode = "SEGMENTED"
+    // CHECK-SAME:             num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64
+    // CHECK-SAME{LITERAL}:    compute_shapes = [[1, 16, 22, 128], [1, 16, 22, 128]], compute_offsets = [[0, 0, 0, 0], [0, 0, 22, 0]]
+    // CHECK-SAME{LITERAL}:    memory_shapes = [[1, 16, 22, 128], [1, 16, 22, 128]], memory_offsets = [[0, 0, 0, 0], [0, 0, 22, 0]]
+
+}

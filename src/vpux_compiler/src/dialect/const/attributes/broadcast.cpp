@@ -9,6 +9,8 @@
 #include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/utils/IE/loop.hpp"
 
+#include <numeric>
+
 using namespace vpux;
 
 //
@@ -104,15 +106,36 @@ vpux::NDTypeInterface vpux::Const::BroadcastAttr::inferOutputType(vpux::NDTypeIn
 //
 
 Const::Content vpux::Const::BroadcastAttr::transform(vpux::Const::Content& input) const {
-    VPUX_THROW_UNLESS(input.isSplat(), "Only splat constants might be broadcasted, for other cases use PadWithZero");
-
     auto output = Const::Content::allocTempBuffer(inferOutputType(input.getType()), input.getStorageElemType(),
                                                   input.isSplat());
 
     const auto inBuf = input.getRawStorageBuf();
     auto outBuf = output.getRawTempBuf();
+    if (input.isSplat()) {
+        std::copy_n(inBuf.data(), inBuf.size(), outBuf.data());
+    } else {
+        const auto value = getValue().getInt();
+        //
+        auto cstType = input.getType();
+        auto physicalShape = cstType.getMemShape().raw();
+        auto index = cstType.getDimsOrder().dimPos(Dim(getAxis().getInt()));
+        const auto preDims = std::accumulate(physicalShape.begin(), physicalShape.begin() + index, (int64_t)1,
+                                             std::multiplies<int64_t>());
+        const auto expandDim = physicalShape[index];
+        const auto afterDims = std::accumulate(physicalShape.begin() + index, physicalShape.end(), (int64_t)1,
+                                               std::multiplies<int64_t>());
+        VPUX_THROW_WHEN(value % expandDim, "Can't broadcast from {0} to {1}", expandDim, value);
+        const auto factor = value / expandDim;
+        const auto elemSize = vpux::getElemTypeSize(input.getStorageElemType()).to<Byte>().count();
+        const auto singleCopySize = afterDims * elemSize;
 
-    std::copy_n(inBuf.data(), inBuf.size(), outBuf.data());
+        loop_2d(LoopExecPolicy::Parallel, preDims, factor, [&](int64_t preIndex, int64_t factorIndex) {
+            auto inOffset = preIndex * afterDims * elemSize;
+            auto outBase = singleCopySize * preIndex * factor;
+            std::copy_n(inBuf.data() + inOffset, singleCopySize,
+                        outBuf.data() + outBase + (singleCopySize * factorIndex));
+        });
+    }
 
     return output;
 }

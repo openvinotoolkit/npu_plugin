@@ -6,6 +6,8 @@
 #include "vpux/compiler/core/tiling.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/distributed_tensor_utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/sw_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -19,15 +21,15 @@ namespace {
 
 mlir::FailureOr<SmallVector<int64_t>> extractIntVector(mlir::Location loc, const mlir::Value value,
                                                        const Optional<mlir::ArrayAttr>& attr) {
-    if (attr.hasValue() && attr.getValue() != nullptr) {
-        return parseIntArrayAttr<int64_t>(attr.getValue());
+    if (attr.has_value() && attr.value() != nullptr) {
+        return parseIntArrayAttr<int64_t>(attr.value());
     } else if (value != nullptr) {
         auto valueConst = value.getDefiningOp<Const::DeclareOp>();
         if (valueConst == nullptr) {
             return errorAt(loc, "Only constant input is supported for interpolate attribute");
         }
 
-        const auto valueContent = valueConst.content();
+        const auto valueContent = valueConst.getContent();
         return to_small_vector(valueContent.getValues<int64_t>());
     }
     return errorAt(loc, "Parameter were not provided");
@@ -35,8 +37,8 @@ mlir::FailureOr<SmallVector<int64_t>> extractIntVector(mlir::Location loc, const
 
 mlir::FailureOr<SmallVector<double>> extractFPVector(mlir::Location loc, const mlir::Value value,
                                                      const Optional<mlir::ArrayAttr>& attr) {
-    if (attr.hasValue() && attr.getValue() != nullptr) {
-        return parseFPArrayAttr<double>(attr.getValue());
+    if (attr.has_value() && attr.value() != nullptr) {
+        return parseFPArrayAttr<double>(attr.value());
     } else if (value != nullptr) {
         auto valueConst = value.getDefiningOp<Const::DeclareOp>();
 
@@ -44,7 +46,7 @@ mlir::FailureOr<SmallVector<double>> extractFPVector(mlir::Location loc, const m
             return errorAt(loc, "Only constant input is supported for interpolate attribute");
         }
 
-        const auto valueContent = valueConst.content();
+        const auto valueContent = valueConst.getContent();
         return to_small_vector(valueContent.getValues<double>());
     }
     return errorAt(loc, "Parameter were not provided");
@@ -63,7 +65,7 @@ void applyInterpPads(MutableArrayRef<int64_t> outShape, ArrayRef<int64_t> padsBe
 
 mlir::FailureOr<SmallVector<int64_t>> calcOutputShapes(mlir::Location loc, VPU::InterpolateOpAdaptor interpolate) {
     const auto axes = extractIntVector(loc, interpolate.axes(), interpolate.axes_attr());
-    const auto axesVal = axes.getValue();
+    const auto axesVal = axes.value();
 
     const auto inType = interpolate.input().getType().cast<vpux::NDTypeInterface>();
     const auto inputShape = inType.getShape().raw();
@@ -77,7 +79,7 @@ mlir::FailureOr<SmallVector<int64_t>> calcOutputShapes(mlir::Location loc, VPU::
 
     if (calcMode == IE::InterpolateCalcMode::SIZES) {
         const auto sizes = extractIntVector(loc, interpolate.sizes(), interpolate.sizes_attr());
-        const auto sizes_val = sizes.getValue();
+        const auto sizes_val = sizes.value();
 
         if (sizes_val.size() != axesVal.size()) {
             return errorAt(loc,
@@ -91,7 +93,7 @@ mlir::FailureOr<SmallVector<int64_t>> calcOutputShapes(mlir::Location loc, VPU::
 
     } else if (calcMode == IE::InterpolateCalcMode::SCALES) {
         const auto scales = extractFPVector(loc, interpolate.scales(), interpolate.scales_attr());
-        const auto scales_val = scales.getValue();
+        const auto scales_val = scales.value();
 
         if (scales_val.size() != axesVal.size()) {
             return errorAt(loc,
@@ -101,10 +103,9 @@ mlir::FailureOr<SmallVector<int64_t>> calcOutputShapes(mlir::Location loc, VPU::
 
         auto scalesIter = scales_val.begin();
 
-        auto inputShapeArray = to_small_vector(inputShape);
-        auto initInputDim = interpolate.initial_input_dims_attr().hasValue()
-                                    ? parseIntArrayAttr<int64_t>(interpolate.initial_input_dims_attr().getValue())
-                                    : inputShapeArray;
+        auto initInputDim = interpolate.initial_input_dims_attr().has_value()
+                                    ? parseIntArrayAttr<int64_t>(interpolate.initial_input_dims_attr().value())
+                                    : to_small_vector(inputShape);
         for (const auto& i : axesVal) {
             outShape[i] = static_cast<int64_t>(floor((*scalesIter++) * inputShape[i]));
         }
@@ -140,26 +141,10 @@ mlir::LogicalResult vpux::VPU::InterpolateOp::inferReturnTypes(mlir::MLIRContext
     if (mlir::failed(outShape)) {
         return mlir::failure();
     }
-    const auto outType = inType.changeShape(Shape(outShape.getValue()));
+    const auto outType = inType.changeShape(Shape(outShape.value()));
     inferredReturnTypes.push_back(outType);
 
     return mlir::success();
-}
-
-void vpux::VPU::InterpolateOp::inferLayoutInfo(mlir::Operation* op, IE::LayerLayoutInfo& info) {
-    auto inputShape = op->getOperand(0).getType().cast<vpux::NDTypeInterface>().getShape().raw();
-    VPUX_THROW_UNLESS(inputShape.size() == 4, "Interpolate input shape expected to have 4 dimensions, but has {0}",
-                      inputShape.size());
-
-    // Select NCHW layout due to performance reasons
-    // [Track number: E#25302]
-    auto channels = inputShape[Dims4D::Act::C.ind()];
-    const auto antialias = mlir::cast<IE::InterpolateOp>(op).attr().getAntialias().getValue();
-    if (channels == 1 || antialias) {
-        VPU::inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NCHW});
-    } else {
-        VPU::inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NCHW, DimsOrder::NHWC});
-    }
 }
 
 //
@@ -180,6 +165,15 @@ bool vpux::VPU::InterpolateOp::checkStrategyCompatibility(VPU::MultiClusterStrat
         return inputShape[Dims4D::Act::H] > 1;
     }
     return false;
+}
+
+vpux::VPU::DistributedTensorAttr vpux::VPU::InterpolateOp::getExplicitDistributedTensorAttr(
+        vpux::ShapeRef shape, vpux::VPU::DistributionMode distributionMode, mlir::ArrayAttr numTiles,
+        mlir::IntegerAttr numClusters, mlir::ArrayAttr alignment, mlir::ArrayAttr /*kernel*/,
+        vpux::VPU::PaddingAttr /*pad*/, mlir::ArrayAttr /*stride*/, mlir::UnitAttr uniformDistributedSegments) {
+    return VPU::getSWExplicitDistributedTensorAttr(mlir::dyn_cast<VPU::SWOpInterface>(getOperation()), shape,
+                                                   distributionMode, numTiles, numClusters, alignment,
+                                                   uniformDistributedSegments);
 }
 
 void vpux::VPU::InterpolateOp::build(
@@ -267,11 +261,11 @@ mlir::FailureOr<SmallVector<int64_t>> propagateShape(mlir::Location loc, mlir::F
                                                      mlir::FailureOr<ArrayRef<double>> scales, vpux::Logger log) {
     log.trace("Interp propagate shape: input = {0}", origShape);
 
-    const auto axes_val = axes.getValue();
+    const auto axes_val = axes.value();
     auto inferedShape = to_small_vector(origShape);
 
     if (calcMode == IE::InterpolateCalcMode::SIZES) {
-        const auto sizes_val = sizes.getValue();
+        const auto sizes_val = sizes.value();
 
         if (sizes_val.size() != axes_val.size()) {
             return errorAt(loc,
@@ -285,7 +279,7 @@ mlir::FailureOr<SmallVector<int64_t>> propagateShape(mlir::Location loc, mlir::F
             inferedShape[i] = *sizesIter++;
         }
     } else if (calcMode == IE::InterpolateCalcMode::SCALES) {
-        const auto scales_val = scales.getValue();
+        const auto scales_val = scales.value();
 
         if (scales_val.size() != axes_val.size()) {
             return errorAt(loc,
@@ -306,7 +300,7 @@ mlir::FailureOr<SmallVector<int64_t>> propagateShape(mlir::Location loc, mlir::F
 
     // meaning pads provided in attributes
     if (mlir::succeeded(padsBegin) && mlir::succeeded(padsEnd)) {
-        applyInterpPads(inferedShape, padsBegin.getValue(), padsEnd.getValue());
+        applyInterpPads(inferedShape, padsBegin.value(), padsEnd.value());
     }
 
     log.trace("Interp propagate shape: output = {0}", inferedShape);
@@ -318,26 +312,25 @@ InputTiling vpux::VPU::InterpolateOp::backInferTileInfo(const vpux::TileInfo& ou
     const auto origAxes = extractIntVector(getLoc(), axes(), axes_attrAttr());
     VPUX_THROW_UNLESS(mlir::succeeded(origAxes), "InterpolateOp::backInferTileInfo failed to extract axes");
 
-    auto iShape = initial_input_dims_attr().hasValue()
-                          ? parseIntArrayAttr<int64_t>(initial_input_dims_attr().getValue())
-                          : to_small_vector(getShape(input()));
-    auto oShape = initial_output_dims_attr().hasValue()
-                          ? parseIntArrayAttr<int64_t>(initial_output_dims_attr().getValue())
+    auto iShape = initial_input_dims_attr().has_value() ? parseIntArrayAttr<int64_t>(initial_input_dims_attr().value())
+                                                        : to_small_vector(getShape(input()));
+    auto oShape = initial_output_dims_attr().has_value()
+                          ? parseIntArrayAttr<int64_t>(initial_output_dims_attr().value())
                           : to_small_vector(getShape(output()));
-    auto initialInputOffsets = initial_input_offset_attr().hasValue()
-                                       ? parseIntArrayAttr<int64_t>(initial_input_offset_attr().getValue())
+    auto initialInputOffsets = initial_input_offset_attr().has_value()
+                                       ? parseIntArrayAttr<int64_t>(initial_input_offset_attr().value())
                                        : SmallVector<int64_t>(getShape(input()).size(), 0);
 
-    auto initialOutputOffsets = initial_output_offset_attr().hasValue()
-                                        ? parseIntArrayAttr<int64_t>(initial_output_offset_attr().getValue())
+    auto initialOutputOffsets = initial_output_offset_attr().has_value()
+                                        ? parseIntArrayAttr<int64_t>(initial_output_offset_attr().value())
                                         : SmallVector<int64_t>(getShape(output()).size(), 0);
 
     mlir::Builder builder(*this);
-    if (!initial_input_dims_attr().hasValue()) {
+    if (!initial_input_dims_attr().has_value()) {
         auto newInitialInputDims = builder.getI64ArrayAttr(iShape);
         initial_input_dims_attrAttr(newInitialInputDims);
     }
-    if (!initial_output_dims_attr().hasValue()) {
+    if (!initial_output_dims_attr().has_value()) {
         auto newInitialOutputDims = builder.getI64ArrayAttr(oShape);
         initial_output_dims_attrAttr(newInitialOutputDims);
     }
@@ -346,7 +339,7 @@ InputTiling vpux::VPU::InterpolateOp::backInferTileInfo(const vpux::TileInfo& ou
     auto newTileOffset = builder.getF64ArrayAttr(tileOffset);
     tile_offset_attrAttr(newTileOffset);
 
-    const auto axesVal = origAxes.getValue();
+    const auto axesVal = origAxes.value();
     vpux::Scales fwdScales;
     // Compute scale-factors based on full I/O resolution ratio
     SmallVector<double> backwardScale;
@@ -381,7 +374,7 @@ InputTiling vpux::VPU::InterpolateOp::backInferTileInfo(const vpux::TileInfo& ou
     auto shapeArray = to_small_vector(outputTile.shape);
     if (endPads.size() == shapeArray.size()) {
         for (auto& shapeOrig : shapeArray | indexed) {
-            endPads[shapeOrig.index()] = shapeOrig.value() - forwardInferedShape.getValue()[shapeOrig.index()];
+            endPads[shapeOrig.index()] = shapeOrig.value() - forwardInferedShape.value()[shapeOrig.index()];
         }
     }
     auto convertShape = [](::mlir::Value plainShape) {
@@ -405,7 +398,7 @@ InputTiling vpux::VPU::InterpolateOp::backInferTileInfo(const vpux::TileInfo& ou
 }
 
 void vpux::VPU::InterpolateOp::adjustAttrs(const TilingInfo& inputTiling, const TileInfo& outTile) {
-    if (!inputTiling.pads.hasValue()) {
+    if (!inputTiling.pads.has_value()) {
         return;
     }
     mlir::Builder builder(*this);
@@ -462,8 +455,8 @@ void vpux::VPU::InterpolateOp::adjustAttrs(const TilingInfo& inputTiling, const 
     SmallVector<int64_t> endPads(numDims, 0);
     SmallVector<int64_t> beginPads(numDims, 0);
 
-    endPads[2] = inputTiling.pads.getValue().right;
-    endPads[3] = inputTiling.pads.getValue().bottom;
+    endPads[2] = inputTiling.pads.value().right;
+    endPads[3] = inputTiling.pads.value().bottom;
 
     auto newEndPads = builder.getI64ArrayAttr(endPads);
     auto newBeginPads = builder.getI64ArrayAttr(beginPads);
@@ -475,7 +468,7 @@ void vpux::VPU::InterpolateOp::adjustAttrs(const TilingInfo& inputTiling, const 
                                              attr().getNearestMode(), attr().getAntialias(), newBeginPads, newEndPads,
                                              attr().getCubeCoeff());
 
-    auto axesValue = extractIntVector(getLoc(), axes(), axes_attr().value_or<mlir::ArrayAttr>({})).getValue();
+    auto axesValue = extractIntVector(getLoc(), axes(), axes_attr().value_or<mlir::ArrayAttr>({})).value();
     auto scale = SmallVector<double>(axesValue.size(), 1);
     // Recompute SCALE attribute based on new input output tiling
     for (auto& axis : axesValue | indexed) {
@@ -498,7 +491,7 @@ void vpux::VPU::InterpolateOp::adjustAttrs(const TilingInfo& inputTiling, const 
 //    If the greatest common factor > 1 then choose the smallest common factor that satisfies constrains
 //    If in and out dim are equal (scaling factor == 1) then iteratively increase the number of tiles on this axis since
 //    the constrains are satisfied or the number of tiles is equal with minimum value between in and out dim
-OutputTiling vpux::VPU::InterpolateOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
+mlir::FailureOr<OutputTiling> vpux::VPU::InterpolateOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
     auto op = this->getOperation();
     auto origOp = mlir::dyn_cast<VPU::InterpolateOp>(op);
     auto tilingInfo = mlir::dyn_cast<VPU::TilingInfoOpInterface>(op);
@@ -516,7 +509,7 @@ OutputTiling vpux::VPU::InterpolateOp::getTilingStrategy(TilingMode tilingMode, 
     const auto outShape = outType.getShape();
     const auto outShapeArray = outType.getShape().raw();
     const auto axes = extractIntVector(op->getLoc(), origOp.axes(), origOp.axes_attr());
-    const auto axesVal = axes.getValue();
+    const auto axesVal = axes.value();
     Shape nTilesOnDim(outShapeArray.size(), 1);
 
     auto getTileDimOrder = [&]() {
@@ -559,7 +552,10 @@ OutputTiling vpux::VPU::InterpolateOp::getTilingStrategy(TilingMode tilingMode, 
     const auto isSupportedTileSize = [op, &tilingInfo, outShape, log](ShapeRef nTilesOnDim,
                                                                       TilingMode tilingMode) -> bool {
         const auto tiles = fillDividedTiles(op, nTilesOnDim, outShape);
-        return tilingInfo.isSupportedTiling(tiles, tilingMode, log);
+        if (mlir::failed(tiles)) {
+            return false;
+        }
+        return tilingInfo.isSupportedTiling(tiles.value(), tilingMode, log);
     };
     // Compute next common factor of two integer values greater or equal then currFactor
     // if it doesn't exist getNextCommonFactor returns 0

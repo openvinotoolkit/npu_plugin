@@ -4,8 +4,6 @@
 //
 
 //
-
-//
 // Extra helpers for STL type_traits (partially from C++17 and above)
 //
 
@@ -51,7 +49,7 @@ template <typename T>
 struct or_<T> final : T {};
 
 template <typename T0, typename T1>
-struct or_<T0, T1> final : bool_c<T0::value || T1::value> {};
+struct or_<T0, T1> : bool_c<T0::value || T1::value> {};
 
 template <typename T0, typename... T>
 struct or_<T0, T...> final : or_<T0, or_<T...>> {};

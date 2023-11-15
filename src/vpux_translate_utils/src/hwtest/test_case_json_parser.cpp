@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -33,7 +31,7 @@ llvm::json::Object parse2JSON(StringRef jsonString) {
         if (filteredJSON == replaced) {
             break;
         }
-        filteredJSON = replaced;
+        filteredJSON = std::move(replaced);
     }
 
     if (filteredJSON.empty()) {
@@ -437,19 +435,19 @@ nb::QuantParams nb::TestCaseJsonDescriptor::loadQuantizationParams(llvm::json::O
     auto* qp = obj->getObject("quantization");
     if (qp) {
         result.present = true;
-        result.scale = qp->getNumber("scale").getValue();
-        result.zeropoint = qp->getInteger("zeropoint").getValue();
-        result.low_range = static_cast<std::int64_t>(qp->getNumber("low_range").getValue());
-        result.high_range = static_cast<std::int64_t>(qp->getNumber("high_range").getValue());
+        result.scale = qp->getNumber("scale").value();
+        result.zeropoint = qp->getInteger("zeropoint").value();
+        result.low_range = static_cast<std::int64_t>(qp->getNumber("low_range").value());
+        result.high_range = static_cast<std::int64_t>(qp->getNumber("high_range").value());
     }
     return result;
 }
 
 nb::RaceConditionParams nb::TestCaseJsonDescriptor::loadRaceConditionParams(llvm::json::Object* jsonObj) {
     nb::RaceConditionParams params;
-    params.iterationsCount = jsonObj->getInteger("iteration_count").getValue();
-    params.requestedClusters = jsonObj->getInteger("requested_clusters").getValue();
-    params.requestedUnits = jsonObj->getInteger("requested_units").getValue();
+    params.iterationsCount = jsonObj->getInteger("iteration_count").value();
+    params.requestedClusters = jsonObj->getInteger("requested_clusters").value();
+    params.requestedUnits = jsonObj->getInteger("requested_units").value();
 
     return params;
 }
@@ -463,12 +461,12 @@ nb::DPUTaskParams nb::TestCaseJsonDescriptor::loadDPUTaskParams(llvm::json::Obje
 
     params.outputClusters.resize(jsonOutClusters->size());
     for (size_t i = 0; i < jsonOutClusters->size(); i++) {
-        params.outputClusters[i] = (*jsonOutClusters)[i].getAsInteger().getValue();
+        params.outputClusters[i] = (*jsonOutClusters)[i].getAsInteger().value();
     }
 
-    params.inputCluster = taskParams->getInteger("input_cluster").getValue();
-    params.weightsCluster = taskParams->getInteger("weights_cluster").getValue();
-    params.weightsTableCluster = taskParams->getInteger("weights_table_cluster").getValue();
+    params.inputCluster = taskParams->getInteger("input_cluster").value();
+    params.weightsCluster = taskParams->getInteger("weights_cluster").value();
+    params.weightsTableCluster = taskParams->getInteger("weights_table_cluster").value();
 
     return params;
 }
@@ -482,18 +480,18 @@ nb::MultiClusterDPUParams nb::TestCaseJsonDescriptor::loadMultiClusterDPUParams(
 
     params.taskClusters.resize(jsonTaskClusters->size());
     for (size_t i = 0; i < jsonTaskClusters->size(); i++) {
-        params.taskClusters[i] = (*jsonTaskClusters)[i].getAsInteger().getValue();
+        params.taskClusters[i] = (*jsonTaskClusters)[i].getAsInteger().value();
     }
 
     const std::unordered_map<llvm::StringRef, SegmentationType> segmentOptions = {{"SOK", SegmentationType::SOK},
                                                                                   {"SOH", SegmentationType::SOH}};
 
     auto segmentation = taskParams->getString("segmentation");
-    VPUX_THROW_UNLESS(segmentation.hasValue() && segmentOptions.find(segmentation.getValue()) != segmentOptions.end(),
+    VPUX_THROW_UNLESS(segmentation.has_value() && segmentOptions.find(segmentation.value()) != segmentOptions.end(),
                       "loadMultiClusterDPUParams: failed to get valid segmentation type");
 
-    params.segmentation = segmentOptions.at(segmentation.getValue().str());
-    params.broadcast = taskParams->getBoolean("broadcast").getValue();
+    params.segmentation = segmentOptions.at(segmentation.value().str());
+    params.broadcast = taskParams->getBoolean("broadcast").value();
 
     return params;
 }
@@ -513,11 +511,11 @@ SmallVector<nb::InputLayer> nb::TestCaseJsonDescriptor::loadInputLayer(llvm::jso
         VPUX_THROW_UNLESS(shape != nullptr, "loadInputLayer: missing shape");
 
         for (size_t i = 0; i < shape->size(); i++) {
-            result[inIdx].shape[i] = (*shape)[i].getAsInteger().getValue();
+            result[inIdx].shape[i] = (*shape)[i].getAsInteger().value();
         }
 
         result[inIdx].qp = loadQuantizationParams(inputObj);
-        result[inIdx].dtype = to_dtype(inputObj->getString("dtype").getValue().str());
+        result[inIdx].dtype = to_dtype(inputObj->getString("dtype").value().str());
     }
 
     return result;
@@ -538,15 +536,15 @@ SmallVector<nb::WeightLayer> nb::TestCaseJsonDescriptor::loadWeightLayer(llvm::j
         VPUX_THROW_UNLESS(shape != nullptr, "loadWeightLayer: missing shape");
 
         for (size_t i = 0; i < shape->size(); i++) {
-            result[inIdx].shape[i] = (*shape)[i].getAsInteger().getValue();
+            result[inIdx].shape[i] = (*shape)[i].getAsInteger().value();
         }
 
         result[inIdx].qp = loadQuantizationParams(weightObj);
-        result[inIdx].dtype = to_dtype(weightObj->getString("dtype").getValue().str());
+        result[inIdx].dtype = to_dtype(weightObj->getString("dtype").value().str());
 
         auto filename = weightObj->getString("file_path");
         if (filename) {
-            result[inIdx].filename = filename.getValue().str();
+            result[inIdx].filename = filename.value().str();
         }
     }
 
@@ -569,7 +567,7 @@ SmallVector<nb::SM> nb::TestCaseJsonDescriptor::loadInputSMs(llvm::json::Object*
         VPUX_THROW_UNLESS(shape != nullptr, "loadInputSMs: missing shape");
 
         for (size_t i = 0; i < shape->size(); i++) {
-            result[inIdx].shape[i] = (*shape)[i].getAsInteger().getValue();
+            result[inIdx].shape[i] = (*shape)[i].getAsInteger().value();
         }
     }
 
@@ -591,7 +589,7 @@ SmallVector<nb::SM> nb::TestCaseJsonDescriptor::loadWeightSMs(llvm::json::Object
         VPUX_THROW_UNLESS(shape != nullptr, "loadWeightSMs: missing shape");
 
         for (size_t i = 0; i < shape->size(); i++) {
-            result[inIdx].shape[i] = (*shape)[i].getAsInteger().getValue();
+            result[inIdx].shape[i] = (*shape)[i].getAsInteger().value();
         }
     }
 
@@ -613,11 +611,11 @@ SmallVector<nb::OutputLayer> nb::TestCaseJsonDescriptor::loadOutputLayer(llvm::j
         VPUX_THROW_UNLESS(shape != nullptr, "loadOutputLayer: missing shape");
 
         for (size_t i = 0; i < shape->size(); i++) {
-            result[outIdx].shape[i] = (*shape)[i].getAsInteger().getValue();
+            result[outIdx].shape[i] = (*shape)[i].getAsInteger().value();
         }
 
         result[outIdx].qp = loadQuantizationParams(outputObj);
-        result[outIdx].dtype = to_dtype(outputObj->getString("dtype").getValue().str());
+        result[outIdx].dtype = to_dtype(outputObj->getString("dtype").value().str());
     }
 
     return result;
@@ -632,16 +630,16 @@ nb::DMAparams nb::TestCaseJsonDescriptor::loadDMAParams(llvm::json::Object* json
     }
 
     auto srcMemLoc = params->getString("src_memory_location");
-    VPUX_THROW_UNLESS(srcMemLoc.hasValue(), "Source memory location doesn't provided");
-    result.srcLocation = to_memory_location(srcMemLoc.getValue());
+    VPUX_THROW_UNLESS(srcMemLoc.has_value(), "Source memory location doesn't provided");
+    result.srcLocation = to_memory_location(srcMemLoc.value());
 
     auto dstMemLoc = params->getString("dst_memory_location");
-    VPUX_THROW_UNLESS(dstMemLoc.hasValue(), "Destination memory location doesn't provided");
-    result.dstLocation = to_memory_location(dstMemLoc.getValue());
+    VPUX_THROW_UNLESS(dstMemLoc.has_value(), "Destination memory location doesn't provided");
+    result.dstLocation = to_memory_location(dstMemLoc.value());
 
     auto dmaEngine = params->getInteger("dma_engine");
-    VPUX_THROW_UNLESS(dmaEngine.hasValue(), "DMA engine doesn't provided");
-    result.engine = dmaEngine.getValue();
+    VPUX_THROW_UNLESS(dmaEngine.has_value(), "DMA engine doesn't provided");
+    result.engine = dmaEngine.value();
 
     return result;
 }
@@ -671,8 +669,8 @@ nb::ConvLayer nb::TestCaseJsonDescriptor::loadConvLayer(llvm::json::Object* json
 
     for (size_t i = 0; i < strides->size(); i++) {
         auto stride = (*strides)[i].getAsInteger();
-        if (stride.hasValue()) {
-            result.stride.at(i) = stride.getValue();
+        if (stride.has_value()) {
+            result.stride.at(i) = stride.value();
         }
     }
 
@@ -681,33 +679,33 @@ nb::ConvLayer nb::TestCaseJsonDescriptor::loadConvLayer(llvm::json::Object* json
 
     for (size_t i = 0; i < pads->size(); i++) {
         auto pad = (*pads)[i].getAsInteger();
-        if (pad.hasValue()) {
-            result.pad.at(i) = pad.getValue();
+        if (pad.has_value()) {
+            result.pad.at(i) = pad.value();
         }
     }
 
-    result.group = op->getInteger("group").getValue();
-    result.dilation = op->getInteger("dilation").getValue();
+    result.group = op->getInteger("group").value();
+    result.dilation = op->getInteger("dilation").value();
     auto compress = op->getBoolean("compress");
-    if (compress.hasValue()) {
-        result.compress = compress.getValue();
+    if (compress.has_value()) {
+        result.compress = compress.value();
     } else {
         result.compress = false;
     }
 
     auto mpe_mode = op->getString("mpe_mode");
-    if (mpe_mode.hasValue()) {
-        if (mpe_mode.getValue() == "CUBOID_8x16") {
+    if (mpe_mode.has_value()) {
+        if (mpe_mode.value() == "CUBOID_8x16") {
             result.cube_mode = vpux::VPU::MPEMode::CUBOID_8x16;
-        } else if (mpe_mode.getValue() == "CUBOID_4x16") {
+        } else if (mpe_mode.value() == "CUBOID_4x16") {
             result.cube_mode = vpux::VPU::MPEMode::CUBOID_4x16;
         }
         // TODO: Check for the default (CUBOID_16x16) and log if it's something else.
     }
 
     auto act_sparsity = op->getBoolean("act_sparsity");
-    if (act_sparsity.hasValue()) {
-        result.act_sparsity = act_sparsity.getValue();
+    if (act_sparsity.has_value()) {
+        result.act_sparsity = act_sparsity.value();
     } else {
         result.act_sparsity = false;
     }
@@ -728,8 +726,8 @@ nb::PoolLayer nb::TestCaseJsonDescriptor::loadPoolLayer(llvm::json::Object* json
 
     for (size_t i = 0; i < kernel_shape->size(); i++) {
         auto kernelsize = (*kernel_shape)[i].getAsInteger();
-        if (kernelsize.hasValue()) {
-            result.kernel_shape.at(i) = kernelsize.getValue();
+        if (kernelsize.has_value()) {
+            result.kernel_shape.at(i) = kernelsize.value();
         }
     }
     auto* strides = op->getArray("stride");
@@ -737,8 +735,8 @@ nb::PoolLayer nb::TestCaseJsonDescriptor::loadPoolLayer(llvm::json::Object* json
 
     for (size_t i = 0; i < strides->size(); i++) {
         auto stride = (*strides)[i].getAsInteger();
-        if (stride.hasValue()) {
-            result.stride.at(i) = stride.getValue();
+        if (stride.has_value()) {
+            result.stride.at(i) = stride.value();
         }
     }
 
@@ -748,8 +746,8 @@ nb::PoolLayer nb::TestCaseJsonDescriptor::loadPoolLayer(llvm::json::Object* json
     }
     for (size_t i = 0; i < pads->size(); i++) {
         auto pad = (*pads)[i].getAsInteger();
-        if (pad.hasValue()) {
-            result.pad.at(i) = pad.getValue();
+        if (pad.has_value()) {
+            result.pad.at(i) = pad.value();
         }
     }
 
@@ -765,51 +763,54 @@ nb::ActivationLayer nb::TestCaseJsonDescriptor::loadActivationLayer(llvm::json::
         return result;
     }
 
-    result.activationType = to_activation_type(act->getString("name").getValue().str());
+    result.activationType = to_activation_type(act->getString("name").value().str());
 
     auto alpha = act->getNumber("alpha");
-    if (alpha.hasValue()) {
-        result.alpha = alpha.getValue();
+    if (alpha.has_value()) {
+        result.alpha = alpha.value();
     }
 
     auto maximum = act->getNumber("max");
-    if (maximum.hasValue()) {
-        result.maximum = maximum.getValue();
+    if (maximum.has_value()) {
+        result.maximum = maximum.value();
     }
 
     auto axis = act->getNumber("axis");
-    if (axis.hasValue()) {
-        result.axis = vpux::checked_cast<size_t>(axis.getValue());
+    if (axis.has_value()) {
+        result.axis = vpux::checked_cast<size_t>(axis.value());
     }
 
     return result;
 }
 
 std::size_t nb::TestCaseJsonDescriptor::loadIterationCount(llvm::json::Object* jsonObj) {
-    return jsonObj->getInteger("iteration_count").getValue();
+    return jsonObj->getInteger("iteration_count").value();
 }
 
 std::size_t nb::TestCaseJsonDescriptor::loadClusterNumber(llvm::json::Object* jsonObj) {
-    return jsonObj->getInteger("cluster_number").getValue();
+    return jsonObj->getInteger("cluster_number").value();
+}
+std::size_t nb::TestCaseJsonDescriptor::loadNumClusters(llvm::json::Object* jsonObj) {
+    return jsonObj->getInteger("num_clusters").value();
 }
 
 nb::SwizzlingKey nb::TestCaseJsonDescriptor::loadSwizzlingKey(llvm::json::Object* jsonObj, std::string keyType) {
     auto swizzlingKey = jsonObj->getInteger(keyType);
-    if (swizzlingKey.hasValue() && swizzlingKey.getValue() >= nb::to_underlying(SwizzlingKey::key0) &&
-        swizzlingKey.getValue() <= nb::to_underlying(SwizzlingKey::key5))
-        return static_cast<SwizzlingKey>(swizzlingKey.getValue());
+    if (swizzlingKey.has_value() && swizzlingKey.value() >= nb::to_underlying(SwizzlingKey::key0) &&
+        swizzlingKey.value() <= nb::to_underlying(SwizzlingKey::key5))
+        return static_cast<SwizzlingKey>(swizzlingKey.value());
     return SwizzlingKey::key0;
 }
 
 nb::SETablePattern nb::TestCaseJsonDescriptor::loadSETablePattern(llvm::json::Object* jsonObj) {
     const auto seTablePattern = jsonObj->getString("SE_table_pattern");
 
-    VPUX_THROW_UNLESS(seTablePattern.hasValue(), "loadSETablePattern: no SE table pattern provided");
+    VPUX_THROW_UNLESS(seTablePattern.has_value(), "loadSETablePattern: no SE table pattern provided");
 
     const std::unordered_map<llvm::StringRef, nb::SETablePattern> supportedPatterns = {
             {"SwitchLines", nb::SETablePattern::SwitchLines},
             {"OriginalInput", nb::SETablePattern::OriginalInput}};
-    const auto pattern = supportedPatterns.find(seTablePattern.getValue());
+    const auto pattern = supportedPatterns.find(seTablePattern.value());
 
     VPUX_THROW_UNLESS(pattern != supportedPatterns.end(), "loadSETablePattern: SE table pattern not supported");
 
@@ -823,7 +824,7 @@ nb::TestCaseJsonDescriptor::TestCaseJsonDescriptor(StringRef jsonString) {
 }
 
 nb::TestCaseJsonDescriptor::TestCaseJsonDescriptor(llvm::json::Object jsonObject) {
-    parse(jsonObject);
+    parse(std::move(jsonObject));
 }
 
 void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
@@ -831,29 +832,29 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
     if (!architecture) {
         throw std::runtime_error{"Failed to get architecture"};
     }
-    const auto architectureSymbol = vpux::VPU::symbolizeArchKind(architecture.getValue());
-    if (!architectureSymbol.hasValue()) {
+    const auto architectureSymbol = vpux::VPU::symbolizeArchKind(architecture.value());
+    if (!architectureSymbol.has_value()) {
         throw std::runtime_error{"Failed to parse architecture"};
     }
-    architecture_ = architectureSymbol.getValue();
+    architecture_ = architectureSymbol.value();
 
     auto compilerBackendStr = json_obj.getString("compiler_backend");
     if (!compilerBackendStr) {
         throw std::runtime_error{"Failed to get compiler_backend"};
     }
-    const auto compilerBackendSymbol = nb::to_compiler_backend(compilerBackendStr.getValue());
-    if (!compilerBackendSymbol.hasValue()) {
+    const auto compilerBackendSymbol = nb::to_compiler_backend(compilerBackendStr.value());
+    if (!compilerBackendSymbol.has_value()) {
         throw std::runtime_error{"Failed to parse compiler_backend"};
     }
-    compilerBackend_ = compilerBackendSymbol.getValue();
+    compilerBackend_ = compilerBackendSymbol.value();
 
     auto case_type = json_obj.getString("case_type");
     if (!case_type) {
         throw std::runtime_error{"Failed to get case type"};
     }
 
-    caseType_ = nb::to_case(case_type.getValue());
-    caseTypeStr_ = case_type.getValue().str();
+    caseType_ = nb::to_case(case_type.value());
+    caseTypeStr_ = case_type.value().str();
     inLayers_ = loadInputLayer(&json_obj);
     outLayers_ = loadOutputLayer(&json_obj);
     activationLayer_ = loadActivationLayer(&json_obj);
@@ -874,7 +875,7 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
         convLayer_ = loadConvLayer(&json_obj);
 
         if (caseType_ == CaseType::ZMajorConvolution) {
-            odu_permutation_ = to_odu_permutation(json_obj.getString("output_order").getValue());
+            odu_permutation_ = to_odu_permutation(json_obj.getString("output_order").value());
             weightsSwizzlingKey_ = loadSwizzlingKey(&json_obj, "weights_swizzling_key");
             activationSwizzlingKey_ = loadSwizzlingKey(&json_obj, "activation_swizzling_key");
         }
@@ -882,12 +883,18 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
             inSMs_ = loadInputSMs(&json_obj);
         }
         if (caseType_ == CaseType::DoubleZMajorConvolution) {
-            odu_permutation_ = to_odu_permutation(json_obj.getString("output_order").getValue());
+            odu_permutation_ = to_odu_permutation(json_obj.getString("output_order").value());
             activationSwizzlingKey_ = loadSwizzlingKey(&json_obj, "activation_swizzling_key");
         }
         break;
     }
-    case CaseType::RaceConditionDPU:
+    case CaseType::RaceConditionDPU: {
+        wtLayer_ = loadWeightLayer(&json_obj);
+        convLayer_ = loadConvLayer(&json_obj);
+        iterationCount_ = loadIterationCount(&json_obj);
+        numClusters_ = loadNumClusters(&json_obj);
+        break;
+    }
     case CaseType::RaceConditionDPUDMA: {
         wtLayer_ = loadWeightLayer(&json_obj);
         convLayer_ = loadConvLayer(&json_obj);
@@ -929,6 +936,7 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
         wtLayer_ = loadWeightLayer(&json_obj);
         convLayer_ = loadConvLayer(&json_obj);
         multiClusterDPUParams_ = loadMultiClusterDPUParams(&json_obj);
+        odu_permutation_ = to_odu_permutation(json_obj.getString("output_order").value());
         break;
     }
     case CaseType::EltwiseAdd:
@@ -957,6 +965,7 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
     }
     case CaseType::RaceConditionDMA: {
         iterationCount_ = loadIterationCount(&json_obj);
+        numClusters_ = loadNumClusters(&json_obj);
         break;
     }
     case CaseType::RaceCondition: {
@@ -985,5 +994,5 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
 }
 
 nb::CaseType nb::TestCaseJsonDescriptor::loadCaseType(llvm::json::Object* jsonObj) {
-    return to_case(jsonObj->getString("case_type").getValue().str());
+    return to_case(jsonObj->getString("case_type").value().str());
 }

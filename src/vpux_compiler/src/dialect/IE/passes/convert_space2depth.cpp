@@ -154,7 +154,7 @@ void ConvertSpace2DepthLayerPass::safeRunOnFunc() {
                 auto dmaDescriptorGenerator =
                         VPUIP::SpaceToDepthDmaDescriptorGenerator(spaceToDepthOp->getContext(), _log);
                 auto dmaDescriptor = dmaDescriptorGenerator.generate(inputType, outputType, mode, blockSize);
-                auto numPlanes = dmaDescriptor.numPlanes().getInt();
+                auto numPlanes = dmaDescriptor.getNumPlanes().getInt();
 
                 return numPlanes <= VPUIP::DMA_MAX_NUMBER_PLANES;
             }

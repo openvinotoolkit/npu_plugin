@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -57,8 +57,12 @@ mlir::LogicalResult ApplyTiling::matchAndRewrite(VPU::TilingBuilderOpInterface o
 
     op->removeAttr(tilingStrategy);
 
-    _log.nest().trace("Creating {0} tiles", tiles.size());
-    return VPU::applyTileStrategy(origOp, tiles, rewriter, _log);
+    if (mlir::failed(tiles)) {
+        return mlir::failure();
+    }
+
+    _log.nest().trace("Creating {0} tiles", tiles.value().size());
+    return VPU::applyTileStrategy(origOp, tiles.value(), rewriter, _log);
 }
 
 //

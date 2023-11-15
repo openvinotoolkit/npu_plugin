@@ -1,14 +1,16 @@
 //
-// Copyright (C) 2022 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "behavior/ov_plugin/core_integration.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
+#include "vpu_test_env_cfg.hpp"
 #include "vpux/utils/plugin/plugin_name.hpp"
 #include "vpux/vpux_metrics.hpp"
 
 using namespace ov::test::behavior;
+using namespace LayerTestsUtils;
 
 namespace {
 std::vector<std::string> devices = {
@@ -135,8 +137,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassQueryNetworkTest, OVClassQueryNetworkTest,
 
 INSTANTIATE_TEST_SUITE_P(smoke_VPUX_OVClassLoadNetworkWithCorrectSecondaryPropertiesTest,
                          OVClassLoadNetworkWithCorrectPropertiesTest,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_KEEMBAY, "AUTO:VPUX",
-                                                              "MULTI:VPUX"),
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_KEEMBAY, "AUTO:NPU", "MULTI:NPU"),
                                             ::testing::ValuesIn(configsWithSecondaryProperties)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_OVClassLoadNetworkWithSecondaryPropertiesTest,
@@ -153,29 +154,49 @@ INSTANTIATE_TEST_SUITE_P(smoke_AUTO_OVClassLoadNetworkWithSecondaryPropertiesTes
 // OVClassLoadNetworkAndCheckSecondaryPropertiesTest only works with property num_streams of type int32_t
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_VPUX_OVClassLoadNetworkAndCheckWithSecondaryPropertiesTest,
                          OVClassLoadNetworkAndCheckSecondaryPropertiesTest,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_KEEMBAY, "AUTO:VPUX",
-                                                              "MULTI:VPUX"),
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_KEEMBAY, "AUTO:NPU", "MULTI:NPU"),
                                             ::testing::ValuesIn(configsDeviceProperties)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassLoadNetworkTest, OVClassLoadNetworkTest, ::testing::ValuesIn(devices));
 
 //
-// VPUX specific metrics
+// VPU specific metrics
 //
-using OVClassGetMetricTest_VPUX_DEVICE_TOTAL_MEM_SIZE = OVClassBaseTestP;
-TEST_P(OVClassGetMetricTest_VPUX_DEVICE_TOTAL_MEM_SIZE, GetMetricAndPrintNoThrow) {
+static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
+    std::ostringstream result;
+    result << "targetDevice=" << LayerTestsUtils::getTestsPlatformFromEnvironmentOr(obj.param);
+
+    return result.str();
+}
+
+using OVClassGetMetricAndPrintNoThrow = OVClassBaseTestP;
+TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceTotalMemSize) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::Core ie;
     ov::Any p;
 
     ASSERT_NO_THROW(p = ie.get_property(target_device, VPUX_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)));
     uint64_t t = p.as<uint64_t>();
 
-    std::cout << "OV VPUX device total memory size: " << t << std::endl;
+    std::cout << "OV NPU device total memory size: " << t << std::endl;
 
     OV_ASSERT_PROPERTY_SUPPORTED(VPUX_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
 }
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest, OVClassGetMetricTest_VPUX_DEVICE_TOTAL_MEM_SIZE,
-                         ::testing::Values("VPUX"));
+TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDriverVersion) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core ie;
+    ov::Any p;
+
+    ASSERT_NO_THROW(p = ie.get_property(target_device, VPUX_METRIC_KEY(DRIVER_VERSION)));
+    uint32_t t = p.as<uint32_t>();
+
+    std::cout << "NPU driver version is " << t << std::endl;
+
+    OV_ASSERT_PROPERTY_SUPPORTED(VPUX_METRIC_KEY(DRIVER_VERSION));
+}
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest, OVClassGetMetricAndPrintNoThrow,
+                         ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY), getTestCaseName);
 
 }  // namespace

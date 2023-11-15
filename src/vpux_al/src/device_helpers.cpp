@@ -3,52 +3,32 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <device_helpers.hpp>
 #include <iostream>
 
 const static std::map<uint32_t, InferenceEngine::VPUXConfigParams::VPUXPlatform> platformIdMap = {
-        {0, InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700},  // VPUX30XX A0 / B0
-        {1, InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800},  // VPU311X prime
-        {2, InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900},  // VPU311X full
-        {3, InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720},  // VPU3720
+        {0, InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700},  // VPU30XX
+        {1, InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720},  // VPU37XX
 };
 
 const static std::map<InferenceEngine::VPUXConfigParams::VPUXPlatform, std::string> platformNameMap = {
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO_DETECT, "AUTO_DETECT"},  // auto detection
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0, "3400_A0"},       // VPUX30XX A0
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400, "3400"},             // VPUX30XX B0 500 MHz
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700, "3700"},             // VPUX30XX B0 700 MHz
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800, "3800"},             // VPU311X Prime
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900, "3900"},             // VPU311X Full
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720, "3720"},             // VPU3720
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO_DETECT, "AUTO_DETECT"},  // Auto detection
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700, "3700"},             // VPU30XX
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720, "3720"},             // VPU37XX
 };
 
 const static std::map<std::string, InferenceEngine::VPUXConfigParams::VPUXPlatform> platformNameInverseMap = {
-        {"AUTO_DETECT", InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO_DETECT},  // auto detection
-        {"3400_A0", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0},       // VPUX30XX A0
-        {"3400", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400},             // VPUX30XX B0 500 MHz
-        {"3700", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700},             // VPUX30XX B0 700 MHz
-        {"3800", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800},             // VPU311X Prime
-        {"3900", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900},             // VPU311X Full
-        {"3720", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720},             // VPU3720
-        {"3400_A0_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator VPUX30XX A0
-        {"3400_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},        // Emulator VPUX30XX B0 500 MHz
-        {"3700_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},        // Emulator VPUX30XX B0 700 MHz
-        {"3800_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},        // Emulator VPU311X Prime
-        {"3900_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},        // Emulator VPU311X Full
-        {"3720_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},        // Emulator VPU3720
+        {"AUTO_DETECT", InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO_DETECT},  // Auto detection
+        {"3700_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},        // Emulator VPU30XX
+        {"3720_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},        // Emulator VPU37XX
+        {"3700", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700},             // VPU30XX
+        {"3720", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720},             // VPU37XX
 };
 
 const static std::map<InferenceEngine::VPUXConfigParams::VPUXPlatform, std::string> platformToFullDeviceNameMap = {
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0, "Intel(R) Neural VPU (3400VE)"},
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400, "Intel(R) Neural VPU (3400VE)"},
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700, "Intel(R) Neural VPU (3700VE)"},
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800, "Intel(R) Neural VPU (3800V)"},
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900, "Intel(R) Neural VPU (3900V)"},
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720, "Intel(R) Neural VPU (3720VE)"},
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR, "Emulator"},  // Emulator
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR, "Emulator"},
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700, "Intel(R) NPU (3700VE)"},
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720, "Intel(R) NPU (3720VE)"},
 };
 
 bool utils::isVPUDevice(const uint32_t deviceId) {

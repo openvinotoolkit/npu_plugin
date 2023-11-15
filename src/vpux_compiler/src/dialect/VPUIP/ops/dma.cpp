@@ -106,7 +106,7 @@ mlir::LogicalResult vpux::VPUIP::NNDMAOp::verify() {
 
 void vpux::VPUIP::PermuteDMAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                       mlir::Value output_buff, mlir::AffineMapAttr mem_perm,
-                                      VPUIP::DmaDescriptorAttr dma_descriptor) {
+                                      VPUIP::DMADescriptorAttr dma_descriptor) {
     build(builder, state, input, output_buff, /*port=*/vpux::getIntAttr(builder, 0), /*channelType=*/nullptr,
           /*is_out_of_order=*/nullptr,
           /*is_critical=*/nullptr, mem_perm, dma_descriptor, /* dma_hwp_id= */ nullptr);
@@ -114,7 +114,7 @@ void vpux::VPUIP::PermuteDMAOp::build(mlir::OpBuilder& builder, mlir::OperationS
 
 void vpux::VPUIP::PermuteDMAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                       mlir::Value output_buff, mlir::AffineMapAttr mem_perm,
-                                      VPUIP::DmaDescriptorAttr dma_descriptor, mlir::IntegerAttr port) {
+                                      VPUIP::DMADescriptorAttr dma_descriptor, mlir::IntegerAttr port) {
     build(builder, state, input, output_buff, /*port=*/port, /*channelType=*/nullptr,
           /*is_out_of_order=*/nullptr,
           /*is_critical=*/nullptr, mem_perm, dma_descriptor, nullptr);
@@ -181,12 +181,11 @@ mlir::LogicalResult vpux::VPUIP::ConvertDMAOp::verify() {
     auto inputType = input().getType().cast<vpux::NDTypeInterface>();
     const auto inputElementType = inputType.getElementType();
 
-    if (!inputElementType.isF32() ||
-        (!outputElementType.isF16() && !outputElementType.isBF16())) {
-            return errorAt(loc,
-                            "Operation {0} is unsupported. Got arch {1} "
-                            "and conversion from {2} to {3}",
-                            getOperationName(), arch, inputElementType, outputElementType);
+    if (!inputElementType.isF32() || (!outputElementType.isF16() && !outputElementType.isBF16())) {
+        return errorAt(loc,
+                       "Operation {0} is unsupported. Got arch {1} "
+                       "and conversion from {2} to {3}",
+                       getOperationName(), arch, inputElementType, outputElementType);
     }
 
     return verifyTensorSize(loc, input());
@@ -337,8 +336,8 @@ mlir::LogicalResult vpux::VPUIP::CompressDMAOp::verify() {
 
 void vpux::VPUIP::DepthToSpaceDMAOp::build(mlir::OpBuilder& odsBuilder, mlir::OperationState& odsState,
                                            mlir::Value input, mlir::Value output_buff, mlir::IntegerAttr block_size,
-                                           vpux::IE::DepthToSpaceModeAttr mode, VPUIP::DmaDescriptorAttr dma_descriptor,
-                                           vpux::IE::ChannelPadding padded_channels) {
+                                           vpux::IE::DepthToSpaceModeAttr mode, VPUIP::DMADescriptorAttr dma_descriptor,
+                                           vpux::IE::ChannelPaddingAttr padded_channels) {
     build(odsBuilder, odsState, input, output_buff, /* port= */ vpux::getIntAttr(odsBuilder, 0),
           /*channelType=*/nullptr, block_size, mode, dma_descriptor, padded_channels,
           /* dma_hwp_id= */ nullptr);
@@ -346,8 +345,8 @@ void vpux::VPUIP::DepthToSpaceDMAOp::build(mlir::OpBuilder& odsBuilder, mlir::Op
 
 void vpux::VPUIP::DepthToSpaceDMAOp::build(mlir::OpBuilder& odsBuilder, mlir::OperationState& odsState,
                                            mlir::Value input, mlir::Value output_buff, mlir::IntegerAttr block_size,
-                                           vpux::IE::DepthToSpaceModeAttr mode, VPUIP::DmaDescriptorAttr dma_descriptor,
-                                           mlir::IntegerAttr port, vpux::IE::ChannelPadding padded_channels) {
+                                           vpux::IE::DepthToSpaceModeAttr mode, VPUIP::DMADescriptorAttr dma_descriptor,
+                                           mlir::IntegerAttr port, vpux::IE::ChannelPaddingAttr padded_channels) {
     build(odsBuilder, odsState, input, output_buff, port, /*channelType=*/nullptr, block_size, mode, dma_descriptor,
           padded_channels,
           /* dma_hwp_id= */ nullptr);
@@ -379,7 +378,7 @@ mlir::LogicalResult vpux::VPUIP::DepthToSpaceDMAOp::verify() {
 void vpux::VPUIP::SpaceToDepthDMAOp::build(mlir::OpBuilder& odsBuilder, mlir::OperationState& odsState,
                                            mlir::Value input, mlir::Value output_buff, mlir::IntegerAttr block_size,
                                            vpux::IE::SpaceToDepthModeAttr mode,
-                                           VPUIP::DmaDescriptorAttr dma_descriptor) {
+                                           VPUIP::DMADescriptorAttr dma_descriptor) {
     build(odsBuilder, odsState, input, output_buff, vpux::getIntAttr(odsBuilder, 0), /*channelType=*/nullptr,
           block_size, mode, dma_descriptor,
           /* dma_hwp_id= */ nullptr);
@@ -387,7 +386,7 @@ void vpux::VPUIP::SpaceToDepthDMAOp::build(mlir::OpBuilder& odsBuilder, mlir::Op
 
 void vpux::VPUIP::SpaceToDepthDMAOp::build(mlir::OpBuilder& odsBuilder, mlir::OperationState& odsState,
                                            mlir::Value input, mlir::Value output_buff, mlir::IntegerAttr block_size,
-                                           vpux::IE::SpaceToDepthModeAttr mode, VPUIP::DmaDescriptorAttr dma_descriptor,
+                                           vpux::IE::SpaceToDepthModeAttr mode, VPUIP::DMADescriptorAttr dma_descriptor,
                                            mlir::IntegerAttr port) {
     build(odsBuilder, odsState, input, output_buff, port, /*channelType=*/nullptr, block_size, mode, dma_descriptor,
           /* dma_hwp_id= */ nullptr);
@@ -419,7 +418,7 @@ mlir::LogicalResult vpux::VPUIP::SpaceToDepthDMAOp::verify() {
 
 void vpux::VPUIP::ExpandDMAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                      mlir::Value output_buff, mlir::ArrayAttr pads_begin, mlir::ArrayAttr pads_end,
-                                     VPUIP::DmaDescriptorAttr dma_descriptor) {
+                                     VPUIP::DMADescriptorAttr dma_descriptor) {
     build(builder, state, input, output_buff, pads_begin, pads_end, dma_descriptor,
           /*port=*/vpux::getIntAttr(builder, 0), /*channelType=*/nullptr,
           /*is_out_of_order=*/nullptr,
@@ -429,7 +428,7 @@ void vpux::VPUIP::ExpandDMAOp::build(mlir::OpBuilder& builder, mlir::OperationSt
 
 void vpux::VPUIP::ExpandDMAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                      mlir::Value output_buff, mlir::ArrayAttr pads_begin, mlir::ArrayAttr pads_end,
-                                     VPUIP::DmaDescriptorAttr dma_descriptor, mlir::IntegerAttr port) {
+                                     VPUIP::DMADescriptorAttr dma_descriptor, mlir::IntegerAttr port) {
     build(builder, state, input, output_buff, pads_begin, pads_end, dma_descriptor, /*port=*/port,
           /*channelType=*/nullptr,
           /*is_out_of_order=*/nullptr,
@@ -441,7 +440,7 @@ mlir::LogicalResult vpux::VPUIP::ExpandDMAOp::verify() {
     // In case ExpandDMA with input size large than VPUIP::DMA_LIMIT (16MB).
     // It should be tiled with several sub ExpandDMA that will be done at Unroll Pass.
     // Descriptor is generated at Unroll pass so using Descriptor as a flag to check the tensor size.
-    if (dma_descriptor().hasValue()) {
+    if (dma_descriptor().has_value()) {
         return verifyTensorSize(getLoc(), input());
     }
 
@@ -470,7 +469,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ExpandDMAOp::serialize(VPUIP::BlobW
 
 void vpux::VPUIP::PerAxisTileDMAOp::build(mlir::OpBuilder& odsBuilder, mlir::OperationState& odsState,
                                           mlir::Value input, mlir::Value output_buff, mlir::IntegerAttr axis,
-                                          mlir::IntegerAttr tiles, VPUIP::DmaDescriptorAttr dma_descriptor) {
+                                          mlir::IntegerAttr tiles, VPUIP::DMADescriptorAttr dma_descriptor) {
     build(odsBuilder, odsState, input, output_buff, vpux::getIntAttr(odsBuilder, 0), /*channelType=*/nullptr, axis,
           tiles, dma_descriptor,
           /* dma_hwp_id= */ nullptr);
@@ -478,7 +477,7 @@ void vpux::VPUIP::PerAxisTileDMAOp::build(mlir::OpBuilder& odsBuilder, mlir::Ope
 
 void vpux::VPUIP::PerAxisTileDMAOp::build(mlir::OpBuilder& odsBuilder, mlir::OperationState& odsState,
                                           mlir::Value input, mlir::Value output_buff, mlir::IntegerAttr axis,
-                                          mlir::IntegerAttr tiles, VPUIP::DmaDescriptorAttr dma_descriptor,
+                                          mlir::IntegerAttr tiles, VPUIP::DMADescriptorAttr dma_descriptor,
                                           mlir::IntegerAttr port) {
     build(odsBuilder, odsState, input, output_buff, port, /*channelType=*/nullptr, axis, tiles, dma_descriptor,
           /* dma_hwp_id= */ nullptr);
@@ -510,14 +509,14 @@ mlir::LogicalResult vpux::VPUIP::PerAxisTileDMAOp::verify() {
 
 void vpux::VPUIP::UpsamplingDMAOp::build(mlir::OpBuilder& odsBuilder, mlir::OperationState& odsState, mlir::Value input,
                                          mlir::Value output_buff, mlir::ArrayAttr upsampling_factor,
-                                         VPUIP::DmaDescriptorAttr dma_descriptor, mlir::ArrayAttr expand) {
+                                         VPUIP::DMADescriptorAttr dma_descriptor, mlir::ArrayAttr expand) {
     build(odsBuilder, odsState, input, output_buff, upsampling_factor, dma_descriptor, expand,
           /* port */ vpux::getIntAttr(odsBuilder, 0), /*channelType=*/nullptr, /* dma_hwp_id */ nullptr);
 }
 
 void vpux::VPUIP::UpsamplingDMAOp::build(mlir::OpBuilder& odsBuilder, mlir::OperationState& odsState, mlir::Value input,
                                          mlir::Value output_buff, mlir::ArrayAttr upsampling_factor,
-                                         VPUIP::DmaDescriptorAttr dma_descriptor, mlir::ArrayAttr expand,
+                                         VPUIP::DMADescriptorAttr dma_descriptor, mlir::ArrayAttr expand,
                                          int64_t port) {
     build(odsBuilder, odsState, input, output_buff, upsampling_factor, dma_descriptor, expand,
           /* port */ port, /*channelType=*/nullptr, /* dma_hwp_id */ nullptr);

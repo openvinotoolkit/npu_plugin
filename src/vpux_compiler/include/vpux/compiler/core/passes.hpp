@@ -28,11 +28,11 @@ std::unique_ptr<mlir::Pass> createPrintDotPass(StringRef fileName = {}, StringRe
 //
 
 #define GEN_PASS_CLASSES
-#include <vpux/compiler/core/generated/passes.hpp.inc>
+#include <vpux/compiler/core/passes.hpp.inc>
 #undef GEN_PASS_CLASSES
 
 #define GEN_PASS_REGISTRATION
-#include <vpux/compiler/core/generated/passes.hpp.inc>
+#include <vpux/compiler/core/passes.hpp.inc>
 #undef GEN_PASS_REGISTRATION
 
 }  // namespace vpux

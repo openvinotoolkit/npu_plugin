@@ -13,21 +13,21 @@ namespace vpux {
 namespace passes {
 
 OnnxReorgPatternToDarkNetReorg::OnnxReorgPatternToDarkNetReorg() {
-    auto input = ngraph::pattern::any_input();
-    auto reshape1 =
+    const auto& input = ngraph::pattern::any_input();
+    const auto& reshape1 =
             std::make_shared<ngraph::opset1::Reshape>(input, ngraph::pattern::wrap_type<ngraph::op::Constant>(), true);
-    auto transpose1 =
+    const auto& transpose1 =
             std::make_shared<ngraph::opset1::Transpose>(reshape1, ngraph::pattern::wrap_type<ngraph::op::Constant>());
-    auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(transpose1,
-                                                              ngraph::pattern::wrap_type<ngraph::op::Constant>(), true);
-    auto transpose2 =
+    const auto& reshape2 = std::make_shared<ngraph::opset1::Reshape>(
+            transpose1, ngraph::pattern::wrap_type<ngraph::op::Constant>(), true);
+    const auto& transpose2 =
             std::make_shared<ngraph::opset1::Transpose>(reshape2, ngraph::pattern::wrap_type<ngraph::op::Constant>());
-    auto reshape3 = std::make_shared<ngraph::opset1::Reshape>(transpose2,
-                                                              ngraph::pattern::wrap_type<ngraph::op::Constant>(), true);
-    auto transpose3 =
+    const auto& reshape3 = std::make_shared<ngraph::opset1::Reshape>(
+            transpose2, ngraph::pattern::wrap_type<ngraph::op::Constant>(), true);
+    const auto& transpose3 =
             std::make_shared<ngraph::opset1::Transpose>(reshape3, ngraph::pattern::wrap_type<ngraph::op::Constant>());
-    auto reshape4 = std::make_shared<ngraph::opset1::Reshape>(transpose3,
-                                                              ngraph::pattern::wrap_type<ngraph::op::Constant>(), true);
+    const auto& reshape4 = std::make_shared<ngraph::opset1::Reshape>(
+            transpose3, ngraph::pattern::wrap_type<ngraph::op::Constant>(), true);
 
     ngraph::graph_rewrite_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();

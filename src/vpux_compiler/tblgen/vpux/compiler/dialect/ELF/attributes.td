@@ -9,9 +9,22 @@
 include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/dialect/ELF/dialect.td"
 
+//
+// Base classes
+//
+
+class ELF_I64EnumAttr <string name, string summary, list<I64EnumAttrCase> cases> : 
+        I64EnumAttr<name, summary, cases> {
+    let cppNamespace = "vpux::ELF";
+    let genSpecializedAttr = 0;
+}
+
+class ELF_EnumAttr <EnumAttrInfo enumInfo, string name = "", list <Trait> traits = []> : 
+        EnumAttr<ELF_Dialect, enumInfo, name, traits> {
+    let assemblyFormat = "`<`$value`>`";
+}
 
 // For further development, please refer to the ticket #29279.
-
 
 //
 // SectionTypeAttr
@@ -20,25 +33,25 @@ include "vpux/compiler/dialect/ELF/dialect.td"
 //   for the detailed description of the case values.
 
 // I64EnumAttr has uint64_t as the underlying type, which is OK for all cases.
-def ELF_CMXMappingSymbolAttr :
-        StrEnumAttr<
-            "CMXMappingSymbolAttr",
+
+def ELF_CMXMappingSymbol :
+        ELF_I64EnumAttr<
+            "CMXMappingSymbol",
             "Enum for describing VPU special CMX Mapping names and values",
             [
-                StrEnumAttrCase<"VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR",  0>,
-                StrEnumAttrCase<"VPU_NNRD_SYM_RTM_IVAR",               1>,
-                StrEnumAttrCase<"VPU_NNRD_SYM_RTM_ACT",                2>,
-                StrEnumAttrCase<"VPU_NNRD_SYM_RTM_DMA0",               3>,
-                StrEnumAttrCase<"VPU_NNRD_SYM_RTM_DMA1",               4>,
-                StrEnumAttrCase<"VPU_NNRD_SYM_FIFO_BASE",              5>,
-                StrEnumAttrCase<"VPU_NNRD_SYM_BARRIERS_START",         6>,
-                StrEnumAttrCase<"VPU_NNRD_SYM_HW_REGISTER",            7>
+                I64EnumAttrCase<"VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR",  0>,
+                I64EnumAttrCase<"VPU_NNRD_SYM_RTM_IVAR",               1>,
+                I64EnumAttrCase<"VPU_NNRD_SYM_RTM_ACT",                2>,
+                I64EnumAttrCase<"VPU_NNRD_SYM_RTM_DMA0",               3>,
+                I64EnumAttrCase<"VPU_NNRD_SYM_RTM_DMA1",               4>,
+                I64EnumAttrCase<"VPU_NNRD_SYM_FIFO_BASE",              5>,
+                I64EnumAttrCase<"VPU_NNRD_SYM_BARRIERS_START",         6>,
+                I64EnumAttrCase<"VPU_NNRD_SYM_HW_REGISTER",            7>
             ]
         > {
-    let cppNamespace = "vpux::ELF";
-    let genSpecializedAttr = 1;
 }
 
+def ELF_CMXMappingSymbolAttr : ELF_EnumAttr<ELF_CMXMappingSymbol, "cmx_mapping_symbol">;
 
 //
 // SectionTypeAttr
@@ -82,28 +95,29 @@ def ELF_SectionTypeAttr :
 // Refer to https://docs.oracle.com/cd/E23824_01/html/819-0690/chapter6-79797.html
 // for the detailed description of the case values
 
-def ELF_SymbolTypeAttr :
-    StrEnumAttr<
-        "SymbolTypeAttr",
+// The suffix "Enum" was added here because otherwise this name conflicts with the SymbolType type
+def ELF_SymbolTypeEnum:
+    ELF_I64EnumAttr<
+        "SymbolTypeEnum",
         "Enum to represent symbol types",
         [
-            StrEnumAttrCase<"STT_NOTYPE"     , 0>,
-            StrEnumAttrCase<"STT_OBJECT"     , 1>,
-            StrEnumAttrCase<"STT_FUNC"       , 2>,
-            StrEnumAttrCase<"STT_SECTION"    , 3>,
-            StrEnumAttrCase<"STT_FILE"       , 4>,
-            StrEnumAttrCase<"STT_COMMON"     , 5>,
-            StrEnumAttrCase<"STT_TLS"        , 6>,
-            StrEnumAttrCase<"VPU_STT_ENTRY"  , 10>,
-            StrEnumAttrCase<"VPU_STT_INPUT"  , 11>,
-            StrEnumAttrCase<"VPU_STT_OUTPUT" , 12>,
-            StrEnumAttrCase<"STT_LOPROC"     , 13>,
-            StrEnumAttrCase<"STT_HIPROC"     , 15>,
+            I64EnumAttrCase<"STT_NOTYPE"     , 0>,
+            I64EnumAttrCase<"STT_OBJECT"     , 1>,
+            I64EnumAttrCase<"STT_FUNC"       , 2>,
+            I64EnumAttrCase<"STT_SECTION"    , 3>,
+            I64EnumAttrCase<"STT_FILE"       , 4>,
+            I64EnumAttrCase<"STT_COMMON"     , 5>,
+            I64EnumAttrCase<"STT_TLS"        , 6>,
+            I64EnumAttrCase<"VPU_STT_ENTRY"  , 10>,
+            I64EnumAttrCase<"VPU_STT_INPUT"  , 11>,
+            I64EnumAttrCase<"VPU_STT_OUTPUT" , 12>,
+            I64EnumAttrCase<"STT_LOPROC"     , 13>,
+            I64EnumAttrCase<"STT_HIPROC"     , 15>,
         ]
     > {
-    let cppNamespace = "vpux::ELF";
-    let genSpecializedAttr = 1;
 }
+
+def ELF_SymbolTypeAttr : ELF_EnumAttr<ELF_SymbolTypeEnum, "symbol_type">;
 
 //
 // SectionFlagsAttr
@@ -141,26 +155,27 @@ def ELF_SectionFlagsAttr :
 // RelocationTypeAttr
 //
 
-def ELF_RelocationTypeAttr :
-        StrEnumAttr<
-            "RelocationTypeAttr",
+def ELF_RelocationType :
+        ELF_I64EnumAttr<
+            "RelocationType",
             "Enum for describing ELF relocation types",
             [
-                StrEnumAttrCase<"R_VPU_64",                                  0>,
-                StrEnumAttrCase<"R_VPU_64_OR",                               1>,
-                StrEnumAttrCase<"R_VPU_DISP40_RTM",                          2>,
-                StrEnumAttrCase<"R_VPU_64_LSHIFT",                           3>,
-                StrEnumAttrCase<"R_VPU_32",                                  4>,
-                StrEnumAttrCase<"R_VPU_32_RTM",                              5>,
-                StrEnumAttrCase<"R_VPU_32_SUM",                              6>,
-                StrEnumAttrCase<"R_VPU_32_MULTICAST_BASE",                   7>,
-                StrEnumAttrCase<"R_VPU_32_MULTICAST_BASE_SUB",               8>,
-                StrEnumAttrCase<"R_VPU_DISP28_MULTICAST_OFFSET",             9>,
-                StrEnumAttrCase<"R_VPU_DISP4_MULTICAST_OFFSET_CMP",         10>,
+                I64EnumAttrCase<"R_VPU_64",                                  0>,
+                I64EnumAttrCase<"R_VPU_64_OR",                               1>,
+                I64EnumAttrCase<"R_VPU_DISP40_RTM",                          2>,
+                I64EnumAttrCase<"R_VPU_64_LSHIFT",                           3>,
+                I64EnumAttrCase<"R_VPU_32",                                  4>,
+                I64EnumAttrCase<"R_VPU_32_RTM",                              5>,
+                I64EnumAttrCase<"R_VPU_32_SUM",                              6>,
+                I64EnumAttrCase<"R_VPU_32_MULTICAST_BASE",                   7>,
+                I64EnumAttrCase<"R_VPU_32_MULTICAST_BASE_SUB",               8>,
+                I64EnumAttrCase<"R_VPU_DISP28_MULTICAST_OFFSET",             9>,
+                I64EnumAttrCase<"R_VPU_DISP4_MULTICAST_OFFSET_CMP",         10>,
+                I64EnumAttrCase<"R_VPU_N_CONSECUTIVE_32",                   11>,
             ]
         > {
-    let cppNamespace = "vpux::ELF";
-    let genSpecializedAttr = 1;
 }
+
+def ELF_RelocationTypeAttr : ELF_EnumAttr<ELF_RelocationType, "relocation_type">;
 
 #endif

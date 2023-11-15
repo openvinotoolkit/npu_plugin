@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/hwtest/test_case_json_parser.hpp"
 
 #include <gtest/gtest.h>

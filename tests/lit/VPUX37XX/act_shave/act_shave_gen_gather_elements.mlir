@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-// RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" %s | vpux-translate --export-VPUIP -o %t
+// RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" %s | vpux-translate --vpu-arch=VPUX37XX --export-VPUIP -o %t
 // RUN: flatc --raw-binary --json %vpuip_schema_file% -- %t
 // RUN: FileCheck %s --input-file %basename_t.json
 // RUN: rm %basename_t.json
@@ -59,11 +59,11 @@ module @VPU.SW {
 
 func.func @main(%arg0: memref<2x2xf32>, %arg1: memref<2x2xf32>) -> memref<2x2xf32> {
     %cst = const.Declare memref<2x2xsi32> = dense<[[0, 0], [1, 1]]> : tensor<2x2xsi32>
-    %0 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<2x2xf32, [@CMX_NN, 0]>
-    %1 = VPURT.DeclareBuffer "CMX_NN" [0] <128> -> memref<2x2xf16, [@CMX_NN, 0]>
-    %2 = VPURT.DeclareBuffer "CMX_NN" [0] <64> -> memref<2x2xsi32, [@CMX_NN, 0]>
-    %3 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<2x2xf16, [@CMX_NN, 0]>
-    %4 = VPURT.DeclareBuffer "CMX_NN" [0] <64> -> memref<2x2xf32, [@CMX_NN, 0]>
+    %0 = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<2x2xf32, [@CMX_NN, 0]>
+    %1 = VPURT.DeclareBuffer <CMX_NN> [0] <128> -> memref<2x2xf16, [@CMX_NN, 0]>
+    %2 = VPURT.DeclareBuffer <CMX_NN> [0] <64> -> memref<2x2xsi32, [@CMX_NN, 0]>
+    %3 = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<2x2xf16, [@CMX_NN, 0]>
+    %4 = VPURT.DeclareBuffer <CMX_NN> [0] <64> -> memref<2x2xf32, [@CMX_NN, 0]>
 
     %5 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     VPURT.Task updates(%5 : !VPURT.Barrier) attributes {cycleBegin = 0 : i64, cycleEnd = 1 : i64, isTrailingSWLayer = false} {

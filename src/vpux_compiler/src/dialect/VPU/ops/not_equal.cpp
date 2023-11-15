@@ -29,7 +29,7 @@ mlir::LogicalResult vpux::VPU::NotEqualOp::inferReturnTypes(mlir::MLIRContext* c
                                                        notEqual.auto_broadcast(), loc);
 
     if (mlir::succeeded(outShapeRes)) {
-        const auto outType = in1Type.changeShape(Shape(outShapeRes.getValue()));
+        const auto outType = in1Type.changeShape(Shape(outShapeRes.value()));
         inferredReturnTypes.push_back(outType);
     }
 

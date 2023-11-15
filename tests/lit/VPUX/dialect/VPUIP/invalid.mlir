@@ -16,49 +16,49 @@ func.func @verifyNNDMA(%arg0: memref<97x257x673xui8>, %arg1: memref<97x257x673xu
 
 func.func @main() {
 // expected-error@+1 {{BufferSection 'NetworkInput' is not compatible with memory space '@CMX_NN'}}
-    %buf0 = VPURT.DeclareBuffer "NetworkInput" <0> -> memref<10xf16, @CMX_NN>
+    %buf0 = VPURT.DeclareBuffer <NetworkInput> <0> -> memref<10xf16, @CMX_NN>
 }
 
 // -----
 
 func.func @main() {
 // expected-error@+1 {{Output type must have DDR memory space}}
-    %buf0 = VPURT.DeclareBuffer "DDR" <0> -> memref<10xf16>
+    %buf0 = VPURT.DeclareBuffer <DDR> <0> -> memref<10xf16>
 }
 
 // -----
 
 func.func @main() {
 // expected-error@+1 {{Wrong section index value for DDR memory space: '1'}}
-    %buf0 = VPURT.DeclareBuffer "DDR" [1] <0> -> memref<10xf16, @DDR>
+    %buf0 = VPURT.DeclareBuffer <DDR> [1] <0> -> memref<10xf16, @DDR>
 }
 
 // -----
 
 func.func @main() {
 // expected-error@+1 {{Array of section indexes is supported for DDR memory space}}
-    %buf0 = VPURT.DeclareBuffer "DDR" [0, 1] <0> -> memref<10xf16, @DDR>
+    %buf0 = VPURT.DeclareBuffer <DDR> [0, 1] <0> -> memref<10xf16, @DDR>
 }
 
 // -----
 
 func.func @main() {
 // expected-error@+1 {{Section index is missing}}
-    %buf0 = VPURT.DeclareBuffer "CMX_NN" <0> -> memref<10xf16, @CMX_NN>
+    %buf0 = VPURT.DeclareBuffer <CMX_NN> <0> -> memref<10xf16, @CMX_NN>
 }
 
 // -----
 
 func.func @main() {
 // expected-error@+1 {{Array of section indexes is supported only for vpuip/distributed buffer type}}
-    %buf0 = VPURT.DeclareBuffer "CMX_NN" [0, 1] <0> -> memref<10xf16, @CMX_NN>
+    %buf0 = VPURT.DeclareBuffer <CMX_NN> [0, 1] <0> -> memref<10xf16, @CMX_NN>
 }
 
 // -----
 
 func.func @main() {
 // expected-error@+1 {{Section index '0' and memory space index '1' mismatch}}
-    %buf0 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<10xf16, [@CMX_NN, 1]>
+    %buf0 = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<10xf16, [@CMX_NN, 1]>
 }
 
 // -----
@@ -74,7 +74,7 @@ func.func @main() {
 
 func.func @main() {
 // expected-error@+1 {{Empty section index is not supported}}
-    %buf0 = VPURT.DeclareBuffer "CMX_NN" [] <0> -> !InputDistributed
+    %buf0 = VPURT.DeclareBuffer <CMX_NN> [] <0> -> !InputDistributed
 }
 
 // -----
@@ -90,5 +90,5 @@ func.func @main() {
 
 func.func @main() {
 // expected-error@+1 {{Number of clusters '2' and section indexes '1' mismatch}}
-    %buf0 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> !InputDistributed
+    %buf0 = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> !InputDistributed
 }

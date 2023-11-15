@@ -11,4 +11,4 @@ using namespace vpux;
 // Generated
 //
 
-#include <vpux/compiler/dialect/const/generated/attr_interfaces.cpp.inc>
+#include <vpux/compiler/dialect/const/attr_interfaces.cpp.inc>

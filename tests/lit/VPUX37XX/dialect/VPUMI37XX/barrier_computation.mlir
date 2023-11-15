@@ -15,8 +15,8 @@ IE.CNNNetwork entryPoint : @main inputsInfo :  {
 func.func @main(%arg0: memref<1x1x2x1000xf16>, %arg1: memref<1x1x2x1000xf16>) -> memref<1x1x2x1000xf16> {
     // this is the most simple lit test that could be constructed (VPUX30XX arch to be used in order to only have 32 barriers)
 
-    %buffer = VPURT.DeclareBuffer "DDR" <0> -> memref<1x1x2x1000xf16, @DDR>
-    %buffer1 = VPURT.DeclareBuffer "DDR" <4000> -> memref<1x1x2x1000xf16, @DDR>
+    %buffer = VPURT.DeclareBuffer <DDR> <0> -> memref<1x1x2x1000xf16, @DDR>
+    %buffer1 = VPURT.DeclareBuffer <DDR> <4000> -> memref<1x1x2x1000xf16, @DDR>
 
     %barrier0 = VPUMI37XX.ConfigureBarrier {consumer_count=1:ui8, producer_count=0:ui8 } <0,-1> -> !VPURegMapped.Index<0:0:0>
     // CHECK:       %[[VAL0:.*]] = VPUMI37XX.ConfigureBarrier {consumer_count = 1 : ui8, producer_count = 0 : ui8}<0, 32> -> !VPURegMapped.Index<0:0:0>

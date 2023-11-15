@@ -4,8 +4,9 @@
 //
 
 #include "vpux/compiler/dialect/ELF/utils.hpp"
-#include "vpux/compiler/dialect/VPU37XX/api/vpu_nnrt_api.h"
 #include "vpux/compiler/dialect/VPUMI37XX/ops.hpp"
+
+#include <vpu_nnrt_api_37xx.h>
 
 using namespace vpux;
 
@@ -16,10 +17,10 @@ using namespace vpux;
 void vpux::VPUMI37XX::ConfigureBarrierOp::serialize(elf::writer::BinaryDataSection<uint8_t>& binDataSection) {
     nn_public::VpuBarrierCountConfig barrier;
 
-    barrier.next_same_id_ = next_same_id();
-    barrier.consumer_count_ = consumer_count().value_or(0);
-    barrier.producer_count_ = producer_count().value_or(0);
-    barrier.real_id_ = id();
+    barrier.next_same_id_ = getNextSameId();
+    barrier.consumer_count_ = getConsumerCount().value_or(0);
+    barrier.producer_count_ = getProducerCount().value_or(0);
+    barrier.real_id_ = getId();
 
     auto ptrCharTmp = reinterpret_cast<uint8_t*>(&barrier);
     binDataSection.appendData(ptrCharTmp, getBinarySize());

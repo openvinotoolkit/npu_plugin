@@ -1,8 +1,9 @@
-// Copyright (C) Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 #include <ngraph_functions/builders.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -26,10 +27,10 @@ std::shared_ptr<ngraph::Node> build_activation_helper(const std::shared_ptr<ngra
 }
 
 class VPUXConv2dWithBiasTest_VPU3700 :
-        public LayerTestsUtils::KmbLayerTestsCommon,
+        public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<std::tuple<InferenceEngine::SizeVector, ngraph::helpers::ActivationTypes>> {
     void SetUp() override {
-        targetDevice = LayerTestsUtils::testPlatformTargetDevice;
+        targetDevice = LayerTestsUtils::testPlatformTargetDevice();
         const auto kenelShape = std::get<0>(GetParam());
         const size_t KERNEL_W = kenelShape.at(3);
         const size_t KERNEL_H = kenelShape.at(2);

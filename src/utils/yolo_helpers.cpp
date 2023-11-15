@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "yolo_helpers.hpp"
 
 #include "vpux/utils/IE/blob.hpp"
@@ -292,18 +290,18 @@ static std::vector<utils::BoundingBox> yolov2BoxExtractor(float threshold, std::
     std::vector<std::vector<float>> probs(lw * lh * num, std::vector<float>(classes + 1, 0.0));
 
     // TODO refactoring ticket S#37819
-    std::vector<float> anchors;
+    std::vector<float>* anchors = nullptr;
     if (isTiny) {
-        anchors = TINY_YOLOV2_ANCHORS;
+        anchors = &TINY_YOLOV2_ANCHORS;
     } else {
-        anchors = YOLOV2_ANCHORS;
+        anchors = &YOLOV2_ANCHORS;
         if (class_num == 80) {
-            anchors = YOLOV2_ANCHORS_80_CLASSES;
+            anchors = &YOLOV2_ANCHORS_80_CLASSES;
         }
     }
 
     getRegionBoxes(net_out, lw, lh, coords, classes, num, imgWidth, imgHeight, imw, imh, threshold, probs, boxes, 1,
-                   anchors);
+                   *anchors);
 
     doNonMaximumSupressionSort(boxes, probs, lw * lh * num, classes, nms);
     getDetections(imgWidth, imgHeight, lw * lh * num, threshold, boxes.data(), probs, classes, boxes_result);

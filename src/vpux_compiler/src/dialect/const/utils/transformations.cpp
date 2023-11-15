@@ -10,6 +10,7 @@
 #include "vpux/utils/IE/loop.hpp"
 #include "vpux/utils/core/hash.hpp"
 
+#include <blob_transform.hpp>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -44,7 +45,7 @@ Const::Content Const::details::memPermuteTransformation(vpux::Const::Content& in
                 {sizeof(uint8_t), InferenceEngine::Precision::U8},
                 {sizeof(uint16_t), InferenceEngine::Precision::U16},
                 {sizeof(uint32_t), InferenceEngine::Precision::U32},
-                // U64 is not supported by cvtBlobLayout
+                // U64 is not supported by blob_copy
                 // {sizeof(uint64_t), InferenceEngine::Precision::U64},
         };
 
@@ -66,7 +67,7 @@ Const::Content Const::details::memPermuteTransformation(vpux::Const::Content& in
             const auto inBlob = makeBlob(inDesc, nullptr, const_cast<char*>(inBuf.data()));
             const auto outBlob = makeBlob(outDesc, nullptr, outBuf.data());
 
-            cvtBlobLayout(inBlob, outBlob);
+            blob_copy(inBlob, outBlob);
         } else {
             // Use generic algorithm
             const auto outShape = outType.getShape();

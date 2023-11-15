@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -13,7 +13,10 @@
 #include "vpux/utils/core/mem_size.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 
+#include "common/utils.hpp"
+
 #include <gtest/gtest.h>
+#include <mlir/IR/DialectRegistry.h>
 #include <mlir/IR/MLIRContext.h>
 #include <memory>
 
@@ -60,10 +63,9 @@ struct ThresholdPair {
 
 };  // namespace
 
-void ratioBasedStrategyTestTemplate(double threshold, bool isFloat) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
+using MLIR_WeightsSparsity = MLIR_UnitBase;
 
+void ratioBasedStrategyTestTemplate(double threshold, bool isFloat, mlir::DialectRegistry& registry) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPU::VPUDialect>();
     ctx.loadDialect<Const::ConstDialect>();
@@ -83,18 +85,15 @@ void ratioBasedStrategyTestTemplate(double threshold, bool isFloat) {
     EXPECT_EQ(getRatioBasedStrategy()->shouldSparsifyWeights(log, highSparsity, isFloat), true);
 }
 
-TEST(MLIR_WeightsSparsity, RatioBasedStrategyFloatInput) {
-    ratioBasedStrategyTestTemplate(WEIGHTS_SPARSITY_FLOAT_RATIO_THRESHOLD, true);
+TEST_F(MLIR_WeightsSparsity, RatioBasedStrategyFloatInput) {
+    ratioBasedStrategyTestTemplate(WEIGHTS_SPARSITY_FLOAT_RATIO_THRESHOLD, true, registry);
 }
 
-TEST(MLIR_WeightsSparsity, RatioBasedStrategyIntInput) {
-    ratioBasedStrategyTestTemplate(WEIGHTS_SPARSITY_INT_RATIO_THRESHOLD, false);
+TEST_F(MLIR_WeightsSparsity, RatioBasedStrategyIntInput) {
+    ratioBasedStrategyTestTemplate(WEIGHTS_SPARSITY_INT_RATIO_THRESHOLD, false, registry);
 }
 
-TEST(MLIR_WeightsSparsity, CMXBasedStrategy) {
-    mlir::DialectRegistry registry;
-    vpux::registerDialects(registry);
-
+TEST_F(MLIR_WeightsSparsity, CMXBasedStrategy) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPU::VPUDialect>();
     ctx.loadDialect<Const::ConstDialect>();

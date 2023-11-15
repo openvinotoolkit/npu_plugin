@@ -3,6 +3,8 @@
  * Copyright (c) 2022-2023, Intel Corporation.
  */
 
+// clang-format off
+
 #ifndef VPU_NCE_HW_37XX_H
 #define VPU_NCE_HW_37XX_H
 
@@ -25,7 +27,7 @@ typedef struct {
         } se_sp_size_bf;
     } se_sp_size[3];
 
-    union  // new field
+    union // new field
     {
         uint32_t z_config;
         struct {
@@ -40,11 +42,11 @@ typedef struct {
     union {
         uint32_t kernel_pad_cfg;
         struct {
-            uint32_t mpe_assign : 1;     // unused
-            uint32_t pad_right_en : 1;   // unused
-            uint32_t pad_left_en : 1;    // unused
-            uint32_t pad_bottom_en : 1;  // unused
-            uint32_t pad_top_en : 1;     // unused
+            uint32_t mpe_assign : 1;    // unused
+            uint32_t pad_right_en : 1;  // unused
+            uint32_t pad_left_en : 1;   // unused
+            uint32_t pad_bottom_en : 1; // unused
+            uint32_t pad_top_en : 1;    // unused
             uint32_t kernel_y : 4;
             uint32_t kernel_x : 4;
             uint32_t wt_plt_cfg : 2;
@@ -93,7 +95,7 @@ typedef struct {
 
     uint32_t tensor_start;
 
-    union  // removed field addr_format_sel
+    union // removed field addr_format_sel
     {
         uint32_t tensor_mode;
         struct {
@@ -102,22 +104,22 @@ typedef struct {
             uint32_t stride : 3;
             uint32_t zm_input : 1;
             uint32_t dw_input : 1;
-            uint32_t cm_input : 1;  // unused
+            uint32_t cm_input : 1; // unused
             uint32_t workload_operation : 2;
-            uint32_t pad_value : 16;  // unused
+            uint32_t pad_value : 16; // unused
         } tensor_mode_bf;
     } tensor_mode;
 
     uint32_t elop_sparsity_addr;
     uint32_t elop_se_addr;
 
-    union  // new field elop_wload_type
+    union // new field elop_wload_type
     {
         uint32_t elops_wload;
         struct {
             uint32_t elop_wload : 1;
-            uint32_t seed_wload : 1;     // unused
-            uint32_t fifo_wr_wload : 1;  // unused
+            uint32_t seed_wload : 1;    // unused
+            uint32_t fifo_wr_wload : 1; // unused
             uint32_t elop_wload_type : 1;
             uint32_t pool_wt_data : 16;
             uint32_t unused1 : 6;
@@ -132,7 +134,7 @@ typedef struct {
     uint32_t wt_offset;
 
     // ODU
-    union  // new fields
+    union // new fields
     {
         uint32_t odu_cfg;
         struct {
@@ -155,11 +157,11 @@ typedef struct {
         } odu_cfg_bf;
     } odu_cfg;
 
-    uint32_t odu_be_size;  // fromerly ODU_CTX_SIZE
-    uint32_t odu_be_cnt;   // formerly OCU_CTX_THRESHOLD
+    uint32_t odu_be_size; // fromerly ODU_CTX_SIZE
+    uint32_t odu_be_cnt;  // formerly OCU_CTX_THRESHOLD
     uint32_t se_size;
 
-    union  // renamed fields
+    union // renamed fields
     {
         uint32_t te_dim0;
         struct {
@@ -168,7 +170,7 @@ typedef struct {
             uint32_t unused : 6;
         } te_dim0_bf;
     } te_dim0;
-    union  // renamed fields
+    union // renamed fields
     {
         uint32_t te_dim1;
         struct {
@@ -193,25 +195,25 @@ typedef struct {
     } odu_cast[3];
 
     // MPE
-    union  // new fields
+    union // new fields
     {
         uint32_t mpe_cfg;
         struct {
             uint32_t mpe_wtbias : 8;
             uint32_t mpe_actbias : 8;
-            uint32_t mpe_mode : 3;          // unused
-            uint32_t mpe_dense : 1;         // unused
-            uint32_t mrm_weight_dense : 1;  // unused
-            uint32_t mrm_act_dense : 1;     // unused
+            uint32_t mpe_mode : 3;         // unused
+            uint32_t mpe_dense : 1;        // unused
+            uint32_t mrm_weight_dense : 1; // unused
+            uint32_t mrm_act_dense : 1;    // unused
             uint32_t mpe_daz : 1;
-            uint32_t mpe_ftz : 1;  // unused
+            uint32_t mpe_ftz : 1; // unused
             uint32_t unused : 8;
         } mpe_cfg_bf;
     } mpe_cfg;
 
-    uint32_t mpe_bus_data_sel;  // unused
+    uint32_t mpe_bus_data_sel; // unused
 
-    union  // new struct union
+    union // new struct union
     {
         uint32_t elop_scale;
         struct {
@@ -221,19 +223,19 @@ typedef struct {
     } elop_scale;
 
     // PPE
-    union  // handled, new fields added
+    union // handled, new fields added
     {
         uint32_t ppe_cfg;
         struct {
             uint32_t ppe_g8_bias_c : 9;
-            uint32_t ppe_g8_bias_b : 9;  // unused
-            uint32_t ppe_g8_bias_a : 9;  // unused
+            uint32_t ppe_g8_bias_b : 9; // unused
+            uint32_t ppe_g8_bias_a : 9; // unused
             uint32_t unused : 5;
         } ppe_cfg_bf;
     } ppe_cfg;
 
-    uint32_t ppe_bias;  // no change
-    union               // new fields added
+    uint32_t ppe_bias; // no change
+    union              // new fields added
     {
         uint32_t ppe_scale;
         struct {
@@ -246,7 +248,7 @@ typedef struct {
         } ppe_scale_bf;
     } ppe_scale;
 
-    union  // new field added
+    union // new field added
     {
         uint32_t ppe_scale_ctrl;
         struct {
@@ -256,27 +258,27 @@ typedef struct {
         } ppe_scale_ctrl_bf;
     } ppe_scale_ctrl;
 
-    union  // new fields added
+    union // new fields added
     {
         uint32_t ppe_prelu;
         struct {
-            uint32_t unused : 8;           // 0-7
-            uint32_t ppe_prelu_shift : 5;  // 8-12
-            uint32_t unused1 : 3;          // 13-15
-            uint32_t ppe_prelu_mult : 11;  // 16-26
-            uint32_t unused2 : 5;          // 27-31
+            uint32_t unused : 8;          // 0-7
+            uint32_t ppe_prelu_shift : 5; // 8-12
+            uint32_t unused1 : 3;         // 13-15
+            uint32_t ppe_prelu_mult : 11; // 16-26
+            uint32_t unused2 : 5;         // 27-31
         } ppe_prelu_bf;
     } ppe_prelu;
 
-    uint32_t vpu2p0_rsvd_1;  // new
-    uint32_t vpu2p0_rsvd_2;  // new
+    uint32_t vpu2p0_rsvd_1; // new
+    uint32_t vpu2p0_rsvd_2; // new
 
     uint32_t ppe_scale_hclamp;
     uint32_t ppe_scale_lclamp;
 
-    uint32_t vpu2p0_rsvd_3;  // new
+    uint32_t vpu2p0_rsvd_3; // new
 
-    union  // added new fields
+    union // added new fields
     {
         uint32_t ppe_misc;
         struct {
@@ -288,11 +290,11 @@ typedef struct {
         } ppe_misc_bf;
     } ppe_misc;
 
-    uint32_t ppe_fp_bias;   // new
-    uint32_t ppe_fp_scale;  // new
-    uint32_t ppe_fp_prelu;  // new
+    uint32_t ppe_fp_bias;  // new
+    uint32_t ppe_fp_scale; // new
+    uint32_t ppe_fp_prelu; // new
 
-    union  // new
+    union // new
     {
         uint32_t ppe_fp_cfg;
         struct {
@@ -354,7 +356,7 @@ typedef struct {
             uint32_t bin_cfg : 1;
             uint32_t conv_cond : 1;
             uint32_t dense_se : 1;
-            uint32_t idx_quad : 1;  // unused
+            uint32_t idx_quad : 1; // unused
             uint32_t swizzle_key : 3;
             uint32_t idu_mrm_clk_en : 1;
             uint32_t odu_clk_en : 1;
@@ -489,8 +491,8 @@ enum class VpuOutputTensorDType : uint8_t {
     I2 = 0x06,
     LOG = 0x07,
     BIN = 0x08,
-    FP32 = I32,  // The FP32 is same as I32 since NCE_DPU_ODU_CFG enums are based on dtype size
-    U4 = I4,     // The U4 is same as I4 since NCE_DPU_ODU_CFG enums are based on dtype size
+    FP32 = I32, // The FP32 is same as I32 since NCE_DPU_ODU_CFG enums are based on dtype size
+    U4 = I4,    // The U4 is same as I4 since NCE_DPU_ODU_CFG enums are based on dtype size
     BF16 = FP16,
     OUTPUT_DTYPE_UNKNOWN = 0x0A
 };
@@ -513,6 +515,8 @@ enum VpuODUNthw {
 
 enum VpuMPEGrid { MPE_GRID_4x4, MPE_GRID_16x1 };
 
-}  // namespace nn_public
+} // namespace nn_public
 
 #endif
+
+// clang-format on

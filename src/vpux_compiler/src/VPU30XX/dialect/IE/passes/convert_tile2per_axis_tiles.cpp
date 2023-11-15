@@ -21,7 +21,8 @@ namespace {
 // ConvertTile2PerAxisTile
 //
 
-class ConvertTile2PerAxisTilePass final : public IE::ConvertTile2PerAxisTileBase<ConvertTile2PerAxisTilePass> {
+class ConvertTile2PerAxisTilePass final :
+        public IE::arch30xx::ConvertTile2PerAxisTileBase<ConvertTile2PerAxisTilePass> {
 public:
     explicit ConvertTile2PerAxisTilePass(Logger log) {
         Base::initLogger(log, Base::getArgumentName());
@@ -54,10 +55,10 @@ mlir::LogicalResult ConvertTile2PerAxisTilePass::TileOpConverter::matchAndRewrit
         IE::TileOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Got Tile Operation '{0}'", origOp->getLoc());
 
-    if (!origOp.repeats_values().hasValue()) {
+    if (!origOp.repeats_values().has_value()) {
         return errorAt(origOp->getLoc(), "Got non repeats_values parameters");
     }
-    auto repeats = parseIntArrayAttr<int64_t>(origOp.repeats_values().getValue());
+    auto repeats = parseIntArrayAttr<int64_t>(origOp.repeats_values().value());
 
     const auto gapSize = static_cast<int>(getShape(origOp.input()).size()) - static_cast<int>(repeats.size());
 
@@ -108,6 +109,6 @@ void ConvertTile2PerAxisTilePass::safeRunOnFunc() {
 // createConvertTile2PerAxisTilePass
 //
 
-std::unique_ptr<mlir::Pass> vpux::IE::createConvertTile2PerAxisTilePass(Logger log) {
+std::unique_ptr<mlir::Pass> vpux::IE::arch30xx::createConvertTile2PerAxisTilePass(Logger log) {
     return std::make_unique<ConvertTile2PerAxisTilePass>(log);
 }

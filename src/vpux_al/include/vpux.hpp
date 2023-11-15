@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include <cstdint>
@@ -26,11 +24,6 @@
 #include "vpux_compiler.hpp"
 
 namespace vpux {
-
-bool isBlobAllocatedByAllocator(const InferenceEngine::Blob::Ptr& blob,
-                                const std::shared_ptr<InferenceEngine::IAllocator>& allocator);
-
-std::string getLibFilePath(const std::string& baseName);
 
 using Uuid = ov::device::UUID;
 
@@ -62,13 +55,15 @@ protected:
 class EngineBackend final {
 public:
     EngineBackend() = default;
+    EngineBackend(const EngineBackend&) = default;
+    EngineBackend& operator=(const EngineBackend&) = default;
 
 #ifdef OPENVINO_STATIC_LIBRARY
     EngineBackend(std::shared_ptr<IEngineBackend> impl);
 #endif
 
 #ifndef OPENVINO_STATIC_LIBRARY
-    EngineBackend(const std::string& pathToLib);
+    EngineBackend(const std::string& pathToLib, const Config& config);
 #endif
 
     // Destructor preserves unload order of implementation object and reference to library.
@@ -125,6 +120,8 @@ class AllocatorWrapper : public Allocator {
 public:
     AllocatorWrapper(const std::shared_ptr<Allocator>& impl, const std::shared_ptr<void>& so): _impl(impl), _so(so) {
     }
+    AllocatorWrapper(const AllocatorWrapper&) = delete;
+    AllocatorWrapper& operator=(const AllocatorWrapper&) = delete;
 
     // Destructor preserves unload order of implementation object and reference to library.
     // To preserve destruction order inside default generated assignment operator we store `_impl` before `_so`.
@@ -170,16 +167,10 @@ private:
 
 //------------------------------------------------------------------------------
 
-using PreprocMap = std::map<std::string, const InferenceEngine::PreProcessInfo>;
-
 class Executor {
 public:
     using Ptr = std::shared_ptr<Executor>;
     using CPtr = std::shared_ptr<const Executor>;
-
-    virtual Executor::Ptr clone() const {
-        IE_THROW() << "Not implemented";
-    }
 
     virtual ~Executor() = default;
 };
@@ -209,8 +200,10 @@ public:
                                                      const Config& config) = 0;
 
     virtual std::string getName() const = 0;
+    virtual std::string getFullDeviceName() const = 0;
     virtual Uuid getUuid() const;
     virtual uint64_t getTotalMemSize() const;
+    virtual uint32_t getDriverVersion() const;
 
     virtual IInferRequest::Ptr createInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
                                                   const InferenceEngine::OutputsDataMap& networkOutputs,
@@ -218,7 +211,7 @@ public:
                                                   const std::string& networkName,
                                                   const std::vector<std::shared_ptr<const ov::Node>>& parameters,
                                                   const std::vector<std::shared_ptr<const ov::Node>>& results,
-                                                  const vpux::DataMap& networkStatesInfo,
+                                                  const vpux::NetworkIOVector& networkStatesInfo,
                                                   const std::shared_ptr<InferenceEngine::IAllocator>& allocator) = 0;
 
 protected:
@@ -235,6 +228,8 @@ public:
             _allocatorWrapper = std::make_shared<AllocatorWrapper>(_impl->getAllocator(), _so);
         }
     }
+    Device(const Device&) = delete;
+    Device& operator=(const Device&) = delete;
 
     // Destructor preserves unload order of implementation object and reference to library.
     // To preserve destruction order inside default generated assignment operator we store `_impl` before `_so`.
@@ -259,6 +254,10 @@ public:
         return _impl->getName();
     }
 
+    std::string getFullDeviceName() const {
+        return _impl->getFullDeviceName();
+    }
+
     Uuid getUuid() const {
         return _impl->getUuid();
     }
@@ -267,13 +266,17 @@ public:
         return _impl->getTotalMemSize();
     }
 
+    uint32_t getDriverVersion() const {
+        return _impl->getDriverVersion();
+    }
+
     IInferRequest::Ptr createInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
                                           const InferenceEngine::OutputsDataMap& networkOutputs,
                                           const Executor::Ptr& executor, const Config& config,
                                           const std::string& netName,
                                           const std::vector<std::shared_ptr<const ov::Node>>& parameters,
                                           const std::vector<std::shared_ptr<const ov::Node>>& results,
-                                          const vpux::DataMap& networkStatesInfo,
+                                          const vpux::NetworkIOVector& networkStatesInfo,
                                           const std::shared_ptr<InferenceEngine::IAllocator>& allocator) {
         return _impl->createInferRequest(networkInputs, networkOutputs, executor, config, netName, parameters, results,
                                          networkStatesInfo, allocator);

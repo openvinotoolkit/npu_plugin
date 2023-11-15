@@ -5,6 +5,7 @@
 
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
+#include "vpux/compiler/utils/factors.hpp"
 
 #include "vpux/compiler/utils/error.hpp"
 
@@ -129,7 +130,7 @@ mlir::FailureOr<SmallVector<int64_t>> vpux::IE::constInputToData(mlir::Location 
         return errorAt(loc, "Only constant input is supported");
     }
 
-    const auto valueContent = valueConst.content();
+    const auto valueContent = valueConst.getContent();
     return to_small_vector(valueContent.getValues<int64_t>());
 }
 
@@ -218,9 +219,162 @@ mlir::FailureOr<Shape> vpux::IE::getShapeCastExpandedShape(mlir::Operation* oper
             continue;
         }
 
-        newExpandedShape[Dim(index)] = factors.getValue()[factorIndex];
+        newExpandedShape[Dim(index)] = factors.value()[factorIndex];
         factorIndex++;
     }
+    return newExpandedShape;
+}
+
+mlir::FailureOr<Shape> vpux::IE::getShapeCastExpandedShapeInDimC(mlir::Operation* operation, ShapeRef originShape,
+                                                                 Logger log) {
+    if (originShape.empty()) {
+        return mlir::failure();
+    }
+    const auto inputType = operation->getOperand(0).getType().cast<vpux::NDTypeInterface>();
+    const auto sizeToAlign = VPU::NCEInvariant::getAlignment(inputType.getElementType());
+    const auto totalSize = originShape.totalSize();
+
+    if (totalSize % sizeToAlign) {
+        log.trace("Input shape is not divisible to {0} for op {1} at {2}", sizeToAlign, operation->getName(),
+                  operation->getLoc());
+        return mlir::failure();
+    }
+
+    const auto remainingSize = totalSize / sizeToAlign;
+    auto factors = getFactors(remainingSize, originShape.size() - 2);  // Except DimC and DimN
+    if (mlir::failed(factors)) {
+        log.trace("Input shape is not divisible to align for op {0} at {1}", operation->getName(), operation->getLoc());
+        return mlir::failure();
+    }
+
+    auto hwShape = factors.value();
+    Shape newExpandedShape = {1, sizeToAlign, hwShape[0], hwShape[1]};
+    return newExpandedShape;
+}
+
+mlir::FailureOr<Shape> vpux::IE::getShapeCastExpandedShapeKeepDimC(mlir::Operation* operation, ShapeRef originShape,
+                                                                   Logger log) {
+    if (originShape.empty()) {
+        return mlir::failure();
+    }
+    const auto inputType = operation->getOperand(0).getType().cast<vpux::NDTypeInterface>();
+    const auto sizeToAlign = VPU::NCEInvariant::getAlignment(inputType.getElementType());
+    auto channelSize = originShape[Dims4D::Act::C];
+    auto hwSize = originShape[Dims4D::Act::H] * originShape[Dims4D::Act::W];
+    auto factor = sizeToAlign / channelSize;
+    if (!factor) {
+        return mlir::failure();
+    }
+    int64_t remainingSize;
+    int64_t newChannelSize;
+    if (((sizeToAlign % channelSize) == 0) && ((hwSize % factor) == 0)) {
+        newChannelSize = sizeToAlign;
+        remainingSize = hwSize / factor;
+    } else if ((hwSize % sizeToAlign) == 0) {
+        newChannelSize = channelSize * sizeToAlign;
+        remainingSize = hwSize / sizeToAlign;
+    } else {
+        return mlir::failure();
+    }
+
+    auto factors = getFactors(remainingSize, 2);  // Except DimC and DimN
+    if (mlir::failed(factors)) {
+        log.trace("Input shape is not divisible to align for op {0} at {1}", operation->getName(), operation->getLoc());
+        return mlir::failure();
+    }
+
+    auto hwShape = factors.value();
+    Shape newExpandedShape = {originShape[Dims4D::Act::N], newChannelSize, hwShape[0], hwShape[1]};
+    return newExpandedShape;
+}
+
+//  Handle the total size can't divisible by the required alignment case.
+//  This function will minimize expansion and divide the remaining size for other dimensions (H and W) as evenly as
+//  possible
+//  e.g. input shape is [1, 1, 289, 289], new expanded shape is [1, 289, 17, 17]
+//  input shape is [1, 1, 1384, 27], new expanded shape is [1, 519, 12, 6]
+mlir::FailureOr<Shape> vpux::IE::getShapeCastExpandedShapeCanNotAlign(mlir::Operation* operation, ShapeRef inputShape,
+                                                                      Logger log) {
+    if (operation == nullptr) {
+        return mlir::failure();
+    }
+
+    if (inputShape.empty()) {
+        return mlir::failure();
+    }
+    const auto inputType = operation->getOperand(0).getType().cast<vpux::NDTypeInterface>();
+    const auto sizeToAlign = VPU::NCEInvariant::getAlignment(inputType.getElementType());
+    const auto totalSize = inputShape.totalSize();
+
+    if (totalSize % sizeToAlign == 0) {
+        log.trace("The shape of op {0} at {1} can get C align", operation->getName(), operation->getLoc());
+        return mlir::failure();
+    }
+
+    auto factors = vpux::getPrimeFactors(totalSize);
+
+    if (factors.empty()) {
+        log.trace("Can't shapeCast for input shape {0}", inputShape);
+        return mlir::failure();
+    }
+
+    auto newExpandedShape = Shape(inputShape.size(), 1);
+
+    if (factors.size() == 1) {
+        newExpandedShape[Dims4D::Act::C] = factors[0];
+    } else if (factors.size() == 2) {
+        newExpandedShape[Dims4D::Act::C] = factors[1];
+        newExpandedShape[Dims4D::Act::H] = factors[0];
+    } else {
+        // Try to split some data on HW as much as possible to keep hardware utilization.
+        // eg. input shape is [1, 1, 1384, 27] the factors will be [2, 2, 2, 3, 3, 3, 173]
+        //  | W | H |       C        |
+        // [| 2,| 2,| 2, 3, 3, 3, 173|]
+        //    \  /    /
+        //     \/    /
+        //     /\   /
+        //    |  \ /
+        //  | W | H |      C      |
+        // [| 2,| 4,| 3, 3, 3, 173|]
+        //    \  /    /
+        //     \/    /
+        //     /\   /
+        //    |  \ /
+        //  | W | H |     C    |
+        // [| 4,| 6,| 3, 3, 173|]
+        //    \  /    /
+        //     \/    /
+        //     /\   /
+        //    |  \ /
+        //  | W | H |   C   |
+        // [| 6,|12,| 3, 173|]
+        // The new expanded shape will be [1, 173x3, 12, 6]
+        auto shapeBegin = factors.begin();
+        auto shapeBeginLimit = factors.end() - 3;
+        while ((shapeBegin != shapeBeginLimit) && ((*shapeBegin) * (*(shapeBegin + 2)) < 16)) {
+            *(shapeBegin + 2) = (*shapeBegin) * (*(shapeBegin + 2));
+            shapeBegin++;
+        }
+
+        auto preCalculateChannel =
+                std::accumulate(shapeBegin + 2, factors.end(), (int64_t)1, std::multiplies<int64_t>());
+
+        while ((shapeBegin != shapeBeginLimit) && (preCalculateChannel > VPU::NCEInvariant::VPU_DIMENSION_LIMIT)) {
+            preCalculateChannel = preCalculateChannel / (*(shapeBegin + 2));
+            *(shapeBegin + 2) = (*shapeBegin) * (*(shapeBegin + 2));
+            shapeBegin++;
+        }
+
+        newExpandedShape[Dims4D::Act::W] = *shapeBegin;
+        newExpandedShape[Dims4D::Act::H] = *(shapeBegin + 1);
+        newExpandedShape[Dims4D::Act::C] = preCalculateChannel;
+    }
+
+    if (newExpandedShape == inputShape) {
+        // Not need reshape.
+        return mlir::failure();
+    }
+
     return newExpandedShape;
 }
 

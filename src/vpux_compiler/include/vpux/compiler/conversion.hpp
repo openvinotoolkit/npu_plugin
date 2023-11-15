@@ -12,6 +12,7 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUMI37XX/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
+#include "vpux/compiler/pipelines.hpp"
 #include "vpux/compiler/utils/passes.hpp"
 
 #include "vpux/utils/core/logger.hpp"
@@ -47,9 +48,6 @@ std::unique_ptr<mlir::Pass> createBufferizeIEPass(Logger log = Logger::global())
 // LowerIE2VPU
 //
 
-void buildLowerIE2VPUPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
-
-std::unique_ptr<mlir::Pass> createConvertIEToVPUNCEPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertLayers2VPUPass(Logger log = Logger::global());
 
 //
@@ -62,9 +60,6 @@ std::unique_ptr<mlir::Pass> createConvertLayers2VPUPass(Logger log = Logger::glo
 // This pipeline performs full IR lowering from VPU Dialect to VPUIP Dialect,
 // including Function types, call graph and return operations.
 //
-
-void buildLowerVPU2VPUIP37XXPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
-void buildLowerVPU2VPUIP30XXPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createBufferizeFuncAndReturnPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createAddBuffersForNetResults(Logger log = Logger::global());
@@ -83,8 +78,6 @@ std::unique_ptr<mlir::Pass> createConvertVPUIP2VPUMI37XXPass(Logger log = Logger
 std::unique_ptr<mlir::Pass> createConvertVPUMI37XX2ELFPass(Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createMoveIOBuffersToSectionsPass(Logger log = Logger::global());
-
-void buildLowerVPUIP2ELFPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
 
 //
 // LowerVPUNCE2EMU
@@ -106,11 +99,11 @@ void registerConversionPipelines();
 //
 
 #define GEN_PASS_CLASSES
-#include <vpux/compiler/conversion/generated/passes.hpp.inc>
+#include <vpux/compiler/conversion/passes.hpp.inc>
 #undef GEN_PASS_CLASSES
 
 #define GEN_PASS_REGISTRATION
-#include <vpux/compiler/conversion/generated/passes.hpp.inc>
+#include <vpux/compiler/conversion/passes.hpp.inc>
 #undef GEN_PASS_REGISTRATION
 
 }  // namespace vpux

@@ -19,12 +19,9 @@ mlir::LogicalResult vpux::VPUIP::GenericReshapeOp::verify() {
     auto distributedInType = input().getType().dyn_cast<VPUIP::DistributedBufferType>();
     auto distributedOutType = output().getType().dyn_cast<VPUIP::DistributedBufferType>();
     if (distributedInType && distributedOutType) {
-        if (!isCompatibleForDistributedInputOutput(op, distributedInType, distributedOutType)) {
-            return errorAt(op, "Reshape input and output must have the same distribution mode");
-        }
-        if (!isDistributedCompatibleAfterShapeChange(distributedInType, distributedOutType.getShape(),
-                                                     VPU::getArch(getOperation()))) {
-            return errorAt(op, "Reshape has incompatible output shape as clustering");
+        if (!isDistributedCompatibleAfterShapeChange(distributedInType, distributedOutType)) {
+            return errorAt(op, "Reshape has incompatible output shape as clustering: in type = {0}, out type = {1}",
+                           distributedInType, distributedOutType);
         }
     }
 

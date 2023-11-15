@@ -1,19 +1,19 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
-#include "kmb_layer_test.hpp"
 #include "single_layer_tests/reverse_sequence.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
 class VPUXReverseSequenceLayerTest :
         public ReverseSequenceLayerTest,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+        virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 class VPUXReverseSequenceLayerTest_VPU3700 : public VPUXReverseSequenceLayerTest {};
 class VPUXReverseSequenceLayerTest_VPU3720 : public VPUXReverseSequenceLayerTest {};
 
@@ -49,13 +49,13 @@ const std::vector<std::vector<size_t>> reversSeqLengthsVecShapes = {{3}};
 const std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {ngraph::helpers::InputLayerType::CONSTANT,
                                                                           ngraph::helpers::InputLayerType::PARAMETER};
 
-INSTANTIATE_TEST_SUITE_P(Basic_smoke, VPUXReverseSequenceLayerTest_VPU3700,
+INSTANTIATE_TEST_SUITE_P(smoke_Basic, VPUXReverseSequenceLayerTest_VPU3700,
                          ::testing::Combine(::testing::ValuesIn(batchAxisIndices), ::testing::ValuesIn(seqAxisIndices),
                                             ::testing::ValuesIn(inputShapes),
                                             ::testing::ValuesIn(reversSeqLengthsVecShapes),
                                             ::testing::ValuesIn(secondaryInputTypes),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          VPUXReverseSequenceLayerTest_VPU3700::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequence_VPU3720, VPUXReverseSequenceLayerTest_VPU3720,
@@ -64,16 +64,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequence_VPU3720, VPUXReverseSequenceLayer
                                             ::testing::ValuesIn(reversSeqLengthsVecShapes),
                                             ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         VPUXReverseSequenceLayerTest_VPU3720::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_ReverseSequence_VPU3720, VPUXReverseSequenceLayerTest_VPU3720,
-                         ::testing::Combine(::testing::ValuesIn(batchAxisIndices), ::testing::ValuesIn(seqAxisIndices),
-                                            ::testing::ValuesIn(inputShapes),
-                                            ::testing::ValuesIn(reversSeqLengthsVecShapes),
-                                            ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
-                                            ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          VPUXReverseSequenceLayerTest_VPU3720::getTestCaseName);
 
 }  // namespace

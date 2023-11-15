@@ -1,16 +1,16 @@
 //
-// Copyright (C) 2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "single_layer_tests/embedding_bag_packed_sum.hpp"
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
 class VPUXEmbeddingBagPackedSumLayerTest_VPU3720 :
         public EmbeddingBagPackedSumLayerTest,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+        virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
 TEST_P(VPUXEmbeddingBagPackedSumLayerTest_VPU3720, HW) {
     setPlatformVPU3720();
@@ -36,7 +36,7 @@ const InferenceEngine::Precision indicesPrecisions = InferenceEngine::Precision:
 INSTANTIATE_TEST_SUITE_P(smoke_precommit_EmbeddingBagPackedSum_VPU3720, VPUXEmbeddingBagPackedSumLayerTest_VPU3720,
                          ::testing::Combine(params, ::testing::Values(embeddingTablePrecision),
                                             ::testing::Values(indicesPrecisions),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          EmbeddingBagPackedSumLayerTest::getTestCaseName);
 
 }  // namespace

@@ -70,7 +70,7 @@ bool vpux::IMD::ExecutorImpl::isValidElfSignature(StringRef filePath) {
 // getSimicsPath
 //
 
-std::string vpux::IMD::ExecutorImpl::getSimicsPath(const Config& config) {
+std::string vpux::IMD::ExecutorImpl::getSimicsPath(const Config& /* config */) {
     VPUX_THROW("Can't locate simics directory");
 }
 
@@ -105,21 +105,21 @@ void vpux::IMD::ExecutorImpl::setMoviDebugRunArgs(VPUXPlatform platform, const C
     const auto appName = getAppName(platform);
     const auto pathToTools = getMoviToolsPath(config);
 
-    const auto* vpuElfPlatform = std::getenv("VPU_ELF_PLATFORM");
-    const auto* vpuFirmwareDir = std::getenv("VPU_FIRMWARE_SOURCES_PATH");
-    const auto* srvIP = std::getenv("VPU_SRV_IP");
-    const auto* srvPort = std::getenv("VPU_SRV_PORT");
+    const auto* vpuElfPlatform = std::getenv("NPU_ELF_PLATFORM");
+    const auto* vpuFirmwareDir = std::getenv("NPU_FIRMWARE_SOURCES_PATH");
+    const auto* srvIP = std::getenv("NPU_SRV_IP");
+    const auto* srvPort = std::getenv("NPU_SRV_PORT");
 
     if (vpuFirmwareDir == nullptr) {
-        VPUX_THROW("Can't locate vpu firmware directory, please provide VPU_FIRMWARE_SOURCES_PATH env var");
+        VPUX_THROW("Can't locate vpu firmware directory, please provide NPU_FIRMWARE_SOURCES_PATH env var");
     }
     if (vpuElfPlatform == nullptr) {
         vpuElfPlatform = "silicon";
-        _log.warning("'VPU_ELF_PLATFORM' env variable is unset, using the default value: 'silicon'");
+        _log.warning("'NPU_ELF_PLATFORM' env variable is unset, using the default value: 'silicon'");
     } else {
         auto vpuElfPlatformStr = std::string(vpuElfPlatform);
         if (vpuElfPlatformStr != "silicon" && vpuElfPlatformStr != "fpga")
-            VPUX_THROW("Unsupported value for VPU_ELF_PLATFORM env var, expected: 'silicon' or 'fpga', got '{0}'",
+            VPUX_THROW("Unsupported value for NPU_ELF_PLATFORM env var, expected: 'silicon' or 'fpga', got '{0}'",
                        vpuElfPlatformStr);
     }
 
@@ -135,7 +135,6 @@ void vpux::IMD::ExecutorImpl::setMoviDebugRunArgs(VPUXPlatform platform, const C
         default_targetArg = "-D:default_target=LRT";
         break;
     case VPUXPlatform::VPU3700:
-    case VPUXPlatform::VPU3400:
         _app.chipsetArg = "-cv:ma2490";
         default_targetArg = "-D:default_target=LRT0";
         break;
@@ -150,21 +149,20 @@ void vpux::IMD::ExecutorImpl::setMoviDebugRunArgs(VPUXPlatform platform, const C
         static auto srvIPArg = printToString("-srvIP:{0}", srvIP);
         _app.runArgs.append({srvIPArg});
     } else {
-        _log.warning("'VPU_SRV_IP' env variable is unset, moviDebug2 will try to connect to localhost");
+        _log.warning("'NPU_SRV_IP' env variable is unset, moviDebug2 will try to connect to localhost");
     }
 
     if (srvPort != nullptr) {
         static auto srvPortArg = printToString("-serverPort:{0}", srvPort);
         _app.runArgs.append({srvPortArg});
     } else {
-        _log.warning("'VPU_SRV_PORT' env variable is unset, moviDebug2 will try to connect to 30000 or 30001 port");
+        _log.warning("'NPU_SRV_PORT' env variable is unset, moviDebug2 will try to connect to 30000 or 30001 port");
     }
 
     // Debug scripts
     switch (platform) {
     case VPUXPlatform::VPU3720:
     case VPUXPlatform::VPU3700:
-    case VPUXPlatform::VPU3400:
         static auto default_mdbg2Arg =
                 printToString("{0}/build/buildSupport/scripts/debug/default_mdbg2.scr", vpuFirmwareDir);
         static auto default_pipe_mdbg2Arg =
@@ -203,9 +201,9 @@ void vpux::IMD::ExecutorImpl::setSimicsRunArgs(const VPUXPlatform platform, cons
                     "-e",
                     binaryFile,
                     "-e",
-                    "$VPU_GEN=4",
+                    "$NPU_GEN=4",
                     "-e",
-                    "$VPU_GENSKU=4000",
+                    "$NPU_GENSKU=4000",
                     "-e",
                     "run-command-file \"%simics%/targets/vpu/vpu.simics\""};
 }
@@ -234,7 +232,7 @@ void vpux::IMD::ExecutorImpl::parseAppConfig(VPUXPlatform platform, const Config
 
     VPUX_THROW_UNLESS(isValidElfSignature(_app.elfFile),
                       "Elf signature check failed for {0}. Please fetch the file using `git lfs pull`, then rebuild "
-                      "the project or the `vpux_imd_backend_copy_app` cmake target.",
+                      "the project or the `npu_imd_backend_copy_app` cmake target.",
                       _app.elfFile);
 
     _app.timeoutSec = config.get<IMD::MV_RUN_TIMEOUT>().count();
@@ -248,8 +246,4 @@ vpux::IMD::ExecutorImpl::ExecutorImpl(VPUXPlatform platform, const NetworkDescri
                                       const Config& config)
         : _network(network), _log("InferenceManagerDemo", config.get<LOG_LEVEL>()) {
     parseAppConfig(platform, config);
-}
-
-Executor::Ptr vpux::IMD::ExecutorImpl::clone() const {
-    return std::make_shared<IMD::ExecutorImpl>(*this);
 }

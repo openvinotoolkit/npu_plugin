@@ -22,7 +22,7 @@
 namespace vpux {
 namespace zeroProfiling {
 
-namespace IE = InferenceEngine;
+namespace ie = InferenceEngine;
 using namespace vpux::profiling;
 
 static_assert(sizeof(LayerInfo) == sizeof(ze_profiling_layer_info), "Profiling type mismtach");
@@ -57,96 +57,6 @@ struct ZeProfilingTypeId<uint8_t> {
     static const ze_graph_profiling_type_t value = ZE_GRAPH_PROFILING_RAW;
 };
 
-std::string getEnvVar(const std::string& varName, bool capitalize, const std::string& defaultValue = "") {
-    const char* rawValue = std::getenv(varName.c_str());
-    std::string value = rawValue == nullptr ? defaultValue : rawValue;
-
-    if (capitalize) {
-        std::transform(value.begin(), value.end(), value.begin(), ::toupper);
-    }
-    return value;
-}
-
-enum class ProfilingFormat { NONE, JSON, TEXT, RAW };
-
-ProfilingFormat getProfilingFormat(const std::string& format) {
-    if (format == "JSON")
-        return ProfilingFormat::JSON;
-    if (format == "TEXT")
-        return ProfilingFormat::TEXT;
-    if (format == "RAW")
-        return ProfilingFormat::RAW;
-    return ProfilingFormat::NONE;
-}
-
-void saveProfilingDataToFile(ProfilingFormat format, std::ostream& outfile,
-                             const std::vector<LayerInfo>& layerProfiling, const std::vector<TaskInfo>& taskProfiling) {
-    const auto DEFAULT_VERBOSE_VALUE = "LOW";
-    static const std::map<std::string, size_t> VERBOSITY_TO_NUM_FILTERS = {
-            {DEFAULT_VERBOSE_VALUE, 2},
-            {"MEDIUM", 1},
-            {"HIGH", 0},
-    };
-    auto verbosityValue = getEnvVar("VPUX_PROFILING_VERBOSITY", true, DEFAULT_VERBOSE_VALUE);
-    if (VERBOSITY_TO_NUM_FILTERS.count(verbosityValue) == 0) {
-        verbosityValue = DEFAULT_VERBOSE_VALUE;
-    }
-    std::vector<decltype(&isLowLevelProfilingTask)> verbosityFilters = {&isLowLevelProfilingTask,
-                                                                        &isClusterLevelProfilingTask};
-    std::vector<TaskInfo> filteredTasks;
-    // Driver return tasks at maximum verbosity, so filter them to needed level
-    std::copy_if(taskProfiling.begin(), taskProfiling.end(), std::back_inserter(filteredTasks),
-                 [&](const TaskInfo& task) {
-                     bool toKeep = true;
-                     for (size_t filterId = 0; filterId < VERBOSITY_TO_NUM_FILTERS.at(verbosityValue); ++filterId) {
-                         toKeep &= !verbosityFilters[filterId](task);
-                     }
-                     return toKeep;
-                 });
-    switch (format) {
-    case ProfilingFormat::JSON:
-        printProfilingAsTraceEvent(filteredTasks, layerProfiling, outfile);
-        break;
-    case ProfilingFormat::TEXT:
-        printProfilingAsText(filteredTasks, layerProfiling, outfile);
-        break;
-    case ProfilingFormat::RAW:
-    case ProfilingFormat::NONE:
-        IE_ASSERT(false);
-    }
-}
-
-void saveRawDataToFile(uint8_t* rawBuffer, size_t size, std::ostream& outfile) {
-    outfile.write(reinterpret_cast<char*>(rawBuffer), size);
-    outfile.flush();
-}
-
-LayerStatistics convertLayersToIeProfilingInfo(const std::vector<LayerInfo>& layerInfo) {
-    LayerStatistics perfCounts;
-    int execution_index = 0;
-    for (const auto& layer : layerInfo) {
-        IE::InferenceEngineProfileInfo info;
-        info.status = IE::InferenceEngineProfileInfo::EXECUTED;
-        info.realTime_uSec = layer.duration_ns / 1000;
-        info.execution_index = execution_index++;
-        auto execLen = sizeof(info.exec_type);
-        if (layer.sw_ns > 0) {
-            strncpy(info.exec_type, "SW", execLen);
-        } else if (layer.dpu_ns > 0) {
-            strncpy(info.exec_type, "DPU", execLen);
-        } else {
-            strncpy(info.exec_type, "DMA", execLen);
-        }
-        info.exec_type[execLen - 1] = 0;
-        info.cpu_uSec = (layer.dma_ns + layer.sw_ns + layer.dpu_ns) / 1000;
-        auto typeLen = sizeof(info.layer_type);
-        strncpy(info.layer_type, layer.layer_type, typeLen);
-        info.layer_type[typeLen - 1] = 0;
-        perfCounts[layer.name] = info;
-    }
-    return perfCounts;
-}
-
 bool ProfilingPool::create() {
     auto ret = _graph_profiling_ddi_table_ext->pfnProfilingPoolCreate(_graph_handle, _profiling_count, &_handle);
     return ((ZE_RESULT_SUCCESS == ret) && (_handle != nullptr));
@@ -163,29 +73,15 @@ void ProfilingQuery::create(const ze_graph_profiling_pool_handle_t& profiling_po
                            _graph_profiling_ddi_table_ext->pfnProfilingQueryCreate(profiling_pool, _index, &_handle));
 }
 
-LayerStatistics ProfilingQuery::getLayerStatistics(IE::VPUXConfigParams::CompilerType compiler_type,
+LayerStatistics ProfilingQuery::getLayerStatistics(ie::VPUXConfigParams::CompilerType compiler_type,
                                                    const std::vector<char>& blob) {
     verifyProfilingProperties();
-    std::ofstream outFile;
-
-    const auto printProfiling = getEnvVar("VPUX_PRINT_PROFILING", true);
-    ProfilingFormat format = getProfilingFormat(printProfiling);
-
-    if (format != ProfilingFormat::NONE) {
-        const auto outFileName = getEnvVar("VPUX_PROFILING_OUTPUT_FILE", false);
-        auto flags = std::ios::out | std::ios::trunc;
-        if (format == ProfilingFormat::RAW) {
-            flags |= std::ios::binary;
-        }
-        outFile.open(outFileName, flags);
-        if (!outFile) {
-            std::cerr << "Can't write result into " << outFileName << std::endl;
-        }
-    }
+    ProfilingFormat format = ProfilingFormat::NONE;
+    std::ofstream outFile = openProfilingStream(&format);
 
     std::vector<LayerInfo> layerProfiling;
 
-    if (compiler_type != IE::VPUXConfigParams::CompilerType::MLIR) {
+    if (compiler_type != ie::VPUXConfigParams::CompilerType::MLIR) {
         if (outFile.is_open()) {
             if (format != ProfilingFormat::RAW) {
                 const auto taskProfiling = getData<TaskInfo>();

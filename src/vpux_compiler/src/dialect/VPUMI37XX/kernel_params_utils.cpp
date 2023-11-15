@@ -55,6 +55,8 @@ sw_params::DataType KernelParamsSerializer::getDataTypeFromMlirType(mlir::Type t
                 return sw_params::DataType::NN_BIN;
             }
         }
+    } else if (auto quantizeType = type.dyn_cast<mlir::quant::QuantizedType>()) {
+        return sw_params::DataType::NN_U8;
     } else if (type.isBF16()) {
         return sw_params::DataType::NN_BF16;
     }
@@ -147,8 +149,8 @@ SmallVector<uint8_t> KernelParamsSerializer::createKernelParams(VPUIP::SwKernelO
                 VPUX_THROW("Only block arguments are supported");
             }
         }
-        if (kernelRun.attrs().hasValue()) {
-            const mlir::ArrayAttr arrayAttrs = kernelRun.attrs().getValue();
+        if (kernelRun.attrs().has_value()) {
+            const mlir::ArrayAttr arrayAttrs = kernelRun.attrs().value();
             const auto& attrs = arrayAttrs.getValue();
             for (const auto& attr : attrs) {
                 addAttrsToVector(paramsVector, attr);

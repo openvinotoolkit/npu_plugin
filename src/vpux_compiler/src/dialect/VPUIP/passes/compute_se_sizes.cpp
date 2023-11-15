@@ -71,14 +71,14 @@ int64_t getVariantsNumChannels(VPUIP::NCEClusterTaskOp nceOp) {
         VPUX_THROW_UNLESS(outStart.size() >= 3 && outEnd.size() >= 3,
                           "Invalid variant shape, expected at least three dimensions, got '{0}'", outStart.size());
         const auto variantNumChannels = outEnd[2] - outStart[2] + 1;
-        if (!numChannels.hasValue()) {
+        if (!numChannels.has_value()) {
             numChannels = variantNumChannels;
             continue;
         }
-        VPUX_THROW_UNLESS(numChannels.getValue() == variantNumChannels,
+        VPUX_THROW_UNLESS(numChannels.value() == variantNumChannels,
                           "Variant has '{0}' channels while '{1}' were expected", variantNumChannels, numChannels);
     }
-    return numChannels.getValue();
+    return numChannels.value();
 }
 
 mlir::IntegerAttr getInputSESizeForConcatOverC(VPUIP::NCEClusterTaskOp nceOp, mlir::Value operand) {

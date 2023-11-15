@@ -1,9 +1,9 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 #include <ngraph_functions/builders.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -21,7 +21,7 @@ struct ScheduleSubGraphTestParams {
 };
 
 class VPUXScheduleSubGraphTest_VPU3700 :
-        public LayerTestsUtils::KmbLayerTestsCommon,
+        public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<ScheduleSubGraphTestParams> {
     void SetUp() override {
         const auto test_params = GetParam();
@@ -103,12 +103,12 @@ TEST_P(VPUXScheduleSubGraphTest_VPU3700, HW) {
 
 INSTANTIATE_TEST_CASE_P(smoke, VPUXScheduleSubGraphTest_VPU3700,
                         ::testing::Values(ScheduleSubGraphTestParams{
-                                LayerTestsUtils::testPlatformTargetDevice,  // _device
-                                {1, 16, 16, 16},                            // in dims
-                                {16, 16, 1, 1},                             // weights dims
-                                {1, 1},                                     // strides
-                                {0, 0},                                     // pads_begin
-                                {0, 0},                                     // pads_end
+                                LayerTestsUtils::testPlatformTargetDevice(),  // _device
+                                {1, 16, 16, 16},                              // in dims
+                                {16, 16, 1, 1},                               // weights dims
+                                {1, 1},                                       // strides
+                                {0, 0},                                       // pads_begin
+                                {0, 0},                                       // pads_end
                         }));
 
 }  // namespace

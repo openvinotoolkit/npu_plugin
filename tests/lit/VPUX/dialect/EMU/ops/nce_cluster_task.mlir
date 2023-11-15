@@ -20,7 +20,7 @@ func.func @DepthConvCannonicalize(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>
             kernel_size = [4, 8],
             kernel_strides = [1, 1],
             rawFilterShape = [16, 1, 4, 8],
-            task_type = "DWCONV"
+            task_type = #VPUIP.nce_task_type<DWCONV>
         }
         input(%arg0 : tensor<1x16x40x80xf16, {order = #NHWC}>)
         weights(%cst0 : tensor<16x1x4x8xf16, {order = #NHWC}>)
@@ -35,7 +35,7 @@ func.func @DepthConvCannonicalize(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>
 
 
     // CHECK:       [[VAL0:%.+]] = EMU.NCEClusterTask
-    // CHECK-SAME:      kernel_padding = [0, 0, 0, 0], kernel_size = [4, 8], kernel_strides = [1, 1], rawFilterShape = [16, 1, 4, 8], task_type = "DWCONV"
+    // CHECK-SAME:      kernel_padding = [0, 0, 0, 0], kernel_size = [4, 8], kernel_strides = [1, 1], rawFilterShape = [16, 1, 4, 8], task_type = #VPUIP.nce_task_type<DWCONV>
     // CHECK-SAME:      input(%arg0 : tensor<1x16x40x80xf16, {order = #NHWC}>)
     // CHECK-SAME:      weights([[CST0]] : tensor<16x4x8xf16>)
     // CHECK-SAME:      weight_table([[CST]] : tensor<16x1x1x4xsi32>)

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <base/behavior_test_utils.hpp>
 
 #include "behavior/plugin/set_preprocess.hpp"
@@ -31,6 +29,11 @@ const std::vector<InferenceEngine::Precision> inputPrecisions = {InferenceEngine
 const std::vector<InferenceEngine::Precision> outputPrecisions = {InferenceEngine::Precision::FP32};
 
 const std::vector<std::map<std::string, std::string>> configs = {{}};
+
+const std::vector<std::map<std::string, std::string>> autoConfigs = {
+        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_KEEMBAY},
+         {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
+          CommonTestUtils::DEVICE_KEEMBAY + std::string(",") + CommonTestUtils::DEVICE_CPU}}};
 
 // Layout types:
 /*
@@ -65,6 +68,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_precommit_VPU3720_BehaviorTestsPreprocess, InferR
                                             ::testing::ValuesIn(configs)),
                          InferRequestPreprocessTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_VPU3720_Auto_BehaviorTestsPreprocess, InferRequestPreprocessTest,
+                         ::testing::Combine(::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                            ::testing::ValuesIn(autoConfigs)),
+                         InferRequestPreprocessTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_precommit_VPU3720_BehaviorTestsPreprocess, InferRequestPreprocessConversionTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions), ::testing::ValuesIn(inputPrecisions),
                                             ::testing::ValuesIn(outputPrecisions), ::testing::ValuesIn(netLayouts),
@@ -73,14 +82,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_precommit_VPU3720_BehaviorTestsPreprocess, InferR
                                             ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
                                             ::testing::ValuesIn(configs)),
                          InferRequestPreprocessConversionTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_precommit_VPU3720_BehaviorTestsPreprocess, InferRequestPreprocessDynamicallyInSetBlobTest,
-        ::testing::Combine(::testing::ValuesIn(netPrecisions), ::testing::Bool(),
-                           ::testing::Bool(),  // change I/O precision
-                           ::testing::ValuesIn(netLayouts), ::testing::Bool(), ::testing::Bool(),  // change I/O layout
-                           ::testing::Values(true),                                                // only SetBlob works
-                           ::testing::Values(true),                                                // only SetBlob works
-                           ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY), ::testing::ValuesIn(configs)),
-        InferRequestPreprocessDynamicallyInSetBlobTest::getTestCaseName);
 }  // namespace

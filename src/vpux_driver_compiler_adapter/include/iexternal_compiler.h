@@ -30,13 +30,20 @@ public:
     virtual size_t getSupportedOpset() = 0;
 
     /**
+     * @brief Get query result for current network
+     */
+    virtual std::unordered_set<std::string> getQueryResult(const std::vector<char>& xml,
+                                                           const std::vector<char>& weights,
+                                                           const vpux::Config& config) = 0;
+
+    /**
      * @brief compile NGraph and return blob file
      * @return compiled graph (blob)
      */
     virtual std::shared_ptr<INetworkDescription> compileIR(const std::string& graphName, const std::vector<char>& xml,
                                                            const std::vector<char>& weights,
-                                                           const InferenceEngine::InputsDataMap& inputsInfo,
-                                                           const InferenceEngine::OutputsDataMap& outputsInfo,
+                                                           const InferenceEngine::InputsDataMap& inputMetadata,
+                                                           const InferenceEngine::OutputsDataMap& outputMetadata,
                                                            const vpux::Config& config) = 0;
     virtual std::shared_ptr<INetworkDescription> parseBlob(const std::string& graphName, const std::vector<char>& blob,
                                                            const vpux::Config& config) = 0;

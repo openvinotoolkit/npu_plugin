@@ -8,6 +8,7 @@
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/allocate_buffers.hpp"
+#include "vpux/compiler/utils/dma.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -78,6 +79,39 @@ mlir::LogicalResult CopyRewrite::matchAndRewrite(VPU::CopyOp origOp, OpAdaptor n
     auto outputBuffers = allocateBuffers(_log, origOp->getLoc(), rewriter, *typeConverter, origOp->getOpResults());
     rewriter.replaceOpWithNewOp<VPUIP::CopyOp>(origOp, newArgs.input(), outputBuffers[0]);
 
+    return mlir::success();
+}
+
+//
+// ConvertRewrite
+//
+
+class ConvertRewrite final : public mlir::OpConversionPattern<VPU::ConvertOp> {
+public:
+    ConvertRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<VPU::ConvertOp>(typeConverter, ctx), _log(log) {
+        this->setDebugName("ConvertRewrite");
+    }
+
+    mlir::LogicalResult matchAndRewrite(VPU::ConvertOp origOp, OpAdaptor newArgs,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ConvertRewrite::matchAndRewrite(VPU::ConvertOp origOp, OpAdaptor newArgs,
+                                                    mlir::ConversionPatternRewriter& rewriter) const {
+    _log.trace("Found VPU::ConvertOp Operation '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
+    if (!isConvertSupportedOnDMA<VPU::ConvertOp>(origOp)) {
+        _log.trace("VPU::ConvertOp Operation not supported on DMA '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
+        return mlir::failure();
+    }
+    auto* typeConverter = getTypeConverter();
+    VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
+
+    auto outputBuffers = allocateBuffers(_log, origOp->getLoc(), rewriter, *typeConverter, origOp->getOpResults());
+    rewriter.replaceOpWithNewOp<VPUIP::ConvertDMAOp>(origOp, newArgs.input(), outputBuffers[0]);
     return mlir::success();
 }
 
@@ -256,14 +290,14 @@ mlir::LogicalResult SplitRewrite::matchAndRewrite(VPU::SplitOp origOp, OpAdaptor
                                                   mlir::ConversionPatternRewriter& rewriter) const {
     _log.trace("Found Split Operation '{0}'", origOp->getLoc());
 
-    if (!origOp.axis_value().hasValue()) {
+    if (!origOp.axis_value().has_value()) {
         return matchFailed(rewriter, origOp, "Got non constant axis");
     }
 
     const auto inputType = newArgs.input().getType().cast<vpux::NDTypeInterface>();
     const auto inputShape = inputType.getShape();
 
-    const auto axis = Dim(origOp.axis_value().getValue());
+    const auto axis = Dim(origOp.axis_value().value());
 
     auto* typeConverter = getTypeConverter();
     VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
@@ -328,9 +362,11 @@ SmallVector<mlir::Value> ConcatRewrite::rewriteWithAxis(VPU::ConcatOp origOp, Op
                                                         mlir::ConversionPatternRewriter& rewriter) const {
     SmallVector<mlir::Value> results;
 
-    const auto axis = origOp.per_axisAttr().axis().getValue().getSExtValue();
-    const auto offset = origOp.per_axisAttr().offset() ? origOp.per_axisAttr().offset().getValue().getSExtValue() : 0;
-    const auto stride = origOp.per_axisAttr().stride() ? origOp.per_axisAttr().stride().getValue().getSExtValue() : 1;
+    const auto axis = origOp.per_axisAttr().getAxis().getValue().getSExtValue();
+    const auto offset =
+            origOp.per_axisAttr().getOffset() ? origOp.per_axisAttr().getOffset().getValue().getSExtValue() : 0;
+    const auto stride =
+            origOp.per_axisAttr().getStride() ? origOp.per_axisAttr().getStride().getValue().getSExtValue() : 1;
 
     const auto outputRank = origOp.getType().cast<vpux::NDTypeInterface>().getRank();
 
@@ -815,6 +851,7 @@ void ConvertLayers2VPUIPPass::safeRunOnFunc() {
     patterns.add<ShapeCastRewrite>(typeConverter, &ctx, _log);
     patterns.add<LayoutCastRewrite>(typeConverter, &ctx, _log);
     patterns.add<WorkloadCastRewrite>(typeConverter, &ctx, _log);
+    patterns.add<ConvertRewrite>(typeConverter, &ctx, _log);
     // Track [E#81808]: implement upsampling as sw kernel
     patterns.add<UpsamplingRewrite>(typeConverter, &ctx, _log);
     Const::ConstDialect::populateBufferizePatterns(patterns, typeConverter, _log);

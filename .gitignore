@@ -324,7 +324,7 @@ output/
 *.csv
 
 # VS Code
-.vscode/
+.vscode
 CMakeSettings.json
 
 # CMake user presets

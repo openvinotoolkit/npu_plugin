@@ -28,7 +28,7 @@ func.func @HandleExcludePadForAvgPool(%arg0 : tensor<1x1024x7x7xf16>) -> (tensor
 
     //CHECK:        [[VAR1:%.+]] = IE.AvgPool([[VAR0]])
     //CHECK-SAME:   {kernel_size = [2, 2], pads_begin = [0, 0], pads_end = [0, 0], rounding_type = #IE.rounding_type<FLOOR>, strides = [1, 1]} : tensor<1x1024x2x2xf16> -> tensor<1x1024x1x1xf16>
-
+    
     //CHECK:        [[VAR2:%.+]] = IE.StridedSlice(%arg0)
     //CHECK-SAME:   begins_attr = [0, 0, 0, 5]
     //CHECK-SAME:   ends_attr = [0, 0, 2, 7]
@@ -36,7 +36,7 @@ func.func @HandleExcludePadForAvgPool(%arg0 : tensor<1x1024x7x7xf16>) -> (tensor
 
     //CHECK:        [[VAR3:%.+]] = IE.AvgPool([[VAR2]])
     //CHECK-SAME:   {kernel_size = [2, 2], pads_begin = [0, 0], pads_end = [0, 0], rounding_type = #IE.rounding_type<FLOOR>, strides = [1, 1]} : tensor<1x1024x2x2xf16> -> tensor<1x1024x1x1xf16>
-
+    
     //CHECK:        [[VAR4:%.+]] = IE.StridedSlice(%arg0)
     //CHECK-SAME:   begins_attr = [0, 0, 5, 5]
     //CHECK-SAME:   ends_attr = [0, 0, 7, 7]
@@ -44,7 +44,7 @@ func.func @HandleExcludePadForAvgPool(%arg0 : tensor<1x1024x7x7xf16>) -> (tensor
 
     //CHECK:        [[VAR5:%.+]] = IE.AvgPool([[VAR4]])
     //CHECK-SAME:   {kernel_size = [2, 2], pads_begin = [0, 0], pads_end = [0, 0], rounding_type = #IE.rounding_type<FLOOR>, strides = [1, 1]} : tensor<1x1024x2x2xf16> -> tensor<1x1024x1x1xf16>
-
+    
     //CHECK:        [[VAR6:%.+]] = IE.StridedSlice(%arg0)
     //CHECK-SAME:   begins_attr = [0, 0, 5, 0]
     //CHECK-SAME:   ends_attr = [0, 0, 7, 2]
@@ -52,7 +52,7 @@ func.func @HandleExcludePadForAvgPool(%arg0 : tensor<1x1024x7x7xf16>) -> (tensor
 
     //CHECK:        [[VAR7:%.+]] = IE.AvgPool([[VAR6]])
     //CHECK-SAME:   {kernel_size = [2, 2], pads_begin = [0, 0], pads_end = [0, 0], rounding_type = #IE.rounding_type<FLOOR>, strides = [1, 1]} : tensor<1x1024x2x2xf16> -> tensor<1x1024x1x1xf16>
-
+    
     //CHECK:        [[VAR8:%.+]] = IE.StridedSlice(%arg0)
     //CHECK-SAME:   begins_attr = [0, 0, 0, 0]
     //CHECK-SAME:   ends_attr = [0, 0, 7, 2]
@@ -60,7 +60,7 @@ func.func @HandleExcludePadForAvgPool(%arg0 : tensor<1x1024x7x7xf16>) -> (tensor
 
     //CHECK:        [[VAR9:%.+]] = IE.AvgPool([[VAR8]])
     //CHECK-SAME:   {kernel_size = [3, 2], pads_begin = [0, 0], pads_end = [0, 0], rounding_type = #IE.rounding_type<FLOOR>, strides = [1, 1]} : tensor<1x1024x7x2xf16> -> tensor<1x1024x5x1xf16>
-
+    
     //CHECK:        [[VAR10:%.+]] = IE.StridedSlice(%arg0)
     //CHECK-SAME:   begins_attr = [0, 0, 0, 5]
     //CHECK-SAME:   ends_attr = [0, 0, 7, 7]

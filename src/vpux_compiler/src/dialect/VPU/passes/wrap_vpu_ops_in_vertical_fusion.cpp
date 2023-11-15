@@ -44,7 +44,6 @@ void wrapIntoVFRegion(VPU::VerticalFusionOpInterface op, Logger log) {
 
     auto vfOp = builder.create<VPU::VerticalFusionOp>(op->getLoc(), op->getResultTypes(), op->getOperands(),
                                                       bodyBuilder, tilingStrategyArray);
-
     op->replaceAllUsesWith(vfOp);
     op->erase();
 }
@@ -90,7 +89,6 @@ void WrapVerticalFusionRegionPass::safeRunOnFunc() {
                 }
             }
         }
-
         _log.trace("Process Layer Operation '{0}' at '{1}'", op->getName(), op->getLoc());
         wrapIntoVFRegion(op, _log.nest());
     };

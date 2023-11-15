@@ -21,12 +21,12 @@ namespace ngraphTransformations {
  * @brief Check, can we compile and run ngraph function, if only specific opset version supported
  * @param opsetVersion Version of opset, which is supported
  */
-bool isFunctionSupported(const std::shared_ptr<const ngraph::Function>& netGraph, std::string opsetVersion);
+bool isFunctionSupported(const std::shared_ptr<const ov::Model>& model, std::string opsetVersion);
 
 /**
  * @brief Serialize ngraph function to IR
  */
-IR serializeToIR(const std::shared_ptr<ngraph::Function>& netGraph, const uint32_t& supportedVersionByCompiler = 7);
+IR serializeToIR(std::shared_ptr<ov::Model>& model, const uint32_t& supportedVersionByCompiler = 7);
 
 void downgradeOpset(ngraph::pass::Manager& manager, const int& supportedVersionByCompiler);
 

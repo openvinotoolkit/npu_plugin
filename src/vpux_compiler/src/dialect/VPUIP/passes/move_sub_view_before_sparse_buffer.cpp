@@ -81,15 +81,15 @@ mlir::LogicalResult MoveViewOpUp::matchAndRewrite(VPUIP::SubViewOp origSubViewOp
                 VPUIP::tileCompressionScheme(compressionSchemeAttr, Shape(subViewOffsets), Shape(subViewSizes));
     }
 
-    auto rewriteInput = [&](mlir::Value value, vpux::Shape offsets, vpux::Shape sizes) {
+    auto rewriteInput = [&](mlir::Value value, vpux::ShapeRef offsets, vpux::ShapeRef sizes) {
         if (auto constOp = value.getDefiningOp<Const::DeclareOp>()) {
             // Recreate constant with subview attribute. Do not split into 2 ops otherwise when constant is
             // fused with subview then type is changed (strides are erased) without further type propagation.
-            auto newContentAttr = constOp.contentAttr().subview(offsets, sizes);
+            auto newContentAttr = constOp.getContentAttr().subview(offsets, sizes);
             auto newConstOp = rewriter.create<Const::DeclareOp>(
                     constOp.getLoc(), vpux::convertToMemRef(newContentAttr.getType().cast<mlir::RankedTensorType>()),
                     newContentAttr);
-            return newConstOp.output();
+            return newConstOp.getOutput();
         }
         auto newSubViewOp = rewriter.create<VPUIP::SubViewOp>(value.getLoc(), value, getIntArrayAttr(ctx, offsets),
                                                               getIntArrayAttr(ctx, sizes));

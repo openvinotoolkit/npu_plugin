@@ -18,6 +18,7 @@ using namespace vpux;
 
 void vpux::VPURT::buildBarrierLegalizationPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(VPURT::createSplitExceedingVariantCountBarriersPass(log));
+    pm.addPass(VPURT::createSatisfyOneWaitBarrierPerTaskPass(log));
     pm.addPass(VPURT::createReduceExceedingActiveCountBarriersPass(log));
 }
 

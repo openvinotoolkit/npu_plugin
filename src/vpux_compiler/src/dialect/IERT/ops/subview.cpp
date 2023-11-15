@@ -49,15 +49,14 @@ void vpux::IERT::SubViewOp::build(mlir::OpBuilder& builder, mlir::OperationState
 //
 
 mlir::Value vpux::IERT::SubViewOp::getViewSource() {
-    return source();
+    return getSource();
 }
 
 //
 // InferTypeOpInterface
 //
 
-mlir::LogicalResult vpux::IERT::SubViewOp::inferReturnTypes(mlir::MLIRContext* ctx,
-                                                            mlir::Optional<mlir::Location> optLoc,
+mlir::LogicalResult vpux::IERT::SubViewOp::inferReturnTypes(mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc,
                                                             mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                             mlir::RegionRange /*regions*/,
                                                             mlir::SmallVectorImpl<mlir::Type>& inferredTypes) {
@@ -68,12 +67,12 @@ mlir::LogicalResult vpux::IERT::SubViewOp::inferReturnTypes(mlir::MLIRContext* c
         return mlir::failure();
     }
 
-    const auto origType = subViewOp.source().getType().cast<vpux::NDTypeInterface>();
+    const auto origType = subViewOp.getSource().getType().cast<vpux::NDTypeInterface>();
 
-    const auto subViewShape = parseIntArrayAttr<int64_t>(subViewOp.static_sizes());
-    const auto subViewOffsets = parseIntArrayAttr<int64_t>(subViewOp.static_offsets());
-    const auto subViewStrides = subViewOp.static_strides().hasValue()
-                                        ? parseIntArrayAttr<int64_t>(subViewOp.static_strides().getValue())
+    const auto subViewShape = parseIntArrayAttr<int64_t>(subViewOp.getStaticSizes());
+    const auto subViewOffsets = parseIntArrayAttr<int64_t>(subViewOp.getStaticOffsets());
+    const auto subViewStrides = subViewOp.getStaticStrides().has_value()
+                                        ? parseIntArrayAttr<int64_t>(subViewOp.getStaticStrides().value())
                                         : SmallVector<int64_t>(origType.getRank(), 1);
 
     if (subViewShape.size() != checked_cast<size_t>(origType.getRank())) {
@@ -98,13 +97,13 @@ mlir::LogicalResult vpux::IERT::SubViewOp::inferReturnTypes(mlir::MLIRContext* c
 //
 
 mlir::OpFoldResult vpux::IERT::SubViewOp::fold(ArrayRef<mlir::Attribute> operands) {
-    if (source().getType() == result().getType()) {
-        return source();
+    if (getSource().getType() == getResult().getType()) {
+        return getSource();
     }
 
     if (const auto origContent = operands[0].dyn_cast_or_null<Const::ContentAttr>()) {
-        const auto offset = Shape(parseIntArrayAttr<int64_t>(static_offsets()));
-        const auto shape = Shape(parseIntArrayAttr<int64_t>(static_sizes()));
+        const auto offset = Shape(parseIntArrayAttr<int64_t>(getStaticOffsets()));
+        const auto shape = Shape(parseIntArrayAttr<int64_t>(getStaticSizes()));
         return origContent.subview(offset, shape);
     }
 
@@ -125,24 +124,25 @@ public:
 };
 
 mlir::LogicalResult ComposeSubView::matchAndRewrite(IERT::SubViewOp origOp, mlir::PatternRewriter& rewriter) const {
-    auto producerSubViewOp = origOp.source().getDefiningOp<IERT::SubViewOp>();
+    auto producerSubViewOp = origOp.getSource().getDefiningOp<IERT::SubViewOp>();
     if (producerSubViewOp == nullptr) {
         return mlir::failure();
     }
 
-    if (origOp.static_strides().hasValue() || producerSubViewOp.static_strides().hasValue()) {
+    if (origOp.getStaticStrides().has_value() || producerSubViewOp.getStaticStrides().has_value()) {
         return mlir::failure();
     }
 
-    auto finalOffsets = parseIntArrayAttr<int64_t>(producerSubViewOp.static_offsets());
-    const auto secondOffsets = parseIntArrayAttr<int64_t>(origOp.static_offsets());
+    auto finalOffsets = parseIntArrayAttr<int64_t>(producerSubViewOp.getStaticOffsets());
+    const auto secondOffsets = parseIntArrayAttr<int64_t>(origOp.getStaticOffsets());
     for (auto i : irange(finalOffsets.size())) {
         finalOffsets[i] += secondOffsets[i];
     }
 
     const auto finalOffsetsAttr = getIntArrayAttr(getContext(), finalOffsets);
-    const auto finalShapeAttr = origOp.static_sizes();
-    rewriter.replaceOpWithNewOp<IERT::SubViewOp>(origOp, producerSubViewOp.source(), finalOffsetsAttr, finalShapeAttr);
+    const auto finalShapeAttr = origOp.getStaticSizes();
+    rewriter.replaceOpWithNewOp<IERT::SubViewOp>(origOp, producerSubViewOp.getSource(), finalOffsetsAttr,
+                                                 finalShapeAttr);
 
     return mlir::success();
 }

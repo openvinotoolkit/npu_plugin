@@ -41,15 +41,13 @@ func.func @CTCGreedyDecoder(%arg0: memref<20x1x128xf16>, %arg1: memref<20x1xf16>
 // CHECK-LABEL: @ReduceL1
 func.func @ReduceL1(%arg0: memref<1x32x112x112xf16>) -> memref<1x32x112x1xf16> {
     %0 = builtin.unrealized_conversion_cast %arg0 : memref<1x32x112x112xf16> to tensor<1x32x112x112xf16>
-    %1 = const.Declare tensor<1xsi32> = dense<3> : tensor<1xsi64>, [#const.ConvertElemType<si32>]
-    %2 = VPU.ReduceL1(%0, %1) {keep_dims} : tensor<1x32x112x112xf16>, tensor<1xsi32> -> tensor<1x32x112x1xf16>
-    %3 = builtin.unrealized_conversion_cast %2 : tensor<1x32x112x1xf16> to memref<1x32x112x1xf16>
-    return %3 : memref<1x32x112x1xf16>
+    %1 = VPU.ReduceL1(%0) {axes_value = [3], keep_dims} : tensor<1x32x112x112xf16> -> tensor<1x32x112x1xf16>
+    %2 = builtin.unrealized_conversion_cast %1 : tensor<1x32x112x1xf16> to memref<1x32x112x1xf16>
+    return %2 : memref<1x32x112x1xf16>
 
-    // CHECK-DAG:       [[CST:%.*]] = const.Declare memref<1xsi32> = dense<3> : tensor<1xsi64>, [#const.ConvertElemType<si32>]
     // CHECK:       [[VAR0:%.*]] = memref.alloc() : memref<1x32x112x1xf16>
-    // CHECK:       [[VAR1:%.*]] = VPUIP.ReduceUPA {keep_dims, type = "L1"}
-    // CHECK-SAME:      inputs(%arg0 : memref<1x32x112x112xf16>, [[CST]] : memref<1xsi32>) outputs([[VAR0]] : memref<1x32x112x1xf16>) -> memref<1x32x112x1xf16>
+    // CHECK:       [[VAR1:%.*]] = VPUIP.ReduceUPA {axes_value = [3], keep_dims, task_type = #VPUIP.reduce_layer_type<L1>}
+    // CHECK-SAME:      inputs(%arg0 : memref<1x32x112x112xf16>) outputs([[VAR0]] : memref<1x32x112x1xf16>) -> memref<1x32x112x1xf16>
     // CHECK:       return [[VAR1]] : memref<1x32x112x1xf16>
 }
 
@@ -58,15 +56,13 @@ func.func @ReduceL1(%arg0: memref<1x32x112x112xf16>) -> memref<1x32x112x1xf16> {
 // CHECK-LABEL: @ReduceL2
 func.func @ReduceL2(%arg0: memref<1x32x112x112xf16>) -> memref<1x32x112x1xf16> {
     %0 = builtin.unrealized_conversion_cast %arg0 : memref<1x32x112x112xf16> to tensor<1x32x112x112xf16>
-    %1 = const.Declare tensor<1xsi32> = dense<3> : tensor<1xsi64>, [#const.ConvertElemType<si32>]
-    %2 = VPU.ReduceL2(%0, %1) {keep_dims} : tensor<1x32x112x112xf16>, tensor<1xsi32> -> tensor<1x32x112x1xf16>
-    %3 = builtin.unrealized_conversion_cast %2 : tensor<1x32x112x1xf16> to memref<1x32x112x1xf16>
-    return %3 : memref<1x32x112x1xf16>
+    %1 = VPU.ReduceL2(%0) {axes_value = [3], keep_dims} : tensor<1x32x112x112xf16> -> tensor<1x32x112x1xf16>
+    %2 = builtin.unrealized_conversion_cast %1 : tensor<1x32x112x1xf16> to memref<1x32x112x1xf16>
+    return %2 : memref<1x32x112x1xf16>
 
-    // CHECK-DAG:       [[CST:%.*]] = const.Declare memref<1xsi32> = dense<3> : tensor<1xsi64>, [#const.ConvertElemType<si32>]
     // CHECK:       [[VAR0:%.*]] = memref.alloc() : memref<1x32x112x1xf16>
-    // CHECK:       [[VAR1:%.*]] = VPUIP.ReduceUPA {keep_dims, type = "L2"}
-    // CHECK-SAME:      inputs(%arg0 : memref<1x32x112x112xf16>, [[CST]] : memref<1xsi32>) outputs([[VAR0]] : memref<1x32x112x1xf16>) -> memref<1x32x112x1xf16>
+    // CHECK:       [[VAR1:%.*]] = VPUIP.ReduceUPA {axes_value = [3], keep_dims, task_type = #VPUIP.reduce_layer_type<L2>}
+    // CHECK-SAME:      inputs(%arg0 : memref<1x32x112x112xf16>) outputs([[VAR0]] : memref<1x32x112x1xf16>) -> memref<1x32x112x1xf16>
     // CHECK:       return [[VAR1]] : memref<1x32x112x1xf16>
 }
 
@@ -75,15 +71,13 @@ func.func @ReduceL2(%arg0: memref<1x32x112x112xf16>) -> memref<1x32x112x1xf16> {
 // CHECK-LABEL: @ReduceProd
 func.func @ReduceProd(%arg0: memref<1x32x112x112xf16>) -> memref<1x32x112x1xf16> {
     %0 = builtin.unrealized_conversion_cast %arg0 : memref<1x32x112x112xf16> to tensor<1x32x112x112xf16>
-    %1 = const.Declare tensor<1xsi32> = dense<3> : tensor<1xsi64>, [#const.ConvertElemType<si32>]
-    %2 = VPU.ReduceProd(%0, %1) {keep_dims} : tensor<1x32x112x112xf16>, tensor<1xsi32> -> tensor<1x32x112x1xf16>
-    %3 = builtin.unrealized_conversion_cast %2 : tensor<1x32x112x1xf16> to memref<1x32x112x1xf16>
-    return %3 : memref<1x32x112x1xf16>
+    %1 = VPU.ReduceProd(%0) {axes_value = [3], keep_dims} : tensor<1x32x112x112xf16> -> tensor<1x32x112x1xf16>
+    %2 = builtin.unrealized_conversion_cast %1 : tensor<1x32x112x1xf16> to memref<1x32x112x1xf16>
+    return %2 : memref<1x32x112x1xf16>
 
-    // CHECK-DAG:       [[CST:%.*]] = const.Declare memref<1xsi32> = dense<3> : tensor<1xsi64>, [#const.ConvertElemType<si32>]
     // CHECK:       [[VAR0:%.*]] = memref.alloc() : memref<1x32x112x1xf16>
-    // CHECK:       [[VAR1:%.*]] = VPUIP.ReduceUPA {keep_dims, type = "PROD"}
-    // CHECK-SAME:      inputs(%arg0 : memref<1x32x112x112xf16>, [[CST]] : memref<1xsi32>) outputs([[VAR0]] : memref<1x32x112x1xf16>) -> memref<1x32x112x1xf16>
+    // CHECK:       [[VAR1:%.*]] = VPUIP.ReduceUPA {axes_value = [3], keep_dims, task_type = #VPUIP.reduce_layer_type<PROD>}
+    // CHECK-SAME:      inputs(%arg0 : memref<1x32x112x112xf16>) outputs([[VAR0]] : memref<1x32x112x1xf16>) -> memref<1x32x112x1xf16>
     // CHECK:       return [[VAR1]] : memref<1x32x112x1xf16>
 }
 
@@ -235,7 +229,9 @@ func.func @NonMaxSuppression(%arg0: memref<3x100x4xf16>, %arg1: memref<3x5x100xf
 // CHECK-LABEL: @EmbeddingBagOffsetsSum
     func.func @EmbeddingBagOffsetsSum(%arg0: memref<5x6x4xsi32>, %arg1: memref<4x6x4xsi32>) -> memref<4x6x4xsi32> {
     %0 = builtin.unrealized_conversion_cast %arg0 : memref<5x6x4xsi32> to tensor<5x6x4xsi32>
-    %1 = VPU.EmbeddingBagOffsetsSum(%0) {default_index_value = 4 : i32, indices_value = [0, 1, 2, 2, 3], offsets_value = [0, 0, 2, 2], weights_value = [1.000000e+00, 5.000000e+00, 1.000000e+01, 8.000000e+00, 1.000000e+01]} : tensor<5x6x4xsi32> -> tensor<4x6x4xsi32>
+    %1 = VPU.EmbeddingBagOffsetsSum(%0) {default_index_value = 4 : i32, indices_value = [0, 1, 2, 2, 3], 
+    offsets_value = [0, 0, 2, 2], operand_segment_sizes = dense<[1, 0, 0, 0]> : vector<4xi32>,
+    per_sample_weights_value = [1.000000e+00, 5.000000e+00, 1.000000e+01, 8.000000e+00, 1.000000e+01]} : tensor<5x6x4xsi32> -> tensor<4x6x4xsi32>
     %2 = builtin.unrealized_conversion_cast %1 : tensor<4x6x4xsi32> to memref<4x6x4xsi32>
     %3 = VPUIP.Copy inputs(%2 : memref<4x6x4xsi32>) outputs(%arg1 : memref<4x6x4xsi32>) -> memref<4x6x4xsi32>
     return %3 : memref<4x6x4xsi32>

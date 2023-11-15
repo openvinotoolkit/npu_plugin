@@ -1,4 +1,5 @@
-// Copyright (C) 2022 Intel Corporation
+//
+// Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -43,9 +44,9 @@ mlir::LogicalResult vpux::VPUIP::PSROIPoolingUPAOp::verify() {
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PSROIPoolingUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto spatialBinsX = spatial_bins_x().hasValue() ? spatial_bins_x().getValue() : 1;
-    const auto spatialBinsY = spatial_bins_y().hasValue() ? spatial_bins_y().getValue() : 1;
-    const auto psROIPoolingMode = mode().hasValue() ? mode().getValue() : IE::PSROIPoolingMode::AVERAGE;
+    const auto spatialBinsX = spatial_bins_x().has_value() ? spatial_bins_x().value() : 1;
+    const auto spatialBinsY = spatial_bins_y().has_value() ? spatial_bins_y().value() : 1;
+    const auto psROIPoolingMode = mode().has_value() ? mode().value() : IE::PSROIPoolingMode::AVERAGE;
 
     MVCNN::PSROIPoolingParamsBuilder builder(writer);
 

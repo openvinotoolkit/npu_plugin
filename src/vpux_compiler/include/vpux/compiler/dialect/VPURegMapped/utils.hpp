@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
+#pragma once
+
 #include <map>
 #include <string>
 
@@ -70,9 +72,9 @@ uint64_t checked_cast_reg(SrcType src) {
     constexpr auto BIT_WIDTH = RF_TYPE == VPURegMapped::RegFieldDataType::SINT ? REG_TYPE::getRegFieldWidth() - 1
                                                                                : REG_TYPE::getRegFieldWidth();
     static_assert(BIT_WIDTH > 0 && BIT_WIDTH <= 64 && REG_TYPE::getRegFieldWidth() <= 64, "invalid BIT_WIDTH");
-    static_assert(std::is_same<SrcType, uint64_t>::value || std::is_enum<SrcType>::value ||
-                          std::is_same<SrcType, bool>::value,
-                  "checked_cast_reg: invalid src type. Expected uint64_t or enum or bool");
+    static_assert(
+            std::is_unsigned<SrcType>::value || std::is_enum<SrcType>::value || std::is_same<SrcType, bool>::value,
+            "checked_cast_reg: invalid src type. Expected uint64_t or enum or bool");
     static_assert(!(std::is_enum<SrcType>::value || std::is_same<SrcType, bool>::value) ||
                           RF_TYPE == VPURegMapped::RegFieldDataType::UINT,
                   "UINT reg field type only is supported for enum and bool src types");

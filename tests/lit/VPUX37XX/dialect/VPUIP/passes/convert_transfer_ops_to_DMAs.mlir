@@ -14,7 +14,7 @@ func.func @TimestampToDMA(%arg0: memref<1xui64>) -> memref<1xui64> {
 
     // CHECK:       [[VAR0:%.*]] = VPUIP.StaticAlloc<0> -> memref<1xui64, @CMX_NN>
     // CHECK-NOT:       VPUIP.Timestamp
-    // CHECK:       [[VAR1:%.*]] = VPURT.DeclareBuffer "Register"
+    // CHECK:       [[VAR1:%.*]] = VPURT.DeclareBuffer <Register>
     // CHECK:       [[VAR2:%.*]] = VPUIP.NNDMA
     // CHECK-SAME:           inputs([[VAR1]] : memref<1xui64, @Register>)
     // CHECK-SAME:           outputs([[VAR0]] : memref<1xui64, @CMX_NN>)

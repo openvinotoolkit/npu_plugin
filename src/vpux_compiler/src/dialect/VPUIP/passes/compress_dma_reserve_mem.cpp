@@ -29,7 +29,7 @@ void CompressDmaReserveMemPass::safeRunOnModule() {
     auto module = getOperation();
     auto* ctx = module->getContext();
 
-    auto memSpaceAttr = mlir::SymbolRefAttr::get(ctx, stringifyEnum(VPU::MemoryKind::CMX_NN));
+    auto memSpaceAttr = mlir::StringAttr::get(ctx, stringifyEnum(VPU::MemoryKind::CMX_NN));
 
     _log.trace("Compressed DMA reserved memory - size: '{0}'", VPUIP::ACT_COMPRESSION_RESERVED_MEM_SIZE);
 

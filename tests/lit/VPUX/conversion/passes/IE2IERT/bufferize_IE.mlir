@@ -78,7 +78,7 @@ func.func @Split(%tensor: tensor<2x6x4x2xf32>) -> (tensor<1x6x4x2xf32>, tensor<1
 // -----
 
 func.func @Concat(%arg0: tensor<1x2x3x4xf32>, %arg1: tensor<1x2x3x4xf32>) -> tensor<1x4x3x4xf32> {
-    %0 = IE.Concat(%arg0, %arg1) {per_axis = {axis = 1}} :
+    %0 = IE.Concat(%arg0, %arg1) {per_axis = #IE.Concat<axis = 1>} :
         tensor<1x2x3x4xf32>, tensor<1x2x3x4xf32> -> tensor<1x4x3x4xf32>
     return %0 : tensor<1x4x3x4xf32>
 
@@ -110,7 +110,7 @@ func.func @Concat(%arg0: tensor<1x2x3x4xf32>, %arg1: tensor<1x2x3x4xf32>) -> ten
 // -----
 
 func.func @ConcatWithStride(%arg0: tensor<1x2x3x4xf32>, %arg1: tensor<1x2x3x4xf32>) -> tensor<1x4x3x4xf32> {
-    %0 = IE.Concat(%arg0, %arg1) {per_axis = {axis = 1, offset = 1, stride = 2}} :
+    %0 = IE.Concat(%arg0, %arg1) {per_axis = #IE.Concat<axis = 1, offset = 1, stride = 2>} :
         tensor<1x2x3x4xf32>, tensor<1x2x3x4xf32> -> tensor<1x4x3x4xf32>
     return %0 : tensor<1x4x3x4xf32>
 
@@ -329,8 +329,8 @@ func.func @ExtractImagePatches(%arg0: tensor<64x3x10x10xf32>) -> tensor<64x27x2x
 
     // CHECK:       [[VAR0:%.*]] = builtin.unrealized_conversion_cast %arg0 : tensor<64x3x10x10xf32> to memref<64x3x10x10xf32>
     // CHECK:       [[VAR1:%.*]] = memref.alloc() : memref<64x27x2x2xf32>
-    // CHECK:       [[VAR2:%.*]] = IERT.ExtractImagePatches {autoPad = #IE.pad_type<VALID>, rates = [1, 1], sizes = [3, 3], strides = [5, 5]}
-    // CHECK-SAME:      inputs([[VAR0]] : memref<64x3x10x10xf32>)
+    // CHECK:       [[VAR2:%.*]] = IERT.ExtractImagePatches {autoPad = #IE.pad_type<VALID>, rates = [1, 1], sizes = [3, 3], strides = [5, 5]} 
+    // CHECK-SAME:      inputs([[VAR0]] : memref<64x3x10x10xf32>) 
     // CHECK-SAME:      outputs([[VAR1]] : memref<64x27x2x2xf32>) -> memref<64x27x2x2xf32>
     // CHECK:       [[VAR3:%.*]] = builtin.unrealized_conversion_cast [[VAR2]] : memref<64x27x2x2xf32> to tensor<64x27x2x2xf32>
     // CHECK:       return [[VAR3]] : tensor<64x27x2x2xf32>
@@ -356,7 +356,7 @@ func.func @ReduceL2(%arg0: tensor<1x32x112x112xf16>) -> tensor<1x32x112x1xf16> {
 // CHECK-LABEL: @EmbeddingBagOffsetsSum
 func.func @EmbeddingBagOffsetsSum(%arg0: tensor<5x6x4xsi32>) -> tensor<2x6x4xsi32> {
     %0 = IE.EmbeddingBagOffsetsSum(%arg0) {default_index_value = 4 : si32, indices_value = [0, 1, 2, 2, 3], offsets_value = [0, 2], operand_segment_sizes = dense<[1, 0, 0, 0, 0]> : vector<5xi32>,
-    weights_value = [1.000000e+00, 5.000000e+00, 1.000000e+01, 8.000000e+00, 1.000000e+01]} : tensor<5x6x4xsi32> -> tensor<2x6x4xsi32>
+    per_sample_weights_value = [1.000000e+00, 5.000000e+00, 1.000000e+01, 8.000000e+00, 1.000000e+01]} : tensor<5x6x4xsi32> -> tensor<2x6x4xsi32>
     return %0 : tensor<2x6x4xsi32>
 
     // CHECK:       [[VAR0:%.*]] = builtin.unrealized_conversion_cast %arg0 : tensor<5x6x4xsi32> to memref<5x6x4xsi32>

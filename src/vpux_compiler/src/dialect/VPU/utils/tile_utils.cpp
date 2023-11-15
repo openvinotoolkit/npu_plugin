@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <vpux/compiler/dialect/VPU/utils/tile_utils.hpp>
 #include "vpux/compiler/dialect/VPU/utils/distributed_tensor_utils.hpp"
 
@@ -16,7 +14,7 @@ namespace VPU {
 // Convolution
 
 SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::ConvolutionOp origOp, const TileInfo& outTile,
-                                                const mlir::Optional<InputTiling> inputTiles) {
+                                                const mlir::Optional<InputTiling>& inputTiles) {
     const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
     const auto origPadding = PadInfo(origOp.pads_begin(), origOp.pads_end());
 
@@ -37,7 +35,7 @@ SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::ConvolutionOp origOp, const
 }
 
 SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::NCEConvolutionOp origOp, const TileInfo& outTile,
-                                                const mlir::Optional<InputTiling> inputTiles) {
+                                                const mlir::Optional<InputTiling>& inputTiles) {
     const auto tiling = inputTiles.value_or(origOp.backInferTileInfo(outTile, Logger::global()));
 
     const auto tiles = tiling.tiles;
@@ -72,7 +70,7 @@ SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::NCEConvolutionOp origOp, co
 // MaxPool
 
 SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::MaxPoolOp origOp, const TileInfo& outTile,
-                                                const mlir::Optional<InputTiling> inputTiles) {
+                                                const mlir::Optional<InputTiling>& inputTiles) {
     const auto origPadding = PadInfo(origOp.pads_begin(), origOp.pads_end());
 
     auto tileConf = inputTiles.value_or(vpux::backInferPoolTile(outTile, getShape(origOp.input()), origOp.kernel_size(),
@@ -90,7 +88,7 @@ SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::MaxPoolOp origOp, const Til
 }
 
 SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::NCEMaxPoolOp origOp, const TileInfo& outTile,
-                                                const mlir::Optional<InputTiling> inputTiles) {
+                                                const mlir::Optional<InputTiling>& inputTiles) {
     const auto tiling = inputTiles.value_or(origOp.backInferTileInfo(outTile, Logger::global()));
 
     const auto tiles = tiling.tiles;
@@ -107,7 +105,7 @@ SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::NCEMaxPoolOp origOp, const 
                         origOp->getLoc());
 
         auto numClusters = VPU::getOptimalNumClusters(clusteredOp, outputTileType.getShape()[Dims4D::Act::C],
-                                                      clusteredOp.getMultiClusterStrategyAttr().getValue());
+                                                      clusteredOp.getMultiClusterStrategy().value());
         return {VPU::getDistributedActivationTypeFromOp(clusteredOp, inputTileType, numClusters),
                 VPU::getDistributedOutputTypeFromOp(clusteredOp, outputTileType, numClusters)};
     }
@@ -118,7 +116,7 @@ SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::NCEMaxPoolOp origOp, const 
 // AveragePool
 
 SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::NCEAveragePoolOp origOp, const TileInfo& outTile,
-                                                const mlir::Optional<InputTiling> inputTiles) {
+                                                const mlir::Optional<InputTiling>& inputTiles) {
     const auto tiling = inputTiles.value_or(origOp.backInferTileInfo(outTile, Logger::global()));
 
     const auto tiles = tiling.tiles;
@@ -136,7 +134,7 @@ SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::NCEAveragePoolOp origOp, co
                         origOp->getLoc());
 
         auto numClusters = VPU::getOptimalNumClusters(clusteredOp, outputTileType.getShape()[Dims4D::Act::C],
-                                                      clusteredOp.getMultiClusterStrategyAttr().getValue());
+                                                      clusteredOp.getMultiClusterStrategy().value());
         return {VPU::getDistributedActivationTypeFromOp(clusteredOp, inputTileType, numClusters),
                 VPU::getDistributedOutputTypeFromOp(clusteredOp, outputTileType, numClusters)};
     }
@@ -147,13 +145,14 @@ SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::NCEAveragePoolOp origOp, co
 // GroupConvolution
 
 SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::GroupConvolutionOp origOp, const TileInfo& outTile,
-                                                const mlir::Optional<InputTiling> inputTiles) {
+                                                const mlir::Optional<InputTiling>& inputTiles) {
     const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
     const auto origPadding = PadInfo(origOp.pads_begin(), origOp.pads_end());
+    const auto origGroups = origOp.groups().value_or(1);
 
     auto tileConf = inputTiles.value_or(vpux::backInferGroupConvTile(outTile, getShape(origOp.input()),
                                                                      getShape(origOp.filter()), origBiasShape,
-                                                                     origOp.strides(), origPadding));
+                                                                     origOp.strides(), origPadding, origGroups));
 
     VPUX_THROW_WHEN(tileConf.tiles.size() < 2, "There are not enough tiles {0} for operaion {1}", tileConf.tiles.size(),
                     origOp);
@@ -170,7 +169,7 @@ SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::GroupConvolutionOp origOp, 
 }
 
 SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::NCEDepthConvolutionOp origOp, const TileInfo& outTile,
-                                                const mlir::Optional<InputTiling> inputTiles) {
+                                                const mlir::Optional<InputTiling>& inputTiles) {
     const auto tiling = inputTiles.value_or(origOp.backInferTileInfo(outTile, Logger::global()));
 
     const auto tiles = tiling.tiles;
@@ -192,7 +191,7 @@ SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::NCEDepthConvolutionOp origO
                         origOp->getLoc());
 
         auto numClusters = VPU::getOptimalNumClusters(clusteredOp, outputTileType.getShape()[Dims4D::Act::C],
-                                                      clusteredOp.getMultiClusterStrategyAttr().getValue());
+                                                      clusteredOp.getMultiClusterStrategy().value());
         return {VPU::getDistributedActivationTypeFromOp(clusteredOp, inputTileType, numClusters),
                 VPU::getDistributedFilterTypeFromOp(nceOp, filterTileType, numClusters),
                 VPU::getDistributedOutputTypeFromOp(clusteredOp, outputTileType, numClusters)};
@@ -202,7 +201,7 @@ SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::NCEDepthConvolutionOp origO
 }
 
 SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::NCECompressConvolutionOp origOp, const TileInfo& outTile,
-                                                const mlir::Optional<InputTiling> inputTiles) {
+                                                const mlir::Optional<InputTiling>& inputTiles) {
     const auto tiles = inputTiles.value_or(origOp.backInferTileInfo(outTile, Logger::global())).tiles;
     auto inputTileType =
             origOp.input().getType().cast<vpux::NDTypeInterface>().extractDenseTile(tiles[0].offsets, tiles[0].shape);
@@ -231,7 +230,7 @@ SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::NCECompressConvolutionOp or
 }
 
 SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::SWOpInterface origOp, const TileInfo& outTile,
-                                                const mlir::Optional<InputTiling> inputTiles) {
+                                                const mlir::Optional<InputTiling>& inputTiles) {
     VPUX_THROW_UNLESS(origOp->getResults().size() == 1, "Only support SW with one output, but got '{0}'",
                       origOp->getResults().size());
     const auto outputType = origOp->getResult(0).getType().cast<vpux::NDTypeInterface>();
@@ -262,7 +261,7 @@ SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::SWOpInterface origOp, const
         VPUX_THROW_WHEN(clusteredOp == nullptr, "Op {0} has multiClusterStrategy but is not an ClusteredOp",
                         origOp->getLoc());
         auto numClusters = VPU::getOptimalNumClusters(clusteredOp, outputTileType.getShape()[Dims4D::Act::C],
-                                                      clusteredOp.getMultiClusterStrategyAttr().getValue());
+                                                      clusteredOp.getMultiClusterStrategy().value());
 
         SmallVector<vpux::NDTypeInterface> distributedTensorTypes;
         for (auto inputTileType : inputTileTypes) {
@@ -276,13 +275,12 @@ SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::SWOpInterface origOp, const
         return distributedTensorTypes;
     }
 
-    auto tileTypes = inputTileTypes;
-    tileTypes.push_back(outputTileType);
-    return tileTypes;
+    inputTileTypes.push_back(outputTileType);
+    return inputTileTypes;
 }
 
 SmallVector<vpux::NDTypeInterface> getTileTypes(mlir::Operation* op, const TileInfo& outTile,
-                                                const mlir::Optional<InputTiling> inputTiles) {
+                                                const mlir::Optional<InputTiling>& inputTiles) {
     if (auto convOp = mlir::dyn_cast<VPU::ConvolutionOp>(op)) {
         return getTileTypes(convOp, outTile, inputTiles);
     }
@@ -326,14 +324,14 @@ SmallVector<vpux::NDTypeInterface> getTileTypes(mlir::Operation* op, const TileI
 }
 
 Byte getRequiredCMXForWeight(VPU::ConvolutionOp convOp, const vpux::TileInfo& tiling,
-                             const mlir::Optional<InputTiling> inputTiles) {
+                             const mlir::Optional<InputTiling>& inputTiles) {
     auto tileTypes = getTileTypes(convOp, tiling, inputTiles);
     const auto lastFilterTileType = tileTypes[1];
     return getRequiredCMXSize({lastFilterTileType});
 }
 
 Byte getRequiredCMXForWeight(VPU::NCEConvolutionOp convOp, const vpux::TileInfo& tiling,
-                             const mlir::Optional<InputTiling> inputTiles) {
+                             const mlir::Optional<InputTiling>& inputTiles) {
     auto tileTypes = getTileTypes(convOp, tiling, inputTiles);
     const auto lastFilterTileType = tileTypes[1];
     const auto outputTileType = tileTypes[2];
@@ -342,7 +340,7 @@ Byte getRequiredCMXForWeight(VPU::NCEConvolutionOp convOp, const vpux::TileInfo&
 }
 
 Byte getRequiredCMXForWeight(VPU::NCECompressConvolutionOp convOp, const vpux::TileInfo& tiling,
-                             const mlir::Optional<InputTiling> inputTiles) {
+                             const mlir::Optional<InputTiling>& inputTiles) {
     auto tileTypes = getTileTypes(convOp.getOperation(), tiling, inputTiles);
     const auto lastFilterTileType = tileTypes[1];
     const auto outputTileType = tileTypes[2];
@@ -351,7 +349,7 @@ Byte getRequiredCMXForWeight(VPU::NCECompressConvolutionOp convOp, const vpux::T
 }
 
 Byte getRequiredCMX(VPU::ConvolutionOp convOp, const vpux::TileInfo& tiling,
-                    const mlir::Optional<InputTiling> inputTiles) {
+                    const mlir::Optional<InputTiling>& inputTiles) {
     auto tileTypes = getTileTypes(convOp, tiling, inputTiles);
     const auto lastInputTileType = tileTypes[0];
     const auto lastFilterTileType = tileTypes[1];
@@ -360,7 +358,7 @@ Byte getRequiredCMX(VPU::ConvolutionOp convOp, const vpux::TileInfo& tiling,
 }
 
 Byte getRequiredCMX(VPU::NCEConvolutionOp convOp, const vpux::TileInfo& tiling,
-                    const mlir::Optional<InputTiling> inputTiles) {
+                    const mlir::Optional<InputTiling>& inputTiles) {
     auto tileTypes = getTileTypes(convOp, tiling, inputTiles);
     const auto lastInputTileType = tileTypes[0];
     const auto lastFilterTileType = tileTypes[1];
@@ -370,7 +368,7 @@ Byte getRequiredCMX(VPU::NCEConvolutionOp convOp, const vpux::TileInfo& tiling,
 }
 
 Byte getRequiredCMX(VPU::NCECompressConvolutionOp convOp, const vpux::TileInfo& tiling,
-                    const mlir::Optional<InputTiling> inputTiles) {
+                    const mlir::Optional<InputTiling>& inputTiles) {
     auto tileTypes = getTileTypes(convOp.getOperation(), tiling, inputTiles);
     const auto lastInputTileType = tileTypes[0];
     const auto lastFilterTileType = tileTypes[1];
@@ -380,14 +378,14 @@ Byte getRequiredCMX(VPU::NCECompressConvolutionOp convOp, const vpux::TileInfo& 
 }
 
 Byte getRequiredCMXForWeight(VPU::GroupConvolutionOp gConvOp, const vpux::TileInfo& tiling,
-                             const mlir::Optional<InputTiling> inputTiles) {
+                             const mlir::Optional<InputTiling>& inputTiles) {
     auto tileTypes = getTileTypes(gConvOp, tiling, inputTiles);
     const auto filterTileType = tileTypes[1];
     return getRequiredCMXSize({filterTileType});
 }
 
 Byte getRequiredCMXForWeight(VPU::NCEDepthConvolutionOp gConvOp, const vpux::TileInfo& tiling,
-                             const mlir::Optional<InputTiling> inputTiles) {
+                             const mlir::Optional<InputTiling>& inputTiles) {
     auto tileTypes = getTileTypes(gConvOp, tiling, inputTiles);
     const auto filterTileShape = tileTypes[1];
     const auto outputTileType = tileTypes[2];
@@ -396,14 +394,14 @@ Byte getRequiredCMXForWeight(VPU::NCEDepthConvolutionOp gConvOp, const vpux::Til
 }
 
 Byte getRequiredCMX(VPU::GroupConvolutionOp gConvOp, const vpux::TileInfo& tiling,
-                    const mlir::Optional<InputTiling> inputTiles) {
+                    const mlir::Optional<InputTiling>& inputTiles) {
     auto tileTypes = getTileTypes(gConvOp, tiling, inputTiles);
     const auto inputTileType = tileTypes[0];
     return getRequiredCMXSize({inputTileType, inputTileType}) + getRequiredCMXForWeight(gConvOp, tiling, inputTiles);
 }
 
 Byte getRequiredCMX(VPU::NCEDepthConvolutionOp dConvOp, const vpux::TileInfo& tiling,
-                    const mlir::Optional<InputTiling> inputTiles) {
+                    const mlir::Optional<InputTiling>& inputTiles) {
     auto tileTypes = getTileTypes(dConvOp, tiling, inputTiles);
     const auto inputTileType = tileTypes[0];
     const auto filterShape = Shape(parseIntArrayAttr<int64_t>(dConvOp.rawFilterShape()));
@@ -422,27 +420,28 @@ Byte getRequiredCMX(VPU::NCEDepthConvolutionOp dConvOp, const vpux::TileInfo& ti
 }
 
 Byte getRequiredCMX(VPU::SWOpInterface swOp, const vpux::TileInfo& tiling,
-                    const mlir::Optional<InputTiling> inputTiles) {
+                    const mlir::Optional<InputTiling>& inputTiles) {
     auto tileTypes = getTileTypes(swOp, tiling, inputTiles);
     return getRequiredCMXSize(tileTypes);
 }
 
 Byte getRequiredCMXForWeight(VPU::MaxPoolOp /*op*/, const vpux::TileInfo& /*tiling*/,
-                             const mlir::Optional<InputTiling> /*inputTiles*/) {
+                             const mlir::Optional<InputTiling>& /*inputTiles*/) {
     return Byte(0);
 }
 
 Byte getRequiredCMXForWeight(VPU::NCEMaxPoolOp /*op*/, const vpux::TileInfo& /*tiling*/,
-                             const mlir::Optional<InputTiling> /*inputTiles*/) {
+                             const mlir::Optional<InputTiling>& /*inputTiles*/) {
     return Byte(0);
 }
 
 Byte getRequiredCMXForWeight(VPU::NCEAveragePoolOp /*op*/, const vpux::TileInfo& /*tiling*/,
-                             const mlir::Optional<InputTiling> /*inputTiles*/) {
+                             const mlir::Optional<InputTiling>& /*inputTiles*/) {
     return Byte(0);
 }
 
-Byte getRequiredCMX(VPU::MaxPoolOp poolOp, const vpux::TileInfo& tiling, const mlir::Optional<InputTiling> inputTiles) {
+Byte getRequiredCMX(VPU::MaxPoolOp poolOp, const vpux::TileInfo& tiling,
+                    const mlir::Optional<InputTiling>& inputTiles) {
     auto tileTypes = getTileTypes(poolOp.getOperation(), tiling, inputTiles);
     auto inputType = tileTypes[0];
     auto outputType = tileTypes[1];
@@ -450,7 +449,7 @@ Byte getRequiredCMX(VPU::MaxPoolOp poolOp, const vpux::TileInfo& tiling, const m
 }
 
 Byte getRequiredCMX(VPU::NCEMaxPoolOp poolOp, const vpux::TileInfo& tiling,
-                    const mlir::Optional<InputTiling> inputTiles) {
+                    const mlir::Optional<InputTiling>& inputTiles) {
     auto tileTypes = getTileTypes(poolOp.getOperation(), tiling, inputTiles);
     auto inputType = tileTypes[0];
     auto outputType = tileTypes[1];
@@ -470,7 +469,7 @@ Byte getRequiredCMX(VPU::NCEMaxPoolOp poolOp, const vpux::TileInfo& tiling,
 }
 
 Byte getRequiredCMX(VPU::NCEAveragePoolOp poolOp, const vpux::TileInfo& tiling,
-                    const mlir::Optional<InputTiling> inputTiles) {
+                    const mlir::Optional<InputTiling>& inputTiles) {
     auto tileTypes = getTileTypes(poolOp.getOperation(), tiling, inputTiles);
     auto inputType = tileTypes[0];
     auto outputType = tileTypes[1];
@@ -486,7 +485,7 @@ Byte getRequiredCMX(VPU::NCEAveragePoolOp poolOp, const vpux::TileInfo& tiling,
 }
 
 Byte getEltwiseRequiredCMX(mlir::Operation* op, const vpux::TileInfo& tiling,
-                           const mlir::Optional<InputTiling> inputTiles) {
+                           const mlir::Optional<InputTiling>& inputTiles) {
     auto tileTypes = getTileTypes(op, tiling, inputTiles);
     auto firstInputType = tileTypes[0];
     auto secondInputType = tileTypes[1];
@@ -500,53 +499,53 @@ Byte getEltwiseRequiredCMX(mlir::Operation* op, const vpux::TileInfo& tiling,
     return getRequiredCMXSize({firstInputType, secondInputType, outputType});
 }
 
-Byte getRequiredCMX(VPU::AddOp op, const vpux::TileInfo& tiling, const mlir::Optional<InputTiling> inputTiles) {
+Byte getRequiredCMX(VPU::AddOp op, const vpux::TileInfo& tiling, const mlir::Optional<InputTiling>& inputTiles) {
     return getEltwiseRequiredCMX(op.getOperation(), tiling, inputTiles);
 }
 
 Byte getRequiredCMXForWeight(VPU::AddOp /*op*/, const vpux::TileInfo& /*tiling*/,
-                             const mlir::Optional<InputTiling> /*inputTiles*/) {
+                             const mlir::Optional<InputTiling>& /*inputTiles*/) {
     return Byte(0);
 }
 
-Byte getRequiredCMX(VPU::MultiplyOp op, const vpux::TileInfo& tiling, const mlir::Optional<InputTiling> inputTiles) {
+Byte getRequiredCMX(VPU::MultiplyOp op, const vpux::TileInfo& tiling, const mlir::Optional<InputTiling>& inputTiles) {
     return getEltwiseRequiredCMX(op.getOperation(), tiling, inputTiles);
 }
 
 Byte getRequiredCMXForWeight(VPU::MultiplyOp /*op*/, const vpux::TileInfo& /*tiling*/,
-                             const mlir::Optional<InputTiling> /*inputTiles*/) {
+                             const mlir::Optional<InputTiling>& /*inputTiles*/) {
     return Byte(0);
 }
 
-Byte getRequiredCMX(VPU::SubtractOp op, const vpux::TileInfo& tiling, const mlir::Optional<InputTiling> inputTiles) {
+Byte getRequiredCMX(VPU::SubtractOp op, const vpux::TileInfo& tiling, const mlir::Optional<InputTiling>& inputTiles) {
     return getEltwiseRequiredCMX(op.getOperation(), tiling, inputTiles);
 }
 
 Byte getRequiredCMXForWeight(VPU::SubtractOp /*op*/, const vpux::TileInfo& /*tiling*/,
-                             const mlir::Optional<InputTiling> /*inputTiles*/) {
+                             const mlir::Optional<InputTiling>& /*inputTiles*/) {
     return Byte(0);
 }
 
-Byte getRequiredCMX(VPU::AndOp op, const vpux::TileInfo& tiling, const mlir::Optional<InputTiling> inputTiles) {
+Byte getRequiredCMX(VPU::AndOp op, const vpux::TileInfo& tiling, const mlir::Optional<InputTiling>& inputTiles) {
     return getEltwiseRequiredCMX(op.getOperation(), tiling, inputTiles);
 }
 
 Byte getRequiredCMXForWeight(VPU::AndOp /*op*/, const vpux::TileInfo& /*tiling*/,
-                             const mlir::Optional<InputTiling> /*inputTiles*/) {
+                             const mlir::Optional<InputTiling>& /*inputTiles*/) {
     return Byte(0);
 }
 
-Byte getRequiredCMX(VPU::NCEEltwiseOp op, const vpux::TileInfo& tiling, const mlir::Optional<InputTiling> inputTiles) {
+Byte getRequiredCMX(VPU::NCEEltwiseOp op, const vpux::TileInfo& tiling, const mlir::Optional<InputTiling>& inputTiles) {
     return getEltwiseRequiredCMX(op.getOperation(), tiling, inputTiles);
 }
 
 Byte getRequiredCMXForWeight(VPU::NCEEltwiseOp /*op*/, const vpux::TileInfo& /*tiling*/,
-                             const mlir::Optional<InputTiling> /*inputTiles*/) {
+                             const mlir::Optional<InputTiling>& /*inputTiles*/) {
     return Byte(0);
 }
 
 Byte getRequiredCMXForWeight(mlir::Operation* op, const vpux::TileInfo& tiling,
-                             const mlir::Optional<InputTiling> inputTiles) {
+                             const mlir::Optional<InputTiling>& inputTiles) {
     return llvm::TypeSwitch<mlir::Operation*, Byte>(op)
             .Case<VPU::ConvolutionOp>([&](VPU::ConvolutionOp origOp) {
                 return getRequiredCMXForWeight(origOp, tiling, inputTiles);
@@ -594,7 +593,7 @@ Byte getRequiredCMXForWeight(mlir::Operation* op, const vpux::TileInfo& tiling,
 }
 
 Byte getRequiredCMX(mlir::Operation* op, const vpux::TileInfo& tiling, Logger log,
-                    const mlir::Optional<InputTiling> inputTiles) {
+                    const mlir::Optional<InputTiling>& inputTiles) {
     return llvm::TypeSwitch<mlir::Operation*, Byte>(op)
             .Case<VPU::ConvolutionOp>([&](VPU::ConvolutionOp origOp) {
                 return getRequiredCMX(origOp, tiling, inputTiles);

@@ -1,21 +1,15 @@
-// Copyright (C) Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "behavior/infer_request_run.hpp"
 
-using namespace BehaviorTestsDefinitions;
-namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
+using namespace ov::test::behavior;
 
-const std::vector<std::map<std::string, std::string>> configs = {
-        {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_INFO)}},
-};
+const std::vector<ov::AnyMap> configsInferRequestRunTests = {{{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_INFO)}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest, InferRequestRunTests,
-                         ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
-                                            ::testing::ValuesIn(configs)),
+                         ::testing::Combine(::testing::Values(LayerTestsUtils::getDeviceName()),
+                                            ::testing::ValuesIn(configsInferRequestRunTests)),
                          InferRequestRunTests::getTestCaseName);
-
-}  // namespace

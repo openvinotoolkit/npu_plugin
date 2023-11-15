@@ -7,6 +7,7 @@
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/barrier_simulator.hpp"
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
+#include "vpux/compiler/dialect/VPURT/utils/barrier_legalization_utils.hpp"
 #include "vpux/compiler/utils/dma.hpp"
 
 using namespace vpux;
@@ -134,25 +135,6 @@ void linearizeBarriers(mlir::DenseSet<VPURT::DeclareVirtualBarrierOp>& barrierOp
     log.trace("Linearized producers and consumers");
 }
 
-void postProcessBarrierOps(mlir::func::FuncOp func) {
-    // move barriers to top and erase unused
-    auto barrierOps = to_small_vector(func.getOps<VPURT::DeclareVirtualBarrierOp>());
-    auto& block = func.getBody().front();
-    VPURT::DeclareVirtualBarrierOp prevBarrier = nullptr;
-    for (auto& barrierOp : barrierOps) {
-        if (barrierOp.barrier().use_empty()) {
-            barrierOp->erase();
-            continue;
-        }
-        if (prevBarrier != nullptr) {
-            barrierOp->moveAfter(prevBarrier);
-        } else {
-            barrierOp->moveBefore(&block, block.begin());
-        }
-        prevBarrier = barrierOp;
-    }
-}
-
 class ReduceExceedingActiveCountBarriersPass final :
         public VPURT::ReduceExceedingActiveCountBarriersBase<ReduceExceedingActiveCountBarriersPass> {
 public:
@@ -243,7 +225,7 @@ void ReduceExceedingActiveCountBarriersPass::safeRunOnFunc() {
 
     // remove attributes before removing barriers
     barrierInfo.clearAttributes();
-    postProcessBarrierOps(func);
+    VPURT::postProcessBarrierOps(func);
 }
 
 }  // namespace

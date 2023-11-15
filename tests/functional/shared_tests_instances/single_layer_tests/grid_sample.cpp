@@ -1,16 +1,16 @@
 //
-// Copyright (C) 2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "single_layer_tests/grid_sample.hpp"
 #include <common/functions.h>
 #include <vector>
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
-class VPUXGridSampleLayerTest : public GridSampleLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXGridSampleLayerTest : public GridSampleLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void SetUp() override {
         inPrc = InferenceEngine::Precision::FP16;
         outPrc = InferenceEngine::Precision::FP16;
@@ -79,20 +79,21 @@ const std::vector<InferenceEngine::Precision> gridPrecisions = {
         InferenceEngine::Precision::FP16,
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_GridSample_VPU3720, VPUXGridSampleLayerTest_VPU3720,
-                         testing::Combine(::testing::ValuesIn(dataShapes), ::testing::ValuesIn(gridShapes),
-                                          ::testing::ValuesIn(alignCorners), ::testing::ValuesIn(modes),
-                                          ::testing::ValuesIn(paddingModes), ::testing::ValuesIn(dataPrecisions),
-                                          ::testing::ValuesIn(gridPrecisions),
-                                          ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+const auto paramsVPUX = testing::Combine(
+        ::testing::ValuesIn(dataShapes), ::testing::ValuesIn(gridShapes), ::testing::ValuesIn(alignCorners),
+        ::testing::ValuesIn(modes), ::testing::ValuesIn(paddingModes), ::testing::ValuesIn(dataPrecisions),
+        ::testing::ValuesIn(gridPrecisions), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
+
+const auto paramsTiling = testing::Combine(
+        ::testing::ValuesIn(dataShapesTiling), ::testing::ValuesIn(gridShapesTiling), ::testing::ValuesIn(alignCorners),
+        ::testing::ValuesIn(modes), ::testing::ValuesIn(paddingModes), ::testing::ValuesIn(dataPrecisions),
+        ::testing::ValuesIn(gridPrecisions), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
+
+// VPU3720
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_GridSample, VPUXGridSampleLayerTest_VPU3720, paramsVPUX,
                          GridSampleLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_GridSample_VPU3720_Tiling, VPUXGridSampleLayerTest_VPU3720,
-                         testing::Combine(::testing::ValuesIn(dataShapesTiling), ::testing::ValuesIn(gridShapesTiling),
-                                          ::testing::ValuesIn(alignCorners), ::testing::ValuesIn(modes),
-                                          ::testing::ValuesIn(paddingModes), ::testing::ValuesIn(dataPrecisions),
-                                          ::testing::ValuesIn(gridPrecisions),
-                                          ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_GridSample_Tiling, VPUXGridSampleLayerTest_VPU3720, paramsTiling,
                          GridSampleLayerTest::getTestCaseName);
 
 }  // namespace

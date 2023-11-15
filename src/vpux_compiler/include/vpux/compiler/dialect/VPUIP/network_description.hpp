@@ -31,24 +31,13 @@ public:
         return _name;
     }
 
-    const DataMap& getInputsInfo() const final {
-        return _networkInputs;
-    }
-    const DataMap& getOutputsInfo() const final {
-        return _networkOutputs;
-    }
-
-    const QuantizationParamMap& getQuantParamsInfo() const final {
-        return _quantParams;
-    }
-
-    const DataMap& getDeviceInputsInfo() const final {
+    const NetworkIOVector& getDeviceInputsInfo() const final {
         return _deviceInputs;
     }
-    const DataMap& getDeviceOutputsInfo() const final {
+    const NetworkIOVector& getDeviceOutputsInfo() const final {
         return _deviceOutputs;
     }
-    const DataMap& getDeviceProfilingOutputsInfo() const final {
+    const NetworkIOVector& getDeviceProfilingOutputsInfo() const final {
         return _deviceProfilingOutputs;
     }
 
@@ -69,13 +58,9 @@ private:
 
     std::string _name;
 
-    DataMap _networkInputs;
-    DataMap _networkOutputs;
-
-    DataMap _deviceInputs;
-    DataMap _deviceOutputs;
-    DataMap _deviceProfilingOutputs;
-    QuantizationParamMap _quantParams;
+    NetworkIOVector _deviceInputs;
+    NetworkIOVector _deviceOutputs;
+    NetworkIOVector _deviceProfilingOutputs;
 
     std::vector<OVRawNode> _ovResults;
     std::vector<OVRawNode> _ovParameters;

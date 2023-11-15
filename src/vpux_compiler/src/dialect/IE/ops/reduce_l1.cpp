@@ -6,7 +6,6 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/dialect/IE/utils/reduce_infer.hpp"
-#include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
@@ -23,15 +22,32 @@ mlir::LogicalResult vpux::IE::ReduceL1Op::inferReturnTypeComponents(
     if (mlir::failed(reduceL1.verify(loc))) {
         return mlir::failure();
     }
+    if (reduceL1.axes() != nullptr && reduceL1.axes_value().has_value()) {
+        return errorAt(loc, "Ambiguous axes representation");
+    } else if (reduceL1.axes() == nullptr && !reduceL1.axes_value().has_value()) {
+        return errorAt(loc, "Axes was not provided properly");
+    }
 
     const auto input = reduceL1.input();
     const auto keepDims = reduceL1.keep_dims();
-    auto axes = IE::constInputToData(loc, reduceL1.axes());
-    if (mlir::failed(axes)) {
-        return mlir::failure();
-    }
 
-    auto axesValue = axes.getValue();
+    auto axesValue = IE::extractAxes(loc, reduceL1);
 
     return IE::inferReduceReturnTypeComponents(loc, input, keepDims, axesValue, inferredReturnShapes);
+}
+
+//
+// fold
+//
+
+mlir::OpFoldResult vpux::IE::ReduceL1Op::fold(ArrayRef<mlir::Attribute>) {
+    if (input().getType() == output().getType()) {
+        return input();
+    }
+
+    return nullptr;
+}
+
+void vpux::IE::ReduceL1Op::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* context) {
+    patterns.add<ConvertConstToAttr<vpux::IE::ReduceL1Op>>(context);
 }

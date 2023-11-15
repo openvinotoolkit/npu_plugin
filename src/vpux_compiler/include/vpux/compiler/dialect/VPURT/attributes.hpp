@@ -14,7 +14,11 @@
 // Generated
 //
 
-#include <vpux/compiler/dialect/VPURT/generated/attributes/enums.hpp.inc>
+#include <vpux/compiler/dialect/VPURT/enums.hpp.inc>
+
+#define GET_ATTRDEF_CLASSES
+#include <vpux/compiler/dialect/VPURT/attributes.hpp.inc>
+#undef GET_ATTRDEF_CLASSES
 
 //
 // BufferSection/MemoryKind conversion

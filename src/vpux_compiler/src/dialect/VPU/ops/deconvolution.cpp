@@ -50,7 +50,7 @@ mlir::LogicalResult vpux::VPU::DeconvolutionOp::inferReturnTypes(
             return errorAt(loc, "Only constant input is supported for output_shape");
         }
 
-        const auto outputShapeContent = outputShapeConst.content();
+        const auto outputShapeContent = outputShapeConst.getContent();
         const auto outputShapeVals = outputShapeContent.getValues<int64_t>();
 
         SmallVector<int64_t> mlirOutputShape;
@@ -65,7 +65,7 @@ mlir::LogicalResult vpux::VPU::DeconvolutionOp::inferReturnTypes(
         const std::vector<ngraph::Dimension> nFilterShape(std::next(filterShape.begin(), 2), filterShape.end());
 
         ngraph::op::v1::ConvolutionBackpropData ngraph_op;
-        std::vector<ngraph::Dimension> __resultShape;
+        std::vector<ngraph::Dimension> spatialShape;
         ngraph_op.infer_conv_backprop_output_spatial_shape(
                 nDataShape,                                                                // data_shape
                 nFilterShape,                                                              // filter_sahpe
@@ -74,8 +74,8 @@ mlir::LogicalResult vpux::VPU::DeconvolutionOp::inferReturnTypes(
                 ngraph::CoordinateDiff(dataPaddingBelow.begin(), dataPaddingBelow.end()),  // pads_begin
                 ngraph::CoordinateDiff(dataPaddingAbove.begin(), dataPaddingAbove.end()),  // pads_end
                 ngraph::CoordinateDiff(outputPadding.begin(), outputPadding.end()),        // output_padding
-                __resultShape);
-        const auto resultShape = ngraph::PartialShape{__resultShape}.get_shape();
+                spatialShape);
+        const auto resultShape = ngraph::PartialShape(std::move(spatialShape)).get_shape();
 
         SmallVector<int64_t> mlirOutputShape;
         mlirOutputShape.push_back(featureShape[0]);

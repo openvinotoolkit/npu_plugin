@@ -32,8 +32,6 @@ public:
 
 private:
     VPU::NCEInterpolateModeAttr getModeAttr(IE::InterpolateModeAttr origModeAttr) const;
-    VPU::NCEInterpolateNearestModeAttr getNearestModeAttr(IE::InterpolateAttr origAttr) const;
-    VPU::NCEInterpolateCoordModeAttr getCoordModeAttr(IE::InterpolateAttr origAttr) const;
     int64_t getSESize(int64_t channels) const;
 
     mlir::Value createSparseInput(VPU::InterpolateOp origOp, mlir::PatternRewriter& rewriter,
@@ -63,45 +61,6 @@ VPU::NCEInterpolateModeAttr InterpolateToNCE::getModeAttr(IE::InterpolateModeAtt
     }
 }
 
-VPU::NCEInterpolateNearestModeAttr InterpolateToNCE::getNearestModeAttr(IE::InterpolateAttr origAttr) const {
-    if (origAttr == nullptr || origAttr.getMode() == nullptr ||
-        origAttr.getMode().getValue() != IE::InterpolateMode::NEAREST) {
-        return nullptr;
-    }
-    VPUX_THROW_WHEN(origAttr.getNearestMode() == nullptr, "Missing nearest mode");
-    auto ctx = origAttr.getContext();
-    const auto nearestMode = origAttr.getNearestMode().getValue();
-    switch (nearestMode) {
-    case IE::InterpolateNearestMode::CEIL:
-        return VPU::NCEInterpolateNearestModeAttr::get(ctx, VPU::NCEInterpolateNearestMode::CEIL);
-    case IE::InterpolateNearestMode::FLOOR:
-        return VPU::NCEInterpolateNearestModeAttr::get(ctx, VPU::NCEInterpolateNearestMode::FLOOR);
-    case IE::InterpolateNearestMode::ROUND_PREFER_CEIL:
-        return VPU::NCEInterpolateNearestModeAttr::get(ctx, VPU::NCEInterpolateNearestMode::ROUND_PREFER_CEIL);
-    case IE::InterpolateNearestMode::ROUND_PREFER_FLOOR:
-        return VPU::NCEInterpolateNearestModeAttr::get(ctx, VPU::NCEInterpolateNearestMode::ROUND_PREFER_FLOOR);
-    case IE::InterpolateNearestMode::SIMPLE:
-        return VPU::NCEInterpolateNearestModeAttr::get(ctx, VPU::NCEInterpolateNearestMode::SIMPLE);
-    default:
-        return nullptr;
-    }
-}
-
-VPU::NCEInterpolateCoordModeAttr InterpolateToNCE::getCoordModeAttr(IE::InterpolateAttr origAttr) const {
-    if (origAttr == nullptr) {
-        return nullptr;
-    }
-    VPUX_THROW_WHEN(origAttr.getCoordMode() == nullptr, "Missing coordinate transformation mode");
-    auto ctx = origAttr.getContext();
-    const auto coordMode = origAttr.getCoordMode().getValue();
-    switch (coordMode) {
-    case IE::InterpolateCoordMode::ASYMMETRIC:
-        return VPU::NCEInterpolateCoordModeAttr::get(ctx, VPU::NCEInterpolateCoordMode::ASYMMETRIC);
-    default:
-        return nullptr;
-    }
-}
-
 // Get the largest storage element size that is compatible with the given number of channels
 // The channels must be a multiple of 16 and the maximum value supported is 8192; the same
 // restriction applies to the storage element size
@@ -124,15 +83,25 @@ mlir::Value InterpolateToNCE::createSparseInput(VPU::InterpolateOp origOp, mlir:
                                                 VPU::NCEInterpolateModeAttr modeAttr, ArrayRef<double> scales) const {
     auto ctx = origOp.getContext();
     auto inputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
+    auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
     auto inputShape = inputType.getShape();
+    auto outputShape = outputType.getShape();
     auto inputDimsOrder = inputType.getDimsOrder();
 
     // Create the SEInterpolateAttr
-    auto nearestModeAttr = getNearestModeAttr(origOp.attr());
-    auto coordModeAttr = getCoordModeAttr(origOp.attr());
+    auto coordModeAttr = origOp.attr().getCoordMode();
+    VPUX_THROW_WHEN(coordModeAttr == nullptr, "Missing coordinate transformation mode");
+    IE::InterpolateNearestModeAttr nearestModeAttr = nullptr;
+    if (modeAttr != nullptr && modeAttr.getValue() == VPU::NCEInterpolateMode::NEAREST) {
+        nearestModeAttr = origOp.attr().getNearestMode();
+        VPUX_THROW_WHEN(nearestModeAttr == nullptr, "Missing nearest mode");
+    }
     auto scalesAttr = getFPArrayAttr(ctx, scales);
-    auto seInterpolateAttr = VPU::SEInterpolateAttr::get(ctx, modeAttr, nearestModeAttr, coordModeAttr, scalesAttr,
-                                                         /*offsets=*/nullptr, /*sizes=*/nullptr);
+    auto initialInputShapeAttr = getIntArrayAttr(ctx, inputShape.raw());
+    auto initialOutputShapeAttr = getIntArrayAttr(ctx, outputShape.raw());
+    auto seInterpolateAttr = VPU::SEInterpolateAttr::get(ctx, modeAttr, coordModeAttr, scalesAttr, nearestModeAttr,
+                                                         /*offsets=*/nullptr, /*sizes=*/nullptr, initialInputShapeAttr,
+                                                         initialOutputShapeAttr);
     auto seAttr = seInterpolateAttr.cast<VPU::SEAttr>();
 
     // Create the StorageElementTable operation
@@ -150,13 +119,13 @@ mlir::Value InterpolateToNCE::createSparseInput(VPU::InterpolateOp origOp, mlir:
             std::accumulate(smShape.begin(), smShape.end(), static_cast<int64_t>(1), std::multiplies<int64_t>());
     SmallVector<uint8_t> smContent(smElemCount, 1);
     const auto baseAttr = mlir::DenseElementsAttr::get(smContentType, makeArrayRef(smContent));
-    auto tensorAttr = IE::getTensorAttr(ctx, inputDimsOrder, nullptr);
+    auto tensorAttr = vpux::getTensorAttr(ctx, inputDimsOrder, nullptr);
     auto smElemType = mlir::IntegerType::get(ctx, 1);
     auto smType = mlir::RankedTensorType::get(smShape, smElemType, tensorAttr);
     auto contentAttr = Const::ContentAttr::get(baseAttr).reorder(inputDimsOrder).convertElemType(smElemType);
     auto smConstOp = rewriter.create<Const::DeclareOp>(origOp.getLoc(), smType, contentAttr);
 
-    auto groupOp = rewriter.create<VPU::GroupSparseTensorOp>(origOp->getLoc(), origOp.input(), smConstOp.output(),
+    auto groupOp = rewriter.create<VPU::GroupSparseTensorOp>(origOp->getLoc(), origOp.input(), smConstOp.getOutput(),
                                                              seTableOp.output(), seAttr);
     return groupOp.output();
 }
@@ -203,7 +172,7 @@ mlir::Value InterpolateToNCE::createWeightsConstant(VPU::InterpolateOp origOp, m
                 /*flags=*/0, /*storageType=*/getUInt8Type(ctx), /*expressedType=*/mlir::Float16Type::get(ctx),
                 /*scale=*/quantScale, /*zeroPoint=*/0, /*storageTypeMin=*/0, /*storageTypeMax=*/255);
     }
-    const auto tensorAttr = IE::getTensorAttr(ctx, DimsOrder::OYXI, nullptr);
+    const auto tensorAttr = vpux::getTensorAttr(ctx, DimsOrder::OYXI, nullptr);
     const auto weightsType =
             mlir::RankedTensorType::get(shape.raw(), elemType, tensorAttr).cast<vpux::NDTypeInterface>();
     const auto order = weightsType.getDimsOrder();
@@ -240,7 +209,7 @@ mlir::Value InterpolateToNCE::createWeightsConstant(VPU::InterpolateOp origOp, m
     }
 
     auto weightsConstOp = rewriter.create<Const::DeclareOp>(origOp->getLoc(), weightsType, contentAttr);
-    return weightsConstOp.output();
+    return weightsConstOp.getOutput();
 }
 
 mlir::LogicalResult InterpolateToNCE::matchAndRewrite(VPU::InterpolateOp origOp,

@@ -55,7 +55,7 @@ mlir::LogicalResult ActShaveRewriter::matchAndRewrite(IE::ReorderOp origOp, mlir
 
         auto orderInfo = iface.getLayoutInfo();
         orderInfo.setInput(0, propagatingOrder);
-        iface.inferLayoutInfo(orderInfo);
+        iface.inferLayoutInfo(orderInfo, /*seOpsEnabled=*/false);
         if (orderInfo.getInput(0) != propagatingOrder) {
             return matchFailed(_log.nest(), rewriter, producer,
                                "Act shave kernel doesn't support propagating order {0}", propagatingOrder);

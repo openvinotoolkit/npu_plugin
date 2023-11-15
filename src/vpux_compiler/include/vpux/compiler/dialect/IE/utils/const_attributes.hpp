@@ -15,6 +15,7 @@ mlir::ArrayAttr getIntArrayAttrValue(mlir::Value operand);
 mlir::ArrayAttr getFloatArrayAttrValue(mlir::Value operand);
 mlir::IntegerAttr getIntAttrValue(mlir::Value operand, mlir::PatternRewriter& rewriter);
 mlir::FailureOr<Const::DeclareOp> getConstParentOp(mlir::Value input);
+mlir::FailureOr<int64_t> getBaseContentNumElements(Const::DeclareOp constOp);
 
 }  // namespace IE
 }  // namespace vpux

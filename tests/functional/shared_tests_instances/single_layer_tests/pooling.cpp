@@ -1,5 +1,6 @@
-// Copyright (C) Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "single_layer_tests/pooling.hpp"
@@ -8,11 +9,11 @@
 #include <vector>
 
 #include <common/functions.h>
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
-class VPUXPoolingLayerTest_VPU3700 : public PoolingLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXPoolingLayerTest_VPU3700 : public PoolingLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void SkipBeforeLoad() override {
         const auto& poolParams = std::get<0>(GetParam());
 
@@ -30,12 +31,9 @@ class VPUXPoolingLayerTest_VPU3700 : public PoolingLayerTest, virtual public Lay
         // MLIR uses software layer, which seem to be flawed
         if (poolType == ngraph::helpers::PoolingTypes::AVG) {
             if (strides[0] != 1 || strides[1] != 1) {
-                throw LayerTestsUtils::KmbSkipTestException("AVG pool strides != 1 produces inaccurate results");
+                throw LayerTestsUtils::VpuSkipTestException("AVG pool strides != 1 produces inaccurate results");
             }
         }
-    }
-
-    void SkipBeforeInfer() override {
     }
 };
 
@@ -51,7 +49,7 @@ TEST_P(VPUXPoolingLayerTest_VPU3700, HW) {
     Run();
 }
 
-class VPUXPoolingLayerTest_VPU3720 : public PoolingLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXPoolingLayerTest_VPU3720 : public PoolingLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
 TEST_P(VPUXPoolingLayerTest_VPU3720, SW) {
     setPlatformVPU3720();
@@ -106,7 +104,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Pooling_AutoPadValid, VPUXPoolingLay
                                                                              {1, 16, 24, 24},
                                                                              {1, 24, 16, 16},
                                                                              {1, 32, 8, 8}}),  // inputShapes
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),  //
                          PoolingLayerTest::getTestCaseName);
 
 /* ============= ExplicitPadding ============= */
@@ -130,7 +128,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Pooling_ExplicitPadding, VPUXPooling
                                             ::testing::Values(Layout::ANY),                      // inLayout
                                             ::testing::Values(Layout::ANY),                      // outLayout
                                             ::testing::ValuesIn<SizeVector>({{1, 16, 30, 30}}),  // inputShapes
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),  //
                          PoolingLayerTest::getTestCaseName);
 
 /* ============= AsymmetricKernel ============= */
@@ -153,7 +151,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Pooling_AsymmetricKernel, VPUXPoolin
                                             ::testing::Values(Layout::ANY),                      // inLayout
                                             ::testing::Values(Layout::ANY),                      // outLayout
                                             ::testing::ValuesIn<SizeVector>({{1, 16, 30, 30}}),  // inputShapes
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),  //
                          PoolingLayerTest::getTestCaseName);
 
 /* ============= AsymmetricStrides ============= */
@@ -176,7 +174,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Pooling_AsymmetricStrides, VPUXPooli
                                             ::testing::Values(Layout::ANY),                      // inLayout
                                             ::testing::Values(Layout::ANY),                      // outLayout
                                             ::testing::ValuesIn<SizeVector>({{1, 16, 30, 30}}),  // inputShapes
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          PoolingLayerTest::getTestCaseName);
 
 /* ============= LargeSize ============= */
@@ -199,7 +197,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargeSize1, VPUXPoolingLayerT
                                            ::testing::Values(Layout::ANY),                        // inLayout
                                            ::testing::Values(Layout::ANY),                        // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 64, 128, 128}}),  // inputShapes
-                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                         PoolingLayerTest::getTestCaseName);
 
 const auto pool_LargeSize2 = ::testing::Combine(::testing::Values(PoolingTypes::MAX),                //
@@ -220,7 +218,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargeSize2, VPUXPoolingLayerT
                                            ::testing::Values(Layout::ANY),                        // inLayout
                                            ::testing::Values(Layout::ANY),                        // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 16, 256, 256}}),  // inputShapes
-                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                         PoolingLayerTest::getTestCaseName);
 
 /* ============= LargeStrides ============= */
@@ -243,7 +241,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargeStrides, VPUXPoolingLaye
                                            ::testing::Values(Layout::ANY),                      // inLayout
                                            ::testing::Values(Layout::ANY),                      // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 16, 64, 64}}),  // inputShapes
-                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                         PoolingLayerTest::getTestCaseName);
 
 /* ============= Padding valitation ( > K_SZ/2) ============= */
@@ -266,7 +264,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargePadding2, VPUXPoolingLay
                                            ::testing::Values(Layout::ANY),                      // inLayout
                                            ::testing::Values(Layout::ANY),                      // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 16, 64, 64}}),  // inputShapes
-                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                         PoolingLayerTest::getTestCaseName);
 
 const auto pool_LargePadding3 =
@@ -288,7 +286,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargePadding3, VPUXPoolingLay
                                            ::testing::Values(Layout::ANY),                      // inLayout
                                            ::testing::Values(Layout::ANY),                      // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 16, 64, 64}}),  // inputShapes
-                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                         PoolingLayerTest::getTestCaseName);
 
 const auto pool_LargePadding4 =
@@ -310,7 +308,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargePadding4, VPUXPoolingLay
                                            ::testing::Values(Layout::ANY),                      // inLayout
                                            ::testing::Values(Layout::ANY),                      // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 16, 64, 64}}),  // inputShapes
-                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                         PoolingLayerTest::getTestCaseName);
 
 const auto pool_LargePadding5 =
@@ -332,7 +330,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargePadding5, VPUXPoolingLay
                                            ::testing::Values(Layout::ANY),                      // inLayout
                                            ::testing::Values(Layout::ANY),                      // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 16, 64, 64}}),  // inputShapes
-                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                         PoolingLayerTest::getTestCaseName);
 
 const auto pool_LargePadding6 = ::testing::Combine(
@@ -354,7 +352,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargePadding6, VPUXPoolingLay
                                            ::testing::Values(Layout::ANY),                      // inLayout
                                            ::testing::Values(Layout::ANY),                      // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 16, 64, 64}}),  // inputShapes
-                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                         PoolingLayerTest::getTestCaseName);
 
 const auto pool_LargePadding7 =
@@ -376,7 +374,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargePadding7, VPUXPoolingLay
                                            ::testing::Values(Layout::ANY),                      // inLayout
                                            ::testing::Values(Layout::ANY),                      // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 16, 64, 64}}),  // inputShapes
-                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                         PoolingLayerTest::getTestCaseName);
 
 const auto pool_LargePadding8 =
@@ -398,7 +396,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargePadding8, VPUXPoolingLay
                                            ::testing::Values(Layout::ANY),                      // inLayout
                                            ::testing::Values(Layout::ANY),                      // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 16, 64, 64}}),  // inputShapes
-                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                         PoolingLayerTest::getTestCaseName);
 
 /* ============= AVGPooling / Large Kernels ============= */
@@ -421,7 +419,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_AvgPooling_LargeKernels, VPUXPoolingL
                                            ::testing::Values(Layout::ANY),                        // inLayout
                                            ::testing::Values(Layout::ANY),                        // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 2048, 23, 30}}),  // inputShapes
-                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                         PoolingLayerTest::getTestCaseName);
 
 /* ============= AVGPooling / Large KernelsX ============= */
@@ -444,7 +442,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_AvgPooling_LargeKernelsX, VPUXPooling
                                            ::testing::Values(Layout::ANY),                     // inLayout
                                            ::testing::Values(Layout::ANY),                     // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 16, 1, 14}}),  // inputShapes
-                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                         PoolingLayerTest::getTestCaseName);
 
 /* ============= AVGPooling / Large KernelsY ============= */
@@ -467,7 +465,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_AvgPooling_LargeKernelsY, VPUXPooling
                                            ::testing::Values(Layout::ANY),                     // inLayout
                                            ::testing::Values(Layout::ANY),                     // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 16, 14, 1}}),  // inputShapes
-                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                         PoolingLayerTest::getTestCaseName);
 
 /* ============= AVGPooling / Large Prime Kernels ============= */
@@ -490,7 +488,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_AvgPooling_LargePrimeKernels, VPUXPoo
                                            ::testing::Values(Layout::ANY),                       // inLayout
                                            ::testing::Values(Layout::ANY),                       // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 147, 17, 17}}),  // inputShapes
-                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                         PoolingLayerTest::getTestCaseName);
 
 /* ============= MAXPooling / Large Kernels ============= */
@@ -513,7 +511,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_MaxPooling_LargeKernels, VPUXPoolingL
                                            ::testing::Values(Layout::ANY),                        // inLayout
                                            ::testing::Values(Layout::ANY),                        // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 2048, 23, 30}}),  // inputShapes
-                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                         PoolingLayerTest::getTestCaseName);
 
 /* ============= MAXPooling / Large KernelsX ============= */
@@ -536,7 +534,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_MaxPooling_LargeKernelsX, VPUXPooling
                                            ::testing::Values(Layout::ANY),                     // inLayout
                                            ::testing::Values(Layout::ANY),                     // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 16, 1, 14}}),  // inputShapes
-                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                         PoolingLayerTest::getTestCaseName);
 
 /* ============= MAXPooling / Large KernelsY ============= */
@@ -559,7 +557,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_MaxPooling_LargeKernelsY, VPUXPooling
                                            ::testing::Values(Layout::ANY),                     // inLayout
                                            ::testing::Values(Layout::ANY),                     // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 16, 14, 1}}),  // inputShapes
-                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                         PoolingLayerTest::getTestCaseName);
 
 /* ============= AvgPooling / Exclude_Pad Handling ============= */
@@ -582,19 +580,19 @@ INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_avgPool_excludePad, VPUXPoolingLayerT
                                            ::testing::Values(Layout::ANY),                      // inLayout
                                            ::testing::Values(Layout::ANY),                      // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 16, 28, 28}}),  // inputShapes
-                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                         PoolingLayerTest::getTestCaseName);
 
 /* ============= VPU 3720 ============= */
 
-const auto pool_ExplicitNoPadding = ::testing::Combine(::testing::Values(PoolingTypes::MAX, PoolingTypes::AVG),
-                                                       ::testing::ValuesIn<SizeVector>({{14, 14}}),  // kernels
-                                                       ::testing::Values<SizeVector>({1, 1}),        // strides
-                                                       ::testing::Values<SizeVector>({0, 0}),        // padBegins
-                                                       ::testing::Values<SizeVector>({0, 0}),        // padEnds
-                                                       ::testing::Values(ngraph::op::RoundingType::FLOOR),
-                                                       ::testing::Values(ngraph::op::PadType::EXPLICIT),
-                                                       ::testing::Values(true)  // excludePad
+const auto pool_ExplicitNoPadding = ::testing::Combine(
+        ::testing::Values(PoolingTypes::MAX, PoolingTypes::AVG),
+        ::testing::ValuesIn<SizeVector>({{14, 14}, {14, 1}, {1, 14}}),  // kernels
+        ::testing::Values<SizeVector>({1, 1}),                          // strides
+        ::testing::Values<SizeVector>({0, 0}),                          // padBegins
+        ::testing::Values<SizeVector>({0, 0}),                          // padEnds
+        ::testing::Values(ngraph::op::RoundingType::FLOOR), ::testing::Values(ngraph::op::PadType::EXPLICIT),
+        ::testing::Values(true)  // excludePad
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_Pooling_NCHW_NoPadding_VPU3720, VPUXPoolingLayerTest_VPU3720,
@@ -605,7 +603,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Pooling_NCHW_NoPadding_VPU3720, VPUXPoolingLayerT
                                             ::testing::Values(Layout::NCHW),                 // inLayout
                                             ::testing::Values(Layout::NCHW),                 // outLayout
                                             ::testing::Values<SizeVector>({1, 30, 14, 14}),  // inputShapes
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          VPUXPoolingLayerTest_VPU3720::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Pooling_NCHW_NoPadding_VPU3720_ELF, VPUXPoolingLayerTest_VPU3720_SingleCluster,
@@ -616,7 +614,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Pooling_NCHW_NoPadding_VPU3720_ELF, VPUXPoolingLa
                                             ::testing::Values(Layout::NCHW),                 // inLayout
                                             ::testing::Values(Layout::NCHW),                 // outLayout
                                             ::testing::Values<SizeVector>({1, 30, 14, 14}),  // inputShapes
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          VPUXPoolingLayerTest_VPU3720::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_precommit_Pooling_NHWC_NoPadding_VPU3720, VPUXPoolingLayerTest_VPU3720,
@@ -627,7 +625,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_precommit_Pooling_NHWC_NoPadding_VPU3720, VPUXPoo
                                             ::testing::Values(Layout::NHWC),                 // inLayout
                                             ::testing::Values(Layout::NHWC),                 // outLayout
                                             ::testing::Values<SizeVector>({1, 30, 14, 14}),  // inputShapes
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          VPUXPoolingLayerTest_VPU3720::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Pooling_NHWC_NoPadding_VPU3720_ELF, VPUXPoolingLayerTest_VPU3720_SingleCluster,
@@ -638,28 +636,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Pooling_NHWC_NoPadding_VPU3720_ELF, VPUXPoolingLa
                                             ::testing::Values(Layout::NHWC),                 // inLayout
                                             ::testing::Values(Layout::NHWC),                 // outLayout
                                             ::testing::Values<SizeVector>({1, 30, 14, 14}),  // inputShapes
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         VPUXPoolingLayerTest_VPU3720::getTestCaseName);
-
-// [Track number: E#58512]
-const auto pool_ExplicitNoPadding_failing_case = ::testing::Combine(
-        ::testing::Values(PoolingTypes::MAX), ::testing::ValuesIn<SizeVector>({{14, 1}, {1, 14}}),  // kernels
-        ::testing::Values<SizeVector>({1, 1}),                                                      // strides
-        ::testing::Values<SizeVector>({0, 0}),                                                      // padBegins
-        ::testing::Values<SizeVector>({0, 0}),                                                      // padEnds
-        ::testing::Values(ngraph::op::RoundingType::FLOOR), ::testing::Values(ngraph::op::PadType::EXPLICIT),
-        ::testing::Values(true)  // excludePad
-);
-
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Pooling_Fail_NHWC_NoPadding_VPU3720, VPUXPoolingLayerTest_VPU3720,
-                         ::testing::Combine(pool_ExplicitNoPadding_failing_case,
-                                            ::testing::Values(Precision::FP16),              // netPrc
-                                            ::testing::Values(Precision::FP16),              // inPrc
-                                            ::testing::Values(Precision::FP16),              // outPrc
-                                            ::testing::Values(Layout::NHWC),                 // inLayout
-                                            ::testing::Values(Layout::NHWC),                 // outLayout
-                                            ::testing::Values<SizeVector>({1, 30, 14, 14}),  // inputShapes
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          VPUXPoolingLayerTest_VPU3720::getTestCaseName);
 
 // U-net usecase
@@ -680,7 +657,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_precommit_Pooling_unet_VPU3720, VPUXPoolingLayerT
                                             ::testing::Values(Layout::NCHW),                 // inLayout
                                             ::testing::Values(Layout::NCHW),                 // outLayout
                                             ::testing::Values<SizeVector>({1, 1, 12, 176}),  // inputShapes
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          VPUXPoolingLayerTest_VPU3720::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Pooling_unet_VPU3720_ELF, VPUXPoolingLayerTest_VPU3720_SingleCluster,
@@ -691,7 +668,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Pooling_unet_VPU3720_ELF, VPUXPoolingLayerTest_VP
                                             ::testing::Values(Layout::NCHW),                 // inLayout
                                             ::testing::Values(Layout::NCHW),                 // outLayout
                                             ::testing::Values<SizeVector>({1, 1, 12, 176}),  // inputShapes
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          VPUXPoolingLayerTest_VPU3720::getTestCaseName);
 
 // large kernel
@@ -713,7 +690,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Pooling_LargeKernel3720, VPUXPoolingLayerTest_VPU3
                                            ::testing::Values(Layout::ANY),                      // inLayout
                                            ::testing::Values(Layout::ANY),                      // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 70, 28, 28}}),  // inputShapes
-                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                         VPUXPoolingLayerTest_VPU3720::getTestCaseName);
 
 // These tests are temporarily disabled because they are failing on older MV Tools versions
@@ -726,7 +703,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargeKernel3720_ELF, VPUXPool
                                            ::testing::Values(Layout::ANY),                      // inLayout
                                            ::testing::Values(Layout::ANY),                      // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 70, 28, 28}}),  // inputShapes
-                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                         VPUXPoolingLayerTest_VPU3720::getTestCaseName);
 
 // AutoPadValid
@@ -751,7 +728,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Pooling_AutoPadValid_VPU3720_ELF, VPUXPoolingLaye
                                                                              {1, 16, 24, 24},
                                                                              {1, 24, 16, 16},
                                                                              {1, 32, 8, 8}}),  // inputShapes
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),  //
                          PoolingLayerTest::getTestCaseName);
 
 // Large kernel with stride 1
@@ -774,7 +751,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_precommit_Pooling_LargeKernelStrideOne3720, VPUXP
                                             ::testing::Values(Layout::ANY),                    // inLayout
                                             ::testing::Values(Layout::ANY),                    // outLayout
                                             ::testing::ValuesIn<SizeVector>({{1, 1, 71, 2}}),  // inputShapes
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          VPUXPoolingLayerTest_VPU3720::getTestCaseName);
 
 }  // namespace

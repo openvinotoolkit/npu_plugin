@@ -37,6 +37,11 @@ struct ReferenceHWOptions30XX final : public ReferenceHWOptions<ReferenceHWOptio
     BoolOption enableSEPtrsOperations{*this, "enable-se-ptrs-operations",
                                       llvm::cl::desc("Enable storage element pointer operations"),
                                       llvm::cl::init(false)};
+
+    BoolOption enableExplicitDistributedTensorAttr{
+            *this, "enable-explicit-distributed-attr",
+            llvm::cl::desc("Enable DistributedTensorAttr with explicit per cluster memory/compute shapes & offsets"),
+            llvm::cl::init(false)};
 };
 
 void buildReferenceHWModePipeline(mlir::OpPassManager& pm, const ReferenceHWOptions30XX& options,
@@ -56,6 +61,11 @@ struct DefaultHWOptions30XX final : public DefaultHWOptions<DefaultHWOptions30XX
     BoolOption enableSEPtrsOperations{*this, "enable-se-ptrs-operations",
                                       llvm::cl::desc("Enable storage element pointer operations"),
                                       llvm::cl::init(false)};
+
+    BoolOption enableExplicitDistributedTensorAttr{
+            *this, "enable-explicit-distributed-attr",
+            llvm::cl::desc("Enable DistributedTensorAttr with explicit per cluster memory/compute shapes & offsets"),
+            llvm::cl::init(false)};
 };
 
 void buildShaveCodeGenPipeline30XX(mlir::OpPassManager& pm, Logger log = Logger::global());

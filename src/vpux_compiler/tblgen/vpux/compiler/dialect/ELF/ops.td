@@ -277,7 +277,7 @@ def SymbolOp :
           AnyType:$inputArg,
           OptionalAttr<UnitAttr>:$isBuiltin,
           OptionalAttr<StrAttr>:$name,
-          OptionalAttr<ELF_SymbolTypeAttr>:$type,
+          OptionalAttr<ELF_SymbolTypeAttr>:$symType,
           OptionalAttr<UI64Attr>:$size,
           OptionalAttr<UI64Attr>:$value
         );
@@ -287,7 +287,7 @@ def SymbolOp :
     let assemblyFormat = [{
         $inputArg
         (`name` `(` $name^ `)`)?
-        (`type` `(` $type^ `)`)?
+        (`type` `(` $symType^ `)`)?
         (`size` `(` $size^ `)`)?
         attr-dict
         `:` type($inputArg)

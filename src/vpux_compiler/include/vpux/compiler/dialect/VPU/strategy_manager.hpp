@@ -27,7 +27,7 @@ public:
     explicit StrategyManager(mlir::func::FuncOp func, Logger log);
 
 public:
-    void assignMultiClusterStrategy();
+    void assignMultiClusterStrategy(bool enableMultiClusterForSWLayer);
     void optimizeMulticlusterStrategy();
     void removeTemporaryMulticlusterStrategy();
 

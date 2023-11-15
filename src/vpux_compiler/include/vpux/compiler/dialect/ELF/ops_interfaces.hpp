@@ -47,4 +47,4 @@ mlir::Block* getSectionBlock(ConcreteOp op) {
 // Generated
 //
 
-#include <vpux/compiler/dialect/ELF/generated/ops_interfaces.hpp.inc>
+#include <vpux/compiler/dialect/ELF/ops_interfaces.hpp.inc>

@@ -9,7 +9,6 @@
 using namespace vpux;
 
 std::vector<uint8_t> vpux::ELF::exportToELF(mlir::ModuleOp module,
-                                            const std::vector<vpux::PreProcessInfo>& preprocessInfo,
                                             const std::vector<std::shared_ptr<const ov::Node>>& parameters,
                                             const std::vector<std::shared_ptr<const ov::Node>>& results, Logger log) {
     log.setName("ELF BackEnd");
@@ -38,7 +37,7 @@ std::vector<uint8_t> vpux::ELF::exportToELF(mlir::ModuleOp module,
     log.trace("Serializing '{0}' ops", ELF::CreateMetadataSectionOp::getOperationName());
     auto createMetadataSectionOps = netFunc.getOps<ELF::CreateMetadataSectionOp>();
     for (auto createMetadataSectionOp : createMetadataSectionOps) {
-        auto metadataPtr = vpux::ELF::constructMetadata(module, netOp, netFunc, preprocessInfo, parameters, results);
+        auto metadataPtr = vpux::ELF::constructMetadata(module, netOp, netFunc, parameters, results);
         auto& metadata = *metadataPtr.get();
         createMetadataSectionOp.serialize(elfWriter, sectionMap, symbolMap, metadata);
     }

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-// RUN: vpux-opt --init-compiler="vpu-arch=VPUX30XX" %s | vpux-translate --export-VPUIP -o %t
+// RUN: vpux-opt --init-compiler="vpu-arch=VPUX30XX allow-custom-values=true" %s | vpux-translate --vpu-arch=VPUX30XX --export-VPUIP -o %t
 // RUN: flatc --raw-binary --json %vpuip_schema_file% -- %t
 // RUN: FileCheck %s --input-file %basename_t.json
 // RUN: rm %basename_t.json
@@ -12,7 +12,11 @@ module @Test {
 
 module @UsedMemory {
     IE.MemoryResource 2048 bytes of @DDR
-    IE.MemoryResource 1048576 bytes of @CMX_NN
+}
+IE.ExecutorResource 4 of @NCE at 7.000000e+02 MHz {
+    builtin.module @UsedMemory {
+        IE.MemoryResource 1048576 bytes of @CMX_NN
+    }
 }
 
 IE.CNNNetwork
@@ -25,7 +29,7 @@ IE.CNNNetwork
     }
 
 func.func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
-    %0 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x1x1x1000xf16, @DDR>
+    %0 = VPURT.DeclareBuffer <DDR> <0> -> memref<1x1x1x1000xf16, @DDR>
     %1 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     VPURT.Task updates(%1 : !VPURT.Barrier) {
         %2 = VPUIP.SoftMaxUPA {axisInd = 3} inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16, @DDR>) -> memref<1x1x1x1000xf16, @DDR>
@@ -101,6 +105,12 @@ func.func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) ->
 // CEHCK:       }
 // CEHCK:     ]
 // CHECK:   },
+
+// CHECK:   memory_sizes: [
+// CHECK:     item: "DDR",
+// CHECK:     number: 2048.0
+// CHECK:     item: "NN_CMX",
+// CHECK:     number: 1048576.0
 
 // CHECK:   in_tensor_desc: [
 // CHECK:     {

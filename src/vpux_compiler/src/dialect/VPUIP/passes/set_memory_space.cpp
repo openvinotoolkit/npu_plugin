@@ -45,11 +45,11 @@ mlir::LogicalResult SetMemorySpacePass::initialize(mlir::MLIRContext* ctx) {
     }
 
     const auto maybeMemKind = _memKindCb(memSpaceName.getValue());
-    if (!maybeMemKind.hasValue()) {
+    if (!maybeMemKind.has_value()) {
         return mlir::failure();
     }
 
-    _memKind = maybeMemKind.getValue();
+    _memKind = maybeMemKind.value();
     return mlir::success();
 }
 
@@ -140,8 +140,7 @@ void SetMemorySpacePass::safeRunOnFunc() {
             if (operandMemSpaceAttr == nullptr) {
                 return false;
             }
-            const auto operandMemSpace =
-                    VPU::symbolizeEnum<VPU::MemoryKind>(operandMemSpaceAttr.getLeafName()).getValue();
+            const auto operandMemSpace = VPU::symbolizeEnum<VPU::MemoryKind>(operandMemSpaceAttr.getLeafName()).value();
             return operandMemSpace == _memKind;
         });
         if (!isMemSpaceSet) {

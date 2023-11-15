@@ -30,6 +30,7 @@ void buildRaceConditionDMATest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
     auto input = testDesc.getInputLayerList().front();
     auto output = testDesc.getOutputLayers().front();
     auto iterationCount = testDesc.getIterationCount();
+    const auto numClusters = testDesc.getNumClusters();
 
     SmallVector<int64_t> inShape(input.shape.begin(), input.shape.end());
     SmallVector<int64_t> outShape(output.shape.begin(), output.shape.end());
@@ -37,14 +38,15 @@ void buildRaceConditionDMATest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
     VPUX_THROW_UNLESS(!inShape.empty(), "buildRaceConditionDMATest: Got empty inputShape");
     VPUX_THROW_UNLESS(!outShape.empty(), "buildRaceConditionDMATest: Got empty outputShape");
 
-    const auto OUTPUT_0_CMX_OFFSET = 0;
-    const auto OUTPUT_1_CMX_OFFSET = 0;
-
     const auto inType = getMemRefType(VPURT::BufferSection::NetworkInput, inShape, inputType, DimsOrder::NHWC);
     const auto outType = getMemRefType(VPURT::BufferSection::NetworkOutput, outShape, outputType, DimsOrder::NHWC);
 
-    const auto funcType = builder.getFunctionType(makeArrayRef(std::vector<mlir::Type>{inType, outType, outType}),
-                                                  makeArrayRef(std::vector<mlir::Type>{outType, outType}));
+    SmallVector<mlir::Type> inputTypes(numClusters, outType);
+    inputTypes.insert(inputTypes.begin(), inType);
+
+    SmallVector<mlir::Type> outputTypes(numClusters, outType);
+
+    const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), makeArrayRef(outputTypes));
 
     auto func =
             builder.create<mlir::func::FuncOp>(loc, printToString("race_condition_dma_{0}_{1}", inputType, outputType),
@@ -53,56 +55,67 @@ void buildRaceConditionDMATest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
     auto funcBuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());
 
     const auto funcInput = func.getArgument(0);
-    const auto funcOutput_0 = func.getArgument(1);
-    const auto funcOutput_1 = func.getArgument(2);
+    SmallVector<mlir::BlockArgument> funcOutputs;
 
-    const auto outputCMXType0 = getMemRefType(VPURT::BufferSection::CMX_NN, 0, outShape, outputType, DimsOrder::NHWC);
-    auto output_0 = funcBuilder.create<VPURT::DeclareBufferOp>(loc, outputCMXType0, VPURT::BufferSection::CMX_NN, 0,
-                                                               OUTPUT_0_CMX_OFFSET);
+    for (std::size_t idx = 1; idx <= numClusters; ++idx) {
+        funcOutputs.push_back(func.getArgument(idx));
+    }
 
-    const auto outputCMXType1 = getMemRefType(VPURT::BufferSection::CMX_NN, 1, outShape, outputType, DimsOrder::NHWC);
-    auto output_1 = funcBuilder.create<VPURT::DeclareBufferOp>(loc, outputCMXType1, VPURT::BufferSection::CMX_NN, 1,
-                                                               OUTPUT_1_CMX_OFFSET);
+    SmallVector<mlir::MemRefType> outputCMXTypes;
+    SmallVector<VPURT::DeclareBufferOp> outputs;
+
+    for (std::size_t idx = 0; idx < numClusters; ++idx) {
+        outputCMXTypes.push_back(
+                getMemRefType(VPURT::BufferSection::CMX_NN, idx, outShape, outputType, DimsOrder::NHWC));
+        outputs.push_back(funcBuilder.create<VPURT::DeclareBufferOp>(
+                loc, outputCMXTypes[idx], VPURT::BufferSection::CMX_NN, idx, /*byteOffset=*/0));
+    }
 
     VPURT::ConfigureBarrierOp lastBarrier;
     for (std::size_t i = 0; i < iterationCount; ++i) {
         auto updateBarrier = funcBuilder.create<VPURT::ConfigureBarrierOp>(loc, i);
-        vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
-                funcBuilder, i == 0 ? mlir::ValueRange() : mlir::ValueRange(lastBarrier.barrier()),
-                mlir::ValueRange(updateBarrier.barrier()), loc, funcInput, output_0.getOperation()->getResult(0), 0);
 
-        vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
-                funcBuilder, i == 0 ? mlir::ValueRange() : mlir::ValueRange(lastBarrier.barrier()),
-                mlir::ValueRange(updateBarrier.barrier()), loc, funcInput, output_1.getOperation()->getResult(0),
-                1);
+        for (std::size_t clusterIdx = 0; clusterIdx < numClusters; clusterIdx += 2) {
+            vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
+                    funcBuilder, i == 0 ? mlir::ValueRange() : mlir::ValueRange(lastBarrier.getBarrier()),
+                    mlir::ValueRange(updateBarrier.getBarrier()), loc, funcInput,
+                    outputs[clusterIdx].getOperation()->getResult(0), 0);
 
+            vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
+                    funcBuilder, i == 0 ? mlir::ValueRange() : mlir::ValueRange(lastBarrier.getBarrier()),
+                    mlir::ValueRange(updateBarrier.getBarrier()), loc, funcInput,
+                    outputs[clusterIdx + 1].getOperation()->getResult(0), 1);
+        }
         lastBarrier = updateBarrier;
     }
 
-    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(lastBarrier.barrier()),
-                                                mlir::ValueRange(), loc, output_0.getOperation()->getResult(0),
-                                                funcOutput_0, 0);
+    for (std::size_t clusterIdx = 0; clusterIdx < numClusters; clusterIdx += 2) {
+        vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
+                funcBuilder, mlir::ValueRange(lastBarrier.getBarrier()), mlir::ValueRange(), loc,
+                outputs[clusterIdx].getOperation()->getResult(0), funcOutputs[clusterIdx], 0);
+        if (clusterIdx + 1 < numClusters) {
+            vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
+                    funcBuilder, mlir::ValueRange(lastBarrier.getBarrier()), mlir::ValueRange(), loc,
+                    outputs[clusterIdx].getOperation()->getResult(0), funcOutputs[clusterIdx + 1], 1);
+        }
+    }
 
-    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(lastBarrier.barrier()),
-                                                mlir::ValueRange(), loc, output_1.getOperation()->getResult(0),
-                                                funcOutput_1,
-                                                1);
-
-    funcBuilder.create<mlir::func::ReturnOp>(loc, mlir::ValueRange{funcOutput_0, funcOutput_1});
+    auto outputsRef = makeArrayRef(funcOutputs);
+    funcBuilder.create<mlir::func::ReturnOp>(loc, mlir::ValueRange(outputsRef));
 
     // set runtime resources
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    Optional<int> numTiles = None;
 
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, numTiles, None,
-                                           None, log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW,
+                                           /*numOfDPUGroups=*/numClusters, None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 
+    SmallVector<mlir::Type> userOutputs(numClusters,
+                                        getTensorType(ShapeRef(outShape), outputType, DimsOrder::NHWC, nullptr));
     // IE.CNNNetwork
     buildCNNOp(builder, func.getName(), {getTensorType(ShapeRef(inShape), inputType, DimsOrder::NHWC, nullptr)},
-               {getTensorType(ShapeRef(outShape), outputType, DimsOrder::NHWC, nullptr),
-                getTensorType(ShapeRef(outShape), outputType, DimsOrder::NHWC, nullptr)});
+               makeArrayRef(userOutputs));
 }
 
 }  // namespace hwtest

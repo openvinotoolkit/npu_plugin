@@ -19,7 +19,7 @@ mlir::LogicalResult vpux::IE::ReadValueOp::inferReturnTypeComponents(
     }
 
     const auto rankedInType = readValue.input().getType().cast<mlir::RankedTensorType>();
-    const auto outDesc = IE::getTensorAttr(rankedInType);
+    const auto outDesc = vpux::getTensorAttr(rankedInType);
     inferredReturnShapes.emplace_back(rankedInType.getShape(), rankedInType.getElementType(), outDesc);
 
     return mlir::success();

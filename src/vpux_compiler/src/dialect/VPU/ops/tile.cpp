@@ -51,9 +51,7 @@ mlir::LogicalResult vpux::VPU::TileOp::inferReturnTypes(mlir::MLIRContext* ctx, 
     }
 
     const auto inType = tile.input().getType().cast<vpux::NDTypeInterface>();
-    auto repeats_vector = parseIntArrayAttr<int64_t>(tile.repeats_values());
-
-    auto outShape = calcTileOutputShape(tile.input(), repeats_vector);
+    auto outShape = calcTileOutputShape(tile.input(), parseIntArrayAttr<int64_t>(tile.repeats_values()));
 
     const auto outType = inType.changeShape(Shape(outShape));
     inferredReturnTypes.push_back(outType);
@@ -113,9 +111,8 @@ vpux::InputTiling vpux::VPU::TileOp::backInferTileInfo(const vpux::TileInfo& out
         suggested_offS.insert(suggested_offS.end(), tiled_output_offsets[i] % original_input_shape[i]);
         suggested_axis.insert(suggested_axis.end(), tiled_output_axis[i]);
     }
-    TileInfo suggestedInput(suggested_new_input_shape, suggested_offS, suggested_axis);
 
-    return TilingInfo{{suggestedInput}};
+    return TilingInfo{{TileInfo(suggested_new_input_shape, suggested_offS, suggested_axis)}};
 }
 
 void vpux::VPU::TileOp::adjustAttrs(const TilingInfo& inputTiling, const TileInfo& outputTile) {
@@ -133,7 +130,7 @@ void vpux::VPU::TileOp::adjustAttrs(const TilingInfo& inputTiling, const TileInf
     repeats_valuesAttr(newRepeatsAttr);
 }
 
-OutputTiling vpux::VPU::TileOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
+mlir::FailureOr<OutputTiling> vpux::VPU::TileOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
     auto op = this->getOperation();
     VPUX_THROW_WHEN(tilingMode != TilingMode::ISOLATED,
                     "Only supporting isolated tiling for SW currently, for op {0} at '{1}'", op->getName(),
@@ -162,7 +159,10 @@ OutputTiling vpux::VPU::TileOp::getTilingStrategy(TilingMode tilingMode, Logger 
     const auto isSupportedTileSize = [op, &tilingInfo, outputShape, log](ShapeRef nTilesOnDim,
                                                                          TilingMode tilingMode) -> bool {
         const auto tiles = fillDividedTiles(op, nTilesOnDim, outputShape);
-        return tilingInfo.isSupportedTiling(tiles, tilingMode, log);
+        if (mlir::failed(tiles)) {
+            return false;
+        }
+        return tilingInfo.isSupportedTiling(tiles.value(), tilingMode, log);
     };
 
     const auto& maxNumTiles = tilingBuilder.getMaxNumTiles();

@@ -36,7 +36,7 @@ void DMATaskProfilingReserveMemPass::safeRunOnModule() {
     VPUX_THROW_UNLESS((VPUIP::HW_DMA_PROFILING_MAX_BUFFER_SIZE % dmaPortCount) == 0,
                       "Reserved memory for DMA profiling cannot be equally split between ports");
 
-    auto memSpaceAttr = mlir::SymbolRefAttr::get(ctx, stringifyEnum(VPU::MemoryKind::CMX_NN));
+    auto memSpaceAttr = mlir::StringAttr::get(ctx, stringifyEnum(VPU::MemoryKind::CMX_NN));
 
     _log.trace("DMA profiling reserved memory - size: '{0}'", VPUIP::HW_DMA_PROFILING_MAX_BUFFER_SIZE);
 

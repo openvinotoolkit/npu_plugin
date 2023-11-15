@@ -242,6 +242,11 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(VPU::NCEPermuteQua
     return verifyEltwiseChannels(origOp->getLoc(), inputType, inputType, log);
 }
 
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(VPU::NCEPermuteOp, Logger) {
+    // VPU.NCE operation guarantees that invariant satisifies channel constraints
+    return mlir::success();
+}
+
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::InterpolateOp origOp, Logger log) {
     log.setName("NCEInvariant");
 
@@ -452,7 +457,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvCMX(mlir::Location
 
 // verifyPipeliningCMX
 
-bool isNestedTiling(vpux::OutputTiling tiling) {
+bool isNestedTiling(const OutputTiling& tiling) {
     return tiling[0].axis[Dims4D::Act::C] > 1 && tiling[0].axis[Dims4D::Act::H] > 1;
 }
 
@@ -477,7 +482,7 @@ vpux::NDTypeInterface getAlignedFilterType(const SmallVector<vpux::NDTypeInterfa
 }
 
 SmallVector<vpux::NDTypeInterface> getRequiredOperandsForPipelining(VPU::ConvolutionOp origOp,
-                                                                    vpux::OutputTiling tiling) {
+                                                                    const OutputTiling& tiling) {
     // The tiling strategy follows last-tile-not-biggest
     // So just check the first two tiles are enough to make sure prefetchable
     auto curTile = tiling[0];
@@ -499,7 +504,7 @@ SmallVector<vpux::NDTypeInterface> getRequiredOperandsForPipelining(VPU::Convolu
 
 template <class ConcreteOp>
 SmallVector<vpux::NDTypeInterface> getRequiredOperandsForPipeliningConvBased(ConcreteOp origOp,
-                                                                             vpux::OutputTiling tiling) {
+                                                                             const OutputTiling& tiling) {
     // The tiling strategy follows last-tile-not-biggest
     // So just check the first two tiles are enough to make sure prefetchable
     auto curTile = tiling[0];
@@ -513,45 +518,45 @@ SmallVector<vpux::NDTypeInterface> getRequiredOperandsForPipeliningConvBased(Con
 }
 
 SmallVector<vpux::NDTypeInterface> getRequiredOperandsForPipelining(VPU::NCEConvolutionOp origOp,
-                                                                    vpux::OutputTiling tiling) {
+                                                                    const OutputTiling& tiling) {
     return getRequiredOperandsForPipeliningConvBased(origOp, tiling);
 }
 
 SmallVector<vpux::NDTypeInterface> getRequiredOperandsForPipelining(VPU::NCEInterpolateOp origOp,
-                                                                    vpux::OutputTiling tiling) {
+                                                                    const OutputTiling& tiling) {
     return getRequiredOperandsForPipeliningConvBased(origOp, tiling);
 }
 
 SmallVector<vpux::NDTypeInterface> getRequiredOperandsForPipelining(VPU::NCECompressConvolutionOp origOp,
-                                                                    vpux::OutputTiling tiling) {
+                                                                    const OutputTiling& tiling) {
     return getRequiredOperandsForPipeliningConvBased(origOp, tiling);
 }
 
 template <class ConcreteOp>
-int64_t getRequiredChannelSizeForPipeliningConvBased(ConcreteOp origOp, vpux::OutputTiling tiling) {
+int64_t getRequiredChannelSizeForPipeliningConvBased(ConcreteOp origOp, const OutputTiling& tiling) {
     auto curFilterShape = getTileTypes(origOp, tiling[0])[1].getShape();
     auto nextFilterShape = getTileTypes(origOp, tiling[1])[1].getShape();
     return curFilterShape[Dims4D::Filter::OC] + nextFilterShape[Dims4D::Filter::OC];
 }
 
-int64_t getRequiredChannelSizeForPipelining(VPU::ConvolutionOp origOp, vpux::OutputTiling tiling) {
+int64_t getRequiredChannelSizeForPipelining(VPU::ConvolutionOp origOp, const OutputTiling& tiling) {
     return getRequiredChannelSizeForPipeliningConvBased(origOp, tiling);
 }
 
-int64_t getRequiredChannelSizeForPipelining(VPU::NCEConvolutionOp origOp, vpux::OutputTiling tiling) {
+int64_t getRequiredChannelSizeForPipelining(VPU::NCEConvolutionOp origOp, const OutputTiling& tiling) {
     return getRequiredChannelSizeForPipeliningConvBased(origOp, tiling);
 }
 
-int64_t getRequiredChannelSizeForPipelining(VPU::NCEInterpolateOp origOp, vpux::OutputTiling tiling) {
+int64_t getRequiredChannelSizeForPipelining(VPU::NCEInterpolateOp origOp, const OutputTiling& tiling) {
     return getRequiredChannelSizeForPipeliningConvBased(origOp, tiling);
 }
 
-int64_t getRequiredChannelSizeForPipelining(VPU::NCECompressConvolutionOp origOp, vpux::OutputTiling tiling) {
+int64_t getRequiredChannelSizeForPipelining(VPU::NCECompressConvolutionOp origOp, const OutputTiling& tiling) {
     return getRequiredChannelSizeForPipeliningConvBased(origOp, tiling);
 }
 
 template <class ConcreteOp>
-mlir::LogicalResult verifyPipeliningCMXConvBased(ConcreteOp origOp, vpux::OutputTiling tiling, Logger log) {
+mlir::LogicalResult verifyPipeliningCMXConvBased(ConcreteOp origOp, const OutputTiling& tiling, Logger log) {
     log.setName("NCEInvariant");
     if (tiling.size() <= 1) {
         return mlir::failure();
@@ -578,8 +583,8 @@ mlir::LogicalResult verifyPipeliningCMXConvBased(ConcreteOp origOp, vpux::Output
     return mlir::success();
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::ConvolutionOp origOp, vpux::OutputTiling tiling,
-                                                                   Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::ConvolutionOp origOp,
+                                                                   const OutputTiling& tiling, Logger log) {
     log.setName("NCEInvariant");
     if (tiling.size() <= 1) {
         return mlir::failure();
@@ -606,21 +611,21 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::Convolut
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::NCEConvolutionOp origOp,
-                                                                   vpux::OutputTiling tiling, Logger log) {
+                                                                   const OutputTiling& tiling, Logger log) {
     return verifyPipeliningCMXConvBased(origOp, tiling, log);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::NCEInterpolateOp origOp,
-                                                                   vpux::OutputTiling tiling, Logger log) {
+                                                                   const OutputTiling& tiling, Logger log) {
     return verifyPipeliningCMXConvBased(origOp, tiling, log);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::NCECompressConvolutionOp origOp,
-                                                                   vpux::OutputTiling tiling, Logger log) {
+                                                                   const OutputTiling& tiling, Logger log) {
     return verifyPipeliningCMXConvBased(origOp, tiling, log);
 }
 
-SmallVector<vpux::NDTypeInterface> getRequiredOperandsForPipelining(VPU::MaxPoolOp origOp, vpux::OutputTiling tiling) {
+SmallVector<vpux::NDTypeInterface> getRequiredOperandsForPipelining(VPU::MaxPoolOp origOp, const OutputTiling& tiling) {
     // The tiling strategy follows last-tile-not-biggest
     // So just check the first two tiles are enough to make sure prefetchable
     auto curTile = tiling[0];
@@ -633,7 +638,7 @@ SmallVector<vpux::NDTypeInterface> getRequiredOperandsForPipelining(VPU::MaxPool
 }
 
 SmallVector<vpux::NDTypeInterface> getRequiredOperandsForPipelining(VPU::NCEMaxPoolOp origOp,
-                                                                    vpux::OutputTiling tiling) {
+                                                                    const OutputTiling& tiling) {
     // The tiling strategy follows last-tile-not-biggest
     // So just check the first two tiles are enough to make sure prefetchable
     auto curTile = tiling[0];
@@ -645,7 +650,7 @@ SmallVector<vpux::NDTypeInterface> getRequiredOperandsForPipelining(VPU::NCEMaxP
 }
 
 SmallVector<vpux::NDTypeInterface> getRequiredOperandsForPipelining(VPU::NCEAveragePoolOp origOp,
-                                                                    vpux::OutputTiling tiling) {
+                                                                    const OutputTiling& tiling) {
     // The tiling strategy follows last-tile-not-biggest
     // So just check the first two tiles are enough to make sure prefetchable
     auto curTile = tiling[0];
@@ -656,19 +661,19 @@ SmallVector<vpux::NDTypeInterface> getRequiredOperandsForPipelining(VPU::NCEAver
     return {curTileTypes[0], curTileTypes[1], nextTileTypes[0]};
 }
 
-int64_t getRequiredChannelSizeForPipelining(VPU::MaxPoolOp origOp, vpux::OutputTiling tiling) {
+int64_t getRequiredChannelSizeForPipelining(VPU::MaxPoolOp origOp, const OutputTiling& tiling) {
     auto curInputShape = VPU::getTileTypes(origOp, tiling[0])[0].getShape();
     auto nextInputShape = VPU::getTileTypes(origOp, tiling[1])[0].getShape();
     return curInputShape[Dims4D::Act::C] + nextInputShape[Dims4D::Act::C];
 }
 
-int64_t getRequiredChannelSizeForPipelining(VPU::NCEMaxPoolOp origOp, vpux::OutputTiling tiling) {
+int64_t getRequiredChannelSizeForPipelining(VPU::NCEMaxPoolOp origOp, const OutputTiling& tiling) {
     auto curInputShape = VPU::getTileTypes(origOp, tiling[0])[0].getShape();
     auto nextInputShape = VPU::getTileTypes(origOp, tiling[1])[0].getShape();
     return curInputShape[Dims4D::Act::C] + nextInputShape[Dims4D::Act::C];
 }
 
-int64_t getRequiredChannelSizeForPipelining(VPU::NCEAveragePoolOp origOp, vpux::OutputTiling tiling) {
+int64_t getRequiredChannelSizeForPipelining(VPU::NCEAveragePoolOp origOp, const OutputTiling& tiling) {
     auto curInputShape = VPU::getTileTypes(origOp, tiling[0])[0].getShape();
     auto nextInputShape = VPU::getTileTypes(origOp, tiling[1])[0].getShape();
     return curInputShape[Dims4D::Act::C] + nextInputShape[Dims4D::Act::C];
@@ -698,7 +703,7 @@ Byte getRequiredActWindowForPipelining(VPU::NCEMaxPoolOp origOp) {
     return Byte(activationWindowSizePerTile * 2);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::MaxPoolOp origOp, vpux::OutputTiling tiling,
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::MaxPoolOp origOp, const OutputTiling& tiling,
                                                                    Logger log) {
     log.setName("NCEInvariant");
     if (tiling.size() <= 1) {
@@ -725,7 +730,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::MaxPoolO
     return mlir::success();
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::NCEMaxPoolOp origOp, vpux::OutputTiling tiling,
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::NCEMaxPoolOp origOp, const OutputTiling& tiling,
                                                                    Logger log) {
     log.setName("NCEInvariant");
     if (tiling.size() <= 1) {
@@ -755,7 +760,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::NCEMaxPo
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::NCEAveragePoolOp origOp,
-                                                                   vpux::OutputTiling tiling, Logger log) {
+                                                                   const OutputTiling& tiling, Logger log) {
     log.setName("NCEInvariant");
     if (tiling.size() <= 1) {
         return mlir::failure();
@@ -782,7 +787,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::NCEAvera
 }
 
 SmallVector<vpux::NDTypeInterface> getRequiredOperandsForPipelining(VPU::GroupConvolutionOp origOp,
-                                                                    vpux::OutputTiling tiling) {
+                                                                    const OutputTiling& tiling) {
     // The tiling strategy follows last-tile-not-biggest
     // So just check the first two tiles are enough to make sure prefetchable
     auto curTile = tiling[0];
@@ -802,7 +807,7 @@ SmallVector<vpux::NDTypeInterface> getRequiredOperandsForPipelining(VPU::GroupCo
 }
 
 SmallVector<vpux::NDTypeInterface> getRequiredOperandsForPipelining(VPU::NCEDepthConvolutionOp origOp,
-                                                                    vpux::OutputTiling tiling) {
+                                                                    const OutputTiling& tiling) {
     // The tiling strategy follows last-tile-not-biggest
     // So just check the first two tiles are enough to make sure prefetchable
     auto curTile = tiling[0];
@@ -815,13 +820,13 @@ SmallVector<vpux::NDTypeInterface> getRequiredOperandsForPipelining(VPU::NCEDept
     return {curTileTypes[0], curTileTypes[1], curTileTypes[2], isWeightPrefetch ? nextTileTypes[1] : nextTileTypes[0]};
 }
 
-int64_t getRequiredChannelSizeForPipelining(VPU::GroupConvolutionOp origOp, vpux::OutputTiling tiling) {
+int64_t getRequiredChannelSizeForPipelining(VPU::GroupConvolutionOp origOp, const OutputTiling& tiling) {
     auto curFilterShape = VPU::getTileTypes(origOp, tiling[0])[1].getShape();
     auto nextFilterShape = VPU::getTileTypes(origOp, tiling[1])[1].getShape();
     return curFilterShape[Dims4D::Filter::OC] + nextFilterShape[Dims4D::Filter::OC];
 }
 
-int64_t getRequiredChannelSizeForPipelining(VPU::NCEDepthConvolutionOp origOp, vpux::OutputTiling tiling) {
+int64_t getRequiredChannelSizeForPipelining(VPU::NCEDepthConvolutionOp origOp, const OutputTiling& tiling) {
     auto curFilterShape = VPU::getTileTypes(origOp, tiling[0])[1].getShape();
     auto nextFilterShape = VPU::getTileTypes(origOp, tiling[1])[1].getShape();
     return curFilterShape[Dims4D::Filter::OC] + nextFilterShape[Dims4D::Filter::OC];
@@ -856,7 +861,7 @@ Byte getRequiredActWindowForPipelining(VPU::NCEDepthConvolutionOp origOp) {
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::GroupConvolutionOp origOp,
-                                                                   vpux::OutputTiling tiling, Logger log) {
+                                                                   const OutputTiling& tiling, Logger log) {
     log.setName("NCEInvariant");
     if (tiling.size() <= 1) {
         return mlir::failure();
@@ -883,7 +888,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::GroupCon
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::NCEDepthConvolutionOp origOp,
-                                                                   vpux::OutputTiling tiling, Logger log) {
+                                                                   const OutputTiling& tiling, Logger log) {
     log.setName("NCEInvariant");
     if (tiling.size() <= 1) {
         return mlir::failure();
@@ -913,7 +918,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::NCEDepth
 // verifyEltwisePipeliningCMX
 //
 
-SmallVector<vpux::NDTypeInterface> getRequiredOperandsForPipelining(mlir::Operation* op, vpux::OutputTiling tiling) {
+SmallVector<vpux::NDTypeInterface> getRequiredOperandsForPipelining(mlir::Operation* op, const OutputTiling& tiling) {
     // The tiling strategy follows last-tile-not-biggest
     // So just check the first two tiles are enough to make sure prefetchable
     auto curTile = tiling[0];
@@ -927,7 +932,7 @@ SmallVector<vpux::NDTypeInterface> getRequiredOperandsForPipelining(mlir::Operat
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyEltwisePipeliningCMX(mlir::Operation* op,
-                                                                          vpux::OutputTiling tiling, Logger log) {
+                                                                          const OutputTiling& tiling, Logger log) {
     log.setName("NCEInvariant");
     if (tiling.size() <= 1) {
         return mlir::failure();
@@ -951,27 +956,27 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyEltwisePipeliningCMX(mlir::
     return mlir::success();
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::AddOp origOp, vpux::OutputTiling tiling,
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::AddOp origOp, const OutputTiling& tiling,
                                                                    Logger log) {
     return verifyEltwisePipeliningCMX(origOp.getOperation(), tiling, log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::MultiplyOp origOp, vpux::OutputTiling tiling,
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::MultiplyOp origOp, const OutputTiling& tiling,
                                                                    Logger log) {
     return verifyEltwisePipeliningCMX(origOp.getOperation(), tiling, log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::SubtractOp origOp, vpux::OutputTiling tiling,
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::SubtractOp origOp, const OutputTiling& tiling,
                                                                    Logger log) {
     return verifyEltwisePipeliningCMX(origOp.getOperation(), tiling, log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::AndOp origOp, vpux::OutputTiling tiling,
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::AndOp origOp, const OutputTiling& tiling,
                                                                    Logger log) {
     return verifyEltwisePipeliningCMX(origOp.getOperation(), tiling, log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::NCEEltwiseOp origOp, vpux::OutputTiling tiling,
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::NCEEltwiseOp origOp, const OutputTiling& tiling,
                                                                    Logger log) {
     return verifyEltwisePipeliningCMX(origOp.getOperation(), tiling, log);
 }
@@ -980,9 +985,9 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPipeliningCMX(VPU::NCEEltwi
 // verifyPrefetchCMX
 //
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(mlir::Operation* op, vpux::OutputTiling tiling,
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(mlir::Operation* op, const OutputTiling& tiling,
                                                                  mlir::Operation* parentOp,
-                                                                 vpux::OutputTiling parentTiling, Logger log) {
+                                                                 const vpux::OutputTiling& parentTiling, Logger log) {
     log.setName("NCEInvariant");
     if (tiling.size() < 1 || parentTiling.size() < 1) {
         return mlir::failure();
@@ -1312,11 +1317,11 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::GroupConvolution
     const auto KY = filterShape[Dims4D::Filter::KY];
     const auto KX = filterShape[Dims4D::Filter::KX];
 
-    if (!origOp.groups().hasValue()) {
+    if (!origOp.groups().has_value()) {
         log.trace("[{0}] Grouped convolution does not have groups", origOp->getLoc());
         return mlir::failure();
     }
-    if (origOp.groups().getValue() != OC) {
+    if (origOp.groups().value() != OC) {
         log.trace("[{0}] Unsupported group size: '{1}' expected '{2}'", origOp->getLoc(), origOp.groups(), OC);
         return mlir::failure();
     }
@@ -1357,6 +1362,11 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(VPU::NCEPermuteQuant
     return mlir::success();
 }
 
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(VPU::NCEPermuteOp, Logger) {
+    // VPU.NCE.PermuteQuantize is transformed into NCE task with 1x1 kernel.
+    return mlir::success();
+}
+
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(mlir::Operation* op, Logger) {
     return llvm::TypeSwitch<mlir::Operation*, mlir::LogicalResult>(op)
             .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp origOp) {
@@ -1389,52 +1399,4 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(mlir::Operation* op,
             .Default([](mlir::Operation*) -> mlir::LogicalResult {
                 return mlir::failure();
             });
-}
-
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::isSupported(mlir::Operation* op, Logger) {
-    const bool checkLayout = false;
-    const bool checkChannelAlignment = false;
-    const bool allowDifferentScales = true;
-    const bool allowDifferentZp = true;
-
-    return mlir::success(
-            llvm::TypeSwitch<mlir::Operation*, bool>(op)
-                    .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp origOp) {
-                        return VPU::NCEConvolutionOp::isSupported(origOp, emptyLogCb, checkLayout,
-                                                                  checkChannelAlignment);
-                    })
-                    .Case<IE::MaxPoolOp>([&](IE::MaxPoolOp origOp) {
-                        return VPU::NCEMaxPoolOp::isSupported(origOp, emptyLogCb, checkLayout, checkChannelAlignment);
-                    })
-                    .Case<IE::AvgPoolOp>([&](IE::AvgPoolOp origOp) {
-                        return VPU::NCEAveragePoolOp::isSupported(origOp, emptyLogCb, checkLayout,
-                                                                  checkChannelAlignment);
-                    })
-                    .Case<IE::AddOp>([&](IE::AddOp origOp) {
-                        return VPU::NCEEltwiseOp::isSupported(origOp, allowDifferentScales, allowDifferentZp,
-                                                              emptyLogCb, checkLayout, checkChannelAlignment);
-                    })
-                    .Case<IE::MultiplyOp>([&](IE::MultiplyOp origOp) {
-                        return VPU::NCEEltwiseOp::isSupported(origOp, allowDifferentScales, allowDifferentZp,
-                                                              emptyLogCb, checkLayout, checkChannelAlignment);
-                    })
-                    .Case<IE::SubtractOp>([&](IE::SubtractOp origOp) {
-                        return VPU::NCEEltwiseOp::isSupported(origOp, allowDifferentScales, allowDifferentZp,
-                                                              emptyLogCb, checkLayout, checkChannelAlignment);
-                    })
-                    .Case<IE::AndOp>([&](IE::AndOp origOp) {
-                        return VPU::NCEEltwiseOp::isSupported(origOp, allowDifferentScales, allowDifferentZp,
-                                                              emptyLogCb, checkLayout, checkChannelAlignment);
-                    })
-                    .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp origOp) {
-                        return VPU::NCEDepthConvolutionOp::isSupported(origOp, emptyLogCb, checkLayout,
-                                                                       checkChannelAlignment);
-                    })
-                    .Case<IE::InterpolateOp>([&](IE::InterpolateOp origOp) {
-                        return VPU::NCEInterpolateOp::isSupported(origOp, emptyLogCb, checkLayout,
-                                                                  checkChannelAlignment);
-                    })
-                    .Default([](mlir::Operation*) -> bool {
-                        return false;
-                    }));
 }

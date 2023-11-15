@@ -25,6 +25,11 @@ mlir::FailureOr<SmallVector<int64_t>> constInputToData(mlir::Location loc, const
 
 mlir::FailureOr<Shape> getShapeCastExpandedShape(mlir::Operation* operation, ShapeRef expandedShape,
                                                  ShapeRef unExpandedShape, Logger log);
+mlir::FailureOr<Shape> getShapeCastExpandedShapeInDimC(mlir::Operation* operation, ShapeRef originShape, Logger log);
+mlir::FailureOr<Shape> getShapeCastExpandedShapeKeepDimC(mlir::Operation* operation, ShapeRef originShape, Logger log);
+
+mlir::FailureOr<Shape> getShapeCastExpandedShapeCanNotAlign(mlir::Operation* operation, ShapeRef inputShape,
+                                                            Logger log);
 
 bool isShapeCompatibleWithODUPermute(const ShapeRef shape, const int64_t alignment);
 bool isODUPermuteEffectiveForShape(const ShapeRef shape, const int64_t alignment);

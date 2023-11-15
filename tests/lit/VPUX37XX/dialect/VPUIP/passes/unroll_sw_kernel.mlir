@@ -19,10 +19,10 @@ func.func @UnrollSwKernel()
 
     %0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     %1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    %2 = VPURT.DeclareBuffer "CMX_NN" [0] <663616> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
-    %3 = VPURT.DeclareBuffer "CMX_NN" [0] <925760> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
-    %4 = VPURT.DeclareBuffer "CMX_NN" [0] <1187904> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
-    %5 = VPURT.DeclareBuffer "CMX_NN" [0] <1450048> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
+    %2 = VPURT.DeclareBuffer <CMX_NN> [0] <663616> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
+    %3 = VPURT.DeclareBuffer <CMX_NN> [0] <925760> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
+    %4 = VPURT.DeclareBuffer <CMX_NN> [0] <1187904> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
+    %5 = VPURT.DeclareBuffer <CMX_NN> [0] <1450048> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
 
     VPURT.Task waits(%0 : !VPURT.Barrier) updates(%1 : !VPURT.Barrier) attributes {cycleBegin = 0 : i64, cycleEnd = 1000 : i64, isTrailingSWLayer = false} {
         %results:2 = VPUIP.SW.Kernel {result_segment_sizes = dense<[2, 0]> : vector<2xi32>} @VPU.SW::@builtin_MVN inputs(%2 as %arg0: memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>, %4 as %arg1: memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>) outputs(%3 as %arg2: memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>, %5 as %arg3: memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>) on tile 0 -> (memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>, memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>){
@@ -35,10 +35,10 @@ func.func @UnrollSwKernel()
 
     // CHECK:   [[BAR0:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     // CHECK:   [[BAR1:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    // CHECK:   [[TILE0:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <663616> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
-    // CHECK:   [[OUTPUT0:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <925760> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
-    // CHECK:   [[TILE1:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <1187904> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
-    // CHECK:   [[OUTPUT1:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <1450048> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
+    // CHECK:   [[TILE0:%.*]] = VPURT.DeclareBuffer <CMX_NN> [0] <663616> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
+    // CHECK:   [[OUTPUT0:%.*]] = VPURT.DeclareBuffer <CMX_NN> [0] <925760> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
+    // CHECK:   [[TILE1:%.*]] = VPURT.DeclareBuffer <CMX_NN> [0] <1187904> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
+    // CHECK:   [[OUTPUT1:%.*]] = VPURT.DeclareBuffer <CMX_NN> [0] <1450048> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
     // CHECK:   VPURT.Task waits([[BAR0]] : !VPURT.Barrier) updates([[BAR1]] : !VPURT.Barrier) attributes {cycleBegin = 0 : i64, cycleEnd = 1000 : i64, isTrailingSWLayer = false} {
     // CHECK:           VPUIP.SW.Kernel {result_segment_sizes = dense<[1, 0]> : vector<2xi32>} @VPU.SW::@builtin_MVN inputs([[TILE0]] as %arg0: memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>) outputs([[OUTPUT0]] as %arg1: memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>) on tile 0 -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>{
     // CHECK:                    VPUIP.SW.Kernel.run {attrs = [false, true, 6.0892105102539063E-4]}(%arg0, %arg1) : memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>, memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
@@ -66,10 +66,10 @@ func.func @UnrollClusterSwKernel()
 
     %0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     %1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    %2 = VPURT.DeclareBuffer "CMX_NN" [0] <663616> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
-    %3 = VPURT.DeclareBuffer "CMX_NN" [0] <925760> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
-    %4 = VPURT.DeclareBuffer "CMX_NN" [0] <1187904> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
-    %5 = VPURT.DeclareBuffer "CMX_NN" [0] <1450048> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
+    %2 = VPURT.DeclareBuffer <CMX_NN> [0] <663616> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
+    %3 = VPURT.DeclareBuffer <CMX_NN> [0] <925760> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
+    %4 = VPURT.DeclareBuffer <CMX_NN> [0] <1187904> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
+    %5 = VPURT.DeclareBuffer <CMX_NN> [0] <1450048> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
 
     VPURT.Task waits(%0 : !VPURT.Barrier) updates(%1 : !VPURT.Barrier) attributes {cycleBegin = 0 : i64, cycleEnd = 1000 : i64, isTrailingSWLayer = false} {
          %6:2 = VPUIP.NCEClusterTiling inputs(%2 as %arg0: memref<1x64x64x32xf16, #NWHC, @CMX_NN>, %4 as %arg1: memref<1x64x64x32xf16, #NWHC, @CMX_NN>) outputs(%3 as %arg2: memref<1x64x64x32xf16, #NWHC, @CMX_NN>, %5 as %arg3: memref<1x64x64x32xf16, #NWHC, @CMX_NN>) -> (!VPUIP.DistributedBuffer<1x64x64x32xf16, #NWHC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}>, !VPUIP.DistributedBuffer<1x64x64x32xf16, #NWHC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}>) {
@@ -84,10 +84,10 @@ func.func @UnrollClusterSwKernel()
 
     // CHECK:   [[BAR0:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     // CHECK:   [[BAR1:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    // CHECK:   [[TILE0:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <663616> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
-    // CHECK:   [[OUTPUT0:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <925760> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
-    // CHECK:   [[TILE1:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <1187904> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
-    // CHECK:   [[OUTPUT1:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <1450048> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
+    // CHECK:   [[TILE0:%.*]] = VPURT.DeclareBuffer <CMX_NN> [0] <663616> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
+    // CHECK:   [[OUTPUT0:%.*]] = VPURT.DeclareBuffer <CMX_NN> [0] <925760> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
+    // CHECK:   [[TILE1:%.*]] = VPURT.DeclareBuffer <CMX_NN> [0] <1187904> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
+    // CHECK:   [[OUTPUT1:%.*]] = VPURT.DeclareBuffer <CMX_NN> [0] <1450048> -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>
     // CHECK:   VPURT.Task waits([[BAR0]] : !VPURT.Barrier) updates([[BAR1]] : !VPURT.Barrier) attributes {cycleBegin = 0 : i64, cycleEnd = 1000 : i64, isTrailingSWLayer = false} {
     // CHECK:       VPUIP.NCEClusterTiling inputs([[TILE0]] as %arg0: memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>) outputs([[OUTPUT0]] as %arg1: memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>) -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]> {
     // CHECK{LITERAL}:              VPUIP.SW.Kernel {result_segment_sizes = dense<[1, 0]> : vector<2xi32>} @VPU.SW::@builtin_MVN inputs(%arg0 as %arg2: memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>) outputs(%arg1 as %arg3: memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>) strides([[131072, 1, 64, 2048], [131072, 1, 64, 2048]]) on tile 0 -> memref<1x64x64x32xf16, #NWHC, [@CMX_NN, 0]>{

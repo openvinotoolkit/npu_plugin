@@ -5,8 +5,6 @@
 
 #pragma once
 
-#include "vpux/compiler/dialect/EMU/graph-schema/blob_writer.hpp"
-
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/OpImplementation.h>
 #include <mlir/IR/Operation.h>
@@ -41,4 +39,4 @@ enum class DotNodeColor { NONE, RED, GREEN, ORANGE, BLUE, AQUA, AQUAMARINE };
 // Generated
 //
 
-#include <vpux/compiler/core/generated/ops_interfaces.hpp.inc>
+#include <vpux/compiler/core/ops_interfaces.hpp.inc>

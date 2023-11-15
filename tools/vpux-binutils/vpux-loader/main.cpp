@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/FormatVariadic.h>
 
@@ -12,6 +10,11 @@
 #include <vpux_elf/types/symbol_entry.hpp>
 #include <vpux_elf/utils/error.hpp>
 #include <vpux_loader/vpux_loader.hpp>
+
+#include <vpux_elf/types/vpu_extensions.hpp>
+#include <vpux_headers/array_ref.hpp>
+#include <vpux_headers/buffer_specs.hpp>
+#include <vpux_headers/device_buffer.hpp>
 
 #include <cstdint>
 #include <ctime>
@@ -72,13 +75,15 @@ public:
     FlatHexBufferManager(uint32_t startAddr, size_t size)
             : m_startAddr(startAddr), m_totalSize(size), m_buffer(new uint8_t[m_totalSize]), m_tracker(m_buffer) {
     }
+    FlatHexBufferManager(const FlatHexBufferManager&) = delete;
+    FlatHexBufferManager& operator=(const FlatHexBufferManager&) = delete;
 
     DeviceBuffer allocate(const BufferSpecs& buffSpecs) override {
-        VPUX_ELF_LOG(LogLevel::DEBUG, "Allocation request --> size %lu | alignment %lu | procFlags 0x%lx",
+        VPUX_ELF_LOG(LogLevel::LOG_DEBUG, "Allocation request --> size %lu | alignment %lu | procFlags 0x%lx",
                      buffSpecs.size, buffSpecs.alignment, buffSpecs.procFlags);
 
         if (!m_buffer) {
-            VPUX_ELF_LOG(LogLevel::ERROR, "Failed to allocate overall buffer of size %lu", buffSpecs.size);
+            VPUX_ELF_LOG(LogLevel::LOG_ERROR, "Failed to allocate overall buffer of size %lu", buffSpecs.size);
             return DeviceBuffer(nullptr, 0, 0);
         }
 
@@ -88,7 +93,7 @@ public:
 
         if (m_tracker >= m_buffer + m_totalSize) {
             VPUX_ELF_LOG(
-                    LogLevel::ERROR,
+                    LogLevel::LOG_ERROR,
                     "Failed to allocate required buff of size %lu alignment %lu . Exceeding total device buffer space",
                     buffSpecs.size, buffSpecs.alignment);
             return DeviceBuffer(nullptr, 0, 0);
@@ -106,7 +111,7 @@ public:
         void* vpu_addr = reinterpret_cast<void*>(devBuffer.vpu_addr());
         size_t len = devBuffer.size();
 
-        VPUX_ELF_LOG(LogLevel::DEBUG, "Locking buffer -> cpu_addr = %p | vpu_addr = %p | size = %lu", cpu_addr,
+        VPUX_ELF_LOG(LogLevel::LOG_DEBUG, "Locking buffer -> cpu_addr = %p | vpu_addr = %p | size = %lu", cpu_addr,
                      vpu_addr, len);
     }
 
@@ -115,7 +120,7 @@ public:
         void* vpu_addr = reinterpret_cast<void*>(devBuffer.vpu_addr());
         size_t len = devBuffer.size();
 
-        VPUX_ELF_LOG(LogLevel::DEBUG, "Unlocking buffer -> cpu_addr = %p | vpu_addr = %p | size = %lu", cpu_addr,
+        VPUX_ELF_LOG(LogLevel::LOG_DEBUG, "Unlocking buffer -> cpu_addr = %p | vpu_addr = %p | size = %lu", cpu_addr,
                      vpu_addr, len);
     }
 
@@ -236,7 +241,7 @@ void allocIO(BufferManager* mngr, std::vector<DeviceBuffer>& ioVec, ArrayRef<Dev
 void setInputs(std::vector<DeviceBuffer>& vec) {
     if (inputSource == InputSource::Files) {
         if (vec.size() != inputFiles.size()) {
-            VPUX_ELF_LOG(LogLevel::ERROR, "Elf has %lu required inputs. Only %lu specified", vec.size(),
+            VPUX_ELF_LOG(LogLevel::LOG_ERROR, "Elf has %lu required inputs. Only %lu specified", vec.size(),
                          inputFiles.size());
             VPUX_ELF_THROW(ArgsError, "Input Parameter mismatch");
         }
@@ -310,7 +315,7 @@ int main(int argc, char* argv[]) {
         llvm::cl::ParseCommandLineOptions(argc, argv);
 
         if (verbose.getValue()) {
-            Logger::setGlobalLevel(LogLevel::DEBUG);
+            Logger::setGlobalLevel(LogLevel::LOG_DEBUG);
         }
 
         std::ifstream inputStream(elfFilePath.data(), std::ios::binary);
@@ -323,7 +328,7 @@ int main(int argc, char* argv[]) {
         HexMappedInferenceEntry* hexEntry = reinterpret_cast<HexMappedInferenceEntry*>(
                 bufferManager.allocate(BufferSpecs(1, sizeof(HexMappedInferenceEntry), SHF_NONE)).cpu_addr());
 
-        ElfDDRAccessManager accessor(reinterpret_cast<const uint8_t*>(elfFile.data()), elfFile.size(), &bufferManager);
+        ElfDDRAccessManager accessor(reinterpret_cast<const uint8_t*>(elfFile.data()), elfFile.size());
 
         VPUXLoader loader(&accessor, &bufferManager, singleClusterSymTab.symTab());
 

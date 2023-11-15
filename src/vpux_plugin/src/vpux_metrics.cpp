@@ -18,12 +18,19 @@ namespace vpux {
 
 Metrics::Metrics(const VPUXBackends::CPtr& backends): _backends(backends) {
     _supportedMetrics = {
-            METRIC_KEY(SUPPORTED_METRICS),          METRIC_KEY(AVAILABLE_DEVICES),
-            METRIC_KEY(FULL_DEVICE_NAME),           METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-            METRIC_KEY(OPTIMIZATION_CAPABILITIES),  METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
-            METRIC_KEY(RANGE_FOR_STREAMS),          METRIC_KEY(IMPORT_EXPORT_SUPPORT),
-            METRIC_KEY(DEVICE_ARCHITECTURE),        ov::caching_properties.name(),
+            METRIC_KEY(SUPPORTED_METRICS),
+            METRIC_KEY(AVAILABLE_DEVICES),
+            METRIC_KEY(FULL_DEVICE_NAME),
+            METRIC_KEY(SUPPORTED_CONFIG_KEYS),
+            METRIC_KEY(OPTIMIZATION_CAPABILITIES),
+            METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
+            METRIC_KEY(RANGE_FOR_STREAMS),
+            METRIC_KEY(IMPORT_EXPORT_SUPPORT),
+            METRIC_KEY(DEVICE_ARCHITECTURE),
+            ov::caching_properties.name(),
+            ov::cache_dir.name(),
             VPUX_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE),
+            VPUX_METRIC_KEY(DRIVER_VERSION),
     };
 
     _supportedConfigKeys = {ov::log::level.name(),
@@ -46,7 +53,11 @@ const std::vector<std::string>& Metrics::SupportedMetrics() const {
 
 std::string Metrics::GetFullDeviceName(const std::string& specifiedDeviceName) const {
     const auto devName = getDeviceName(specifiedDeviceName);
-    return utils::getFullDeviceNameByDeviceName(devName);
+    auto device = _backends->getDevice(devName);
+    if (device) {
+        return device->getFullDeviceName();
+    }
+    IE_THROW() << "No device with name '" << specifiedDeviceName << "' is available";
 }
 
 // TODO each backend may support different configs
@@ -98,6 +109,15 @@ uint64_t Metrics::GetDeviceTotalMemSize(const std::string& specifiedDeviceName) 
     auto device = _backends->getDevice(devName);
     if (device) {
         return device->getTotalMemSize();
+    }
+    IE_THROW() << "No device with name '" << specifiedDeviceName << "' is available";
+}
+
+uint32_t Metrics::GetDriverVersion(const std::string& specifiedDeviceName) const {
+    const auto devName = getDeviceName(specifiedDeviceName);
+    auto device = _backends->getDevice(devName);
+    if (device) {
+        return device->getDriverVersion();
     }
     IE_THROW() << "No device with name '" << specifiedDeviceName << "' is available";
 }

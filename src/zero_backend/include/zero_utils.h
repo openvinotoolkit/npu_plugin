@@ -15,6 +15,7 @@
 
 namespace vpux {
 namespace zeroUtils {
+
 std::string result_to_string(const ze_result_t result);
 
 static inline void throwOnFail(const std::string& step, const ze_result_t result) {
@@ -55,12 +56,18 @@ static inline std::size_t precisionToSize(const ze_graph_argument_precision_t va
         return 32;
     case ZE_GRAPH_ARGUMENT_PRECISION_UINT32:
         return 32;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT64:
+        return 64;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT64:
+        return 64;
     case ZE_GRAPH_ARGUMENT_PRECISION_BF16:
         return 16;
     case ZE_GRAPH_ARGUMENT_PRECISION_FP16:
         return 16;
     case ZE_GRAPH_ARGUMENT_PRECISION_FP32:
         return 32;
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP64:
+        return 64;
     case ZE_GRAPH_ARGUMENT_PRECISION_BIN:
         return 1;
     default:
@@ -86,12 +93,18 @@ static inline ze_graph_argument_precision_t getZePrecision(const InferenceEngine
         return ZE_GRAPH_ARGUMENT_PRECISION_INT32;
     case InferenceEngine::Precision::U32:
         return ZE_GRAPH_ARGUMENT_PRECISION_UINT32;
+    case InferenceEngine::Precision::I64:
+        return ZE_GRAPH_ARGUMENT_PRECISION_INT64;
+    case InferenceEngine::Precision::U64:
+        return ZE_GRAPH_ARGUMENT_PRECISION_UINT64;
     case InferenceEngine::Precision::BF16:
         return ZE_GRAPH_ARGUMENT_PRECISION_BF16;
     case InferenceEngine::Precision::FP16:
         return ZE_GRAPH_ARGUMENT_PRECISION_FP16;
     case InferenceEngine::Precision::FP32:
         return ZE_GRAPH_ARGUMENT_PRECISION_FP32;
+    case InferenceEngine::Precision::FP64:
+        return ZE_GRAPH_ARGUMENT_PRECISION_FP64;
     case InferenceEngine::Precision::BIN:
         return ZE_GRAPH_ARGUMENT_PRECISION_BIN;
     default:
@@ -136,24 +149,45 @@ static inline std::size_t getSizeIOBytes(const ze_graph_argument_properties_t& a
     return size_in_bytes;
 }
 
-template <typename Map>
-auto mapArguments(Map& zero, const std::string& key) -> typename Map::mapped_type& {
-    for (auto& p : zero) {
-        if (std::string::npos != p.first.find(key)) {
-            return p.second;
-        }
-    }
-    IE_THROW() << "mapArguments: fail to map";
-}
+static inline uint32_t findGroupOrdinal(
+        const std::vector<ze_command_queue_group_properties_t>& command_group_properties,
+        const ze_device_properties_t& properties) {
+    auto log = Logger::global().nest("findGroupOrdinal", 0);
 
-template <typename Map>
-auto mapArguments(const Map& zero, const std::string& key) -> const typename Map::mapped_type& {
-    for (auto& p : zero) {
-        if (std::string::npos != p.first.find(key)) {
-            return p.second;
+    if (properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED) {
+        for (uint32_t index = 0; index < command_group_properties.size(); ++index) {
+            const auto& flags = command_group_properties[index].flags;
+            if ((flags & ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE) != 0 &&
+                (flags & ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COPY) == 0) {
+                return index;
+            }
+        }
+
+        // if we don't find a group where only the proper flag is enabled then search for a group where that flag is
+        // enabled
+        for (uint32_t index = 0; index < command_group_properties.size(); ++index) {
+            const auto& flags = command_group_properties[index].flags;
+            if (flags & ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE) {
+                return index;
+            }
+        }
+
+        // if still don't find compute flag, return a warning
+        log.warning("Fail to find a command queue group that contains compute flag, it will be set to 0.");
+        return 0;
+    }
+
+    for (uint32_t index = 0; index < command_group_properties.size(); ++index) {
+        const auto& flags = command_group_properties[index].flags;
+        if ((flags & ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE) != 0 &&
+            (flags & ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COPY) != 0) {
+            return index;
         }
     }
-    IE_THROW() << "mapArguments: fail to map";
+
+    // if still don't find compute and copy flag, return a warning
+    log.warning("Fail to find a command queue group that contains compute and copy flags, it will be set to 0.");
+    return 0;
 }
 
 }  // namespace zeroUtils

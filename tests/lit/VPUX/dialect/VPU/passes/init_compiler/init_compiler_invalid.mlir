@@ -7,7 +7,7 @@
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 // expected-error@+1 {{Architecture is already defined, probably you run '--init-compiler' twice}}
-module @test attributes {VPU.arch = "VPUX30XX"} {
+module @test attributes {VPU.arch = #VPU.arch_kind<VPUX30XX>} {
 }
 
 // -----

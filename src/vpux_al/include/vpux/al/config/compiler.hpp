@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/utils/IE/config.hpp"
@@ -47,7 +45,7 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, InferenceEngine::VPUXConf
 
 #ifdef VPUX_DEVELOPER_BUILD
     static StringRef envVar() {
-        return "IE_VPUX_COMPILER_TYPE";
+        return "IE_NPU_COMPILER_TYPE";
     }
 #endif
 
@@ -81,7 +79,7 @@ struct COMPILATION_MODE final : OptionBase<COMPILATION_MODE, std::string> {
 
 #ifdef VPUX_DEVELOPER_BUILD
     static StringRef envVar() {
-        return "IE_VPUX_COMPILATION_MODE";
+        return "IE_NPU_COMPILATION_MODE";
     }
 #endif
 
@@ -147,27 +145,9 @@ struct DPU_GROUPS final : OptionBase<DPU_GROUPS, int64_t> {
 
 #ifdef VPUX_DEVELOPER_BUILD
     static StringRef envVar() {
-        return "IE_VPUX_DPU_GROUPS";
+        return "IE_NPU_DPU_GROUPS";
     }
 #endif
-};
-
-//
-// DDR_HEAP_SIZE_MB
-//
-
-struct DDR_HEAP_SIZE_MB final : OptionBase<DDR_HEAP_SIZE_MB, int64_t> {
-    static StringRef key() {
-        return ov::intel_vpux::ddr_heap_size_mb.name();
-    }
-
-    static int64_t defaultValue() {
-        return 500;
-    }
-
-    static bool isPublic() {
-        return false;
-    }
 };
 
 //
@@ -197,66 +177,9 @@ struct DMA_ENGINES final : OptionBase<DMA_ENGINES, int64_t> {
 
 #ifdef VPUX_DEVELOPER_BUILD
     static StringRef envVar() {
-        return "IE_VPUX_DMA_ENGINES";
+        return "IE_NPU_DMA_ENGINES";
     }
 #endif
-};
-
-//
-// VPUX_FORCE_HOST_PRECISION_LAYOUT_CONVERSION
-//
-
-struct FORCE_HOST_PRECISION_LAYOUT_CONVERSION final : OptionBase<FORCE_HOST_PRECISION_LAYOUT_CONVERSION, bool> {
-    static StringRef key() {
-        return ov::intel_vpux::force_host_precision_layout_conversion.name();
-    }
-
-#ifdef VPUX_DEVELOPER_BUILD
-    static StringRef envVar() {
-        return "IE_VPUX_VPUX_FORCE_HOST_PRECISION_LAYOUT_CONVERSION";
-    }
-#endif
-
-    static bool defaultValue() {
-        // HACK: This is how we distinguish CCG (Windows) from IOTG (Linux) cases for now.
-#ifdef _WIN32
-        return true;
-#else
-        return false;
-#endif
-    }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
-    }
-};
-
-//
-// FORCE_HOST_QUANTIZATION
-//
-
-struct FORCE_HOST_QUANTIZATION final : OptionBase<FORCE_HOST_QUANTIZATION, bool> {
-    static StringRef key() {
-        return VPU_COMPILER_CONFIG_KEY(FORCE_HOST_QUANTIZATION);
-    }
-
-#ifdef VPUX_DEVELOPER_BUILD
-    static StringRef envVar() {
-        return "IE_VPUX_FORCE_HOST_QUANTIZATION";
-    }
-#endif
-
-    static bool defaultValue() {
-        return false;
-    }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
-    }
-
-    static bool isPublic() {
-        return true;
-    }
 };
 
 //
@@ -271,7 +194,7 @@ struct USE_ELF_COMPILER_BACKEND final :
 
 #ifdef VPUX_DEVELOPER_BUILD
     static StringRef envVar() {
-        return "IE_VPUX_USE_ELF_COMPILER_BACKEND";
+        return "IE_NPU_USE_ELF_COMPILER_BACKEND";
     }
 #endif
 

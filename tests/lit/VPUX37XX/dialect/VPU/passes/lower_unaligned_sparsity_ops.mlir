@@ -13,15 +13,15 @@
 !weightsType = tensor<64x1x1x16xf16, {order = #NHWC}>
 !outputType = tensor<1x64x120x110x!quant.uniform<u8:f16, 2.0>, {order = #NHWC}>
 
-module attributes {VPU.arch = "VPUX37XX"} {
+module attributes {VPU.arch = #VPU.arch_kind<VPUX37XX>} {
 
 func.func @LowerSparsifyOpUniformQuantUnalignedShape(%arg0: !inputType, %wt: tensor<64x1x1x4xsi32>, %weights: !weightsType) -> !outputType {
     %0 = VPU.Sparsify(%arg0) : !inputType -> !sparseType
     %1 = VPU.NCE.Convolution(%0, %weights, %wt) {
-            pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
-            rawFilterShape = [64, 4, 1, 1],
+            pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, 
+            rawFilterShape = [64, 4, 1, 1], 
             strides = [1, 1]
-        } -> !outputType
+        } -> !outputType 
 
     return %1 : !outputType
 
@@ -38,10 +38,10 @@ func.func @LowerSparsifyOpUniformQuantUnalignedShape(%arg0: !inputType, %wt: ten
     // CHECK-DAG:       [[CST_WEIGHTS_TABLE:%.+]] = const.Declare tensor<16x1x1x4xsi32>
     // CHECK-SAME:    : tensor<16x1x1x4xsi32>
     // CHECK:       [[VAL1:%.+]] = VPU.NCE.Convolution([[VAL0]], [[SPARSE_WEIGHTS]], [[CST_WEIGHTS_TABLE]]) {
-    // CHECK-SAME:        pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+    // CHECK-SAME:        pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
     // CHECK-SAME:        rawFilterShape = [16, 16, 1, 1],
     // CHECK-SAME:        strides = [1, 1]
-    // CHECK-SAME:    } -> !VPU.SparseTensor<data=tensor<1x16x120x110x!qElemType0, {order = #NHWC}>, sparsity_map=tensor<1x16x120x110xi1, {order = #NHWC}>>
+    // CHECK-SAME:    } -> !VPU.SparseTensor<data=tensor<1x16x120x110x!qElemType0, {order = #NHWC}>, sparsity_map=tensor<1x16x120x110xi1, {order = #NHWC}>> 
     // CHECK:       [[VAL2:%.+]] = VPU.Slice [[VAL1]] [0, 0, 0, 0] [1, 4, 120, 110]
     // CHECK-SAME:    : !VPU.SparseTensor<data=tensor<1x16x120x110x!qElemType0, {order = #NHWC}>, sparsity_map=tensor<1x16x120x110xi1, {order = #NHWC}>> to
     // CHECK-SAME:      !VPU.SparseTensor<data=tensor<1x4x120x110x!qElemType0, {order = #NHWC}>, sparsity_map=tensor<1x4x120x110xi1, {order = #NHWC}>>
@@ -61,15 +61,15 @@ func.func @LowerSparsifyOpUniformQuantUnalignedShape(%arg0: !inputType, %wt: ten
 !weightsType = tensor<64x1x1x16xf16, {order = #NHWC}>
 !outputType = tensor<1x64x31x31xf16, {order = #NHWC}>
 
-module attributes {VPU.arch = "VPUX37XX"} {
+module attributes {VPU.arch = #VPU.arch_kind<VPUX37XX>} {
 
 func.func @LowerSparsifyOpFloatUnalignedShape(%arg0: !inputType, %wt: tensor<64x1x1x4xsi32>, %weights: !weightsType) -> !outputType {
     %0 = VPU.Sparsify(%arg0) : !inputType -> !sparseType
     %1 = VPU.NCE.Convolution(%0, %weights, %wt) {
-            pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
-            rawFilterShape = [64, 4, 1, 1],
+            pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, 
+            rawFilterShape = [64, 4, 1, 1], 
             strides = [1, 1]
-        } -> !outputType
+        } -> !outputType 
 
     return %1 : !outputType
 
@@ -86,10 +86,10 @@ func.func @LowerSparsifyOpFloatUnalignedShape(%arg0: !inputType, %wt: tensor<64x
     // CHECK-DAG:       [[CST_WEIGHTS_TABLE:%.+]] = const.Declare tensor<16x1x1x4xsi32>
     // CHECK-SAME:    : tensor<16x1x1x4xsi32>
     // CHECK:       [[VAL1:%.+]] = VPU.NCE.Convolution([[VAL0]], [[SPARSE_WEIGHTS]], [[CST_WEIGHTS_TABLE]]) {
-    // CHECK-SAME:        pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+    // CHECK-SAME:        pad = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>,
     // CHECK-SAME:        rawFilterShape = [16, 16, 1, 1],
     // CHECK-SAME:        strides = [1, 1]
-    // CHECK-SAME:    } -> !VPU.SparseTensor<data=tensor<1x16x31x31xf16, {order = #NHWC}>, sparsity_map=tensor<1x16x31x31xi1, {order = #NHWC}>>
+    // CHECK-SAME:    } -> !VPU.SparseTensor<data=tensor<1x16x31x31xf16, {order = #NHWC}>, sparsity_map=tensor<1x16x31x31xi1, {order = #NHWC}>> 
     // CHECK:       [[VAL2:%.+]] = VPU.Slice [[VAL1]] [0, 0, 0, 0] [1, 4, 31, 31]
     // CHECK-SAME:    : !VPU.SparseTensor<data=tensor<1x16x31x31xf16, {order = #NHWC}>, sparsity_map=tensor<1x16x31x31xi1, {order = #NHWC}>> to
     // CHECK-SAME:      !VPU.SparseTensor<data=tensor<1x4x31x31xf16, {order = #NHWC}>, sparsity_map=tensor<1x4x31x31xi1, {order = #NHWC}>>

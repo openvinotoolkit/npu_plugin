@@ -9,8 +9,7 @@
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/VPUMI37XX/attributes/enums.hpp"
-#include "vpux/compiler/dialect/VPURegMapped/enums.hpp"
+#include "vpux/compiler/dialect/VPUMI37XX/attributes.hpp"
 #include "vpux/compiler/dialect/VPURegMapped/types.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 
@@ -56,4 +55,4 @@ public:
 // Generated
 //
 
-#include <vpux/compiler/dialect/VPUMI37XX/generated/ops_interfaces.hpp.inc>
+#include <vpux/compiler/dialect/VPUMI37XX/ops_interfaces.hpp.inc>

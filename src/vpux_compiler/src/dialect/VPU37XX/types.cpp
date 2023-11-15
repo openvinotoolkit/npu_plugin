@@ -16,7 +16,7 @@ using namespace vpux;
 //
 
 #define GET_TYPEDEF_CLASSES
-#include <vpux/compiler/dialect/VPU37XX/generated/types.cpp.inc>
+#include <vpux/compiler/dialect/VPU37XX/types.cpp.inc>
 #undef GET_TYPEDEF_CLASSES
 
 //
@@ -26,7 +26,7 @@ using namespace vpux;
 void vpux::VPU37XX::VPU37XXDialect::registerTypes() {
     addTypes<
 #define GET_TYPEDEF_LIST
-#include <vpux/compiler/dialect/VPU37XX/generated/types.cpp.inc>
+#include <vpux/compiler/dialect/VPU37XX/types.cpp.inc>
 #undef GET_TYPEDEF_LIST
             >();
 }

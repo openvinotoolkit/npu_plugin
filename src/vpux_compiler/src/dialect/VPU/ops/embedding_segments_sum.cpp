@@ -20,9 +20,8 @@ mlir::LogicalResult vpux::VPU::EmbeddingSegmentsSumOp::inferReturnTypes(
 
     const auto inType = embeddingSegmentsSum.emb_table().getType().cast<vpux::NDTypeInterface>();
 
-    auto embTableShape = to_small_vector(inType.getShape().raw());
+    auto outShape = to_small_vector(inType.getShape().raw());
 
-    SmallVector<int64_t> outShape(embTableShape);
     outShape[0] = checked_cast<int64_t>(embeddingSegmentsSum.num_segments_value());
 
     const auto outType = inType.changeShape(Shape(outShape));
@@ -36,8 +35,8 @@ mlir::LogicalResult vpux::VPU::EmbeddingSegmentsSumOp::inferReturnTypes(
 //
 
 EMU::BlobWriter::SpecificTask vpux::VPU::EmbeddingSegmentsSumOp::serialize(EMU::BlobWriter& writer) {
-    const auto indices = writer.createVector(parseIntArrayAttr<int32_t>(indices_value().getValue()));
-    const auto segmentIds = writer.createVector(parseIntArrayAttr<int32_t>(segment_ids_value().getValue()));
+    const auto indices = writer.createVector(parseIntArrayAttr<int32_t>(indices_value().value()));
+    const auto segmentIds = writer.createVector(parseIntArrayAttr<int32_t>(segment_ids_value().value()));
 
     const auto getRawFP16 = [](auto val) {
         const auto valFP16 = float16(val);
@@ -48,7 +47,7 @@ EMU::BlobWriter::SpecificTask vpux::VPU::EmbeddingSegmentsSumOp::serialize(EMU::
     };
 
     EMU::BlobWriter::Vector<uint16_t> serializedWeights;
-    const auto weightsArr = parseFPArrayAttr<double>(per_sample_weights_value().getValue());
+    const auto weightsArr = parseFPArrayAttr<double>(per_sample_weights_value().value());
     serializedWeights = getVecFP16(weightsArr);
 
     MVCNN::EmbeddingSegmentsSumParamsBuilder builder(writer);

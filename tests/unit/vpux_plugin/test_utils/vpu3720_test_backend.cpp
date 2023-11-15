@@ -81,6 +81,9 @@ public:
     std::string getName() const override {
         return "3720.dummyDevice";
     }
+    std::string getFullDeviceName() const override {
+        return "Intel(R) NPU (DummyVPU3720Device)";
+    }
 
     ov::device::UUID getUuid() const override {
         return {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x37, 0x20};
@@ -92,7 +95,7 @@ public:
                                           const std::string& /*networkName*/,
                                           const std::vector<std::shared_ptr<const ov::Node>>& /*parameters*/,
                                           const std::vector<std::shared_ptr<const ov::Node>>& /*results*/,
-                                          const vpux::DataMap& /* networkStatesInfo */,
+                                          const vpux::NetworkIOVector& /* networkStatesInfo */,
                                           const std::shared_ptr<InferenceEngine::IAllocator>& /*allocator*/) override {
         return nullptr;
     }
@@ -136,6 +139,6 @@ private:
 }  // namespace vpux
 
 INFERENCE_PLUGIN_API(void)
-CreateVPUXEngineBackend(std::shared_ptr<vpux::IEngineBackend>& backend) {
+CreateVPUXEngineBackend(std::shared_ptr<vpux::IEngineBackend>& backend, const vpux::Config&) {
     backend = std::make_shared<vpux::VPU3720TestBackend>();
 }

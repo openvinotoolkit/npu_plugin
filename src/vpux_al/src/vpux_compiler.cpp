@@ -3,11 +3,8 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux_compiler.hpp"
 
-#include "vpux.hpp"
 #include "vpux/al/config/common.hpp"
 #include "vpux/al/config/compiler.hpp"
 #include "vpux/utils/IE/itt.hpp"
@@ -29,6 +26,9 @@
 #include "vpux_driver_compiler_adapter.h"
 using vpux::driverCompilerAdapter::LevelZeroCompilerAdapter;
 #endif
+
+#else
+#include "vpux/utils/core/library_path.hpp"
 
 #endif
 
@@ -80,7 +80,7 @@ vpux::Compiler::Ptr vpux::Compiler::create(const Config& config) {
         logger.info("MLIR compiler will be used.");
 
 #ifndef OPENVINO_STATIC_LIBRARY
-        compiler = std::make_shared<Compiler>(getLibFilePath("vpux_mlir_compiler"));
+        compiler = std::make_shared<Compiler>(getLibFilePath("npu_mlir_compiler"));
 #else
         const auto compilerInterface = std::make_shared<vpux::CompilerImpl>();
         compiler = std::make_shared<Compiler>(compilerInterface);
@@ -95,7 +95,7 @@ vpux::Compiler::Ptr vpux::Compiler::create(const Config& config) {
         logger.info("Driver compiler will be used.");
 
 #ifndef OPENVINO_STATIC_LIBRARY
-        compiler = std::make_shared<Compiler>(getLibFilePath("vpux_driver_compiler_adapter"));
+        compiler = std::make_shared<Compiler>(getLibFilePath("npu_driver_compiler_adapter"));
 #else
         const auto compilerInterface = std::make_shared<LevelZeroCompilerAdapter>();
         compiler = std::make_shared<Compiler>(compilerInterface);
@@ -115,20 +115,28 @@ vpux::Compiler::Ptr vpux::Compiler::create(const Config& config) {
 #ifndef OPENVINO_STATIC_LIBRARY
 vpux::Compiler::Compiler(const std::string& libpath) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "vpux::Compiler::CreateVPUXCompiler");
-    using CreateFuncT = void (*)(std::shared_ptr<ICompiler>&);
-    static constexpr auto CreateFuncName = "CreateVPUXCompiler";
 
-    _so = ov::util::load_shared_object(libpath.c_str());
+    try {
+        using CreateFuncT = void (*)(std::shared_ptr<ICompiler>&);
+        static constexpr auto CreateFuncName = "CreateVPUXCompiler";
 
-    const auto createFunc = reinterpret_cast<CreateFuncT>(ov::util::get_symbol(_so, CreateFuncName));
-    createFunc(_impl);
+        _so = ov::util::load_shared_object(libpath.c_str());
+
+        const auto createFunc = reinterpret_cast<CreateFuncT>(ov::util::get_symbol(_so, CreateFuncName));
+
+        createFunc(_impl);
+    } catch (const std::exception& ex) {
+        IE_THROW() << "Got an error during compiler creation: " << ex.what();
+    } catch (...) {
+        IE_THROW() << "Got an unknown error during compiler creation";
+    }
 }
 #endif
 
-InferenceEngine::InputsDataMap vpux::helpers::dataMapIntoInputsDataMap(const vpux::DataMap& dataMap) {
+InferenceEngine::InputsDataMap vpux::helpers::networkIOVectorIntoInputsDataMap(const vpux::NetworkIOVector& ioVector) {
     InferenceEngine::InputsDataMap inputsDataMap = {};
 
-    for (const auto& input : dataMap) {
+    for (const auto& input : ioVector) {
         InferenceEngine::InputInfo info;
         info.setInputData(std::make_shared<InferenceEngine::Data>(*input.second));
         inputsDataMap.insert({input.first, std::make_shared<InferenceEngine::InputInfo>(info)});
@@ -137,10 +145,11 @@ InferenceEngine::InputsDataMap vpux::helpers::dataMapIntoInputsDataMap(const vpu
     return inputsDataMap;
 }
 
-InferenceEngine::OutputsDataMap vpux::helpers::dataMapIntoOutputsDataMap(const vpux::DataMap& dataMap) {
+InferenceEngine::OutputsDataMap vpux::helpers::networkIOVectorIntoOutputsDataMap(
+        const vpux::NetworkIOVector& ioVector) {
     InferenceEngine::OutputsDataMap outputsDataMap = {};
 
-    for (const auto& output : dataMap) {
+    for (const auto& output : ioVector) {
         outputsDataMap.insert({output.first, std::make_shared<InferenceEngine::Data>(*output.second)});
     }
 

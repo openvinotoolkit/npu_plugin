@@ -52,8 +52,8 @@ mlir::LogicalResult MergeQuantDequant::matchAndRewrite(IE::DequantizeOp dequanti
     auto rMinOp = rewriter.create<Const::DeclareOp>(dequantizeOp.getLoc(), attrType, Const::ContentAttr::get(rMinAttr));
     auto rMaxOp = rewriter.create<Const::DeclareOp>(dequantizeOp.getLoc(), attrType, Const::ContentAttr::get(rMaxAttr));
 
-    rewriter.replaceOpWithNewOp<IE::FakeQuantizeOp>(dequantizeOp, quantizeOp.input(), rMinOp.output(), rMaxOp.output(),
-                                                    rMinOp.output(), rMaxOp.output(), levels,
+    rewriter.replaceOpWithNewOp<IE::FakeQuantizeOp>(dequantizeOp, quantizeOp.input(), rMinOp.getOutput(),
+                                                    rMaxOp.getOutput(), rMinOp.getOutput(), rMaxOp.getOutput(), levels,
                                                     IE::AutoBroadcastType::NUMPY);
 
     return mlir::success();
@@ -113,9 +113,9 @@ mlir::LogicalResult MergeQuantCastDequant::matchAndRewrite(IE::DequantizeOp dequ
     auto outMaxOp =
             rewriter.create<Const::DeclareOp>(dequantizeOp.getLoc(), outAttrType, Const::ContentAttr::get(outMaxAttr));
 
-    rewriter.replaceOpWithNewOp<IE::FakeQuantizeOp>(dequantizeOp, quantizeOp.input(), inMinOp.output(),
-                                                    inMaxOp.output(), outMinOp.output(), outMaxOp.output(), inLevels,
-                                                    IE::AutoBroadcastType::NUMPY);
+    rewriter.replaceOpWithNewOp<IE::FakeQuantizeOp>(dequantizeOp, quantizeOp.input(), inMinOp.getOutput(),
+                                                    inMaxOp.getOutput(), outMinOp.getOutput(), outMaxOp.getOutput(),
+                                                    inLevels, IE::AutoBroadcastType::NUMPY);
 
     return mlir::success();
 }

@@ -1,16 +1,17 @@
-// Copyright (C) 2018-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) 2018-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include <vector>
 
-#include "kmb_layer_test.hpp"
 #include "single_layer_tests/shuffle_channels.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 class VPUXShuffleChannelsLayerTest :
         public ShuffleChannelsLayerTest,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+        virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 class VPUXShuffleChannelsLayerTest_VPU3700 : public VPUXShuffleChannelsLayerTest {};
 class VPUXShuffleChannelsLayerTest_VPU3720 : public VPUXShuffleChannelsLayerTest {};
 
@@ -43,13 +44,14 @@ const auto params =
                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                          testing::Values(InferenceEngine::Layout::ANY), testing::Values(InferenceEngine::Layout::ANY),
-                         testing::ValuesIn(inputShapes), testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+                         testing::ValuesIn(inputShapes), testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_ShuffleChannels, VPUXShuffleChannelsLayerTest_VPU3700, params,
                         VPUXShuffleChannelsLayerTest_VPU3700::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels, VPUXShuffleChannelsLayerTest_VPU3720, params,
                         VPUXShuffleChannelsLayerTest_VPU3720::getTestCaseName);
+
 }  // namespace
 
 namespace {  // conformance scenarios
@@ -68,7 +70,7 @@ const auto params2 =
                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                          testing::Values(InferenceEngine::Layout::ANY), testing::Values(InferenceEngine::Layout::ANY),
-                         testing::ValuesIn(inShapes), testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+                         testing::ValuesIn(inShapes), testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_CASE_P(DISABLED_TMP_conform_ShuffleChannels, VPUXShuffleChannelsLayerTest_VPU3700, params2,
                         VPUXShuffleChannelsLayerTest_VPU3700::getTestCaseName);
@@ -81,8 +83,9 @@ const auto precommit_params = testing::Combine(
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Precision::UNSPECIFIED), testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(InferenceEngine::Layout::ANY), testing::Values(std::vector<size_t>{1, 4, 3, 2}),
-        testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+        testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 INSTANTIATE_TEST_CASE_P(conform_precommit_ShuffleChannels, VPUXShuffleChannelsLayerTest_VPU3720, precommit_params,
                         VPUXShuffleChannelsLayerTest_VPU3720::getTestCaseName);
+
 }  // namespace

@@ -9,15 +9,15 @@
 #NHCW = affine_map<(d0, d1, d2, d3) -> (d0, d2, d1, d3)>
 
 // CHECK-LABEL: @InOutNHCW
-module @InOutNHCW attributes {VPU.compilationMode = "ReferenceSW"} {
+module @InOutNHCW attributes {VPU.compilationMode = #VPU.compilation_mode<ReferenceSW>} {
 
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        DataInfo "data" : tensor<1x8x4x2xf16, {order = #NHCW}>
+        DataInfo "data" : tensor<1x8x4x2xf16>
     }
     outputsInfo : {
-        DataInfo "prob" : tensor<1x8x4x2xf16, {order = #NHCW}>
+        DataInfo "prob" : tensor<1x8x4x2xf16>
     }
 
 // CHECK: func.func @main([[ARG0:%arg[0-9]+]]: tensor<1x8x4x2xf16, {order = #NHCW}>) -> tensor<1x8x4x2xf16, {order = #NHCW}> {
@@ -47,7 +47,7 @@ func.func @main(%arg0: tensor<1x8x4x2xf16, {order = #NHCW}>) -> tensor<1x8x4x2xf
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @DifferentOrders
-module @DifferentOrders attributes {VPU.compilationMode = "ReferenceSW"} {
+module @DifferentOrders attributes {VPU.compilationMode = #VPU.compilation_mode<ReferenceSW>} {
 
 IE.CNNNetwork
     entryPoint : @main
@@ -55,7 +55,7 @@ IE.CNNNetwork
         DataInfo "data" : tensor<1x8x4x2xf16>
     }
     outputsInfo : {
-        DataInfo "prob" : tensor<1x8x4x2xf16, {order = #NHWC}>
+        DataInfo "prob" : tensor<1x8x4x2xf16>
     }
 
 // CHECK: func.func @main([[ARG0:%arg[0-9]+]]: tensor<1x8x4x2xf16>) -> tensor<1x8x4x2xf16, {order = #NHWC}> {
@@ -73,7 +73,7 @@ func.func @main(%arg0: tensor<1x8x4x2xf16>) -> tensor<1x8x4x2xf16, {order = #NHW
 // -----
 
 // CHECK-LABEL: @HwOp
-module @HwOp attributes {VPU.compilationMode = "DefaultHW"} {
+module @HwOp attributes {VPU.compilationMode = #VPU.compilation_mode<DefaultHW>} {
 
 IE.CNNNetwork
     entryPoint : @main
@@ -107,7 +107,7 @@ func.func @main(%arg0: tensor<1x16x30x30xf16>) -> tensor<1x16x15x13xf16> {
 // -----
 
 // CHECK-LABEL: @HwOpSameInputs
-module @HwOpSameInputs attributes {VPU.compilationMode = "DefaultHW"} {
+module @HwOpSameInputs attributes {VPU.compilationMode =  #VPU.compilation_mode<DefaultHW>} {
 
 IE.CNNNetwork
     entryPoint : @main
@@ -143,7 +143,7 @@ func.func @main(%arg0: tensor<1x16x30x25xf16>) -> tensor<1x16x30x25xf16> {
 // -----
 
 // CHECK-LABEL: @SwAddOp
-module @SwAddOp attributes {VPU.compilationMode = "DefaultHW"} {
+module @SwAddOp attributes {VPU.compilationMode = #VPU.compilation_mode<DefaultHW>} {
 
 IE.CNNNetwork
     entryPoint : @main
@@ -173,16 +173,16 @@ func.func @main(%arg0: tensor<1x3x676x2xf16>) -> tensor<1x3x676x2xf16> {
 #NHCW = affine_map<(d0, d1, d2, d3) -> (d0, d2, d1, d3)>
 
 // CHECK-LABEL: @HwOpDifferentDstOrder
-module @HwOpDifferentDstOrder attributes {VPU.compilationMode = "DefaultHW"} {
+module @HwOpDifferentDstOrder attributes {VPU.compilationMode = #VPU.compilation_mode<DefaultHW>} {
 
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        DataInfo "data" : tensor<1x16x30x25xf16, {order = #NHCW}>
+        DataInfo "data" : tensor<1x16x30x25xf16>
     }
     outputsInfo : {
-        DataInfo "prob1" : tensor<1x16x30x25xf16, {order = #NHCW}>
-        DataInfo "prob2" : tensor<1x16x30x25xf16, {order = #NHCW}>
+        DataInfo "prob1" : tensor<1x16x30x25xf16>
+        DataInfo "prob2" : tensor<1x16x30x25xf16>
     }
 
 // CHECK-LABEL: @main
@@ -209,7 +209,7 @@ func.func @main(%arg0: tensor<1x16x30x25xf16, {order = #NHCW}>) -> (tensor<1x16x
 // -----
 
 // CHECK-LABEL: @ZMajorConv
-module @ZMajorConv attributes {VPU.compilationMode = "DefaultHW"} {
+module @ZMajorConv attributes {VPU.compilationMode = #VPU.compilation_mode<DefaultHW>} {
 
 // CHECK: func.func @main([[ARG0:%arg[0-9]+]]: tensor<1x16x30x30xf16>) -> tensor<1x16x30x30xf16> {
 func.func @main(%arg0: tensor<1x16x30x30xf16>) -> tensor<1x16x30x30xf16> {
@@ -235,7 +235,7 @@ func.func @main(%arg0: tensor<1x16x30x30xf16>) -> tensor<1x16x30x30xf16> {
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ReorderWithScatterNDUpdate
-module @ReorderWithScatterNDUpdate attributes {VPU.compilationMode = "DefaultHW"} {
+module @ReorderWithScatterNDUpdate attributes {VPU.compilationMode = #VPU.compilation_mode<DefaultHW>} {
 
 func.func @main(%arg0: tensor<1x50x56x56xf16, {order = #NHWC}>, %arg1: tensor<1x35x56x56xf16>) -> tensor<1x50x56x56xf16> {
     %cst = const.Declare tensor<1x35x2xsi32> = dense<1> : tensor<1x35x2xsi64>, [#const.ConvertElemType<si32>]
@@ -252,7 +252,7 @@ func.func @main(%arg0: tensor<1x50x56x56xf16, {order = #NHWC}>, %arg1: tensor<1x
 // -----
 
 // CHECK-LABEL: @DoNotAdjustInterpolateNearestLayout
-module @DoNotAdjustInterpolateNearestLayout attributes {VPU.compilationMode = "DefaultHW"} {
+module @DoNotAdjustInterpolateNearestLayout attributes {VPU.compilationMode = #VPU.compilation_mode<DefaultHW>} {
 
 IE.CNNNetwork
     entryPoint : @main
@@ -294,7 +294,7 @@ func.func @main(%arg0: tensor<1x3x30x30xf16>) -> tensor<1x3x60x60xf16> {
 // -----
 
 // CHECK-LABEL: @DoNotAdjustInterpolateLinearLayout
-module @DoNotAdjustInterpolateLinearLayout attributes {VPU.compilationMode = "DefaultHW"} {
+module @DoNotAdjustInterpolateLinearLayout attributes {VPU.compilationMode = #VPU.compilation_mode<DefaultHW>} {
 
 IE.CNNNetwork
     entryPoint : @main

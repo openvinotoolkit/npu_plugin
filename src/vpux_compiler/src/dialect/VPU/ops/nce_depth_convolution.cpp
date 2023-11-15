@@ -5,6 +5,7 @@
 
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/distributed_tensor_utils.hpp"
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/layers.hpp"
@@ -90,11 +91,11 @@ bool vpux::VPU::NCEDepthConvolutionOp::isSupported(IE::GroupConvolutionOp op, Lo
     const auto KY = filterShape[Dims4D::Filter::KY];
     const auto KX = filterShape[Dims4D::Filter::KX];
 
-    if (!op.groups().hasValue()) {
+    if (!op.groups().has_value()) {
         logCb(formatv("Grouped convolution does not have groups attribute"));
         return false;
     }
-    if (op.groups().getValue() != OC) {
+    if (op.groups().value() != OC) {
         logCb(formatv("Unsupported group size: '{0}' expected '{1}'", op.groups(), OC));
         return false;
     }
@@ -161,10 +162,10 @@ mlir::LogicalResult verifyDepthConv(mlir::Location loc, VPU::ArchKind arch, VPU:
     const auto SY = kernelStrides[Dims4D::Strides::Y];
     const auto SX = kernelStrides[Dims4D::Strides::X];
 
-    const auto padTop = op.pad().top().getValue().getSExtValue();
-    const auto padBottom = op.pad().bottom().getValue().getSExtValue();
-    const auto padLeft = op.pad().left().getValue().getSExtValue();
-    const auto padRight = op.pad().right().getValue().getSExtValue();
+    const auto padTop = op.pad().getTop().getValue().getSExtValue();
+    const auto padBottom = op.pad().getBottom().getValue().getSExtValue();
+    const auto padLeft = op.pad().getLeft().getValue().getSExtValue();
+    const auto padRight = op.pad().getRight().getValue().getSExtValue();
 
     if (!VPU::NCEInvariant::isAttrsSupported(arch, KY, KX, SY, SX, padTop, padBottom, padLeft, padRight, logCb)) {
         return mlir::failure();
@@ -188,14 +189,6 @@ mlir::LogicalResult vpux::VPU::NCEDepthConvolutionOp::verify() {
     const NCEDepthConvolutionOpAdaptor convAdaptor(op->getOperands(), op->getAttrDictionary(), op->getRegions());
     if (mlir::failed(verifyDepthConv(op->getLoc(), arch, convAdaptor, output()))) {
         return mlir::failure();
-    }
-
-    const auto loc = op->getLoc();
-    const auto logCb = [loc](const llvm::formatv_object_base& msg) {
-        std::ignore = errorAt(loc, "{0}", msg.str());
-    };
-    if (!NCEInvariant::checkLayouts(op->getOperandTypes(), op->getResultTypes(), arch, 2, logCb)) {
-        return errorAt(op, "Unsupported layouts");
     }
 
     const auto inputType = input().getType().cast<NDTypeInterface>();
@@ -288,10 +281,10 @@ mlir::LogicalResult vpux::VPU::NCEDepthConvolutionOp::inferReturnTypes(
     const auto windowStrides = parseIntArrayAttr<int64_t>(op.strides());
     const auto windowDilations = ngraph::Strides({1, 1});
 
-    const auto padTop = op.pad().top().getValue().getSExtValue();
-    const auto padBottom = op.pad().bottom().getValue().getSExtValue();
-    const auto padLeft = op.pad().left().getValue().getSExtValue();
-    const auto padRight = op.pad().right().getValue().getSExtValue();
+    const auto padTop = op.pad().getTop().getValue().getSExtValue();
+    const auto padBottom = op.pad().getBottom().getValue().getSExtValue();
+    const auto padLeft = op.pad().getLeft().getValue().getSExtValue();
+    const auto padRight = op.pad().getRight().getValue().getSExtValue();
 
     const auto dataPaddingBelow = ngraph::CoordinateDiff({padTop, padLeft});
     const auto dataPaddingAbove = ngraph::CoordinateDiff({padBottom, padRight});
@@ -317,16 +310,6 @@ mlir::LogicalResult vpux::VPU::NCEDepthConvolutionOp::inferReturnTypes(
 }
 
 //
-// LayoutInfoOpInterface
-//
-
-void vpux::VPU::NCEDepthConvolutionOp::inferLayoutInfo(IE::LayerLayoutInfo& info) {
-    info.setInput(0, DimsOrder::NHWC);
-    info.setInput(1, DimsOrder::OYXI);
-    info.setOutput(0, DimsOrder::NHWC);
-}
-
-//
 // TilingBuilderOpInterface
 //
 
@@ -339,8 +322,8 @@ vpux::InputTiling vpux::VPU::NCEDepthConvolutionOp::backInferTileInfo(const vpux
     // This op incorporates bias values in WeightsTable
     const auto origBiasShape = ShapeRef();
 
-    auto inputTiling =
-            backInferGroupConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides(), origPadding);
+    auto inputTiling = backInferGroupConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides(),
+                                              origPadding, origInputShape[Dims4D::Act::C]);
     VPUX_THROW_UNLESS(mlir::succeeded(checkAndAlignActInputTiling(
                               mlir::cast<VPU::NCEOpInterface>(*this->getOperation()), inputTiling, log)),
                       "Failed to get an aligned act input tiling");
@@ -382,7 +365,7 @@ void vpux::VPU::NCEDepthConvolutionOp::adjustAttrs(const TilingInfo& inputTiling
     activation_window_channel_lengthAttr(getIntAttr(getContext(), bitPatternSize));
 }
 
-OutputTiling vpux::VPU::NCEDepthConvolutionOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
+mlir::FailureOr<OutputTiling> vpux::VPU::NCEDepthConvolutionOp::getTilingStrategy(TilingMode tilingMode, Logger log) {
     return vpux::getHWLayerTilingStrategy(this->getOperation(), tilingMode, log);
 }
 
@@ -390,25 +373,30 @@ OutputTiling vpux::VPU::NCEDepthConvolutionOp::getTilingStrategy(TilingMode tili
 // NCEOpInterface
 //
 
-SmallVector<int64_t> vpux::VPU::NCEDepthConvolutionOp::getKernelSize() {
+SmallVector<int64_t> vpux::VPU::NCEDepthConvolutionOp::getKernelSizeVal() {
     const auto kernelShape = Shape(parseIntArrayAttr<int64_t>(rawFilterShape()));
     const auto KY = kernelShape[Dims4D::Filter::KY];
     const auto KX = kernelShape[Dims4D::Filter::KX];
     return {KY, KX};
 }
 
-SmallVector<int64_t> vpux::VPU::NCEDepthConvolutionOp::getStrides() {
+SmallVector<int64_t> vpux::VPU::NCEDepthConvolutionOp::getStridesVal() {
     return parseIntArrayAttr<int64_t>(strides());
-}
-
-vpux::VPU::PaddingAttr vpux::VPU::NCEDepthConvolutionOp::getPad() {
-    return padAttr();
 }
 
 bool vpux::VPU::NCEDepthConvolutionOp::checkStrategyCompatibility(VPU::MultiClusterStrategy strategy) {
     return strategy == VPU::MultiClusterStrategy::Clustering ||
            strategy == VPU::MultiClusterStrategy::SplitOverHeight ||
            strategy == VPU::MultiClusterStrategy::SplitOverKernel || strategy == VPU::MultiClusterStrategy::HKSwitch;
+}
+
+vpux::VPU::DistributedTensorAttr vpux::VPU::NCEDepthConvolutionOp::getExplicitDistributedTensorAttr(
+        vpux::ShapeRef shape, vpux::VPU::DistributionMode distributionMode, mlir::ArrayAttr numTiles,
+        mlir::IntegerAttr numClusters, mlir::ArrayAttr alignment, mlir::ArrayAttr kernel, vpux::VPU::PaddingAttr pad,
+        mlir::ArrayAttr stride, mlir::UnitAttr uniformDistributedSegments) {
+    return VPU::getNCEExplicitDistributedTensorAttr(mlir::dyn_cast<VPU::NCEOpInterface>(getOperation()), shape,
+                                                    distributionMode, numTiles, numClusters, alignment, kernel, pad,
+                                                    stride, uniformDistributedSegments);
 }
 
 mlir::LogicalResult vpux::VPU::NCEDepthConvolutionOp::verifyInputType(vpux::NDTypeInterface inputType) {
@@ -444,7 +432,6 @@ vpux::VPU::SparsitySupport vpux::VPU::NCEDepthConvolutionOp::sparsitySupport() {
 
     switch (arch) {
     case VPU::ArchKind::VPUX30XX:
-    case VPU::ArchKind::VPUX311X:
         return VPU::SparsitySupport::NONE;
     case VPU::ArchKind::VPUX37XX:
         return VPU::SparsitySupport::SPARSE_OUTPUTS & excludeMode;

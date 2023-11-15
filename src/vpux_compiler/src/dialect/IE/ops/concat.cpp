@@ -5,6 +5,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
+#include "vpux/compiler/dialect/IE/utils/propagate_quantize_dequantize_utils.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
@@ -21,13 +22,13 @@ using namespace vpux;
 //
 
 void vpux::IE::ConcatOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange inputs,
-                               ConcatAttrs per_axis) {
+                               ConcatAttr per_axis) {
     build(builder, state, inputs, per_axis, nullptr);
 }
 
 void vpux::IE::ConcatOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange inputs,
                                mlir::IntegerAttr axis, mlir::IntegerAttr offset, mlir::IntegerAttr stride) {
-    build(builder, state, inputs, ConcatAttrs::get(axis, offset, stride, builder.getContext()));
+    build(builder, state, inputs, ConcatAttr::get(builder.getContext(), axis, offset, stride));
 }
 
 void vpux::IE::ConcatOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange inputs,
@@ -74,7 +75,7 @@ Dim normalizeAxis(IE::ConcatOpAdaptor concat) {
     const auto inType = concat.inputs().front().getType().cast<mlir::ShapedType>();
     const auto inRank = inType.getRank();
 
-    auto axisInd = concat.per_axis().getValue().axis().getValue().getSExtValue();
+    auto axisInd = concat.per_axis().value().getAxis().getValue().getSExtValue();
 
     // Negative value means counting dimension from the end
     if (axisInd < 0) {
@@ -104,9 +105,9 @@ mlir::FailureOr<Shape> inferOutShapeWithAxis(IE::ConcatOpAdaptor concat, mlir::L
         outShape[axis] += curShape[axis];
     }
 
-    const auto perAxis = concat.per_axis().getValue();
-    const auto offset = perAxis.offset() ? perAxis.offset().getValue().getSExtValue() : 0;
-    const auto stride = perAxis.stride() ? perAxis.stride().getValue().getSExtValue() : 1;
+    const auto perAxis = concat.per_axis().value();
+    const auto offset = perAxis.getOffset() ? perAxis.getOffset().getValue().getSExtValue() : 0;
+    const auto stride = perAxis.getStride() ? perAxis.getStride().getValue().getSExtValue() : 1;
 
     int64_t maxLatestIdx = -1;
     for (const auto idx : irange(concat.inputs().size())) {
@@ -125,11 +126,11 @@ mlir::FailureOr<Shape> inferOutShapeWithAxis(IE::ConcatOpAdaptor concat, mlir::L
 }
 
 mlir::FailureOr<Shape> inferOutShapeWithOffsets(IE::ConcatOpAdaptor concat, mlir::Location loc) {
-    if (!concat.static_offsets().hasValue()) {
+    if (!concat.static_offsets().has_value()) {
         return errorAt(loc, "Missing static_offsets attribute");
     }
 
-    const auto staticOffsets = concat.static_offsets().getValue();
+    const auto staticOffsets = concat.static_offsets().value();
     if (staticOffsets.size() != concat.inputs().size()) {
         return errorAt(loc, "Concat 'static_offsets' count '{0}' doesn't match inputs count '{1}'",
                        staticOffsets.size(), concat.inputs().size());
@@ -278,7 +279,7 @@ mlir::FailureOr<mlir::Type> inferOutElemTypeWithOffsets(ArrayRef<mlir::Type> ele
     }
 
     const auto qDim = perAxisQType.getQuantizedDimension();
-    const auto allOffsets = concat.static_offsets().getValue().getAsRange<mlir::ArrayAttr>();
+    const auto allOffsets = concat.static_offsets().value().getAsRange<mlir::ArrayAttr>();
 
     std::map<int64_t, mlir::quant::UniformQuantizedPerAxisType> perSliceQuantTypes;
 
@@ -350,10 +351,10 @@ mlir::LogicalResult vpux::IE::ConcatOp::inferReturnTypeComponents(
         return errorAt(loc, "Missing inputs for '{0}'", IE::ConcatOp::getOperationName());
     }
 
-    if (!concat.per_axis().hasValue() && !concat.static_offsets().hasValue()) {
+    if (!concat.per_axis().has_value() && !concat.static_offsets().has_value()) {
         return errorAt(loc, "Missing either 'per_axis' or 'static_offsets' attribute");
     }
-    if (concat.per_axis().hasValue() && concat.static_offsets().hasValue()) {
+    if (concat.per_axis().has_value() && concat.static_offsets().has_value()) {
         return errorAt(loc, "Only one attribute ('per_axis' or 'static_offsets') should be provided");
     }
 
@@ -361,11 +362,11 @@ mlir::LogicalResult vpux::IE::ConcatOp::inferReturnTypeComponents(
 
     // Check consistent tensor attributes
 
-    const auto inDesc = IE::getTensorAttr(inType);
+    const auto inDesc = vpux::getTensorAttr(inType);
 
     for (const auto val : concat.inputs().drop_front()) {
         const auto curType = val.getType().cast<mlir::RankedTensorType>();
-        const auto curDesc = IE::getTensorAttr(curType);
+        const auto curDesc = vpux::getTensorAttr(curType);
 
         if (curDesc != inDesc) {
             return errorAt(loc, "Misaligned TensorType attributes for '{0}' inputs", IE::ConcatOp::getOperationName());
@@ -383,14 +384,14 @@ mlir::LogicalResult vpux::IE::ConcatOp::inferReturnTypeComponents(
     // Infer output element type
 
     const auto outElemType = concat.per_axis() ? inferOutElemTypeWithAxis(concat, loc)
-                                               : inferOutElemTypeWithOffsets(concat, outShape.getValue(), loc);
+                                               : inferOutElemTypeWithOffsets(concat, outShape.value(), loc);
     if (mlir::failed(outElemType)) {
         return mlir::failure();
     }
 
     // Return inferred components
 
-    inferredReturnShapes.emplace_back(outShape.getValue().raw(), outElemType.getValue(), inDesc);
+    inferredReturnShapes.emplace_back(outShape.value().raw(), outElemType.value(), inDesc);
     return mlir::success();
 }
 
@@ -409,7 +410,7 @@ void vpux::IE::ConcatOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& 
             return;
         }
 
-        outElemType = inferOutElemTypeWithOffsets(info.getInputs(), concat, outShape.getValue());
+        outElemType = inferOutElemTypeWithOffsets(info.getInputs(), concat, outShape.value());
     } else {
         outElemType = inferOutElemTypeWithAxis(info.getInputs(), concat);
     }
@@ -418,21 +419,12 @@ void vpux::IE::ConcatOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& 
         return;
     }
 
-    info.setOutput(0, outElemType.getValue());
+    info.setOutput(0, outElemType.value());
 }
 
 void vpux::IE::ConcatOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    // E#66717: Propagate Quantize through the Concat layer.
-    const auto outputElemType = info.getOutput(0);
-
-    if (outputElemType != nullptr && outputElemType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
-        // E#31029: implement propagate type up for per channel, currently it leads to failures in later passes.
-        return;
-    }
-
-    for (size_t inputInd = 0; inputInd < info.getNumInputs(); ++inputInd) {
-        info.setInput(inputInd, outputElemType);
-    }
+    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
+    propagateElementTypeUp(info);
 }
 
 //
@@ -477,12 +469,12 @@ mlir::LogicalResult ConvertPerAxisToOffsets::matchAndRewrite(IE::ConcatOp origOp
         return mlir::failure();
     }
 
-    if (origOp.per_axisAttr().stride() || origOp.per_axisAttr().offset()) {
+    if (origOp.per_axisAttr().getStride() || origOp.per_axisAttr().getOffset()) {
         return mlir::failure();
     }
 
     const auto outType = origOp.output().getType().cast<vpux::NDTypeInterface>();
-    auto axis = origOp.per_axisAttr().axis().getValue().getSExtValue();
+    auto axis = origOp.per_axisAttr().getAxis().getValue().getSExtValue();
     auto rank = origOp.inputs().front().getType().cast<vpux::NDTypeInterface>().getRank();
     // Negative value means counting dimension from the end
     if (axis < 0) {

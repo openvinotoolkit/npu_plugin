@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include <common_test_utils/test_common.hpp>
@@ -12,7 +10,7 @@
 #include <ngraph/ngraph.hpp>
 #include <vpux/vpux_compiler_config.hpp>
 
-#include "kmb_test_utils.hpp"
+#include "vpux_test_utils.hpp"
 
 using namespace InferenceEngine;
 

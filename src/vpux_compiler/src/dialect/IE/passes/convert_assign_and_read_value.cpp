@@ -48,11 +48,12 @@ mlir::LogicalResult AssignRewriter::matchAndRewrite(IE::AssignOp origOp, mlir::P
 
     OpBuilderLogger builderLog(_log.nest());
     auto builder = mlir::OpBuilder::atBlockBegin(&_topModule->getRegion(0).front(), &builderLog);
-    auto outputsInfoBuilder = mlir::OpBuilder::atBlockEnd(&netInfo.outputsInfo().front(), builder.getListener());
+    auto outputsInfoBuilder = mlir::OpBuilder::atBlockEnd(&netInfo.getOutputsInfo().front(), builder.getListener());
     auto* ctx = builder.getContext();
     const auto outputTypeAttr = mlir::TypeAttr::get(assignInputType);
     const auto outputNameAttr = mlir::StringAttr::get(ctx, ASSIGN_PREFIX + origOp.name());
-    outputsInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), outputNameAttr, outputTypeAttr);
+    outputsInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), outputNameAttr, outputTypeAttr,
+                                              /*profilingSectionsCount=*/0);
 
     rewriter.replaceOp(origOp, origOp.input());
 
@@ -103,11 +104,12 @@ mlir::LogicalResult ReadValueRewriter::matchAndRewrite(IE::ReadValueOp origOp, m
 
     OpBuilderLogger builderLog(_log.nest());
     auto builder = mlir::OpBuilder::atBlockBegin(&_topModule->getRegion(0).front(), &builderLog);
-    auto inputsInfoBuilder = mlir::OpBuilder::atBlockEnd(&netInfo.inputsInfo().front(), builder.getListener());
+    auto inputsInfoBuilder = mlir::OpBuilder::atBlockEnd(&netInfo.getInputsInfo().front(), builder.getListener());
     auto* ctx = builder.getContext();
     const auto inputTypeAttr = mlir::TypeAttr::get(readValueInputType);
     const auto inputNameAttr = mlir::StringAttr::get(ctx, READVALUE_PREFIX + origOp.name());
-    inputsInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), inputNameAttr, inputTypeAttr);
+    inputsInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), inputNameAttr, inputTypeAttr,
+                                             /*profilingSectionsCount=*/0);
 
     rewriter.replaceOp(origOp, mainFunc.getArgument(newInputIndex));
 

@@ -1,6 +1,6 @@
 //
-// Copyright (C) 2022 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
@@ -37,8 +37,73 @@ unsigned getIndexOfInput(mlir::Operation* endOp, mlir::Operation* sourceOp) {
 }
 
 bool areDistributedTypesConcatenable(VPU::DistributedTensorType firstType, VPU::DistributedTensorType secondType) {
-    return firstType.getOrder() == secondType.getOrder() && firstType.getMemSpace() == secondType.getMemSpace() &&
-           firstType.getDistribution() == secondType.getDistribution();
+    if (firstType.getOrder() != secondType.getOrder() || firstType.getMemSpace() != secondType.getMemSpace()) {
+        return false;
+    }
+
+    // checks modes are compatible, num_clusters is the same and num_tiles is the same, if applicable
+    if (mlir::failed(areDistributionAttrsCompatible(firstType, secondType,
+                                                    /*allowDifferentPerClusterMemoryView = */ true))) {
+        return false;
+    }
+
+    const auto areInOutShapesOffsetsCompatible = [&](const SmallVector<Shape>& lhs,
+                                                     const SmallVector<Shape>& rhs) -> bool {
+        for (const auto& pair : zip(lhs, rhs)) {
+            const auto shapesOffsetsLhs = std::get<0>(pair);
+            const auto shapesOffsetsRhs = std::get<1>(pair);
+
+            if (shapesOffsetsLhs.size() != shapesOffsetsRhs.size()) {
+                return false;
+            }
+
+            for (size_t idx = 0; idx < shapesOffsetsLhs.size(); idx++) {
+                // If dim is not a concatenation axis, check that per cluster shapes/offsets are the same for
+                // the input & output.
+                // Since pass only allows CMX Concat on single axis, it can be assumed that concatenation axis
+                // is the axis where the dims do not match.
+                // When checking consistency for output pattern parts, the two shapes should be equal, therefore
+                // full memory view is verified.
+                const auto dim = Dim(idx);
+                if (firstType.getShape()[dim] == secondType.getShape()[dim]) {
+                    if (shapesOffsetsLhs[dim] != shapesOffsetsRhs[dim]) {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return true;
+    };
+
+    const auto firstPerClusterOffsets = firstType.getPerClusterMemoryShapeOffsets();
+    const auto secondPerClusterOffsets = secondType.getPerClusterMemoryShapeOffsets();
+    if (!areInOutShapesOffsetsCompatible(firstPerClusterOffsets, secondPerClusterOffsets)) {
+        return false;
+    }
+
+    const auto firstPerClusterShapes = firstType.getPerClusterMemoryShapes();
+    const auto secondPerClusterShapes = secondType.getPerClusterMemoryShapes();
+    if (!areInOutShapesOffsetsCompatible(firstPerClusterShapes, secondPerClusterShapes)) {
+        return false;
+    }
+
+    return true;
+}
+
+NDTypeInterface getConcatDistributedType(VPU::DistributedTypeInterface origType, ShapeRef shape,
+                                         mlir::Type elementType) {
+    auto distributedDataType = origType.getDistributedTypes().front().cast<VPU::DistributedTensorType>();
+    const auto typeComponents = TypeComponents().setShape(shape).setElementType(elementType);
+
+    // TODO: E-88930 - not working for Distributed SparseType
+    if (VPU::isDistributedAttrWithExplicitShapesAndOffsets(distributedDataType.getDistribution())) {
+        auto newDistributedAttr = getConcatExplicitDistributedAttrForNewShape(distributedDataType, shape);
+        return distributedDataType.changeTypeComponentsForExplicitDistribution(typeComponents, newDistributedAttr)
+                .cast<NDTypeInterface>();
+    }
+
+    return origType.cast<NDTypeInterface>().changeTypeComponents(typeComponents);
 }
 
 size_t getSize(vpux::NDTypeInterface type) {
@@ -66,6 +131,8 @@ struct NceBasedPart {
                  VPU::NCEClusterTilingOp nceCluster)
             : copyOp(copy), copyClusterOp(copyCluster), nceOp(nce), nceClusterOp(nceCluster) {
     }
+
+    virtual ~NceBasedPart() = default;
 
     virtual bool isMultiCluster() const {
         return copyClusterOp != nullptr && nceClusterOp != nullptr;
@@ -220,10 +287,10 @@ void InputConcatPattern::rewrite() {
             builder.create<YieldOp>(loc, outputTensorDistributedCopyOp->getResults());
         };
 
-        auto ogiginShape = getShape(inputPart.concatOperand);
-        auto originType = multiclusterPart.getNceOp()->getResult(0).getType();
+        auto origType = inputPart.concatOperand.getType().cast<NDTypeInterface>();
+        auto nceType = multiclusterPart.getNceOp()->getResult(0).getType().cast<VPU::DistributedTypeInterface>();
+        auto newType = getConcatDistributedType(nceType, origType.getShape(), origType.getElementType());
 
-        auto newType = originType.cast<NDTypeInterface>().changeShape(ogiginShape);
         _log.trace("Insert Cluster tiling Copy from DDR to CMX for constant input '{0}'", inputPart.concatOperand);
         const auto newConcatInputOp = builder.create<NCEClusterTilingOp>(
                 _concat.getLoc(), newType, inputPart.concatOperand, outputTensorBodyBuilder);
@@ -297,9 +364,6 @@ bool InputConcatPattern::inputsHaveNotOnlyCopiesUsers() const {
 }
 
 bool InputConcatPattern::isMemConsistentPerCluster() {
-    if (!_concat.static_offsetsAttr()) {
-        return true;
-    }
     // CMX Concat is not supported when the memory is inconsistent for each single cluster
     // i.e., when distribution modes are SEGMENTED or OVERLAPPED and concatenation over H
 
@@ -326,13 +390,20 @@ bool InputConcatPattern::isMemConsistentPerCluster() {
                                      .getDistributedTypes()
                                      .front()
                                      .cast<VPU::DistributedTensorType>();
-        const auto disMode = disType.getDistribution().mode().getValue();
+        const auto disMode = disType.getDistribution().getMode().getValue();
         return disMode == VPU::DistributionMode::SEGMENTED || disMode == VPU::DistributionMode::OVERLAPPED;
     };
 
-    const auto concatDims = _concat.static_offsetsAttr().getAsRange<mlir::ArrayAttr>();
-    bool isConcatOverH = llvm::any_of(concatDims, isOffsetOnH);
     bool isSplitOverH = llvm::any_of(_inputParts, isSingleOpSplitOnH);
+
+    bool isConcatOverH = false;
+    if (_concat.static_offsetsAttr() != nullptr) {
+        const auto concatDims = _concat.static_offsetsAttr().getAsRange<mlir::ArrayAttr>();
+        isConcatOverH = llvm::any_of(concatDims, isOffsetOnH);
+    } else {
+        const auto concatAxis = _concat.per_axis().value().getAxis().getValue().getSExtValue();
+        isConcatOverH = concatAxis == Dims4D::Act::H.ind();
+    }
 
     return !(isConcatOverH && isSplitOverH);
 }
@@ -557,8 +628,9 @@ bool OutputConcatPattern::childOpsFitInCMX(size_t cmxSize) {
         // consts (weights table and activation window) already exists
         auto nceOp = concatPart.getNceOp();
         auto copyOp = concatPart.getCopyOp();
+        auto sliceOp = copyOp->getOperand(0).getDefiningOp<VPU::SliceOp>();
         for (auto input : nceOp->getOperands()) {
-            if (input.getDefiningOp() == copyOp) {
+            if (input.getDefiningOp() == copyOp && sliceOp == nullptr) {
                 continue;
             }
             consumerInputSize += getSize(input.getType());
@@ -647,26 +719,32 @@ void OutputConcatPattern::moveConcatToCMX() {
     }
     // If the outputPattern has MC layer, then the inputPattern must have MC layer so the concat could be
     // CMX-ed. Infer concat output type
-    auto newConcatType =
-            _concat->getOperand(0).getType().cast<vpux::NDTypeInterface>().changeShape(concatType.getShape());
-    _concat.output().setType(newConcatType);
+
+    auto concatInputType = _concat->getOperand(0).getType().cast<VPU::DistributedTypeInterface>();
+    auto newConcatOutputType =
+            getConcatDistributedType(concatInputType, concatType.getShape(), concatType.getElementType());
+    _concat.output().setType(newConcatOutputType);
+
     // Insert DistributedCast if the input pattern has different distributed mode
-    auto inputPatternMode = newConcatType.cast<VPU::DistributedTypeInterface>()
+    auto inputPatternMode = newConcatOutputType.cast<VPU::DistributedTypeInterface>()
                                     .getDistributedTypes()
                                     .front()
                                     .cast<VPU::DistributedTensorType>()
                                     .getDistribution()
-                                    .mode()
+                                    .getMode()
                                     .getValue();
-    auto outputPatternType =
-            _outputParts[0].copyClusterOp->getResult(0).getType().cast<vpux::NDTypeInterface>().changeShape(
-                    newConcatType.getShape());
+
+    auto outputCopyType =
+            _outputParts.front().copyClusterOp->getResult(0).getType().cast<VPU::DistributedTypeInterface>();
+    auto outputPatternType = getConcatDistributedType(outputCopyType, newConcatOutputType.getShape(),
+                                                      newConcatOutputType.getElementType());
+
     auto outputPatternMode = outputPatternType.cast<VPU::DistributedTypeInterface>()
                                      .getDistributedTypes()
                                      .front()
                                      .cast<VPU::DistributedTensorType>()
                                      .getDistribution()
-                                     .mode()
+                                     .getMode()
                                      .getValue();
     if (inputPatternMode != outputPatternMode) {
         _log.trace("Inserting DistributedCast at '{1}'", _concat->getLoc());
@@ -695,7 +773,7 @@ void OutputConcatPattern::replaceSliceCopy() {
         _log.trace("Removing output Copy from DDR to NNCMX '{0}' at '{1}'. Operand: {2}",
                    concatPart.getCopyOp()->getName(), concatPart.getCopyOp()->getLoc(),
                    concatPart.getCopyOp()->getOperand(0));
-        // concatPart.copyOp.output().replaceAllUsesWith(concatPart.copyOp.input());
+
         concatPart.getCopyOp()->getResult(0).replaceAllUsesWith(concatPart.getCopyOp()->getOperand(0));
     }
 }
@@ -1022,10 +1100,44 @@ bool CMXConcatPass::areInputOutputPatternsCompatible(InputConcatPattern& inputPa
                                         .getDistributedTypes()
                                         .front()
                                         .cast<VPU::DistributedTensorType>();
-        if (mlir::failed(areDistributionAttrsCompatible(inputType, outputType))) {
-            _log.trace("Input and output distributions are incompatible: input {0} and output {1}",
-                       inputType.getDistribution(), outputType.getDistribution());
+
+        if (!areDistributedTypesConcatenable(inputType, outputType)) {
+            _log.trace("Distributed tensor attributes for concat input and output do not match: `{0}` and `{1}`",
+                       inputType, outputType);
             return false;
+        }
+
+        // Only Slices on one axis is supported by pass
+        auto getSplitAxis = [](VPU::SliceOp slice) -> size_t {
+            const auto inputShape = getShape(slice.getOperand()).raw();
+            const auto outputShape = slice.result().getType().cast<NDTypeInterface>().getShape().raw();
+
+            for (size_t dim = 0; dim < inputShape.size(); dim++) {
+                if (inputShape[dim] != outputShape[dim]) {
+                    return dim;
+                }
+            }
+
+            VPUX_THROW("SliceOp is invalid: there is no slice axis");
+        };
+
+        for (const auto& outPart : outputPattern.getOutputParts()) {
+            if (!outPart.isMultiCluster()) {
+                continue;
+            }
+
+            // Check that all Slices after the Concat have their axis different than the axis
+            // of clustering, if the mode is SEGMENTED for input
+            const auto distribution = inputType.getDistribution().getMode().getValue();
+            if (outPart.hasSliceOp() && (distribution == VPU::DistributionMode::SEGMENTED ||
+                                         distribution == VPU::DistributionMode::OVERLAPPED)) {
+                const auto numTiles = parseIntArrayAttr<int64_t>(inputType.getDistribution().getNumTiles());
+                const auto sliceAxis = getSplitAxis(outPart.sliceOp);
+
+                if (numTiles[sliceAxis] != 1) {
+                    return false;
+                }
+            }
         }
     }
     return true;
@@ -1053,7 +1165,7 @@ void CMXConcatPass::safeRunOnFunc() {
             return;
         }
 
-        auto inputPattern = potentialInputPattern.getValue();
+        auto inputPattern = potentialInputPattern.value();
         if (!inputPattern.inputPatternCanBeCMXed(cmxSize)) {
             nestLog.trace("Concat input pattern can not be cmx-ed");
             return;
@@ -1066,7 +1178,7 @@ void CMXConcatPass::safeRunOnFunc() {
             return;
         }
 
-        auto outputPattern = potentialOutputPattern.getValue();
+        auto outputPattern = potentialOutputPattern.value();
         if (!outputPattern.outputPatternCanBeCMXed(cmxSize)) {
             nestLog.trace("Concat output pattern can not be cmx-ed");
             return;

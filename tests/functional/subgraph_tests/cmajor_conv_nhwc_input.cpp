@@ -1,10 +1,10 @@
 //
-// Copyright (C) 2022-2023 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2022-2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "common/functions.h"
-#include "kmb_layer_test.hpp"
+#include "vpu_ov1_layer_test.hpp"
 
 #include <ngraph_functions/builders.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -17,15 +17,8 @@ typedef std::tuple<InferenceEngine::Precision, InferenceEngine::Precision, Infer
                    std::pair<ngraph::CoordinateDiff, ngraph::CoordinateDiff>>
         CMajorConvNHWCTestParams;
 class VPUXCMajorConvNHWCTest_VPU3700 :
-        public LayerTestsUtils::KmbLayerTestsCommon,
+        public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<CMajorConvNHWCTestParams> {
-    //[Track number: E#26428]
-    void SkipBeforeLoad() override {
-        if (getBackendName(*getCore()) == "VPUAL") {
-            throw LayerTestsUtils::KmbSkipTestException("LoadNetwork throws an exception");
-        }
-    }
-
     void ConfigureNetwork() override {
         auto params = GetParam();
 
@@ -62,7 +55,7 @@ class VPUXCMajorConvNHWCTest_VPU3700 :
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(conv)};
         function = std::make_shared<ngraph::Function>(results, params, "VPUXCMajorConvNHWCTest");
 
-        targetDevice = LayerTestsUtils::testPlatformTargetDevice;
+        targetDevice = LayerTestsUtils::testPlatformTargetDevice();
         threshold = 0.1f;
     }
 

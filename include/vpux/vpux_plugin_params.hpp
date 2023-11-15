@@ -6,7 +6,7 @@
 /**
  * @brief A header for properties of shared device contexts and shared device memory blobs
  * for VPUX plugin
- * 
+ *
  * @deprecated Configuration API v1.0 would be deprecated in 2023.1 release.
  * It was left due to backward compatibility needs.
  * As such usage of this version of API is discouraged.
@@ -41,7 +41,7 @@ namespace VpuxContextParams {
  * @brief Shortcut for defining object parameter keys
  * Configuration API v1.0
  */
-#define DECLARE_VPUX_PARAM_KEY(name, ...)        \
+#define DECLARE_VPUX_PARAM_KEY(name, ...)       \
     static constexpr auto PARAM_##name = #name; \
     DECLARE_PARAM_KEY_IMPL(name, __VA_ARGS__)
 

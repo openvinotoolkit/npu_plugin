@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/dialect/VPURegMapped/ops.hpp"
@@ -24,24 +22,24 @@ namespace VPURegMapped {
 // Passes
 //
 
-std::unique_ptr<mlir::Pass> resolveMappedInferenceTaskLocationsPass(Logger log = Logger::global());
-
 // pass object stores callable, so it cannot llvm::function_ref
-using UpperBoundsCallable = std::function<size_t(VPURegMapped::TaskType, VPURegMapped::IndexType)>;
-std::unique_ptr<mlir::Pass> resolveMappedInferenceTaskLocationsPass(UpperBoundsCallable upperBounds,
-                                                                    Logger log = Logger::global());
+using UpperBoundCallable = std::function<size_t(VPURegMapped::TaskType, VPURegMapped::IndexType)>;
 
-//
-// Generated
-//
+class ResolveTaskLocationPass : public vpux::FunctionPass {
+public:
+    using vpux::FunctionPass::FunctionPass;
 
-#define GEN_PASS_CLASSES
-#include <vpux/compiler/dialect/VPURegMapped/generated/passes.hpp.inc>
-#undef GEN_PASS_CLASSES
+protected:
+    void safeRunOnFunc() final;
+    template <typename Content>
+    using MetadataBuffersContainer =
+            llvm::SmallVector<llvm::DenseMap<VPURegMapped::TaskType, llvm::SmallVector<Content>>>;
 
-#define GEN_PASS_REGISTRATION
-#include <vpux/compiler/dialect/VPURegMapped/generated/passes.hpp.inc>
-#undef GEN_PASS_REGISTRATION
+    MetadataBuffersContainer<size_t> _metadataBuffersSizes;
+
+private:
+    MetadataBuffersContainer<llvm::SmallVector<mlir::Value>> _metadataBuffers;
+};
 
 }  // namespace VPURegMapped
 }  // namespace vpux
