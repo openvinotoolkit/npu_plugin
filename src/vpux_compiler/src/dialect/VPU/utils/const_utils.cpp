@@ -10,7 +10,6 @@
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/custom_pwl_table.hpp"
 #include "vpux/compiler/utils/permute_utils.hpp"
-#include "vpux/utils/core/numeric.hpp"
 
 namespace vpux {
 namespace VPU {
@@ -56,22 +55,22 @@ mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location lo
     return dataConstOp.getOutput();
 }
 
-Optional<SmallVector<int32_t>> createInstructionListTableData(mlir::Value opOutput, vpux::IE::PostOpAttr postOp,
-                                                              VPU::ArchKind _arch) {
+std::optional<SmallVector<int32_t>> createInstructionListTableData(mlir::Value opOutput, vpux::IE::PostOpAttr postOp,
+                                                                   VPU::ArchKind _arch) {
     const auto outElemType = opOutput.getType().cast<vpux::NDTypeInterface>().getElementType();
 
     if (postOp == nullptr) {
-        return None;
+        return std::nullopt;
     }
 
     if (_arch == VPU::ArchKind::VPUX37XX) {
-        return None;
+        return std::nullopt;
     }
 
     const auto pwlTable = findCustomPWLTable(postOp, outElemType);
 
     if (!pwlTable.has_value()) {
-        return None;
+        return std::nullopt;
     }
 
     const auto& pwlTableRange = pwlTable.value().range;
@@ -82,11 +81,11 @@ Optional<SmallVector<int32_t>> createInstructionListTableData(mlir::Value opOutp
 }
 
 mlir::Value createInstructionListTableTensor(mlir::OpBuilder& builder, mlir::Location loc,
-                                             const Optional<SmallVector<int32_t>>& instructionList) {
+                                             const std::optional<SmallVector<int32_t>>& instructionList) {
     if (!instructionList.has_value()) {
         return nullptr;
     }
-    const auto instructionListArrayRef = makeArrayRef(instructionList.value());
+    const auto instructionListArrayRef = ArrayRef(instructionList.value());
     const auto elemType = getSInt32Type(builder.getContext());
     const auto instructionListTableShape = Shape{1, 1, 1, static_cast<int64_t>(instructionListArrayRef.size())};
 
@@ -150,14 +149,14 @@ Const::ContentAttr buildPadData(const mlir::Type type, ArrayRef<int64_t> shape) 
                        [](int64_t value) -> uint8_t {
                            return static_cast<uint8_t>(value);
                        });
-        const auto padAttr = mlir::DenseElementsAttr::get(padType, makeArrayRef(padValuesUint8));
+        const auto padAttr = mlir::DenseElementsAttr::get(padType, ArrayRef(padValuesUint8));
 
         return Const::ContentAttr::get(padAttr).quantCast(quantizedType);
     } else {
         const auto ndType = mlir::RankedTensorType::get(shape, type).cast<vpux::NDTypeInterface>();
         const auto padType = ndType.changeDimsOrder(DimsOrder::NCHW).cast<mlir::RankedTensorType>();
-        const auto padValues = std::vector<ngraph::float16>(OC * alignment, 0.f);
-        const auto padAttr = mlir::DenseElementsAttr::get(padType, makeArrayRef(padValues));
+        const auto padValues = std::vector<ov::float16>(OC * alignment, 0.f);
+        const auto padAttr = mlir::DenseElementsAttr::get(padType, ArrayRef(padValues));
 
         return Const::ContentAttr::get(padAttr);
     }
@@ -170,15 +169,15 @@ mlir::Value getAlignedNonConstWeights(mlir::OpBuilder& builder, mlir::Location l
     const auto origFilterType = origFilter.getType().cast<vpux::NDTypeInterface>();
     const auto origOrder = origFilterType.getDimsOrder();
     const auto flatWeightType = origFilterType.changeShape(flatWeightShape).changeDimsOrder(origOrder);
-    auto flatWeightsOp = builder.create<IE::ReshapeOp>(loc, flatWeightType, origFilter, nullptr, false,
-                                                       getIntArrayAttr(ctx, flatWeightShape));
+    auto flatWeightsOp =
+            builder.create<IE::ShapeCastOp>(loc, flatWeightType, origFilter, getIntArrayAttr(ctx, flatWeightShape));
 
     // Step 2: Permute flat input to NCHW.
     auto flatWeightTypeNCHWType = flatWeightType.changeDimsOrder(DimsOrder::NCHW);
     const auto nchwAttr = mlir::AffineMapAttr::get(DimsOrder::NCHW.toAffineMap(ctx));
     const auto flatWeightsDimsAttr =
             mlir::AffineMapAttr::get(getPermutationFromOrders(origOrder, DimsOrder::NCHW, ctx));
-    auto flatWeightsNCHW = builder.create<IE::PermuteCastOp>(loc, flatWeightTypeNCHWType, flatWeightsOp.output(),
+    auto flatWeightsNCHW = builder.create<IE::PermuteCastOp>(loc, flatWeightTypeNCHWType, flatWeightsOp->getResult(0),
                                                              nchwAttr, flatWeightsDimsAttr);
 
     // Step 3: Create padding for flat NCHW input. IC must be a multiple of 16.
@@ -194,7 +193,6 @@ mlir::Value getAlignedNonConstWeights(mlir::OpBuilder& builder, mlir::Location l
 
     const auto padAllocType =
             mlir::RankedTensorType::get(padShape, origFilterType.getElementType()).cast<vpux::NDTypeInterface>();
-    ;
     const auto padAllocTypeNHWC = padAllocType.changeDimsOrder(DimsOrder::NCHW);
     auto paddedTensor = builder.create<Const::DeclareOp>(loc, padAllocTypeNHWC, padContentAttr);
 
@@ -207,9 +205,10 @@ mlir::Value getAlignedNonConstWeights(mlir::OpBuilder& builder, mlir::Location l
     const auto nhwcAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(ctx));
     auto memPermAttr = mlir::AffineMapAttr::get(getPermutationFromOrders(DimsOrder::NCHW, DimsOrder::NHWC, ctx));
 
-    auto outOpNCHW = builder.create<IE::PermuteCastOp>(loc, outAllocType, concatViewOp.output(), nhwcAttr, memPermAttr);
+    auto outOpNCHW =
+            builder.create<IE::PermuteCastOp>(loc, outAllocType, concatViewOp.getOutput(), nhwcAttr, memPermAttr);
 
-    return outOpNCHW.output();
+    return outOpNCHW.getOutput();
 }
 
 }  // namespace
@@ -285,16 +284,35 @@ mlir::Value alignConvWeightsTensor(mlir::OpBuilder& builder, mlir::Location loc,
     return alignedWeightsOp.getOutput();
 }
 
-mlir::Value getZerosConst(mlir::PatternRewriter& rewriter, Shape constShape, mlir::Value input, mlir::Location loc) {
+mlir::Value getZerosConst(mlir::PatternRewriter& rewriter, ShapeRef constShape, mlir::Value input, mlir::Location loc) {
     const auto elemType = input.getType().cast<vpux::NDTypeInterface>().getElementType();
     const auto inputDimOrder = input.getType().cast<vpux::NDTypeInterface>().getDimsOrder();
     const auto dataStorageType = mlir::RankedTensorType::get(to_small_vector(constShape), elemType)
                                          .cast<vpux::NDTypeInterface>()
                                          .changeDimsOrder(inputDimOrder);
 
-    mlir::DenseElementsAttr denseElementVal = wrapData(dataStorageType.cast<mlir::RankedTensorType>(), 0.0f);
-    VPUX_THROW_UNLESS(denseElementVal != nullptr,
-                      "Upsampling has incompatible data type {0}, only float16 or float32 are supported", elemType);
+    mlir::DenseElementsAttr denseElementVal;
+    if (const auto quantizedType = elemType.dyn_cast<mlir::quant::QuantizedType>()) {
+        const auto quantizedDataStorageType =
+                mlir::cast<mlir::ShapedType>(dataStorageType.changeElemType(normalizeQuantStorageType(quantizedType)));
+        if (const auto uniformType = quantizedType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
+            const auto zeroPoint = uniformType.getZeroPoint();
+            if (quantizedType.isSigned()) {
+                denseElementVal =
+                        mlir::DenseElementsAttr::get(quantizedDataStorageType, checked_cast<int8_t>(zeroPoint));
+            } else {
+                denseElementVal =
+                        mlir::DenseElementsAttr::get(quantizedDataStorageType, checked_cast<uint8_t>(zeroPoint));
+            }
+        }
+    } else {
+        denseElementVal = wrapData(dataStorageType.cast<mlir::RankedTensorType>(), 0.0f);
+    }
+
+    VPUX_THROW_UNLESS(
+            denseElementVal != nullptr,
+            "Upsampling has incompatible data type {0}, only float16, float32 or uniform quantized type are supported",
+            elemType);
 
     return rewriter
             .create<Const::DeclareOp>(loc, vpux::convertToMemRef(dataStorageType.cast<mlir::RankedTensorType>()),
@@ -342,7 +360,7 @@ Byte calculateAlignedBuffersMemoryRequirement(VPU::ArchKind arch, SmallVector<By
     Byte offsetAlignment = Byte(vpux::DEFAULT_CMX_ALIGNMENT);
     Byte sizeAlignment = Byte(1);
     if (arch == VPU::ArchKind::VPUX37XX) {
-        offsetAlignment = Byte(getAddressAlignmentForSwizzling(SWIZZLING_KEY_5, arch));
+        offsetAlignment = Byte(getAddressAlignmentForSwizzling(SWIZZLING_KEY_5));
         sizeAlignment = Byte(vpux::getSizeAlignmentForSwizzling(arch));
     }
     return vpux::calculateAlignedBuffersMemoryRequirement(bufferSizes, offsetAlignment, sizeAlignment);
@@ -356,6 +374,93 @@ Const::DeclareOp declareFloatConst(mlir::OpBuilder& builder, mlir::Location loc,
                       argType.getElementType());
 
     return builder.create<Const::DeclareOp>(loc, argType, Const::ContentAttr::get(denseElementVal));
+}
+
+mlir::DenseElementsAttr wrapData(const mlir::RankedTensorType dataStorageType, ArrayRef<float> values) {
+    const auto elemType = dataStorageType.getElementType();
+    if (elemType.isF32()) {
+        return mlir::DenseElementsAttr::get(dataStorageType, values);
+    } else if (elemType.isF16()) {
+        SmallVector<ov::float16> valsFP16;
+        std::transform(values.begin(), values.end(), std::back_inserter(valsFP16), [](float value) {
+            return ov::float16(value);
+        });
+        return mlir::DenseElementsAttr::get(dataStorageType, ArrayRef(valsFP16));
+    }
+    return nullptr;
+}
+
+mlir::FailureOr<Const::DeclareOp> updateConstStorageValues(Const::DeclareOp origConst, ArrayRef<float> constValues,
+                                                           mlir::PatternRewriter& rewriter, Logger log) {
+    const auto contentAttr = origConst.getContentAttr();
+    const auto origTransAttrs = contentAttr.getTransformations();
+    const auto baseContentType = contentAttr.getBaseContent().getType().cast<NDTypeInterface>();
+    const auto origOutType = origConst.getOutput().getType().cast<NDTypeInterface>();
+
+    SmallVector<Const::TransformAttrInterface> reserveTransAttrs;
+    auto newBaseContentType = baseContentType;
+    if (checked_cast<int64_t>(constValues.size()) == baseContentType.getShape().totalSize()) {
+        reserveTransAttrs = to_small_vector(origTransAttrs);
+    } else if (checked_cast<int64_t>(constValues.size()) == origOutType.getShape().totalSize()) {
+        newBaseContentType = newBaseContentType.changeShape(origOutType.getShape());
+        for (const auto& attr : origTransAttrs) {
+            if (attr.isa<Const::ConvertElemTypeAttr>()) {
+                reserveTransAttrs.push_back(attr);
+            } else if (attr.isa<Const::ReshapeAttr, Const::BroadcastAttr, Const::SubViewAttr,
+                                Const::PadWithZeroAttr>()) {
+                continue;
+            } else {
+                // There are many constant transformation attributions
+                // It is possible to consider all attributions, but great effort for all corner cases
+                log.trace("Get unexpected constant transformation attribution '{0}'", attr);
+                return mlir::failure();
+            }
+        }
+    } else {
+        log.trace("Get unexpected values size '{0}' that mismatch with constant base type '{1}' and output type '{2}'",
+                  constValues.size(), baseContentType, origOutType);
+        return mlir::failure();
+    }
+
+    const auto denseElementVal = wrapData(newBaseContentType.cast<mlir::RankedTensorType>(), constValues);
+    if (denseElementVal == nullptr) {
+        log.trace("Incompatible data type {0}, only float16 or float32 are supported",
+                  newBaseContentType.getElementType());
+        return mlir::failure();
+    }
+
+    auto newContentAttr = Const::ContentAttr::get(denseElementVal);
+    for (const auto& attr : reserveTransAttrs) {
+        newContentAttr = Const::ContentAttr::addTransformation(newContentAttr, attr);
+    }
+
+    return rewriter.create<Const::DeclareOp>(origConst.getLoc(), origOutType, newContentAttr);
+}
+
+bool hasNegativeValues(const Const::Content& content) {
+    if (content.isSplat()) {
+        return content.getSplatValue<double>() < 0;
+    }
+
+    const auto vals = content.getValues<double>();
+    return std::any_of(vals.begin(), vals.end(), [](double val) {
+        return val < 0;
+    });
+}
+
+Const::DeclareOp createFloatConst(mlir::RankedTensorType constType, ArrayRef<float> constValues, mlir::Location loc,
+                                  mlir::PatternRewriter& rewriter) {
+    const auto constShape = constType.getShape();
+    const auto shapeTotalSize =
+            std::accumulate(constShape.begin(), constShape.end(), int64_t(1), std::multiplies<int64_t>());
+    VPUX_THROW_UNLESS(constValues.size() == 1 || shapeTotalSize == checked_cast<int64_t>(constValues.size()),
+                      "Create float Const failed with unexpect data size");
+
+    const auto denseElementVal = wrapData(constType, constValues);
+    VPUX_THROW_UNLESS(denseElementVal != nullptr, "Incompatible data type {0}, only float16 or float32 are supported",
+                      constType.getElementType());
+
+    return rewriter.create<Const::DeclareOp>(loc, constType, Const::ContentAttr::get(denseElementVal));
 }
 
 }  // namespace VPU

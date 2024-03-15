@@ -36,8 +36,8 @@ TEST_F(MLIR_NDTypeInterface, BufferType) {
     const auto orderAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(&ctx));
     const auto elemStrides = SmallVector<int64_t>({64 * 16 * 13, 1, 64 * 16, 64});
     const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-    const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr,
-                                               /*allocSize=*/nullptr, &ctx);
+    const auto layout = vpux::MemRefAttr::get(orderAttr, stridesAttr,
+                                              /*allocSize=*/nullptr, &ctx);
 
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 
@@ -125,4 +125,18 @@ TEST_F(MLIR_NDTypeInterface, BufferType) {
 
     const SmallVector<int64_t> pads({0, 0, 2, 2});
     EXPECT_ANY_THROW(ndType.pad(vpux::ShapeRef(pads), vpux::ShapeRef(pads)));
+
+    // Test out sub byte logic
+    const SmallVector<int64_t> newSubByteShape({1, 27, 3, 3});
+    const auto changedShapeAndSubByteElementType =
+            ndType.changeShapeElemType(vpux::ShapeRef(newSubByteShape), mlir::IntegerType::get(&ctx, 4));
+
+    EXPECT_EQ(changedShapeAndSubByteElementType.getShape(), vpux::ShapeRef(newSubByteShape));
+    EXPECT_TRUE(changedShapeAndSubByteElementType.getElementType().isa<mlir::IntegerType>());
+    EXPECT_EQ(changedShapeAndSubByteElementType.getElemTypeSize().count(), 4);
+    // Align to multiple of 1 Byte
+    EXPECT_EQ(changedShapeAndSubByteElementType.getTotalAllocSize().count(), divUp(27 * 3 * 3, 2));
+    EXPECT_EQ(changedShapeAndSubByteElementType.getCompactAllocSize().count(), divUp(27 * 3 * 3, 2));
+    const SmallVector<Bit> newSubByteStrides({972_Bit, 4_Bit, 324_Bit, 108_Bit});
+    EXPECT_EQ(changedShapeAndSubByteElementType.getStrides().raw(), newSubByteStrides);
 }

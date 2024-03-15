@@ -34,26 +34,36 @@ else()
 endif()
 
 target_include_directories(${FUNCTIONAL_TARGET}
+    SYSTEM PRIVATE
+        $<BUILD_INTERFACE:${LLVM_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${LLVM_BINARY_DIR}/include>
+        ${LLVM_INCLUDE_DIRS}
+)
+target_link_libraries(${FUNCTIONAL_TARGET} PRIVATE LLVMSupport)
+
+target_include_directories(${FUNCTIONAL_TARGET}
     PUBLIC
         "${CMAKE_SOURCE_DIR}/src/core/include"
 )
 
-if(TARGET IE::nlohmann_json)
+if(TARGET openvino::nlohmann_json)
     target_include_directories(${FUNCTIONAL_TARGET}
         PRIVATE
-            $<TARGET_PROPERTY:IE::nlohmann_json,INTERFACE_INCLUDE_DIRECTORIES>)
+        $<TARGET_PROPERTY:openvino::nlohmann_json,INTERFACE_INCLUDE_DIRECTORIES>)
 else()
     find_package(nlohmann_json 3.9.0 QUIET)
     if(nlohmann_json_FOUND)
         target_include_directories(${FUNCTIONAL_TARGET}
             PRIVATE
-                $<TARGET_PROPERTY:nlohmann_json::nlohmann_json,INTERFACE_INCLUDE_DIRECTORIES>)
+            $<TARGET_PROPERTY:nlohmann_json::nlohmann_json,INTERFACE_INCLUDE_DIRECTORIES>)
     else()
-        message(FATAL_ERROR "Failed to find system nlohmann_json.")
+        message(FATAL_ERROR "Failed to find system nlohmann_json in OpenVINO Developer Package and system libraries")
     endif()
 endif()
 
-link_system_libraries(${FUNCTIONAL_TARGET} PUBLIC IE::ngraph)
+link_system_libraries(${FUNCTIONAL_TARGET} 
+    PUBLIC
+        openvino::runtime)
 
 ie_add_api_validator_post_build_step(TARGET vpuxCompilerL0Test)
 

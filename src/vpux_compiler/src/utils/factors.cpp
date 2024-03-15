@@ -5,6 +5,8 @@
 
 #include "vpux/compiler/utils/factors.hpp"
 
+#include <cmath>
+
 using namespace vpux;
 
 SmallVector<Factors> vpux::getFactorsList(int64_t n) {
@@ -41,4 +43,16 @@ SmallVector<int64_t> vpux::getPrimeFactors(int64_t n) {
     }
     factors.push_back(n);
     return factors;
+}
+
+int64_t vpux::smallestDivisor(int64_t n) {
+    int64_t i = 2;
+    int64_t limit = sqrt(n);
+    while (i <= limit) {
+        if (n % i == 0) {
+            return i;
+        }
+        i++;
+    }
+    return n;
 }

@@ -5,14 +5,14 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
-#include <ngraph/pass/pass.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
+#include <openvino/pass/pass.hpp>
 
 namespace vpux {
 
 namespace passes {
 
-class ConvertVariadicSplitToStridedSliceOp : public ngraph::pass::MatcherPass {
+class ConvertVariadicSplitToStridedSliceOp : public ov::pass::MatcherPass {
 public:
     ConvertVariadicSplitToStridedSliceOp();
 };

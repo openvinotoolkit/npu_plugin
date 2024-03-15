@@ -6,20 +6,13 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/utils/interpolate_utils.hpp"
 
-#include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
-
-#include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/error.hpp"
-
-#include "vpux/compiler/dialect/IE/utils/resources.hpp"
-#include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::InterpolateOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -28,15 +21,11 @@ mlir::LogicalResult vpux::IE::InterpolateOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = interpolate.input().getType().cast<mlir::ShapedType>();
+    auto outShape = IE::calcOutputShapes(interpolate, loc, Logger::global(), ctx);
 
-    auto outShape = IE::calcOutputShapes(loc, interpolate, Logger::global());
+    const auto inType = interpolate.getInput().getType().cast<mlir::ShapedType>();
+    inferredReturnShapes.emplace_back(outShape, inType.getElementType());
 
-    if (mlir::failed(outShape)) {
-        return mlir::failure();
-    }
-
-    inferredReturnShapes.emplace_back(outShape.value(), inType.getElementType());
     return mlir::success();
 }
 
@@ -54,44 +43,69 @@ public:
     mlir::LogicalResult matchAndRewrite(IE::InterpolateOp InterpolateOp, mlir::PatternRewriter& rewriter) const final;
 };
 
-mlir::LogicalResult ConvertInputsToAttr::matchAndRewrite(IE::InterpolateOp InterpolateOp,
+mlir::LogicalResult ConvertInputsToAttr::matchAndRewrite(IE::InterpolateOp interpolateOp,
                                                          mlir::PatternRewriter& rewriter) const {
-    if (InterpolateOp.sizes_attr().has_value() || InterpolateOp.scales_attr().has_value() ||
-        InterpolateOp.axes_attr().has_value()) {
+    if (interpolateOp.getSizesAttr().has_value() || interpolateOp.getScalesAttr().has_value() ||
+        interpolateOp.getAxesAttr().has_value()) {
         return mlir::failure();
     }
 
-    // convert sizes
-    auto sizes = IE::extractIntVector(InterpolateOp.getLoc(), InterpolateOp.sizes(), None);
-
+    // Get Sizes Attr
+    auto sizes = IE::extractIntVector(interpolateOp.getLoc(), interpolateOp.getSizes(), std::nullopt);
     if (mlir::failed(sizes)) {
         return mlir::failure();
     }
-    const auto sizesAttr = getIntArrayAttr(InterpolateOp.getContext(), sizes.value());
+    const auto sizesVal = sizes.value();
+    auto sizesAttr = getIntArrayAttr(interpolateOp.getContext(), sizesVal);
 
-    // convert scales
-    auto scales = IE::extractFPVector(InterpolateOp.getLoc(), InterpolateOp.scales(), None);
-
+    // Get Scales Attr
+    auto scales = IE::extractFPVector(interpolateOp.getLoc(), interpolateOp.getScales(), std::nullopt);
     if (mlir::failed(scales)) {
         return mlir::failure();
     }
-    const auto scalesAttr = getFPArrayAttr(InterpolateOp.getContext(), scales.value());
+    const auto scalesVal = scales.value();
+    auto scalesAttr = getFPArrayAttr(interpolateOp.getContext(), scalesVal);
 
-    // convert axes
-    auto axes = (InterpolateOp.axes() == nullptr)
-                        ? IE::getDefaultInterpolateAxes(InterpolateOp)
-                        : IE::extractIntVector(InterpolateOp.getLoc(), InterpolateOp.axes(), None);
+    // Get Axes Attr
+    const auto inType = interpolateOp.getInput().getType().cast<NDTypeInterface>();
+    const auto axesVal = IE::getInterpAxesVal(interpolateOp.getLoc(), interpolateOp.getAxes(), std::nullopt, inType);
+    const auto axesAttr = getIntArrayAttr(interpolateOp.getContext(), axesVal);
 
-    if (mlir::failed(axes)) {
-        return mlir::failure();
+    // Convert `shape_calculation_mode` from `Scales` to `Sizes`
+    // After Scales input converted to Scales FPArrayAttr, the original Scale precision will become FP64.
+    // It is possible to calculate the wrong output size, if the original Scale precision is not FP64.
+    auto interpolateAttr = interpolateOp.getAttr();
+    const auto calcModeAttr = interpolateAttr.getShapeCalcMode();
+    if (calcModeAttr != nullptr && calcModeAttr.getValue() == IE::InterpolateCalcMode::SCALES) {
+        VPUX_THROW_UNLESS(scalesVal.size() == axesVal.size(),
+                          "Interpolate 'Axes' size '{0}' should equal with `Scales` size '{1}'", axesVal.size(),
+                          scalesVal.size());
+
+        const auto outputShape =
+                IE::calcOutputShapes(interpolateOp, interpolateOp.getLoc(), Logger::global(), getContext());
+
+        SmallVector<int64_t> newSizesVal(axesVal.size());
+        for (const auto& idx : irange(axesVal.size())) {
+            newSizesVal[idx] = outputShape[axesVal[idx]];
+        }
+        sizesAttr = getIntArrayAttr(interpolateOp.getContext(), newSizesVal);
+
+        SmallVector<int64_t> newScalesVal(axesVal.size(), 1.0);
+        scalesAttr = getFPArrayAttr(interpolateOp.getContext(), newScalesVal);
+
+        const auto newCalcModeAttr =
+                IE::InterpolateCalcModeAttr::get(interpolateOp.getContext(), IE::InterpolateCalcMode::SIZES);
+        interpolateAttr = IE::InterpolateAttr::get(
+                interpolateOp.getContext(), interpolateAttr.getMode(), newCalcModeAttr, interpolateAttr.getCoordMode(),
+                interpolateAttr.getNearestMode(), interpolateAttr.getAntialias(), interpolateAttr.getPadsBegin(),
+                interpolateAttr.getPadsEnd(), interpolateAttr.getCubeCoeff());
     }
-    const auto axesAttr = getIntArrayAttr(InterpolateOp.getContext(), axes.value());
 
     // rewrite layer
     rewriter.replaceOpWithNewOp<IE::InterpolateOp>(
-            InterpolateOp, InterpolateOp.input(), nullptr, nullptr, nullptr, sizesAttr, scalesAttr, axesAttr,
-            InterpolateOp.tile_offset_attrAttr(), InterpolateOp.initial_input_dims_attrAttr(),
-            InterpolateOp.initial_output_dims_attrAttr(), InterpolateOp.attr());
+            interpolateOp, interpolateOp.getInput(), nullptr, nullptr, nullptr, sizesAttr, scalesAttr, axesAttr,
+            interpolateOp.getTileOffsetAttrAttr(), interpolateOp.getInitialInputDimsAttrAttr(),
+            interpolateOp.getInitialOutputDimsAttrAttr(), interpolateAttr);
 
     return mlir::success();
 }
@@ -105,17 +119,23 @@ public:
 };
 
 mlir::LogicalResult ConvertInputToFP16::matchAndRewrite(IE::InterpolateOp op, mlir::PatternRewriter& rewriter) const {
-    const auto inputType = op.input().getType().cast<mlir::ShapedType>().getElementType();
+    const auto inputType = op.getInput().getType().cast<mlir::ShapedType>().getElementType();
+    const auto arch = VPU::getArch(op);
+
+    const std::set<VPU::ArchKind> incompatibleTargets = {};
+    if (incompatibleTargets.count(arch) > 0 && (VPU::getCompilationMode(op) != VPU::CompilationMode::ReferenceSW)) {
+        return mlir::failure();
+    }
 
     if (inputType.isUnsignedInteger(8)) {
         auto convertOpBefore =
-                rewriter.create<IE::ConvertOp>(op.getLoc(), op.input(), mlir::Float16Type::get(getContext()));
+                rewriter.create<IE::ConvertOp>(op.getLoc(), op.getInput(), mlir::Float16Type::get(getContext()));
         auto interpolateOp = rewriter.create<IE::InterpolateOp>(
-                op.getLoc(), convertOpBefore.output(), op.sizes(), op.scales(), op.axes(), op.sizes_attrAttr(),
-                op.scales_attrAttr(), op.axes_attrAttr(), op.tile_offset_attrAttr(), op.initial_input_dims_attrAttr(),
-                op.initial_output_dims_attrAttr(), op.attr());
+                op.getLoc(), convertOpBefore.getOutput(), op.getSizes(), op.getScales(), op.getAxes(),
+                op.getSizesAttrAttr(), op.getScalesAttrAttr(), op.getAxesAttrAttr(), op.getTileOffsetAttrAttr(),
+                op.getInitialInputDimsAttrAttr(), op.getInitialOutputDimsAttrAttr(), op.getAttr());
 
-        rewriter.replaceOpWithNewOp<IE::ConvertOp>(op, interpolateOp.output(), inputType);
+        rewriter.replaceOpWithNewOp<IE::ConvertOp>(op, interpolateOp.getOutput(), inputType);
         return mlir::success();
     }
 
@@ -137,26 +157,33 @@ public:
 //  - Convert to BroadCastOp and further convert to TileOp, finally to PerAxisTileDMAOp
 mlir::LogicalResult ConvertToNearest::matchAndRewrite(IE::InterpolateOp op, mlir::PatternRewriter& rewriter) const {
     auto* ctx = op->getContext();
-    if (!IE::isBroadCastInterpolate(op)) {
+
+    if (!IE::isBroadCastInterpolate(op) && !IE::isEquivalentToNearestAsymmetricInterpolate(op)) {
         return mlir::failure();
     }
 
-    const auto originalAttr = op.attr();
+    const auto originalAttr = op.getAttr();
     if (originalAttr.getMode().getValue() == IE::InterpolateMode::NEAREST &&
         originalAttr.getCoordMode().getValue() == IE::InterpolateCoordMode::ASYMMETRIC) {
         return mlir::failure();
     }
 
+    auto nearestMode = originalAttr.getNearestMode();
+
+    if (IE::isEquivalentToNearestAsymmetricInterpolate(op)) {
+        nearestMode = IE::InterpolateNearestModeAttr::get(ctx, IE::InterpolateNearestMode::FLOOR);
+    }
+
     const auto newInterpolateAttr = IE::InterpolateAttr::get(
             ctx, IE::InterpolateModeAttr::get(ctx, IE::InterpolateMode::NEAREST), originalAttr.getShapeCalcMode(),
-            IE::InterpolateCoordModeAttr::get(ctx, IE::InterpolateCoordMode::ASYMMETRIC), originalAttr.getNearestMode(),
+            IE::InterpolateCoordModeAttr::get(ctx, IE::InterpolateCoordMode::ASYMMETRIC), nearestMode,
             originalAttr.getAntialias(), originalAttr.getPadsBegin(), originalAttr.getPadsEnd(),
             originalAttr.getCubeCoeff());
 
-    rewriter.replaceOpWithNewOp<IE::InterpolateOp>(op, op.input(), op.sizes(), op.scales(), op.axes(),
-                                                   op.sizes_attrAttr(), op.scales_attrAttr(), op.axes_attrAttr(),
-                                                   op.tile_offset_attrAttr(), op.initial_input_dims_attrAttr(),
-                                                   op.initial_output_dims_attrAttr(), newInterpolateAttr);
+    rewriter.replaceOpWithNewOp<IE::InterpolateOp>(op, op.getInput(), op.getSizes(), op.getScales(), op.getAxes(),
+                                                   op.getSizesAttrAttr(), op.getScalesAttrAttr(), op.getAxesAttrAttr(),
+                                                   op.getTileOffsetAttrAttr(), op.getInitialInputDimsAttrAttr(),
+                                                   op.getInitialOutputDimsAttrAttr(), newInterpolateAttr);
 
     return mlir::success();
 }
@@ -167,9 +194,9 @@ mlir::LogicalResult ConvertToNearest::matchAndRewrite(IE::InterpolateOp op, mlir
 // fold
 //
 
-mlir::OpFoldResult vpux::IE::InterpolateOp::fold(ArrayRef<mlir::Attribute>) {
-    if (input().getType() == output().getType()) {
-        return input();
+mlir::OpFoldResult vpux::IE::InterpolateOp::fold(FoldAdaptor) {
+    if (getInput().getType() == getOutput().getType()) {
+        return getInput();
     }
 
     return nullptr;

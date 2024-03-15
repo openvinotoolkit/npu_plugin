@@ -9,7 +9,6 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IE/utils/broadcast_utils.hpp"
 #include "vpux/compiler/dialect/IE/utils/const_attributes.hpp"
-#include "vpux/compiler/utils/strings.hpp"
 
 using namespace vpux;
 
@@ -29,86 +28,84 @@ public:
     mlir::LogicalResult matchAndRewrite(IE::AddOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    bool isAddQuantized(mlir::Value input) const;
-    void createBroadcastBeforeAddOp(IE::AddOp origOp, mlir::PatternRewriter& rewriter, mlir::MLIRContext* ctx,
-                                    mlir::Value broadcastInput, mlir::Value origInput, ShapeRef target_shape) const;
+    mlir::TypedValue<mlir::RankedTensorType> createBroadcastInput(mlir::PatternRewriter& rewriter,
+                                                                  mlir::MLIRContext* ctx, mlir::Location loc,
+                                                                  mlir::Value broadcastInput,
+                                                                  ShapeRef targetShape) const;
     Logger _log;
 };
 
-bool BroadcastInputRewriter::isAddQuantized(mlir::Value input) const {
-    const mlir::Operation* inputOp = input.getDefiningOp();
-    if (inputOp == nullptr) {
-        _log.trace("AvgPool's input is the region argument. Assuming it is not quantized.");
-        return false;
-    }
-    return mlir::isa<IE::FakeQuantizeOp>(inputOp);
-}
-
-void BroadcastInputRewriter::createBroadcastBeforeAddOp(IE::AddOp origOp, mlir::PatternRewriter& rewriter,
-                                                        mlir::MLIRContext* ctx, mlir::Value broadcastInput,
-                                                        mlir::Value origInput, ShapeRef target_shape) const {
-    const auto origOpLoc = origOp.getLoc();
-    const auto broadcastedLoc = appendLoc(origOpLoc, "broadcasted");
-    const auto fusedLoc = appendLoc(origOpLoc, "fused");
-    auto broadcastedOp = rewriter.create<IE::BroadcastOp>(
-            broadcastedLoc, broadcastInput,
-            vpux::IE::createShapeConstForBroadCast(rewriter, ctx, broadcastedLoc, target_shape), nullptr,
-            IE::BroadcastTypeAttr::get(ctx, IE::BroadcastType::NUMPY));
-
-    auto newAddOp = rewriter.create<IE::AddOp>(fusedLoc, origInput, broadcastedOp, origOp.auto_broadcast(),
-                                               origOp.post_opAttr());
-    rewriter.replaceOp(origOp, newAddOp.output());
+mlir::TypedValue<mlir::RankedTensorType> BroadcastInputRewriter::createBroadcastInput(mlir::PatternRewriter& rewriter,
+                                                                                      mlir::MLIRContext* ctx,
+                                                                                      mlir::Location loc,
+                                                                                      mlir::Value broadcastInput,
+                                                                                      ShapeRef targetShape) const {
+    const auto broadcastedLoc = appendLoc(loc, "broadcasted");
+    auto targetShapeConst = vpux::IE::createShapeConstForBroadCast(rewriter, ctx, broadcastedLoc, targetShape);
+    return rewriter
+            .create<IE::BroadcastOp>(broadcastedLoc, broadcastInput, targetShapeConst, /*axes_mapping*/ nullptr,
+                                     IE::BroadcastTypeAttr::get(ctx, IE::BroadcastType::NUMPY))
+            .getResult();
 }
 
 mlir::LogicalResult BroadcastInputRewriter::matchAndRewrite(IE::AddOp origOp, mlir::PatternRewriter& rewriter) const {
-    _log.trace("Found IE::AddOp Operation '{0}'", origOp->getLoc());
+    _log.trace("[{0}] Got '{1}' at '{2}'", this->getDebugName(), origOp->getName(), origOp->getLoc());
 
     const auto ctx = origOp->getContext();
-    const auto lhsShape = origOp.input1().getType().template cast<vpux::NDTypeInterface>().getShape();
-    const auto rhsShape = origOp.input2().getType().template cast<vpux::NDTypeInterface>().getShape();
+    const auto loc = origOp->getLoc();
 
-    const auto nonTrivialDimPredicate = [](const int64_t dim) -> bool {
-        return dim > 1;
-    };
-    const auto nonTrivialInputDims =
-            std::count_if(lhsShape.raw().begin(), lhsShape.raw().end(), nonTrivialDimPredicate);
-    const auto nonTrivialWeightDims =
-            std::count_if(rhsShape.raw().begin(), rhsShape.raw().end(), nonTrivialDimPredicate);
+    const auto lhsShape = origOp.getInput1().getType().cast<vpux::NDTypeInterface>().getShape();
+    const auto rhsShape = origOp.getInput2().getType().cast<vpux::NDTypeInterface>().getShape();
+    const auto outputShape = origOp.getOutput().getType().cast<vpux::NDTypeInterface>().getShape();
 
-    // Pattern like:
-    // IE.Add: tensor<1xMxNxOxf16>, tensor<1xMxNx1xf16>, IE.Add: tensor<PxMxNxOxf16>, tensor<PxMxNx1xf16> (Input order
-    // and vice versa), those cannot convert to Scaleshift, broadcast the input and lowering to eltwise add.
-    if (lhsShape == rhsShape || !nonTrivialInputDims || !nonTrivialWeightDims) {
+    if (lhsShape.size() != 4) {
+        _log.trace("Only support 4D tensor, but got {0}D", lhsShape.size());
         return mlir::failure();
     }
 
-    // If weights is constant, will be convert to ScaleShift in AdaptShapeForScaleShift Pass.
-    if ((isAddQuantized(origOp.input1())
-                 ? mlir::isa_and_nonnull<Const::DeclareOp>(
-                           mlir::dyn_cast<IE::FakeQuantizeOp>(origOp.input1().getDefiningOp()).input().getDefiningOp())
-                 : mlir::isa_and_nonnull<Const::DeclareOp>(origOp.input1().getDefiningOp())) ||
-        (isAddQuantized(origOp.input2())
-                 ? mlir::isa_and_nonnull<Const::DeclareOp>(
-                           mlir::dyn_cast<IE::FakeQuantizeOp>(origOp.input2().getDefiningOp()).input().getDefiningOp())
-                 : mlir::isa_and_nonnull<Const::DeclareOp>(origOp.input2().getDefiningOp()))) {
-        auto channelScale = nonTrivialInputDims > nonTrivialWeightDims
-                                    ? lhsShape[Dims4D::Act::C] / rhsShape[Dims4D::Act::C]
-                                    : rhsShape[Dims4D::Act::C] / lhsShape[Dims4D::Act::C];
-        // TODO: [E#82719] ADD shave kernel optimization followup. Will compare performance after this work.
-        // According to CI results, scale on C <= 3 shows better performance.
-        // If the broadcast scale is large, the eltwise add performance may drop.
-        if (channelScale > 3) {
-            return mlir::failure();
-        }
+    if (lhsShape == rhsShape) {
+        _log.trace("Inputs have same shape, no need for broadcast");
+        return mlir::failure();
     }
 
-    if (nonTrivialInputDims > nonTrivialWeightDims) {
-        createBroadcastBeforeAddOp(origOp, rewriter, ctx, origOp.input2(), origOp.input1(),
-                                   ShapeRef(getShape(origOp.input1())));
-    } else {
-        createBroadcastBeforeAddOp(origOp, rewriter, ctx, origOp.input1(), origOp.input2(),
-                                   ShapeRef(getShape(origOp.input2())));
+    const auto findTrivialBiasInput = [&](IE::AddOp origOp) {
+        const auto biasInput = (origOp.getInput1().getType().cast<vpux::NDTypeInterface>() ==
+                                origOp.getOutput().getType().cast<vpux::NDTypeInterface>())
+                                       ? origOp.getInput2()
+                                       : origOp.getInput1();
+        const auto biasShape = biasInput.getType().cast<vpux::NDTypeInterface>().getShape();
+
+        const auto trivialDimExceptDimC = [](ShapeRef inputShape) -> bool {
+            return inputShape[Dims4D::Act::N] == 1 && inputShape[Dims4D::Act::H] == 1 &&
+                   inputShape[Dims4D::Act::W] == 1;
+        };
+
+        return mlir::succeeded(IE::getConstParentOp(biasInput)) && trivialDimExceptDimC(biasShape);
+    };
+
+    // For constant bias input like 1xCx1x1xf16, convert to ScaleShift can get better performance
+    // Otherwise we need to broadcast input to let it meet eltwise Add requirement.
+    if (findTrivialBiasInput(origOp)) {
+        _log.trace("Can convert to ScaleShift, no need to broadcast");
+        return mlir::failure();
     }
+
+    const auto doesInputNeedBroadCast = [&](mlir::Value input) {
+        return getShape(input) != outputShape;
+    };
+
+    auto lhsInput = origOp.getInput1();
+    if (doesInputNeedBroadCast(origOp.getInput1())) {
+        lhsInput = createBroadcastInput(rewriter, ctx, loc, origOp.getInput1(), outputShape);
+    }
+
+    auto rhsInput = origOp.getInput2();
+    if (doesInputNeedBroadCast(origOp.getInput2())) {
+        rhsInput = createBroadcastInput(rewriter, ctx, loc, origOp.getInput2(), outputShape);
+    }
+
+    rewriter.replaceOpWithNewOp<IE::AddOp>(origOp, lhsInput, rhsInput, origOp.getAutoBroadcast(),
+                                           origOp.getPostOpAttr(), origOp.getClampAttr());
 
     return mlir::success();
 }

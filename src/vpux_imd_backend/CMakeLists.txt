@@ -4,32 +4,45 @@
 #
 
 set(TARGET_NAME "npu_imd_backend")
+find_package(MLIR REQUIRED CONFIG)
 
 add_custom_target("${TARGET_NAME}_copy_app" ALL
     COMMAND
-        ${CMAKE_COMMAND} -E copy
+        ${CMAKE_COMMAND} -E copy_if_different
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/simulator/InferenceManagerDemo_vpu_2_0.elf"
         "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux/simulator/InferenceManagerDemo_vpu_2_0.elf"
     COMMAND
-        ${CMAKE_COMMAND} -E copy
+        ${CMAKE_COMMAND} -E copy_if_different
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/fpga/InferenceManagerDemo_vpu_2_0.elf"
         "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux/fpga/InferenceManagerDemo_vpu_2_0.elf"
     COMMAND
-        ${CMAKE_COMMAND} -E copy
+        ${CMAKE_COMMAND} -E copy_if_different
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/silicon/InferenceManagerDemo_vpu_2_0.elf"
         "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux/silicon/InferenceManagerDemo_vpu_2_0.elf"
     COMMAND
-        ${CMAKE_COMMAND} -E copy
+        ${CMAKE_COMMAND} -E copy_if_different
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/simulator/InferenceManagerDemo_vpu_2_7.elf"
         "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux/simulator/InferenceManagerDemo_vpu_2_7.elf"
     COMMAND
-        ${CMAKE_COMMAND} -E copy
+        ${CMAKE_COMMAND} -E copy_if_different
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/fpga/InferenceManagerDemo_vpu_2_7.elf"
         "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux/fpga/InferenceManagerDemo_vpu_2_7.elf"
     COMMAND
-        ${CMAKE_COMMAND} -E copy
+        ${CMAKE_COMMAND} -E copy_if_different
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/silicon/InferenceManagerDemo_vpu_2_7.elf"
         "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux/silicon/InferenceManagerDemo_vpu_2_7.elf"
+    COMMAND
+        ${CMAKE_COMMAND} -E copy_if_different
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/simics/InferenceManagerDemo_vpu_4.elf"
+        "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux/simics/InferenceManagerDemo_vpu_4.elf"
+    COMMAND
+        ${CMAKE_COMMAND} -E copy_if_different
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/simics/InferenceManagerDemo_vpu_5.elf"
+        "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux/simics/InferenceManagerDemo_vpu_5.elf"
+    COMMAND
+        ${CMAKE_COMMAND} -E copy_if_different
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/fpga/InferenceManagerDemo_vpu_4.elf"
+        "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux/fpga/InferenceManagerDemo_vpu_4.elf"
     COMMENT "[IMD] Copy InferenceManagerDemo application"
     VERBATIM
 )
@@ -41,7 +54,9 @@ install(
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/simulator/InferenceManagerDemo_vpu_2_7.elf"
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/fpga/InferenceManagerDemo_vpu_2_7.elf"
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/silicon/InferenceManagerDemo_vpu_2_7.elf"
-    DESTINATION "${IE_CPACK_RUNTIME_PATH}/vpux"
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/simics/InferenceManagerDemo_vpu_4.elf"
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/fpga/InferenceManagerDemo_vpu_4.elf"
+    DESTINATION "${OV_CPACK_RUNTIMEDIR}/vpux"
     COMPONENT    ${VPUX_PLUGIN_COMPONENT}
 )
 
@@ -76,17 +91,20 @@ target_include_directories(${TARGET_NAME}
 
 link_system_libraries(${TARGET_NAME}
     PRIVATE
-        IE::inference_engine
-        IE::inference_engine_plugin_api
+        openvino::runtime::dev
+        openvino::runtime
         LLVMSupport
 )
+
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         npu_al
-        npu_utils
+        npu_llvm_utils
+        npu_ov_utils
+        npu_profiling_utils
 )
 
 install(TARGETS ${TARGET_NAME}
-    LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH}
+    LIBRARY DESTINATION ${OV_CPACK_RUNTIMEDIR}
     COMPONENT ${VPUX_PLUGIN_COMPONENT}
 )

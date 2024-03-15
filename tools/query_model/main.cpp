@@ -83,7 +83,7 @@ std::string find_dumped_model() {
         }
     }
 
-    throw std::logic_error("Failed to find dumped IR after ngraph passes.");
+    throw std::logic_error("Failed to find dumped IR after performing the graph passes.");
 }
 
 std::unordered_set<std::string> extract_supported_ops(const ov::SupportedOpsMap& ops_map) {

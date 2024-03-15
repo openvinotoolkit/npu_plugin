@@ -1,0 +1,46 @@
+//
+// Copyright (C) 2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
+//
+
+#pragma once
+
+#include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
+
+#include "vpux/utils/core/mem_size.hpp"
+
+namespace vpux {
+namespace VPU {
+
+constexpr int64_t SINGLE_BATCH = 1;
+constexpr size_t RANK_REQUIRED_FOR_TILING = 4;
+
+// Each cluster should compute at least one output line. Therefore in order for a layer to be SOH
+// compatible it must have an output height of at least the number of clusters
+// specified for compilation.
+// For example for 4 cluster compilation the output height must be a minimum of 4.
+bool isOperationSplitOverHeightCompatible(mlir::Operation* op, const vpux::TileInfo& outputTile);
+
+// Each cluster should compute at least one output line. Therefore in order for a layer to be SOW
+// compatible it must have an output width of at least the number of clusters
+// specified for compilation.
+// For example for 4 cluster compilation the output Width must be a minimum of 4.
+bool isOperationSplitOverWidthCompatible(mlir::Operation* op, ShapeRef outputShape, ShapeRef offset, ShapeRef axis);
+
+/// Each cluster should compute at least 16 output channels. Therefore in order for a layer to be SOK
+/// compatible it must have an output channel of at least the number of clusters x 16
+/// specified for compilation.
+/// For example for 4 cluster compilation the output channel must be a
+/// minimum of 4x16=64.
+/// @warning Considering SOK can use 2/3 clusters to avoid per cluster channel alignment, like
+/// OC = 64, [32, 32] output channels per cluster is valid too.
+/// Thus the conditions can be relaxed.
+bool isOperationSplitOverKernelCompatible(mlir::Operation* op, ShapeRef outputShape, ShapeRef offset, ShapeRef axis);
+
+bool checkMCRestrictions(mlir::Operation*);
+
+bool doesLayerFitIntoCMX(mlir::Operation* op, VPU::MultiClusterStrategy strategy, Byte reservedMem);
+
+}  // namespace VPU
+}  // namespace vpux

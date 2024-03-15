@@ -6,8 +6,6 @@
 #include "vpux/compiler/core/async_deps_info.hpp"
 #include "vpux/compiler/core/cost_model_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
-#include "vpux/compiler/utils/analysis.hpp"
-#include "vpux/compiler/utils/logging.hpp"
 
 using namespace vpux;
 
@@ -41,8 +39,15 @@ public:
 
 void recalculateUPACycles(mlir::func::FuncOp func, AsyncDepsInfo& depsInfo, mlir::async::ExecuteOp execOp) {
     const auto execOpIdx = depsInfo.getIndex(execOp);
-    const auto deps = depsInfo.getOpDeps(execOpIdx);
-    const auto consumers = depsInfo.getConsumerOps(execOpIdx);
+
+    SmallVector<size_t> deps = {};
+    for (auto dep : depsInfo.getOpDeps(execOpIdx).set_bits()) {
+        deps.push_back(static_cast<size_t>(dep));
+    }
+    SmallVector<size_t> consumers = {};
+    for (auto con : depsInfo.getConsumerOps(execOpIdx).set_bits()) {
+        consumers.push_back(static_cast<size_t>(con));
+    }
 
     size_t upaCycleBegin = 0;
     size_t upaCycleEnd = getAsyncExecuteCycleEnd(to_small_vector(func.getOps<mlir::async::ExecuteOp>()).back());

@@ -2,11 +2,10 @@
 // Copyright (C) 2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
-
 #include "vpux/compiler/dialect/VPURT/inference_execution_simulator.hpp"
 #include "vpux/compiler/core/cost_model_utils.hpp"
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
-#include "vpux/compiler/dialect/VPU/cost_model.hpp"
+#include "vpux/compiler/dialect/VPU/utils/cost_model/cost_model.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
@@ -24,14 +23,18 @@ namespace {
 int64_t getQueueId(VPURT::TaskOp taskOp) {
     auto* op = taskOp.getInnerTaskOp();
     if (auto dmaTask = mlir::dyn_cast<VPUIP::DMATypeOpInterface>(op)) {
-        return VPURT::getDMAQueueIdEncoding(dmaTask.getPortVal(), dmaTask.getChannelType());
+        const auto port = dmaTask.getPortVal();
+        VPUX_THROW_UNLESS(port.has_value(), "DMA port has not been set");
+        const auto portValue = port.value();
+
+        return getDMAQueueIdEncoding(portValue, dmaTask.getChannelType());
     } else if (auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(op)) {
-        const auto& dpuTasks = nceOp.variants().getOps<VPUIP::DPUTaskOp>();
+        const auto& dpuTasks = nceOp.getVariants().getOps<VPUIP::DPUTaskOp>();
         VPUX_THROW_UNLESS(!dpuTasks.empty(), "Encountered op '{0}' with empty dpu list", op->getLoc());
         auto dpuTask = *(dpuTasks.begin());
-        return dpuTask.cluster_id().value_or(0);
+        return dpuTask.getClusterId().value_or(0);
     } else if (auto swKernelOp = mlir::dyn_cast<VPUIP::SwKernelOp>(op)) {
-        return swKernelOp.tileIndex().value_or(0);
+        return swKernelOp.getTileIndex().value_or(0);
     }
 
     return 0;
@@ -48,7 +51,11 @@ std::string getTaskQueueInfoString(VPURT::TaskQueueType taskType, VPURT::TaskOp 
     auto* op = taskOp.getInnerTaskOp();
 
     if (auto dmaTask = mlir::dyn_cast<VPUIP::DMATypeOpInterface>(op)) {
-        infoStr += "[port = " + std::to_string(dmaTask.getPortVal());
+        const auto port = dmaTask.getPortVal();
+        VPUX_THROW_UNLESS(port.has_value(), "DMA port has not been set");
+        const auto portValue = port.value();
+
+        infoStr += "[port = " + std::to_string(portValue);
         auto channel = dmaTask.getChannelType();
         if (channel.has_value()) {
             std::string channelName = stringifyEnum(channel.value()).data();
@@ -64,71 +71,48 @@ std::string getTaskQueueInfoString(VPURT::TaskQueueType taskType, VPURT::TaskOp 
 
 }  // namespace
 
-vpux::VPURT::TaskConfig::TaskConfig(VPURT::TaskOp op, SmallVector<int64_t>& virtBarrierWaitVec,
-                                    SmallVector<int64_t>& virtBarrierUpdateVec, int64_t cost)
-        : taskOp(op), virtBarrierWaits(virtBarrierWaitVec), virtBarrierUpdates(virtBarrierUpdateVec), cycleCost(cost) {
+SmallVector<size_t> vpux::VPURT::getSubTasksStartTime(const SmallVector<size_t>& subTasksCost, size_t startTime,
+                                                      size_t queueCount) {
+    SmallVector<size_t> queuesCycleTime(queueCount, startTime);
+    SmallVector<size_t> subTasksStartTime;
+
+    for (auto& subTaskCost : subTasksCost) {
+        auto queueCycleTimeItr = std::min_element(queuesCycleTime.begin(), queuesCycleTime.end());
+
+        subTasksStartTime.push_back(*queueCycleTimeItr);
+        *queueCycleTimeItr += subTaskCost;
+    }
+
+    return subTasksStartTime;
 }
 
-vpux::VPURT::InferenceExecutionSimulator::InferenceExecutionSimulator(Logger log, mlir::func::FuncOp funcOp)
-        : _log(log), _funcOp(funcOp) {
+vpux::VPURT::TaskConfig::TaskConfig(VPURT::TaskOp op, SmallVector<int64_t>& virtBarrierWaitVec,
+                                    SmallVector<int64_t>& virtBarrierUpdateVec, size_t cost,
+                                    SmallVector<size_t>& subTasksCost)
+        : taskOp(op),
+          virtBarrierWaits(virtBarrierWaitVec),
+          virtBarrierUpdates(virtBarrierUpdateVec),
+          cycleCost(cost),
+          subTasksCycleCost(subTasksCost) {
+}
+
+vpux::VPURT::InferenceExecutionSimulator::InferenceExecutionSimulator(Logger log, mlir::func::FuncOp funcOp,
+                                                                      CycleCostInfo& cycleCostInfo)
+        : _log(log), _funcOp(funcOp), _cycleCostInfo(cycleCostInfo) {
     auto module = funcOp->getParentOfType<mlir::ModuleOp>();
 
-    _archKind = VPU::getArch(module);
-    _costModel = VPU::createCostModel(_archKind);
-
-    if (auto nceOp = IE::getAvailableExecutor(module, VPU::ExecutorKind::NCE)) {
+    if (auto tileOp = IE::getTileExecutor(module)) {
         // In case of ActShave tasks on a single cluster compiler does not assign
         // it to a dedicated engine instance as it is dispatched only at inference
         // based on engine availability. Nevertheless simulator needs to know this
         // to correctly model those queues and track cycles
-        if (auto shaveActExec = nceOp.getSubExecutor(VPU::ExecutorKind::SHAVE_ACT)) {
-            _numOfExecutorQueuesForWhichAssignmentIsAtInference[VPU::ExecutorKind::SHAVE_ACT] = shaveActExec.count();
+        if (auto shaveActExec = tileOp.getSubExecutor(VPU::ExecutorKind::SHAVE_ACT)) {
+            _numOfExecutorQueuesForWhichAssignmentIsAtInference[VPU::ExecutorKind::SHAVE_ACT] = shaveActExec.getCount();
         }
-        _dpuCount = nceOp.getSubExecutor(VPU::ExecutorKind::DPU).count();
+        _dpuCount = tileOp.getSubExecutor(VPU::ExecutorKind::DPU).getCount();
     }
     // Parse model and gather information about barrier, tasks and their cycle cost
     parseFunc();
-}
-
-int64_t vpux::VPURT::InferenceExecutionSimulator::getTaskCycleCost(VPURT::TaskOp taskOp) {
-    int64_t cost;
-    auto* op = taskOp.getInnerTaskOp();
-    std::string layerTypeStr = op->getName().getStringRef().str();
-    if (mlir::isa<VPUIP::DMATypeOpInterface>(op)) {
-        auto dmaLayer = mlir::dyn_cast<VPUIP::LayerOpInterface>(op);
-        cost = getDMACost(dmaLayer.getInputs()[0], dmaLayer.getOutputs()[0], _archKind, _costModel);
-    } else if (auto swKernelOp = mlir::dyn_cast<VPUIP::SwKernelOp>(op)) {
-        layerTypeStr += "." + swKernelOp.kernelFunction().getLeafReference().str();
-        cost = calculateShaveActCycles(swKernelOp, _costModel, _archKind);
-    } else if (auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(op)) {
-        cost = calculateNceCycles(nceOp, _costModel, _archKind, _log, _dpuCount);
-    } else {
-        // Add support for recalculating cost of tasks using VPUNN cost model
-        // For now trust what is present in IR. In future cycleBegin/End will
-        // be deprecated, see - E#86678
-        auto cycleBeginAttr = taskOp->getAttr(cycleBegin);
-        auto cycleEndAttr = taskOp->getAttr(cycleEnd);
-        // For now instead of recalculating cost if layer has no cycle attributes
-        // return just 1
-        if (cycleBeginAttr == nullptr || cycleEndAttr == nullptr) {
-            _log.warning("Layer has no cycleBegin/End attributes. Assume cycleCost = 1, '{0}'", taskOp->getLoc());
-            _numOfTasksWithInvalidCost++;
-            return 1;
-        }
-
-        cost = cycleEndAttr.cast<mlir::IntegerAttr>().getInt() - cycleBeginAttr.cast<mlir::IntegerAttr>().getInt();
-    }
-
-    // Use cost = 1 for layers with invalid cost as this is more user friendly when
-    // visualizing schedule
-    if (cost <= 1 || cost >= VPU::INVALID_COST_BASE) {
-        _numOfTasksWithInvalidCost++;
-        _layersWithInvalidCost.insert(layerTypeStr);
-        _log.warning("Layer {0} has invalid cost - '{1}'. Assume cycleCost = 1, '{2}'", layerTypeStr, cost,
-                     taskOp->getLoc());
-        return 1;
-    }
-    return cost;
 }
 
 void vpux::VPURT::InferenceExecutionSimulator::parseFunc() {
@@ -138,8 +122,7 @@ void vpux::VPURT::InferenceExecutionSimulator::parseFunc() {
     int64_t vid = 0;
     _funcOp->walk([&](mlir::Operation* op) {
         if (mlir::isa<VPURT::DeclareVirtualBarrierOp, VPURT::ConfigureBarrierOp>(op)) {
-            VPUX_THROW_WHEN(vid > std::numeric_limits<unsigned short>::max(), "Barrier virtual id '{0}' is too large ",
-                            vid);
+            VPUX_THROW_WHEN(vid >= std::numeric_limits<uint32_t>::max(), "Barrier virtual id '{0}' is too large ", vid);
 
             barrierOpToVIdMap[op] = vid++;
         }
@@ -162,8 +145,32 @@ void vpux::VPURT::InferenceExecutionSimulator::parseFunc() {
     _funcOp->walk([&](VPURT::TaskOp taskOp) {
         auto virtBarrierWaits = getVirtualBarrierDeps(taskOp.getWaitBarriers());
         auto virtBarrierUpdates = getVirtualBarrierDeps(taskOp.getUpdateBarriers());
-        auto cost = getTaskCycleCost(taskOp);
-        TaskConfig taskCfg(taskOp, virtBarrierWaits, virtBarrierUpdates, cost);
+
+        size_t cost = 0;
+        SmallVector<size_t> subTasksCost;
+
+        // For better visualization, get per variant cost as opposed to cost of whole nceOp
+        if (auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(taskOp.getInnerTaskOp())) {
+            std::vector<size_t> costPerVariantVec;
+            auto costModel = _cycleCostInfo.getCostModel();
+            for (auto&& dpuTaskOp : nceOp.getVariants().getOps<VPUIP::DPUTaskOp>()) {
+                if (auto cycleCostInterface = mlir::dyn_cast<VPUIP::CycleCostInterface>(dpuTaskOp.getOperation())) {
+                    auto subTaskCost = cycleCostInterface.getOperationCycleCost(costModel);
+                    costPerVariantVec.push_back(subTaskCost);
+                }
+            }
+            cost = VPUNN::dpu_schedule(static_cast<size_t>(_dpuCount), costPerVariantVec);
+            _cycleCostInfo.updateAndStoreInvalidCostCycles(cost, nceOp);
+            if (std::all_of(costPerVariantVec.begin(), costPerVariantVec.end(), [](size_t cost) {
+                    return cost < VPU::INVALID_COST_BASE;
+                })) {
+                subTasksCost = SmallVector<size_t>(costPerVariantVec.begin(), costPerVariantVec.end());
+            }
+
+        } else {
+            cost = _cycleCostInfo.getCycleCost(taskOp.getInnerTaskOp());
+        }
+        TaskConfig taskCfg(taskOp, virtBarrierWaits, virtBarrierUpdates, cost, subTasksCost);
 
         // If a task produces any barriers update
         // barrier information to determine final value of producer count
@@ -261,7 +268,7 @@ void vpux::VPURT::InferenceExecutionSimulator::runSim() {
             bool waitingForDependency = false;
             size_t cycleBegin = queueStateMap[queueType].getCycle();
 
-            // Check all wait barrierss. If all are satisified task can be executed
+            // Check all wait barriers. If all are satisfied task can be executed
             // CycleBegin value needs to take into account at what cycle last barrier
             // (from cycle point of view) was released
             for (auto waitVirtBarrierId : queueTasks[index].virtBarrierWaits) {
@@ -276,7 +283,7 @@ void vpux::VPURT::InferenceExecutionSimulator::runSim() {
                 continue;
             }
 
-            // All dependencies satisified - task ready to execute
+            // All dependencies satisfied - task ready to execute
             size_t cycleEnd = cycleBegin + cost;
 
             _log.trace("Run {0}[{1}]: cost: {2} cycleBegin: {3} cycleEnd: {4}",
@@ -298,6 +305,12 @@ void vpux::VPURT::InferenceExecutionSimulator::runSim() {
             // Task has executed on this queue. Update queue state with new cycle
             queueStateMap[queueType].progressQueueToCycle(cycleEnd);
             queueTasks[index].cycleStart = cycleBegin;
+
+            if (queueType.type == VPU::ExecutorKind::DPU && !queueTasks[index].subTasksCycleCost.empty()) {
+                queueTasks[index].subTasksCycleStart =
+                        VPURT::getSubTasksStartTime(queueTasks[index].subTasksCycleCost, cycleBegin, _dpuCount);
+            }
+
             progressed = true;
         }
     }
@@ -317,10 +330,43 @@ void vpux::VPURT::InferenceExecutionSimulator::runSim() {
     }
 }
 
-SmallVector<VPURT::TaskConfig> vpux::VPURT::InferenceExecutionSimulator::getTaskCycleConfig() {
+double vpux::VPURT::InferenceExecutionSimulator::getDPUTotalEnergy() {
+    double dpuTotalEnergy = 0;
+    _funcOp->walk([&](VPUIP::DPUTaskOp dpuTaskOp) {
+        auto dpuWorkload = vpux::getDPUWorkload(dpuTaskOp, _cycleCostInfo.getArchKind());
+        auto dpuEnergy = _cycleCostInfo.getCostModel()->DPUEnergy(dpuWorkload);
+        dpuTotalEnergy += dpuEnergy;
+        _log.trace("[Energy] dpuTask - {0}, energy - {1}", dpuTaskOp->getLoc(), dpuEnergy);
+    });
+    return dpuTotalEnergy;
+}
+
+double vpux::VPURT::InferenceExecutionSimulator::getSHAVETotalEnergy() {
+    double shaveTotalEnergy = 0;
+    _funcOp->walk([&](VPUIP::SwKernelOp swKernelOp) {
+        double shaveEnergy = 0;
+        auto vpunnSwOp = getVPUNNSWKernelOp(swKernelOp);
+        if (vpunnSwOp != nullptr) {
+            shaveEnergy = _cycleCostInfo.getCostModel()->SHAVEEnergy(*vpunnSwOp);
+        } else {
+            _log.warning("[Energy] an unsupported SwKernel op in VPUNN found - {0}", swKernelOp->getLoc());
+        }
+        shaveTotalEnergy += shaveEnergy;
+        _log.trace("[Energy] SwKernelOp - {0}, energy - {1}", swKernelOp->getLoc(), shaveEnergy);
+    });
+    return shaveTotalEnergy;
+}
+
+std::map<VPURT::TaskQueueType, VPURT::TaskConfigVec> vpux::VPURT::InferenceExecutionSimulator::getQueueTaskMap() {
     VPUX_THROW_WHEN(_queueTasksMap.empty(), "Queue task map not initialized");
 
-    SmallVector<TaskConfig> allQueueTaskConfig;
+    return _queueTasksMap;
+}
+
+SmallVector<VPURT::TaskConfig, 1> vpux::VPURT::InferenceExecutionSimulator::getTaskCycleConfig() {
+    VPUX_THROW_WHEN(_queueTasksMap.empty(), "Queue task map not initialized");
+
+    TaskConfigVec allQueueTaskConfig;
 
     for (auto& queueTypeTasks : _queueTasksMap) {
         auto& queueTasks = queueTypeTasks.second;
@@ -331,11 +377,11 @@ SmallVector<VPURT::TaskConfig> vpux::VPURT::InferenceExecutionSimulator::getTask
     return allQueueTaskConfig;
 }
 
-SmallVector<VPURT::TaskConfig> vpux::VPURT::InferenceExecutionSimulator::getTaskCycleConfig(
+SmallVector<VPURT::TaskConfig, 1> vpux::VPURT::InferenceExecutionSimulator::getTaskCycleConfig(
         VPU::ExecutorKind execKind) {
     VPUX_THROW_WHEN(_queueTasksMap.empty(), "Queue task map not initialized");
 
-    SmallVector<TaskConfig> allQueueTaskConfig;
+    TaskConfigVec allQueueTaskConfig;
 
     for (auto& queueTypeTasks : _queueTasksMap) {
         if (queueTypeTasks.first.type != execKind) {
@@ -350,16 +396,8 @@ SmallVector<VPURT::TaskConfig> vpux::VPURT::InferenceExecutionSimulator::getTask
     return allQueueTaskConfig;
 }
 
-size_t vpux::VPURT::InferenceExecutionSimulator::getNumberfOfTasksWithInvalidCost() {
-    return _numOfTasksWithInvalidCost;
-}
-
-std::set<std::string> vpux::VPURT::InferenceExecutionSimulator::getLayersWithInvalidCost() {
-    return _layersWithInvalidCost;
-}
-
-int64_t vpux::VPURT::InferenceExecutionSimulator::getInferenceLatencyInCycles() {
-    int64_t latency = 0;
+size_t vpux::VPURT::InferenceExecutionSimulator::getInferenceLatencyInCycles() {
+    size_t latency = 0;
     for (auto& queueTypeTasks : _queueTasksMap) {
         auto& queueTasks = queueTypeTasks.second;
 

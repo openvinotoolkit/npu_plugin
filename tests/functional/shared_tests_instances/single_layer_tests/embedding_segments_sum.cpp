@@ -1,3 +1,4 @@
+
 //
 // Copyright (C) Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
@@ -10,20 +11,20 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXEmbeddingSegmentsSumLayerTest :
+class EmbeddingSegmentsSumLayerTestCommon :
         public EmbeddingSegmentsSumLayerTest,
         virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
-class VPUXEmbeddingSegmentsSumLayerTest_VPU3700 : public VPUXEmbeddingSegmentsSumLayerTest {};
-class VPUXEmbeddingSegmentsSumLayerTest_VPU3720 : public VPUXEmbeddingSegmentsSumLayerTest {};
+class EmbeddingSegmentsSumLayerTest_NPU3700 : public EmbeddingSegmentsSumLayerTestCommon {};
+class EmbeddingSegmentsSumLayerTest_NPU3720 : public EmbeddingSegmentsSumLayerTestCommon {};
 
-TEST_P(VPUXEmbeddingSegmentsSumLayerTest_VPU3700, SW) {
+TEST_P(EmbeddingSegmentsSumLayerTest_NPU3700, SW) {
     setPlatformVPU3700();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXEmbeddingSegmentsSumLayerTest_VPU3720, HW) {
+TEST_P(EmbeddingSegmentsSumLayerTest_NPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -54,16 +55,16 @@ const auto params = testing::Combine(::testing::ValuesIn(embTableShape), ::testi
                                      ::testing::ValuesIn(defaultIndex), ::testing::ValuesIn(withWeights),
                                      ::testing::ValuesIn(withDefaultIndex));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_EmbeddingSegmentsSumCheck1, VPUXEmbeddingSegmentsSumLayerTest_VPU3700,
+INSTANTIATE_TEST_CASE_P(smoke_EmbeddingSegmentsSumCheck1, EmbeddingSegmentsSumLayerTest_NPU3700,
                         ::testing::Combine(params, ::testing::ValuesIn(netPrecisions),
                                            ::testing::ValuesIn(indPrecisions),
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-                        VPUXEmbeddingSegmentsSumLayerTest_VPU3700::getTestCaseName);
+                        EmbeddingSegmentsSumLayerTest_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_EmbeddingSegmentsSumCheck1, VPUXEmbeddingSegmentsSumLayerTest_VPU3720,
+INSTANTIATE_TEST_CASE_P(smoke_EmbeddingSegmentsSumCheck1, EmbeddingSegmentsSumLayerTest_NPU3720,
                         ::testing::Combine(params, ::testing::ValuesIn(netPrecisions),
                                            ::testing::ValuesIn(indPrecisions),
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-                        VPUXEmbeddingSegmentsSumLayerTest_VPU3720::getTestCaseName);
+                        EmbeddingSegmentsSumLayerTest_NPU3720::getTestCaseName);
 
 }  // namespace

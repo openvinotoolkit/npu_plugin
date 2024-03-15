@@ -8,23 +8,23 @@ set(TARGET_NAME "npu_compiler_dialect_vpuip")
 add_mlir_dialect_library(${TARGET_NAME}
     STATIC
         ${SRC_FILES}
-        # FIXME: Need a solution to replace the function (E#88484)
-        ${PROJECT_SOURCE_DIR}/src/vpux_compiler/src/dialect/VPU/utils/ppe_utils.cpp
-        ${PROJECT_SOURCE_DIR}/src/vpux_compiler/src/dialect/VPU/utils/tile_utils.cpp
-        ${PROJECT_SOURCE_DIR}/src/vpux_compiler/src/dialect/IE/utils/deconvolution_utils.cpp
     EXCLUDE_FROM_LIBMLIR
     DISABLE_INSTALL
     LINK_LIBS PRIVATE
-        npu_utils
-        npu_compiler_utils
-        npu_compiler_core
         npu_compiler_act_kernels
+        npu_compiler_core
+        npu_compiler_utils
+        npu_llvm_utils
+        npu_ov_utils
+        npu_profiling_utils
+        flatbuffers
+        npu_elf
         npu_al
-    DEPENDS
-        MLIRVPUXIncGenList)
+        npu_compiler_dialect_vpurt)
+add_dependencies(${TARGET_NAME} MLIRVPUXIncGenList)
 target_include_directories(${TARGET_NAME}
     SYSTEM PRIVATE
-        $<BUILD_INTERFACE:${MLIR_INCLUDE_DIRS}
+        $<BUILD_INTERFACE:${MLIR_INCLUDE_DIRS}>
         ${VPUNN_INCLUDE_DIRS}
         ${VPU_COMPILER_BIN_INCLUDE_DIR})
 target_include_directories(${TARGET_NAME}

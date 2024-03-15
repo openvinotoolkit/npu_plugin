@@ -19,25 +19,6 @@
 using namespace vpux;
 
 //
-// RescaleAttr::walkImmediateSubElements
-//
-
-void vpux::Const::RescaleAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)> walkAttrsFn,
-                                                        llvm::function_ref<void(mlir::Type)>) const {
-    walkAttrsFn(getScale());
-}
-
-//
-// RescaleAttr::replaceImmediateSubElements
-//
-
-mlir::Attribute vpux::Const::RescaleAttr::replaceImmediateSubElements(ArrayRef<mlir::Attribute> replAttrs,
-                                                                      ArrayRef<mlir::Type>) const {
-    VPUX_THROW_WHEN(replAttrs.size() < 1, "Replace attrs array is too short: '{0}'", replAttrs.size());
-    return get(replAttrs[0].dyn_cast_or_null<mlir::FloatAttr>());
-}
-
-//
 // RescaleAttr::print
 //
 
@@ -73,10 +54,6 @@ mlir::Attribute vpux::Const::RescaleAttr::parse(mlir::AsmParser& parser, mlir::T
 //
 
 vpux::NDTypeInterface vpux::Const::RescaleAttr::inferOutputType(vpux::NDTypeInterface input) const {
-    const Bit typeSizeInBits = input.getElemTypeSize();
-    VPUX_THROW_UNLESS(typeSizeInBits.count() >= CHAR_BIT, "Got sub-byte input '{0}' in RescaleAttr",
-                      input.getElementType());
-
     return input;
 }
 
@@ -101,5 +78,6 @@ Const::Content vpux::Const::RescaleAttr::transform(vpux::Const::Content& input) 
 }
 
 Const::ContentAttr vpux::Const::ContentAttr::rescale(double scale) const {
-    return get(*this, Const::RescaleAttr::get(getFPAttr(getContext(), scale)).cast<Const::TransformAttrInterface>());
+    return ContentAttr::addTransformation(
+            *this, Const::RescaleAttr::get(getFPAttr(getContext(), scale)).cast<Const::TransformAttrInterface>());
 }

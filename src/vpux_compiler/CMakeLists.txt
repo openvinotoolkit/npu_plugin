@@ -10,10 +10,12 @@
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# FIXME: LTO usage breaks vpux-translate for VPUIP blob generation in some cases (E#37558)
-# if(ENABLE_LTO)
-#     ie_enable_lto()
-# endif()
+# E#91888: Enable for Linux as well
+if(MSVC)
+    if(ENABLE_LTO)
+        ie_enable_lto()
+    endif()
+endif()
 
 set(TARGET_NAME "npu_mlir_compiler")
 set(SCHEMA_TARGET_NAME "${TARGET_NAME}_schema")
@@ -21,15 +23,24 @@ set(PROFILING_SCHEMA_TARGET_NAME "${TARGET_NAME}_profiling_schema")
 set(OBJ_TARGET_NAME "${TARGET_NAME}_obj")
 set(STATIC_TARGET_NAME "${TARGET_NAME}_static")
 set(MLIR_DEPS_NAME "npu_mlir_dependencies")
-set(gen_base_dst_include_dir "include/vpux/compiler")
+set(gen_base_dst_include_dir "src/vpux_compiler/include/vpux/compiler")
 
 #
 # SCHEMA target
 #
+if(ENABLE_NPU_MONO)
+    if(NOT DEFINED ELF_SUBMODULE_PATH)
+        message(FATAL_ERROR "Graphfile schema submodule path is not set while `npu_mono` was activated")
+    endif()
+    set(SCHEMA_SOURCE_DIR ${ELF_SUBMODULE_PATH}/src/schema)
+else()
+    set(SCHEMA_SOURCE_DIR ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/elf/src/schema) # Legacy path
+endif(ENABLE_NPU_MONO)
+
 
 vpux_add_flatc_target(${SCHEMA_TARGET_NAME}
-    SRC_DIR "${VPUX_ELF_SOURCE_DIR}/src/schema"
-    DST_DIR "${CMAKE_CURRENT_BINARY_DIR}/${gen_base_dst_include_dir}/dialect/VPUIP/generated/schema"
+    SRC_DIR "${SCHEMA_SOURCE_DIR}"
+    DST_DIR "${PROJECT_BINARY_DIR}/${gen_base_dst_include_dir}/dialect/VPUIP/generated/schema"
     ARGS "--gen-name-strings")
 set_target_properties(${SCHEMA_TARGET_NAME} PROPERTIES FOLDER "src")
 
@@ -39,9 +50,12 @@ set_target_properties(${SCHEMA_TARGET_NAME} PROPERTIES FOLDER "src")
 
 vpux_add_flatc_target(${PROFILING_SCHEMA_TARGET_NAME}
     SRC_DIR "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpux_utils/data"
-    DST_DIR "${CMAKE_CURRENT_BINARY_DIR}/${gen_base_dst_include_dir}/profiling/generated/schema"
+    DST_DIR "${PROJECT_BINARY_DIR}/${gen_base_dst_include_dir}/profiling/generated/schema"
     ARGS "--gen-object-api" "--reflect-names")
 set_target_properties(${PROFILING_SCHEMA_TARGET_NAME} PROPERTIES FOLDER "src")
+
+# These headers are needed by Unit tests even if ENABLE_MLIR_COMPILER=OFF
+add_subdirectory(include/vpux/compiler/dialect/VPU37XX/firmware_headers)
 
 if(NOT ENABLE_MLIR_COMPILER)
     return()
@@ -59,15 +73,15 @@ execute_process(
 
 vpux_embed_bin_file(
     SOURCE_FILE "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel/models/vpu_2_0.vpunn"
-    HEADER_FILE "${CMAKE_CURRENT_BINARY_DIR}/${gen_base_dst_include_dir}/dialect/VPU/generated/cost_model_data_2_0.hpp.inc"
+    HEADER_FILE "${PROJECT_BINARY_DIR}/${gen_base_dst_include_dir}/dialect/VPU/generated/cost_model_data_2_0.hpp.inc"
     VARIABLE_NAME "COST_MODEL_2_0")
 vpux_embed_bin_file(
     SOURCE_FILE "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel/models/vpu_2_7.vpunn"
-    HEADER_FILE "${CMAKE_CURRENT_BINARY_DIR}/${gen_base_dst_include_dir}/dialect/VPU/generated/cost_model_data_2_7.hpp.inc"
+    HEADER_FILE "${PROJECT_BINARY_DIR}/${gen_base_dst_include_dir}/dialect/VPU/generated/cost_model_data_2_7.hpp.inc"
     VARIABLE_NAME "COST_MODEL_2_7")
 vpux_embed_bin_file(
     SOURCE_FILE "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel/models/vpu_2_7.fast.vpunn"
-    HEADER_FILE "${CMAKE_CURRENT_BINARY_DIR}/${gen_base_dst_include_dir}/dialect/VPU/generated/cost_model_data_2_7_fast.hpp.inc"
+    HEADER_FILE "${PROJECT_BINARY_DIR}/${gen_base_dst_include_dir}/dialect/VPU/generated/cost_model_data_2_7_fast.hpp.inc"
     VARIABLE_NAME "COST_MODEL_2_7_FAST")
 
 #
@@ -75,25 +89,27 @@ vpux_embed_bin_file(
 #
 
 file(GLOB SOURCES CONFIGURE_DEPENDS
-        "src/*.cpp"
-        "src/*.hpp"
-        "include/vpux/compiler/*.hpp")
-
-# When vpux-plugin is built independently, MLIRConfig.cmake is under this dir
-list(APPEND CMAKE_PREFIX_PATH ${PROJECT_BINARY_DIR}/lib/cmake/mlir)
-# When vpux-plugin is added as IE_EXTRA_MODULES, MLIRConfig.cmake is under this dir
-list(APPEND CMAKE_PREFIX_PATH ${OpenVINO_BINARY_DIR}/lib/cmake/mlir)
+        src/*.cpp)
 
 find_package(MLIR REQUIRED CONFIG)
+if(ENABLE_PREBUILT_LLVM_MLIR_LIBS)
+    set_llvm_flags()
+    list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
+    list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
+    include(TableGen)
+    include(AddLLVM)
+    include(AddMLIR)
+    include_directories(SYSTEM ${MLIR_INCLUDE_DIRS} ${LLVM_INCLUDE_DIRS})
+else()
+    # Include MLIR based .td files
+    include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/thirdparty/llvm-project/mlir/include)
+endif()
 # Include .td files
-include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/thirdparty/llvm-project/mlir/include)
 include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/src/vpux_compiler/tblgen)
-# Include header files under VPU37XX/api to avoid compiler warnings
-include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/src/vpux_compiler/include/vpux/compiler/dialect/VPU37XX/api)
 include(cmake/vpux_tblgen.cmake)
 
-# Reset MLIR_BINARY_DIR to redirect the generated docs in add_mlir_doc
-set(MLIR_BINARY_DIR ${PROJECT_SOURCE_DIR}/src/vpux_compiler)
+# Keep MLIR auto-generated docs in binary folder to be ignored by git
+set(MLIR_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
 add_subdirectory(tblgen)
 
 if(BUILD_COMPILER_FOR_DRIVER)
@@ -142,13 +158,17 @@ else()
     add_library(${MLIR_DEPS_NAME} STATIC ${CMAKE_CURRENT_SOURCE_DIR}/src/compiler_version.cpp)
 endif()
 
-add_dependencies(${OBJ_TARGET_NAME}
-    ${SCHEMA_TARGET_NAME}
-    ${PROFILING_SCHEMA_TARGET_NAME}
-    mlir-doc)
+add_dependencies(${OBJ_TARGET_NAME} ${SCHEMA_TARGET_NAME})
+add_dependencies(${OBJ_TARGET_NAME} ${PROFILING_SCHEMA_TARGET_NAME})
+add_dependencies(${OBJ_TARGET_NAME} cpp_schema)
+add_dependencies(${OBJ_TARGET_NAME} mlir-doc)
 
-ie_faster_build(${OBJ_TARGET_NAME}
-    PCH PUBLIC "src/precomp.hpp")
+target_include_directories(${OBJ_TARGET_NAME}
+    PRIVATE
+        ${PROJECT_BINARY_DIR}/${gen_base_dst_include_dir}/dialect/VPUIP/generated
+)
+
+ie_faster_build(${OBJ_TARGET_NAME} PCH PUBLIC "src/precomp.hpp")
 if(BUILD_SHARED_LIBS)
     vpux_enable_clang_format(${OBJ_TARGET_NAME})
 endif()
@@ -167,22 +187,18 @@ target_include_directories(${OBJ_TARGET_NAME}
 target_include_directories(${OBJ_TARGET_NAME}
     SYSTEM PUBLIC
         $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/src/vpux_compiler/tblgen>
-    SYSTEM PRIVATE
-        $<BUILD_INTERFACE:${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/sw_runtime_kernels>)
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/vpux_al/include>)
 target_link_libraries(${OBJ_TARGET_NAME}
     PUBLIC
         npu_al
-        vpux_elf)
+        npu_elf
+        flatbuffers)
 link_system_libraries(${OBJ_TARGET_NAME}
     PUBLIC
-        flatbuffers
+        openvino::reference
         openvino::runtime
-        openvino::runtime::dev
-        IE::inference_engine_plugin_api
-        IE::ngraph_reference)
-target_link_libraries(${OBJ_TARGET_NAME}
-    PUBLIC
-        ${VPU_SRC_LIBS})
+        openvino::runtime::dev)
+target_link_libraries(${OBJ_TARGET_NAME} PUBLIC ${VPU_SRC_LIBS})
 
 #
 # MODULE target
@@ -216,11 +232,11 @@ endif()
 #
 
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
-        LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
+        ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${VPUX_INTERNAL_COMPONENT}
+        LIBRARY DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${VPUX_INTERNAL_COMPONENT})
 
 if(NOT BUILD_SHARED_LIBS)
     install(TARGETS ${MLIR_DEPS_NAME} EXPORT OpenVINOTargets
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
-        LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
+        ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${VPUX_INTERNAL_COMPONENT}
+        LIBRARY DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${VPUX_INTERNAL_COMPONENT})
 endif()

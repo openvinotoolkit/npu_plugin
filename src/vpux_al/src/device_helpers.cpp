@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
+#include <openvino/core/except.hpp>
+
 #include <device_helpers.hpp>
-#include <iostream>
 
 const static std::map<uint32_t, InferenceEngine::VPUXConfigParams::VPUXPlatform> platformIdMap = {
         {0, InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700},  // VPU30XX
@@ -19,14 +20,11 @@ const static std::map<InferenceEngine::VPUXConfigParams::VPUXPlatform, std::stri
 
 const static std::map<std::string, InferenceEngine::VPUXConfigParams::VPUXPlatform> platformNameInverseMap = {
         {"AUTO_DETECT", InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO_DETECT},  // Auto detection
-        {"3700_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},        // Emulator VPU30XX
-        {"3720_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},        // Emulator VPU37XX
         {"3700", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700},             // VPU30XX
         {"3720", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720},             // VPU37XX
 };
 
 const static std::map<InferenceEngine::VPUXConfigParams::VPUXPlatform, std::string> platformToFullDeviceNameMap = {
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR, "Emulator"},
         {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700, "Intel(R) NPU (3700VE)"},
         {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720, "Intel(R) NPU (3720VE)"},
 };
@@ -83,15 +81,15 @@ int utils::getSliceIdByDeviceName(const std::string& deviceName) {
         try {
             sliceId = std::stoi(sliceStr);
         } catch (const std::exception& ex) {
-            IE_THROW() << "Device name conversion error - " << ex.what();
+            OPENVINO_THROW("Device name conversion error - ", ex.what());
         }
         if ((sliceId < minSliceId) || (sliceId > maxSliceId)) {
-            IE_THROW() << "Device name conversion error - bad slice number: " << sliceId;
+            OPENVINO_THROW("Device name conversion error - bad slice number: ", sliceId);
         }
         return sliceId;
     }
 
-    IE_THROW() << "Device name conversion error - bad name: " << deviceName;
+    OPENVINO_THROW("Device name conversion error - bad name: ", deviceName);
 }
 
 InferenceEngine::VPUXConfigParams::VPUXPlatform utils::getPlatformBySwDeviceId(const uint32_t swDevId) {
@@ -113,7 +111,7 @@ std::string utils::getPlatformNameByDeviceName(const std::string& deviceName) {
     const auto platformPos = deviceName.rfind('.');
     const auto platformName = (platformPos == std::string::npos) ? deviceName : deviceName.substr(0, platformPos);
     if (!isPlatformNameSupported(platformName)) {
-        IE_THROW() << "Unexpected device name: " << deviceName;
+        OPENVINO_THROW("Unexpected device name: ", deviceName);
     }
 
     return platformName;
@@ -122,7 +120,7 @@ std::string utils::getPlatformNameByDeviceName(const std::string& deviceName) {
 InferenceEngine::VPUXConfigParams::VPUXPlatform utils::getPlatformByDeviceName(const std::string& deviceName) {
     const auto platformName = getPlatformNameByDeviceName(deviceName);
     if (!isPlatformNameSupported(platformName)) {
-        IE_THROW() << "Unexpected device name: " << deviceName;
+        OPENVINO_THROW("Unexpected device name: ", deviceName);
     }
 
     return platformNameInverseMap.at(platformName);
@@ -131,19 +129,9 @@ InferenceEngine::VPUXConfigParams::VPUXPlatform utils::getPlatformByDeviceName(c
 std::string utils::getFullDeviceNameByDeviceName(const std::string& deviceName) {
     const auto platform = getPlatformByDeviceName(deviceName);
     if (platformToFullDeviceNameMap.find(platform) == platformToFullDeviceNameMap.end()) {
-        IE_THROW() << "Unexpected device name: " << deviceName;
+        OPENVINO_THROW("Unexpected device name: ", deviceName);
     }
     return platformToFullDeviceNameMap.at(platform);
-}
-
-InferenceEngine::VPUXConfigParams::VPUXPlatform utils::getPlatformByEMUDeviceName(const std::string& deviceName) {
-    const auto platformName = utils::getPlatformNameByDeviceName(deviceName);
-    const auto targetPos = platformName.rfind("_EMU");
-    if (targetPos == std::string::npos) {
-        IE_THROW() << "Unsuported emulator target platform: " << deviceName;
-    }
-    const auto targetName = platformName.substr(0, targetPos);
-    return utils::getPlatformByDeviceName(targetName);
 }
 
 bool utils::isPlatformNameSupported(const std::string& platformName) {

@@ -75,8 +75,10 @@ nb::DType nb::to_dtype(StringRef str) {
         return nb::DType::I8;
     if (isEqual(str, "int32"))
         return nb::DType::I32;
-    if (isEqual(str, "fp8"))
-        return nb::DType::FP8;
+    if (isEqual(str, "bfloat8"))
+        return nb::DType::BF8;
+    if (isEqual(str, "hfloat8"))
+        return nb::DType::HF8;
     if (isEqual(str, "fp16"))
         return nb::DType::FP16;
     if (isEqual(str, "fp32"))
@@ -99,8 +101,10 @@ std::string nb::to_string(nb::DType dtype) {
         return "int8";
     case nb::DType::I32:
         return "int32";
-    case nb::DType::FP8:
-        return "fp8";
+    case nb::DType::BF8:
+        return "bfloat8";
+    case nb::DType::HF8:
+        return "hfloat8";
     case nb::DType::FP16:
         return "fp16";
     case nb::DType::FP32:
@@ -182,44 +186,11 @@ nb::ActivationType nb::to_activation_type(StringRef str) {
     if (isEqual(str, "Softmax")) {
         return nb::ActivationType::Softmax;
     }
-    if (isEqual(str, "vau_sigm")) {
-        return nb::ActivationType::vau_sigm;
+    if (isEqual(str, "round_trip_b8h8_to_fp16")) {
+        return nb::ActivationType::round_trip_b8h8_to_fp16;
     }
-    if (isEqual(str, "vau_sqrt")) {
-        return nb::ActivationType::vau_sqrt;
-    }
-    if (isEqual(str, "vau_tanh")) {
-        return nb::ActivationType::vau_tanh;
-    }
-    if (isEqual(str, "vau_log")) {
-        return nb::ActivationType::vau_log;
-    }
-    if (isEqual(str, "vau_exp")) {
-        return nb::ActivationType::vau_exp;
-    }
-    if (isEqual(str, "lsu_b16")) {
-        return nb::ActivationType::lsu_b16;
-    }
-    if (isEqual(str, "lsu_b16_vec")) {
-        return nb::ActivationType::lsu_b16_vec;
-    }
-    if (isEqual(str, "sau_dp4")) {
-        return nb::ActivationType::sau_dp4;
-    }
-    if (isEqual(str, "sau_dp4a")) {
-        return nb::ActivationType::sau_dp4a;
-    }
-    if (isEqual(str, "sau_dp4m")) {
-        return nb::ActivationType::sau_dp4m;
-    }
-    if (isEqual(str, "vau_dp4")) {
-        return nb::ActivationType::vau_dp4;
-    }
-    if (isEqual(str, "vau_dp4a")) {
-        return nb::ActivationType::vau_dp4a;
-    }
-    if (isEqual(str, "vau_dp4m")) {
-        return nb::ActivationType::vau_dp4m;
+    if (isEqual(str, "PopulateWeightTable")) {
+        return nb::ActivationType::PopulateWeightTable;
     }
     return nb::ActivationType::Unknown;
 }
@@ -242,32 +213,10 @@ std::string nb::to_string(nb::ActivationType activationType) {
         return "Sigmoid";
     case ActivationType::Softmax:
         return "Softmax";
-    case ActivationType::vau_sigm:
-        return "vau_sigm";
-    case ActivationType::vau_sqrt:
-        return "vau_sqrt";
-    case ActivationType::vau_tanh:
-        return "vau_tanh";
-    case ActivationType::vau_log:
-        return "vau_log";
-    case ActivationType::vau_exp:
-        return "vau_exp";
-    case ActivationType::lsu_b16:
-        return "lsu_b16";
-    case ActivationType::lsu_b16_vec:
-        return "lsu_b16_vec";
-    case ActivationType::sau_dp4:
-        return "sau_dp4";
-    case ActivationType::sau_dp4a:
-        return "sau_dp4a";
-    case ActivationType::sau_dp4m:
-        return "sau_dp4m";
-    case ActivationType::vau_dp4:
-        return "vau_dp4";
-    case ActivationType::vau_dp4a:
-        return "vau_dp4a";
-    case ActivationType::vau_dp4m:
-        return "vau_dp4m";
+    case ActivationType::round_trip_b8h8_to_fp16:
+        return "round_trip_b8h8_to_fp16";
+    case ActivationType::PopulateWeightTable:
+        return "PopulateWeightTable";
     default:
         return "Unknown";
     }
@@ -287,10 +236,10 @@ std::string nb::to_string(CaseType case_) {
         return "DepthWiseConv";
     case CaseType::DoubleZMajorConvolution:
         return "DoubleZMajorConvolution";
-    case CaseType::EltwiseAdd:
-        return "EltwiseAdd";
-    case CaseType::EltwiseMult:
-        return "EltwiseMult";
+    case CaseType::EltwiseDense:
+        return "EltwiseDense";
+    case CaseType::EltwiseMultDW:
+        return "EltwiseMultDW";
     case CaseType::EltwiseSparse:
         return "EltwiseSparse";
     case CaseType::MaxPool:
@@ -329,6 +278,8 @@ std::string nb::to_string(CaseType case_) {
         return "RaceCondition";
     case CaseType::DualChannelDMA:
         return "DualChannelDMA";
+    case CaseType::GenerateScaleTable:
+        return "GenerateScaleTable";
     default:
         return "unknown";
     }
@@ -347,10 +298,10 @@ nb::CaseType nb::to_case(StringRef str) {
         return CaseType::DepthWiseConv;
     if (isEqual(str, "DoubleZMajorConvolution"))
         return CaseType::DoubleZMajorConvolution;
-    if (isEqual(str, "EltwiseAdd"))
-        return CaseType::EltwiseAdd;
-    if (isEqual(str, "EltwiseMult"))
-        return CaseType::EltwiseMult;
+    if (isEqual(str, "EltwiseDense"))
+        return CaseType::EltwiseDense;
+    if (isEqual(str, "EltwiseMultDW"))
+        return CaseType::EltwiseMultDW;
     if (isEqual(str, "EltwiseSparse"))
         return CaseType::EltwiseSparse;
     if (isEqual(str, "MaxPool"))
@@ -391,6 +342,8 @@ nb::CaseType nb::to_case(StringRef str) {
         return CaseType::StorageElementTableDPU;
     if (isEqual(str, "DualChannelDMA"))
         return CaseType::DualChannelDMA;
+    if (isEqual(str, "GenerateScaleTable"))
+        return CaseType::GenerateScaleTable;
     return CaseType::Unknown;
 };
 
@@ -405,7 +358,7 @@ std::string nb::to_string(nb::CompilerBackend compilerBackend) {
     }
 }
 
-llvm::Optional<nb::CompilerBackend> nb::to_compiler_backend(StringRef str) {
+std::optional<nb::CompilerBackend> nb::to_compiler_backend(StringRef str) {
     if (isEqual(str, "Flatbuffer"))
         return nb::CompilerBackend::Flatbuffer;
     if (isEqual(str, "ELF"))
@@ -435,7 +388,16 @@ nb::QuantParams nb::TestCaseJsonDescriptor::loadQuantizationParams(llvm::json::O
     auto* qp = obj->getObject("quantization");
     if (qp) {
         result.present = true;
-        result.scale = qp->getNumber("scale").value();
+
+        const auto* jsonQuantScales = qp->getArray("scale");
+        VPUX_THROW_UNLESS(jsonQuantScales != nullptr, "loadQuantizationParams: cannot find scale config param");
+        for (size_t i = 0; i < jsonQuantScales->size(); i++) {
+            auto elem = (*jsonQuantScales)[i].getAsNumber();  // double
+            if (elem.has_value()) {
+                result.scale.push_back(static_cast<double>(elem.value()));
+            }
+        }
+
         result.zeropoint = qp->getInteger("zeropoint").value();
         result.low_range = static_cast<std::int64_t>(qp->getNumber("low_range").value());
         result.high_range = static_cast<std::int64_t>(qp->getNumber("high_range").value());
@@ -653,6 +615,26 @@ nb::EltwiseLayer nb::TestCaseJsonDescriptor::loadEltwiseLayer(llvm::json::Object
 
     result.seSize = op->getInteger("se_size").value_or(0);
 
+    const std::unordered_map<llvm::StringRef, vpux::VPU::PPEMode> eltwiseOptions = {{"ADD", vpux::VPU::PPEMode::ADD},
+                                                                                    {"SUB", vpux::VPU::PPEMode::SUB},
+                                                                                    {"MULT", vpux::VPU::PPEMode::MULT}};
+
+    auto mode = op->getString("mode");
+    VPUX_THROW_UNLESS(mode.has_value() && eltwiseOptions.find(mode.value()) != eltwiseOptions.end(),
+                      "loadEltwiseLayer: failed to get valid operation type");
+
+    result.mode = eltwiseOptions.at(mode.value().str());
+
+    const std::unordered_map<llvm::StringRef, ICM_MODE> icmModes = {{"DEFAULT", ICM_MODE::DEFAULT},
+                                                                    {"MODE_0", ICM_MODE::MODE_0},
+                                                                    {"MODE_1", ICM_MODE::MODE_1},
+                                                                    {"MODE_2", ICM_MODE::MODE_2}};
+
+    auto icmMode = op->getString("idu_cmx_mux_mode");
+    if (icmMode.has_value() && icmModes.find(icmMode.value()) != icmModes.end()) {
+        result.iduCmxMuxMode = icmModes.at(icmMode.value().str());
+    }
+
     return result;
 }
 
@@ -755,7 +737,14 @@ nb::PoolLayer nb::TestCaseJsonDescriptor::loadPoolLayer(llvm::json::Object* json
 }
 
 nb::ActivationLayer nb::TestCaseJsonDescriptor::loadActivationLayer(llvm::json::Object* jsonObj) {
-    nb::ActivationLayer result;
+    nb::ActivationLayer result = {
+            /*activationType=*/ActivationType::None,
+            /*alpha=*/0,
+            /*maximum=*/0,
+            /*axis=*/0,
+            /*weightsOffset=*/std::nullopt,
+            /*weightsPtrStep=*/std::nullopt,
+    };
 
     auto* act = jsonObj->getObject("activation");
     if (!act) {
@@ -780,6 +769,16 @@ nb::ActivationLayer nb::TestCaseJsonDescriptor::loadActivationLayer(llvm::json::
         result.axis = vpux::checked_cast<size_t>(axis.value());
     }
 
+    auto weightsOffset = act->getInteger("weights_offset");
+    if (weightsOffset.has_value()) {
+        result.weightsOffset = weightsOffset;
+    }
+
+    auto weightsPtrStep = act->getInteger("weights_ptr_step");
+    if (weightsPtrStep.has_value()) {
+        result.weightsPtrStep = weightsPtrStep;
+    }
+
     return result;
 }
 
@@ -802,19 +801,37 @@ nb::SwizzlingKey nb::TestCaseJsonDescriptor::loadSwizzlingKey(llvm::json::Object
     return SwizzlingKey::key0;
 }
 
-nb::SETablePattern nb::TestCaseJsonDescriptor::loadSETablePattern(llvm::json::Object* jsonObj) {
+nb::ProfilingParams nb::TestCaseJsonDescriptor::loadProfilingParams(llvm::json::Object* jsonObj) {
+    bool dpuProfilingEnabled = jsonObj->getBoolean("dpu_profiling").value_or(false);
+    bool dmaProfilingEnabled = jsonObj->getBoolean("dma_profiling").value_or(false);
+    bool swProfilingEnabled = jsonObj->getBoolean("sw_profiling").value_or(false);
+    bool workpointEnabled = jsonObj->getBoolean("workpoint_profiling").value_or(false);
+
+    return {dpuProfilingEnabled, dmaProfilingEnabled, swProfilingEnabled, workpointEnabled};
+}
+
+nb::SETableParams nb::TestCaseJsonDescriptor::loadSETableParams(llvm::json::Object* jsonObj) {
+    nb::SETableParams result;
+
     const auto seTablePattern = jsonObj->getString("SE_table_pattern");
 
-    VPUX_THROW_UNLESS(seTablePattern.has_value(), "loadSETablePattern: no SE table pattern provided");
+    VPUX_THROW_UNLESS(seTablePattern.has_value(), "loadSETableParams: no SE table pattern provided");
 
     const std::unordered_map<llvm::StringRef, nb::SETablePattern> supportedPatterns = {
             {"SwitchLines", nb::SETablePattern::SwitchLines},
             {"OriginalInput", nb::SETablePattern::OriginalInput}};
     const auto pattern = supportedPatterns.find(seTablePattern.value());
 
-    VPUX_THROW_UNLESS(pattern != supportedPatterns.end(), "loadSETablePattern: SE table pattern not supported");
+    VPUX_THROW_UNLESS(pattern != supportedPatterns.end(), "loadSETableParams: SE table pattern not supported");
 
-    return pattern->second;
+    result.seTablePattern = pattern->second;
+
+    const auto seOnlyEnFlag = jsonObj->getBoolean("SE_only_en");
+    if (seOnlyEnFlag.has_value()) {
+        result.seOnlyEn = seOnlyEnFlag.value();
+    }
+
+    return result;
 };
 
 nb::TestCaseJsonDescriptor::TestCaseJsonDescriptor(StringRef jsonString) {
@@ -870,7 +887,8 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
     case CaseType::ZMajorConvolution:
     case CaseType::DepthWiseConv:
     case CaseType::SparseZMajorConvolution:
-    case CaseType::DoubleZMajorConvolution: {
+    case CaseType::DoubleZMajorConvolution:
+    case CaseType::GenerateScaleTable: {
         wtLayer_ = loadWeightLayer(&json_obj);
         convLayer_ = loadConvLayer(&json_obj);
 
@@ -901,7 +919,14 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
         iterationCount_ = loadIterationCount(&json_obj);
         break;
     }
-    case CaseType::RaceConditionDPUDMAACT:
+    case CaseType::RaceConditionDPUDMAACT: {
+        wtLayer_ = loadWeightLayer(&json_obj);
+        convLayer_ = loadConvLayer(&json_obj);
+        iterationCount_ = loadIterationCount(&json_obj);
+        activationLayer_ = loadActivationLayer(&json_obj);
+        numClusters_ = loadNumClusters(&json_obj);
+        break;
+    }
     case CaseType::RaceConditionDPUACT: {
         wtLayer_ = loadWeightLayer(&json_obj);
         convLayer_ = loadConvLayer(&json_obj);
@@ -939,8 +964,12 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
         odu_permutation_ = to_odu_permutation(json_obj.getString("output_order").value());
         break;
     }
-    case CaseType::EltwiseAdd:
-    case CaseType::EltwiseMult: {
+    case CaseType::EltwiseDense: {
+        wtLayer_ = loadWeightLayer(&json_obj);
+        eltwiseLayer_ = loadEltwiseLayer(&json_obj);
+        break;
+    }
+    case CaseType::EltwiseMultDW: {
         wtLayer_ = loadWeightLayer(&json_obj);
         break;
     }
@@ -952,6 +981,9 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
         break;
     }
     case CaseType::MaxPool:
+        poolLayer_ = loadPoolLayer(&json_obj);
+        profilingParams_ = loadProfilingParams(&json_obj);
+        break;
     case CaseType::AvgPool: {
         poolLayer_ = loadPoolLayer(&json_obj);
         break;
@@ -981,10 +1013,11 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
     case CaseType::StorageElementTableDPU: {
         wtLayer_ = loadWeightLayer(&json_obj);
         convLayer_ = loadConvLayer(&json_obj);
-        seTablePattern_ = loadSETablePattern(&json_obj);
+        seTableParams_ = loadSETableParams(&json_obj);
         break;
     }
     case CaseType::ActShave: {
+        profilingParams_ = loadProfilingParams(&json_obj);
         break;
     }
     default: {

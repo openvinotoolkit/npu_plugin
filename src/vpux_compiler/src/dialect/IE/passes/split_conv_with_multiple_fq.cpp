@@ -7,10 +7,9 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
-#include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
-#include <mlir/IR/BlockAndValueMapping.h>
+#include <mlir/IR/IRMapping.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
 using namespace vpux;
@@ -25,8 +24,8 @@ bool checkConvolution(mlir::Operation* convOp, Logger log) {
 
     auto convolution = mlir::cast<IE::ConvolutionOp>(convOp);
     log.nest().trace("Got IE::Convolution Operation at '{0}'", convolution->getLoc());
-    auto inputOp = convolution.input().getDefiningOp();
-    auto filterOp = convolution.filter().getDefiningOp();
+    auto inputOp = convolution.getInput().getDefiningOp();
+    auto filterOp = convolution.getFilter().getDefiningOp();
     auto dequantizeInput = mlir::isa_and_nonnull<IE::FakeQuantizeOp, IE::DequantizeOp>(inputOp);
     auto dequantizeFilter = mlir::isa_and_nonnull<IE::FakeQuantizeOp, IE::DequantizeOp>(filterOp);
 
@@ -41,33 +40,35 @@ bool checkBias(mlir::Operation* biasOp, Logger log) {
 
     if (auto scaleOp = mlir::dyn_cast<IE::ScaleShiftOp>(biasOp)) {
         log.nest().trace("Got IE::ScaleShift Operation at '{0}'", scaleOp->getLoc());
-        if (scaleOp.weights() != nullptr) {
+        if (scaleOp.getWeights() != nullptr) {
             return false;
         }
 
-        auto convOp = scaleOp.input().getDefiningOp();
+        auto convOp = scaleOp.getInput().getDefiningOp();
         if (!mlir::isa_and_nonnull<IE::ConvolutionOp>(convOp) || convOp->getNumOperands() != 2) {
             return false;
         }
 
         const auto convOutShape = getShape(convOp->getOpResult(0));
-        const auto biasShape = getShape(scaleOp.biases());
+        const auto biasShape = getShape(scaleOp.getBiases());
         if (biasShape.size() != 4 || biasShape[Dims4D::Act::N] != 1 ||
             biasShape[Dims4D::Act::C] != convOutShape[Dims4D::Act::C] || biasShape[Dims4D::Act::H] != 1 ||
             biasShape[Dims4D::Act::W] != 1) {
             return false;
         }
-
+        const auto logCb = [&](const formatv_object_base& msg) {
+            log.trace("{0}", msg.str());
+        };
         auto mainOp = mlir::dyn_cast<IE::LayerWithPostOpInterface>(convOp);
-        if (mainOp == nullptr || !mainOp.isSupportedPostOp(scaleOp)) {
+        if (mainOp == nullptr || !mainOp.isSupportedPostOp(scaleOp, logCb)) {
             return false;
         }
     }
 
     if (auto addOp = mlir::dyn_cast<IE::AddOp>(biasOp)) {
         log.nest().trace("Got IE::Add Operation at '{0}'", addOp->getLoc());
-        auto addOutShape = getShape(addOp.output());
-        auto biasesShape = getShape(addOp.input2());
+        auto addOutShape = getShape(addOp.getOutput());
+        auto biasesShape = getShape(addOp.getInput2());
         if (addOutShape.size() != 4 || biasesShape.size() != 4) {
             return false;
         }
@@ -98,7 +99,10 @@ bool checkPost(mlir::Operation* postOp, Logger log) {
     log.nest().trace("Got producer IE::Convolution Operation at '{0}'", producerOp->getLoc());
 
     auto mainOp = mlir::dyn_cast<IE::LayerWithPostOpInterface>(producerOp);
-    if (mainOp == nullptr || !mainOp.isSupportedPostOp(postOp) || mainOp.getPostOp().has_value()) {
+    const auto logCb = [&](const formatv_object_base& msg) {
+        log.trace("{0}", msg.str());
+    };
+    if (mainOp == nullptr || !mainOp.isSupportedPostOp(postOp, logCb) || mainOp.getPostOp().has_value()) {
         return false;
     }
     log.nest().trace("Got supported Post Operation at '{0}' ", postOp->getLoc());
@@ -125,7 +129,7 @@ void splitBranch(Branch& branch, mlir::PatternRewriter& rewriter, Logger log) {
     mlir::Operation* lastOp = branch.back();
     branch.pop_back();
 
-    mlir::BlockAndValueMapping mapper;
+    mlir::IRMapping mapper;
     for (auto& op : branch) {
         mapper.map(op->getOperand(0), producerOp->getResult(0));
         auto newOp = rewriter.clone(*op, mapper);

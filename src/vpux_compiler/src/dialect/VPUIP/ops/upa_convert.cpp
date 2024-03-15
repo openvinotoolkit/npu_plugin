@@ -31,15 +31,15 @@ mlir::LogicalResult vpux::VPUIP::ConvertUPAOp::verify() {
             {GF_U8, GF_FP32},   {GF_FP16, GF_U8},    {GF_FP32, GF_U8},   {GF_INT32, GF_U8},
     };
 
-    const auto inType = input().getType().cast<vpux::NDTypeInterface>().getElementType();
-    const auto outType = output().getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto inType = getInput().getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto outType = getOutput().getType().cast<vpux::NDTypeInterface>().getElementType();
 
     if (supportedConversions.find({inType, outType}) == supportedConversions.end()) {
         return errorAt(op, "Unsupported conversion type : '{0}' -> '{1}'", inType, outType);
     }
 
-    const auto batchIDValue = batchID().value_or(0);
-    if (!haveBatch() && batchIDValue != 0) {
+    const auto batchIDValue = getBatchID().value_or(0);
+    if (!getHaveBatch() && batchIDValue != 0) {
         return errorAt(op, "Invalid batch parameters");
     }
 
@@ -52,15 +52,15 @@ void vpux::VPUIP::ConvertUPAOp::build(mlir::OpBuilder& builder, mlir::OperationS
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConvertUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto scale = scaleAttr() ? scaleAttr().getValueAsDouble() : 1.0;
-    const auto bias = biasAttr() ? biasAttr().getValueAsDouble() : 0.0;
-    const auto batchID = checked_cast<int32_t>(this->batchID().value_or(0));
+    const auto scale = getScaleAttr() ? getScaleAttr().getValueAsDouble() : 1.0;
+    const auto bias = getBiasAttr() ? getBiasAttr().getValueAsDouble() : 0.0;
+    const auto batchID = checked_cast<int32_t>(this->getBatchID().value_or(0));
 
     MVCNN::ConvertParamsBuilder builder(writer);
     builder.add_scale(checked_cast<float>(scale));
     builder.add_bias(checked_cast<float>(bias));
-    builder.add_from_detection_output(fromDetectionOutput());
-    builder.add_have_batch(haveBatch());
+    builder.add_from_detection_output(getFromDetectionOutput());
+    builder.add_have_batch(getHaveBatch());
     builder.add_batch_id(batchID);
     const auto paramsOff = builder.Finish();
 

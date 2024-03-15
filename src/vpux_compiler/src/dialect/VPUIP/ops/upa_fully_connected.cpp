@@ -5,8 +5,6 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
-#include "vpux/compiler/utils/analysis.hpp"
-
 using namespace vpux;
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::FullyConnectedUPAOp::serialize(VPUIP::BlobWriter& writer) {

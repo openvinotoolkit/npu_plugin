@@ -15,7 +15,6 @@
 //
 
 #include <vpux/compiler/dialect/IE/enums.hpp.inc>
-#include <vpux/compiler/dialect/IE/structs.hpp.inc>
 
 #define GET_ATTRDEF_CLASSES
 #include <vpux/compiler/dialect/IE/attributes.hpp.inc>

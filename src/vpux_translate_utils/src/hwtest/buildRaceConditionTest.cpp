@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
@@ -17,10 +17,10 @@ namespace hwtest {
 
 namespace {
 
-using opBuilderCallback =
-        std::function<void(const nb::TestCaseJsonDescriptor&, mlir::ModuleOp, mlir::OpBuilder, Logger&,
-                           ArrayRef<mlir::Type>, SmallVector<vpux::VPURT::DeclareBufferOp>&,
-                           vpux::VPURT::DeclareBufferOp, mlir::ValueRange, mlir::ValueRange, size_t, size_t)>;
+using opBuilderCallback = std::function<void(const nb::TestCaseJsonDescriptor&, mlir::ModuleOp, mlir::OpBuilder,
+                                             Logger&, ArrayRef<mlir::Type>, SmallVector<vpux::VPURT::DeclareBufferOp>&,
+                                             vpux::VPURT::DeclareBufferOp, vpux::VPURT::DeclareBufferOp,
+                                             mlir::ValueRange, mlir::ValueRange, size_t, size_t)>;
 opBuilderCallback getOpBuilder(nb::CaseType caseType) {
     switch (caseType) {
     case nb::CaseType::ActShave:
@@ -51,8 +51,6 @@ opBuilderCallback getOpBuilder(nb::CaseType caseType) {
 
 void buildRaceConditionTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                             Logger& log, mlir::Type inputType, mlir::Type outputType) {
-    auto* ctx = builder.getContext();
-
     auto raceConditionParams = testDesc.getRaceConditionParams();
     auto testDescUnderlyingOp = testDesc.getUnderlyingOp();
     VPUX_THROW_WHEN(testDescUnderlyingOp == nullptr, "underlyingOp is nullptr for CaseType::RaceCondition");
@@ -74,12 +72,12 @@ void buildRaceConditionTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     inputTypes.insert(inputTypes.end(), outputsCount, outputParamType);
     outputTypes.insert(outputTypes.end(), outputsCount, outputParamType);
 
-    const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), makeArrayRef(outputTypes));
+    const auto funcType = builder.getFunctionType(ArrayRef(inputTypes), ArrayRef(outputTypes));
 
     auto func = builder.create<mlir::func::FuncOp>(
             builder.getUnknownLoc(),
             printToString("race_condition_{0}_{1}_{2}", testDescUnderlyingOp->getCaseStr(), inputType, outputType),
-            funcType, builder.getStringAttr("private"));
+            funcType, builder.getStringAttr("private"), /*arg_attrs=*/nullptr, /*res_attrs=*/nullptr);
 
     auto funcBuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());
 
@@ -106,7 +104,7 @@ void buildRaceConditionTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
 
         vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
                 funcBuilder, mlir::ValueRange(), mlir::ValueRange(inputDataDMA.getBarrier()), builder.getUnknownLoc(),
-                funcInput, getTensorResult(inputCMXVec[0]), cluster);
+                funcInput, getTensorResult(inputCMXVec[0]), 0, cluster);
 
         auto localOutputCMXOffset = outputCMXOffset;
         for (size_t unit = 0; unit < raceConditionParams.requestedUnits; ++unit) {
@@ -119,6 +117,7 @@ void buildRaceConditionTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
                 auto updateBarrier =
                         funcBuilder.create<VPURT::ConfigureBarrierOp>(funcBuilder.getUnknownLoc(), barrierNumber++);
                 underlyingOpBuilder(*testDescUnderlyingOp, module, funcBuilder, log, inputTypes, inputCMXVec, outputCMX,
+                                    /* profilingData */ nullptr,
                                     iter == 0 ? mlir::ValueRange(inputDataDMA.getBarrier())
                                               : mlir::ValueRange(waitBarrier.getBarrier()),
                                     mlir::ValueRange(updateBarrier.getBarrier()), cluster, unit);
@@ -130,10 +129,10 @@ void buildRaceConditionTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
 
     SmallVector<mlir::BlockArgument> returnOps;
     for (size_t i = 0; i < outputs.size(); ++i) {
-        vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(llvm::makeArrayRef(waitBarriers)),
+        vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(llvm::ArrayRef(waitBarriers)),
                                                     mlir::ValueRange(), builder.getUnknownLoc(),
                                                     getTensorResult(outputs[i]),
-                                                    func.getArgument(static_cast<unsigned int>(i + 1)));
+                                                    func.getArgument(static_cast<unsigned int>(i + 1)), 0);
         returnOps.emplace_back(func.getArgument(static_cast<unsigned int>(i + 1)));
     }
 
@@ -141,7 +140,7 @@ void buildRaceConditionTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
                                              mlir::ValueRange(ArrayRef<mlir::BlockArgument>(returnOps)));
 
     //  Pass Manager
-    mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
+    mlir::PassManager pm(module->getName(), mlir::OpPassManager::Nesting::Implicit);
     pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::ReferenceHW,
                                            static_cast<int>(raceConditionParams.requestedClusters),
                                            static_cast<int>(raceConditionParams.requestedClusters), log));

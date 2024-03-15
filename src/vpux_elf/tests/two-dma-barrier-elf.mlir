@@ -9,7 +9,7 @@ module @Test  attributes {VPU.arch = #VPU.arch_kind<VPUX37XX>, VPU.compilationMo
   IE.ExecutorResource 1 of @DMA_NN
   IE.ExecutorResource 1 of @SHAVE_UPA
   IE.ExecutorResource 1 of @SHAVE_ACT
-  IE.ExecutorResource 1 of @NCE  {
+  IE.TileResource 1 of @NCE  {
     IE.ExecutorResource 1 of @DPU
   }
 

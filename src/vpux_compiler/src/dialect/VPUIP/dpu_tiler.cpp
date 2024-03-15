@@ -4,7 +4,7 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/dpu_tiler.hpp"
-#include "vpux/compiler/dialect/VPU/cost_model.hpp"
+#include "vpux/compiler/dialect/VPU/utils/cost_model/cost_model.hpp"
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/utils/factors.hpp"
@@ -25,6 +25,7 @@ constexpr int64_t MAX_VALID_ZTILE_EXPONENT = 8;
 // FIXME: POR runtime currently doesn't enable management tasks feature which will leads to a big overhead for large
 // number of workloads. Estimate runtime overhead by this value. For further development, please refer comments in
 // E#24298
+// Update: Only keep this experiential param on old arch (VPUX30XX & VPUX31XX)
 constexpr int64_t RUNTIME_OVERHEAD_PER_WORKLOAD = 105;
 
 SmallVector<int64_t> getSplitsFromRange(int64_t maxSplitRange, int64_t maxLimit) {
@@ -127,6 +128,25 @@ VPUIP::WorkloadSplit createWorkloadSplitOverHW(ShapeRef shape, int64_t widthFact
 }
 
 }  // namespace
+
+/// Helper function: split workload channel into supported channels
+/// @Warning Numbers in supportedChannels should be reversed order from max to min
+SmallVector<int64_t> vpux::splitWorkloadChannel(int64_t wlChannel, ArrayRef<int64_t> supportedChannels) {
+    SmallVector<int64_t> newWorkloadChannels;
+    for (auto supportedChannel : supportedChannels) {
+        while (wlChannel >= supportedChannel) {
+            newWorkloadChannels.push_back(supportedChannel);
+            wlChannel -= supportedChannel;
+        }
+    }
+    // Return empty list to tell user that an invalid wlChannel catched
+    // let user to decide what behavior need to be applied
+    if (wlChannel != 0) {
+        Logger::global().error("Invalid remaining workload channel {0}", wlChannel);
+        return {};
+    }
+    return newWorkloadChannels;
+};
 
 vpux::VPUIP::DpuTiler::DpuTiler(ShapeRef outShape, VPU::MPEMode mpeMode): _outShape(outShape.raw()), _mpeMode(mpeMode) {
     VPUX_THROW_WHEN(outShape.size() != 4, "Only 4D shape is supported, got '{0}'", outShape);
@@ -285,31 +305,95 @@ void vpux::VPUIP::DpuTiler::tileOverHWMixedPrecision(WorkloadSplitPool& splitPoo
     splitPool.insert(std::move(split));
 }
 
-int64_t vpux::VPUIP::computeSplitCost(const WorkloadSplit& split, const WorkloadCostParams& params,
-                                      const std::shared_ptr<VPUNN::VPUCostModel>& costModel, Logger log) {
+int64_t vpux::VPUIP::computeSplitCostForVPUX30XX(const WorkloadSplit& split, const WorkloadCostParams& params,
+                                                 const std::shared_ptr<VPUNN::VPUCostModel>& costModel, LogCb logCb) {
     std::vector<int64_t> workloadCost;
     workloadCost.reserve(split.size());
 
-    log.setName("ComputeSplitCost");
-    const bool verboseLog = false;  // enable it to debug error code details for each workload
     std::string vpunnInputCheckInfo;
 
     for (const auto& wl : split) {
         const auto vpunnWorkload = VPU::getDPUWorkload(params, wl);
-        auto wlCost = VPU::checkAndReturnCost(costModel->DPU(vpunnWorkload, vpunnInputCheckInfo), log, !verboseLog);
-        if (wlCost >= VPU::INVALID_COST_BASE && verboseLog) {
-            log.warning("[VPUNN LOG] INVALID_COST is caught. Please check possible VPUNN debug info: {0}",
-                        vpunnInputCheckInfo);
+        auto wlCost =
+                VPU::checkAndReturnCost(costModel->DPU(vpunnWorkload, vpunnInputCheckInfo), Logger::global(), true);
+        if (wlCost >= VPU::INVALID_COST_BASE) {
+            logCb(formatv("[VPUNN LOG] INVALID_COST is caught. Please check possible VPUNN debug info: {0}",
+                          vpunnInputCheckInfo));
+            VPU::printVPUNNWorkloadConfig(vpunnWorkload, logCb);
         }
         workloadCost.push_back(static_cast<int64_t>(wlCost));
     }
 
-    return VPUNN::dpu_schedule(params.numDPU, workloadCost, RUNTIME_OVERHEAD_PER_WORKLOAD);
+    // RUNTIME_OVERHEAD_PER_WORKLOAD is an old experiential param for VPUX30XX & VPUX31XX
+    // Today VPUNN can cover it in itself NN model for VPUX37XX and above
+    return VPUNN::dpu_schedule(checked_cast<unsigned int>(params.numDPU), workloadCost, RUNTIME_OVERHEAD_PER_WORKLOAD);
+}
+
+int64_t vpux::VPUIP::computeSplitCostForVPUX37XX(const WorkloadSplit& split, const WorkloadCostParams& params,
+                                                 const std::shared_ptr<VPUNN::VPUCostModel>& costModel, LogCb logCb) {
+    std::vector<int64_t> workloadCost;
+    workloadCost.reserve(split.size());
+
+    std::string vpunnInputCheckInfo;
+
+    // Correct invalid input channels for depthwise workload before passing to VPUNN
+    // split to produce more small and valid workloads
+    const SmallVector<int64_t> supportedChannelsDW = {64, 32, 16};
+    auto correctDepthwiseWorkloadChannel = [=](const WorkloadTile& wl) {
+        auto wlChannel = std::get<0>(wl).shape[Dims4D::Act::C];
+        SmallVector<int64_t> validWorkloadChannels;
+        std::vector<WorkloadTile> newWorkloads;
+        auto newWl = wl;
+        validWorkloadChannels = splitWorkloadChannel(wlChannel, supportedChannelsDW);
+        VPUX_THROW_WHEN(validWorkloadChannels.size() == 0,
+                        "splitWorkloadChannel failed please check wlChannel - {0}, supportedChannelsDW - {1}",
+                        wlChannel, supportedChannelsDW);
+        for (auto validChannel : validWorkloadChannels) {
+            std::get<0>(newWl).shape[Dims4D::Act::C] = validChannel;
+            newWorkloads.push_back(newWl);
+        }
+        return newWorkloads;
+    };
+
+    std::vector<WorkloadTile> correctWls;
+    for (const auto& wl : split) {
+        correctWls.push_back(wl);
+        // Split workload channel to satisfy HW limit for depthwise ops before passing to VPUNN
+        if (params.nceTaskType == NCETaskType::DWCONV || params.nceTaskType == NCETaskType::MAXPOOL ||
+            params.nceTaskType == NCETaskType::AVEPOOL) {
+            auto wlChannel = std::get<0>(wl).shape[Dims4D::Act::C];
+            if (std::find(supportedChannelsDW.begin(), supportedChannelsDW.end(), wlChannel) ==
+                supportedChannelsDW.end()) {
+                correctWls = correctDepthwiseWorkloadChannel(wl);
+            }
+        }
+
+        for (const auto& correctWl : correctWls) {
+            const auto vpunnWorkload = VPU::getDPUWorkload(params, correctWl);
+            auto wlCost =
+                    VPU::checkAndReturnCost(costModel->DPU(vpunnWorkload, vpunnInputCheckInfo), Logger::global(), true);
+            if (wlCost >= VPU::INVALID_COST_BASE) {
+                logCb(formatv("[VPUNN LOG] INVALID_COST is caught. Please check possible VPUNN debug info: {0}",
+                              vpunnInputCheckInfo));
+                VPU::printVPUNNWorkloadConfig(vpunnWorkload, logCb);
+            }
+            workloadCost.push_back(static_cast<int64_t>(wlCost));
+        }
+
+        correctWls.clear();
+    }
+
+    return VPUNN::dpu_schedule(checked_cast<unsigned int>(params.numDPU), workloadCost);
 }
 
 VPUNN::Operation vpux::VPUIP::getOperationType(VPUIP::NCETaskType taskType) {
     switch (taskType) {
     case VPUIP::NCETaskType::CONV:
+        // Here for a compressConv, we still map it to VPUNN CONVOLUTION
+        // VPUNN will process CONVOLUTION as CM_CONVOLUTION when IC < 16 by itself
+        // That means for VPUNN, CM_CONVOLUTION means
+        // * CMajor CONV for IC >= 16
+        // * compressConv for IC <16
         return VPUNN::Operation::CONVOLUTION;
     case VPUIP::NCETaskType::DWCONV:
         return VPUNN::Operation::DW_CONVOLUTION;

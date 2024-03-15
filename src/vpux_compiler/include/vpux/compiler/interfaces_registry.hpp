@@ -6,7 +6,7 @@
 #pragma once
 
 #include <memory>
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
 
 namespace vpux {
 

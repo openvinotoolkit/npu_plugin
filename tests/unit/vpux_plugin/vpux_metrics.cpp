@@ -10,7 +10,7 @@
 #include "vpux/al/config/common.hpp"
 #include "vpux/al/config/runtime.hpp"
 #include "vpux/vpux_plugin_params.hpp"
-#include "vpux_metrics.h"
+#include "vpux_metrics.hpp"
 
 namespace ie = InferenceEngine;
 

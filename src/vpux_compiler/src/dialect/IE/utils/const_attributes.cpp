@@ -66,9 +66,23 @@ mlir::FailureOr<int64_t> getBaseContentNumElements(Const::DeclareOp constOp) {
     }
     auto baseContent = contentAttr.getBaseContent();
     if (baseContent != nullptr) {
-        return baseContent.getType().getNumElements();
+        return baseContent.getShapedType().getNumElements();
     }
     return mlir::failure();
+}
+
+bool isBaseContentSplat(Const::DeclareOp constOp) {
+    if (constOp == nullptr) {
+        return false;
+    }
+
+    auto contentAttr = constOp.getContentAttr();
+    if (contentAttr == nullptr) {
+        return false;
+    }
+    auto baseContent = contentAttr.getBaseContent();
+
+    return baseContent.isSplat();
 }
 
 }  // namespace IE

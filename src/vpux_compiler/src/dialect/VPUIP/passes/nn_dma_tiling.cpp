@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/core/cost_model_utils.hpp"
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPUIP/convert_to_dma_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
@@ -43,15 +42,15 @@ private:
 };
 
 Byte getDmaSize(VPUIP::NNDMAOp nndmaOp) {
-    const auto inputShape = getShape(nndmaOp.input());
-    const auto outputShape = getShape(nndmaOp.output());
+    const auto inputShape = getShape(nndmaOp.getInput());
+    const auto outputShape = getShape(nndmaOp.getOutput());
     VPUX_THROW_UNLESS(inputShape == outputShape,
                       "NNDMAOpTiling: NNDMAOp node's input and output have different shapes: {0} vs {1}", inputShape,
                       outputShape);
 
     // Sparse data is composed of multiple buffers which will later get ungrouped into individual Copy operations
     // Therefore, the maximum buffer size is selected for tiling
-    if (auto sparseInput = nndmaOp.input().getType().dyn_cast<VPUIP::SparseBufferType>()) {
+    if (auto sparseInput = nndmaOp.getInput().getType().dyn_cast<VPUIP::SparseBufferType>()) {
         auto dataSize = sparseInput.getData().cast<vpux::NDTypeInterface>().getCompactAllocSize();
         auto sparsityMapSize =
                 (sparseInput.getSparsityMap() != nullptr)
@@ -64,13 +63,13 @@ Byte getDmaSize(VPUIP::NNDMAOp nndmaOp) {
         return std::max({dataSize, sparsityMapSize, seTableSize});
     }
 
-    return static_cast<Byte>(getCompactSize(nndmaOp.input()));
+    return static_cast<Byte>(getCompactSize(nndmaOp.getInput()));
 }
 
 void SplitNNDMARewriter::createTiles(VPUIP::NNDMAOp nndmaOp, mlir::PatternRewriter& rewriter, Logger log) const {
     // Currently, tiling is implemented only for 4D shapes.
-    const auto origInputShape = getShape(nndmaOp.input());
-    const auto origOutputShape = getShape(nndmaOp.output());
+    const auto origInputShape = getShape(nndmaOp.getInput());
+    const auto origOutputShape = getShape(nndmaOp.getOutput());
 
     const auto fullCopySize = getDmaSize(nndmaOp);
 
@@ -102,8 +101,8 @@ void SplitNNDMARewriter::createTiles(VPUIP::NNDMAOp nndmaOp, mlir::PatternRewrit
     }
     numPlanesPerTile = vpux::divUp(numPlanesOfFullShape, numTiles);
 
-    auto inputDeclBuff = nndmaOp.input().getDefiningOp<VPURT::DeclareBufferOp>();
-    auto outputDeclBuff = nndmaOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>();
+    auto inputDeclBuff = nndmaOp.getInput().getDefiningOp<VPURT::DeclareBufferOp>();
+    auto outputDeclBuff = nndmaOp.getOutputBuff().getDefiningOp<VPURT::DeclareBufferOp>();
     VPUX_THROW_UNLESS(inputDeclBuff != nullptr && outputDeclBuff != nullptr,
                       "Can't get input or output buffer of NNDMAOp '{0}'", nndmaOp->getLoc());
 
@@ -116,10 +115,10 @@ void SplitNNDMARewriter::createTiles(VPUIP::NNDMAOp nndmaOp, mlir::PatternRewrit
     auto currentTileInShape = Shape(origInputShape.raw());
     auto currentTileOutShape = Shape(origOutputShape.raw());
     auto planesLeftToCopy = numPlanesOfFullShape;
-    auto inputInsertionPoint = nndmaOp.input().getDefiningOp();
-    auto outputInsertionPoint = nndmaOp.output_buff().getDefiningOp();
+    auto inputInsertionPoint = nndmaOp.getInput().getDefiningOp();
+    auto outputInsertionPoint = nndmaOp.getOutputBuff().getDefiningOp();
 
-    auto spillIdAttr = nndmaOp.spillIdAttr();
+    auto spillIdAttr = nndmaOp.getSpillIdAttr();
 
     const auto getTiledBuf = [](VPURT::DeclareBufferOp origBuf, vpux::ShapeRef subShape, vpux::Byte newOffset,
                                 mlir::Operation* insertionPoint,
@@ -164,19 +163,11 @@ void SplitNNDMARewriter::createTiles(VPUIP::NNDMAOp nndmaOp, mlir::PatternRewrit
         auto newDMAPort = tileIdx % _dmaPortCount;
         const auto newNNDMA = VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
                 rewriter, vpurtTask.getWaitBarriers(), vpurtTask.getUpdateBarriers(), tileLoc, inputNewBuffer,
-                outputNewBuffer, newDMAPort, nndmaOp.channelTypeAttr(), false, false, spillIdAttr, nullptr);
+                outputNewBuffer, newDMAPort, false, false, spillIdAttr, nndmaOp.getCompressCandidateAttr());
 
         log.trace("New tile '{0}' NNDMA op: '{1}'", tileIdx, newNNDMA);
 
         planesLeftToCopy -= currentTileInShape[tileDim];
-
-        auto newVpurtTask = nndmaOp->getParentOfType<VPURT::TaskOp>();
-        if (vpurtTask->getAttr(cycleBegin)) {
-            newVpurtTask->setAttr(cycleBegin, vpurtTask->getAttr(cycleBegin));
-        }
-        if (vpurtTask->getAttr(cycleEnd)) {
-            newVpurtTask->setAttr(cycleEnd, vpurtTask->getAttr(cycleEnd));
-        }
     }
 
     VPUX_THROW_UNLESS(planesLeftToCopy == 0, "SplitNNDMA: a part of the original shape was not covered by NNDMA tiles");
@@ -222,7 +213,7 @@ void NNDMATilingPass::safeRunOnFunc() {
     const auto arch = VPU::getArch(module);
 
     auto dmaOp = IE::getAvailableExecutor(module, VPU::ExecutorKind::DMA_NN);
-    auto dmaPortCount = dmaOp.count();
+    auto dmaPortCount = dmaOp.getCount();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<SplitNNDMARewriter>(&ctx, dmaPortCount, _log, arch);

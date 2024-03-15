@@ -4,13 +4,12 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::LogicalNotOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -19,7 +18,7 @@ mlir::LogicalResult vpux::IE::LogicalNotOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto in1Type = logicalNot.input1().getType().cast<mlir::ShapedType>();
+    const auto in1Type = logicalNot.getInput1().getType().cast<mlir::ShapedType>();
 
     inferredReturnShapes.emplace_back(in1Type.getShape(), in1Type.getElementType());
 

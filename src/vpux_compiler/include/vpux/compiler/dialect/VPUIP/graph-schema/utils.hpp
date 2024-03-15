@@ -8,7 +8,7 @@
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/dialect/IE/attributes.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/schema.hpp"
 #include "vpux/compiler/dialect/VPURT/attributes.hpp"
 
@@ -56,9 +56,10 @@ extern const EnumMap<IE::InterpolateCoordMode, MVCNN::InterpolationCoordTransMod
 MVCNN::PhysicalProcessor createPhysicalProcessor(VPU::ExecutorKind execKind);
 MVCNN::PhysicalMem createPhysicalMem(VPU::MemoryKind mem);
 flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorMapping(flatbuffers::FlatBufferBuilder& fbb,
-                                                                    IE::ExecutorResourceOp res, mlir::ModuleOp module);
+                                                                    IERT::ComputeResourceOpInterface res,
+                                                                    mlir::ModuleOp module);
 flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorFreqMapping(flatbuffers::FlatBufferBuilder& fbb,
-                                                                        IE::ExecutorResourceOp res);
+                                                                        IE::TileResourceOp res);
 flatbuffers::Offset<MVCNN::MemoryRelationshipMapping> createBandwidthMapping(flatbuffers::FlatBufferBuilder& fbb,
                                                                              IE::MemoryResourceOp src,
                                                                              IE::MemoryResourceOp dst,

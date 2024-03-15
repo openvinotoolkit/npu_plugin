@@ -80,7 +80,9 @@ void KernelParamsSerializer::addBasicAttrToVector(SmallVector<uint8_t>& vec, mli
     } else if (auto val = attr.dyn_cast_or_null<mlir::FloatAttr>()) {
         appendValueToVector(vec, static_cast<float>(val.getValue().convertToDouble()));
     } else {
-        VPUX_THROW("Act Shave Invocation: cannot store arg of type {0}", attr.getType());
+        const auto typedAttr = attr.dyn_cast_or_null<mlir::TypedAttr>();
+        const auto type = typedAttr != nullptr ? typedAttr.getType() : nullptr;
+        VPUX_THROW("Act Shave Invocation: arg type is unknown or unsupported {0}", type);
     }
 }
 
@@ -118,13 +120,13 @@ void KernelParamsSerializer::addTensorArgToVector(SmallVector<uint8_t>& vec, mli
 SmallVector<uint8_t> KernelParamsSerializer::createKernelParams(VPUIP::SwKernelOp swKernelOp) {
     SmallVector<uint8_t> paramsVector;
 
-    const auto insSize = swKernelOp.inputs().size();
-    const auto outsSize = swKernelOp.results().size();
+    const auto insSize = swKernelOp.getInputs().size();
+    const auto outsSize = swKernelOp.getResults().size();
 
     const auto kernelOpArgsCount = insSize + outsSize;
 
-    for (auto&& kernelRun : swKernelOp.body().getOps<VPUIP::SwKernelRun>()) {
-        for (auto&& operand : kernelRun.args()) {
+    for (auto&& kernelRun : swKernelOp.getBody().getOps<VPUIP::SwKernelRun>()) {
+        for (auto&& operand : kernelRun.getArgs()) {
             auto blockArg = operand.dyn_cast_or_null<mlir::BlockArgument>();
             if (blockArg) {
                 auto id = blockArg.getArgNumber();
@@ -134,12 +136,14 @@ SmallVector<uint8_t> KernelParamsSerializer::createKernelParams(VPUIP::SwKernelO
 
                 auto blockArgType = blockArg.getType();
                 auto blockArgNdTypeIf = blockArgType.cast<vpux::NDTypeInterface>();
-                auto ioType = id < insSize ? swKernelOp.inputs()[id].getType()
-                                           : swKernelOp.output_buffs()[id - insSize].getType();
+                auto ioType = id < insSize ? swKernelOp.getInputs()[id].getType()
+                                           : swKernelOp.getOutputBuffs()[id - insSize].getType();
                 auto ioNdTypeIf = ioType.cast<vpux::NDTypeInterface>();
                 VPUX_THROW_UNLESS(blockArgNdTypeIf != nullptr || ioNdTypeIf != nullptr,
                                   "createKernelParams: sw kernel I/O does not implement NDTypeInterface");
-                VPUX_THROW_UNLESS(blockArgType == ioType, "createKernelParams: types of sw kernel I/O do not match");
+                VPUX_THROW_UNLESS(vpux::areTypesCompatible(blockArgType, ioType,
+                                                           vpux::IE::TypeComparisonMode::STRICT_EQUAL, true, true),
+                                  "createKernelParams: types of sw kernel I/O do not match");
                 VPUX_THROW_UNLESS(blockArgNdTypeIf.getShape() == ioNdTypeIf.getShape(),
                                   "createKernelParams: shapes of I/O do not match");
 
@@ -149,8 +153,8 @@ SmallVector<uint8_t> KernelParamsSerializer::createKernelParams(VPUIP::SwKernelO
                 VPUX_THROW("Only block arguments are supported");
             }
         }
-        if (kernelRun.attrs().has_value()) {
-            const mlir::ArrayAttr arrayAttrs = kernelRun.attrs().value();
+        if (kernelRun.getAttrs().has_value()) {
+            const mlir::ArrayAttr arrayAttrs = kernelRun.getAttrs().value();
             const auto& attrs = arrayAttrs.getValue();
             for (const auto& attr : attrs) {
                 addAttrsToVector(paramsVector, attr);

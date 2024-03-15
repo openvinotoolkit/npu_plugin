@@ -7,6 +7,7 @@
 
 #include "vpux/compiler/utils/attributes.hpp"
 
+#include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/range.hpp"
 
 using namespace vpux;
@@ -38,7 +39,7 @@ uint32_t vpux::AsyncDepsInfo::getIndex(mlir::async::ExecuteOp execOp) const {
 }
 
 mlir::async::ExecuteOp vpux::AsyncDepsInfo::getExecuteOpAtIndex(size_t opIdx) const {
-    VPUX_THROW_UNLESS(_allExecOps.size() > opIdx, "Invalid index '{0}' for _allExecOps", opIdx);
+    VPUX_THROW_WHEN(opIdx >= _execOpCount, "Invalid index '{0}' for _allExecOps", opIdx);
     return _allExecOps[opIdx];
 }
 
@@ -55,7 +56,8 @@ void vpux::AsyncDepsInfo::buildDepsMap(mlir::func::FuncOp func) {
         setIndex(p.value(), p.index());
     }
 
-    _depsMap.resize(_allExecOps.size());
+    _execOpCount = _allExecOps.size();
+    _depsMap.resize(_execOpCount);
     for (auto& deps : _depsMap) {
         deps.resize(checked_cast<uint32_t>(_allExecOps.size()));
     }
@@ -66,8 +68,8 @@ void vpux::AsyncDepsInfo::buildDepsMap(mlir::func::FuncOp func) {
         } else if (auto waitOp = mlir::dyn_cast<mlir::async::AwaitOp>(op)) {
             _log.trace("Found 'async.await' Operation at '{0}'", op.getLoc());
 
-            if (waitOp.result() != nullptr) {
-                for (auto* user : waitOp.result().getUsers()) {
+            if (waitOp.getResult() != nullptr) {
+                for (auto* user : waitOp.getResult().getUsers()) {
                     VPUX_THROW_WHEN(
                             user->getParentOfType<mlir::async::ExecuteOp>() != nullptr,
                             "Got 'async.await' Operation at '{0}', which has users inside 'async.execute' region",
@@ -213,72 +215,79 @@ void vpux::AsyncDepsInfo::updateTokenDependencies() {
     _log.trace("Add explicit '!async.token' based dependencies between 'async.execute' operations");
     _log = _log.nest();
 
-    for (auto execOp : _allExecOps) {
-        _log.trace("Process 'async.execute' Operation at '{0}'", execOp->getLoc());
+    for (auto* execOpIt = _allExecOps.begin(); execOpIt != _allExecOps.begin() + _execOpCount; ++execOpIt) {
+        _log.trace("Process 'async.execute' Operation at '{0}'", execOpIt->getLoc());
 
-        const auto execInd = getIndex(execOp);
+        const auto execInd = getIndex(*execOpIt);
         const auto& execDeps = _depsMap[execInd];
 
         SmallVector<mlir::Value> depsVec;
         for (auto depInd : execDeps.set_bits()) {
-            depsVec.push_back(_allExecOps[depInd].token());
+            depsVec.push_back(_allExecOps[depInd].getToken());
         }
 
         _log.nest().trace("Use the following explicit dependencies : {0}", depsVec);
-        execOp.dependenciesMutable().assign(makeArrayRef(depsVec));
+        execOpIt->getDependenciesMutable().assign(ArrayRef(depsVec));
     }
 
     _log = _log.unnest();
 }
 
 size_t vpux::AsyncDepsInfo::insertNewExecOpToDepsMap(mlir::async::ExecuteOp execOp) {
-    size_t newIndex = _allExecOps.size();
-    _allExecOps.push_back(execOp);
-    setIndex(execOp, newIndex);
+    auto dataStructSize = _allExecOps.size();
+    VPUX_THROW_WHEN(_execOpCount > dataStructSize, "Invalid execOp count '{0}'", _execOpCount);
 
-    _depsMap.resize(_allExecOps.size());
-    _consumerMap.resize(_allExecOps.size());
+    if (_execOpCount == dataStructSize) {
+        preAllocateForNewOps(1);
+    }
+
+    _allExecOps[_execOpCount] = execOp;
+    setIndex(execOp, _execOpCount);
+    addExecOp(execOp);
+
+    return _execOpCount++;
+}
+
+/* Adds more space to internal structures, it only resizes all internal structures in advance
+   to avoid loss on single operation insertion.
+   Use only if you know in advance how many insetions are nesessary. */
+void vpux::AsyncDepsInfo::preAllocateForNewOps(size_t numOfNewOps) {
+    auto newSize = _allExecOps.size() + numOfNewOps;
+    _allExecOps.resize(newSize);
+    _depsMap.resize(newSize);
+    _consumerMap.resize(newSize);
+
     for (auto& deps : _depsMap) {
-        deps.resize(checked_cast<uint32_t>(_allExecOps.size()));
+        deps.resize(checked_cast<uint32_t>(newSize));
     }
     for (auto& cons : _consumerMap) {
-        cons.resize(checked_cast<uint32_t>(_allExecOps.size()));
+        cons.resize(checked_cast<uint32_t>(newSize));
     }
-
-    addExecOp(execOp);
-    return newIndex;
 }
 
-SmallVector<size_t> vpux::AsyncDepsInfo::getOpDeps(size_t opIdx) const {
-    VPUX_THROW_UNLESS(_depsMap.size() > opIdx, "Invalid index '{0}' for _depsMap", opIdx);
-    SmallVector<size_t> opDeps = {};
-    for (auto dep : _depsMap[opIdx].set_bits()) {
-        opDeps.push_back(static_cast<size_t>(dep));
-    }
-    return opDeps;
+const llvm::BitVector& vpux::AsyncDepsInfo::getOpDeps(size_t opIdx) const {
+    VPUX_THROW_WHEN(opIdx >= _execOpCount, "Invalid index '{0}' for _depsMap", opIdx);
+    return _depsMap[opIdx];
 }
 
-SmallVector<size_t> vpux::AsyncDepsInfo::getConsumerOps(size_t opIdx) const {
-    VPUX_THROW_UNLESS(!_consumerMap.empty(), "Consumer map was not build");
-    SmallVector<size_t> consumerOps = {};
-    for (auto con : _consumerMap[opIdx].set_bits()) {
-        consumerOps.push_back(static_cast<size_t>(con));
-    }
-    return consumerOps;
+const llvm::BitVector& vpux::AsyncDepsInfo::getConsumerOps(size_t opIdx) const {
+    VPUX_THROW_WHEN(_consumerMap.empty(), "Consumer map was not build");
+    VPUX_THROW_WHEN(opIdx >= _execOpCount, "Invalid index '{0}' for _consumerMap", opIdx);
+    return _consumerMap[opIdx];
 }
 
 std::unordered_map<size_t, size_t> vpux::AsyncDepsInfo::calculateOpInDegreeTable() const {
     std::unordered_map<size_t, size_t> opInDegree;
-    for (size_t i = 0; i < _depsMap.size(); ++i) {
+    for (size_t i = 0; i < _execOpCount; ++i) {
         opInDegree[i] = static_cast<size_t>(_depsMap[i].count());
     }
     return opInDegree;
 }
 
 std::unordered_map<size_t, size_t> vpux::AsyncDepsInfo::calculateOpOutDegreeTable() const {
-    VPUX_THROW_UNLESS(!_consumerMap.empty(), "Consumer map was not build");
+    VPUX_THROW_WHEN(_consumerMap.empty(), "Consumer map was not build");
     std::unordered_map<size_t, size_t> opOutDegree;
-    for (size_t i = 0; i < _consumerMap.size(); ++i) {
+    for (size_t i = 0; i < _execOpCount; ++i) {
         opOutDegree[i] = static_cast<size_t>(_consumerMap[i].count());
     }
     return opOutDegree;

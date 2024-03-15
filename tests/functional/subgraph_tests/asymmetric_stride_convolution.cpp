@@ -3,62 +3,58 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpu_ov1_layer_test.hpp"
-
-#include <ngraph_functions/builders.hpp>
-#include <ngraph_functions/utils/ngraph_helpers.hpp>
+#include <ov_models/builders.hpp>
+#include <ov_models/utils/ov_helpers.hpp>
 #include <shared_test_classes/base/layer_test_utils.hpp>
+#include <vpu_ov2_layer_test.hpp>
 
-namespace {
+namespace ov::test {
 
 struct AsymmetricStrideConvSubGraphTestParams {
-    LayerTestsUtils::TargetDevice _device;
-    InferenceEngine::SizeVector _in_dims;
-    InferenceEngine::SizeVector _w_dims;
+    ov::Shape _in_dims;
+    ov::Shape _w_dims;
     std::vector<uint64_t> _strides;
     std::vector<int64_t> _pads_begin;
     std::vector<int64_t> _pads_end;
 };
 
-class VPUXAsymmetricStrideConvSubGraphTest_VPU3700 :
-        public LayerTestsUtils::VpuOv1LayerTestsCommon,
+class AsymmetricStrideConvSubGraphTest_NPU3700 :
+        public VpuOv2LayerTest,
         public testing::WithParamInterface<AsymmetricStrideConvSubGraphTestParams> {
     void SetUp() override {
         const auto test_params = GetParam();
-        targetDevice = test_params._device;
-        const InferenceEngine::SizeVector inputShape = test_params._in_dims;
-        const InferenceEngine::SizeVector weightsShape = test_params._w_dims;
+        const ov::Shape inputShape = test_params._in_dims;
+        const ov::Shape weightsShape = test_params._w_dims;
 
-        const auto params = ngraph::builder::makeParams(ngraph::element::f32, {inputShape});
-        const auto paramOuts =
-                ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+        init_input_shapes(static_shapes_to_test_representation({inputShape}));
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputDynamicShapes.front());
 
         const size_t dataLevels = 256;
         const std::vector<float> dataLow = {0.0f};
         const std::vector<float> dataHigh = {255.0f};
-        const auto dataFq = ngraph::builder::makeFakeQuantize(paramOuts[0], ngraph::element::f32, dataLevels, {},
-                                                              dataLow, dataHigh, dataLow, dataHigh);
+        const auto dataFq = ngraph::builder::makeFakeQuantize(param, ov::element::f32, dataLevels, {}, dataLow,
+                                                              dataHigh, dataLow, dataHigh);
 
         std::vector<uint64_t> poolStridesVec = {1, 1};
         std::vector<uint64_t> poolKernelVec = {1, 1};
-        const ngraph::Strides poolStrides = poolStridesVec;
-        const ngraph::Shape padsBegin = {0, 0};
-        const ngraph::Shape padsEnd = {0, 0};
-        const ngraph::Shape poolKernel = poolKernelVec;
-        const auto pool =
-                std::make_shared<ngraph::opset2::MaxPool>(dataFq, poolStrides, padsBegin, padsEnd, poolKernel);
+        const ov::Strides poolStrides = poolStridesVec;
+        const ov::Shape padsBegin = {0, 0};
+        const ov::Shape padsEnd = {0, 0};
+        const ov::Shape poolKernel = poolKernelVec;
+        const auto pool = std::make_shared<ov::op::v1::MaxPool>(dataFq, poolStrides, padsBegin, padsEnd, poolKernel);
 
-        std::vector<float> weights(weightsShape[0] * weightsShape[1] * weightsShape[2] * weightsShape[3]);
+        size_t sizeWeights = weightsShape.at(0) * weightsShape.at(1) * weightsShape.at(2) * weightsShape.at(3);
+        std::vector<float> weights(sizeWeights);
         for (std::size_t i = 0; i < weights.size(); i++) {
             weights.at(i) = std::cos(i * 3.14 / 6);
         }
         auto weightsFP32 =
-                std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::f32, weightsShape, weights.data());
+                std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::f32, weightsShape, weights.data());
 
         const size_t weightsLevels = 255;
 
-        const auto weightsInLow = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1}, {0.0f}, false);
-        const auto weightsInHigh = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1}, {255.0f}, false);
+        const auto weightsInLow = ngraph::builder::makeConstant<float>(ov::element::f32, {1}, {0.0f}, false);
+        const auto weightsInHigh = ngraph::builder::makeConstant<float>(ov::element::f32, {1}, {255.0f}, false);
 
         std::vector<float> perChannelLow(weightsShape[0]);
         std::vector<float> perChannelHigh(weightsShape[0]);
@@ -68,56 +64,53 @@ class VPUXAsymmetricStrideConvSubGraphTest_VPU3700 :
             perChannelHigh[i] = 255.0f;
         }
 
-        const auto weightsOutLow = ngraph::builder::makeConstant<float>(
-                ngraph::element::f32, {weightsShape[0], 1, 1, 1}, perChannelLow, false);
+        const auto weightsOutLow = ngraph::builder::makeConstant<float>(ov::element::f32, {weightsShape.at(0), 1, 1, 1},
+                                                                        perChannelLow, false);
         const auto weightsOutHigh = ngraph::builder::makeConstant<float>(
-                ngraph::element::f32, {weightsShape[0], 1, 1, 1}, perChannelHigh, false);
+                ov::element::f32, {weightsShape.at(0), 1, 1, 1}, perChannelHigh, false);
 
-        const auto weightsFq = std::make_shared<ngraph::opset2::FakeQuantize>(
-                weightsFP32, weightsInLow, weightsInHigh, weightsOutLow, weightsOutHigh, weightsLevels);
+        const auto weightsFq = std::make_shared<ov::op::v0::FakeQuantize>(weightsFP32, weightsInLow, weightsInHigh,
+                                                                          weightsOutLow, weightsOutHigh, weightsLevels);
 
-        const ngraph::Strides strides = test_params._strides;
-        const ngraph::CoordinateDiff pads_begin = test_params._pads_begin;
-        const ngraph::CoordinateDiff pads_end = test_params._pads_end;
-        const ngraph::Strides dilations = {1, 1};
-        const auto conv = std::make_shared<ngraph::opset2::Convolution>(pool, weightsFq, strides, pads_begin, pads_end,
-                                                                        dilations);
+        const ov::Strides strides = test_params._strides;
+        const ov::CoordinateDiff pads_begin = test_params._pads_begin;
+        const ov::CoordinateDiff pads_end = test_params._pads_end;
+        const ov::Strides dilations = {1, 1};
+        const auto conv =
+                std::make_shared<ov::op::v1::Convolution>(pool, weightsFq, strides, pads_begin, pads_end, dilations);
 
         const std::vector<float> outLow = {0.0f};
         const std::vector<float> outHigh = {255.0f};
-        const auto result = ngraph::builder::makeFakeQuantize(conv, ngraph::element::f32, dataLevels, {}, outLow,
-                                                              outHigh, outLow, outHigh);
+        const auto result = ngraph::builder::makeFakeQuantize(conv, ov::element::f32, dataLevels, {}, outLow, outHigh,
+                                                              outLow, outHigh);
 
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(result)};
-        function = std::make_shared<ngraph::Function>(results, params, "VPUXAsymmetricStrideConvSubGraphTest");
+        const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(result)};
+        function = std::make_shared<ov::Model>(results, ov::ParameterVector{param}, "AsymmetricStrideConvSubGraphTest");
 
-        threshold = 0.1f;
+        rel_threshold = 0.1f;
     }
 };
 
-TEST_P(VPUXAsymmetricStrideConvSubGraphTest_VPU3700, HW) {
-    setPlatformVPU3700();
-    setDefaultHardwareModeMLIR();
-    Run();
+TEST_P(AsymmetricStrideConvSubGraphTest_NPU3700, HW) {
+    setDefaultHardwareMode();
+    run(VPUXPlatform::VPU3700);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_AsymmetricStrideConv, VPUXAsymmetricStrideConvSubGraphTest_VPU3700,
+INSTANTIATE_TEST_SUITE_P(smoke_AsymmetricStrideConv, AsymmetricStrideConvSubGraphTest_NPU3700,
                          ::testing::Values(
                                  AsymmetricStrideConvSubGraphTestParams{
-                                         LayerTestsUtils::testPlatformTargetDevice(),  // _device
-                                         {1, 1, 16, 16},                               // in dims
-                                         {2, 1, 1, 2},                                 // weights dims
-                                         {1, 2},                                       // strides
-                                         {0, 0},                                       // pads_begin
-                                         {0, 0},                                       // pads_end
+                                         {1, 1, 16, 16},  // in dims
+                                         {2, 1, 1, 2},    // weights dims
+                                         {1, 2},          // strides
+                                         {0, 0},          // pads_begin
+                                         {0, 0},          // pads_end
                                  },
                                  AsymmetricStrideConvSubGraphTestParams{
-                                         LayerTestsUtils::testPlatformTargetDevice(),  // _device
-                                         {1, 16, 64, 64},                              // in dims
-                                         {16, 16, 1, 2},                               // weights dims
-                                         {1, 2},                                       // strides
-                                         {0, 0},                                       // pads_begin
-                                         {0, 0},                                       // pads_end
+                                         {1, 16, 64, 64},  // in dims
+                                         {16, 16, 1, 2},   // weights dims
+                                         {1, 2},           // strides
+                                         {0, 0},           // pads_begin
+                                         {0, 0},           // pads_end
                                  }));
 
-}  // namespace
+}  // namespace ov::test

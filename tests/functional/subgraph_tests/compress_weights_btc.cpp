@@ -3,68 +3,66 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpu_ov1_layer_test.hpp"
-#include "vpu_ov2_layer_test.hpp"
+#include <vpu_ov2_layer_test.hpp>
 
 #include "vpux/compiler/dialect/VPUIP/generated/schema/graphfile_generated.h"
 
 #include "common_test_utils/test_constants.hpp"
 #include "functional_test_utils/precision_utils.hpp"
 #include "ngraph/pass/serialize.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 #include <vector>
+using namespace ov::test::utils;
 
-namespace ov::test::subgraph {
-typedef std::tuple<std::string> CompressWeightsParameters;
+namespace ov::test {
+
+typedef std::tuple<ov::element::Type> CompressWeightsParameters;
 
 class CompressWeightsTest :
         public testing::WithParamInterface<CompressWeightsParameters>,
         virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<CompressWeightsParameters>& obj) {
-        std::string targetDevice;
-        std::tie(targetDevice) = obj.param;
+        ov::element::Type inType = std::get<0>(obj.param);
 
         std::ostringstream result;
-        result << "targetDevice=" << targetDevice;
+        result << "InputPrec=" << inType;
         return result.str();
     }
 
 protected:
     void SetUp() override {
-        const InferenceEngine::Precision netPrecision = InferenceEngine::Precision::FP16;
-        std::tie(targetDevice) = this->GetParam();
+        inType = std::get<0>(GetParam());
 
         // NOTE: model is adapted from mobV2_soh test, but scaled up so that the compression is applied
         std::vector<size_t> inputShape = {1, 144, 112, 112};
         init_input_shapes(static_shapes_to_test_representation({inputShape}));
 
-        const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-
         // input
-        const auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        const ov::ParameterVector params = {
+                std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes.front())};
         // GroupConv
-        const auto groupConvWeights = CommonTestUtils::generate_float_numbers(144 * 3 * 3, -0.2f, 0.2f);
+        const auto groupConvWeights = generate_float_numbers(144 * 3 * 3, -0.2f, 0.2f);
         const auto groupConv =
-                ngraph::builder::makeGroupConvolution(params[0], ngPrc, {3, 3}, {2, 2}, {1, 1}, {1, 1}, {1, 1},
-                                                      ngraph::op::PadType::EXPLICIT, 144, 144, false, groupConvWeights);
+                ngraph::builder::makeGroupConvolution(params[0], inType, {3, 3}, {2, 2}, {1, 1}, {1, 1}, {1, 1},
+                                                      ov::op::PadType::EXPLICIT, 144, 144, false, groupConvWeights);
         // result
-        ngraph::ResultVector results{std::make_shared<ngraph::op::Result>(groupConv)};
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(groupConv)};
 
-        function = std::make_shared<ngraph::Function>(results, params, "CompressWeightsTest");
+        function = std::make_shared<ov::Model>(results, params, "CompressWeightsTest");
     }
 };  // namespace ov::test::subgraph
 
-class CompressWeightsTest_VPU3720 : public CompressWeightsTest, virtual public VpuOv2LayerTest {};
+class CompressWeightsTest_NPU3720 : public CompressWeightsTest, public VpuOv2LayerTest {};
 
-TEST_P(CompressWeightsTest_VPU3720, MLIR_HW) {
+TEST_P(CompressWeightsTest_NPU3720, HW) {
     setSkipInferenceCallback([](std::stringstream& skip) {
         skip << "CompressWeightsTest only needs to compile the model";
     });
-    configuration.emplace(VPUX_CONFIG_KEY(USE_ELF_COMPILER_BACKEND), "NO");
-    configuration.emplace(VPUX_CONFIG_KEY(COMPILATION_MODE_PARAMS), "compress-weights-btc=true");
+    configuration.emplace(ov::intel_vpux::use_elf_compiler_backend.name(), "NO");
+    configuration.emplace(ov::intel_vpux::compilation_mode_params.name(), "compress-weights-btc=true");
     setDefaultHardwareMode();
     run(VPUXPlatform::VPU3720);
 
@@ -117,13 +115,6 @@ TEST_P(CompressWeightsTest_VPU3720, MLIR_HW) {
     VPUX_THROW_UNLESS(hasCompressedDMATasks, "Blob contains no compressed DMA tasks");
 }
 
-}  // namespace ov::test::subgraph
-
-using namespace ov::test::subgraph;
-
-namespace {
-
-INSTANTIATE_TEST_CASE_P(precommit, CompressWeightsTest_VPU3720,
-                        ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
+INSTANTIATE_TEST_CASE_P(precommit, CompressWeightsTest_NPU3720, ::testing::Combine(::testing::Values(ov::element::f16)),
                         CompressWeightsTest::getTestCaseName);
-}  // namespace
+}  // namespace ov::test

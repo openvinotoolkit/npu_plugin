@@ -13,9 +13,9 @@ add_tool_target(
     DEPENDENCIES
         openvino_intel_npu_plugin
     LINK_LIBRARIES
-        gflags
-        IE::inference_engine_transformations
         openvino::runtime
+        openvino::runtime::dev
+        gflags
     )
 
 # Additional linkage required: https://en.cppreference.com/w/cpp/filesystem#:~:text=GNU%20implementation%20prior,lstdc%2B%2Bfs

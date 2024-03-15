@@ -69,15 +69,14 @@ int32_t KmbClusterTest::runTest(const TestNetworkDesc& netDesc, const std::strin
 }
 
 struct ClusterTestParams final {
-    ClusterTestParams(const std::string& netName, const std::string& numClusters)
-            : _netName(netName), _numClusters(numClusters) {
+    ClusterTestParams(const std::string& netName, const std::string& numTiles): _netName(netName), _numTiles(numTiles) {
     }
     const std::string _netName;
-    const std::string _numClusters;
+    const std::string _numTiles;
 };
 
 std::ostream& operator<<(std::ostream& os, const ClusterTestParams& p) {
-    vpux::printTo(os, "[net name: {0}, clusters: {1}]", p._netName, p._numClusters);
+    vpux::printTo(os, "[net name: {0}, clusters: {1}]", p._netName, p._numTiles);
     return os;
 }
 
@@ -90,7 +89,6 @@ TEST_P(KmbClusterTestWithParams, precommit_checkInferTime) {
     // FIXME [Track number: E#6518]
     GTEST_SKIP() << "Throws an exception on the second runTest call";
 #endif
-    SKIP_ON("EMULATOR", "Test not targeted to emulator");
     if (PlatformEnvironment::PLATFORM == "3400_A0") {
         // FIXME [Track number: E#10416]
         GTEST_SKIP() << "compiler error: Failed to pass runtime simulation";
@@ -100,7 +98,7 @@ TEST_P(KmbClusterTestWithParams, precommit_checkInferTime) {
     constexpr bool EXPERIMENTAL = true;
 
     const std::string netName = p._netName;
-    const std::string clusters = p._numClusters;
+    const std::string clusters = p._numTiles;
     try {
         const auto timeMs = runTest(TestNetworkDesc(net_path, EXPERIMENTAL)
                                             .setUserInputPrecision("input", Precision::FP16)

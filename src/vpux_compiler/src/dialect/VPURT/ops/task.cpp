@@ -9,6 +9,7 @@
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/types.hpp"
 
+#include "vpux/compiler/dialect/VPU/utils/cost_model/cost_model.hpp"
 #include "vpux/compiler/utils/dma.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/utils/core/format.hpp"
@@ -97,7 +98,7 @@ SmallVector<int64_t> vpux::VPURT::getDMATaskPorts(TaskOp task) {
     if (auto clusterTilingOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(wrappedTaskOp)) {
         auto module = clusterTilingOp->getParentOfType<mlir::ModuleOp>();
         auto dmaOp = IE::getAvailableExecutor(module, VPU::ExecutorKind::DMA_NN);
-        auto dmaPortCount = dmaOp.count();
+        auto dmaPortCount = dmaOp.getCount();
 
         const auto input = *clusterTilingOp.getInputs().begin();
         const auto output = *clusterTilingOp.getOutputs().begin();
@@ -137,17 +138,10 @@ SmallVector<int64_t> vpux::VPURT::getDMATaskPorts(TaskOp task) {
     ports.push_back(vpux::getDMAPortValue(wrappedTaskOp));
     return ports;
 }
-// Encode DMA port and channel setting into a single integer for convenient usage during barrier scheduling
-int64_t vpux::VPURT::getDMAQueueIdEncoding(int64_t port, int64_t channelIdx) {
-    return port * (VPUIP::getMaxEnumValForDmaChannelType() + 1) + channelIdx;
-}
-int64_t vpux::VPURT::getDMAQueueIdEncoding(int64_t port, llvm::Optional<vpux::VPUIP::DmaChannelType> channel) {
-    return VPURT::getDMAQueueIdEncoding(port, static_cast<int64_t>(channel.value_or(VPUIP::DmaChannelType::DDR)));
-}
 
-Optional<SmallVector<VPURT::TaskQueueType>> vpux::VPURT::getDMATaskQueueType(TaskOp taskOp) {
+std::optional<SmallVector<VPURT::TaskQueueType>> vpux::VPURT::getDMATaskQueueType(TaskOp taskOp) {
     if (taskOp.getExecutorKind() != VPU::ExecutorKind::DMA_NN) {
-        return None;
+        return std::nullopt;
     }
     SmallVector<VPURT::TaskQueueType> queueTypes;
 
@@ -166,7 +160,7 @@ Optional<SmallVector<VPURT::TaskQueueType>> vpux::VPURT::getDMATaskQueueType(Tas
     for (auto port : ports) {
         TaskQueueType queueType;
         queueType.type = VPU::ExecutorKind::DMA_NN;
-        queueType.id = VPURT::getDMAQueueIdEncoding(port, channelType);
+        queueType.id = getDMAQueueIdEncoding(port, channelType);
         queueTypes.push_back(queueType);
     }
     return queueTypes;
@@ -175,16 +169,16 @@ Optional<SmallVector<VPURT::TaskQueueType>> vpux::VPURT::getDMATaskQueueType(Tas
 VPURT::TaskQueueType vpux::VPURT::getTaskQueueType(TaskOp taskOp, bool ignoreIndexForNce) {
     TaskQueueType queueType;
     queueType.type = taskOp.getExecutorKind();
-    if (queueType.type == VPU::ExecutorKind::NCE && !ignoreIndexForNce) {
+    if (queueType.type == VPU::ExecutorKind::DPU && !ignoreIndexForNce) {
         auto* wrappedTaskOp = taskOp.getInnerTaskOp();
         if (auto clusterTilingOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(wrappedTaskOp)) {
             wrappedTaskOp = clusterTilingOp.getInnerTaskOp();
         }
         auto nceTask = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(wrappedTaskOp);
-        VPUX_THROW_WHEN(nceTask == nullptr || nceTask.variants().getOps<VPUIP::DPUTaskOp>().empty(),
+        VPUX_THROW_WHEN(nceTask == nullptr || nceTask.getVariants().getOps<VPUIP::DPUTaskOp>().empty(),
                         "Could not get DPU task");
-        auto dpuTask = *(nceTask.variants().getOps<VPUIP::DPUTaskOp>().begin());
-        queueType.id = dpuTask.cluster_id().value_or(0);
+        auto dpuTask = *(nceTask.getVariants().getOps<VPUIP::DPUTaskOp>().begin());
+        queueType.id = dpuTask.getClusterId().value_or(0);
     } else if (queueType.type == VPU::ExecutorKind::DMA_NN) {
         auto* wrappedTaskOp = taskOp.getInnerTaskOp();
         if (auto clusterTilingOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(wrappedTaskOp)) {
@@ -198,4 +192,18 @@ VPURT::TaskQueueType vpux::VPURT::getTaskQueueType(TaskOp taskOp, bool ignoreInd
         queueType.id = 0;
     }
     return queueType;
+}
+
+size_t vpux::VPURT::TaskOp::getOperationCycleCost(std::shared_ptr<VPUNN::VPUCostModel>& costModel) {
+    auto innerOp = getInnerTaskOp();
+    if (auto clusterTilingOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(innerOp)) {
+        innerOp = clusterTilingOp.getInnerTaskOp();
+    }
+
+    auto cycleCostInterface = mlir::dyn_cast<VPUIP::CycleCostInterface>(innerOp);
+    if (cycleCostInterface == nullptr) {
+        return VPU::NO_COST;
+    }
+
+    return cycleCostInterface.getOperationCycleCost(costModel);
 }

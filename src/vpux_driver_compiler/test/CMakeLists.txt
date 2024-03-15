@@ -15,9 +15,9 @@ add_executable(profilingTest profilingTest.c)
 target_link_libraries(profilingTest PUBLIC vpux_driver_compiler)
 ie_add_api_validator_post_build_step(TARGET profilingTest)
 
-# loaderTest to check vpux_elf
+# loaderTest to check npu_elf
 add_executable(loaderTest loaderTest.cpp)
-target_link_libraries(loaderTest PUBLIC vpux_elf npu_utils)
+target_link_libraries(loaderTest PUBLIC npu_elf npu_llvm_utils npu_ov_utils)
 ie_add_api_validator_post_build_step(TARGET loaderTest)
 
 # install tests to CiD component

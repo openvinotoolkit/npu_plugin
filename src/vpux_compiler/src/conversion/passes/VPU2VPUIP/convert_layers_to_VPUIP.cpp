@@ -8,7 +8,6 @@
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/allocate_buffers.hpp"
-#include "vpux/compiler/utils/dma.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -51,6 +50,72 @@ mlir::OpResult createCopyResult(mlir::Type type, mlir::Value inputBuffer, mlir::
     VPUX_THROW("Unexpected data type to copy: {0}", dataType);
 }
 
+mlir::Value createSubviewOp(NDTypeInterface outType, mlir::Value inputBuff, mlir::Location loc,
+                            mlir::ConversionPatternRewriter& rewriter, mlir::ArrayAttr svOffsets,
+                            mlir::ArrayAttr svSizes, mlir::ArrayAttr svStrides = nullptr) {
+    auto subviewVal = rewriter.create<VPUIP::SubViewOp>(loc, inputBuff, svOffsets, svSizes, svStrides);
+    auto subviewType = subviewVal.getType().cast<NDTypeInterface>();
+
+    auto distributedIf = outType.dyn_cast<VPU::DistributedTypeInterface>();
+    if (distributedIf == nullptr) {
+        return subviewVal;
+    }
+
+    auto subviewDistributedIf = subviewType.dyn_cast<VPU::DistributedTypeInterface>();
+    VPUX_THROW_WHEN(subviewDistributedIf == nullptr,
+                    "Subview output's type should also implement DistributedTypeInterface; it does not = {0}",
+                    subviewType);
+
+    if (!distributedIf.containsDistributedTypes()) {
+        return subviewVal;
+    }
+
+    VPUX_THROW_WHEN(!subviewDistributedIf.containsDistributedTypes(),
+                    "Subview output's type should also contain DistributedBufferTypes; it does not = {0}", subviewType);
+
+    auto updateDistribution = [&](VPUIP::DistributedBufferType subviewType,
+                                  VPUIP::DistributedBufferType inputDistributedType) -> VPUIP::DistributedBufferType {
+        return VPUIP::DistributedBufferType::get(rewriter.getContext(), subviewType.getShape().raw(),
+                                                 subviewType.getElementType(), subviewType.getLayout(),
+                                                 subviewType.getMemSpace(), inputDistributedType.getDistribution());
+    };
+
+    if (auto sparseBuffer = outType.dyn_cast<VPUIP::SparseBufferType>()) {
+        auto subviewSparseBuff = subviewType.dyn_cast<VPUIP::SparseBufferType>();
+        VPUX_THROW_WHEN(subviewSparseBuff == nullptr, "Subview outputs's type should also be sparse; it is not = {0}",
+                        subviewType);
+
+        auto newDataType = updateDistribution(subviewSparseBuff.getData().cast<VPUIP::DistributedBufferType>(),
+                                              sparseBuffer.getData().cast<VPUIP::DistributedBufferType>());
+        auto newSparseMapType =
+                (subviewSparseBuff.getSparsityMap() != nullptr)
+                        ? updateDistribution(subviewSparseBuff.getSparsityMap().cast<VPUIP::DistributedBufferType>(),
+                                             sparseBuffer.getSparsityMap().cast<VPUIP::DistributedBufferType>())
+                        : nullptr;
+        auto newSETableType =
+                (subviewSparseBuff.getStorageElementTable() != nullptr)
+                        ? updateDistribution(
+                                  subviewSparseBuff.getStorageElementTable().cast<VPUIP::DistributedBufferType>(),
+                                  sparseBuffer.getStorageElementTable().cast<VPUIP::DistributedBufferType>())
+                        : nullptr;
+
+        auto newSparseBuffType =
+                VPUIP::SparseBufferType::get(newDataType, newSparseMapType, newSETableType, sparseBuffer.getIsWeights(),
+                                             sparseBuffer.getCompressionScheme(), sparseBuffer.getSeAttr());
+
+        subviewVal.getResult().setType(newSparseBuffType);
+        return subviewVal;
+    }
+
+    auto distributedBuffer = distributedIf.getDistributedTypes().front().cast<VPUIP::DistributedBufferType>();
+    auto distributedSubview = subviewDistributedIf.getDistributedTypes().front().cast<VPUIP::DistributedBufferType>();
+    auto newDistributedType = updateDistribution(distributedSubview, distributedBuffer);
+
+    subviewVal.getResult().setType(newDistributedType);
+
+    return subviewVal;
+}
+
 //
 // CopyRewrite
 //
@@ -59,7 +124,7 @@ class CopyRewrite final : public mlir::OpConversionPattern<VPU::CopyOp> {
 public:
     CopyRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
             : mlir::OpConversionPattern<VPU::CopyOp>(typeConverter, ctx), _log(log) {
-        this->setDebugName("StridedSliceRewrite");
+        this->setDebugName("CopyRewrite");
     }
 
     mlir::LogicalResult matchAndRewrite(VPU::CopyOp origOp, OpAdaptor newArgs,
@@ -77,7 +142,7 @@ mlir::LogicalResult CopyRewrite::matchAndRewrite(VPU::CopyOp origOp, OpAdaptor n
     VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
 
     auto outputBuffers = allocateBuffers(_log, origOp->getLoc(), rewriter, *typeConverter, origOp->getOpResults());
-    rewriter.replaceOpWithNewOp<VPUIP::CopyOp>(origOp, newArgs.input(), outputBuffers[0]);
+    rewriter.replaceOpWithNewOp<VPUIP::CopyOp>(origOp, newArgs.getInput(), outputBuffers[0]);
 
     return mlir::success();
 }
@@ -103,15 +168,12 @@ private:
 mlir::LogicalResult ConvertRewrite::matchAndRewrite(VPU::ConvertOp origOp, OpAdaptor newArgs,
                                                     mlir::ConversionPatternRewriter& rewriter) const {
     _log.trace("Found VPU::ConvertOp Operation '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
-    if (!isConvertSupportedOnDMA<VPU::ConvertOp>(origOp)) {
-        _log.trace("VPU::ConvertOp Operation not supported on DMA '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
-        return mlir::failure();
-    }
+
     auto* typeConverter = getTypeConverter();
     VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
 
     auto outputBuffers = allocateBuffers(_log, origOp->getLoc(), rewriter, *typeConverter, origOp->getOpResults());
-    rewriter.replaceOpWithNewOp<VPUIP::ConvertDMAOp>(origOp, newArgs.input(), outputBuffers[0]);
+    rewriter.replaceOpWithNewOp<VPUIP::ConvertDMAOp>(origOp, newArgs.getInput(), outputBuffers[0]);
     return mlir::success();
 }
 
@@ -141,8 +203,8 @@ mlir::LogicalResult ExpandRewrite::matchAndRewrite(VPU::ExpandOp origOp, OpAdapt
     VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
 
     auto outputBuffers = allocateBuffers(_log, origOp->getLoc(), rewriter, *typeConverter, origOp->getOpResults());
-    rewriter.replaceOpWithNewOp<VPUIP::ExpandOp>(origOp, newArgs.input(), outputBuffers[0], origOp.pads_begin(),
-                                                 origOp.pads_end());
+    rewriter.replaceOpWithNewOp<VPUIP::ExpandOp>(origOp, newArgs.getInput(), outputBuffers[0], origOp.getPadsBegin(),
+                                                 origOp.getPadsEnd());
     return mlir::success();
 }
 
@@ -175,14 +237,14 @@ mlir::LogicalResult StridedSliceRewrite::matchAndRewrite(VPU::StridedSliceOp ori
     const auto origType = origOp.getType();
     const auto newOutType = typeConverter->convertType(origType);
 
-    const auto outShape = getShape(origOp.output());
+    const auto outShape = getShape(origOp.getOutput());
     auto outShapeAttr = getIntArrayAttr(rewriter, outShape.raw());
-    auto subView = rewriter.create<VPUIP::SubViewOp>(origOp->getLoc(), newArgs.input(), origOp.begins_attrAttr(),
-                                                     outShapeAttr, origOp.strides_attrAttr());
+    auto subView = createSubviewOp(newOutType, newArgs.getInput(), origOp->getLoc(), rewriter,
+                                   origOp.getBeginsAttrAttr(), outShapeAttr, origOp.getStridesAttrAttr());
 
     auto outputBuffers = allocateBuffers(_log, origOp->getLoc(), rewriter, *typeConverter, origOp->getOpResults());
 
-    auto newResult = createCopyResult(newOutType, subView.result(), outputBuffers[0], rewriter, origOp->getLoc());
+    auto newResult = createCopyResult(newOutType, subView, outputBuffers[0], rewriter, origOp->getLoc());
 
     rewriter.replaceOp(origOp, newResult);
 
@@ -221,7 +283,7 @@ mlir::LogicalResult ReshapeRewrite<ConcreteOp>::matchAndRewrite(ConcreteOp origO
 
     const auto newOutType = typeConverter->convertType(origOp.getType());
 
-    rewriter.replaceOpWithNewOp<VPUIP::GenericReshapeOp>(origOp, newOutType, newArgs.input());
+    rewriter.replaceOpWithNewOp<VPUIP::GenericReshapeOp>(origOp, newOutType, newArgs.getInput());
     return mlir::success();
 }
 
@@ -254,13 +316,12 @@ mlir::LogicalResult SliceRewrite::matchAndRewrite(VPU::SliceOp origOp, OpAdaptor
     const auto origType = origOp.getType();
     const auto newOutType = typeConverter->convertType(origType);
 
-    auto subView = rewriter.create<VPUIP::SubViewOp>(origOp->getLoc(), newArgs.source(), origOp.static_offsetsAttr(),
-                                                     origOp.static_sizesAttr());
+    auto subView = createSubviewOp(newOutType, newArgs.getSource(), origOp->getLoc(), rewriter,
+                                   origOp.getStaticOffsetsAttr(), origOp.getStaticSizesAttr());
 
     auto outputBuffers = allocateBuffers(_log, origOp->getLoc(), rewriter, *typeConverter, origOp->getOpResults());
 
-    mlir::OpResult newResult =
-            createCopyResult(newOutType, subView.result(), outputBuffers[0], rewriter, origOp->getLoc());
+    mlir::OpResult newResult = createCopyResult(newOutType, subView, outputBuffers[0], rewriter, origOp->getLoc());
 
     rewriter.replaceOp(origOp, newResult);
 
@@ -290,14 +351,14 @@ mlir::LogicalResult SplitRewrite::matchAndRewrite(VPU::SplitOp origOp, OpAdaptor
                                                   mlir::ConversionPatternRewriter& rewriter) const {
     _log.trace("Found Split Operation '{0}'", origOp->getLoc());
 
-    if (!origOp.axis_value().has_value()) {
+    if (!origOp.getAxisValue().has_value()) {
         return matchFailed(rewriter, origOp, "Got non constant axis");
     }
 
-    const auto inputType = newArgs.input().getType().cast<vpux::NDTypeInterface>();
+    const auto inputType = newArgs.getInput().getType().cast<vpux::NDTypeInterface>();
     const auto inputShape = inputType.getShape();
 
-    const auto axis = Dim(origOp.axis_value().value());
+    const auto axis = Dim(origOp.getAxisValue().value());
 
     auto* typeConverter = getTypeConverter();
     VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
@@ -308,19 +369,22 @@ mlir::LogicalResult SplitRewrite::matchAndRewrite(VPU::SplitOp origOp, OpAdaptor
     SmallVector<int64_t> svOffsets(inputShape.size(), 0);
     SmallVector<mlir::Value> results;
 
-    const auto offsetStep = inputShape[axis] / origOp.num_splits();
+    const auto offsetStep = inputShape[axis] / origOp.getNumSplits();
 
+    auto ctx = origOp->getContext();
     for (auto i : irange(origOp->getNumResults())) {
         const auto origOutputType = origOp.getResult(i).getType().cast<vpux::NDTypeInterface>();
         const auto svSizes = origOutputType.getShape().raw();
+        const auto newOutType = typeConverter->convertType(origOutputType);
 
         _log.trace("Create SubView for output #'{0}'", i);
-        auto subView = rewriter.create<VPUIP::SubViewOp>(origOp.getLoc(), newArgs.input(), svOffsets, svSizes);
+        auto subView = createSubviewOp(newOutType, newArgs.getInput(), origOp->getLoc(), rewriter,
+                                       getIntArrayAttr(ctx, svOffsets), getIntArrayAttr(ctx, svSizes));
 
         _log.trace("Copy SubView result to output buffer");
 
         auto copyOp = rewriter.create<VPUIP::CopyOp>(origOp->getLoc(), subView, allocatedBufs[i]);
-        results.push_back(copyOp.output());
+        results.push_back(copyOp.getOutput());
 
         svOffsets[axis.ind()] += offsetStep;
     }
@@ -361,12 +425,13 @@ SmallVector<mlir::Value> ConcatRewrite::rewriteWithAxis(VPU::ConcatOp origOp, Op
                                                         ArrayRef<mlir::Value> allocatedBufs,
                                                         mlir::ConversionPatternRewriter& rewriter) const {
     SmallVector<mlir::Value> results;
+    auto ctx = origOp->getContext();
 
-    const auto axis = origOp.per_axisAttr().getAxis().getValue().getSExtValue();
+    const auto axis = origOp.getPerAxisAttr().getAxis().getValue().getSExtValue();
     const auto offset =
-            origOp.per_axisAttr().getOffset() ? origOp.per_axisAttr().getOffset().getValue().getSExtValue() : 0;
+            origOp.getPerAxisAttr().getOffset() ? origOp.getPerAxisAttr().getOffset().getValue().getSExtValue() : 0;
     const auto stride =
-            origOp.per_axisAttr().getStride() ? origOp.per_axisAttr().getStride().getValue().getSExtValue() : 1;
+            origOp.getPerAxisAttr().getStride() ? origOp.getPerAxisAttr().getStride().getValue().getSExtValue() : 1;
 
     const auto outputRank = origOp.getType().cast<vpux::NDTypeInterface>().getRank();
 
@@ -379,18 +444,23 @@ SmallVector<mlir::Value> ConcatRewrite::rewriteWithAxis(VPU::ConcatOp origOp, Op
     }
 
     for (auto i : irange(origOp->getNumOperands())) {
-        const auto newInput = newArgs.inputs()[i];
+        const auto newInput = newArgs.getInputs()[i];
         const auto newInputType = newInput.getType().cast<vpux::NDTypeInterface>();
         const auto svSizes = newInputType.getShape().raw();
 
         _log.trace("Create SubView for input #'{0}'", i);
         mlir::Value subViewVal;
+
+        auto svOffsetsAttr = getIntArrayAttr(ctx, svOffsets);
+        auto svSizesAttr = getIntArrayAttr(ctx, svSizes);
         if (svElemStrides.empty()) {
-            subViewVal = rewriter.create<VPUIP::SubViewOp>(origOp->getLoc(), allocatedBufs[0], svOffsets, svSizes);
+            subViewVal = createSubviewOp(newInputType, allocatedBufs[0], origOp->getLoc(), rewriter, svOffsetsAttr,
+                                         svSizesAttr);
             svOffsets[axis] += svSizes[axis];
         } else {
-            subViewVal = rewriter.create<VPUIP::SubViewOp>(origOp->getLoc(), allocatedBufs[0], svOffsets, svSizes,
-                                                           svElemStrides);
+            auto svElemStridesAttr = getIntArrayAttr(ctx, svElemStrides);
+            subViewVal = createSubviewOp(newInputType, allocatedBufs[0], origOp->getLoc(), rewriter, svOffsetsAttr,
+                                         svSizesAttr, svElemStridesAttr);
             svOffsets[axis] += offset;
         }
 
@@ -411,25 +481,26 @@ SmallVector<mlir::Value> ConcatRewrite::rewriteWithOffsets(VPU::ConcatOp origOp,
                                                            mlir::ConversionPatternRewriter& rewriter) const {
     SmallVector<mlir::Value> results;
 
-    const auto allOffsets = origOp.static_offsetsAttr().getAsRange<mlir::ArrayAttr>();
+    const auto allOffsets = origOp.getStaticOffsetsAttr().getAsRange<mlir::ArrayAttr>();
 
-    for (const auto p : zip(newArgs.inputs(), allOffsets)) {
+    for (const auto p : zip(newArgs.getInputs(), allOffsets)) {
         const auto newInput = std::get<0>(p);
 
         const auto curShape = newInput.getType().cast<vpux::NDTypeInterface>().getShape().raw();
-        const auto curOffsets = parseIntArrayAttr<int64_t>(std::get<1>(p));
+        const auto curOffsets = std::get<1>(p);
 
         _log.trace("Create SubView");
 
-        auto subViewOp = rewriter.create<VPUIP::SubViewOp>(origOp->getLoc(), allocatedBufs[0], curOffsets, curShape);
+        auto subviewVal =
+                createSubviewOp(newInput.getType().cast<NDTypeInterface>(), allocatedBufs[0], origOp->getLoc(),
+                                rewriter, curOffsets, getIntArrayAttr(origOp->getContext(), curShape));
 
         _log.trace("Copy new operand to SubView");
 
-        auto newOutType = subViewOp.result().getType();
+        auto newOutType = subviewVal.getType();
 
         // Copy to the SubView
-        mlir::OpResult newResult =
-                createCopyResult(newOutType, newInput, subViewOp.result(), rewriter, origOp->getLoc());
+        mlir::OpResult newResult = createCopyResult(newOutType, newInput, subviewVal, rewriter, origOp->getLoc());
         results.push_back(newResult);
     }
 
@@ -451,8 +522,8 @@ mlir::LogicalResult ConcatRewrite::matchAndRewrite(VPU::ConcatOp origOp, OpAdapt
 
     auto outputBuffers = allocateBuffers(_log, origOp->getLoc(), rewriter, *typeConverter, origOp->getOpResults());
 
-    const auto results = origOp.per_axisAttr() ? rewriteWithAxis(origOp, newArgs, outputBuffers, rewriter)
-                                               : rewriteWithOffsets(origOp, newArgs, outputBuffers, rewriter);
+    const auto results = origOp.getPerAxisAttr() ? rewriteWithAxis(origOp, newArgs, outputBuffers, rewriter)
+                                                 : rewriteWithOffsets(origOp, newArgs, outputBuffers, rewriter);
 
     rewriter.replaceOpWithNewOp<VPUIP::ConcatViewOp>(origOp, newOutType, results, outputBuffers[0]);
     return mlir::success();
@@ -486,8 +557,8 @@ mlir::LogicalResult PermuteCastRewrite::matchAndRewrite(VPU::PermuteCastOp origO
 
     const auto newOutType = typeConverter->convertType(origOp.getType());
 
-    rewriter.replaceOpWithNewOp<VPUIP::PermuteCastOp>(origOp, newOutType, newArgs.input(), origOp.dst_orderAttr(),
-                                                      origOp.mem_permAttr());
+    rewriter.replaceOpWithNewOp<VPUIP::PermuteCastOp>(origOp, newOutType, newArgs.getInput(), origOp.getDstOrderAttr(),
+                                                      origOp.getMemPermAttr());
     return mlir::success();
 }
 
@@ -521,7 +592,7 @@ mlir::LogicalResult QuantizeCastRewriter::matchAndRewrite(VPU::QuantizeCastOp or
 
     const auto newOutType = typeConverter->convertType(outType);
 
-    rewriter.replaceOpWithNewOp<VPUIP::QuantizeCastOp>(origOp, newOutType, newArgs.input());
+    rewriter.replaceOpWithNewOp<VPUIP::QuantizeCastOp>(origOp, newOutType, newArgs.getInput());
     return mlir::success();
 }
 
@@ -553,7 +624,7 @@ mlir::LogicalResult DistributedCastRewriter::matchAndRewrite(VPU::DistributedCas
 
     const auto newOutType = typeConverter->convertType(origOp.getType());
 
-    rewriter.replaceOpWithNewOp<VPUIP::DistributedCastOp>(origOp, newOutType, newArgs.input());
+    rewriter.replaceOpWithNewOp<VPUIP::DistributedCastOp>(origOp, newOutType, newArgs.getInput());
     return mlir::success();
 }
 
@@ -614,16 +685,16 @@ mlir::LogicalResult GroupSparseTensorRewriter::matchAndRewrite(VPU::GroupSparseT
     _log.trace("Found GroupSparseTensorOp Operation '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
 
     VPUIP::CompressionSchemeAttr compressionScheme = nullptr;
-    if (origOp.compression_schemeAttr() != nullptr) {
-        auto origCompression = origOp.compression_schemeAttr();
+    if (origOp.getCompressionSchemeAttr() != nullptr) {
+        auto origCompression = origOp.getCompressionSchemeAttr();
         compressionScheme =
                 VPUIP::CompressionSchemeAttr::get(origCompression.getContext(), origCompression.getAxis(),
                                                   origCompression.getNumElems(), origCompression.getAlignment());
     }
 
-    rewriter.replaceOpWithNewOp<VPUIP::GroupSparseBufferOp>(origOp, newArgs.data(), newArgs.sparsityMap(),
-                                                            newArgs.storageElementTable(), origOp.is_weightsAttr(),
-                                                            compressionScheme, origOp.seAttr().value_or(nullptr));
+    rewriter.replaceOpWithNewOp<VPUIP::GroupSparseBufferOp>(origOp, newArgs.getData(), newArgs.getSparsityMap(),
+                                                            newArgs.getStorageElementTable(), origOp.getIsWeightsAttr(),
+                                                            compressionScheme, origOp.getSeAttr().value_or(nullptr));
 
     return mlir::success();
 }
@@ -653,8 +724,8 @@ mlir::LogicalResult StorageElementTableRewriter::matchAndRewrite(VPU::StorageEle
     _log.trace("Found StorageElementTableOp Operation '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
 
     rewriter.replaceOpWithNewOp<VPUIP::StorageElementTableOp>(
-            origOp, origOp.dataShapeAttr(), origOp.dataElemTypeAttr(), origOp.seSizeAttr(), origOp.seDepthAttr(),
-            origOp.seAttrAttr(), origOp.dataStridesAttr(), origOp.basePtrsAttr());
+            origOp, origOp.getDataShapeAttr(), origOp.getDataElemTypeAttr(), origOp.getSeSizeAttr(),
+            origOp.getSeDepthAttr(), origOp.getSeAttrAttr(), origOp.getDataStridesAttr(), origOp.getBasePtrsAttr());
 
     return mlir::success();
 }
@@ -681,7 +752,7 @@ mlir::LogicalResult ShapeCastRewrite::matchAndRewrite(VPU::ShapeCastOp origOp, O
                                                       mlir::ConversionPatternRewriter& rewriter) const {
     _log.trace("Found ShapeCast Operation '{0}'", origOp->getLoc());
 
-    rewriter.replaceOpWithNewOp<VPUIP::ShapeCastOp>(origOp, newArgs.source(), newArgs.shape());
+    rewriter.replaceOpWithNewOp<VPUIP::ShapeCastOp>(origOp, newArgs.getSource(), newArgs.getShape());
 
     _log.trace("Replaced with 'VPUIP.ShapeCastOp'");
 
@@ -716,10 +787,10 @@ mlir::LogicalResult LayoutCastRewrite::matchAndRewrite(VPU::LayoutCastOp origOp,
 
     const auto newOutType = typeConverter->convertType(origOp.getType());
 
-    const auto outOrder = DimsOrder::fromValue(origOp.output());
+    const auto outOrder = DimsOrder::fromValue(origOp.getOutput());
     const auto outMap = outOrder.toAffineMap(origOp.getContext());
     const auto mapAttr = mlir::AffineMapAttr::get(outMap);
-    rewriter.replaceOpWithNewOp<VPUIP::PermuteCastOp>(origOp, newOutType, newArgs.input(), origOp.dst_orderAttr(),
+    rewriter.replaceOpWithNewOp<VPUIP::PermuteCastOp>(origOp, newOutType, newArgs.getInput(), origOp.getDstOrderAttr(),
                                                       mapAttr);
     return mlir::success();
 }
@@ -751,7 +822,7 @@ mlir::LogicalResult WorkloadCastRewrite::matchAndRewrite(VPU::WorkloadCastOp ori
     VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
 
     const auto newOutType = typeConverter->convertType(origOp.getType());
-    rewriter.replaceOpWithNewOp<VPUIP::WorkloadCastOp>(origOp, newOutType, newArgs.input());
+    rewriter.replaceOpWithNewOp<VPUIP::WorkloadCastOp>(origOp, newOutType, newArgs.getInput());
 
     return mlir::success();
 }
@@ -783,8 +854,8 @@ mlir::LogicalResult UpsamplingRewrite::matchAndRewrite(VPU::UpsamplingOp origOp,
     VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
 
     auto outputBuffers = allocateBuffers(_log, origOp->getLoc(), rewriter, *typeConverter, origOp->getOpResults());
-    rewriter.replaceOpWithNewOp<VPUIP::UpsamplingUPAOp>(origOp, newArgs.input(), outputBuffers[0],
-                                                        origOp.upsampling_factorAttr(), origOp.padAttr());
+    rewriter.replaceOpWithNewOp<VPUIP::UpsamplingUPAOp>(origOp, newArgs.getInput(), outputBuffers[0],
+                                                        origOp.getUpsamplingFactorAttr(), origOp.getPadAttr());
 
     return mlir::success();
 }
@@ -818,11 +889,11 @@ void ConvertLayers2VPUIPPass::safeRunOnFunc() {
     target.addIllegalDialect<VPU::VPUDialect>();
     target.addLegalDialect<VPUIP::VPUIPDialect>();
     target.addLegalDialect<VPURT::VPURTDialect>();
-    target.addLegalOp<mlir::func::FuncOp, mlir::func::ReturnOp>();
+    target.addLegalOp<mlir::func::FuncOp, mlir::func::ReturnOp, mlir::func::CallOp>();
     target.addLegalOp<mlir::memref::AllocOp>();
     target.addLegalOp<VPU::NCEConvolutionOp, VPU::NCEDepthConvolutionOp, VPU::NCEMaxPoolOp, VPU::NCEAveragePoolOp,
                       VPU::NCEEltwiseOp, VPU::NCEPermuteQuantizeOp, VPU::NCECompressConvolutionOp,
-                      VPU::NCEInterpolateOp>();
+                      VPU::NCEInterpolateOp, VPU::NCEPermuteOp>();
     target.addLegalOp<VPU::DPUWorkloadOp>();
     target.addLegalOp<VPU::NCEClusterTilingOp, VPU::YieldOp>();
     target.addLegalOp<VPUIP::SwKernelOp>();

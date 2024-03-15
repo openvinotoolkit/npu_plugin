@@ -1,4 +1,5 @@
 ## Summary
+> Please add a short but exhaustive summary why you think your pull request is useful
 
 (Please add a short summary why your pull request is useful)
 
@@ -19,15 +20,7 @@ Aids the generation of release notes
 
 ## Related PRs
 
-(Please add links to related PRs (if you have such PRs) and a small note why you depend on it)
-
-* <pr-link> (<description>)
-
-## Related tickets
-
-(Please list tickets which the PR closes if you have any)
-
-* E#####
+* [PR-xxx](https://github.com/intel-innersource/applications.ai.vpu-accelerators.vpux-plugin/pull/xxx) description
 
 ## Code Review Survey (Copy and Complete in your code review)
 

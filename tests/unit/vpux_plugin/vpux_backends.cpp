@@ -8,7 +8,7 @@
 #include "vpux/al/config/common.hpp"
 #include "vpux/al/config/runtime.hpp"
 #include "vpux/vpux_plugin_params.hpp"
-#include "vpux_backends.h"
+#include "vpux_backends.hpp"
 
 namespace ie = InferenceEngine;
 
@@ -199,7 +199,7 @@ TEST_F(VPUXBackendsUnitTests, getCompilationPlatformByDeviceNameNoDevice) {
                 backends.getCompilationPlatform(ie::VPUXConfigParams::VPUXPlatform::AUTO_DETECT, "");
     } catch (const std::exception& ex) {
         std::string expectedMessage("No devices found - platform must be explicitly specified for compilation. "
-                                    "Example: -d NPU.3700 instead of -d NPU.");
+                                    "Example: -d NPU.3700 instead of -d NPU.\n");
         std::string exceptionMessage(ex.what());
         // exception message contains information about path to file and line number, where the exception occurred.
         // We should ignore this part of the message on comparision step
@@ -220,7 +220,7 @@ TEST_F(VPUXBackendsUnitTests, getCompilationPlatformByDeviceNameWrongNameFormat)
         std::string compilationPlatform =
                 backends.getCompilationPlatform(ie::VPUXConfigParams::VPUXPlatform::AUTO_DETECT, "");
     } catch (const std::exception& ex) {
-        std::string expectedMessage("Unexpected device name: DummyVPU3700Device");
+        std::string expectedMessage("Unexpected device name: DummyVPU3700Device\n");
         std::string exceptionMessage(ex.what());
         // exception message contains information about path to file and line number, where the exception occurred.
         // We should ignore this part of the message on comparision step

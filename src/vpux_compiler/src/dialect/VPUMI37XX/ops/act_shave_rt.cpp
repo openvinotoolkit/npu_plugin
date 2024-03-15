@@ -10,7 +10,7 @@
 #include <vpux_elf/accessor.hpp>
 #include <vpux_elf/reader.hpp>
 #include "vpux/compiler/act_kernels/shave_binary_resources.h"
-#include "vpux/compiler/dialect/ELF/utils.hpp"
+#include "vpux/compiler/dialect/ELFNPU37XX/utils.hpp"
 #include "vpux/compiler/dialect/VPUMI37XX/ops.hpp"
 #include "vpux/utils/core/scope_exit.hpp"
 
@@ -24,11 +24,11 @@ void vpux::VPUMI37XX::ActShaveRtOp::serialize(elf::writer::BinaryDataSection<uin
     auto kernel = getKernelPath();
 
     const auto& kernelInfo = ShaveBinaryResources::getInstance();
-    const SmallString arch = ELF::getSwKernelArchString(VPU::getArch(this->getOperation()));
+    const SmallString arch = ELFNPU37XX::getSwKernelArchString(VPU::getArch(this->getOperation()));
 
     const auto elfBlob = kernelInfo.getElf(kernel, arch).vec();
 
-    auto secDataSizePair = vpux::ELF::getDataAndSizeOfElfSection(elfBlob, {".text"});
+    auto secDataSizePair = vpux::ELFNPU37XX::getDataAndSizeOfElfSection(elfBlob, {".text"});
 
     binDataSection.appendData(secDataSizePair.first, secDataSizePair.second);
 }
@@ -37,11 +37,11 @@ size_t vpux::VPUMI37XX::ActShaveRtOp::getBinarySize() {
     auto kernel = getKernelPath();
 
     const auto& kernelInfo = ShaveBinaryResources::getInstance();
-    const SmallString arch = ELF::getSwKernelArchString(VPU::getArch(this->getOperation()));
+    const SmallString arch = ELFNPU37XX::getSwKernelArchString(VPU::getArch(this->getOperation()));
 
     const auto elfBlob = kernelInfo.getElf(kernel, arch).vec();
 
-    auto secDataSizePair = vpux::ELF::getDataAndSizeOfElfSection(elfBlob, {".text"});
+    auto secDataSizePair = vpux::ELFNPU37XX::getDataAndSizeOfElfSection(elfBlob, {".text"});
 
     return secDataSizePair.second;
 }
@@ -50,7 +50,7 @@ uint32_t vpux::VPUMI37XX::ActShaveRtOp::getKernelEntry() {
     auto kernel = getKernelPath();
 
     const auto& kernelInfo = ShaveBinaryResources::getInstance();
-    const SmallString arch = ELF::getSwKernelArchString(VPU::getArch(this->getOperation()));
+    const SmallString arch = ELFNPU37XX::getSwKernelArchString(VPU::getArch(this->getOperation()));
 
     const auto elfBlob = kernelInfo.getElf(kernel, arch).vec();
 
@@ -65,11 +65,11 @@ uint32_t vpux::VPUMI37XX::ActShaveRtOp::getVersion() {
     auto kernel = getKernelPath();
 
     const auto& kernelInfo = ShaveBinaryResources::getInstance();
-    const SmallString arch = ELF::getSwKernelArchString(VPU::getArch(this->getOperation()));
+    const SmallString arch = ELFNPU37XX::getSwKernelArchString(VPU::getArch(this->getOperation()));
 
     const auto elfBlob = kernelInfo.getElf(kernel, arch).vec();
 
-    auto secDataSizePair = vpux::ELF::getDataAndSizeOfElfSection(elfBlob, {".versiondata"});
+    auto secDataSizePair = vpux::ELFNPU37XX::getDataAndSizeOfElfSection(elfBlob, {".versiondata"});
 
     auto nnActEntryRtVersion = reinterpret_cast<const uint32_t*>(secDataSizePair.first);
 
@@ -78,17 +78,17 @@ uint32_t vpux::VPUMI37XX::ActShaveRtOp::getVersion() {
 
 // The management kernel code must be 1kB aligned as an ActShave requirement
 size_t vpux::VPUMI37XX::ActShaveRtOp::getAlignmentRequirements() {
-    return ELF::VPUX_SHAVE_ALIGNMENT;
+    return ELFNPU37XX::VPUX_SHAVE_ALIGNMENT;
 }
 
 vpux::VPURT::BufferSection vpux::VPUMI37XX::ActShaveRtOp::getMemorySpace() {
     return vpux::VPURT::BufferSection::SW_KernelText;
 }
 
-vpux::ELF::SectionFlagsAttr vpux::VPUMI37XX::ActShaveRtOp::getAccessingProcs() {
-    return (ELF::SectionFlagsAttr::VPU_SHF_PROC_SHAVE);
+vpux::ELFNPU37XX::SectionFlagsAttr vpux::VPUMI37XX::ActShaveRtOp::getAccessingProcs() {
+    return (ELFNPU37XX::SectionFlagsAttr::VPU_SHF_PROC_SHAVE);
 }
 
-vpux::ELF::SectionFlagsAttr vpux::VPUMI37XX::ActShaveRtOp::getUserProcs() {
-    return (ELF::SectionFlagsAttr::SHF_NONE);
+vpux::ELFNPU37XX::SectionFlagsAttr vpux::VPUMI37XX::ActShaveRtOp::getUserProcs() {
+    return (ELFNPU37XX::SectionFlagsAttr::SHF_NONE);
 }

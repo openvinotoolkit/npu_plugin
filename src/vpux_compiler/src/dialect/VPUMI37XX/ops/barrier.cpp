@@ -3,19 +3,20 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/dialect/ELF/utils.hpp"
+#include "vpux/compiler/dialect/ELFNPU37XX/utils.hpp"
 #include "vpux/compiler/dialect/VPUMI37XX/ops.hpp"
 
-#include <vpu_nnrt_api_37xx.h>
+#include <npu_37xx_nnrt.hpp>
 
 using namespace vpux;
+using namespace npu37xx;
 
 //
 // ConfigureBarrierOp
 //
 
 void vpux::VPUMI37XX::ConfigureBarrierOp::serialize(elf::writer::BinaryDataSection<uint8_t>& binDataSection) {
-    nn_public::VpuBarrierCountConfig barrier;
+    nn_public::VpuBarrierCountConfig barrier{};
 
     barrier.next_same_id_ = getNextSameId();
     barrier.consumer_count_ = getConsumerCount().value_or(0);
@@ -38,10 +39,10 @@ vpux::VPURT::BufferSection vpux::VPUMI37XX::ConfigureBarrierOp::getMemorySpace()
     return vpux::VPURT::BufferSection::DDR;
 }
 
-vpux::ELF::SectionFlagsAttr vpux::VPUMI37XX::ConfigureBarrierOp::getAccessingProcs() {
-    return (ELF::SectionFlagsAttr::SHF_EXECINSTR);
+vpux::ELFNPU37XX::SectionFlagsAttr vpux::VPUMI37XX::ConfigureBarrierOp::getAccessingProcs() {
+    return (ELFNPU37XX::SectionFlagsAttr::SHF_EXECINSTR);
 }
 
-vpux::ELF::SectionFlagsAttr vpux::VPUMI37XX::ConfigureBarrierOp::getUserProcs() {
-    return (ELF::SectionFlagsAttr::SHF_NONE);
+vpux::ELFNPU37XX::SectionFlagsAttr vpux::VPUMI37XX::ConfigureBarrierOp::getUserProcs() {
+    return (ELFNPU37XX::SectionFlagsAttr::SHF_NONE);
 }

@@ -21,7 +21,6 @@
   - [IE → VPU lowering lit-test](#ie--vpu-lowering-lit-test)
 - [You're half way there.](#youre-half-way-there)
 - [GraphFile-schema](#graphfile-schema)
-- [Emulator serialization](#emulator-serialization)
 - [VPUIP Dialect](#vpuip-dialect)
   - [VPUIP table gen](#vpuip-table-gen)
   - [VPUIP UPATask builder](#vpuip-upatask-builder)
@@ -49,10 +48,10 @@ Make sure to take a look at [debugging documentation](guides/how_to_debug.md) to
 
 Let's implement [CTCGreedyDecoder](https://docs.openvinotoolkit.org/latest/openvino_docs_ops_sequence_CTCGreedyDecoder_1.html) operation from `OpenVINO opset-1`.
 
-Even though, `ctc_merge_repeated` parameter is `Optional`, ngraph don't treat it as such.
-https://github.com/openvinotoolkit/openvino/blob/master/ngraph/core/include/ngraph/op/ctc_greedy_decoder.hpp
+Even though, `ctc_merge_repeated` parameter is `Optional`, ov don't treat it as such.
 
-If you found, that ngraph don't follow the operation specification, you should create a bug ticket.
+https://github.com/openvinotoolkit/openvino/blob/master/src/core/include/openvino/op/ctc_greedy_decoder.hpp
+If you found, that ov don't follow the operation specification, you should create a bug ticket.
 Considering `CTCGreedyDecoder-1` supposed to be repalced with `CTCGreedyDecoderSeqLen-6`, we will ignore that inconsistency.
 
 `CTCGreedyDecoder-1`:
@@ -90,15 +89,15 @@ Useful links:
 #include "kmb_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
-class VPUXCTCGreedyDecoderLayerTest :
+class CTCGreedyDecoderLayerTestCommon :
         public CTCGreedyDecoderLayerTest,
         virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
-class VPUXCTCGreedyDecoderLayerTest_VPU3700 :
-        public VPUXCTCGreedyDecoderLayerTest {
+class CTCGreedyDecoderLayerTest_NPU3700 :
+        public CTCGreedyDecoderLayerTestCommon {
 };
 
-TEST_P(VPUXCTCGreedyDecoderLayerTest_VPU3700, HW) { // HW to reflect which pipeline is used, in this case it is DefaultHW
+TEST_P(CTCGreedyDecoderLayerTest_NPU3700, HW) { // HW to reflect which pipeline is used, in this case it is DefaultHW
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
@@ -106,7 +105,7 @@ TEST_P(VPUXCTCGreedyDecoderLayerTest_VPU3700, HW) { // HW to reflect which pipel
 
 }  // namespace LayerTestsDefinitions
 
-using namespace ngraph::helpers;
+using namespace ov::helpers;
 using namespace LayerTestsDefinitions;
 
 namespace {
@@ -135,7 +134,7 @@ const auto params = testing::Combine(
 
 INSTANTIATE_TEST_CASE_P(
     smoke_CTCGreedyDecoder,
-    VPUXCTCGreedyDecoderLayerTest_VPU3700,
+    CTCGreedyDecoderLayerTest_NPU3700,
     params,
     CTCGreedyDecoderLayerTest::getTestCaseName
 );
@@ -192,28 +191,28 @@ def IE_CTCGreedyDecoderOp :
 
 ## NGraph parser
 
-Define parseNode function, that will transform ngraph operation to MLIR representation.
+Define parseNode function, that will transform ov operation to MLIR representation.
 
 [src/vpux_compiler/src/frontend/IE.cpp#L151](../src/frontend/IE.cpp#L151)
 ```cpp
 class NGraphImporter final {
 public:
-    NGraphImporter(mlir::MLIRContext* ctx, std::shared_ptr<const ngraph::Function> netGraph, bool sharedConstants,
+    NGraphImporter(mlir::MLIRContext* ctx, std::shared_ptr<const ov::Model> netGraph, bool sharedConstants,
                    Logger log)
             : _ctx(ctx), _netGraph(std::move(netGraph)), _sharedConstants(sharedConstants), _log(log) {
     }
 
-    // Declare parser for ngraph operation
+    // Declare parser for ov operation
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::CTCGreedyDecoder>& origNode);
 }
 ```
-Check input tensors and parse ngraph operation.
+Check input tensors and parse ov operation.
 
 [src/vpux_compiler/src/frontend/IE.cpp#L1167](../src/frontend/IE.cpp#L1167)
 ```cpp
 void NGraphImporter::parseNode(mlir::OpBuilder& builder,
                                const std::shared_ptr<opset_latest::CTCGreedyDecoder>& origNode) {
-    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::CTCGreedyDecoder>::value,
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ov::op::v0::CTCGreedyDecoder>::value,
                   "opset operation mismatch");
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph CTCGreedyDecoder node '{0}' has unsupported number of inputs '{1}'",
@@ -230,11 +229,11 @@ Add map entry for operation dispatcher.
 ```cpp
 mlir::func::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, StringRef funcName) {
     using Callback = void (NGraphImporter::*)(mlir::OpBuilder & builder, const OrigNodePtr& origNode);
-    using DispatchMap = std::map<ngraph::NodeTypeInfo, Callback>;
+    using DispatchMap = std::map<ov::NodeTypeInfo, Callback>;
 
     static const DispatchMap dispatchMap{
 
-            MAP_ENTRY(ngraph::opset_latest::CTCGreedyDecoder),
+            MAP_ENTRY(ov::opset_latest::CTCGreedyDecoder),
     };
 }
 ```
@@ -295,15 +294,15 @@ Additional helper function should be used for parsing the attribute.
 [src/vpux_compiler/src/frontend/IE.cpp#L164](../src/frontend/IE.cpp#L164)
 ```cpp
 private:
-    IE::RoundingTypeAttr importRoundingType(ngraph::op::RoundingType roundingType);
+    IE::RoundingTypeAttr importRoundingType(ov::op::RoundingType roundingType);
 ```
 [src/vpux_compiler/src/frontend/IE.cpp#L1333](../src/frontend/IE.cpp#L1333)
 ```cpp
-IE::RoundingTypeAttr NGraphImporter::importRoundingType(ngraph::op::RoundingType roundingType) {
+IE::RoundingTypeAttr NGraphImporter::importRoundingType(ov::op::RoundingType roundingType) {
     switch (roundingType) {
-    case ngraph::op::RoundingType::FLOOR:
+    case ov::op::RoundingType::FLOOR:
         return IE::RoundingTypeAttr::get(_ctx, IE::RoundingType::FLOOR);
-    case ngraph::op::RoundingType::CEIL:
+    case ov::op::RoundingType::CEIL:
         return IE::RoundingTypeAttr::get(_ctx, IE::RoundingType::CEIL);
     default:
         VPUX_THROW("Unknown RoundingType");
@@ -595,8 +594,8 @@ It is recommended to opt for `vpux::NDTypeInterface` while working with tensor t
 [(new) src/vpux_compiler/src/dialect/VPU/ops/ctc_greedy_decoder.cpp](../src/dialect/VPU/ops/ctc_greedy_decoder.cpp)
 ```cpp
 mlir::LogicalResult vpux::VPU::CTCGreedyDecoderOp::inferReturnTypes(
-        mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> optLoc, mlir::ValueRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange /*regions*/,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange /*regions*/,
         mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -618,25 +617,6 @@ mlir::LogicalResult vpux::VPU::CTCGreedyDecoderOp::inferReturnTypes(
     inferredReturnTypes.push_back(outType);
 
     return mlir::success();
-}
-```
-
-## VPU serializer method
-Operations in VPU dialect also need to define a `serialize` method that is used for integration with the vpux-emulator. More information can be found in the [Emulator serialization](#emulator-serialization) section.
-
-[(new) src/vpux_compiler/src/dialect/VPU/ops/ctc_greedy_decoder.cpp](../src/dialect/VPU/ops/ctc_greedy_decoder.cpp)
-
-```cpp
-//
-// serialize
-//
-
-EMU::BlobWriter::SpecificTask vpux::VPU::CTCGreedyDecoderOp::serialize(EMU::BlobWriter& writer) {
-    MVCNN::CTCDecoderParamsBuilder builder(writer);
-    builder.add_ctc_merge_repeated(mergeRepeated());
-    const auto paramsOff = builder.Finish();
-
-    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_CTCDecoderParams});
 }
 ```
 
@@ -718,7 +698,7 @@ void ConvertLayers2VPUPass::safeRunOnFunc() {
 
 ### IE → VPU lowering lit-test
 
-The lowering logic should also be tested. For this, create a dedicated lit-test in [convert_layers_to_VPU.mlir](../../../tests/lit/VPUX/conversion/passes/IE2VPU/convert_layers_to_VPU.mlir) containing the IE operation as input and checks for the resulting VPU operation. If needed, other operations such as constants can be included.
+The lowering logic should also be tested. For this, create a dedicated lit-test in [convert_layers_to_VPU_30XX.mlir](../../../tests/lit/NPU/conversion/passes/IE2VPU/convert_layers_to_VPU_30XX.mlir) containing the IE operation as input and checks for the resulting VPU operation. If needed, other operations such as constants can be included.
 
 ```cpp
 // CHECK-LABEL: @CTCGreedyDecoder
@@ -738,7 +718,7 @@ You should be able to compile code now. Run single layer test and look for "Unab
 # GraphFile-schema
 GraphFile-schema is a common layer between compiler and runtime. It is a tool for serializing data to the blob.
 
-Before lowering to the VPUIP dialect, make sure that graphFile-schema repository has your operation included. For debugging purposes, you can checkout VPUX-plugin schema to the custom branch with the new operation added.
+Before lowering to the VPUIP dialect, make sure that graphFile-schema repository has your operation included. For debugging purposes, you can checkout NPU-plugin schema to the custom branch with the new operation added.
 
 ```bash
 cd thirdparty/graphFile-schema
@@ -762,18 +742,9 @@ union SoftwareLayerParams{
 }
 ```
 
-# Emulator serialization
-Emulator tool at [src/vpux_emulator](../src/vpux_emulator) is executing on blobs compiled and serialized at VPU dialect stage.
-
-For that we define an interface for serialization ```EMUSerializeInterface```, out of which methods ```serialize``` and ```getExecutorKind``` have to be implemented on a per layer or dialect basis.
-
-```getExecutorKind``` decides the type of executor with which the layer will be emulated. In most scenarios, for a new layer enabling on shaves, the executor will be ```SHAVE_UPA``` or ```SHAVE_ACT``` depending on the HW platform, VPUX30XX or VPUX37XX.
-
-```serialize``` needs to be defined on a per operation basis and offers the lowering logic from high level VPUX dialects, to graphfile schema representation. Most of the time, the routines for serializing at VPU stage and serializing at VPUIP/VPURT stage are the same because the op definition does not change drastically throughout the VPUX dialects.
-
 # VPUIP Dialect
 
-The VPUIP Dialect represents bufferized version of the VPU Dialect, with platform-specific variants of some operations. For example, hardware operations are all represented as `VPUIP::NCEClusterTaskOp`. Software operations for VPUX30XX have UPA tasks representing the SHAVE kernels, while the software operations for VPUX37XX use `VPUIP::SWKernelOp`. We will be creating the UPA operation for the new layer. It is worth mentioning that in some cases, multiple VPU operations can be lowered to the same UPA task; e.g. `VPU.AddOp` & `VPU.MultiplyOp` both get lowered to `VPUIP.EltwiseUPAOp`.
+The VPUIP Dialect represents bufferized version of the VPU Dialect, with platform-specific variants of some operations. For example, hardware operations are all represented as `VPUIP::NCEClusterTaskOp`. Software operations for NPU30XX have UPA tasks representing the SHAVE kernels, while the software operations for NPU37XX use `VPUIP::SWKernelOp`. We will be creating the UPA operation for the new layer. It is worth mentioning that in some cases, multiple VPU operations can be lowered to the same UPA task; e.g. `VPU.AddOp` & `VPU.MultiplyOp` both get lowered to `VPUIP.EltwiseUPAOp`.
 
 This dialect no longer works with tensor data. Instead, buffers are utilized by making use of `MemRefType`.
 
@@ -939,7 +910,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
 Some operations can end up lowered to more than a single UPA task at this step. For such cases, a dedicated rewriter should be created instead. An example can be found with `VPU.LSTMCellOp` which has the `LSTMCellRewrite` class in the same pass.
 
 ### VPU → VPUIP lowering lit-test
-Similar to IE->VPU, the lowering logic will be tested by creating a lit-test in [convert_layers_to_VPUIP.mlir](../../../tests/lit/VPUX30XX/conversion/passes/VPU2VPUIP/convert_layers_to_VPUIP.mlir). If there are instances where the lowering logic behaves differently for various configurations of the operation, please make sure to cover them all with different tests.
+Similar to IE->VPU, the lowering logic will be tested by creating a lit-test in [convert_layers_to_VPUIP_30XX.mlir](../../../tests/lit/NPU/conversion/passes/VPU2VPUIP/convert_layers_to_VPUIP_30XX.mlir). If there are instances where the lowering logic behaves differently for various configurations of the operation, please make sure to cover them all with different tests.
 
 ```cpp
 // CHECK-LABEL: @CTCGreedyDecoder
@@ -1044,7 +1015,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
 ```
 ### IE → IERT lowering lit-test
 
-The bufferization logic will be tested by creating a lit-test in [bufferize_IE.mlir](../../../tests/lit/VPUX/conversion/passes/IE2IERT/bufferize_IE.mlir):
+The bufferization logic will be tested by creating a lit-test in [bufferize_IE_30XX_37XX.mlir](../../../tests/lit/NPU/conversion/passes/IE2IERT/bufferize_IE_30XX_37XX.mlir):
 
 ```cpp
 // CHECK-LABEL: @CTCGreedyDecoder

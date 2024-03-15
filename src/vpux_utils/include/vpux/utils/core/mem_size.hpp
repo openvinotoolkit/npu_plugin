@@ -4,6 +4,8 @@
 //
 
 //
+
+//
 // Typed representation for memory sizes.
 //
 
@@ -109,8 +111,6 @@ template <MemType TYPE>
 class MemSize final {
 public:
     constexpr MemSize() = default;
-    constexpr MemSize(const MemSize&) = default;
-
     constexpr explicit MemSize(int64_t size): _size(size) {
     }
 

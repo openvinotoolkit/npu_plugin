@@ -6,10 +6,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
-#include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
@@ -54,16 +51,16 @@ mlir::LogicalResult ResolveScatterUpdateByTransposePass::TransposePlanning::matc
     _log.trace("Found IE::ScatterUpdate Operation '{0}'", origOp->getLoc());
     IE::LayerOpInterface newOp;
 
-    const auto inType = origOp.input().getType().cast<NDTypeInterface>();
+    const auto inType = origOp.getInput().getType().cast<NDTypeInterface>();
     const auto inputShape = inType.getShape();
 
-    const auto axis = origOp.axis_value().value();
+    const auto axis = origOp.getAxisValue().value();
     const unsigned int adjustedAxisValue = static_cast<unsigned int>((axis + inputShape.size()) % inputShape.size());
 
     if (adjustedAxisValue == 0) {
         const auto axisAttr = getIntAttr(rewriter.getContext(), 0);
-        rewriter.replaceOpWithNewOp<IE::ScatterUpdateOp>(origOp, origOp.input(), origOp.indices(), origOp.updates(),
-                                                         nullptr, axisAttr);
+        rewriter.replaceOpWithNewOp<IE::ScatterUpdateOp>(origOp, origOp.getInput(), origOp.getIndices(),
+                                                         origOp.getUpdates(), nullptr, axisAttr);
 
         return mlir::success();
     } else {
@@ -79,9 +76,9 @@ mlir::LogicalResult ResolveScatterUpdateByTransposePass::TransposePlanning::matc
             refVal++;
         }
 
-        const auto updatesType = origOp.updates().getType().cast<NDTypeInterface>();
+        const auto updatesType = origOp.getUpdates().getType().cast<NDTypeInterface>();
         const auto updatesShape = updatesType.getShape();
-        const auto indicesType = origOp.indices().getType().cast<NDTypeInterface>();
+        const auto indicesType = origOp.getIndices().getType().cast<NDTypeInterface>();
 
         const auto indicesSize = static_cast<unsigned int>(indicesType.getShape().size());
         const auto updatesSize = static_cast<unsigned int>(updatesShape.size());
@@ -105,14 +102,14 @@ mlir::LogicalResult ResolveScatterUpdateByTransposePass::TransposePlanning::matc
                 mlir::AffineMap::getPermutationMap(transposeUpdatesOrder, origOp->getContext()));
 
         auto transposedUpdates =
-                rewriter.create<IE::TransposeOp>(origOp->getLoc(), origOp.updates(), nullptr, orderUpdatesAttr);
+                rewriter.create<IE::TransposeOp>(origOp->getLoc(), origOp.getUpdates(), nullptr, orderUpdatesAttr);
         auto transposedInput =
-                rewriter.create<IE::TransposeOp>(origOp->getLoc(), origOp.input(), nullptr, orderInputAttr);
+                rewriter.create<IE::TransposeOp>(origOp->getLoc(), origOp.getInput(), nullptr, orderInputAttr);
 
         const auto axisAttr = getIntAttr(rewriter.getContext(), 0);
         auto outputOrig =
-                rewriter.create<IE::ScatterUpdateOp>(origOp->getLoc(), transposedInput.output(), origOp.indices(),
-                                                     transposedUpdates.output(), nullptr, axisAttr);
+                rewriter.create<IE::ScatterUpdateOp>(origOp->getLoc(), transposedInput.getOutput(), origOp.getIndices(),
+                                                     transposedUpdates.getOutput(), nullptr, axisAttr);
 
         auto transposeOutputOrder = SmallVector<unsigned int>(inputShape.size(), 0);
         unsigned int refVal2 = 1;
@@ -126,7 +123,7 @@ mlir::LogicalResult ResolveScatterUpdateByTransposePass::TransposePlanning::matc
 
         const auto orderOutputAttr = mlir::AffineMapAttr::get(
                 mlir::AffineMap::getPermutationMap(transposeOutputOrder, origOp->getContext()));
-        rewriter.replaceOpWithNewOp<IE::TransposeOp>(origOp, outputOrig.output(), nullptr, orderOutputAttr);
+        rewriter.replaceOpWithNewOp<IE::TransposeOp>(origOp, outputOrig.getOutput(), nullptr, orderOutputAttr);
 
         return mlir::success();
     }
@@ -140,8 +137,8 @@ void ResolveScatterUpdateByTransposePass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     const auto isLegalOp = [&](IE::ScatterUpdateOp scatterOp) {
-        VPUX_THROW_UNLESS(scatterOp.axis_value().has_value(), "axis_value is null");
-        const auto axis = scatterOp.axis_value().value();
+        VPUX_THROW_UNLESS(scatterOp.getAxisValue().has_value(), "axis_value is null");
+        const auto axis = scatterOp.getAxisValue().value();
         return axis == 0;
     };
 

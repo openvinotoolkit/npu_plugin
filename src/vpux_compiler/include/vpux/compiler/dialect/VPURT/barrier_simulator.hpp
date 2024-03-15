@@ -124,8 +124,9 @@ public:
 
 public:
     mlir::LogicalResult checkProducerCount(Logger log) const;
-    mlir::LogicalResult simulateBarriers(Logger log, Optional<int64_t> numBarriers = None,
-                                         Optional<bool> barrierLegalization = None);
+    mlir::LogicalResult checkProducerAndConsumerCount(Logger log) const;
+    mlir::LogicalResult simulateBarriers(Logger log, std::optional<int64_t> numBarriers = std::nullopt,
+                                         std::optional<bool> barrierLegalization = std::nullopt);
     SmallVector<mlir::DenseSet<VPURT::DeclareVirtualBarrierOp>> getBarrierBatchesToLegalize();
     void linkNextIds(Logger log);
 
@@ -145,6 +146,7 @@ private:
     using DmaTaskIdx = std::pair<int64_t, size_t>;
 
     int64_t _barrierProducerSlotCount = 0;
+    int64_t _barrierTotalSlotCount = 0;
     int64_t _availableBarriers = 0;
     int64_t _usedBarriers = 0;
 

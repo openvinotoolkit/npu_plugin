@@ -26,7 +26,7 @@ void vpux::registerCommonOptions(OptionsDesc& desc) {
 // PERFORMANCE_HINT
 //
 
-StringLiteral ov::hint::stringifyEnum(PerformanceMode val) {
+std::string_view ov::hint::stringifyEnum(PerformanceMode val) {
     switch (val) {
     case PerformanceMode::LATENCY:
         return "LATENCY";
@@ -41,15 +41,15 @@ StringLiteral ov::hint::stringifyEnum(PerformanceMode val) {
     }
 }
 
-ov::hint::PerformanceMode vpux::PERFORMANCE_HINT::parse(StringRef val) {
-    if (val == "LATENCY") {
+ov::hint::PerformanceMode vpux::PERFORMANCE_HINT::parse(std::string_view val) {
+    if (val.empty() || val == "UNDEFINED") {
+        return ov::hint::PerformanceMode::LATENCY;
+    } else if (val == "LATENCY") {
         return ov::hint::PerformanceMode::LATENCY;
     } else if (val == "THROUGHPUT") {
         return ov::hint::PerformanceMode::THROUGHPUT;
     } else if (val == "CUMULATIVE_THROUGHPUT") {
         return ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT;
-    } else if (val.empty() || val == "UNDEFINED") {
-        return ov::hint::PerformanceMode::LATENCY;
     }
 
     VPUX_THROW("Value '{0}' is not a valid PERFORMANCE_HINT option", val);
@@ -83,12 +83,10 @@ ov::log::Level vpux::cvtLogLevel(LogLevel lvl) {
 // PLATFORM
 //
 
-StringLiteral InferenceEngine::VPUXConfigParams::stringifyEnum(VPUXPlatform val) {
+std::string_view InferenceEngine::VPUXConfigParams::stringifyEnum(VPUXPlatform val) {
     switch (val) {
     case VPUXPlatform::AUTO_DETECT:
         return "AUTO_DETECT";
-    case VPUXPlatform::EMULATOR:
-        return "EMULATOR";
     case VPUXPlatform::VPU3700:
         return "VPU3700";
     case VPUXPlatform::VPU3720:
@@ -98,16 +96,29 @@ StringLiteral InferenceEngine::VPUXConfigParams::stringifyEnum(VPUXPlatform val)
     }
 }
 
-InferenceEngine::VPUXConfigParams::VPUXPlatform vpux::PLATFORM::parse(StringRef val) {
+InferenceEngine::VPUXConfigParams::VPUXPlatform vpux::PLATFORM::parse(std::string_view val) {
     if (val == "AUTO_DETECT") {
-        return ov::intel_vpux::cvtVPUXPlatform(ov::intel_vpux::VPUXPlatform::AUTO_DETECT);
+        return ov::intel_vpux::VPUXPlatform::AUTO_DETECT;
     } else if (val == "3700" || val == "VPU3700" || val == "NPU3700") {
-        return ov::intel_vpux::cvtVPUXPlatform(ov::intel_vpux::VPUXPlatform::VPU3700);
+        return ov::intel_vpux::VPUXPlatform::VPU3700;
     } else if (val == "3720" || val == "VPU3720" || val == "NPU3720") {
-        return ov::intel_vpux::cvtVPUXPlatform(ov::intel_vpux::VPUXPlatform::VPU3720);
-    } else if (val == "3700_EMU" || val == "3720_EMU") {
-        return ov::intel_vpux::cvtVPUXPlatform(ov::intel_vpux::VPUXPlatform::EMULATOR);
+        return ov::intel_vpux::VPUXPlatform::VPU3720;
     }
 
     VPUX_THROW("Value '{0}' is not a valid PLATFORM option", val);
+}
+
+std::string vpux::PLATFORM::toString(const InferenceEngine::VPUXConfigParams::VPUXPlatform& val) {
+    std::stringstream strStream;
+    if (val == InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO_DETECT) {
+        strStream << "AUTO_DETECT";
+    } else if (val == InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700) {
+        strStream << "3700";
+    } else if (val == InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720) {
+        strStream << "3720";
+    } else {
+        OPENVINO_THROW("No valid string for current PRINT_PROFILING option");
+    }
+
+    return strStream.str();
 }

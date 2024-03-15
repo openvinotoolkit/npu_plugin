@@ -8,8 +8,8 @@
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
-#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
-#include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
@@ -106,10 +106,13 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
         outputCMXShape[outAlignDim.ind()] += (outAlignment - outAlignRemainder);
     }
 
+    auto padAuto = false;
+
     const auto alignmentRequirement = 16;
     const auto subLineLength = 4;
     const auto isCompressedFormatEnabled = inputChannels <= subLineLength;
     const auto isInputPaddingRequired = inputChannels < alignmentRequirement;
+
     // Swizzling alignment for some smaller buffers to 1024B as 512B aligned buffer cases fail:
     // E#56079 padding should be updated or removed in case of fix
     const auto swizzlingPaddingAlignment = vpux::getSizeAlignmentForSwizzling(architecture) * 2;
@@ -124,10 +127,13 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
         paddedWeightsCMXShape = weightsCMXShape;
     }
 
+    if (isInputPaddingRequired || padAuto) {
+        paddedWeightsCMXShape[vpux::Dims4D::Filter::IC.ind()] = alignmentRequirement;
+    }
+
     if (isInputPaddingRequired) {
         inputCMXShape[inputChannelsIndex] = alignmentRequirement;
         paddedInputCMXShape[inputChannelsIndex] = alignmentRequirement;
-        paddedWeightsCMXShape[vpux::Dims4D::Filter::IC.ind()] = alignmentRequirement;
 
         if (isCompressedFormatEnabled) {
             inputChannelsCompression = mlir::UnitAttr::get(builder.getContext());
@@ -141,9 +147,8 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     mlir::IntegerAttr swizzlingKeyAttr;
     vpux::VPUIP::SwizzlingSchemeAttr swizzlingSchemeAttr;
     const auto swizzlingAligment =
-            (isWeightsSwizzlingRequired)
-                    ? vpux::getAddressAlignmentForSwizzling(nb::to_underlying(weightsSwizzlingKey), architecture)
-                    : 16;
+            (isWeightsSwizzlingRequired) ? vpux::getAddressAlignmentForSwizzling(nb::to_underlying(weightsSwizzlingKey))
+                                         : 16;
 
     const auto weightsCMXSize =
             vpux::alignValUp(vpux::hwtest::totalTensorSize(paddedWeightsCMXShape, weightsType),
@@ -176,11 +181,11 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     inputTypes.push_back(getMemRefType(VPURT::BufferSection::NetworkInput, inputShape, inputType, DimsOrder::NHWC));
     inputTypes.push_back(outputParamType);
 
-    const auto funcType = builder.getFunctionType(llvm::makeArrayRef(inputTypes), outputParamType);
+    const auto funcType = builder.getFunctionType(llvm::ArrayRef(inputTypes), outputParamType);
 
     auto function = builder.create<mlir::func::FuncOp>(
             builder.getUnknownLoc(), printToString("zmajor_conv_{0}_{1}_{2}", inputType, weightsType, outputType),
-            funcType, builder.getStringAttr("private"));
+            funcType, builder.getStringAttr("private"), /*arg_attrs=*/nullptr, /*res_attrs=*/nullptr);
 
     auto functionBuilder = mlir::OpBuilder::atBlockBegin(function.addEntryBlock(), builder.getListener());
 
@@ -188,16 +193,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     auto functionOutput = function.getArgument(1);
 
     const auto weightsValues = generateWeights(weightsShape, weightsType, ctx, weightsFileName);
-    auto weightsAttribute = vpux::Const::ContentAttr::get(weightsValues);
-    weightsAttribute = weightsAttribute.reorder(vpux::DimsOrder::OYXI);
-
-    if (auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>()) {
-        const auto quantizedType = vpux::changeStorageType(qty, weightsAttribute.getType().getElementType());
-        weightsAttribute = weightsAttribute.quantCast(quantizedType);
-        if (qty.getStorageType().isInteger(4)) {
-            weightsAttribute = weightsAttribute.bitPack(4);
-        }
-    }
+    auto weightsAttribute = generateDefaultWeightsAttr(weightsValues, weightsType);
 
     if (isWeightsPaddingRequired) {
         auto kernelShapePaddingDifference =
@@ -215,7 +211,8 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     auto inputStrides = vpux::getStrides(functionInput);
 
     auto& weightsOutputChannelsStrideInBits = weightsStrides[vpux::Dims4D::Filter::OC];
-    if (isInputPaddingRequired) {
+
+    if (isInputPaddingRequired || padAuto) {
         const auto weightsOutputChannelsStrideInBytes = weightsOutputChannelsStrideInBits.count() / CHAR_BIT;
         const auto weightsElementSizeInBits = getElemTypeSize(weightsType).count();
         const auto weightsElememtSizeInBytes = weightsElementSizeInBits / CHAR_BIT;
@@ -226,7 +223,12 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
         const auto alignedWeightsOutputChannelsStrideInBits =
                 alignedWeightsOutputChannelStrideInElements * weightsElementSizeInBits;
         weightsOutputChannelsStrideInBits = vpux::Bit(alignedWeightsOutputChannelsStrideInBits);
+    }
+    if (weightsOutputChannelsStrideInBits.count() / CHAR_BIT < alignment) {
+        weightsOutputChannelsStrideInBits = vpux::Bit(alignment * CHAR_BIT);
+    }
 
+    if (isInputPaddingRequired) {
         inputStrides[vpux::Dims4D::Act::W] =
                 inputStrides[vpux::Dims4D::Act::C] * (isCompressedFormatEnabled ? subLineLength : alignmentRequirement);
         inputStrides[vpux::Dims4D::Act::H] = inputStrides[vpux::Dims4D::Act::W] * inputShape[inputWidthIndex];
@@ -281,21 +283,12 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     auto outputCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, outputShape, outputType,
                                            outputLayout, ndOutputCMXpadded.getStrides(), 0, OUTPUT_CMX_OFFSET);
 
-    int64_t clampLow = std::numeric_limits<int32_t>::min();
-    int64_t clampHigh = std::numeric_limits<int32_t>::max();
-    const int64_t lreluMult = 1;
-    const int64_t lreluShift = 0;
-
-    if (const auto outElemQType = outputType.template dyn_cast<mlir::quant::QuantizedType>()) {
-        clampLow = outElemQType.getStorageTypeMin();
-        clampHigh = outElemQType.getStorageTypeMax();
-    }
-
     const auto weightsTableDDRType = mlir::RankedTensorType::get(weightsTableShape, int32);
     const auto sparsityPtrStep = 0;
+    auto weightsPtrStep = static_cast<std::int32_t>(weightsOutputChannelsStrideInBits.count() / CHAR_BIT);
+
     const auto weightsTable = VPU::NCESparsity::getWeightsTable(
-            inputType, outputType, static_cast<std::int32_t>(WEIGHTS_CMX_OFFSET),
-            static_cast<std::int32_t>(weightsOutputChannelsStrideInBits.count() / CHAR_BIT),
+            inputType, outputType, static_cast<std::int32_t>(WEIGHTS_CMX_OFFSET), weightsPtrStep,
             VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARSITY, sparsityPtrStep, testDesc.getArchitecture(),
             output.shape[1], weightsType);
 
@@ -309,7 +302,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     }
 
     const auto weightsTableValues =
-            mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::makeArrayRef<std::int32_t>(weightsTable));
+            mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::ArrayRef<std::int32_t>(weightsTable));
     auto weightsTableStrides = weightsTableDDRMemRef.cast<vpux::NDTypeInterface>().getStrides();
     auto weightsTableContentAttr = vpux::Const::ContentAttr::get(weightsTableValues).reorder(vpux::DimsOrder::NHWC);
 
@@ -335,17 +328,17 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     auto barrier1 = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 1);
 
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
-                                          builder.getUnknownLoc(), functionInput,
-                                          inputCMX.getOperation()->getResult(0));
+                                          builder.getUnknownLoc(), functionInput, inputCMX.getOperation()->getResult(0),
+                                          0);
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
                                           builder.getUnknownLoc(), weightsDDR.getOperation()->getResult(0),
-                                          weightsCMX.getOperation()->getResult(0));
+                                          weightsCMX.getOperation()->getResult(0), 0);
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
                                           builder.getUnknownLoc(), weightsTableDDR.getOperation()->getResult(0),
-                                          weightsTableCMX.getOperation()->getResult(0));
+                                          weightsTableCMX.getOperation()->getResult(0), 0);
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(barrier1.getBarrier()), mlir::ValueRange(),
                                           builder.getUnknownLoc(), outputCMX.getOperation()->getResult(0),
-                                          functionOutput);
+                                          functionOutput, 0);
 
     const auto strides = getIntArrayAttr(ctx, conv.stride);
     std::vector<std::int64_t> paddings = convertNBPadtoNCETaskPad(conv.pad);
@@ -353,7 +346,8 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
                                                     paddings[PAD_NCETASK_TOP], paddings[PAD_NCETASK_BOTTOM]);
     llvm::SmallVector<std::int64_t> kernel = {weightsShape[2], weightsShape[3]};
     const auto kernelSize = getIntArrayAttr(ctx, kernel);
-    const auto sparsityPattern = isInputPaddingRequired ? ((1 << inputChannels) - 1) : 0;
+
+    auto sparsityPattern = (isInputPaddingRequired || padAuto) ? ((1 << inputChannels) - 1) : 0;
 
     auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
             functionBuilder, barrier0.getBarrier(), barrier1.getBarrier(), builder.getUnknownLoc(),
@@ -377,23 +371,30 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     nceTask.addDPUTask(functionBuilder, start, outEnd, start, inEnd, pad, conv.cube_mode);
 
     const auto ppeConfiguration = testDesc.getActivationLayer();
+
+    int64_t clampLow = std::numeric_limits<int32_t>::min();
+    int64_t clampHigh = std::numeric_limits<int32_t>::max();
+    const int64_t lreluMult = 1;
+    const int64_t lreluShift = 0;
+    if (const auto outElemQType = outputType.template dyn_cast<mlir::quant::QuantizedType>()) {
+        clampLow = outElemQType.getStorageTypeMin();
+        clampHigh = outElemQType.getStorageTypeMax();
+    }
+
+    auto outputScale = 1.0 / output.qp.scale.front();
     if (ppeConfiguration.activationType != nb::ActivationType::None) {
-        const auto outputScale = 1.0 / output.qp.scale;
-        const auto scaleApproximation = QuantizationApproximation(testDesc.getArchitecture(), outputScale);
-
-        const auto preluScale = ppeConfiguration.alpha;
-        const auto alphaApproximation = PReLUApproximation(testDesc.getArchitecture(), preluScale);
-
         if (ppeConfiguration.maximum != 0) {
             clampHigh = ppeConfiguration.maximum;
         }
 
+        const auto scaleApproximation = QuantizationApproximation(testDesc.getArchitecture(), outputScale);
+        const auto preluScale = ppeConfiguration.alpha;
+        const auto alphaApproximation = PReLUApproximation(testDesc.getArchitecture(), preluScale);
         nceTask.addPPETask(functionBuilder, getPPEMode(ppeConfiguration.activationType), clampLow, clampHigh,
                            alphaApproximation.mult(), alphaApproximation.shift(), scaleApproximation.mult(),
-                           scaleApproximation.shift(), /*quant_post_shift=*/0, /*quant_scale=*/1, /*in1_quant_mult=*/0,
-                           /*in2_quant_mult=*/0, ppeConfiguration.alpha);
+                           scaleApproximation.shift(), /*quant_post_shift=*/0, /*quant_scale=*/1,
+                           /*in1_quant_mult=*/0, /*in2_quant_mult=*/0, ppeConfiguration.alpha);
     } else {
-        const auto outputScale = 1.0 / output.qp.scale;
         const auto scaleApproximation = QuantizationApproximation(testDesc.getArchitecture(), outputScale);
         nceTask.addPPETask(functionBuilder, VPU::PPEMode::NOOP, clampLow, clampHigh, lreluMult, lreluShift,
                            scaleApproximation.mult(), scaleApproximation.shift(), scaleApproximation.postShift(),
@@ -404,8 +405,9 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
 
     module.dump();
 
-    mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, log));
+    mlir::PassManager pm(module->getName(), mlir::OpPassManager::Nesting::Implicit);
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, std::nullopt,
+                                           log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsBTCPass(log));
     }

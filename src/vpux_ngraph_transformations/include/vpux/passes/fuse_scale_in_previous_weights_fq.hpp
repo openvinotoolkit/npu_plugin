@@ -5,14 +5,14 @@
 
 #pragma once
 
-#include <ngraph/pass/pass.hpp>
+#include <openvino/pass/pass.hpp>
 
 namespace vpux {
 namespace pass {
 
-class FuseScaleAfterClamp final : public ngraph::pass::FunctionPass {
+class FuseScaleAfterClamp final : public ov::pass::ModelPass {
 public:
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
 };
 
 }  // namespace pass

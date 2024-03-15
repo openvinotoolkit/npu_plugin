@@ -5,12 +5,10 @@
 
 #include "vpux/compiler/dialect/IE/utils/convert_op_types.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/IE/passes.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
-#include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/BuiltinTypes.h>
+#include <mlir/IR/IRMapping.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
@@ -46,7 +44,7 @@ mlir::LogicalResult ConvertOpTypes::matchAndRewrite(mlir::Operation* origOp, vpu
     const auto origOperands = origOp->getOperands();
     VPUX_THROW_UNLESS(origOperands.size() == operands.size(), "Wrong operands size : {0}", operands.size());
 
-    mlir::BlockAndValueMapping mapper;
+    mlir::IRMapping mapper;
     mapper.map(origOperands, operands);
 
     auto* newOp = rewriter.clone(*origOp, mapper);

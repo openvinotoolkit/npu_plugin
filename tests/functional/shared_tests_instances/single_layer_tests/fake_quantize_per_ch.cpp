@@ -1,14 +1,12 @@
-//
 // Copyright (C) Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
-//
 
 #include "vpu_ov1_layer_test.hpp"
 
-#include <ngraph_functions/builders.hpp>
-#include <ngraph_functions/utils/ngraph_helpers.hpp>
+#include <ov_models/builders.hpp>
+#include <ov_models/utils/ov_helpers.hpp>
 #include <shared_test_classes/base/layer_test_utils.hpp>
-#include "vpux_private_config.hpp"
+#include "vpux_private_properties.hpp"
 
 namespace {
 
@@ -16,7 +14,7 @@ typedef std::tuple<LayerTestsUtils::TargetDevice, InferenceEngine::SizeVector> F
 
 // Test purpose: have a 'FakeQuantize' split into 'Quantize' + 'Dequantize'
 // In HW-pipeline, 'Quantize' will run on DPU, 'Dequantize' on Shave
-class VPUXFakeQuantPerChTest_VPU3720 :
+class FakeQuantPerChTest_NPU3720 :
         public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<FakeQuantPerChTestParams> {
     InferenceEngine::Precision iePrc = InferenceEngine::Precision::FP16;
@@ -34,7 +32,7 @@ class VPUXFakeQuantPerChTest_VPU3720 :
         const auto C = shape[1];
         const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iePrc);
 
-        const auto params = ngraph::builder::makeParams(ngPrc, {shape});
+        const ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape))};
         const auto paramOuts =
                 ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
@@ -57,26 +55,28 @@ class VPUXFakeQuantPerChTest_VPU3720 :
         const auto dataFq =
                 ngraph::builder::makeFakeQuantize(paramOuts[0], ngPrc, levels, {1, C, 1, 1}, lo, hi, lo, hi);
 
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(dataFq)};
+        const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(dataFq)};
         function = std::make_shared<ngraph::Function>(results, params, "FakeQuantPerCh");
 
         threshold = 0.2f;
     }
 };
 
-class VPUXFakeQuantPerChTest_VPU3720_SW : public VPUXFakeQuantPerChTest_VPU3720 {
+class FakeQuantPerChTest_NPU3720_SW : public FakeQuantPerChTest_NPU3720 {
     void SkipBeforeLoad() override {
-        configuration[VPUX_CONFIG_KEY(COMPILATION_MODE_PARAMS)] = "merge-fake-quant=false";
+        configuration[ov::intel_vpux::compilation_mode_params.name()] = "merge-fake-quant=false";
     }
 };
-class VPUXFakeQuantPerChTest_VPU3720_HW : public VPUXFakeQuantPerChTest_VPU3720 {};
+
+class FakeQuantPerChTest_NPU3720_HW : public FakeQuantPerChTest_NPU3720 {};
+
 typedef std::tuple<LayerTestsUtils::TargetDevice, InferenceEngine::SizeVector, std::vector<float>, std::vector<float>,
                    std::vector<float>, std::vector<float>>
         FakeQuantPerChCustomLimitsTestParams;
 
 // Test purpose: checking the functional results of the FQ Operation executed on shave for different ZPs for both
 // input and output
-class VPUXFakeQuantPerChCustomLimitsTest :
+class FakeQuantPerChCustomLimitsTestCommon :
         public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<FakeQuantPerChCustomLimitsTestParams> {
     InferenceEngine::Precision iePrc = InferenceEngine::Precision::FP16;
@@ -98,7 +98,7 @@ class VPUXFakeQuantPerChCustomLimitsTest :
         const auto C = shape[1];
         const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iePrc);
 
-        const auto params = ngraph::builder::makeParams(ngPrc, {shape});
+        const ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape))};
         const auto paramOuts =
                 ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
@@ -107,26 +107,26 @@ class VPUXFakeQuantPerChCustomLimitsTest :
         const auto dataFq =
                 ngraph::builder::makeFakeQuantize(paramOuts[0], ngPrc, levels, {1, C, 1, 1}, li, hi, lo, ho);
 
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(dataFq)};
+        const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(dataFq)};
         function = std::make_shared<ngraph::Function>(results, params, "FakeQuantPerCh");
     }
 };
 
-class VPUXFakeQuantPerChCustomLimitsTest_VPU3720_SW : public VPUXFakeQuantPerChCustomLimitsTest {};
+class FakeQuantPerChCustomLimitsTest_NPU3720_SW : public FakeQuantPerChCustomLimitsTestCommon {};
 
-TEST_P(VPUXFakeQuantPerChTest_VPU3720_HW, HW) {
+TEST_P(FakeQuantPerChTest_NPU3720_HW, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXFakeQuantPerChTest_VPU3720_SW, SW) {
+TEST_P(FakeQuantPerChTest_NPU3720_SW, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXFakeQuantPerChCustomLimitsTest_VPU3720_SW, SW) {
+TEST_P(FakeQuantPerChCustomLimitsTest_NPU3720_SW, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
@@ -147,22 +147,22 @@ const std::vector<InferenceEngine::SizeVector> shapesTiling = {
         {1, 64, 128, 100}, {1, 128, 68, 164},  // aclnet
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_precommit_FakeQuantPerCh, VPUXFakeQuantPerChTest_VPU3720_HW,
+INSTANTIATE_TEST_CASE_P(smoke_precommit_FakeQuantPerCh, FakeQuantPerChTest_NPU3720_HW,
                         ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                            ::testing::ValuesIn(shapesHW)));
 
-INSTANTIATE_TEST_CASE_P(smoke_FakeQuantPerCh, VPUXFakeQuantPerChTest_VPU3720_SW,
+INSTANTIATE_TEST_CASE_P(smoke_FakeQuantPerCh, FakeQuantPerChTest_NPU3720_SW,
                         ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                            ::testing::ValuesIn(shapesSW)));
 
-INSTANTIATE_TEST_CASE_P(smoke_tiling_FakeQuantPerCh, VPUXFakeQuantPerChTest_VPU3720_SW,
+INSTANTIATE_TEST_CASE_P(smoke_tiling_FakeQuantPerCh, FakeQuantPerChTest_NPU3720_SW,
                         ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                            ::testing::ValuesIn(shapesTiling)));
 
 //{outHigh, outLow, inHigh, inLow}
 // testing per-channel quantization with different ZPs for output
 INSTANTIATE_TEST_CASE_P(
-        smoke_customLimits_FakeQuantPerCh1, VPUXFakeQuantPerChCustomLimitsTest_VPU3720_SW,
+        smoke_customLimits_FakeQuantPerCh1, FakeQuantPerChCustomLimitsTest_NPU3720_SW,
         ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                            ::testing::ValuesIn(shapesSWcustomLimits),
                            ::testing::Values(std::vector<float>{+2.63867188}),
@@ -172,7 +172,7 @@ INSTANTIATE_TEST_CASE_P(
 
 // testing per-channel quantization with different ZPs for output and input
 INSTANTIATE_TEST_CASE_P(
-        smoke_customLimits_FakeQuantPerCh2, VPUXFakeQuantPerChCustomLimitsTest_VPU3720_SW,
+        smoke_customLimits_FakeQuantPerCh2, FakeQuantPerChCustomLimitsTest_NPU3720_SW,
         ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                            ::testing::ValuesIn(shapesSWcustomLimits),
                            ::testing::Values(std::vector<float>{+2.551250e+02, +2.670000e+02, +2.780000e+02}),
@@ -181,7 +181,7 @@ INSTANTIATE_TEST_CASE_P(
                            ::testing::Values(std::vector<float>{-49.28125, -35.65625, -31.828125})));
 
 // testing per-channel quantization with different ZPs for input
-INSTANTIATE_TEST_CASE_P(smoke_customLimits_FakeQuantPerCh3, VPUXFakeQuantPerChCustomLimitsTest_VPU3720_SW,
+INSTANTIATE_TEST_CASE_P(smoke_customLimits_FakeQuantPerCh3, FakeQuantPerChCustomLimitsTest_NPU3720_SW,
                         ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                            ::testing::ValuesIn(shapesSWcustomLimits),
                                            ::testing::Values(std::vector<float>{+2.63867188}),

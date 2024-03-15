@@ -8,7 +8,7 @@
 #include "vpux/utils/IE/config.hpp"
 #include "vpux/utils/core/logger.hpp"
 
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
 
 #include <mlir/Pass/PassManager.h>
 

@@ -8,7 +8,6 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IE/utils/quantization.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
 
 using namespace vpux;
 
@@ -34,17 +33,17 @@ private:
 
 mlir::LogicalResult UnalignedFakeQuantizeRewriter::matchAndRewrite(IE::FakeQuantizeOp oldFakeQuantize,
                                                                    mlir::PatternRewriter& rewriter) const {
-    auto oldAffineReshape = oldFakeQuantize.input().getDefiningOp<IE::AffineReshapeOp>();
+    auto oldAffineReshape = oldFakeQuantize.getInput().getDefiningOp<IE::AffineReshapeOp>();
     if (oldAffineReshape == nullptr) {
         return matchFailed(_log.nest(), rewriter, oldAffineReshape, "No following FakeQuantize");
     }
     auto newFakeQuantize = rewriter.create<IE::FakeQuantizeOp>(
-            oldFakeQuantize->getLoc(), oldAffineReshape.input(), oldFakeQuantize.input_low(),
-            oldFakeQuantize.input_high(), oldFakeQuantize.output_low(), oldFakeQuantize.output_high(),
-            oldFakeQuantize.levelsAttr(), oldFakeQuantize.auto_broadcastAttr());
-    rewriter.replaceOpWithNewOp<IE::AffineReshapeOp>(oldFakeQuantize, newFakeQuantize.output(),
-                                                     oldAffineReshape.dim_mappingAttr(),
-                                                     oldAffineReshape.shape_valueAttr());
+            oldFakeQuantize->getLoc(), oldAffineReshape.getInput(), oldFakeQuantize.getInputLow(),
+            oldFakeQuantize.getInputHigh(), oldFakeQuantize.getOutputLow(), oldFakeQuantize.getOutputHigh(),
+            oldFakeQuantize.getLevelsAttr(), oldFakeQuantize.getAutoBroadcastAttr());
+    rewriter.replaceOpWithNewOp<IE::AffineReshapeOp>(oldFakeQuantize, newFakeQuantize.getOutput(),
+                                                     oldAffineReshape.getDimMappingAttr(),
+                                                     oldAffineReshape.getShapeValueAttr());
     rewriter.eraseOp(oldAffineReshape);
     return mlir::success();
 }
@@ -114,11 +113,10 @@ void OptimizeUnalignedQDQSeqPass::safeRunOnFunc() {
         if (!fakeQuantize->hasOneUse()) {
             return true;
         }
-        const auto axis = IE::getQuantAxisIndex(fakeQuantize);
-        if (axis.has_value()) {
+        if (!IE::isPerTensorFQ({fakeQuantize})) {
             return true;
         }
-        auto affineReshape = fakeQuantize.input().getDefiningOp<IE::AffineReshapeOp>();
+        auto affineReshape = fakeQuantize.getInput().getDefiningOp<IE::AffineReshapeOp>();
         if (affineReshape == nullptr) {
             return true;
         }
@@ -132,7 +130,7 @@ void OptimizeUnalignedQDQSeqPass::safeRunOnFunc() {
         if ((outType.getShape()[Dims4D::Act::C] % 16) == 0) {
             return true;
         }
-        auto prevOp = affineReshape.input().getDefiningOp();
+        auto prevOp = affineReshape.getInput().getDefiningOp();
         if (prevOp == nullptr) {
             return true;
         }

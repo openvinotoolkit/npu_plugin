@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2019-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
@@ -10,18 +9,18 @@
 #include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
-class VPUXReshapeLayerTest : public ReshapeLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
-class VPUXReshapeLayerTest_VPU3700 : public VPUXReshapeLayerTest {};
 
-class VPUXReshapeLayerTest_VPU3720 : public VPUXReshapeLayerTest {};
+class ReshapeLayerTestCommon : public ReshapeLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
+class ReshapeLayerTest_NPU3700 : public ReshapeLayerTestCommon {};
+class ReshapeLayerTest_NPU3720 : public ReshapeLayerTestCommon {};
 
-TEST_P(VPUXReshapeLayerTest_VPU3700, HW) {
+TEST_P(ReshapeLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXReshapeLayerTest_VPU3720, SW) {
+TEST_P(ReshapeLayerTest_NPU3720, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
@@ -99,48 +98,48 @@ const auto paramGeneric2 = ::testing::Combine(
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
         ::testing::Values(std::map<std::string, std::string>({})));
 
-// VPU3700
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCollapse1, VPUXReshapeLayerTest_VPU3700, paramCollapse1,
-                         VPUXReshapeLayerTest_VPU3700::getTestCaseName);
+// NPU3700
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCollapse1, ReshapeLayerTest_NPU3700, paramCollapse1,
+                         ReshapeLayerTest_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCollapse2, VPUXReshapeLayerTest_VPU3700, paramCollapse2,
-                         VPUXReshapeLayerTest_VPU3700::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCollapse2, ReshapeLayerTest_NPU3700, paramCollapse2,
+                         ReshapeLayerTest_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand1, VPUXReshapeLayerTest_VPU3700, paramExpand1,
-                         VPUXReshapeLayerTest_VPU3700::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand1, ReshapeLayerTest_NPU3700, paramExpand1,
+                         ReshapeLayerTest_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand2, VPUXReshapeLayerTest_VPU3700, paramExpand2,
-                         VPUXReshapeLayerTest_VPU3700::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand2, ReshapeLayerTest_NPU3700, paramExpand2,
+                         ReshapeLayerTest_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand3, VPUXReshapeLayerTest_VPU3700, paramExpand3,
-                         VPUXReshapeLayerTest_VPU3700::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand3, ReshapeLayerTest_NPU3700, paramExpand3,
+                         ReshapeLayerTest_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeGeneric1, VPUXReshapeLayerTest_VPU3700, paramGeneric1,
-                         VPUXReshapeLayerTest_VPU3700::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeGeneric1, ReshapeLayerTest_NPU3700, paramGeneric1,
+                         ReshapeLayerTest_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeGeneric2, VPUXReshapeLayerTest_VPU3700, paramGeneric2,
-                         VPUXReshapeLayerTest_VPU3700::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeGeneric2, ReshapeLayerTest_NPU3700, paramGeneric2,
+                         ReshapeLayerTest_NPU3700::getTestCaseName);
 
-// VPU3720
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCollapse1, VPUXReshapeLayerTest_VPU3720, paramCollapse1,
-                         VPUXReshapeLayerTest_VPU3720::getTestCaseName);
+// NPU3720
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCollapse1, ReshapeLayerTest_NPU3720, paramCollapse1,
+                         ReshapeLayerTest_NPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCollapse2, VPUXReshapeLayerTest_VPU3720, paramCollapse2,
-                         VPUXReshapeLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCollapse2, ReshapeLayerTest_NPU3720, paramCollapse2,
+                         ReshapeLayerTest_NPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand1, VPUXReshapeLayerTest_VPU3720, paramExpand1,
-                         VPUXReshapeLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand1, ReshapeLayerTest_NPU3720, paramExpand1,
+                         ReshapeLayerTest_NPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand2, VPUXReshapeLayerTest_VPU3720, paramExpand2,
-                         VPUXReshapeLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand2, ReshapeLayerTest_NPU3720, paramExpand2,
+                         ReshapeLayerTest_NPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand3, VPUXReshapeLayerTest_VPU3720, paramExpand3,
-                         VPUXReshapeLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand3, ReshapeLayerTest_NPU3720, paramExpand3,
+                         ReshapeLayerTest_NPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeGeneric1, VPUXReshapeLayerTest_VPU3720, paramGeneric1,
-                         VPUXReshapeLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeGeneric1, ReshapeLayerTest_NPU3720, paramGeneric1,
+                         ReshapeLayerTest_NPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeGeneric2, VPUXReshapeLayerTest_VPU3720, paramGeneric2,
-                         VPUXReshapeLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeGeneric2, ReshapeLayerTest_NPU3720, paramGeneric2,
+                         ReshapeLayerTest_NPU3720::getTestCaseName);
 
 }  // namespace

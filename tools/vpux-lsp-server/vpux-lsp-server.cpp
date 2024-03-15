@@ -5,10 +5,9 @@
 
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/core/passes.hpp"
-#include "vpux/compiler/dialect/ELF/passes.hpp"
-#include "vpux/compiler/dialect/EMU/passes.hpp"
+#include "vpux/compiler/dialect/ELFNPU37XX/passes.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
-#include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUMI37XX/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
@@ -45,16 +44,14 @@ int main(int argc, char* argv[]) {
         auto interfacesRegistry = vpux::createInterfacesRegistry(archKind);
         interfacesRegistry->registerInterfaces(registry);
 
-        const auto pipelineRegister = vpux::createPipelineRegistry(archKind);
-        pipelineRegister->registerPipelines();
+        const auto pipelineRegistery = vpux::createPipelineRegistry(archKind);
+        pipelineRegistery->registerPipelines();
 
-        const auto passsesRegister = vpux::createPassesRegistry(archKind);
-        passsesRegister->registerPasses();
+        const auto passsesRegistery = vpux::createPassesRegistry(archKind);
+        passsesRegistery->registerPasses();
 
         vpux::registerCorePasses();
         vpux::Const::registerConstPasses();
-        vpux::EMU::registerEMUPasses();
-        vpux::EMU::registerEMUPipelines();
         vpux::IE::registerIEPasses();
         vpux::IE::registerIEPipelines();
         vpux::VPU::registerVPUPasses();
@@ -63,7 +60,7 @@ int main(int argc, char* argv[]) {
         vpux::VPUIP::registerVPUIPPipelines();
         vpux::VPURT::registerVPURTPipelines();
         vpux::VPURT::registerVPURTPasses();
-        vpux::ELF::registerELFPasses();
+        vpux::ELFNPU37XX::registerELFNPU37XXPasses();
         vpux::VPUMI37XX::registerVPUMI37XXPasses();
         vpux::registerConversionPasses();
         vpux::registerConversionPipelines();

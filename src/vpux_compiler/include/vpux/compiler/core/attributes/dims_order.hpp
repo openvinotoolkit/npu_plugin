@@ -62,6 +62,8 @@ public:
     static const DimsOrder WCHN;
     static const DimsOrder WHNC;
     static const DimsOrder HWCN;
+    static const DimsOrder HCNW;
+    static const DimsOrder CWNH;
 
     // Orders for 2D Convolution weights
     static const DimsOrder OIYX;
@@ -130,11 +132,9 @@ public:
     bool isCompatibleLayout(mlir::Value val) const;
 
 public:
-    static DimsOrder fromIE(InferenceEngine::Layout layout);
-    InferenceEngine::Layout toIE() const;
-
-public:
-    Optional<StringLiteral> getCanonicalName() const;
+    // Returns a canonical name of the order. Returns an empty string in case
+    // the order is not recognized.
+    StringLiteral getCanonicalName() const;
 
 public:
     template <typename T, template <class> class Tag>

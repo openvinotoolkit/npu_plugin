@@ -46,7 +46,7 @@ struct PWLTableEq {
 
 using PWLTableMap = std::unordered_map<PWLTableType, SmallVector<PWLTableEntry>, PWLTableHash, PWLTableEq>;
 
-Optional<vpux::PWLTableEntry> findCustomPWLTable(IE::PostOpAttr postOp, mlir::Type outElemType);
+std::optional<vpux::PWLTableEntry> findCustomPWLTable(IE::PostOpAttr postOp, mlir::Type outElemType);
 bool isSupportedNegativeSlope(const float reluSlope);
 bool isSupportedPReLU(const float reluSlope, const int64_t zeroPoint);
 }  // namespace vpux

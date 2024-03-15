@@ -1,4 +1,3 @@
-//
 // Copyright (C) Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
@@ -8,7 +7,7 @@
 #include <stdlib.h>
 
 #include "base/ov_behavior_test_utils.hpp"
-#include "vpu_test_env_cfg.hpp"
+#include "common/vpu_test_env_cfg.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
@@ -23,7 +22,7 @@ class VpuDriverCompilerAdapterExpectedThrow :
 protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
-    std::shared_ptr<ov::Model> function;
+    std::shared_ptr<ov::Model> ov_model;
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<CompilationParams> obj) {
@@ -33,8 +32,8 @@ public:
         std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
 
         std::ostringstream result;
-        result << "targetDevice=" << LayerTestsUtils::getDeviceNameTestCase(targetDevice)
-               << "_targetPlatform=" << LayerTestsUtils::getTestsPlatformFromEnvironmentOr(targetDevice) << "_";
+        result << "targetDevice=" << targetDevice << "_";
+        result << "targetPlatform=" << LayerTestsUtils::getTestsPlatformFromEnvironmentOr(targetDevice) << "_";
         if (!configuration.empty()) {
             for (auto& configItem : configuration) {
                 result << "configItem=" << configItem.first << "_";
@@ -50,7 +49,7 @@ public:
 
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         OVPluginTestBase::SetUp();
-        function = getDefaultNGraphFunctionForTheDevice(target_device);
+        ov_model = getDefaultNGraphFunctionForTheDevice();
         ov::AnyMap params;
         for (auto&& v : configuration) {
             params.emplace(v.first, v.second);
@@ -76,7 +75,7 @@ TEST_P(VpuDriverCompilerAdapterExpectedThrow, CheckWrongGraphExtAndThrow) {
     setenv(name, "WRONG_VERSION", 1);
 #endif
 
-    EXPECT_THROW(auto compiledModel = core->compile_model(function, target_device, configuration);, std::exception);
+    EXPECT_THROW(auto compiledModel = core->compile_model(ov_model, target_device, configuration);, std::exception);
 
 #ifdef _WIN32
     _putenv_s(name, env_value.c_str());

@@ -20,7 +20,6 @@ using namespace vpux;
 #include <vpux/compiler/dialect/VPUMI37XX/attributes.cpp.inc>
 
 #include <vpux/compiler/dialect/VPUMI37XX/enums.cpp.inc>
-#include <vpux/compiler/dialect/VPUMI37XX/structs.cpp.inc>
 
 //
 // Dialect hooks

@@ -3,23 +3,9 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/core/layers.hpp"
-#include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
-#include "vpux/compiler/dialect/IE/utils/broadcast_utils.hpp"
-#include "vpux/compiler/dialect/IE/utils/scale_shift_utils.hpp"
-#include "vpux/compiler/dialect/const/attributes/content.hpp"
-#include "vpux/compiler/dialect/const/ops.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
-
-#include "vpux/utils/core/checked_cast.hpp"
-
-#include <mlir/Pass/PassManager.h>
-#include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
 

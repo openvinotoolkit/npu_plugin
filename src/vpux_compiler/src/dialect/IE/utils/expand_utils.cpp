@@ -4,9 +4,9 @@
 //
 
 #include "vpux/compiler/dialect/IE/utils/expand_utils.hpp"
-#include "vpux/compiler/dialect/IE/utils/groupconvolution_utils.hpp"
+#include "vpux/compiler/dialect/IE/utils/convolution_utils.hpp"
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
-#include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_invariant.hpp"
 #include "vpux/utils/core/logger.hpp"
 
 namespace vpux {

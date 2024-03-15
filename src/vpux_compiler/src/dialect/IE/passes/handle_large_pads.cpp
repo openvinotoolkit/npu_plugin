@@ -7,21 +7,11 @@
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/factors.hpp"
-#include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
-#include "vpux/utils/IE/loop.hpp"
 
-#include "vpux/utils/core/func_ref.hpp"
-#include "vpux/utils/core/numeric.hpp"
-
-#include <mlir/IR/BlockAndValueMapping.h>
-#include <mlir/Pass/PassManager.h>
+#include <mlir/IR/IRMapping.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
@@ -103,7 +93,7 @@ std::tuple<mlir::Value, Shape, Shape> getInputConcatAndPadding(mlir::PatternRewr
 
 mlir::LogicalResult createNewOpAndReplaceOldOne(mlir::PatternRewriter& rewriter, mlir::Operation* origOp,
                                                 mlir::Value input, ShapeRef padStart, ShapeRef padEnd) {
-    mlir::BlockAndValueMapping mapper;
+    mlir::IRMapping mapper;
     mlir::Builder builder(origOp->getContext());
 
     SmallVector<mlir::Value> operands = origOp->getOperands();
@@ -147,9 +137,9 @@ mlir::LogicalResult ConvGeneralRewriter<ConcreteOp>::matchAndRewrite(ConcreteOp 
                                                                      mlir::PatternRewriter& rewriter) const {
     _log.trace("Handle larger padding for '{0} 'layer at '{1}'", origOp->getName(), origOp->getLoc());
 
-    const auto padStart = Shape(parseIntArrayAttr<int64_t>(origOp.pads_begin()));
-    const auto padEnd = Shape(parseIntArrayAttr<int64_t>(origOp.pads_end()));
-    const auto kernelShape = getShape(origOp.filter());
+    const auto padStart = Shape(parseIntArrayAttr<int64_t>(origOp.getPadsBegin()));
+    const auto padEnd = Shape(parseIntArrayAttr<int64_t>(origOp.getPadsEnd()));
+    const auto kernelShape = getShape(origOp.getFilter());
 
     mlir::Value inputConcat;
     Shape newPadStart, newPadEnd;
@@ -179,9 +169,9 @@ mlir::LogicalResult PoolingGeneralRewriter<ConcreteOp>::matchAndRewrite(Concrete
                                                                         mlir::PatternRewriter& rewriter) const {
     _log.trace("Handle larger padding for '{0} 'layer at '{1}'", origOp->getName(), origOp->getLoc());
 
-    const auto padStart = Shape(parseIntArrayAttr<int64_t>(origOp.pads_begin()));
-    const auto padEnd = Shape(parseIntArrayAttr<int64_t>(origOp.pads_end()));
-    const auto kernelShape = parseIntArrayAttr<int64_t>(origOp.kernel_size());
+    const auto padStart = Shape(parseIntArrayAttr<int64_t>(origOp.getPadsBegin()));
+    const auto padEnd = Shape(parseIntArrayAttr<int64_t>(origOp.getPadsEnd()));
+    const auto kernelShape = parseIntArrayAttr<int64_t>(origOp.getKernelSize());
 
     mlir::Value inputConcat;
     Shape newPadStart, newPadEnd;
@@ -222,18 +212,18 @@ bool isPaddingSupported(ShapeRef padStart, ShapeRef padEnd, ArrayRef<int64_t> ke
 
 template <class ConcreteOp>
 bool isLegalConv(ConcreteOp op) {
-    auto padStart = Shape(parseIntArrayAttr<int64_t>(op.pads_begin()));
-    auto padEnd = Shape(parseIntArrayAttr<int64_t>(op.pads_end()));
-    auto kernelShape = getShape(op.filter());
+    auto padStart = Shape(parseIntArrayAttr<int64_t>(op.getPadsBegin()));
+    auto padEnd = Shape(parseIntArrayAttr<int64_t>(op.getPadsEnd()));
+    auto kernelShape = getShape(op.getFilter());
 
     return isPaddingSupported(padStart, padEnd, {kernelShape[Dims4D::Filter::KY], kernelShape[Dims4D::Filter::KX]});
 }
 
 template <class ConcreteOp>
 bool isLegalPooling(ConcreteOp op) {
-    auto padStart = Shape(parseIntArrayAttr<int64_t>(op.pads_begin()));
-    auto padEnd = Shape(parseIntArrayAttr<int64_t>(op.pads_end()));
-    auto kernelShape = parseIntArrayAttr<int64_t>(op.kernel_size());
+    auto padStart = Shape(parseIntArrayAttr<int64_t>(op.getPadsBegin()));
+    auto padEnd = Shape(parseIntArrayAttr<int64_t>(op.getPadsEnd()));
+    auto kernelShape = parseIntArrayAttr<int64_t>(op.getKernelSize());
 
     return isPaddingSupported(padStart, padEnd, kernelShape);
 }

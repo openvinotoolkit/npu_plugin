@@ -56,6 +56,10 @@ One of the most useful debug features of MLIR is by printing the Intermediate Re
     - `export IE_NPU_PRINT_FULL_CONSTANT=1` - prints the entire content of all constants, regardless of their size
         - this mode is useful when a printed IR is intended to be used for further execution (e.g. running another pass on it), as it cannot be parsed without the full constants
 
+- `IE_NPU_PRINT_HEX_CONSTANT`: controls whether to allow printing constants as hex values
+    - `export IE_NPU_PRINT_HEX_CONSTANT=0` - prints the individual values of the constants in a human-readable format
+    - `export IE_NPU_PRINT_HEX_CONSTANT=1` (default) - prints the values of the constants as hex values
+
 - `IE_NPU_PRINT_DEBUG_INFO`: controls whether to print the locations of the operations into the IRs
     - `export IE_NPU_PRINT_DEBUG_INFO=0` (default) - no locations will be printed into the IR
     - `export IE_NPU_PRINT_DEBUG_INFO=1` - locations will be printed for each operation

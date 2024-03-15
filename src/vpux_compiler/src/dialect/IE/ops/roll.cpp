@@ -8,13 +8,11 @@
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
-#include "vpux/utils/core/checked_cast.hpp"
-
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::RollOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -23,16 +21,16 @@ mlir::LogicalResult vpux::IE::RollOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto shiftContent = roll.shift().getDefiningOp<Const::DeclareOp>().getContent();
-    const auto inShapeShift = getShape(roll.shift());
+    const auto shiftContent = roll.getShift().getDefiningOp<Const::DeclareOp>().getContent();
+    const auto inShapeShift = getShape(roll.getShift());
 
     if (!shiftContent.isSplat() && inShapeShift.size() == 1) {
-        auto shiftData = IE::constInputToData(loc, roll.shift());
+        auto shiftData = IE::constInputToData(loc, roll.getShift());
         if (mlir::failed(shiftData)) {
             return mlir::failure();
         }
 
-        auto axesData = IE::constInputToData(loc, roll.axes());
+        auto axesData = IE::constInputToData(loc, roll.getAxes());
         if (mlir::failed(axesData)) {
             return mlir::failure();
         }
@@ -48,7 +46,7 @@ mlir::LogicalResult vpux::IE::RollOp::inferReturnTypeComponents(
         }
     }
 
-    const auto inType = roll.data().getType().cast<mlir::ShapedType>();
+    const auto inType = roll.getData().getType().cast<mlir::ShapedType>();
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
 
     return mlir::success();

@@ -12,7 +12,7 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXCTCGreedyDecoderLayerTest :
+class CTCGreedyDecoderLayerTestCommon :
         public CTCGreedyDecoderLayerTest,
         virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     // [Track number: E#83855]
@@ -32,17 +32,16 @@ class VPUXCTCGreedyDecoderLayerTest :
     }
 };
 
-class VPUXCTCGreedyDecoderLayerTest_VPU3700 : public VPUXCTCGreedyDecoderLayerTest {};
+class CTCGreedyDecoderLayerTest_NPU3700 : public CTCGreedyDecoderLayerTestCommon {};
+class CTCGreedyDecoderLayerTest_NPU3720 : public CTCGreedyDecoderLayerTestCommon {};
 
-class VPUXCTCGreedyDecoderLayerTest_VPU3720 : public VPUXCTCGreedyDecoderLayerTest {};
-
-TEST_P(VPUXCTCGreedyDecoderLayerTest_VPU3700, HW) {
+TEST_P(CTCGreedyDecoderLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXCTCGreedyDecoderLayerTest_VPU3720, HW) {
+TEST_P(CTCGreedyDecoderLayerTest_NPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -57,7 +56,7 @@ namespace {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,  // Testing FP32/FP16 netPrecision functionality only for small scope of
-        InferenceEngine::Precision::FP16   // tests: VPUXGRNLayerTest, VPUXSplitLayerTest, VPUXCTCGreedyDecoderLayerTest
+        InferenceEngine::Precision::FP16   // tests: GRNLayerTest, SplitLayerTest, CTCGreedyDecoderLayerTest
 };
 
 const std::vector<bool> mergeRepeated = {true, false};
@@ -74,10 +73,12 @@ const auto params_MLIR = testing::Combine(
         testing::Values(InferenceEngine::Layout::ANY), testing::ValuesIn(inputShapes_MLIR),
         testing::ValuesIn(mergeRepeated), testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_CTCGreedyDecoder, VPUXCTCGreedyDecoderLayerTest_VPU3700, params_MLIR,
+// NPU3700
+INSTANTIATE_TEST_SUITE_P(smoke_CTCGreedyDecoder, CTCGreedyDecoderLayerTest_NPU3700, params_MLIR,
                          CTCGreedyDecoderLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_CTCGreedyDecoder, VPUXCTCGreedyDecoderLayerTest_VPU3720, params_MLIR,
+// NPU3720
+INSTANTIATE_TEST_SUITE_P(smoke_CTCGreedyDecoder, CTCGreedyDecoderLayerTest_NPU3720, params_MLIR,
                          CTCGreedyDecoderLayerTest::getTestCaseName);
 
 }  // namespace

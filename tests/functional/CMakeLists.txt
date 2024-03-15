@@ -23,14 +23,16 @@ addIeTargetTest(
     DEPENDENCIES
         openvino_intel_npu_plugin
     LINK_LIBRARIES
-        IE::funcSharedTests
-        IE::ngraph
-        IE::ngraph_reference
-        IE::format_reader
-        IE::inference_engine
-        kmb_utils
+        openvino::funcSharedTests
+        openvino::format_reader
+        openvino::reference
+        openvino::runtime
+        npu_model_utils
         common_tests_helpers
-        npu_utils
+        npu_llvm_utils
+        npu_ov_utils
+        npu_profiling_utils
+        npu_plugin_utils
         npu_al
     DEFINES
         DATA_PATH=\"${DATA_PATH}\"
@@ -65,3 +67,18 @@ install(TARGETS ${TARGET_NAME}
         COMPONENT tests
         EXCLUDE_FROM_ALL
 )
+
+if(ENABLE_DEVELOPER_BUILD AND UNIX)
+    # add npuFuncTest improved with gtest-parallel to ctest
+    # we are using run_gtest_parallel_manual_threads.sh script to provide
+    # PARALLEL_WORKERS env variable as -w workers command line argument
+    add_test(NAME ${TARGET_NAME}-parallel
+            COMMAND
+                ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/scripts/run_gtest_parallel_manual_threads.sh
+                ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/gtest-parallel/gtest-parallel
+                $<TARGET_FILE_DIR:${TARGET_NAME}>/${TARGET_NAME}
+            WORKING_DIRECTORY ${EXECUTABLE_OUTPUT_PATH} )
+            set_tests_properties(${TARGET_NAME}-parallel PROPERTIES
+            LABELS "NPU;PlatformSpecific;3720"
+    )
+endif()

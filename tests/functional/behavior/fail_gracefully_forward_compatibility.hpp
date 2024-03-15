@@ -1,4 +1,3 @@
-//
 // Copyright (C) Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
@@ -6,8 +5,9 @@
 #pragma once
 
 #include "base/ov_behavior_test_utils.hpp"
+#include "common/vpu_test_env_cfg.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 #include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
@@ -19,6 +19,8 @@
 #include <openvino/op/op.hpp>
 #include <openvino/runtime/compiled_model.hpp>
 #include <openvino/runtime/core.hpp>
+
+#include "vpux/al/config/common.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
@@ -36,22 +38,22 @@ public:
     OPENVINO_OP("UnsupportedTestOp");
 
     UnsupportedTestOp() = default;
-    explicit UnsupportedTestOp(const ngraph::Output<ngraph::Node>& arg): Op({arg}) {
+    explicit UnsupportedTestOp(const ov::Output<ov::Node>& arg): Op({arg}) {
         constructor_validate_and_infer_types();
     }
 
     void validate_and_infer_types() override {
         auto input_pshape = get_input_partial_shape(0);
         auto input_shape = input_pshape.to_shape();
-        ngraph::Shape output_shape(input_shape);
-        set_output_type(0, get_input_element_type(0), ngraph::PartialShape(output_shape));
+        ov::Shape output_shape(input_shape);
+        set_output_type(0, get_input_element_type(0), ov::PartialShape(output_shape));
     }
 
     bool visit_attributes(AttributeVisitor& /*visitor*/) override {
         return true;
     }
 
-    std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override {
+    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override {
         if (new_args.size() != 1) {
             throw ngraph::ngraph_error("Incorrect number of new arguments");
         }
@@ -66,7 +68,7 @@ class FailGracefullyTest :
 protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
-    std::shared_ptr<ov::Model> function;
+    std::shared_ptr<ov::Model> ov_model;
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<CompilationParams> obj) {
@@ -77,6 +79,7 @@ public:
 
         std::ostringstream result;
         result << "targetDevice=" << targetDevice << "_";
+        result << "targetPlatform=" << LayerTestsUtils::getTestsPlatformFromEnvironmentOr(targetDevice) << "_";
         if (!configuration.empty()) {
             for (auto& configItem : configuration) {
                 result << "configItem=" << configItem.first << "_";
@@ -92,7 +95,7 @@ public:
 
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         OVPluginTestBase::SetUp();
-        function = createModelWithUnknownNode();
+        ov_model = createModelWithUnknownNode();
         ov::AnyMap params;
         for (auto&& v : configuration) {
             params.emplace(v.first, v.second);
@@ -111,19 +114,19 @@ private:
         const ov::Shape input_shape = {1, 4096};
         const ov::element::Type precision = ov::element::f32;
 
-        auto params = ngraph::builder::makeParams(precision, {input_shape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{input_shape})};
         auto constant = ngraph::builder::makeConstant(precision, {4096, 1024}, std::vector<float>{}, true);
         auto custom_op = std::make_shared<UnsupportedTestOp>(constant);
 
         ov::NodeVector results{custom_op};
-        return std::make_shared<ov::Model>(results, params, "CustomOpModel");
+        return std::make_shared<ov::Model>(results, ov::ParameterVector{params}, "CustomOpModel");
     }
 };
 
 TEST_P(FailGracefullyTest, OnUnsupprotedOperator) {
-    auto compilerType = configuration["NPU_COMPILER_TYPE"].as<std::string>();
+    auto compilerType = configuration[ov::intel_vpux::compiler_type.name()].as<std::string>();
     try {
-        core->compile_model(function, target_device, configuration);
+        core->compile_model(ov_model, target_device, configuration);
     } catch (std::exception& ex) {
         // TODO: the below error messages will be improved in E#64716
         if (compilerType == "MLIR") {

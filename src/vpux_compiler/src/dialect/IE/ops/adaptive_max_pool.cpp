@@ -6,16 +6,13 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 
-#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
-
-#include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::AdaptiveMaxPoolOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -24,14 +21,14 @@ mlir::LogicalResult vpux::IE::AdaptiveMaxPoolOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inputType = adaptiveMaxPool.input().getType().cast<mlir::ShapedType>();
+    const auto inputType = adaptiveMaxPool.getInput().getType().cast<mlir::ShapedType>();
     const auto inputShape = inputType.getShape();
 
     if (inputShape.size() != 3 && inputShape.size() != 4 && inputShape.size() != 5) {
         return errorAt(loc, "Input shape should be 3D, 4D or 5D. Got {0}D", inputShape.size());
     }
 
-    auto spatialDimData = IE::constInputToData(loc, adaptiveMaxPool.pooled_spatial_shape());
+    auto spatialDimData = IE::constInputToData(loc, adaptiveMaxPool.getPooledSpatialShape());
     if (mlir::failed(spatialDimData)) {
         return mlir::failure();
     }
@@ -51,7 +48,7 @@ mlir::LogicalResult vpux::IE::AdaptiveMaxPoolOp::inferReturnTypeComponents(
     }
 
     inferredReturnShapes.emplace_back(outputShape, inputType.getElementType());
-    inferredReturnShapes.emplace_back(outputShape, adaptiveMaxPool.index_element_type());
+    inferredReturnShapes.emplace_back(outputShape, adaptiveMaxPool.getIndexElementType());
 
     return mlir::success();
 }

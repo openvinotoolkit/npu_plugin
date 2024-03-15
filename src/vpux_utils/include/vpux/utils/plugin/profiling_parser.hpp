@@ -9,8 +9,10 @@
 #include "vpux/utils/IE/prefix.hpp"
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/logger.hpp"
+#include "vpux/utils/core/profiling.hpp"
 
 #include <schema/graphfile_generated.h>
+#include <schema/profiling_generated.h>
 
 #include <algorithm>
 #include <cmath>
@@ -30,23 +32,9 @@ namespace vpux {
 namespace profiling {
 
 // Suffix used to create cluster name from task name
-const std::string CLUSTER_LEVEL_PROFILING_SUFFIX = "/cluster_";
+const std::string CLUSTER_LEVEL_PROFILING_SUFFIX = "cluster";
 // Suffix used to create variant name from cluster name
-const std::string VARIANT_LEVEL_PROFILING_SUFFIX = "/variant_";
-// Suffix used to create variant name from cluster name
-const std::string TILE_LEVEL_PROFILING_SUFFIX = "/tile_";
-
-enum class ExecutorType { NONE, DPU, UPA, ACTSHAVE, DMA_SW, WORKPOINT, DMA_HW };
-
-/**
- * @enum TaskType
- * @brief Declares which task types are required in profiling output.
- */
-enum TaskType {
-    ALL,     ///< Report all tasks for profiling
-    DPU_SW,  ///< Only execution tasks profiling
-    DMA,     ///< Only DMA tasks profiling
-};
+const std::string VARIANT_LEVEL_PROFILING_SUFFIX = "variant";
 
 /**
  * @enum VerbosityLevel
@@ -132,7 +120,7 @@ struct HwpDma40Data_t {
     uint32_t chcycle_cnt;
 };
 
-struct HwpDpu40Mode3Data_t {
+struct HwpDpuIduOduData_t {
     uint64_t idu_wl_duration : 32;
     uint64_t idu_wl_id : 16;
     uint64_t idu_dpu_id : 16;
@@ -158,20 +146,6 @@ struct WorkpointConfiguration_t {
     uint16_t configId;
 };
 
-struct SummaryInfo {
-    uint64_t totalBufferSize;
-    struct SectionInfo {
-        uint32_t entrySize;
-        uint32_t numOfTasks;
-        uint32_t bufferOffset;
-        uint32_t bufferSize;
-    };
-    SectionInfo dmaInfo;
-    SectionInfo dpuInfo;
-    SectionInfo swInfo;
-    SectionInfo workpointInfo;
-};
-
 struct FrequenciesSetup {
 public:
     static constexpr double UNITIALIZED_FREQUENCY_VALUE = -1;
@@ -192,14 +166,25 @@ public:
 
 constexpr double Dma20Bandwidth = 700. / 20000.;
 constexpr double Dma27Bandwidth = 1300. / 31200.;
+constexpr double Dma40Bandwidth = 1700. / 45000.;
 
 constexpr int COL_WIDTH_32 = 11;
 constexpr int COL_WIDTH_64 = 19;
 
-class ThrowableAssertMixin {
-public:
-    virtual void checkDataOrDie() const = 0;
+struct TokenizedTaskName {
+    std::string layerName;
+    std::vector<std::string> tokens;
 };
+
+struct ParsedTaskName {
+    std::string layerName;
+    std::string layerType;
+};
+
+TokenizedTaskName tokenizeTaskName(const std::string& taskName);
+
+// Parses the full task nameinto ParsedTaskName, extracting task name, layer type and cluster id
+ParsedTaskName deserializeTaskName(const std::string& taskName);
 
 class DebugFormattableRecordMixin {
 public:
@@ -214,12 +199,9 @@ protected:
 public:
     void printDebugHeader(std::ostream& os) {
         const auto columns = this->getColDesc();
-        os << std::setw(14) << "Global offset" << std::setw(15) << "Section offset" << std::setw(14) << "Engine"
-           << std::setw(100) << "Layer name";
         for (const std::pair<std::string, int>& p : columns) {
             os << std::setw(p.second) << p.first;
         }
-        os << std::endl;
     }
 
     size_t getInMemoryOffset() const {
@@ -230,7 +212,7 @@ public:
 
     virtual void printDebugInfo(std::ostream& outStream) const = 0;
 
-protected:
+private:
     size_t _inMemoryOffset;
 };
 
@@ -240,11 +222,28 @@ public:
     using TimeType = double;
     using BarriersSet = std::set<BarrierIdType>;
 
-public:
     template <typename T, typename std::enable_if_t<std::is_integral<T>::value, bool> = true>
     static TimeType convertTicksToNs(T cycles, double frequency) {
         VPUX_THROW_WHEN(frequency == FrequenciesSetup::UNITIALIZED_FREQUENCY_VALUE, "Invalid frequency {0}", frequency);
         return static_cast<TimeType>(cycles * 1000. / frequency);
+    }
+
+    template <typename RawMetadata>
+    static BarriersSet getWaitBarriersFromTask(const RawMetadata* task) {
+        if (task == nullptr) {
+            return {};
+        }
+        const auto barrierList = task->waitBarriers();
+        return BarriersSet(barrierList->cbegin(), barrierList->cend());
+    }
+
+    template <typename RawMetadata>
+    static BarriersSet getUpdateBarriersFromTask(const RawMetadata* task) {
+        if (task == nullptr) {
+            return {};
+        }
+        const auto barrierList = task->updateBarriers();
+        return BarriersSet(barrierList->cbegin(), barrierList->cend());
     }
 
     static auto getBarriersIntersection(const BarriersSet& set1, const BarriersSet& set2) {
@@ -254,19 +253,6 @@ public:
         return barriersIntersection;
     }
 
-    struct ParsedTaskName {
-        std::string taskName;
-        std::string layerName;
-        std::string layerType;
-        std::string profTag;
-        int clusterId;
-    };
-
-    // Parses the full task name from GraphFile into ParsedTaskName, extracting task name, profiling marker, layer type
-    // and cluster id
-    static ParsedTaskName deserializeTaskName(const std::string& gfTaskName,
-                                              const llvm::Optional<std::string>& maybeProfPrefix);
-
 private:
     static bool isSetIntersectionEmpty(const BarriersSet& set1, const BarriersSet& set2) {
         std::vector<BarrierIdType> barriersIntersection = getBarriersIntersection(set1, set2);
@@ -275,11 +261,8 @@ private:
         return barriersIntersection.empty();
     }
 
-protected:
-    static TaskInfo::ExecType convertToExecEnums(ExecutorType exec) {
+    static TaskInfo::ExecType convertToTaskExec(ExecutorType exec) {
         switch (exec) {
-        case ExecutorType::NONE:
-            return TaskInfo::ExecType::NONE;
         case ExecutorType::DMA_SW:
         case ExecutorType::DMA_HW:
             return TaskInfo::ExecType::DMA;
@@ -294,19 +277,29 @@ protected:
         }
     }
 
-    RawProfilingRecord(const std::string& name, const std::string& layerName, const std::string& layerType,
-                       ExecutorType executorType, const BarriersSet& wBarriers = {}, const BarriersSet& uBarriers = {})
-            : _executorType(executorType),
-              _name(name),
-              _layerName(layerName),
-              _layerType(layerType),
-              _waitBarriers(wBarriers),
-              _updateBarriers(uBarriers) {
+protected:
+    template <typename RawMetadata>
+    RawProfilingRecord(const RawMetadata* metadata, const BarriersSet& wBarriers, const BarriersSet& uBarriers) {
+        const auto parsedNameMetaData = deserializeTaskName(metadata->name()->str());
+        _name = metadata->name()->str();
+        _layerType = parsedNameMetaData.layerType;
+        _waitBarriers = wBarriers;
+        _updateBarriers = uBarriers;
     }
 
-    RawProfilingRecord(ExecutorType executorType, const std::string& cleanName, const std::string& layerName,
-                       const std::string& layerType, const MVCNN::Task* task)
-            : _executorType(executorType), _name(cleanName), _layerName(layerName), _layerType(layerType) {
+    template <typename RawMetadata>
+    RawProfilingRecord(const RawMetadata* metadata)
+            : RawProfilingRecord(metadata, getWaitBarriersFromTask(metadata), getUpdateBarriersFromTask(metadata)) {
+    }
+
+    RawProfilingRecord(const std::string& name, const std::string& layerType, const BarriersSet& wBarriers = {},
+                       const BarriersSet& uBarriers = {})
+            : _name(name), _layerType(layerType), _waitBarriers(wBarriers), _updateBarriers(uBarriers) {
+    }
+
+private:
+    RawProfilingRecord(const std::string& cleanName, const std::string& layerType, const MVCNN::Task* task)
+            : _name(cleanName), _layerType(layerType) {
         VPUX_THROW_WHEN(task == nullptr, "Invalid task");
         VPUX_THROW_WHEN(task->name() == nullptr, "Invalid task name");
         VPUX_THROW_WHEN(task->associated_barriers() == nullptr, "Task should have associated barriers");
@@ -320,19 +313,8 @@ protected:
         }
     }
 
-    template <class ParsedProfType>
-    struct ParsedTaskNameProf {
-        ParsedTaskName meta;
-        ParsedProfType prof;
-    };
-
-    struct TokenizedTaskName {
-        std::string layerName;
-        std::vector<std::string> tokens;
-        bool hasMalformedMeta;
-    };
-
-    static TokenizedTaskName tokenizeTaskName(const std::string& gfTaskName);
+protected:
+    virtual ~RawProfilingRecord() = default;
 
 public:
     bool isDirectPredecessor(const RawProfilingRecord& other) const {
@@ -343,11 +325,7 @@ public:
         return !isSetIntersectionEmpty(_waitBarriers, other._updateBarriers);
     }
 
-    virtual std::string getRecordTypeName() const = 0;
-
-    ExecutorType getExecutorType() const {
-        return _executorType;
-    }
+    virtual ExecutorType getExecutorType() const = 0;
 
     const BarriersSet& getWaitBarriers() const {
         return _waitBarriers;
@@ -357,16 +335,12 @@ public:
         return _updateBarriers;
     }
 
-    virtual std::string getOriginalName() const {
+    std::string getOriginalName() const {
         return _name;
     }
 
     virtual std::string getTaskName() const {
         return _name;
-    }
-
-    virtual std::string getLayerName() const {
-        return _layerName;
     }
 
     std::string getLayerType() const {
@@ -375,21 +349,25 @@ public:
 
     virtual TaskInfo getTaskInfo(FrequenciesSetup frequenciesSetup) const {
         TaskInfo taskInfo;
-        taskInfo.exec_type = convertToExecEnums(_executorType);
+        taskInfo.exec_type = convertToTaskExec(getExecutorType());
         taskInfo.start_time_ns = static_cast<uint64_t>(getStartTime(frequenciesSetup));
         taskInfo.duration_ns = static_cast<uint64_t>(getDuration(frequenciesSetup));
 
-        const auto nameLen = this->getTaskName().copy(taskInfo.name, sizeof(taskInfo.name) - 1);
+        const auto nameLen = getTaskName().copy(taskInfo.name, sizeof(taskInfo.name) - 1);
         taskInfo.name[nameLen] = 0;
 
-        const auto typeLen = _layerType.copy(taskInfo.layer_type, sizeof(taskInfo.layer_type) - 1);
+        const auto typeLen = getLayerType().copy(taskInfo.layer_type, sizeof(taskInfo.layer_type) - 1);
         taskInfo.layer_type[typeLen] = 0;
 
         return taskInfo;
     }
 
+    virtual void checkDataOrDie() const {
+        VPUX_THROW("checkDataOrDie not implemented");
+    }
+
     virtual void sanitize(vpux::Logger&, FrequenciesSetup) const {
-        // do nothing
+        // do nothing in base
     }
 
     virtual TimeType getStartTime(FrequenciesSetup frequenciesSetup) const = 0;
@@ -400,13 +378,13 @@ public:
         return getFinishTime(frequenciesSetup) - getStartTime(frequenciesSetup);
     }
 
-    static std::string getLayerName(const std::string& taskName);
+private:
+    std::string _name;
 
 protected:
-    ExecutorType _executorType{ExecutorType::NONE};
-    std::string _name;
-    std::string _layerName;
     std::string _layerType;
+
+private:
     BarriersSet _waitBarriers;
     BarriersSet _updateBarriers;
 };
@@ -420,12 +398,15 @@ public:
     using ExtendedTimestampType = uint64_t;
 
 protected:
-    RawProfilingDMARecord(ExecutorType execType, const RecordDataType& record, const std::string& name,
-                          const std::string& layerName, const std::string& layerType, const BarriersSet& waitBarriers,
-                          const BarriersSet& updateBarriers, size_t inMemoryOffset)
-            : RawProfilingRecord(name, layerName, layerType, execType, waitBarriers, updateBarriers),
+    RawProfilingDMARecord(const RecordDataType& record, const ProfilingFB::DMATask* metadata,
+                          const BarriersSet& wBarriers, const BarriersSet& uBarriers, size_t inMemoryOffset)
+            : RawProfilingRecord(metadata, wBarriers, uBarriers),
               DebugFormattableRecordMixin(inMemoryOffset),
               _record(record) {
+    }
+
+    RawProfilingDMARecord(const RecordDataType& record, const ProfilingFB::DMATask* metadata, size_t inMemoryOffset)
+            : RawProfilingRecord(metadata), DebugFormattableRecordMixin(inMemoryOffset), _record(record) {
     }
 
 public:
@@ -450,18 +431,6 @@ public:
         return sizeof(RecordDataType);
     }
 
-public:
-    struct ParsedProf {
-        int16_t curDmaId;
-    };
-
-    using ParsedTaskNameProf = RawProfilingRecord::ParsedTaskNameProf<ParsedProf>;
-
-    static ParsedProf parseProfilingTag(const std::string& profTag);
-    static bool isTaskBegin(const std::string& fullTaskName);
-    static bool isTaskWorkpointRead(const std::string& fullTaskName);
-    static ParsedTaskNameProf parseTaskName(const std::string& fullTaskName);
-
 protected:
     RecordDataType _record;
 };
@@ -471,13 +440,12 @@ class RawProfilingSwDmaRecord : public RawProfilingDMARecord<RecordDataType> {
 public:
     using RawProfilingDMARecord<RecordDataType>::RawProfilingDMARecord;
     using ColDesc = DebugFormattableRecordMixin::ColDesc;
+    using BarriersSet = RawProfilingRecord::BarriersSet;
 
 protected:
-    RawProfilingSwDmaRecord(const RecordDataType& record, const std::string& name, const std::string& layerName,
-                            const std::string& layerType, const RawProfilingRecord::BarriersSet& waitBarriers,
-                            const RawProfilingRecord::BarriersSet& updateBarriers, size_t inMemoryOffset)
-            : RawProfilingDMARecord<RecordDataType>(ExecutorType::DMA_SW, record, name, layerName, layerType,
-                                                    waitBarriers, updateBarriers, inMemoryOffset) {
+    RawProfilingSwDmaRecord(const RecordDataType& record, const ProfilingFB::DMATask* metadata,
+                            const BarriersSet& wBarriers, const BarriersSet& uBarriers, size_t inMemoryOffset)
+            : RawProfilingDMARecord<RecordDataType>(record, metadata, wBarriers, uBarriers, inMemoryOffset) {
     }
 
     ColDesc getColDesc() const override {
@@ -493,20 +461,18 @@ protected:
 
 class RawProfilingDMA20Record : public RawProfilingSwDmaRecord<DMA20Data_t> {
 public:
-    using ExtendedTimestampType = typename RawProfilingDMARecord::ExtendedTimestampType;
+    using ExtendedTimestampType = RawProfilingDMARecord::ExtendedTimestampType;
 
 public:
-    explicit RawProfilingDMA20Record(const DMA20Data_t& record, const std::string& name, const std::string& layerName,
-                                     const std::string& layerType, const BarriersSet& waitBarriers,
-                                     const BarriersSet& updateBarriers, ExtendedTimestampType overflowCorrectionShift,
-                                     size_t inMemoryOffset)
-            : RawProfilingSwDmaRecord<DMA20Data_t>(record, name, layerName, layerType, waitBarriers, updateBarriers,
-                                                   inMemoryOffset),
+    explicit RawProfilingDMA20Record(const DMA20Data_t& record, const ProfilingFB::DMATask* metadata,
+                                     const BarriersSet& wBarriers, const BarriersSet& uBarriers,
+                                     ExtendedTimestampType overflowCorrectionShift, size_t inMemoryOffset)
+            : RawProfilingSwDmaRecord<DMA20Data_t>(record, metadata, wBarriers, uBarriers, inMemoryOffset),
               _overflowCorrectionShift(overflowCorrectionShift) {
     }
 
-    std::string getRecordTypeName() const override {
-        return "DMA 2.0";
+    ExecutorType getExecutorType() const override {
+        return ExecutorType::DMA_SW;
     }
 
     TimeType getStartTime(FrequenciesSetup frequenciesSetup) const override {
@@ -534,15 +500,13 @@ private:
 
 class RawProfilingDMA27Record : public RawProfilingSwDmaRecord<DMA27Data_t> {
 public:
-    explicit RawProfilingDMA27Record(const DMA27Data_t& record, const std::string& name, const std::string& layerName,
-                                     const std::string& layerType, const BarriersSet& waitBarriers,
-                                     const BarriersSet& updateBarriers, size_t inMemoryOffset)
-            : RawProfilingSwDmaRecord<DMA27Data_t>(record, name, layerName, layerType, waitBarriers, updateBarriers,
-                                                   inMemoryOffset) {
+    explicit RawProfilingDMA27Record(const DMA27Data_t& record, const ProfilingFB::DMATask* metadata,
+                                     const BarriersSet& wBarriers, const BarriersSet& uBarriers, size_t inMemoryOffset)
+            : RawProfilingSwDmaRecord<DMA27Data_t>(record, metadata, wBarriers, uBarriers, inMemoryOffset) {
     }
 
-    std::string getRecordTypeName() const override {
-        return "DMA 2.7";
+    ExecutorType getExecutorType() const override {
+        return ExecutorType::DMA_SW;
     }
 
     TimeType getStartTime(FrequenciesSetup frequenciesSetup) const override {
@@ -554,22 +518,20 @@ public:
     }
 };
 
-class RawProfilingDMA40Record : public RawProfilingDMARecord<HwpDma40Data_t>, public ThrowableAssertMixin {
+class RawProfilingDMA40Record : public RawProfilingDMARecord<HwpDma40Data_t> {
 public:
-    explicit RawProfilingDMA40Record(const HwpDma40Data_t& record, const std::string& name,
-                                     const std::string& layerName, const std::string& layerType,
-                                     const BarriersSet& waitBarriers, const BarriersSet& updateBarriers,
+    explicit RawProfilingDMA40Record(const HwpDma40Data_t& record, const ProfilingFB::DMATask* metadata,
                                      size_t inMemoryOffset)
-            : RawProfilingDMARecord<HwpDma40Data_t>(ExecutorType::DMA_HW, record, name, layerName, layerType,
-                                                    waitBarriers, updateBarriers, inMemoryOffset) {
+            : RawProfilingDMARecord<HwpDma40Data_t>(record, metadata, inMemoryOffset) {
     }
 
     void checkDataOrDie() const override {
         VPUX_THROW_UNLESS(_record.rsvd == 0, "Reserved value must contain 0.");
+        VPUX_THROW_WHEN(_record.desc_addr == 0, "Invalid DMA descriptor address.");
     }
 
-    std::string getRecordTypeName() const override {
-        return "HWP DMA";
+    ExecutorType getExecutorType() const override {
+        return ExecutorType::DMA_HW;
     }
 
     TimeType getStartTime(FrequenciesSetup frequenciesSetup) const override {
@@ -577,7 +539,7 @@ public:
     }
 
     TimeType getFinishTime(FrequenciesSetup frequenciesSetup) const override {
-        return convertTicksToNs(_record.wdone_time, frequenciesSetup.profClk);
+        return convertTicksToNs(_record.finish_time, frequenciesSetup.profClk);
     }
 
 protected:
@@ -617,40 +579,24 @@ protected:
     }
 };
 
-class ClusteredAndTiledMixin {
-public:
-    ClusteredAndTiledMixin(size_t clusterId, size_t variantId): _clusterId(clusterId), _variantId(variantId) {
-    }
-
-    size_t getClusterId() {
-        return _clusterId;
-    }
-
+class RawProfilingDPURecord : public RawProfilingRecord, public DebugFormattableRecordMixin {
 protected:
-    size_t _clusterId;
-    size_t _variantId;
-};
-
-class RawProfilingDPURecord :
-        public RawProfilingRecord,
-        public ClusteredAndTiledMixin,
-        public ThrowableAssertMixin,
-        public DebugFormattableRecordMixin {
-protected:
-    RawProfilingDPURecord(const std::string& name, const std::string& layerName, const std::string& layerType,
-                          const BarriersSet& wBarriers, const BarriersSet& uBarriers, size_t clusterId,
-                          size_t variantId, size_t inMemoryOffset)
-            : RawProfilingRecord(name, layerName, layerType, ExecutorType::DPU, wBarriers, uBarriers),
-              ClusteredAndTiledMixin(clusterId, variantId),
-              DebugFormattableRecordMixin(inMemoryOffset) {
+    RawProfilingDPURecord(const ProfilingFB::DPUTask* metadata, uint32_t variantId, size_t inMemoryOffset,
+                          uint32_t inClusterOffset)
+            : RawProfilingRecord(metadata),
+              DebugFormattableRecordMixin(inMemoryOffset),
+              _bufferId(metadata->bufferId()),
+              _inClusterIndex(inClusterOffset),
+              _clusterId(metadata->clusterId()),
+              _variantId(variantId) {
     }
 
-    virtual double chooseFrequency(FrequenciesSetup frequenciesSetup) const = 0;
+    virtual double getTaskDurationClock(FrequenciesSetup frequenciesSetup) const = 0;
 
 public:
     std::string getTaskName() const override {
-        return _name + CLUSTER_LEVEL_PROFILING_SUFFIX + std::to_string(_clusterId) + VARIANT_LEVEL_PROFILING_SUFFIX +
-               std::to_string(_variantId);
+        // adding variant suffix as it is not stored in meta data
+        return getOriginalName() + "/" + VARIANT_LEVEL_PROFILING_SUFFIX + "_" + std::to_string(_variantId);
     }
 
     void sanitize(vpux::Logger& log, FrequenciesSetup frequenciesSetup) const override {
@@ -659,60 +605,37 @@ public:
         const uint64_t maxElem = 2ll * 1024ll * 1024ll;
         const uint64_t maxChannels = 8192;
         const uint64_t maxCycles = maxKernel * maxElem * maxChannels / 256;
-        // TODO: invalid check. HW DPU profiling also count IDU and ODU time
-        const auto frequency = this->chooseFrequency(frequenciesSetup);
+        const auto frequency = this->getTaskDurationClock(frequenciesSetup);
         const auto maxNs = convertTicksToNs(maxCycles, frequency);
         if (maxNs < dpuExecutionTime) {
             log.warning("Too long execution time of DPU task");
         }
     }
 
-public:
-    struct ParsedProf {
-        int16_t taskId;
-        int16_t memoryId;
-        int32_t maxVariants;
-        int16_t numVariants;
-        int16_t clusterId;
-        int16_t bufferId;
-        int16_t numClusters;
+    size_t getClusterId() {
+        return _clusterId;
+    }
 
-        // Profiling data is stored in blob in following order
-        // Tasks which correspond to NCEClusterTasks with fewer number of clusters located earlier
-        // Within one segment, which correspond to same amount of clusters, buffers located sequentially
-        // Within one buffer tasks interleaved, but clusters  sequential, i.g.
-        // Task-N cluster 0, Task-(N+1), cluster 0, Task-N cluster 1, Task-(N+1) cluster 1...
-        uint64_t getOrderDescriptor() const {
-            uint64_t descriptor = 0;
-            for (uint16_t subDesc : {numClusters, bufferId, clusterId, memoryId}) {
-                descriptor = (descriptor << 16) | subDesc;
-            }
-            return descriptor;
-        }
-    };
-    using ParsedTaskNameProf = RawProfilingRecord::ParsedTaskNameProf<ParsedProf>;
-
-    static ParsedProf parseProfilingTag(const std::string& profTag, int16_t clusterId, unsigned taskListId);
-    static ParsedTaskNameProf parseTaskName(const std::string& fullTaskName, unsigned taskListId);
+protected:
+    uint32_t _bufferId;
+    uint32_t _inClusterIndex;
+    uint32_t _clusterId;
+    uint32_t _variantId;
 };
 
 class RawProfilingDPUSWRecord : public RawProfilingDPURecord {
 public:
-    explicit RawProfilingDPUSWRecord(SwDpuData_t timestamps, const std::string& name, const std::string& layerName,
-                                     const std::string& layerType, const BarriersSet& wBarriers,
-                                     const BarriersSet& uBarriers, size_t clusterId, size_t variantId,
-                                     size_t inMemoryOffset)
-            : RawProfilingDPURecord(name, layerName, layerType, wBarriers, uBarriers, clusterId, variantId,
-                                    inMemoryOffset),
-              _timestamps(timestamps) {
+    explicit RawProfilingDPUSWRecord(SwDpuData_t timestamps, const ProfilingFB::DPUTask* metadata, uint32_t variantId,
+                                     size_t inMemoryOffset, uint32_t inClusterOffset)
+            : RawProfilingDPURecord(metadata, variantId, inMemoryOffset, inClusterOffset), _timestamps(timestamps) {
     }
 
     void checkDataOrDie() const override {
         VPUX_THROW_WHEN(_timestamps.begin == 0 && _timestamps.end == 0, "Invalid DPU task timestamp");
     }
 
-    std::string getRecordTypeName() const override {
-        return "SW DPU";
+    ExecutorType getExecutorType() const override {
+        return ExecutorType::DPU;
     }
 
     TimeType getStartTime(FrequenciesSetup frequenciesSetup) const override {
@@ -728,19 +651,25 @@ public:
     }
 
 protected:
-    double chooseFrequency(FrequenciesSetup frequenciesSetup) const override {
+    double getTaskDurationClock(FrequenciesSetup frequenciesSetup) const override {
         return frequenciesSetup.profClk;
     }
 
     ColDesc getColDesc() const override {
-        return {{"Begin tstamp", COL_WIDTH_64}, {"End tstamp", COL_WIDTH_64}};
+        return {{"Buffer ID", COL_WIDTH_32},
+                {"Cluster ID", COL_WIDTH_64},
+                {"Buffer offset", COL_WIDTH_64},
+                {"Begin tstamp", COL_WIDTH_64},
+                {"End tstamp", COL_WIDTH_64}};
     }
 
     void printDebugInfo(std::ostream& outStream) const override {
         const auto swDpuCol = getColDesc();
+        const auto bufferOffsetBytes = _inClusterIndex * getDebugDataSize();
 
-        outStream << std::setw(swDpuCol[0].second) << _timestamps.begin << std::setw(swDpuCol[1].second)
-                  << _timestamps.end;
+        outStream << std::setw(swDpuCol[0].second) << _bufferId << std::setw(swDpuCol[1].second) << _clusterId
+                  << std::setw(swDpuCol[2].second) << bufferOffsetBytes << std::setw(swDpuCol[3].second)
+                  << _timestamps.begin << std::setw(swDpuCol[4].second) << _timestamps.end;
     }
 
 private:
@@ -749,13 +678,9 @@ private:
 
 class RawProfilingDPUHW27Record : public RawProfilingDPURecord {
 public:
-    explicit RawProfilingDPUHW27Record(HwpDpu27Mode0Data_t timestamps, const std::string& name,
-                                       const std::string& layerName, const std::string& layerType,
-                                       const BarriersSet& wBarriers, const BarriersSet& uBarriers, size_t clusterId,
-                                       size_t variantId, size_t inMemoryOffset)
-            : RawProfilingDPURecord(name, layerName, layerType, wBarriers, uBarriers, clusterId, variantId,
-                                    inMemoryOffset),
-              _timestamps(timestamps) {
+    explicit RawProfilingDPUHW27Record(HwpDpu27Mode0Data_t timestamps, const ProfilingFB::DPUTask* metadata,
+                                       uint32_t variantId, size_t inMemoryOffset, uint32_t inClusterOffset)
+            : RawProfilingDPURecord(metadata, variantId, inMemoryOffset, inClusterOffset), _timestamps(timestamps) {
     }
 
     void checkDataOrDie() const override {
@@ -764,8 +689,8 @@ public:
         VPUX_THROW_UNLESS(_timestamps.reserved3 == 0 && _timestamps.reserved8 == 0, "Reserved values must contain 0.");
     }
 
-    std::string getRecordTypeName() const override {
-        return "HWP DPU 2.7";
+    ExecutorType getExecutorType() const override {
+        return ExecutorType::DPU;
     }
 
     TimeType getStartTime(FrequenciesSetup frequenciesSetup) const override {
@@ -786,23 +711,34 @@ public:
     }
 
 protected:
-    double chooseFrequency(FrequenciesSetup frequenciesSetup) const override {
+    double getTaskDurationClock(FrequenciesSetup frequenciesSetup) const override {
         return frequenciesSetup.dpuClk;
     }
 
     ColDesc getColDesc() const override {
-        return {{"IDU dur", COL_WIDTH_32}, {"IDU tstamp", COL_WIDTH_32}, {"SWE ID", 7}, {"Res", 4},
-                {"ODU dur", COL_WIDTH_32}, {"ODU tstamp", COL_WIDTH_32}, {"Res", 7}};
+        return {{"Buffer ID", COL_WIDTH_32},
+                {"Cluster ID", COL_WIDTH_64},
+                {"Buffer offset", COL_WIDTH_64},
+                {"IDU dur", COL_WIDTH_32},
+                {"IDU tstamp", COL_WIDTH_32},
+                {"SWE ID", 7},
+                {"Rvd", 4},
+                {"ODU dur", COL_WIDTH_32},
+                {"ODU tstamp", COL_WIDTH_32},
+                {"Rvd", 7}};
     }
 
     void printDebugInfo(std::ostream& outStream) const override {
         const auto hwpDpuCol = getColDesc();
+        const auto bufferOffsetBytes = _inClusterIndex * getDebugDataSize();
 
-        outStream << std::setw(hwpDpuCol[0].second) << _timestamps.idu_wl_duration << std::setw(hwpDpuCol[1].second)
-                  << _timestamps.idu_tstamp << std::setw(hwpDpuCol[2].second) << _timestamps.sve_id
-                  << std::setw(hwpDpuCol[3].second) << _timestamps.reserved3 << std::setw(hwpDpuCol[4].second)
-                  << _timestamps.odu_wl_duration << std::setw(hwpDpuCol[5].second) << _timestamps.odu_tstamp
-                  << std::setw(hwpDpuCol[6].second) << _timestamps.reserved8;
+        outStream << std::setw(hwpDpuCol[0].second) << _bufferId << std::setw(hwpDpuCol[1].second) << _clusterId
+                  << std::setw(hwpDpuCol[2].second) << bufferOffsetBytes << std::setw(hwpDpuCol[3].second)
+                  << _timestamps.idu_wl_duration << std::setw(hwpDpuCol[4].second) << _timestamps.idu_tstamp
+                  << std::setw(hwpDpuCol[5].second) << _timestamps.sve_id << std::setw(hwpDpuCol[6].second)
+                  << _timestamps.reserved3 << std::setw(hwpDpuCol[7].second) << _timestamps.odu_wl_duration
+                  << std::setw(hwpDpuCol[8].second) << _timestamps.odu_tstamp << std::setw(hwpDpuCol[9].second)
+                  << _timestamps.reserved8;
     }
 
 private:
@@ -811,13 +747,9 @@ private:
 
 class RawProfilingDPUHW40Record : public RawProfilingDPURecord {
 public:
-    explicit RawProfilingDPUHW40Record(HwpDpu40Mode3Data_t timestamps, const std::string& name,
-                                       const std::string& layerName, const std::string& layerType,
-                                       const BarriersSet& wBarriers, const BarriersSet& uBarriers, size_t clusterId,
-                                       size_t variantId, size_t inMemoryOffset)
-            : RawProfilingDPURecord(name, layerName, layerType, wBarriers, uBarriers, clusterId, variantId,
-                                    inMemoryOffset),
-              _timestamps(timestamps) {
+    explicit RawProfilingDPUHW40Record(HwpDpuIduOduData_t timestamps, const ProfilingFB::DPUTask* metadata,
+                                       uint32_t variantId, size_t inMemoryOffset, uint32_t inClusterOffset)
+            : RawProfilingDPURecord(metadata, variantId, inMemoryOffset, inClusterOffset), _timestamps(timestamps) {
     }
 
     void checkDataOrDie() const override {
@@ -825,8 +757,8 @@ public:
                         "Invalid DPU task duration");
     }
 
-    std::string getRecordTypeName() const override {
-        return "HWP DPU 4.0";
+    ExecutorType getExecutorType() const override {
+        return ExecutorType::DPU;
     }
 
     TimeType getStartTime(FrequenciesSetup frequenciesSetup) const override {
@@ -839,45 +771,68 @@ public:
     }
 
     size_t getDebugDataSize() const override {
-        return sizeof(HwpDpu40Mode3Data_t);
+        return sizeof(HwpDpuIduOduData_t);
     }
 
 protected:
-    double chooseFrequency(FrequenciesSetup frequenciesSetup) const override {
+    double getTaskDurationClock(FrequenciesSetup frequenciesSetup) const override {
         return frequenciesSetup.dpuClk;
     }
 
     ColDesc getColDesc() const override {
-        return {{"IDU dur", COL_WIDTH_32}, {"IDU tstamp", COL_WIDTH_64}, {"IDU WL ID", 11}, {"IDU DPU ID", 12},
-                {"ODU dur", COL_WIDTH_32}, {"ODU tstamp", COL_WIDTH_64}, {"ODU WL ID", 11}, {"ODU DPU ID", 12}};
+        return {{"Buffer ID", COL_WIDTH_32},
+                {"Cluster ID", COL_WIDTH_64},
+                {"Buffer offset", COL_WIDTH_64},
+                {"IDU dur", COL_WIDTH_32},
+                {"IDU tstamp", COL_WIDTH_64},
+                {"IDU WL ID", 11},
+                {"IDU DPU ID", 12},
+                {"ODU dur", COL_WIDTH_32},
+                {"ODU tstamp", COL_WIDTH_64},
+                {"ODU WL ID", 11},
+                {"ODU DPU ID", 12}};
     }
 
     void printDebugInfo(std::ostream& outStream) const override {
         const auto hwpDpuCol = getColDesc();
+        const auto bufferOffsetBytes = _inClusterIndex * getDebugDataSize();
 
-        outStream << std::setw(hwpDpuCol[0].second) << _timestamps.idu_wl_duration << std::setw(hwpDpuCol[1].second)
-                  << _timestamps.idu_tstamp << std::setw(hwpDpuCol[2].second) << _timestamps.idu_wl_id
-                  << std::setw(hwpDpuCol[3].second) << _timestamps.idu_dpu_id << std::setw(hwpDpuCol[4].second)
-                  << _timestamps.odu_wl_duration << std::setw(hwpDpuCol[5].second) << _timestamps.odu_tstamp
-                  << std::setw(hwpDpuCol[6].second) << _timestamps.odu_wl_id << std::setw(hwpDpuCol[7].second)
-                  << _timestamps.odu_dpu_id;
+        outStream << std::setw(hwpDpuCol[0].second) << _bufferId << std::setw(hwpDpuCol[1].second) << _clusterId
+                  << std::setw(hwpDpuCol[2].second) << bufferOffsetBytes << std::setw(hwpDpuCol[3].second)
+                  << _timestamps.idu_wl_duration << std::setw(hwpDpuCol[4].second) << _timestamps.idu_tstamp
+                  << std::setw(hwpDpuCol[5].second) << _timestamps.idu_wl_id << std::setw(hwpDpuCol[6].second)
+                  << _timestamps.idu_dpu_id << std::setw(hwpDpuCol[5].second) << _timestamps.odu_wl_duration
+                  << std::setw(hwpDpuCol[7].second) << _timestamps.odu_tstamp << std::setw(hwpDpuCol[8].second)
+                  << _timestamps.odu_wl_id << std::setw(hwpDpuCol[9].second) << _timestamps.odu_dpu_id;
     }
 
-private:
-    HwpDpu40Mode3Data_t _timestamps;
+protected:
+    HwpDpuIduOduData_t _timestamps;
 };
 
-class RawProfilingUPARecord :
-        public RawProfilingRecord,
-        public ThrowableAssertMixin,
-        public DebugFormattableRecordMixin {
+class RawProfilingDPUHW50Record : public RawProfilingDPUHW40Record {
 public:
-    explicit RawProfilingUPARecord(UpaData_t data, const std::string& name, const std::string& layerName,
-                                   const std::string& layerType, const BarriersSet& wBarriers,
-                                   const BarriersSet& uBarriers, size_t inMemoryOffset)
-            : RawProfilingRecord(name, layerName, layerType, ExecutorType::UPA, wBarriers, uBarriers),
-              DebugFormattableRecordMixin(inMemoryOffset),
-              _data(data) {
+    using RawProfilingDPUHW40Record::RawProfilingDPUHW40Record;
+
+    TimeType getStartTime(FrequenciesSetup frequenciesSetup) const override {
+        return convertTicksToNs(_timestamps.idu_tstamp, frequenciesSetup.profClk) -
+               convertTicksToNs(_timestamps.idu_wl_duration, frequenciesSetup.profClk);
+    }
+
+protected:
+    double getTaskDurationClock(FrequenciesSetup frequenciesSetup) const override {
+        return frequenciesSetup.profClk;
+    }
+};
+
+class RawProfilingUPARecord : public RawProfilingRecord, public DebugFormattableRecordMixin {
+public:
+    explicit RawProfilingUPARecord(UpaData_t data, const ProfilingFB::SWTask* metadata, size_t inMemoryOffset)
+            : RawProfilingRecord(metadata), DebugFormattableRecordMixin(inMemoryOffset), _data(data) {
+        // TODO: Why we don't derive layer type from the task name for UPA?
+        if (metadata->taskType() != nullptr) {
+            _layerType = metadata->taskType()->str();
+        }
     }
 
     TaskInfo getTaskInfo(FrequenciesSetup frequenciesSetup) const override {
@@ -891,8 +846,8 @@ public:
         VPUX_THROW_WHEN(_data.begin == 0 && _data.end == 0, "Can't process UPA profiling data.");
     }
 
-    std::string getRecordTypeName() const override {
-        return "UPA";
+    ExecutorType getExecutorType() const override {
+        return ExecutorType::UPA;
     }
 
     TimeType getStartTime(FrequenciesSetup frequenciesSetup) const override {
@@ -923,37 +878,19 @@ protected:
                   << _data.activeCycles;
     }
 
-public:
-    struct ParsedProf {
-        size_t currentPos;
-    };
-    using ParsedTaskNameProf = RawProfilingRecord::ParsedTaskNameProf<ParsedProf>;
-
-    static ParsedProf parseProfilingTag(const std::string& profTag);
-    static ParsedTaskNameProf parseTaskName(const std::string& fullTaskName);
-
 private:
     UpaData_t _data;
 };
 
-class RawProfilingACTRecord :
-        public RawProfilingRecord,
-        public ClusteredAndTiledMixin,
-        public ThrowableAssertMixin,
-        public DebugFormattableRecordMixin {
+class RawProfilingACTRecord : public RawProfilingRecord, public DebugFormattableRecordMixin {
 public:
-    explicit RawProfilingACTRecord(ActShaveData_t data, const std::string& name, const std::string& layerName,
-                                   const std::string& layerType, const BarriersSet& wBarriers,
-                                   const BarriersSet& uBarriers, size_t clusterId, size_t tileId, size_t inMemoryOffset)
-            : RawProfilingRecord(name, layerName, layerType, ExecutorType::ACTSHAVE, wBarriers, uBarriers),
-              ClusteredAndTiledMixin(clusterId, tileId),
+    explicit RawProfilingACTRecord(ActShaveData_t data, const ProfilingFB::SWTask* metadata, size_t inMemoryOffset)
+            : RawProfilingRecord(metadata),
               DebugFormattableRecordMixin(inMemoryOffset),
-              _data(data) {
-    }
-
-    std::string getTaskName() const override {
-        return _name + CLUSTER_LEVEL_PROFILING_SUFFIX + std::to_string(_clusterId) + TILE_LEVEL_PROFILING_SUFFIX +
-               std::to_string(_variantId);
+              _data(data),
+              _bufferId(metadata->bufferId()),
+              _inClusterIndex(metadata->dataIndex()),
+              _clusterId(metadata->clusterId()) {
     }
 
     TaskInfo getTaskInfo(FrequenciesSetup frequenciesSetup) const override {
@@ -966,8 +903,8 @@ public:
         VPUX_THROW_WHEN(_data.begin == 0 && _data.duration == 0, "Can't process ACT profiling data.");
     }
 
-    std::string getRecordTypeName() const override {
-        return "ACT";
+    ExecutorType getExecutorType() const override {
+        return ExecutorType::ACTSHAVE;
     }
 
     TimeType getStartTime(FrequenciesSetup frequenciesSetup) const override {
@@ -986,118 +923,83 @@ public:
         return sizeof(ActShaveData_t);
     }
 
-public:
-    struct ParsedProf {
-        size_t inDdrOffset;
-        size_t clusterSize;
-        size_t clusterId;
-        size_t inClusterOffset;
-        size_t tileId;
-
-        size_t getResultingDDROffset() const {
-            return inDdrOffset + clusterSize * clusterId + inClusterOffset;
-        }
-    };
-    using ParsedTaskNameProf = RawProfilingRecord::ParsedTaskNameProf<ParsedProf>;
-
-    static ParsedProf parseProfilingTag(const std::string& profTag, int16_t clusterId);
-    static ParsedTaskNameProf parseTaskName(const std::string& fullTaskName);
-
 protected:
     ColDesc getColDesc() const override {
-        return {{"Begin", COL_WIDTH_64}, {"Duration", COL_WIDTH_32}, {"Stall", COL_WIDTH_32}};
+        return {{"Buffer ID", COL_WIDTH_32}, {"Cluster ID", COL_WIDTH_64}, {"Buffer offset", COL_WIDTH_64},
+                {"Begin", COL_WIDTH_64},     {"Duration", COL_WIDTH_32},   {"Stall", COL_WIDTH_32}};
     }
 
     void printDebugInfo(std::ostream& outStream) const override {
         const auto actShaveCol = getColDesc();
+        const auto bufferOffsetBytes = _inClusterIndex * getDebugDataSize();
 
-        outStream << std::setw(actShaveCol[0].second) << _data.begin << std::setw(actShaveCol[1].second)
-                  << _data.duration << std::setw(actShaveCol[2].second) << _data.stallCycles;
+        outStream << std::setw(actShaveCol[0].second) << _bufferId << std::setw(actShaveCol[1].second) << _clusterId
+                  << std::setw(actShaveCol[2].second) << bufferOffsetBytes << std::setw(actShaveCol[3].second)
+                  << _data.begin << std::setw(actShaveCol[4].second) << _data.duration
+                  << std::setw(actShaveCol[5].second) << _data.stallCycles;
     }
 
 private:
     ActShaveData_t _data;
+    uint32_t _bufferId;
+    uint32_t _inClusterIndex;
+    uint32_t _clusterId;
 };
 
 class ArrayRecord : public RawProfilingRecord {
 public:
-    ArrayRecord(const std::string name, const RawProfilingRecords& variants, ExecutorType execType)
-            : RawProfilingRecord(name, variants.front()->getLayerName(), variants.front()->getLayerType(), execType,
-                                 variants.front()->getWaitBarriers(), variants.front()->getUpdateBarriers()),
-              _variants(variants),
-              _recordTypeName(variants.front()->getRecordTypeName()) {
+    ArrayRecord(const std::string name, const RawProfilingRecords& records)
+            : RawProfilingRecord(name, records.front()->getLayerType(), records.front()->getWaitBarriers(),
+                                 records.front()->getUpdateBarriers()),
+              _records(records) {
     }
 
     TimeType getStartTime(FrequenciesSetup frequenciesSetup) const override {
-        return std::accumulate(_variants.cbegin(), _variants.cend(), std::numeric_limits<TimeType>::max(),
+        return std::accumulate(_records.cbegin(), _records.cend(), std::numeric_limits<TimeType>::max(),
                                [&](TimeType a, RawProfilingRecordPtr variant) -> TimeType {
                                    return std::min(a, variant->getStartTime(frequenciesSetup));
                                });
     }
 
     TimeType getFinishTime(FrequenciesSetup frequenciesSetup) const override {
-        return std::accumulate(_variants.cbegin(), _variants.cend(), std::numeric_limits<TimeType>::min(),
+        return std::accumulate(_records.cbegin(), _records.cend(), std::numeric_limits<TimeType>::min(),
                                [&](TimeType a, RawProfilingRecordPtr variant) -> TimeType {
                                    return std::max(a, variant->getFinishTime(frequenciesSetup));
                                });
     }
 
-    RawProfilingRecords getArray() const {
-        return _variants;
-    }
-
-    std::string getRecordTypeName() const override {
-        return _recordTypeName;
+    ExecutorType getExecutorType() const override {
+        VPUX_THROW_WHEN(_records.size() == 0, "Empty ArrayRecord");
+        return _records.front()->getExecutorType();
     }
 
 protected:
-    RawProfilingRecords _variants;
-    std::string _recordTypeName;
+    RawProfilingRecords _records;
 };
 
-class InvariantRawRecord final : public ArrayRecord {
-public:
-    InvariantRawRecord(const std::string name, size_t clusterId, const RawProfilingRecords& variants,
-                       ExecutorType execType)
-            : ArrayRecord(name, variants, execType), _clusterId(clusterId) {
-    }
-
-    std::string getTaskName() const override {
-        return _name + CLUSTER_LEVEL_PROFILING_SUFFIX + std::to_string(_clusterId);
-    }
-
-private:
-    size_t _clusterId;
-};
+using WorkpointRecords = std::vector<std::pair<WorkpointConfiguration_t, size_t>>;
 
 // Container for conjucted storage of tasks of one format: RawProfilingRecordPtr/TaskInfo
 struct RawProfilingData {
     RawProfilingRecords dmaTasks;
     RawProfilingRecords dpuTasks;
     RawProfilingRecords swTasks;
+    // Pair of workpoint and offset
+    WorkpointRecords workpoints;
     // Vector of [ExecutorType; offset in blob(bytes)]
     std::vector<std::pair<ExecutorType, size_t>> parseOrder;
-    // Pair of workpoint and offset
-    std::vector<std::pair<WorkpointConfiguration_t, size_t>> workpointsConfiguration;
-
-    bool hasWorkpointConfig() const;
-
-    uint16_t getPllValueChecked(vpux::Logger& log) const;
 
     RawProfilingRecords getTaskOfType(ExecutorType type) const;
 };
 
-struct RawDataLayout {
-    // Map of exec. type to segment offset and size
-    std::map<ExecutorType, std::pair<uint32_t, uint32_t>> offsets;
-    size_t totalPadsSize;
-};
+// Map of exec. type to section offset and size
+using RawDataLayout = std::map<ExecutorType, std::pair<uint32_t, uint32_t>>;
 
 struct RawData {
+    RawDataLayout sections;
     RawProfilingData rawRecords;
     MVCNN::TargetDevice device;
-    llvm::Optional<double> maybe30XXNceFreq;
-    RawDataLayout layout;
+    std::optional<double> maybe30XXNceFreq;
 };
 
 /**
@@ -1107,7 +1009,6 @@ struct RawData {
  * @param blobSize blob size in bytes
  * @param profData pointer to the buffer with raw profiling data
  * @param profSize raw profiling data size
- * @param type type of tasks to be profiled
  * @param verbosity amount of DPU info to print, may be LOW|MEDIUM|HIGH
  * @param fpga whether buffer was obtained from FPGA
  * @param ignoreSanitizationErrors to ignore sanitization errors
@@ -1116,8 +1017,7 @@ struct RawData {
  * @return std::vector of TaskInfo structures
  */
 std::vector<TaskInfo> getTaskInfo(const uint8_t* blobData, size_t blobSize, const uint8_t* profData, size_t profSize,
-                                  TaskType type, VerbosityLevel verbosity, bool fpga = false,
-                                  bool ignoreSanitizationErrors = false);
+                                  VerbosityLevel verbosity, bool fpga = false, bool ignoreSanitizationErrors = false);
 
 /**
  * @fn getRawProfilingTasks
@@ -1126,12 +1026,11 @@ std::vector<TaskInfo> getTaskInfo(const uint8_t* blobData, size_t blobSize, cons
  * @param blobSize blob size in bytes
  * @param profData pointer to the buffer with raw profiling data
  * @param profSize raw profiling data size
- * @param type type of tasks to be profiled
  * @param ignoreSanitizationErrors to ignore sanitization errors
  * @return RawProfilingData
  */
 RawData getRawProfilingTasks(const uint8_t* blobData, size_t blobSize, const uint8_t* profData, size_t profSize,
-                             TaskType type, bool ignoreSanitizationErrors = false);
+                             bool ignoreSanitizationErrors = false);
 
 /**
  * @brief Helper function to parse profiling buffer name and extract buffer offsets and sizes
@@ -1141,8 +1040,6 @@ RawData getRawProfilingTasks(const uint8_t* blobData, size_t blobSize, const uin
  * @return offsets and sizes per ExecutorType in bytes
  *
  */
-
-SummaryInfo getSummary(const RawData& profData, size_t profSize);
 
 /**
  * @fn getLayerInfo
@@ -1166,6 +1063,60 @@ std::vector<LayerInfo> getLayerInfo(const uint8_t* blobData, size_t blobSize, co
  * @see getTaskInfo
  */
 std::vector<LayerInfo> getLayerInfo(const std::vector<TaskInfo>& taskInfo);
+
+/**
+ * @brief Extract suffix from original task name
+ *
+ * @param name - task name
+ * @return task name suffixes after original name separator (if present)
+ *
+ * Eg. for name = Subtract_1751?t_Add/cluster_0/variant_0
+ * the function returns "t_Add/cluster_0/variant_0"
+ * The original task name before ? is ignored.
+ */
+std::string getTaskNameSuffixes(const std::string& name);
+
+/**
+ * @brief Extract cluster id from task name suffixes
+ *
+ * @param name - task name
+ * @return cluster id suffix
+ *
+ * Eg. for name = Subtract_1751?t_Add/cluster_0/variant_1
+ * the function returns "0"
+ * Original task name (i.e. string before ?) is ignored.
+ */
+std::string getClusterFromName(const std::string& name);
+
+/**
+ * @brief Extract variant id from task name suffixes
+ *
+ * @param name - task name
+ * @return variant id suffix
+ *
+ * Eg. for name = Subtract_1751?t_Add/cluster_0/variant_0
+ * the function returns "0"
+ * Original task name (i.e. string before ?) is ignored.
+ */
+std::string getVariantFromName(const std::string& name);
+
+/**
+ * @brief Extract a value from a structured task name string
+ *
+ * @param name - structured task name string in format prefix1/prefix2/key1_val1/key2_val2
+ * @param key - keyword to have value extracted eg: "key1"
+ * @return std::string - extracted value starting a character after '_' and ending on either the end of the string
+ * or a keyword delimiter '/'
+ *
+ * Eg.
+ *
+ * For "origTaskName?key1_val1/key2_val2" and key "key1", the function yields "val1",
+ * for "origTaskName?key1_val1/key2_val2" and key "key2", the function yields "val2",
+ * for "origTaskName?key1_val1/key2_val2" and key "key3", the function yields ""
+ *
+ * Original task name (i.e. string before ?) is ignored.
+ */
+std::string getValueFromStructuredTaskName(const std::string& name, std::string key);
 
 }  // namespace profiling
 }  // namespace vpux

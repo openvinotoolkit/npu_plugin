@@ -5,8 +5,6 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
-#include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
-
 #include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
@@ -22,7 +20,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SelectUPAOp::serialize(VPUIP::BlobW
 }
 
 mlir::LogicalResult vpux::VPUIP::SelectUPAOp::verify() {
-    if (!((input2().getType() == input3().getType()) && (input3().getType() == output_buff().getType()))) {
+    if (!((getInput2().getType() == getInput3().getType()) && (getInput3().getType() == getOutputBuff().getType()))) {
         return errorAt(*this, "Input 2, 3 & output_buff have different type");
     }
     return mlir::success();

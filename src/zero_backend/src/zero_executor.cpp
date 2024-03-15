@@ -6,7 +6,6 @@
 #include "zero_executor.h"
 
 #include "ze_api.h"
-#include "zero_allocator.h"
 #include "zero_device.h"
 #include "zero_utils.h"
 
@@ -22,9 +21,9 @@
 using namespace vpux;
 
 ZeroExecutor::ZeroExecutor(ze_driver_handle_t /*driver*/, ze_device_handle_t device, ze_context_handle_t context,
-                           ze_graph_dditable_ext_t* graph_ddi_table_ext,
+                           ze_graph_dditable_ext_curr_t* graph_ddi_table_ext,
                            ze_graph_profiling_dditable_ext_t* graph_profiling_ddi_table_ext,
-                           const vpux::NetworkDescription::Ptr& networkDescription, const Config& config,
+                           const NetworkDescription::CPtr networkDescription, const Config& config,
                            const uint32_t& group_ordinal)
         : _config(config),
           _logger("Graph", _config.get<LOG_LEVEL>()),

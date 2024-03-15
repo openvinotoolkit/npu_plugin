@@ -3,15 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/core/aliases_info.hpp"
+#include "vpux/compiler/dialect/VPU/IR/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
-
-#include "vpux/compiler/core/aliases_info.hpp"
-#include "vpux/compiler/utils/analysis.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/logging.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 using namespace vpux;
@@ -38,9 +33,9 @@ bool isEltwiseTheOnlyConsumer(VPUIP::NCEClusterTaskOp clusterTaskOp, mlir::Value
 
     // Utility function for checking that two different SubViews have the same function
     const auto areSameSubView = [](VPUIP::SubViewOp srcSubView, VPUIP::SubViewOp siblingSubView) {
-        return (srcSubView.static_offsets() == siblingSubView.static_offsets()) &&
-               (srcSubView.static_sizes() == siblingSubView.static_sizes()) &&
-               (srcSubView.static_strides() == siblingSubView.static_strides());
+        return (srcSubView.getStaticOffsets() == siblingSubView.getStaticOffsets()) &&
+               (srcSubView.getStaticSizes() == siblingSubView.getStaticSizes()) &&
+               (srcSubView.getStaticStrides() == siblingSubView.getStaticStrides());
     };
 
     // Utility function for checking if an operation placed between in place NCEEltwise and the root input
@@ -150,14 +145,15 @@ void makeInPlaceEltwise(VPUIP::NCEClusterTaskOp clusterTaskOp, AliasesInfo& alia
             continue;
         }
 
-        // Ensure element type compatibility
-        if (inInterface.getElementType() != outInterface.getElementType()) {
+        // Ensure element type and tensor size compatibility
+        if (inInterface.getElementType() != outInterface.getElementType() ||
+            inInterface.getTotalAllocSize() > outInterface.getTotalAllocSize()) {
             mlir::OpBuilder builder(clusterTaskOp);
             builder.setInsertionPointAfterValue(inputRootBuff);
             auto supportView =
                     builder.create<VPUIP::ViewOp>(inputBuff.getLoc(), outputRootBuff.getType(), inputRootBuff);
-            aliasesInfo.addAlias(inputRootBuff, supportView.result());
-            inputRootBuff = supportView.result();
+            aliasesInfo.addAlias(inputRootBuff, supportView.getResult());
+            inputRootBuff = supportView.getResult();
         }
 
         // Ensure distribution compatibility
@@ -170,8 +166,8 @@ void makeInPlaceEltwise(VPUIP::NCEClusterTaskOp clusterTaskOp, AliasesInfo& alia
                 builder.setInsertionPointAfterValue(inputRootBuff);
                 auto distributedCastOp = builder.create<VPUIP::DistributedCastOp>(
                         clusterTaskOp.getLoc(), outputRootBuff.getType(), inputRootBuff);
-                aliasesInfo.addAlias(inputRootBuff, distributedCastOp.output());
-                inputRootBuff = distributedCastOp.output();
+                aliasesInfo.addAlias(inputRootBuff, distributedCastOp.getOutput());
+                inputRootBuff = distributedCastOp.getOutput();
             } else {
                 nestLog.trace("Incompatible input/output dist modes {0} {1}", inDistributedType, outDistributedType);
                 continue;
@@ -220,10 +216,10 @@ void ConvertEltwiseToInPlacePass::safeRunOnFunc() {
     auto func = getOperation();
 
     const auto isEltwiseInplaceCandidate = [](VPUIP::NCEClusterTaskOp op) {
-        if (op.task_type() != VPUIP::NCETaskType::ELTWISE) {
+        if (op.getTaskType() != VPUIP::NCETaskType::ELTWISE) {
             return false;
         }
-        return op.is_inplace().value_or(false);
+        return op.getIsInplace().value_or(false);
     };
 
     func->walk([&](VPUIP::NCEClusterTaskOp op) {

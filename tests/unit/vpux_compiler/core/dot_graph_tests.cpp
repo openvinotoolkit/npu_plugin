@@ -72,7 +72,7 @@ TEST_F(MLIR_DotGraph, GenerateViaPass) {
     auto module = mlir::parseSourceString<mlir::ModuleOp>(inputIR, &ctx);
     ASSERT_TRUE(module.get() != nullptr);
 
-    mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
+    mlir::PassManager pm(module.get()->getName(), mlir::OpPassManager::Nesting::Implicit);
     pm.addPass(vpux::createPrintDotPass(fileName));
 
     ASSERT_TRUE(mlir::succeeded(pm.run(module.get())));
@@ -93,7 +93,7 @@ TEST_F(MLIR_DotGraph, GenerateViaEnvVar) {
     auto module = mlir::parseSourceString<mlir::ModuleOp>(inputIR, &ctx);
     ASSERT_TRUE(module.get() != nullptr);
 
-    mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
+    mlir::PassManager pm(module.get()->getName(), mlir::OpPassManager::Nesting::Implicit);
     vpux::addDotPrinter(pm, options);
     pm.addPass(std::make_unique<DotGraphTests::CustomTestPass>());
     pm.addPass(std::make_unique<DotGraphTests::CustomTestPass2>());

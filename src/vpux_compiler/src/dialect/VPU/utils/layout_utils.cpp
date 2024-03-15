@@ -6,9 +6,7 @@
 #include "vpux/compiler/dialect/VPU/utils/layout_utils.hpp"
 #include "vpux/compiler/dialect/IE/utils/const_attributes.hpp"
 #include "vpux/compiler/dialect/IE/utils/reduce_infer.hpp"
-#include "vpux/compiler/dialect/VPU/ops.hpp"
-
-#include <llvm/ADT/TypeSwitch.h>
+#include "vpux/compiler/dialect/VPU/IR/ops.hpp"
 
 using namespace vpux;
 using namespace VPU;
@@ -93,7 +91,7 @@ mlir::LogicalResult vpux::VPU::verifyReduceLayoutInfo(mlir::Operation* op) {
 // verifySameInOutDimsOrder
 //
 
-mlir::LogicalResult verifySameInOutDimsOrder(mlir::Operation* op) {
+mlir::LogicalResult vpux::VPU::verifySameInOutDimsOrder(mlir::Operation* op) {
     auto layer = mlir::dyn_cast<VPU::LayerOpInterface>(op);
     VPUX_THROW_UNLESS(layer != nullptr, "Operation {0} does not implement VPU::LayerOpInterface", op->getName());
 
@@ -153,7 +151,7 @@ void vpux::VPU::inferLayoutInfoDefaultDimsOrder(IE::LayerLayoutInfo& info) {
 //
 
 mlir::LogicalResult vpux::VPU::verifySameInOutDefaultDimsOrder(mlir::Operation* op) {
-    if (verifySameInOutDimsOrder(op).failed()) {
+    if (VPU::verifySameInOutDimsOrder(op).failed()) {
         return mlir::failure();
     }
 
@@ -214,7 +212,7 @@ void vpux::VPU::inferLayoutInfoSameAnyDimsOrder(IE::LayerLayoutInfo& info) {
 
 mlir::LogicalResult vpux::VPU::verifySameInOutSpecificDimsOrder(mlir::Operation* op,
                                                                 ArrayRef<DimsOrder> supportedLayouts) {
-    if (verifySameInOutDimsOrder(op).failed()) {
+    if (VPU::verifySameInOutDimsOrder(op).failed()) {
         return mlir::failure();
     }
 
@@ -261,7 +259,7 @@ void vpux::VPU::inferLayoutInfoSameInOutSpecificDimsOrder(IE::LayerLayoutInfo& i
 
 mlir::LogicalResult vpux::VPU::verifySameMultipleInOutSpecificDimsOrder(mlir::Operation* op,
                                                                         ArrayRef<DimsOrder> supportedLayouts) {
-    if (verifySameInOutDimsOrder(op).failed()) {
+    if (VPU::verifySameInOutDimsOrder(op).failed()) {
         return mlir::failure();
     }
 
@@ -330,7 +328,7 @@ mlir::FailureOr<DimsOrder> vpux::VPU::inferAffineReshapeOutputLayout(const DimAr
 
     if (std::adjacent_find(temp.begin(), temp.end()) != temp.end())
         return mlir::failure();
-    return DimsOrder::fromPermutation(makeArrayRef(perm));
+    return DimsOrder::fromPermutation(ArrayRef(perm));
 }
 
 //
@@ -392,11 +390,12 @@ void vpux::VPU::inferInterpolateLayoutInfo(mlir::Operation* op, IE::LayerLayoutI
     // Select NCHW layout due to performance reasons
     // [Track number: E#25302]
     auto channels = inputShape[Dims4D::Act::C.ind()];
-    const auto antialias = mlir::cast<IE::InterpolateOp>(op).attr().getAntialias().getValue();
+    const auto antialias = mlir::cast<IE::InterpolateOp>(op).getAttr().getAntialias().getValue();
     if (channels == 1 || antialias) {
-        VPU::inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NCHW});
+        VPU::inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NCHW, DimsOrder::CHW});
     } else {
-        VPU::inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NCHW, DimsOrder::NHWC});
+        VPU::inferLayoutInfoSameInOutSpecificDimsOrder(
+                info, {DimsOrder::NCHW, DimsOrder::NHWC, DimsOrder::CHW, DimsOrder::HWC});
     }
 }
 
@@ -408,11 +407,12 @@ mlir::LogicalResult vpux::VPU::verifyInterpolateLayoutInfo(mlir::Operation* op) 
     // Select NCHW layout due to performance reasons
     // [Track number: E#25302]
     auto channels = inputShape[Dims4D::Act::C.ind()];
-    const auto antialias = mlir::cast<VPU::InterpolateOp>(op).attr().getAntialias().getValue();
+    const auto antialias = mlir::cast<VPU::InterpolateOp>(op).getAttr().getAntialias().getValue();
     if (channels == 1 || antialias) {
-        return VPU::verifySameInOutSpecificDimsOrder(op, {DimsOrder::NCHW});
+        return VPU::verifySameInOutSpecificDimsOrder(op, {DimsOrder::NCHW, DimsOrder::CHW});
     } else {
-        return VPU::verifySameInOutSpecificDimsOrder(op, {DimsOrder::NCHW, DimsOrder::NHWC});
+        return VPU::verifySameInOutSpecificDimsOrder(
+                op, {DimsOrder::NCHW, DimsOrder::NHWC, DimsOrder::CHW, DimsOrder::HWC});
     }
 }
 
@@ -424,7 +424,7 @@ void vpux::VPU::inferRegionYoloLayoutInfo(mlir::Operation* op, IE::LayerLayoutIn
     auto regionYoloOp = mlir::dyn_cast<IE::RegionYoloOp>(op);
     VPUX_THROW_UNLESS(regionYoloOp != nullptr, "Operation '{0}' is not a RegionYolo", op->getName());
 
-    if (regionYoloOp.do_softmax()) {
+    if (regionYoloOp.getDoSoftmax()) {
         IE::fillDefaultLayoutInfo(info);
     } else {
         VPU::inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NCHW});
@@ -435,7 +435,7 @@ mlir::LogicalResult vpux::VPU::verifyRegionYoloLayoutInfo(mlir::Operation* op) {
     auto regionYoloOp = mlir::dyn_cast<VPU::RegionYoloOp>(op);
     VPUX_THROW_UNLESS(regionYoloOp != nullptr, "Operation '{0}' is not a RegionYolo", op->getName());
 
-    if (regionYoloOp.do_softmax()) {
+    if (regionYoloOp.getDoSoftmax()) {
         return verifyDefaultDimsOrder(op);
     }
 
@@ -557,7 +557,7 @@ DimsOrder vpux::VPU::inferSqueezeOutputLayout(const DimArr& inPerm, const SmallV
         perm.push_back(vpux::Dim(dim));
     }
 
-    return DimsOrder::fromPermutation(makeArrayRef(perm));
+    return DimsOrder::fromPermutation(ArrayRef(perm));
 }
 
 //
@@ -601,7 +601,7 @@ DimsOrder vpux::VPU::inferUnsqueezeOutputLayout(const DimArr& inPerm, const Smal
         }
     }
 
-    return DimsOrder::fromPermutation(makeArrayRef(perm));
+    return DimsOrder::fromPermutation(ArrayRef(perm));
 }
 
 void vpux::VPU::inferSqueezeUnsqueezeLayoutInfo(mlir::Operation* op, IE::LayerLayoutInfo& info) {
@@ -670,6 +670,53 @@ mlir::LogicalResult vpux::VPU::verifyTopKLayoutInfo(mlir::Operation* op) {
     if (secondOutOrder != inOrder) {
         return errorAt(op->getLoc(), "Operation output order is not as expected. outL={0}, expectedOutL={1}",
                        secondOutOrder, inOrder);
+    }
+    return mlir::success();
+}
+
+mlir::LogicalResult vpux::VPU::verifyScatterNDUpdateLayoutInfo(mlir::Operation* op) {
+    auto layer = mlir::dyn_cast<VPU::LayerOpInterface>(op);
+    if (layer == nullptr) {
+        return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
+    }
+
+    const auto inputFirst = layer.getInputs()[0];
+    const auto inputSecond = layer.getInputs()[2];
+    const auto output = layer.getOutputs()[0];
+
+    const auto firstInOrder = DimsOrder::fromValue(inputFirst);
+    const auto secondInOrder = DimsOrder::fromValue(inputSecond);
+    const auto outOrder = DimsOrder::fromValue(output);
+
+    if (secondInOrder != firstInOrder) {
+        return errorAt(op->getLoc(), "Operation output order is not as expected. in2L={0}, expectedIn2L={1}",
+                       secondInOrder, firstInOrder);
+    }
+    if (outOrder != firstInOrder) {
+        return errorAt(op->getLoc(), "Operation output order is not as expected. outL={0}, expectedOutL={1}", outOrder,
+                       firstInOrder);
+    }
+    return mlir::success();
+}
+
+mlir::LogicalResult vpux::VPU::verifyNCEPermuteLayoutInfo(mlir::Operation* op) {
+    auto layer = mlir::dyn_cast<VPU::LayerOpInterface>(op);
+    if (layer == nullptr) {
+        return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
+    }
+
+    const auto input = layer.getInputs()[0];
+    const auto output = layer.getOutputs()[0];
+
+    const auto inOrder = DimsOrder::fromValue(input);
+    const auto outOrder = DimsOrder::fromValue(output);
+
+    if (inOrder != DimsOrder::NCHW) {
+        return errorAt(op->getLoc(), "Operation input order is not as expected. inL={0}, expectedInL=NCHW", inOrder);
+    }
+    if (outOrder != DimsOrder::NHWC) {
+        return errorAt(op->getLoc(), "Operation output order is not as expected. outL={0}, expectedOutL=NHWC",
+                       outOrder);
     }
     return mlir::success();
 }

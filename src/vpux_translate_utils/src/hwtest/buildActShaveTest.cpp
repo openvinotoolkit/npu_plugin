@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
@@ -25,9 +25,14 @@ void buildActShave(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mo
     //  Input/Output -----------------------------------------------------------
     auto inputList = testDesc.getInputLayerList();
     auto output = testDesc.getOutputLayers().front();
+    auto profilingParams = testDesc.getProfilingParams();
 
     SmallVector<SmallVector<int64_t>> inShapes;
     SmallVector<mlir::Type> funcInputTypes;
+    SmallVector<mlir::Type> funcOutputTypes;
+
+    const auto profOutputTypeUI64 = getUInt64Type(ctx);
+    SmallVector<int64_t> profDataShapeUI64{HWP_ACTSHAVE_BYTES_PER_ENTRY / 8};
 
     for (std::size_t idx = 0; idx < inputList.size(); idx++) {
         SmallVector<int64_t> inShape(inputList[idx].shape.begin(), inputList[idx].shape.end());
@@ -44,10 +49,17 @@ void buildActShave(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mo
 
     auto outputParamType = getMemRefType(VPURT::BufferSection::NetworkOutput, outShape, outputType, DimsOrder::NHWC);
     funcInputTypes.push_back(outputParamType);
+    funcOutputTypes.push_back(outputParamType);
 
+    if (profilingParams.profilingEnabled()) {
+        auto profParamType = getMemRefType(VPURT::BufferSection::ProfilingOutput, profDataShapeUI64, profOutputTypeUI64,
+                                           DimsOrder::C);
+        funcInputTypes.push_back(profParamType);
+        funcOutputTypes.push_back(profParamType);
+    }
     // Build Function ---------------------------------------------------------------
 
-    const auto funcType = builder.getFunctionType(makeArrayRef(funcInputTypes), outputParamType);
+    const auto funcType = builder.getFunctionType(ArrayRef(funcInputTypes), ArrayRef(funcOutputTypes));
 
     std::string funcOpName = "actshave_";
     for (auto iType : funcInputTypes) {
@@ -56,7 +68,8 @@ void buildActShave(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mo
     funcOpName += printToString("{0}", outputType);
 
     auto func = builder.create<mlir::func::FuncOp>(builder.getUnknownLoc(), funcOpName, funcType,
-                                                   builder.getStringAttr("private"));
+                                                   builder.getStringAttr("private"), /*arg_attrs=*/nullptr,
+                                                   /*res_attrs=*/nullptr);
 
     auto funcbuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());
 
@@ -66,48 +79,76 @@ void buildActShave(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mo
         funcinputs.push_back(funcinput);
     }
     auto funcoutput = func.getArgument(inputList.size());
+    auto profoutput = profilingParams.profilingEnabled() ? func.getArgument(inputList.size() + 1) : nullptr;
 
     //  Build main function: barriers
     auto barrier0 = funcbuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 0);
     auto barrier1 = funcbuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 1);
 
     //  Build main function: input/output cmx
-    SmallVector<vpux::VPURT::DeclareBufferOp> inputcmxVec;
-    auto inputcmx_offset = 0;
+    SmallVector<vpux::VPURT::DeclareBufferOp> inputCmxVec;
+    auto inputCmxOffset = 0;
     for (std::size_t idx = 0; idx < inputList.size(); idx++) {
-        auto inputcmx_type =
+        auto inputCmxType =
                 getMemRefType(VPURT::BufferSection::CMX_NN, 0, inShapes[idx], inputTypes[idx], DimsOrder::NHWC);
-        inputcmxVec.push_back(
-                createDeclareTensorOp(funcbuilder, inputcmx_type, VPURT::BufferSection::CMX_NN, 0, inputcmx_offset));
-        inputcmx_offset += totalTensorSize(inShapes[idx], inputTypes[idx]);
+        inputCmxVec.push_back(
+                createDeclareTensorOp(funcbuilder, inputCmxType, VPURT::BufferSection::CMX_NN, 0, inputCmxOffset));
+        inputCmxOffset += totalTensorSize(inShapes[idx], inputTypes[idx]);
     }
 
-    const auto outputcmx_offset = inputcmx_offset;
-    auto outputcmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, 0, outShape, outputType, DimsOrder::NHWC);
-    vpux::VPURT::DeclareBufferOp outputcmx =
-            createDeclareTensorOp(funcbuilder, outputcmx_type, VPURT::BufferSection::CMX_NN, 0, outputcmx_offset);
+    const auto outputCmxOffset = inputCmxOffset;
+    auto outputCmxType = getMemRefType(VPURT::BufferSection::CMX_NN, 0, outShape, outputType, DimsOrder::NHWC);
+    vpux::VPURT::DeclareBufferOp outputCmx =
+            createDeclareTensorOp(funcbuilder, outputCmxType, VPURT::BufferSection::CMX_NN, 0, outputCmxOffset);
+
+    VPURT::DeclareBufferOp profOutputCmx;
+    VPURT::DeclareBufferOp profOutputDdr;
+    if (profilingParams.profilingEnabled()) {
+        const auto profCmxOffset = outputCmxOffset + totalTensorSize(outShape, outputType);
+        SmallVector<int64_t> profoutputcmxShapeUI32 = {HWP_ACTSHAVE_BYTES_PER_ENTRY / 4};
+        auto profOutputCmxType = getMemRefType(VPURT::BufferSection::CMX_NN, 0, profoutputcmxShapeUI32,
+                                               getUInt32Type(ctx), DimsOrder::C);
+        profOutputCmx =
+                createDeclareTensorOp(funcbuilder, profOutputCmxType, VPURT::BufferSection::CMX_NN, 0, profCmxOffset);
+        profOutputDdr = createDeclareTensorOp(funcbuilder,
+                                              getMemRefType(VPURT::BufferSection::ProfilingOutput,
+                                                            profoutputcmxShapeUI32, getUInt32Type(ctx), DimsOrder::C),
+                                              VPURT::BufferSection::ProfilingOutput, 0, 0);
+    }
 
     for (std::size_t idx = 0; idx < inputList.size(); idx++) {
         //  Build main function: DMA func input -> CMX input
         vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(),
                                                     mlir::ValueRange(barrier0.getBarrier()), builder.getUnknownLoc(),
-                                                    funcinputs[idx], getTensorResult(inputcmxVec[idx]));
+                                                    funcinputs[idx], getTensorResult(inputCmxVec[idx]), 0);
     }
 
     //  Build main function: Call operation builder
-    buildActShaveTask(testDesc, module, funcbuilder, log, makeArrayRef(funcInputTypes), inputcmxVec, outputcmx,
-                      mlir::ValueRange(barrier0.getBarrier()), mlir::ValueRange(barrier1.getBarrier()));
+    buildActShaveTask(testDesc, module, funcbuilder, log, ArrayRef(funcInputTypes), inputCmxVec, outputCmx,
+                      profOutputCmx, mlir::ValueRange(barrier0.getBarrier()), mlir::ValueRange(barrier1.getBarrier()));
 
     //  Build main function: DMA CMX output -> func output
     vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.getBarrier()),
-                                                mlir::ValueRange(), builder.getUnknownLoc(), getTensorResult(outputcmx),
-                                                funcoutput);
+                                                mlir::ValueRange(), builder.getUnknownLoc(), getTensorResult(outputCmx),
+                                                funcoutput, 0);
+
+    if (profilingParams.swProfilingEnabled) {
+        // copy profiling data into DDR
+        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.getBarrier()), mlir::ValueRange(),
+                                              builder.getUnknownLoc(), getTensorResult(profOutputCmx),
+                                              getTensorResult(profOutputDdr), 0);
+    }
 
     //  Build main function: returnOp
-    funcbuilder.create<mlir::func::ReturnOp>(builder.getUnknownLoc(), funcoutput);
+    mlir::SmallVector<mlir::Value> funcOutputs;
+    funcOutputs.push_back(funcoutput);
+    if (profilingParams.profilingEnabled()) {
+        funcOutputs.push_back(profoutput);
+    }
+    funcbuilder.create<mlir::func::ReturnOp>(builder.getUnknownLoc(), funcOutputs);
 
     //  Pass Manager
-    mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
+    mlir::PassManager pm(module->getName(), mlir::OpPassManager::Nesting::Implicit);
     pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::ReferenceHW, 1, 1, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
@@ -120,7 +161,16 @@ void buildActShave(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mo
     auto outputTensorType = getTensorType(ShapeRef(outShape), outputType, DimsOrder::NHWC, nullptr);
 
     //  CNN Operation
-    buildCNNOp(builder, func.getName(), inputTensorTypeVec, outputTensorType);
+
+    mlir::SmallVector<ProfilingDataSection> profilingDataSections;
+    if (profilingParams.profilingEnabled()) {
+        size_t offset = 0;
+        if (profilingParams.swProfilingEnabled) {
+            profilingDataSections.push_back({HWP_SW_SECTION_EXEC_TYPE, offset, HWP_ACTSHAVE_BYTES_PER_ENTRY});
+            offset += HWP_ACTSHAVE_BYTES_PER_ENTRY;
+        }
+    }
+    buildCNNOp(builder, func.getName(), inputTensorTypeVec, outputTensorType, profilingDataSections);
 }  // namespace hwtest
 
 }  // namespace hwtest

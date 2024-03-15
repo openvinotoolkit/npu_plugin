@@ -8,9 +8,7 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
-#include "vpux/utils/IE/blob.hpp"
 #include "vpux/utils/IE/itt.hpp"
-#include "vpux/utils/IE/prefix.hpp"
 #include "vpux/utils/core/logger.hpp"
 
 using namespace vpux;
@@ -19,7 +17,7 @@ namespace vpux {
 struct DiscretePipeline final : public Pipeline {
 public:
     DiscretePipeline(const Config& config, const ze_device_handle_t& device_handle, const ze_context_handle_t context,
-                     ze_graph_dditable_ext_t* graph_ddi_table_ext, const Executor::Ptr& executorPtr,
+                     ze_graph_dditable_ext_curr_t* graph_ddi_table_ext, const Executor::Ptr& executorPtr,
                      ze_graph_profiling_query_handle_t profiling_handle,
                      const std::array<std::shared_ptr<CommandQueue>, stage::COUNT>& command_queues,
                      const uint32_t& group_ordinal)
@@ -119,15 +117,17 @@ private:
 struct IntegratedPipeline final : public Pipeline {
 public:
     IntegratedPipeline(const Config& config, const ze_device_handle_t& device_handle, const ze_context_handle_t context,
-                       ze_graph_dditable_ext_t* graph_ddi_table_ext, const Executor::Ptr& executorPtr,
-                       ze_graph_profiling_query_handle_t profiling_handle, CommandQueue& command_queue,
-                       const uint32_t& group_ordinal)
+                       ze_graph_dditable_ext_curr_t* graph_ddi_table_ext, const Executor::Ptr& executorPtr,
+                       ze_graph_profiling_query_handle_t profiling_handle,
+                       std::shared_ptr<vpux::zeroProfiling::VpuInferProfiling> vpu_profiling,
+                       CommandQueue& command_queue, const uint32_t& group_ordinal)
             : _config(config),
               _command_queue{command_queue},
               _command_list{device_handle, context, graph_ddi_table_ext, _config, group_ordinal},
               _fence{_command_queue, _config},
               _event_pool{device_handle, context, 1, _config},
-              _event{_event_pool.handle(), 0, _config} {
+              _event{_event_pool.handle(), 0, _config},
+              _vpu_profiling(vpu_profiling) {
         const ZeroExecutor* executor = static_cast<ZeroExecutor*>(executorPtr.get());
 
         OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend,
@@ -148,7 +148,20 @@ public:
             executor->setArgumentValue(desc.second.idx, _outputs.getHostPtr(desc.first));
         }
 
+        /// append timestamp command if feature was activated
+        if (_vpu_profiling != nullptr) {
+            _command_list.appendBarrier();
+            _command_list.appendVpuTimestamp((uint64_t*)_vpu_profiling->vpu_ts_infer_start);
+        }
+
         _command_list.appendGraphExecute(executor->graph(), profiling_handle);
+
+        /// append timestamp command if feature was activated
+        if (_vpu_profiling != nullptr) {
+            _command_list.appendBarrier();
+            _command_list.appendVpuTimestamp((uint64_t*)_vpu_profiling->vpu_ts_infer_end);
+        }
+
         // appendBarrier used in L0 as well
         if (!sync_output_with_fences_) {
             _command_list.appendBarrier();
@@ -177,6 +190,10 @@ public:
         } else {
             _event.hostSynchronize();
         }
+        /// sample vpu timestamps if feature was activated
+        if (_vpu_profiling != nullptr) {
+            _vpu_profiling->sampleVpuTimestamps();
+        }
     };
 
     void reset() const override {
@@ -195,11 +212,13 @@ private:
     EventPool _event_pool;
     Event _event;
     bool sync_output_with_fences_ = true;
+    std::shared_ptr<zeroProfiling::VpuInferProfiling> _vpu_profiling;
 };
 
 std::unique_ptr<Pipeline> makePipeline(const Executor::Ptr& executorPtr, const Config& config,
                                        vpux::zeroProfiling::ProfilingPool& profiling_pool,
-                                       vpux::zeroProfiling::ProfilingQuery& profiling_query) {
+                                       vpux::zeroProfiling::ProfilingQuery& profiling_query,
+                                       std::shared_ptr<vpux::zeroProfiling::VpuInferProfiling> vpu_profiling) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Infer_request::makePipeline");
     if (profiling_pool.create())
         profiling_query.create(profiling_pool._handle);
@@ -208,7 +227,7 @@ std::unique_ptr<Pipeline> makePipeline(const Executor::Ptr& executorPtr, const C
 
     const ze_device_handle_t device_handle = executor->device();
     const ze_context_handle_t context = executor->context();
-    ze_graph_dditable_ext_t* graph_ddi_table_ext = executor->graph_ddi_table_ext();
+    ze_graph_dditable_ext_curr_t* graph_ddi_table_ext = executor->graph_ddi_table_ext();
     auto& command_queues = executor->getCommandQueue();
     uint32_t group_ordinal = executor->get_group_ordinal();
 
@@ -217,8 +236,8 @@ std::unique_ptr<Pipeline> makePipeline(const Executor::Ptr& executorPtr, const C
 
     if (properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED) {
         return std::make_unique<IntegratedPipeline>(config, device_handle, context, graph_ddi_table_ext, executorPtr,
-                                                    profiling_query.getHandle(), *command_queues[stage::EXECUTE],
-                                                    group_ordinal);
+                                                    profiling_query.getHandle(), vpu_profiling,
+                                                    *command_queues[stage::EXECUTE], group_ordinal);
     }
 
     return std::make_unique<DiscretePipeline>(config, device_handle, context, graph_ddi_table_ext, executorPtr,

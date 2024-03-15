@@ -40,7 +40,7 @@ inline std::shared_ptr<InferenceEngine::ExecutableNetwork> getExeNetwork(
     std::string devId = deviceId;
     InferenceEngine::Core ie;
     std::map<std::string, std::string> config = {};
-    config[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
+    config[ov::intel_vpux::compiler_type.name()] = "MLIR";
     if (deviceId == "NPU") {
         const auto availDevices = ie.GetAvailableDevices();
         auto vpuxDevIt =
@@ -60,7 +60,7 @@ inline std::shared_ptr<InferenceEngine::ExecutableNetwork> getExeNetwork(
                 });
         if (numDev3700 > 1) {
             devId = "NPU";
-            config[VPUX_CONFIG_KEY(PLATFORM)] = "3900";
+            config[ov::intel_vpux::platform.name()] = "3900";
         }
         // ***********************************************
     }

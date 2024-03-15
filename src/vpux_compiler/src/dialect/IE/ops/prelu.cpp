@@ -6,15 +6,13 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 
-#include "vpux/utils/core/checked_cast.hpp"
-
 #include <mlir/IR/PatternMatch.h>
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::PReluOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -23,15 +21,15 @@ mlir::LogicalResult vpux::IE::PReluOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = prelu.input().getType().cast<mlir::ShapedType>();
+    const auto inType = prelu.getInput().getType().cast<mlir::ShapedType>();
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
 
     return mlir::success();
 }
 
 mlir::LogicalResult vpux::IE::LeakyReluOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -40,7 +38,7 @@ mlir::LogicalResult vpux::IE::LeakyReluOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = leaky_relu.input().getType().cast<mlir::ShapedType>();
+    const auto inType = leaky_relu.getInput().getType().cast<mlir::ShapedType>();
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
 
     return mlir::success();
@@ -57,7 +55,7 @@ public:
 };
 
 mlir::LogicalResult UseLeakyRelu::matchAndRewrite(IE::PReluOp origOp, mlir::PatternRewriter& rewriter) const {
-    auto negativeSlopeOp = origOp.negative_slope().getDefiningOp<Const::DeclareOp>();
+    auto negativeSlopeOp = origOp.getNegativeSlope().getDefiningOp<Const::DeclareOp>();
     if (negativeSlopeOp == nullptr) {
         return mlir::failure();
     }
@@ -67,7 +65,7 @@ mlir::LogicalResult UseLeakyRelu::matchAndRewrite(IE::PReluOp origOp, mlir::Patt
         return mlir::failure();
     }
 
-    rewriter.replaceOpWithNewOp<IE::LeakyReluOp>(origOp, origOp.getType(), origOp.input(),
+    rewriter.replaceOpWithNewOp<IE::LeakyReluOp>(origOp, origOp.getType(), origOp.getInput(),
                                                  rewriter.getF64FloatAttr(negativeSlopeContent.getSplatValue<float>()));
 
     return mlir::success();
@@ -82,8 +80,8 @@ public:
 };
 
 mlir::LogicalResult legalizeslope::matchAndRewrite(IE::PReluOp origOp, mlir::PatternRewriter& rewriter) const {
-    auto input = origOp.input();
-    auto negativeSlopeOp = origOp.negative_slope();
+    auto input = origOp.getInput();
+    auto negativeSlopeOp = origOp.getNegativeSlope();
 
     if (negativeSlopeOp == nullptr) {
         return mlir::failure();
@@ -101,9 +99,9 @@ mlir::LogicalResult legalizeslope::matchAndRewrite(IE::PReluOp origOp, mlir::Pat
     newShape[Dims4D::Act::C.ind()] = slopeShape.totalSize();
 
     const auto newShapeAttr = getIntArrayAttr(getContext(), newShape);
-    auto slopeReshape = rewriter.createOrFold<IE::ReshapeOp>(origOp->getLoc(), origOp.negative_slope(), nullptr, false,
-                                                             newShapeAttr);
-    rewriter.replaceOpWithNewOp<IE::PReluOp>(origOp, origOp.input(), slopeReshape);
+    auto slopeReshape = rewriter.createOrFold<IE::ReshapeOp>(origOp->getLoc(), origOp.getNegativeSlope(), nullptr,
+                                                             false, newShapeAttr);
+    rewriter.replaceOpWithNewOp<IE::PReluOp>(origOp, origOp.getInput(), slopeReshape);
 
     return mlir::success();
 }

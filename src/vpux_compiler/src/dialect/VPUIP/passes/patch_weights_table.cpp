@@ -3,17 +3,14 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/utils/constant_fusion.hpp"
 #include "vpux/compiler/utils/types.hpp"
-
-#include "vpux/compiler/utils/logging.hpp"
-#include "vpux/utils/core/range.hpp"
 
 using namespace vpux;
 
@@ -34,7 +31,7 @@ private:
     uint64_t getPointer(mlir::Value value, uint64_t defaultValue);
     SmallVector<int32_t> getWeightsPerClusterPointers(VPUIP::NCEClusterTaskOp nceOp, int64_t numCluster);
     void patchWeightsTable(Const::DeclareOp cstOp, mlir::Operation* cstLoadOp, VPUIP::NCEClusterTaskOp nceOp,
-                           VPURT::DeclareBufferOp wtDecBuf, int64_t weightsElemByteSize,
+                           VPURT::DeclareBufferOp wtDecBuf, int64_t weightsElemBitSize,
                            VPUIP::CompressionSchemeAttr weightsCompression);
     mlir::Operation* getLoadOpForDstBuffer(mlir::Value dstBuffer);
 };
@@ -59,7 +56,7 @@ void PatchWeightsTablePass::safeRunOnFunc() {
             return;
         }
 
-        auto wTable = VPUIP::getTopBufferOfNCEClusterTiling(nceOp, nceOp.weight_table());
+        auto wTable = nceOp.getWeightTable();
         if (wTable == nullptr) {
             return;
         }
@@ -91,11 +88,11 @@ void PatchWeightsTablePass::safeRunOnFunc() {
 
         VPUX_THROW_UNLESS(cstOp != nullptr, "Constant expected as DMA input for weights table - {0}", *cstLoadOp);
 
-        int64_t weightsElemByteSize = 1;
+        int64_t weightsElemBitSize = CHAR_BIT;
         VPUIP::CompressionSchemeAttr weightsCompression = nullptr;
-        if (nceOp.weights() != nullptr) {
-            weightsElemByteSize = getElemTypeSize(nceOp.weights().getType()).to<Byte>().count();
-            weightsCompression = VPUIP::getCompressionSchemeAttr(nceOp.weights().getType());
+        if (nceOp.getWeights() != nullptr) {
+            weightsElemBitSize = getElemTypeSize(nceOp.getWeights().getType()).count();
+            weightsCompression = VPUIP::getCompressionSchemeAttr(nceOp.getWeights().getType());
         }
 
         // On top of existing transformation a new transformation is added to the content attribute
@@ -103,7 +100,7 @@ void PatchWeightsTablePass::safeRunOnFunc() {
         // with sparsity and weights pointers. The pointers are passed as  parameters of the
         // new transformation.
         _log.nest().trace("Constant for patching '{0}'", cstOp->getLoc());
-        patchWeightsTable(cstOp, cstLoadOp, nceOp, wtDecBuf, weightsElemByteSize, weightsCompression);
+        patchWeightsTable(cstOp, cstLoadOp, nceOp, wtDecBuf, weightsElemBitSize, weightsCompression);
     });
 }
 
@@ -111,14 +108,8 @@ void PatchWeightsTablePass::safeRunOnFunc() {
 mlir::Operation* PatchWeightsTablePass::getLoadOpForDstBuffer(mlir::Value dstBuffer) {
     for (const auto& user : dstBuffer.getUsers()) {
         auto dmaOp = mlir::dyn_cast<VPUIP::NNDMAOp>(user);
-        if ((dmaOp != nullptr) && (dmaOp.output_buff() == dstBuffer)) {
+        if ((dmaOp != nullptr) && (dmaOp.getOutputBuff() == dstBuffer)) {
             return dmaOp.getOperation();
-        }
-
-        auto nceClustOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(user);
-        if (nceClustOp != nullptr && nceClustOp.getOutputs()[0] == dstBuffer &&
-            mlir::isa<VPUIP::NNDMAOp>(nceClustOp.getInnerTaskOp())) {
-            return nceClustOp.getOperation();
         }
     }
     return nullptr;
@@ -126,13 +117,13 @@ mlir::Operation* PatchWeightsTablePass::getLoadOpForDstBuffer(mlir::Value dstBuf
 
 void PatchWeightsTablePass::patchWeightsTable(Const::DeclareOp cstOp, mlir::Operation* cstLoadOp,
                                               VPUIP::NCEClusterTaskOp nceOp, VPURT::DeclareBufferOp wtDecBuf,
-                                              int64_t weightsElemByteSize,
+                                              int64_t weightsElemBitSize,
                                               VPUIP::CompressionSchemeAttr weightsCompression) {
     // Retrieve sparsity and weight pointers which have correct values as they are already allocated
     // by the memory scheduler
-    auto sparsityMap = VPUIP::getTopBufferOfNCEClusterTiling(nceOp, nceOp.weights_sparsity_map());
+    auto sparsityMap = nceOp.getWeightsSparsityMap();
     if (sparsityMap == nullptr) {
-        sparsityMap = VPUIP::getTopBufferOfNCEClusterTiling(nceOp, nceOp.activation_window());
+        sparsityMap = nceOp.getActivationWindow();
     }
     uint64_t sparsityBasePtr = getPointer(sparsityMap, VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARSITY);
 
@@ -157,7 +148,7 @@ void PatchWeightsTablePass::patchWeightsTable(Const::DeclareOp cstOp, mlir::Oper
     // Create new attribute based on existing one by adding new relocateWeightTable
     // transformation
     auto newConstAttr = origConstAttr.relocateWeightsTablePointers(
-            weightsPerClusterPtrs, sparsityBasePtr, ShapeRef(offsets), weightsElemByteSize, weightsCompression);
+            weightsPerClusterPtrs, sparsityBasePtr, ShapeRef(offsets), weightsElemBitSize, weightsCompression);
     mlir::OpBuilder builder(cstOp);
 
     // Create new DeclareOp with the new content attribute and replace the old DeclareOp
@@ -182,7 +173,7 @@ uint64_t PatchWeightsTablePass::getPointer(mlir::Value value, uint64_t defaultVa
 
 SmallVector<int32_t> PatchWeightsTablePass::getWeightsPerClusterPointers(VPUIP::NCEClusterTaskOp nceOp,
                                                                          int64_t numCluster) {
-    auto weights = VPUIP::getTopBufferOfNCEClusterTiling(nceOp, nceOp.weights());
+    auto weights = nceOp.getWeights();
     uint64_t weightsBasePointer = getPointer(weights, 0);
 
     if (weights == nullptr || !weights.getType().isa<VPUIP::DistributedBufferType>()) {
@@ -201,7 +192,7 @@ SmallVector<int32_t> PatchWeightsTablePass::getWeightsPerClusterPointers(VPUIP::
     // be segmented on N, while the entire data is copied to all CMXs. So the weight's offset need to updated
     // accordingly since it's not symmetric.
     SmallVector<int32_t> weightsPerClusterPtrs;
-    VPUX_THROW_UNLESS(nceOp.weights_sparsity_map() == nullptr,
+    VPUX_THROW_UNLESS(nceOp.getWeightsSparsityMap() == nullptr,
                       "Weight sparisity map is found, weights is supposed to be non const at '{0}'", nceOp->getLoc());
     const auto tilingScheme = parseIntArrayAttr<int64_t>(distributionAttr.getNumTiles());
     const auto axis = vpux::VPU::getDistributedTilingAxis(tilingScheme);

@@ -5,7 +5,7 @@
 
 #include "vpux/compiler/core/type_interfaces.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/init.hpp"
@@ -342,7 +342,7 @@ TEST_F(MLIR_NDTypeInterface, CompressedMemRefType) {
     SmallVector<int64_t> numElems(16);
     std::iota(numElems.begin(), numElems.end(), 0);
     const auto numElemsType = mlir::RankedTensorType::get({16}, getInt64Type(&ctx));
-    const auto numElemsAttr = mlir::DenseElementsAttr::get(numElemsType, makeArrayRef(numElems));
+    const auto numElemsAttr = mlir::DenseElementsAttr::get(numElemsType, ArrayRef(numElems));
     const int64_t compressionAxis = 1;
     const int64_t alignment = 16;
     const auto compressionScheme = VPUIP::CompressionSchemeAttr::get(&ctx, getIntAttr(&ctx, compressionAxis),
@@ -368,9 +368,9 @@ TEST_F(MLIR_NDTypeInterface, CompressedMemRefType) {
     EXPECT_EQ(tiledType.getShape(), ShapeRef(tileShape));
     const auto memrefTiledType = tiledType.dyn_cast<mlir::MemRefType>();
     ASSERT_TRUE(memrefTiledType != nullptr);
-    auto layout = memrefTiledType.getLayout().dyn_cast_or_null<VPUIP::MemRefAttr>();
+    auto layout = memrefTiledType.getLayout().dyn_cast_or_null<vpux::MemRefAttr>();
     ASSERT_TRUE(layout != nullptr);
-    auto tiledNumElems = layout.compressionScheme().getNumElems().getValues<int64_t>();
+    auto tiledNumElems = layout.hwSpecificField<VPUIP::CompressionSchemeAttr>().getNumElems().getValues<int64_t>();
     EXPECT_EQ(tiledNumElems.size(), tileShape[compressionAxis]);
 }
 
@@ -387,7 +387,7 @@ TEST_F(MLIR_NDTypeInterface, ExplicitSizeMemRefType) {
     const int64_t explicitSize = 1024;
     mlir::IntegerAttr allocSizeAttr = getIntAttr(&ctx, explicitSize);
 
-    const auto newLayoutAttr = VPUIP::MemRefAttr::get(orderAttr, nullptr, nullptr, nullptr, allocSizeAttr, &ctx);
+    const auto newLayoutAttr = vpux::MemRefAttr::get(orderAttr, nullptr, allocSizeAttr, &ctx);
 
     mlir::MemRefType::Builder builder(shape.raw(), mlir::IntegerType::get(&ctx, 8));
     builder.setLayout(newLayoutAttr.cast<mlir::MemRefLayoutAttrInterface>());

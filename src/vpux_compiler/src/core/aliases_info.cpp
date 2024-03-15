@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation.
+// Copyright (C) 2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -19,6 +19,8 @@
 #include <mlir/Interfaces/ViewLikeInterface.h>
 
 #include <llvm/ADT/TypeSwitch.h>
+#include <queue>
+#include <stack>
 
 using namespace vpux;
 
@@ -26,7 +28,7 @@ namespace {
 
 std::string getValueForLog(mlir::Value val) {
     if (const auto arg = val.dyn_cast<mlir::BlockArgument>()) {
-        return printToString("BlockArgument #{0} at '{0}'", arg.getArgNumber(), val.getLoc());
+        return printToString("BlockArgument #{0} at '{1}'", arg.getArgNumber(), val.getLoc());
     }
 
     const auto res = val.cast<mlir::OpResult>();
@@ -34,39 +36,38 @@ std::string getValueForLog(mlir::Value val) {
                          val.getLoc());
 }
 
-}  // namespace
+void logAddAlias(const Logger& log, mlir::Value source, mlir::Value alias) {
+    log.trace("Adding alias:");
+    auto innerLog = log.nest();
 
-vpux::AliasesInfo::AliasesInfo(mlir::func::FuncOp func): _log(Logger::global().nest("aliases-info", 0)) {
-    _log.trace("Analyze aliases for Function '@{0}'", func.getName());
-    _log = _log.nest();
-
-    _log.trace("Function arguments are roots for themselves");
-    _log = _log.nest();
-    for (const auto funcArg : func.getArguments()) {
-        _log.trace("Argument #{0}", funcArg.getArgNumber());
-        bool isValidArgType =
-                funcArg.getType().isa<mlir::MemRefType, VPUIP::SparseBufferType, VPUIP::DistributedBufferType>();
-
-        VPUX_THROW_UNLESS(
-                isValidArgType,
-                "AliasesInfo analysis works only with MemRef, SparseBuffer and DistributedBuffer types, got '{0}'",
-                funcArg.getType());
-        addAlias(funcArg, funcArg);
+    if (const auto arg = source.dyn_cast<mlir::BlockArgument>()) {
+        innerLog.trace("- from: BlockArgument #{0} at '{1}'", arg.getArgNumber(), arg.getLoc());
+    } else if (const auto res = source.cast<mlir::OpResult>()) {
+        innerLog.trace("- from: Operation result #{0} for '{1}' at '{2}'", res.getResultNumber(),
+                       res.getOwner()->getName(), res.getLoc());
     }
-    _log = _log.unnest();
 
-    _log.trace("Traverse the Function body");
-    _log = _log.nest();
-    traverse(func.getOps());
+    if (const auto arg = alias.dyn_cast<mlir::BlockArgument>()) {
+        innerLog.trace("- to: BlockArgument #{0} at '{1}'", arg.getArgNumber(), arg.getLoc());
+    } else if (const auto res = alias.cast<mlir::OpResult>()) {
+        innerLog.trace("- to: Operation result #{0} for '{1}' at '{2}'", res.getResultNumber(),
+                       res.getOwner()->getName(), res.getLoc());
+    }
 }
 
-const AliasesInfo::ValuesSet& vpux::AliasesInfo::getSources(mlir::Value val) const {
+}  // namespace
+
+//
+// AliasesInfoBase
+//
+
+const AliasesInfoBase::ValuesSet& AliasesInfoBase::getSources(mlir::Value val) const {
     const auto it = _sources.find(val);
     VPUX_THROW_UNLESS(it != _sources.end(), "Value '{0}' is not covered by aliases analysis", getValueForLog(val));
     return it->second;
 }
 
-mlir::Value vpux::AliasesInfo::getSource(mlir::Value val) const {
+mlir::Value AliasesInfoBase::getSource(mlir::Value val) const {
     const auto it = _sources.find(val);
     VPUX_THROW_UNLESS(it != _sources.end(), "Value '{0}' is not covered by aliases analysis", getValueForLog(val));
     VPUX_THROW_UNLESS(it->second.size() == 1, "Value '{0}' expected to have only one source. Got {1}",
@@ -74,20 +75,330 @@ mlir::Value vpux::AliasesInfo::getSource(mlir::Value val) const {
     return *it->second.begin();
 }
 
-const AliasesInfo::ValuesSet& vpux::AliasesInfo::getRoots(mlir::Value val) const {
+const AliasesInfoBase::ValuesSet& AliasesInfoBase::getRoots(mlir::Value val) const {
     const auto it = _roots.find(val);
     VPUX_THROW_UNLESS(it != _roots.end(), "Value '{0}' is not covered by aliases analysis", getValueForLog(val));
     return it->second;
 }
 
-const AliasesInfo::ValuesSet& vpux::AliasesInfo::getAllAliases(mlir::Value val) const {
-    const auto it = _allAliases.find(val);
-    VPUX_THROW_UNLESS(it != _allAliases.end(), "Value '{0}' is not covered by aliases analysis", getValueForLog(val));
-    return it->second;
+void AliasesInfoBase::visitOp(mlir::Operation* op, bool ignoreInnerRegions = false) {
+    std::function<bool(mlir::Type)> isBufferizedType = [&](mlir::Type type) -> bool {
+        if (const auto asyncType = type.dyn_cast<mlir::async::ValueType>()) {
+            return isBufferizedType(asyncType.getValueType());
+        }
+
+        return type.isa<mlir::MemRefType, VPUIP::BufferType, VPUIP::DistributedBufferType, VPUIP::SparseBufferType>();
+    };
+
+    llvm::TypeSwitch<mlir::Operation*, void>(op)
+            .Case<mlir::ViewLikeOpInterface>([&](mlir::ViewLikeOpInterface viewOp) {
+                _log.trace("Got ViewLike Operation '{0}' at '{1}'", viewOp->getName(), viewOp->getLoc());
+                _log = _log.nest();
+
+                const auto result = viewOp->getResult(0);
+                const auto source = viewOp.getViewSource();
+
+                VPUX_THROW_UNLESS(isBufferizedType(result.getType()),
+                                  "AliasesInfo analysis works only with buffer types, got '{0}'", result.getType());
+                VPUX_THROW_UNLESS(isBufferizedType(source.getType()),
+                                  "AliasesInfo analysis works only with buffer types, got '{0}'", source.getType());
+
+                addAlias(source, result);
+
+                _log = _log.unnest();
+            })
+            .Case<MultiViewOpInterface>([&](MultiViewOpInterface viewOp) {
+                _log.trace("Got MultiView Operation '{0}' at '{1}'", viewOp->getName(), viewOp->getLoc());
+                _log = _log.nest();
+
+                for (const auto& result : viewOp->getResults()) {
+                    _log.trace("Result #{0}", result.getResultNumber());
+
+                    VPUX_THROW_UNLESS(isBufferizedType(result.getType()),
+                                      "AliasesInfo analysis works only with buffer types, got '{0}'", result.getType());
+
+                    const auto source = viewOp.getViewSource(result.getResultNumber());
+                    if (source == nullptr) {
+                        addAlias(result, result);
+                        continue;
+                    }
+
+                    VPUX_THROW_UNLESS(isBufferizedType(source.getType()),
+                                      "AliasesInfo analysis works only with buffer types, got '{0}'", source.getType());
+
+                    addAlias(source, result);
+                }
+
+                _log = _log.unnest();
+            })
+            .Case<GroupedViewOpInterface>([&](GroupedViewOpInterface viewOp) {
+                _log.trace("Got GroupedView Operation '{0}' at '{1}'", viewOp->getName(), viewOp->getLoc());
+                _log = _log.nest();
+
+                const auto result = viewOp->getResult(0);
+                const auto sources = viewOp.getViewSources();
+
+                VPUX_THROW_UNLESS(isBufferizedType(result.getType()),
+                                  "AliasesInfo analysis works only with buffer types, got '{0}'", result.getType());
+                for (const auto& source : sources) {
+                    VPUX_THROW_UNLESS(isBufferizedType(source.getType()),
+                                      "AliasesInfo analysis works only with buffer types, got '{0}'", source.getType());
+
+                    addAlias(source, result);
+                }
+
+                _log = _log.unnest();
+            })
+            .Case<mlir::RegionBranchOpInterface>([&](mlir::RegionBranchOpInterface regionOp) {
+                _log.trace("Got RegionBranch Operation '{0}' at '{1}'", regionOp->getName(), regionOp->getLoc());
+                _log = _log.nest();
+
+                SmallVector<mlir::RegionSuccessor> entries;
+                regionOp.getSuccessorRegions(std::nullopt, entries);
+
+                for (const auto& entry : entries) {
+                    auto* entryRegion = entry.getSuccessor();
+                    VPUX_THROW_UNLESS(entryRegion != nullptr,
+                                      "Entry region without an attached successor region at '{0}'", regionOp->getLoc());
+
+                    const auto outerArgs = regionOp.getSuccessorEntryOperands(entryRegion->getRegionNumber());
+                    const auto innerArgs = entry.getSuccessorInputs();
+
+                    VPUX_THROW_UNLESS(outerArgs.size() == innerArgs.size(),
+                                      "Mismatch between RegionBranch operands and its entry region arguments at '{0}'",
+                                      regionOp->getLoc());
+
+                    for (auto i : irange(outerArgs.size())) {
+                        _log.trace("Check operand #{0} and corresponding region argument", i);
+
+                        if (isBufferizedType(outerArgs[i].getType()) && isBufferizedType(innerArgs[i].getType())) {
+                            addAlias(outerArgs[i], innerArgs[i]);
+                        }
+                    }
+                }
+
+                if (!ignoreInnerRegions) {
+                    _log.trace("Traverse the RegionBranch inner regions");
+                    _log = _log.nest();
+                    for (auto& region : regionOp->getRegions()) {
+                        for (auto& innerOp : region.getOps()) {
+                            visitOp(&innerOp);
+                        }
+                    }
+                    _log = _log.unnest();
+                }
+
+                for (auto& region : regionOp->getRegions()) {
+                    SmallVector<mlir::RegionSuccessor> successors;
+                    regionOp.getSuccessorRegions(region.getRegionNumber(), successors);
+
+                    for (auto& successor : successors) {
+                        std::optional<unsigned> regionIndex;
+                        if (auto* regionSuccessor = successor.getSuccessor()) {
+                            regionIndex = regionSuccessor->getRegionNumber();
+                        }
+
+                        for (auto& block : region) {
+                            auto successorOperands =
+                                    mlir::getRegionBranchSuccessorOperands(block.getTerminator(), regionIndex);
+
+                            if (successorOperands.has_value()) {
+                                const auto innerResults = successorOperands.value();
+                                const auto outerResults = successor.getSuccessorInputs();
+
+                                VPUX_THROW_UNLESS(innerResults.size() == outerResults.size(),
+                                                  "Mismatch between successor operands and its parent results at '{0}'",
+                                                  regionOp->getLoc());
+
+                                for (auto i : irange(innerResults.size())) {
+                                    _log.trace("Check result #{0} and corresponding region result", i);
+
+                                    if (isBufferizedType(innerResults[i].getType()) &&
+                                        isBufferizedType(outerResults[i].getType())) {
+                                        addAlias(innerResults[i], outerResults[i]);
+                                    }
+                                }
+
+                                _log = _log.unnest();
+                            }
+                        }
+                    }
+                }
+            })
+            .Case<mlir::async::AwaitOp>([&](mlir::async::AwaitOp waitOp) {
+                _log.trace("Got 'async.await' Operation at '{0}'", waitOp->getLoc());
+                _log = _log.nest();
+
+                if (const auto& result = waitOp.getResult()) {
+                    const auto futureType = waitOp.getOperand().getType().dyn_cast<mlir::async::ValueType>();
+                    VPUX_THROW_UNLESS(futureType != nullptr,
+                                      "AliasesInfo analysis works only with !async.value<MemRef> types, got '{0}'",
+                                      waitOp.getOperand().getType());
+
+                    VPUX_THROW_UNLESS(isBufferizedType(futureType.getValueType()),
+                                      "AliasesInfo analysis works only with buffer types, got '{0}'", futureType);
+                    VPUX_THROW_UNLESS(isBufferizedType(result.getType()),
+                                      "AliasesInfo analysis works only with buffer types, got '{0}'", result.getType());
+
+                    addAlias(waitOp.getOperand(), result);
+                }
+
+                _log = _log.unnest();
+            })
+            .Default([&](mlir::Operation* op) {
+                _log.trace("Got generic Operation '{0}' at '{1}'", op->getName(), op->getLoc());
+                _log = _log.nest();
+
+                for (const auto& result : op->getResults()) {
+                    if (isBufferizedType(result.getType())) {
+                        addAlias(result, result);
+                    }
+                }
+
+                _log = _log.unnest();
+            });
 }
 
-void vpux::AliasesInfo::addAlias(mlir::Value source, mlir::Value alias) {
-    _log.trace("Add an alias '{0}' for '{1}'", getValueForLog(alias), getValueForLog(source));
+void AliasesInfoBase::addFuncArgAlias(mlir::Value funcArg) {
+    _log.trace("Argument #{0}", getValueForLog(funcArg));
+    bool isValidArgType =
+            funcArg.getType().isa<mlir::MemRefType, VPUIP::SparseBufferType, VPUIP::DistributedBufferType>();
+
+    VPUX_THROW_UNLESS(
+            isValidArgType,
+            "AliasesInfo analysis works only with MemRef, SparseBuffer and DistributedBuffer types, got '{0}'",
+            funcArg.getType());
+    addAlias(funcArg, funcArg);
+}
+
+//
+// ValueSourceInfo
+//
+
+ValueSourceInfo::ValueSourceInfo(mlir::Value val): AliasesInfoBase(Logger::global().nest("value-source-info", 0)) {
+    std::queue<mlir::Value> q;
+    q.push(val);
+
+    while (!q.empty()) {
+        auto currVal = q.front();
+        q.pop();
+
+        auto currOp = currVal.getDefiningOp();
+        if (currOp == nullptr) {
+            auto currSource = _sources.find(currVal);
+            if (currSource != _sources.end()) {
+                currOp = (*currSource->second.begin()).getDefiningOp();
+            } else if (auto blockArg = currVal.dyn_cast<mlir::BlockArgument>()) {
+                currOp = blockArg.getOwner()->getParentOp();
+            }
+        }
+
+        if (mlir::isa<mlir::func::FuncOp>(currOp)) {
+            addFuncArgAlias(currVal);
+            continue;
+        }
+
+        visitOp(currOp, true);
+
+        auto values = _sources[currVal];
+        for (auto& newVal : values) {
+            if (newVal == nullptr) {
+                continue;
+            }
+            q.push(newVal);
+        }
+    }
+    updateRoots(val);
+}
+
+void ValueSourceInfo::addAlias(mlir::Value source, mlir::Value alias) {
+    logAddAlias(_log, source, alias);
+    if (source == alias) {
+        _sources[alias].insert(nullptr);
+    } else {
+        _sources[alias].insert(source);
+    }
+}
+
+void ValueSourceInfo::updateRoots(mlir::Value val) {
+    std::stack<mlir::Value> s;
+    s.push(val);
+    while (!s.empty()) {
+        auto key = s.top();
+        s.pop();
+        const auto sources = getSources(key);
+        if (sources.size() == 1 && *sources.begin() == nullptr) {
+            _roots[val].insert(key);
+        }
+        for (const auto& source : sources) {
+            if (source == nullptr) {
+                continue;
+            }
+            s.push(source);
+        }
+    }
+}
+
+//
+// AliasesInfo
+//
+
+AliasesInfo::AliasesInfo(mlir::func::FuncOp func): AliasesInfoBase(Logger::global().nest("alias-info", 0)) {
+    init(func);
+}
+
+AliasesInfo::AliasesInfo(mlir::func::FuncOp func, VPU::MemoryKind memKind)
+        : AliasesInfoBase(Logger::global().nest("alias-info", 0), memKind) {
+    init(func);
+}
+
+void AliasesInfo::init(mlir::func::FuncOp func) {
+    _log.trace("Analyze aliases for Function '@{0}'", func.getName());
+    _log = _log.nest();
+
+    _log.trace("Function arguments are roots for themselves");
+    _log = _log.nest();
+    for (const auto& funcArg : func.getArguments()) {
+        addFuncArgAlias(funcArg);
+    }
+    _log = _log.unnest();
+
+    _log.trace("Traverse the Function body");
+    _log = _log.nest();
+
+    auto ops = func.getOps();
+    for (auto& op : ops) {
+        visitOp(&op);
+    }
+}
+
+void AliasesInfo::addAlias(mlir::Value source, mlir::Value alias) {
+    if (_memKind.has_value()) {
+        auto isTargetMemType = [&](mlir::Value buffer) {
+            auto type = buffer.getType();
+
+            if (const auto asyncType = type.dyn_cast<mlir::async::ValueType>()) {
+                type = asyncType.getValueType();
+            }
+
+            auto ndType = type.dyn_cast<vpux::NDTypeInterface>();
+
+            if (ndType == nullptr) {
+                return false;
+            }
+
+            if (ndType.getMemoryKind() != _memKind) {
+                return false;
+            }
+            return true;
+        };
+
+        if (!isTargetMemType(source) || !isTargetMemType(alias)) {
+            return;
+        }
+    }
+
+    logAddAlias(_log, source, alias);
 
     const auto roots = source == alias ? ValuesSet{alias} : getRoots(source);
 
@@ -103,7 +414,7 @@ void vpux::AliasesInfo::addAlias(mlir::Value source, mlir::Value alias) {
     }
 }
 
-void vpux::AliasesInfo::removeAlias(mlir::Value val) {
+void AliasesInfo::removeAlias(mlir::Value val) {
     _log.trace("Remove all info of a value '{0}''", getValueForLog(val));
 
     const auto roots = getRoots(val);
@@ -120,185 +431,8 @@ void vpux::AliasesInfo::removeAlias(mlir::Value val) {
     _sources.erase(val);
 }
 
-void vpux::AliasesInfo::traverse(OpRange ops) {
-    std::function<bool(mlir::Type)> isBufferizedType = [&](mlir::Type type) -> bool {
-        if (const auto asyncType = type.dyn_cast<mlir::async::ValueType>()) {
-            return isBufferizedType(asyncType.getValueType());
-        }
-
-        return type.isa<mlir::MemRefType, VPUIP::BufferType, VPUIP::DistributedBufferType, VPUIP::SparseBufferType>();
-    };
-
-    for (auto& op : ops) {
-        llvm::TypeSwitch<mlir::Operation*, void>(&op)
-                .Case<mlir::ViewLikeOpInterface>([&](mlir::ViewLikeOpInterface viewOp) {
-                    _log.trace("Got ViewLike Operation '{0}' at '{1}'", viewOp->getName(), viewOp->getLoc());
-                    _log = _log.nest();
-
-                    const auto result = viewOp->getResult(0);
-                    const auto source = viewOp.getViewSource();
-
-                    VPUX_THROW_UNLESS(isBufferizedType(result.getType()),
-                                      "AliasesInfo analysis works only with buffer types, got '{0}'", result.getType());
-                    VPUX_THROW_UNLESS(isBufferizedType(source.getType()),
-                                      "AliasesInfo analysis works only with buffer types, got '{0}'", source.getType());
-
-                    addAlias(source, result);
-
-                    _log = _log.unnest();
-                })
-                .Case<MultiViewOpInterface>([&](MultiViewOpInterface viewOp) {
-                    _log.trace("Got MultiView Operation '{0}' at '{1}'", viewOp->getName(), viewOp->getLoc());
-                    _log = _log.nest();
-
-                    for (const auto result : viewOp->getResults()) {
-                        _log.trace("Result #{0}", result.getResultNumber());
-
-                        VPUX_THROW_UNLESS(isBufferizedType(result.getType()),
-                                          "AliasesInfo analysis works only with buffer types, got '{0}'",
-                                          result.getType());
-
-                        const auto source = viewOp.getViewSource(result.getResultNumber());
-                        if (source == nullptr) {
-                            addAlias(result, result);
-                            continue;
-                        }
-
-                        VPUX_THROW_UNLESS(isBufferizedType(source.getType()),
-                                          "AliasesInfo analysis works only with buffer types, got '{0}'",
-                                          source.getType());
-
-                        addAlias(source, result);
-                    }
-
-                    _log = _log.unnest();
-                })
-                .Case<GroupedViewOpInterface>([&](GroupedViewOpInterface viewOp) {
-                    _log.trace("Got GroupedView Operation '{0}' at '{1}'", viewOp->getName(), viewOp->getLoc());
-                    _log = _log.nest();
-
-                    const auto result = viewOp->getResult(0);
-                    const auto sources = viewOp.getViewSources();
-
-                    VPUX_THROW_UNLESS(isBufferizedType(result.getType()),
-                                      "AliasesInfo analysis works only with buffer types, got '{0}'", result.getType());
-                    for (auto source : sources) {
-                        VPUX_THROW_UNLESS(isBufferizedType(source.getType()),
-                                          "AliasesInfo analysis works only with buffer types, got '{0}'",
-                                          source.getType());
-
-                        addAlias(source, result);
-                    }
-
-                    _log = _log.unnest();
-                })
-                .Case<mlir::RegionBranchOpInterface>([&](mlir::RegionBranchOpInterface regionOp) {
-                    _log.trace("Got RegionBranch Operation '{0}' at '{1}'", regionOp->getName(), regionOp->getLoc());
-                    _log = _log.nest();
-
-                    SmallVector<mlir::RegionSuccessor> entries;
-                    regionOp.getSuccessorRegions(None, entries);
-
-                    for (const auto& entry : entries) {
-                        auto* entryRegion = entry.getSuccessor();
-                        VPUX_THROW_UNLESS(entryRegion != nullptr,
-                                          "Entry region without an attached successor region at '{0}'",
-                                          regionOp->getLoc());
-
-                        const auto outerArgs = regionOp.getSuccessorEntryOperands(entryRegion->getRegionNumber());
-                        const auto innerArgs = entry.getSuccessorInputs();
-
-                        VPUX_THROW_UNLESS(
-                                outerArgs.size() == innerArgs.size(),
-                                "Mismatch between RegionBranch operands and its entry region arguments at '{0}'",
-                                regionOp->getLoc());
-
-                        for (auto i : irange(outerArgs.size())) {
-                            _log.trace("Check operand #{0} and corresponding region argument", i);
-
-                            if (isBufferizedType(outerArgs[i].getType()) && isBufferizedType(innerArgs[i].getType())) {
-                                addAlias(outerArgs[i], innerArgs[i]);
-                            }
-                        }
-                    }
-
-                    _log.trace("Traverse the RegionBranch inner regions");
-                    _log = _log.nest();
-                    for (auto& region : regionOp->getRegions()) {
-                        traverse(region.getOps());
-                    }
-                    _log = _log.unnest();
-
-                    for (auto& region : regionOp->getRegions()) {
-                        SmallVector<mlir::RegionSuccessor> successors;
-                        regionOp.getSuccessorRegions(region.getRegionNumber(), successors);
-
-                        for (auto& successor : successors) {
-                            Optional<unsigned> regionIndex;
-                            if (auto* regionSuccessor = successor.getSuccessor()) {
-                                regionIndex = regionSuccessor->getRegionNumber();
-                            }
-
-                            for (auto& block : region) {
-                                auto successorOperands =
-                                        mlir::getRegionBranchSuccessorOperands(block.getTerminator(), regionIndex);
-
-                                if (successorOperands.has_value()) {
-                                    const auto innerResults = successorOperands.value();
-                                    const auto outerResults = successor.getSuccessorInputs();
-
-                                    VPUX_THROW_UNLESS(
-                                            innerResults.size() == outerResults.size(),
-                                            "Mismatch between successor operands and its parent results at '{0}'",
-                                            regionOp->getLoc());
-
-                                    for (auto i : irange(innerResults.size())) {
-                                        _log.trace("Check result #{0} and corresponding region result", i);
-
-                                        if (isBufferizedType(innerResults[i].getType()) &&
-                                            isBufferizedType(outerResults[i].getType())) {
-                                            addAlias(innerResults[i], outerResults[i]);
-                                        }
-                                    }
-
-                                    _log = _log.unnest();
-                                }
-                            }
-                        }
-                    }
-                })
-                .Case<mlir::async::AwaitOp>([&](mlir::async::AwaitOp waitOp) {
-                    _log.trace("Got 'async.await' Operation at '{0}'", waitOp->getLoc());
-                    _log = _log.nest();
-
-                    if (const auto result = waitOp.result()) {
-                        const auto futureType = waitOp.operand().getType().dyn_cast<mlir::async::ValueType>();
-                        VPUX_THROW_UNLESS(futureType != nullptr,
-                                          "AliasesInfo analysis works only with !async.value<MemRef> types, got '{0}'",
-                                          waitOp.operand().getType());
-
-                        VPUX_THROW_UNLESS(isBufferizedType(futureType.getValueType()),
-                                          "AliasesInfo analysis works only with buffer types, got '{0}'", futureType);
-                        VPUX_THROW_UNLESS(isBufferizedType(result.getType()),
-                                          "AliasesInfo analysis works only with buffer types, got '{0}'",
-                                          result.getType());
-
-                        addAlias(waitOp.operand(), result);
-                    }
-
-                    _log = _log.unnest();
-                })
-                .Default([&](mlir::Operation* op) {
-                    _log.trace("Got generic Operation '{0}' at '{1}'", op->getName(), op->getLoc());
-                    _log = _log.nest();
-
-                    for (const auto result : op->getResults()) {
-                        if (isBufferizedType(result.getType())) {
-                            addAlias(result, result);
-                        }
-                    }
-
-                    _log = _log.unnest();
-                });
-    }
+const AliasesInfoBase::ValuesSet& AliasesInfo::getAllAliases(mlir::Value val) const {
+    const auto it = _allAliases.find(val);
+    VPUX_THROW_UNLESS(it != _allAliases.end(), "Value '{0}' is not covered by aliases analysis", getValueForLog(val));
+    return it->second;
 }

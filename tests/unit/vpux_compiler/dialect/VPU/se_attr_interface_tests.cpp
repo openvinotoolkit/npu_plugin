@@ -5,8 +5,8 @@
 
 #include <vpux/compiler/core/attributes/shape.hpp>
 #include <vpux/compiler/core/attributes/strides.hpp>
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/dialect/VPU/dialect.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/dialect.hpp"
 #include "vpux/compiler/init.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
@@ -349,3 +349,642 @@ std::vector<SEInterpolateAttrParams> bilinearAsymmetricParams = {
 
 INSTANTIATE_TEST_CASE_P(NearestAsymmetric, SEInterpolateAttrTests, testing::ValuesIn(nearestAsymmetricParams));
 INSTANTIATE_TEST_CASE_P(BilinearAsymmetric, SEInterpolateAttrTests, testing::ValuesIn(bilinearAsymmetricParams));
+
+//
+// SEUpsamplingAttr
+//
+
+struct SEUpsamplingAttrParams {
+    // SEUpsamplingAttr parameters
+    SmallVector<int64_t> factors;
+    SmallVector<int64_t> padding;
+    SmallVector<int64_t> offsets;
+    SmallVector<int64_t> sizes;
+    // Input data
+    SmallVector<int64_t> dataShape;
+    SmallVector<Bit> dataStrides;
+    int64_t dataElemByteSize;
+    int64_t seSize;
+    SmallVector<int64_t> outputTileOffset;
+    SmallVector<int64_t> outputTileShape;
+
+    // Expected results
+    SmallVector<int64_t> expectedOutputShape;
+    SmallVector<int64_t> expectedBackInferredInputShape;
+    SmallVector<int64_t> expectedInputTileOffset;
+    SmallVector<int64_t> expectedInputTileShape;
+    SmallVector<int64_t> expectedAttrOffsets;
+    SmallVector<int64_t> expectedAttrSizes;
+    std::vector<std::vector<int64_t>> expectedInputCoords;
+    std::vector<int32_t> expectedSEOffsets;
+};
+
+class SEUpsamplingAttrTests : public testing::TestWithParam<SEUpsamplingAttrParams> {};
+
+TEST_P(SEUpsamplingAttrTests, SEAttrInterface) {
+    mlir::DialectRegistry registry;
+    vpux::registerDialects(registry);
+
+    mlir::MLIRContext ctx(registry);
+    ctx.loadDialect<VPU::VPUDialect>();
+
+    const auto params = GetParam();
+
+    auto factorsAttr = getIntArrayAttr(&ctx, params.factors);
+    auto paddingAttr = params.padding.empty() ? nullptr : getIntArrayAttr(&ctx, params.padding);
+    auto offsetsAttr = params.offsets.empty() ? nullptr : getIntArrayAttr(&ctx, params.offsets);
+    auto sizesAttr = params.sizes.empty() ? nullptr : getIntArrayAttr(&ctx, params.sizes);
+    auto upsamplingAttr = VPU::SEUpsamplingAttr::get(&ctx, factorsAttr, paddingAttr, offsetsAttr, sizesAttr);
+
+    auto seAttrInterface = upsamplingAttr.dyn_cast<VPU::SEAttr>();
+    ASSERT_TRUE(seAttrInterface != nullptr);
+
+    // inferOutputShape
+    const Shape dataShape(params.dataShape);
+    const auto outputShape = seAttrInterface.inferOutputShape(dataShape);
+    EXPECT_EQ(outputShape.raw(), params.expectedOutputShape);
+
+    // backInferInputShape
+    const auto inputShape = seAttrInterface.backInferInputShape(outputShape);
+    EXPECT_EQ(inputShape.raw(), params.expectedBackInferredInputShape);
+
+    // backInferInputCoord
+    const auto offsets = params.offsets.empty() ? SmallVector<int64_t>(outputShape.size(), 0) : params.offsets;
+    const auto sizes = params.sizes.empty() ? SmallVector<int64_t>(outputShape.raw()) : params.sizes;
+
+    const auto outputH = sizes[Dims4D::Act::H.ind()];
+    const auto outputW = sizes[Dims4D::Act::W.ind()];
+    ASSERT_EQ(params.expectedInputCoords.size(), outputH * outputW);
+    for (auto h : irange(outputH)) {
+        for (auto w : irange(outputW)) {
+            const auto actualH = h + offsets[Dims4D::Act::H.ind()];
+            const auto actualW = w + offsets[Dims4D::Act::W.ind()];
+            const Shape outputCoord({0, 0, actualH, actualW});
+            const auto inputCoord = seAttrInterface.backInferInputCoord(outputCoord, dataShape);
+            const auto& expectedCoord = params.expectedInputCoords[h * outputW + w];
+            const Shape expectedInputCoord({0, 0, expectedCoord[0], expectedCoord[1]});
+            EXPECT_EQ(inputCoord, expectedInputCoord)
+                    << "Invalid input coordinates for output coordinate [" << actualH << ", " << actualW << "]";
+        }
+    }
+
+    // extractTile
+    if (!params.outputTileOffset.empty() && !params.outputTileShape.empty()) {
+        const Shape outputTileOffset(params.outputTileOffset);
+        const Shape outputTileShape(params.outputTileShape);
+        Shape inputTileOffset{};
+        Shape inputTileShape{};
+        auto newSEAttr = seAttrInterface.extractTile(outputTileOffset, outputTileShape, dataShape, inputTileOffset,
+                                                     inputTileShape);
+        auto newSEUpsamplingAttr = newSEAttr.dyn_cast_or_null<VPU::SEUpsamplingAttr>();
+        ASSERT_TRUE(newSEUpsamplingAttr != nullptr);
+        EXPECT_EQ(inputTileOffset.raw(), params.expectedInputTileOffset);
+        EXPECT_EQ(inputTileShape.raw(), params.expectedInputTileShape);
+        const auto newSEUpsamplingAttrOffsets = parseIntArrayAttr<int64_t>(newSEUpsamplingAttr.getOffsets());
+        const auto newSEUpsamplingAttrSizes = parseIntArrayAttr<int64_t>(newSEUpsamplingAttr.getSizes());
+        const auto newSEUpsamplingAttrPadding = parseIntArrayAttr<int64_t>(newSEUpsamplingAttr.getPadding());
+        EXPECT_EQ(newSEUpsamplingAttrOffsets, params.expectedAttrOffsets);
+        EXPECT_EQ(newSEUpsamplingAttrSizes, params.expectedAttrSizes);
+    }
+
+    // computeSEOffsets
+    const Strides dataStrides(params.dataStrides);
+    const Byte elemSize(params.dataElemByteSize);
+    const auto seOffsets = seAttrInterface.computeSEOffsets(dataShape, dataStrides, elemSize, params.seSize);
+    EXPECT_EQ(seOffsets, params.expectedSEOffsets);
+}
+
+// clang-format off
+
+std::vector<SEUpsamplingAttrParams> upsamplingParams = {
+    {/*factors=*/{1, 1}, /*padding=*/{0, 0, 0, 0}, /*offsets=*/{}, /*sizes=*/{},
+     /*dataShape=*/{1, 16, 3, 3}, /*dataStrides=*/{}, /*dataElemByteSize=*/1, /*seSize=*/16,
+     /*outputTileOffset=*/{0, 0, 1, 1}, /*outputTileShape=*/{1, 16, 3, 3},
+     /*expectedOutputShape*/{1, 16, 5, 5}, /*expectedBackInferredInputShape=*/{1, 16, 3, 3},
+     /*expectedInputTileOffset=*/{0, 0, 0, 0}, /*expectedInputTileShape=*/{1, 16, 2, 2},
+     /*expectedAttrOffsets=*/{0, 0, 1, 1}, /*expectedAttrSizes=*/{1, 16, 3, 3},
+     /*expectedInputCoords*/{{0, 0}, {0, 0}, {0, 1}, {0, 1}, {0, 2}, \
+                             {0, 0}, {0, 0}, {0, 1}, {0, 1}, {0, 2}, \
+                             {1, 0}, {1, 0}, {1, 1}, {1, 1}, {1, 2}, \
+                             {1, 0}, {1, 0}, {1, 1}, {1, 1}, {1, 2}, \
+                             {2, 0}, {2, 0}, {2, 1}, {2, 1}, {2, 2}},
+     /*expectedSEOffsets=*/{ 0,  0,  16,  16,  32, \
+                             0,  0,  16,  16,  32, \
+                            48, 48,  64,  64,  80, \
+                            48, 48,  64,  64,  80, \
+                            96, 96, 112, 112, 128}},
+    {/*factors=*/{1, 1}, /*padding=*/{1, 1, 1, 1}, /*offsets=*/{}, /*sizes=*/{},
+     /*dataShape=*/{1, 16, 3, 3}, /*dataStrides=*/{}, /*dataElemByteSize=*/1, /*seSize=*/16,
+     /*outputTileOffset=*/{0, 0, 0, 3}, /*outputTileShape=*/{1, 16, 2, 3},
+     /*expectedOutputShape*/{1, 16, 7, 7},
+     /*expectedBackInferredInputShape=*/{1, 16, 3, 3},
+     /*expectedInputTileOffset=*/{0, 0, 0, 1}, /*expectedInputTileShape=*/{1, 16, 1, 2},
+     /*expectedAttrOffsets=*/{0, 0, 0, 1}, /*expectedAttrSizes=*/{1, 16, 2, 3},
+     /*expectedInputCoords*/{{0, 0}, {0, 0}, {0, 0}, {0, 1}, {0, 1}, {0, 2}, {0, 2}, \
+                             {0, 0}, {0, 0}, {0, 0}, {0, 1}, {0, 1}, {0, 2}, {0, 2}, \
+                             {0, 0}, {0, 0}, {0, 0}, {0, 1}, {0, 1}, {0, 2}, {0, 2}, \
+                             {1, 0}, {1, 0}, {1, 0}, {1, 1}, {1, 1}, {1, 2}, {1, 2}, \
+                             {1, 0}, {1, 0}, {1, 0}, {1, 1}, {1, 1}, {1, 2}, {1, 2}, \
+                             {2, 0}, {2, 0}, {2, 0}, {2, 1}, {2, 1}, {2, 2}, {2, 2}, \
+                             {2, 0}, {2, 0}, {2, 0}, {2, 1}, {2, 1}, {2, 2}, {2, 2}},
+     /*expectedSEOffsets=*/{ 0,  0,   0,  16,  16,  32,  32, \
+                             0,  0,   0,  16,  16,  32,  32, \
+                             0,  0,   0,  16,  16,  32,  32, \
+                            48, 48,  48,  64,  64,  80,  80, \
+                            48, 48,  48,  64,  64,  80,  80, \
+                            96, 96,  96, 112, 112, 128, 128, \
+                            96, 96,  96, 112, 112, 128, 128}},
+    {/*factors=*/{1, 1}, /*padding=*/{0, 2, 2, 1}, /*offsets=*/{}, /*sizes=*/{},
+     /*dataShape=*/{1, 16, 4, 4}, /*dataStrides=*/{}, /*dataElemByteSize=*/1, /*seSize=*/16,
+     /*outputTileOffset=*/{0, 0, 5, 3}, /*outputTileShape=*/{1, 16, 4, 5},
+     /*expectedOutputShape*/{1, 16, 10, 9},
+     /*expectedBackInferredInputShape=*/{1, 16, 4, 4},
+     /*expectedInputTileOffset=*/{0, 0, 1, 1}, /*expectedInputTileShape=*/{1, 16, 3, 3},
+     /*expectedAttrOffsets=*/{0, 0, 3, 1}, /*expectedAttrSizes=*/{1, 16, 4, 5},
+     /*expectedInputCoords*/{{0, 0}, {0, 0}, {0, 1}, {0, 1}, {0, 2}, {0, 2}, {0, 3}, {0, 3}, {0, 3}, \
+                             {0, 0}, {0, 0}, {0, 1}, {0, 1}, {0, 2}, {0, 2}, {0, 3}, {0, 3}, {0, 3}, \
+                             {0, 0}, {0, 0}, {0, 1}, {0, 1}, {0, 2}, {0, 2}, {0, 3}, {0, 3}, {0, 3}, \
+                             {0, 0}, {0, 0}, {0, 1}, {0, 1}, {0, 2}, {0, 2}, {0, 3}, {0, 3}, {0, 3}, \
+                             {1, 0}, {1, 0}, {1, 1}, {1, 1}, {1, 2}, {1, 2}, {1, 3}, {1, 3}, {1, 3}, \
+                             {1, 0}, {1, 0}, {1, 1}, {1, 1}, {1, 2}, {1, 2}, {1, 3}, {1, 3}, {1, 3}, \
+                             {2, 0}, {2, 0}, {2, 1}, {2, 1}, {2, 2}, {2, 2}, {2, 3}, {2, 3}, {2, 3}, \
+                             {2, 0}, {2, 0}, {2, 1}, {2, 1}, {2, 2}, {2, 2}, {2, 3}, {2, 3}, {2, 3}, \
+                             {3, 0}, {3, 0}, {3, 1}, {3, 1}, {3, 2}, {3, 2}, {3, 3}, {3, 3}, {3, 3}, \
+                             {3, 0}, {3, 0}, {3, 1}, {3, 1}, {3, 2}, {3, 2}, {3, 3}, {3, 3}, {3, 3}},
+     /*expectedSEOffsets=*/{ 0,   0,  16,  16,  32,  32,  48,  48,  48, \
+                             0,   0,  16,  16,  32,  32,  48,  48,  48, \
+                             0,   0,  16,  16,  32,  32,  48,  48,  48, \
+                             0,   0,  16,  16,  32,  32,  48,  48,  48, \
+                            64,  64,  80,  80,  96,  96, 112, 112, 112, \
+                            64,  64,  80,  80,  96,  96, 112, 112, 112, \
+                           128, 128, 144, 144, 160, 160, 176, 176, 176, \
+                           128, 128, 144, 144, 160, 160, 176, 176, 176, \
+                           192, 192, 208, 208, 224, 224, 240, 240, 240, \
+                           192, 192, 208, 208, 224, 224, 240, 240, 240}},
+    {/*factors=*/{2, 2}, /*padding=*/{1, 1, 1, 1}, /*offsets=*/{}, /*sizes=*/{},
+     /*dataShape=*/{1, 16, 3, 3}, /*dataStrides=*/{}, /*dataElemByteSize=*/1, /*seSize=*/16,
+     /*outputTileOffset=*/{0, 0, 1, 0}, /*outputTileShape=*/{1, 16, 8, 9},
+     /*expectedOutputShape*/{1, 16, 9, 9},
+     /*expectedBackInferredInputShape=*/{1, 16, 3, 3},
+     /*expectedInputTileOffset=*/{0, 0, 0, 0}, /*expectedInputTileShape=*/{1, 16, 3, 3},
+     /*expectedAttrOffsets=*/{0, 0, 1, 0}, /*expectedAttrSizes=*/{1, 16, 8, 9},
+     /*expectedInputCoords*/{{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 1}, {0, 1}, {0, 1}, {0, 2}, {0, 2}, \
+                             {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 1}, {0, 1}, {0, 1}, {0, 2}, {0, 2}, \
+                             {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 1}, {0, 1}, {0, 1}, {0, 2}, {0, 2}, \
+                             {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 1}, {0, 1}, {0, 1}, {0, 2}, {0, 2}, \
+                             {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 1}, {1, 1}, {1, 1}, {1, 2}, {1, 2}, \
+                             {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 1}, {1, 1}, {1, 1}, {1, 2}, {1, 2}, \
+                             {1, 0}, {1, 0}, {1, 0}, {1, 0}, {1, 1}, {1, 1}, {1, 1}, {1, 2}, {1, 2}, \
+                             {2, 0}, {2, 0}, {2, 0}, {2, 0}, {2, 1}, {2, 1}, {2, 1}, {2, 2}, {2, 2}, \
+                             {2, 0}, {2, 0}, {2, 0}, {2, 0}, {2, 1}, {2, 1}, {2, 1}, {2, 2}, {2, 2}},
+     /*expectedSEOffsets=*/{ 0,   0,   0,   0,  16,  16,  16,  32,  32, \
+                             0,   0,   0,   0,  16,  16,  16,  32,  32, \
+                             0,   0,   0,   0,  16,  16,  16,  32,  32, \
+                             0,   0,   0,   0,  16,  16,  16,  32,  32, \
+                            48,  48,  48,  48,  64,  64,  64,  80,  80, \
+                            48,  48,  48,  48,  64,  64,  64,  80,  80, \
+                            48,  48,  48,  48,  64,  64,  64,  80,  80, \
+                            96,  96,  96,  96, 112, 112, 112, 128, 128, \
+                            96,  96,  96,  96, 112, 112, 112, 128, 128}},
+
+    //
+    // Element byte sizes
+    //
+    {/*factors=*/{1, 1}, /*padding=*/{1, 1, 1, 1}, /*offsets=*/{}, /*sizes=*/{},
+     /*dataShape=*/{1, 16, 3, 3}, /*dataStrides=*/{}, /*dataElemByteSize=*/2, /*seSize=*/16,
+     /*outputTileOffset=*/{}, /*outputTileShape=*/{},
+     /*expectedOutputShape*/{1, 16, 7, 7},
+     /*expectedBackInferredInputShape=*/{1, 16, 3, 3},
+     /*expectedInputTileOffset=*/{}, /*expectedInputTileShape=*/{},
+     /*expectedAttrOffsets=*/{}, /*expectedAttrSizes=*/{},
+     /*expectedInputCoords*/{{0, 0}, {0, 0}, {0, 0}, {0, 1}, {0, 1}, {0, 2}, {0, 2}, \
+                             {0, 0}, {0, 0}, {0, 0}, {0, 1}, {0, 1}, {0, 2}, {0, 2}, \
+                             {0, 0}, {0, 0}, {0, 0}, {0, 1}, {0, 1}, {0, 2}, {0, 2}, \
+                             {1, 0}, {1, 0}, {1, 0}, {1, 1}, {1, 1}, {1, 2}, {1, 2}, \
+                             {1, 0}, {1, 0}, {1, 0}, {1, 1}, {1, 1}, {1, 2}, {1, 2}, \
+                             {2, 0}, {2, 0}, {2, 0}, {2, 1}, {2, 1}, {2, 2}, {2, 2}, \
+                             {2, 0}, {2, 0}, {2, 0}, {2, 1}, {2, 1}, {2, 2}, {2, 2}},
+     /*expectedSEOffsets=*/{  0,   0,    0,  32,  32,  64,  64, \
+                              0,   0,    0,  32,  32,  64,  64, \
+                              0,   0,    0,  32,  32,  64,  64, \
+                             96,  96,   96, 128, 128, 160, 160, \
+                             96,  96,   96, 128, 128, 160, 160, \
+                            192, 192,  192, 224, 224, 256, 256, \
+                            192, 192,  192, 224, 224, 256, 256}},
+
+    //
+    // Storage element sizes
+    //
+    {/*factors=*/{1, 1}, /*padding=*/{1, 1, 1, 1}, /*offsets=*/{}, /*sizes=*/{},
+     /*dataShape=*/{1, 32, 3, 3}, /*dataStrides=*/{}, /*dataElemByteSize=*/1, /*seSize=*/16,
+     /*outputTileOffset=*/{}, /*outputTileShape=*/{},
+     /*expectedOutputShape*/{1, 32, 7, 7},
+     /*expectedBackInferredInputShape=*/{1, 32, 3, 3},
+     /*expectedInputTileOffset=*/{}, /*expectedInputTileShape=*/{},
+     /*expectedAttrOffsets=*/{}, /*expectedAttrSizes=*/{},
+     /*expectedInputCoords*/{{0, 0}, {0, 0}, {0, 0}, {0, 1}, {0, 1}, {0, 2}, {0, 2}, \
+                             {0, 0}, {0, 0}, {0, 0}, {0, 1}, {0, 1}, {0, 2}, {0, 2}, \
+                             {0, 0}, {0, 0}, {0, 0}, {0, 1}, {0, 1}, {0, 2}, {0, 2}, \
+                             {1, 0}, {1, 0}, {1, 0}, {1, 1}, {1, 1}, {1, 2}, {1, 2}, \
+                             {1, 0}, {1, 0}, {1, 0}, {1, 1}, {1, 1}, {1, 2}, {1, 2}, \
+                             {2, 0}, {2, 0}, {2, 0}, {2, 1}, {2, 1}, {2, 2}, {2, 2}, \
+                             {2, 0}, {2, 0}, {2, 0}, {2, 1}, {2, 1}, {2, 2}, {2, 2}},
+     /*expectedSEOffsets=*/{ 0,  16,   0,  16,   0,  16,  32,  48,  32,  48,  64,  80,  64,  80, \
+                             0,  16,   0,  16,   0,  16,  32,  48,  32,  48,  64,  80,  64,  80, \
+                             0,  16,   0,  16,   0,  16,  32,  48,  32,  48,  64,  80,  64,  80, \
+                            96, 112,  96, 112,  96, 112, 128, 144, 128, 144, 160, 176, 160, 176, \
+                            96, 112,  96, 112,  96, 112, 128, 144, 128, 144, 160, 176, 160, 176, \
+                           192, 208, 192, 208, 192, 208, 224, 240, 224, 240, 256, 272, 256, 272, \
+                           192, 208, 192, 208, 192, 208, 224, 240, 224, 240, 256, 272, 256, 272}},
+
+    //
+    // Offsets & sizes
+    //
+    {/*factors=*/{1, 1}, /*padding=*/{1, 1, 1, 1}, /*offsets=*/{0, 0, 1, 2}, /*sizes=*/{1, 16, 5, 5},
+     /*dataShape=*/{1, 16, 3, 3}, /*dataStrides=*/{}, /*dataElemByteSize=*/1, /*seSize=*/16,
+     /*outputTileOffset=*/{}, /*outputTileShape=*/{},
+     /*expectedOutputShape*/{1, 16, 5, 5},
+     /*expectedBackInferredInputShape=*/{1, 16, 2, 2},
+     /*expectedInputTileOffset=*/{}, /*expectedInputTileShape=*/{},
+     /*expectedAttrOffsets=*/{}, /*expectedAttrSizes=*/{},
+     /*expectedInputCoords*/{{0, 0}, {0, 1}, {0, 1}, {0, 2}, {0, 2}, \
+                             {0, 0}, {0, 1}, {0, 1}, {0, 2}, {0, 2}, \
+                             {1, 0}, {1, 1}, {1, 1}, {1, 2}, {1, 2}, \
+                             {1, 0}, {1, 1}, {1, 1}, {1, 2}, {1, 2}, \
+                             {2, 0}, {2, 1}, {2, 1}, {2, 2}, {2, 2}},
+     /*expectedSEOffsets=*/{ 0,  16,  16,  32,  32, \
+                             0,  16,  16,  32,  32, \
+                            48,  64,  64,  80,  80, \
+                            48,  64,  64,  80,  80, \
+                            96, 112, 112, 128, 128}},
+};
+
+// clang-format on
+
+INSTANTIATE_TEST_CASE_P(unit, SEUpsamplingAttrTests, testing::ValuesIn(upsamplingParams));
+
+//
+// SEPaddingAttr
+//
+
+struct SEPaddingAttrParams {
+    // SEPaddingAttr parameters
+    IE::PadMode padMode;
+    SmallVector<int64_t> padding;
+    SmallVector<int64_t> offsets;
+    SmallVector<int64_t> sizes;
+    // Input data
+    SmallVector<int64_t> dataShape;
+    SmallVector<Bit> dataStrides;
+    int64_t dataElemByteSize;
+    int64_t seSize;
+    SmallVector<int64_t> outputTileOffset;
+    SmallVector<int64_t> outputTileShape;
+
+    // Expected results
+    SmallVector<int64_t> expectedOutputShape;
+    SmallVector<int64_t> expectedBackInferredInputShape;
+    SmallVector<int64_t> expectedInputTileOffset;
+    SmallVector<int64_t> expectedInputTileShape;
+    SmallVector<int64_t> expectedAttrOffsets;
+    SmallVector<int64_t> expectedAttrSizes;
+    SmallVector<int64_t> expectedAttrPadding;
+    std::vector<std::vector<int64_t>> expectedInputCoords;
+    std::vector<int32_t> expectedSEOffsets;
+};
+
+class SEPaddingAttrTests : public testing::TestWithParam<SEPaddingAttrParams> {};
+
+TEST_P(SEPaddingAttrTests, SEAttrInterface) {
+    mlir::DialectRegistry registry;
+    vpux::registerDialects(registry);
+
+    mlir::MLIRContext ctx(registry);
+    ctx.loadDialect<VPU::VPUDialect>();
+
+    const auto params = GetParam();
+
+    auto padModeAttr = IE::PadModeAttr::get(&ctx, params.padMode);
+    auto paddingAttr = getIntArrayAttr(&ctx, params.padding);
+    auto offsetsAttr = params.offsets.empty() ? nullptr : getIntArrayAttr(&ctx, params.offsets);
+    auto sizesAttr = params.sizes.empty() ? nullptr : getIntArrayAttr(&ctx, params.sizes);
+    auto PaddingAttr = VPU::SEPaddingAttr::get(&ctx, padModeAttr, paddingAttr, offsetsAttr, sizesAttr);
+
+    auto seAttrInterface = PaddingAttr.dyn_cast<VPU::SEAttr>();
+    ASSERT_TRUE(seAttrInterface != nullptr);
+
+    // inferOutputShape
+    const Shape dataShape(params.dataShape);
+    const auto outputShape = seAttrInterface.inferOutputShape(dataShape);
+    EXPECT_EQ(outputShape.raw(), params.expectedOutputShape);
+
+    // backInferInputShape
+    if (offsetsAttr == nullptr && sizesAttr == nullptr) {
+        const auto inputShape = seAttrInterface.backInferInputShape(outputShape);
+        EXPECT_EQ(inputShape.raw(), params.expectedBackInferredInputShape);
+    }
+
+    // backInferInputCoord
+    const auto offsets = params.offsets.empty() ? SmallVector<int64_t>(outputShape.size(), 0) : params.offsets;
+    const auto sizes = params.sizes.empty() ? SmallVector<int64_t>(outputShape.raw()) : params.sizes;
+
+    const auto outputH = sizes[Dims4D::Act::H.ind()];
+    const auto outputW = sizes[Dims4D::Act::W.ind()];
+    ASSERT_EQ(params.expectedInputCoords.size(), outputH * outputW);
+    for (auto h : irange(outputH)) {
+        for (auto w : irange(outputW)) {
+            const auto actualH = h + offsets[Dims4D::Act::H.ind()];
+            const auto actualW = w + offsets[Dims4D::Act::W.ind()];
+            const Shape outputCoord({0, 0, actualH, actualW});
+            const auto inputCoord = seAttrInterface.backInferInputCoord(outputCoord, dataShape);
+            const auto& expectedCoord = params.expectedInputCoords[h * outputW + w];
+            const Shape expectedInputCoord({0, 0, expectedCoord[0], expectedCoord[1]});
+            EXPECT_EQ(inputCoord, expectedInputCoord)
+                    << "Invalid input coordinates for output coordinate [" << actualH << ", " << actualW << "]";
+        }
+    }
+
+    // extractTile
+    if (!params.outputTileOffset.empty() && !params.outputTileShape.empty()) {
+        const Shape outputTileOffset(params.outputTileOffset);
+        const Shape outputTileShape(params.outputTileShape);
+        Shape inputTileOffset{};
+        Shape inputTileShape{};
+        auto newSEAttr = seAttrInterface.extractTile(outputTileOffset, outputTileShape, dataShape, inputTileOffset,
+                                                     inputTileShape);
+        auto newSEPaddingAttr = newSEAttr.dyn_cast_or_null<VPU::SEPaddingAttr>();
+        ASSERT_TRUE(newSEPaddingAttr != nullptr);
+        EXPECT_EQ(inputTileOffset.raw(), params.expectedInputTileOffset);
+        EXPECT_EQ(inputTileShape.raw(), params.expectedInputTileShape);
+        const auto newSEPaddingAttrOffsets = parseIntArrayAttr<int64_t>(newSEPaddingAttr.getOffsets());
+        const auto newSEPaddingAttrSizes = parseIntArrayAttr<int64_t>(newSEPaddingAttr.getSizes());
+        const auto newSEPaddingAttrPadding = parseIntArrayAttr<int64_t>(newSEPaddingAttr.getPadding());
+        EXPECT_EQ(newSEPaddingAttrOffsets, params.expectedAttrOffsets);
+        EXPECT_EQ(newSEPaddingAttrSizes, params.expectedAttrSizes);
+        EXPECT_EQ(newSEPaddingAttrPadding, params.expectedAttrPadding);
+    }
+
+    // computeSEOffsets
+    const Strides dataStrides(params.dataStrides);
+    const Byte elemSize(params.dataElemByteSize);
+    const auto seOffsets = seAttrInterface.computeSEOffsets(dataShape, dataStrides, elemSize, params.seSize);
+    EXPECT_EQ(seOffsets, params.expectedSEOffsets);
+}
+
+// clang-format off
+
+std::vector<SEPaddingAttrParams> paddingParams = {
+    // REFLECT: H(CoordLocation::padBegin -> CoordLocation::inData); W(CoordLocation::inData -> CoordLocation::inData)
+    {/*padMode=*/IE::PadMode::REFLECT, /*padding=*/{1, 2, 2, 1}, /*offsets=*/{}, /*sizes=*/{},
+     /*dataShape=*/{1, 16, 3, 3}, /*dataStrides=*/{}, /*dataElemByteSize=*/1, /*seSize=*/16,
+     /*outputTileOffset=*/{0, 0, 1, 1}, /*outputTileShape=*/{1, 16, 3, 3},
+     /*expectedOutputShape*/{1, 16, 6, 6}, /*expectedBackInferredInputShape=*/{1, 16, 3, 3},
+     /*expectedInputTileOffset=*/{0, 0, 0, 0}, /*expectedInputTileShape=*/{1, 16, 2, 3},
+     /*expectedAttrOffsets=*/{0, 0, 1, 1}, /*expectedAttrSizes=*/{1, 16, 3, 3}, /*expectedAttrPadding=*/{1, 2, 2, 1},
+     /*expectedInputCoords*/{{2, 1}, {2, 0}, {2, 1}, {2, 2}, {2, 1}, {2, 0}, \
+                             {1, 1}, {1, 0}, {1, 1}, {1, 2}, {1, 1}, {1, 0}, \
+                             {0, 1}, {0, 0}, {0, 1}, {0, 2}, {0, 1}, {0, 0}, \
+                             {1, 1}, {1, 0}, {1, 1}, {1, 2}, {1, 1}, {1, 0}, \
+                             {2, 1}, {2, 0}, {2, 1}, {2, 2}, {2, 1}, {2, 0}, \
+                             {1, 1}, {1, 0}, {1, 1}, {1, 2}, {1, 1}, {1, 0}},
+     /*expectedSEOffsets=*/{ 112, 96, 112, 128, 112, 96, \
+                              64, 48,  64,  80,  64, 48, \
+                              16,  0,  16,  32,  16,  0, \
+                              64, 48,  64,  80,  64, 48, \
+                             112, 96, 112, 128, 112, 96, \
+                              64, 48,  64,  80,  64, 48}},
+
+    // REFLECT: H(CoordLocation::padBegin -> CoordLocation::padBegin); W(CoordLocation::padEnd -> CoordLocation::padEnd)
+    {/*padMode=*/IE::PadMode::REFLECT, /*padding=*/{1, 2, 2, 1}, /*offsets=*/{}, /*sizes=*/{},
+     /*dataShape=*/{1, 16, 3, 3}, /*dataStrides=*/{}, /*dataElemByteSize=*/1, /*seSize=*/16,
+     /*outputTileOffset=*/{0, 0, 1, 4}, /*outputTileShape=*/{1, 16, 1, 2},
+     /*expectedOutputShape*/{1, 16, 6, 6}, /*expectedBackInferredInputShape=*/{1, 16, 3, 3},
+     /*expectedInputTileOffset=*/{0, 0, 0, 0}, /*expectedInputTileShape=*/{1, 16, 2, 3},
+     /*expectedAttrOffsets=*/{0, 0, 3, 4}, /*expectedAttrSizes=*/{1, 16, 1, 2}, /*expectedAttrPadding=*/{1, 2, 2, 1},
+     /*expectedInputCoords*/{{2, 1}, {2, 0}, {2, 1}, {2, 2}, {2, 1}, {2, 0}, \
+                             {1, 1}, {1, 0}, {1, 1}, {1, 2}, {1, 1}, {1, 0}, \
+                             {0, 1}, {0, 0}, {0, 1}, {0, 2}, {0, 1}, {0, 0}, \
+                             {1, 1}, {1, 0}, {1, 1}, {1, 2}, {1, 1}, {1, 0}, \
+                             {2, 1}, {2, 0}, {2, 1}, {2, 2}, {2, 1}, {2, 0}, \
+                             {1, 1}, {1, 0}, {1, 1}, {1, 2}, {1, 1}, {1, 0}},
+     /*expectedSEOffsets=*/{ 112, 96, 112, 128, 112, 96, \
+                              64, 48,  64,  80,  64, 48, \
+                              16,  0,  16,  32,  16,  0, \
+                              64, 48,  64,  80,  64, 48, \
+                             112, 96, 112, 128, 112, 96, \
+                              64, 48,  64,  80,  64, 48}},
+
+    // REFLECT: H(CoordLocation::padBegin -> CoordLocation::padEnd); W(CoordLocation::inData -> CoordLocation::padEnd)
+    {/*padMode=*/IE::PadMode::REFLECT, /*padding=*/{1, 2, 2, 1}, /*offsets=*/{}, /*sizes=*/{},
+     /*dataShape=*/{1, 16, 3, 3}, /*dataStrides=*/{}, /*dataElemByteSize=*/1, /*seSize=*/16,
+     /*outputTileOffset=*/{0, 0, 1, 2}, /*outputTileShape=*/{1, 16, 5, 3},
+     /*expectedOutputShape*/{1, 16, 6, 6}, /*expectedBackInferredInputShape=*/{1, 16, 3, 3},
+     /*expectedInputTileOffset=*/{0, 0, 0, 1}, /*expectedInputTileShape=*/{1, 16, 3, 2},
+     /*expectedAttrOffsets=*/{0, 0, 1, 1}, /*expectedAttrSizes=*/{1, 16, 5, 3}, /*expectedAttrPadding=*/{1, 2, 2, 1},
+     /*expectedInputCoords*/{{2, 1}, {2, 0}, {2, 1}, {2, 2}, {2, 1}, {2, 0}, \
+                             {1, 1}, {1, 0}, {1, 1}, {1, 2}, {1, 1}, {1, 0}, \
+                             {0, 1}, {0, 0}, {0, 1}, {0, 2}, {0, 1}, {0, 0}, \
+                             {1, 1}, {1, 0}, {1, 1}, {1, 2}, {1, 1}, {1, 0}, \
+                             {2, 1}, {2, 0}, {2, 1}, {2, 2}, {2, 1}, {2, 0}, \
+                             {1, 1}, {1, 0}, {1, 1}, {1, 2}, {1, 1}, {1, 0}},
+     /*expectedSEOffsets=*/{ 112, 96, 112, 128, 112, 96, \
+                              64, 48,  64,  80,  64, 48, \
+                              16,  0,  16,  32,  16,  0, \
+                              64, 48,  64,  80,  64, 48, \
+                             112, 96, 112, 128, 112, 96, \
+                              64, 48,  64,  80,  64, 48}},
+
+    // REFLECT with offsetsAttr and sizesAttr
+    {/*padMode=*/IE::PadMode::REFLECT, /*padding=*/{1, 2, 2, 1}, /*offsets=*/{0, 0, 2, 0}, /*sizes=*/{1, 16, 3, 6},
+     /*dataShape=*/{1, 16, 2, 3}, /*dataStrides=*/{}, /*dataElemByteSize=*/1, /*seSize=*/16,
+     /*outputTileOffset=*/{}, /*outputTileShape=*/{},
+     /*expectedOutputShape*/{1, 16, 3, 6}, /*expectedBackInferredInputShape=*/{},
+     /*expectedInputTileOffset=*/{}, /*expectedInputTileShape=*/{},
+     /*expectedAttrOffsets=*/{}, /*expectedAttrSizes=*/{}, /*expectedAttrPadding=*/{},
+     /*expectedInputCoords*/{{0, 1}, {0, 0}, {0, 1}, {0, 2}, {0, 1}, {0, 0}, \
+                             {1, 1}, {1, 0}, {1, 1}, {1, 2}, {1, 1}, {1, 0}, \
+                             {0, 1}, {0, 0}, {0, 1}, {0, 2}, {0, 1}, {0, 0}},
+     /*expectedSEOffsets=*/{16,  0, 16, 32, 16,  0, \
+                            64, 48, 64, 80, 64, 48, \
+                            16,  0, 16, 32, 16,  0}},
+
+    // SYMMETRIC: H(CoordLocation::inData -> CoordLocation::padEnd); W(CoordLocation::padBegin -> CoordLocation::inData)
+    {/*padMode=*/IE::PadMode::SYMMETRIC, /*padding=*/{2, 1, 1, 2}, /*offsets=*/{}, /*sizes=*/{},
+     /*dataShape=*/{1, 16, 3, 3}, /*dataStrides=*/{}, /*dataElemByteSize=*/1, /*seSize=*/16,
+     /*outputTileOffset=*/{0, 0, 2, 0}, /*outputTileShape=*/{1, 16, 3, 4},
+     /*expectedOutputShape*/{1, 16, 6, 6}, /*expectedBackInferredInputShape=*/{1, 16, 3, 3},
+     /*expectedInputTileOffset=*/{0, 0, 1, 0}, /*expectedInputTileShape=*/{1, 16, 2, 2},
+     /*expectedAttrOffsets=*/{0, 0, 1, 0}, /*expectedAttrSizes=*/{1, 16, 3, 4}, /*expectedAttrPadding=*/{2, 1, 1, 2},
+     /*expectedInputCoords*/{{0, 1}, {0, 0}, {0, 0}, {0, 1}, {0, 2}, {0, 2}, \
+                             {0, 1}, {0, 0}, {0, 0}, {0, 1}, {0, 2}, {0, 2}, \
+                             {1, 1}, {1, 0}, {1, 0}, {1, 1}, {1, 2}, {1, 2}, \
+                             {2, 1}, {2, 0}, {2, 0}, {2, 1}, {2, 2}, {2, 2}, \
+                             {2, 1}, {2, 0}, {2, 0}, {2, 1}, {2, 2}, {2, 2}, \
+                             {1, 1}, {1, 0}, {1, 0}, {1, 1}, {1, 2}, {1, 2}},
+     /*expectedSEOffsets=*/{ 16,  0,  0,  16,  32,  32, \
+                             16,  0,  0,  16,  32,  32, \
+                             64, 48, 48,  64,  80,  80, \
+                            112, 96, 96, 112, 128, 128, \
+                            112, 96, 96, 112, 128, 128, \
+                             64, 48, 48,  64,  80,  80}},
+
+    // SYMMETRIC: H(CoordLocation::padEnd -> CoordLocation::padEnd); W(CoordLocation::padBegin -> CoordLocation::inData)
+    {/*padMode=*/IE::PadMode::SYMMETRIC, /*padding=*/{2, 1, 1, 2}, /*offsets=*/{}, /*sizes=*/{},
+     /*dataShape=*/{1, 16, 3, 3}, /*dataStrides=*/{}, /*dataElemByteSize=*/1, /*seSize=*/16,
+     /*outputTileOffset=*/{0, 0, 4, 1}, /*outputTileShape=*/{1, 16, 2, 3},
+     /*expectedOutputShape*/{1, 16, 6, 6}, /*expectedBackInferredInputShape=*/{1, 16, 3, 3},
+     /*expectedInputTileOffset=*/{0, 0, 1, 0}, /*expectedInputTileShape=*/{1, 16, 2, 2},
+     /*expectedAttrOffsets=*/{0, 0, 3, 1}, /*expectedAttrSizes=*/{1, 16, 2, 3}, /*expectedAttrPadding=*/{2, 1, 1, 2},
+     /*expectedInputCoords*/{{0, 1}, {0, 0}, {0, 0}, {0, 1}, {0, 2}, {0, 2}, \
+                             {0, 1}, {0, 0}, {0, 0}, {0, 1}, {0, 2}, {0, 2}, \
+                             {1, 1}, {1, 0}, {1, 0}, {1, 1}, {1, 2}, {1, 2}, \
+                             {2, 1}, {2, 0}, {2, 0}, {2, 1}, {2, 2}, {2, 2}, \
+                             {2, 1}, {2, 0}, {2, 0}, {2, 1}, {2, 2}, {2, 2}, \
+                             {1, 1}, {1, 0}, {1, 0}, {1, 1}, {1, 2}, {1, 2}},
+     /*expectedSEOffsets=*/{ 16,  0,  0,  16,  32,  32, \
+                             16,  0,  0,  16,  32,  32, \
+                             64, 48, 48,  64,  80,  80, \
+                            112, 96, 96, 112, 128, 128, \
+                            112, 96, 96, 112, 128, 128, \
+                             64, 48, 48,  64,  80,  80}},
+
+    // SYMMETRIC: H(CoordLocation::padBegin -> CoordLocation::padEnd); W(CoordLocation::inData -> CoordLocation::inData)
+    {/*padMode=*/IE::PadMode::SYMMETRIC, /*padding=*/{2, 1, 1, 2}, /*offsets=*/{}, /*sizes=*/{},
+     /*dataShape=*/{1, 16, 3, 3}, /*dataStrides=*/{}, /*dataElemByteSize=*/1, /*seSize=*/16,
+     /*outputTileOffset=*/{0, 0, 0, 4}, /*outputTileShape=*/{1, 16, 5, 1},
+     /*expectedOutputShape*/{1, 16, 6, 6}, /*expectedBackInferredInputShape=*/{1, 16, 3, 3},
+     /*expectedInputTileOffset=*/{0, 0, 0, 2}, /*expectedInputTileShape=*/{1, 16, 3, 1},
+     /*expectedAttrOffsets=*/{0, 0, 0, 2}, /*expectedAttrSizes=*/{1, 16, 5, 1}, /*expectedAttrPadding=*/{2, 1, 1, 2},
+     /*expectedInputCoords*/{{0, 1}, {0, 0}, {0, 0}, {0, 1}, {0, 2}, {0, 2}, \
+                             {0, 1}, {0, 0}, {0, 0}, {0, 1}, {0, 2}, {0, 2}, \
+                             {1, 1}, {1, 0}, {1, 0}, {1, 1}, {1, 2}, {1, 2}, \
+                             {2, 1}, {2, 0}, {2, 0}, {2, 1}, {2, 2}, {2, 2}, \
+                             {2, 1}, {2, 0}, {2, 0}, {2, 1}, {2, 2}, {2, 2}, \
+                             {1, 1}, {1, 0}, {1, 0}, {1, 1}, {1, 2}, {1, 2}},
+     /*expectedSEOffsets=*/{ 16,  0,  0,  16,  32,  32, \
+                             16,  0,  0,  16,  32,  32, \
+                             64, 48, 48,  64,  80,  80, \
+                            112, 96, 96, 112, 128, 128, \
+                            112, 96, 96, 112, 128, 128, \
+                             64, 48, 48,  64,  80,  80}},
+
+    // SYMMETRIC with offsetsAttr and sizesAttr
+    {/*padMode=*/IE::PadMode::SYMMETRIC, /*padding=*/{2, 1, 1, 2}, /*offsets=*/{0, 0, 1, 0}, /*sizes=*/{1, 16, 4, 6},
+     /*dataShape=*/{1, 16, 2, 3}, /*dataStrides=*/{}, /*dataElemByteSize=*/1, /*seSize=*/16,
+     /*outputTileOffset=*/{}, /*outputTileShape=*/{},
+     /*expectedOutputShape*/{1, 16, 4, 6}, /*expectedBackInferredInputShape=*/{},
+     /*expectedInputTileOffset=*/{}, /*expectedInputTileShape=*/{},
+     /*expectedAttrOffsets=*/{}, /*expectedAttrSizes=*/{}, /*expectedAttrPadding=*/{},
+     /*expectedInputCoords*/{{0, 1}, {0, 0}, {0, 0}, {0, 1}, {0, 2}, {0, 2}, \
+                             {1, 1}, {1, 0}, {1, 0}, {1, 1}, {1, 2}, {1, 2}, \
+                             {1, 1}, {1, 0}, {1, 0}, {1, 1}, {1, 2}, {1, 2}, \
+                             {0, 1}, {0, 0}, {0, 0}, {0, 1}, {0, 2}, {0, 2}},
+     /*expectedSEOffsets=*/{16,  0,  0, 16, 32, 32, \
+                            64, 48, 48, 64, 80, 80, \
+                            64, 48, 48, 64, 80, 80, \
+                            16,  0,  0, 16, 32, 32,}},
+
+    // EDGE: H(CoordLocation::padBegin -> CoordLocation::padEnd); W(CoordLocation::padBegin -> CoordLocation::inData)
+    {/*padMode=*/IE::PadMode::EDGE, /*padding=*/{2, 1, 3, 4}, /*offsets=*/{}, /*sizes=*/{},
+     /*dataShape=*/{1, 16, 3, 3}, /*dataStrides=*/{}, /*dataElemByteSize=*/1, /*seSize=*/16,
+     /*outputTileOffset=*/{0, 0, 0, 0}, /*outputTileShape=*/{1, 16, 8, 4},
+     /*expectedOutputShape*/{1, 16, 8, 8}, /*expectedBackInferredInputShape=*/{1, 16, 3, 3},
+     /*expectedInputTileOffset=*/{0, 0, 0, 0}, /*expectedInputTileShape=*/{1, 16, 3, 2},
+     /*expectedAttrOffsets=*/{0, 0, 0, 0}, /*expectedAttrSizes=*/{1, 16, 8, 4}, /*expectedAttrPadding=*/{2, 1, 3, 4},
+     /*expectedInputCoords*/{{0, 0}, {0, 0}, {0, 0}, {0, 1}, {0, 2}, {0, 2}, {0, 2}, {0, 2}, \
+                             {0, 0}, {0, 0}, {0, 0}, {0, 1}, {0, 2}, {0, 2}, {0, 2}, {0, 2}, \
+                             {1, 0}, {1, 0}, {1, 0}, {1, 1}, {1, 2}, {1, 2}, {1, 2}, {1, 2}, \
+                             {2, 0}, {2, 0}, {2, 0}, {2, 1}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, \
+                             {2, 0}, {2, 0}, {2, 0}, {2, 1}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, \
+                             {2, 0}, {2, 0}, {2, 0}, {2, 1}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, \
+                             {2, 0}, {2, 0}, {2, 0}, {2, 1}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, \
+                             {2, 0}, {2, 0}, {2, 0}, {2, 1}, {2, 2}, {2, 2}, {2, 2}, {2, 2}},
+     /*expectedSEOffsets=*/{ 0,  0,  0,  16,  32,  32,  32,  32, \
+                             0,  0,  0,  16,  32,  32,  32,  32, \
+                            48, 48, 48,  64,  80,  80,  80,  80, \
+                            96, 96, 96, 112, 128, 128, 128, 128, \
+                            96, 96, 96, 112, 128, 128, 128, 128, \
+                            96, 96, 96, 112, 128, 128, 128, 128, \
+                            96, 96, 96, 112, 128, 128, 128, 128, \
+                            96, 96, 96, 112, 128, 128, 128, 128}},
+
+    // EDGE: H(CoordLocation::padBegin -> CoordLocation::padEnd); W(CoordLocation::padBegin -> CoordLocation::padEnd)
+    {/*padMode=*/IE::PadMode::EDGE, /*padding=*/{2, 1, 3, 4}, /*offsets=*/{}, /*sizes=*/{},
+     /*dataShape=*/{1, 16, 3, 3}, /*dataStrides=*/{}, /*dataElemByteSize=*/1, /*seSize=*/16,
+     /*outputTileOffset=*/{0, 0, 2, 3}, /*outputTileShape=*/{1, 16, 4, 4},
+     /*expectedOutputShape*/{1, 16, 8, 8}, /*expectedBackInferredInputShape=*/{1, 16, 3, 3},
+     /*expectedInputTileOffset=*/{0, 0, 1, 1}, /*expectedInputTileShape=*/{1, 16, 2, 2},
+     /*expectedAttrOffsets=*/{0, 0, 1, 2}, /*expectedAttrSizes=*/{1, 16, 4, 4}, /*expectedAttrPadding=*/{2, 1, 3, 4},
+     /*expectedInputCoords*/{{0, 0}, {0, 0}, {0, 0}, {0, 1}, {0, 2}, {0, 2}, {0, 2}, {0, 2}, \
+                             {0, 0}, {0, 0}, {0, 0}, {0, 1}, {0, 2}, {0, 2}, {0, 2}, {0, 2}, \
+                             {1, 0}, {1, 0}, {1, 0}, {1, 1}, {1, 2}, {1, 2}, {1, 2}, {1, 2}, \
+                             {2, 0}, {2, 0}, {2, 0}, {2, 1}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, \
+                             {2, 0}, {2, 0}, {2, 0}, {2, 1}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, \
+                             {2, 0}, {2, 0}, {2, 0}, {2, 1}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, \
+                             {2, 0}, {2, 0}, {2, 0}, {2, 1}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, \
+                             {2, 0}, {2, 0}, {2, 0}, {2, 1}, {2, 2}, {2, 2}, {2, 2}, {2, 2}},
+     /*expectedSEOffsets=*/{ 0,  0,  0,  16,  32,  32,  32,  32, \
+                             0,  0,  0,  16,  32,  32,  32,  32, \
+                            48, 48, 48,  64,  80,  80,  80,  80, \
+                            96, 96, 96, 112, 128, 128, 128, 128, \
+                            96, 96, 96, 112, 128, 128, 128, 128, \
+                            96, 96, 96, 112, 128, 128, 128, 128, \
+                            96, 96, 96, 112, 128, 128, 128, 128, \
+                            96, 96, 96, 112, 128, 128, 128, 128}},
+
+    // EDGE: H(CoordLocation::padEnd -> CoordLocation::padEnd); W(CoordLocation::padEnd -> CoordLocation::padEnd)
+    {/*padMode=*/IE::PadMode::EDGE, /*padding=*/{2, 1, 3, 4}, /*offsets=*/{}, /*sizes=*/{},
+     /*dataShape=*/{1, 16, 3, 3}, /*dataStrides=*/{}, /*dataElemByteSize=*/1, /*seSize=*/16,
+     /*outputTileOffset=*/{0, 0, 5, 5}, /*outputTileShape=*/{1, 16, 3, 3},
+     /*expectedOutputShape*/{1, 16, 8, 8}, /*expectedBackInferredInputShape=*/{1, 16, 3, 3},
+     /*expectedInputTileOffset=*/{0, 0, 2, 2}, /*expectedInputTileShape=*/{1, 16, 1, 1},
+     /*expectedAttrOffsets=*/{0, 0, 2, 3}, /*expectedAttrSizes=*/{1, 16, 3, 3}, /*expectedAttrPadding=*/{2, 1, 3, 4},
+     /*expectedInputCoords*/{{0, 0}, {0, 0}, {0, 0}, {0, 1}, {0, 2}, {0, 2}, {0, 2}, {0, 2}, \
+                             {0, 0}, {0, 0}, {0, 0}, {0, 1}, {0, 2}, {0, 2}, {0, 2}, {0, 2}, \
+                             {1, 0}, {1, 0}, {1, 0}, {1, 1}, {1, 2}, {1, 2}, {1, 2}, {1, 2}, \
+                             {2, 0}, {2, 0}, {2, 0}, {2, 1}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, \
+                             {2, 0}, {2, 0}, {2, 0}, {2, 1}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, \
+                             {2, 0}, {2, 0}, {2, 0}, {2, 1}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, \
+                             {2, 0}, {2, 0}, {2, 0}, {2, 1}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, \
+                             {2, 0}, {2, 0}, {2, 0}, {2, 1}, {2, 2}, {2, 2}, {2, 2}, {2, 2}},
+     /*expectedSEOffsets=*/{ 0,  0,  0,  16,  32,  32,  32,  32, \
+                             0,  0,  0,  16,  32,  32,  32,  32, \
+                            48, 48, 48,  64,  80,  80,  80,  80, \
+                            96, 96, 96, 112, 128, 128, 128, 128, \
+                            96, 96, 96, 112, 128, 128, 128, 128, \
+                            96, 96, 96, 112, 128, 128, 128, 128, \
+                            96, 96, 96, 112, 128, 128, 128, 128, \
+                            96, 96, 96, 112, 128, 128, 128, 128}},
+
+    // EDGE with offsetsAttr and sizesAttr
+    {/*padMode=*/IE::PadMode::EDGE, /*padding=*/{2, 1, 3, 4}, /*offsets=*/{0, 0, 1, 0}, /*sizes=*/{1, 16, 3, 8},
+     /*dataShape=*/{1, 16, 1, 3}, /*dataStrides=*/{}, /*dataElemByteSize=*/1, /*seSize=*/16,
+     /*outputTileOffset=*/{}, /*outputTileShape=*/{},
+     /*expectedOutputShape*/{1, 16, 3, 8}, /*expectedBackInferredInputShape=*/{},
+     /*expectedInputTileOffset=*/{}, /*expectedInputTileShape=*/{},
+     /*expectedAttrOffsets=*/{}, /*expectedAttrSizes=*/{}, /*expectedAttrPadding=*/{},
+     /*expectedInputCoords*/{{0, 0}, {0, 0}, {0, 0}, {0, 1}, {0, 2}, {0, 2}, {0, 2}, {0, 2}, \
+                             {0, 0}, {0, 0}, {0, 0}, {0, 1}, {0, 2}, {0, 2}, {0, 2}, {0, 2}, \
+                             {0, 0}, {0, 0}, {0, 0}, {0, 1}, {0, 2}, {0, 2}, {0, 2}, {0, 2}},
+     /*expectedSEOffsets=*/{ 0,  0,  0,  16,  32,  32,  32,  32, \
+                             0,  0,  0,  16,  32,  32,  32,  32, \
+                             0,  0,  0,  16,  32,  32,  32,  32}},
+
+    // CONSTANT with offsetsAttr and sizesAttr
+    {/*padMode=*/IE::PadMode::CONSTANT, /*padding=*/{2, 1, 3, 4}, /*offsets=*/{0, 0, 1, 0}, /*sizes=*/{1, 16, 3, 8},
+     /*dataShape=*/{1, 16, 1, 3}, /*dataStrides=*/{}, /*dataElemByteSize=*/1, /*seSize=*/16,
+     /*outputTileOffset=*/{}, /*outputTileShape=*/{},
+     /*expectedOutputShape*/{1, 16, 3, 8}, /*expectedBackInferredInputShape=*/{},
+     /*expectedInputTileOffset=*/{}, /*expectedInputTileShape=*/{},
+     /*expectedAttrOffsets=*/{}, /*expectedAttrSizes=*/{}, /*expectedAttrPadding=*/{},
+     /*expectedInputCoords*/{{0, 0}, {0, 0}, {0, 0}, {0, 1}, {0, 2}, {0, 2}, {0, 2}, {0, 2}, \
+                             {0, 0}, {0, 0}, {0, 0}, {0, 1}, {0, 2}, {0, 2}, {0, 2}, {0, 2}, \
+                             {0, 0}, {0, 0}, {0, 0}, {0, 1}, {0, 2}, {0, 2}, {0, 2}, {0, 2}},
+     /*expectedSEOffsets=*/{ 0,  0,  0,  16,  32,  32,  32,  32, \
+                             0,  0,  0,  16,  32,  32,  32,  32, \
+                             0,  0,  0,  16,  32,  32,  32,  32}},
+};
+
+// clang-format on
+
+INSTANTIATE_TEST_CASE_P(unit, SEPaddingAttrTests, testing::ValuesIn(paddingParams));

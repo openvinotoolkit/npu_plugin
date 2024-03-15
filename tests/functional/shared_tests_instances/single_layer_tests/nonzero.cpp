@@ -12,7 +12,7 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXNonZeroLayerTest_VPU3700 : public NonZeroLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
+class NonZeroLayerTest_NPU3700 : public NonZeroLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void SkipBeforeLoad() override {
         if (envConfig.IE_NPU_TESTS_RUN_INFER) {
             throw LayerTestsUtils::VpuSkipTestException("layer test networks hang the board");
@@ -23,7 +23,7 @@ class VPUXNonZeroLayerTest_VPU3700 : public NonZeroLayerTest, virtual public Lay
     }
 };
 
-TEST_P(VPUXNonZeroLayerTest_VPU3700, HW) {
+TEST_P(NonZeroLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
@@ -47,10 +47,10 @@ const std::vector<InferenceEngine::Precision> inputPrecisions = {
 std::map<std::string, std::string> additional_config = {};
 
 // Tracking number [E#85137]
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_nonzero, VPUXNonZeroLayerTest_VPU3700,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_nonzero, NonZeroLayerTest_NPU3700,
                          ::testing::Combine(::testing::ValuesIn(inShapes), ::testing::ValuesIn(inputPrecisions),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(additional_config)),
-                         VPUXNonZeroLayerTest_VPU3700::getTestCaseName);
+                         NonZeroLayerTest_NPU3700::getTestCaseName);
 
 }  // namespace

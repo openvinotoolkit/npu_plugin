@@ -10,7 +10,7 @@ plt.style.use('dark_background')
 
 kmb_filename = "InferenceManagerDemo/output-0.bin"
 cpu_filename = "InferenceManagerDemo/cpu-output-0.bin"
-if len(sys.argv) == 3:
+if len(sys.argv) >= 3:
     cpu_filename = sys.argv[1]
     kmb_filename = sys.argv[2]
 

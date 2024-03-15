@@ -11,8 +11,8 @@
 #include "vpux/compiler/utils/strings.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
-#include "vpux/compiler/dialect/VPU/dialect.hpp"
-#include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPU/IR/dialect.hpp"
+#include "vpux/compiler/dialect/VPU/IR/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
@@ -20,7 +20,7 @@
 #include "vpux/utils/core/profiling.hpp"
 
 #include <mlir/IR/Attributes.h>
-#include <mlir/IR/BlockAndValueMapping.h>
+#include <mlir/IR/IRMapping.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 #include <algorithm>
@@ -34,8 +34,8 @@ using namespace vpux;
 // Return number of used clusters
 unsigned getClustersNumber(VPUIP::NCEClusterTaskOp nceClusterTaskOp) {
     std::set<uint64_t> clusterIds;
-    for (auto dpuTask : nceClusterTaskOp.variants().getOps<VPUIP::DPUTaskOp>()) {
-        const auto clusterId = dpuTask.cluster_id().value_or(0);
+    for (auto dpuTask : nceClusterTaskOp.getVariants().getOps<VPUIP::DPUTaskOp>()) {
+        const auto clusterId = dpuTask.getClusterId().value_or(0);
         clusterIds.insert(clusterId);
     }
     return static_cast<unsigned>(clusterIds.size());
@@ -202,23 +202,24 @@ void BaseClusterBufferScheduler::addProfilingOps(unsigned& currentDDROffset, Sma
 
         _builder.setInsertionPointAfter(nceTaskOp);
 
-        const auto outputType = nceTaskOp.output().getType();
-        const auto outputSMType = nceTaskOp.output_sparsity_map() ? nceTaskOp.output_sparsity_map().getType() : nullptr;
+        const auto outputType = nceTaskOp.getOutput().getType();
+        const auto outputSMType =
+                nceTaskOp.getOutputSparsityMap() ? nceTaskOp.getOutputSparsityMap().getType() : nullptr;
         auto newCluster = _builder.create<VPUIP::NCEClusterTaskOp>(uniqLoc, outputType, outputSMType, timestampType,
                                                                    nceTaskOp->getOperands(), nceTaskOp->getAttrs());
-        newCluster.profilingMetadataAttr(profAttr);
+        newCluster.setProfilingMetadataAttr(profAttr);
 
         for (const auto& region : llvm::enumerate(nceTaskOp.getRegions())) {
             newCluster.getRegion(static_cast<unsigned>(region.index())).takeBody(*region.value());
         }
-        newCluster.profiling_dataMutable().assign(subView);
-        SmallVector<mlir::Value> newUses{newCluster.output()};
-        if (newCluster.output_sparsity_map() != nullptr) {
-            newUses.push_back(newCluster.output_sparsity_map());
+        newCluster.getProfilingDataMutable().assign(subView);
+        SmallVector<mlir::Value> newUses{newCluster.getOutput()};
+        if (newCluster.getOutputSparsityMap() != nullptr) {
+            newUses.push_back(newCluster.getOutputSparsityMap());
         }
         nceTaskOp->replaceAllUsesWith(mlir::ValueRange(newUses));
         nceTaskOp->erase();
-        auto profilingOutput = newCluster.profiling_output();
+        auto profilingOutput = newCluster.getProfilingOutput();
 
         // In case original NCEClusterTask was wrapped with NCEClusterTiling then new NCEClusterTask
         // with additional profiling output should also be wrapped with NCEClusterTiling op whose
@@ -228,7 +229,7 @@ void BaseClusterBufferScheduler::addProfilingOps(unsigned& currentDDROffset, Sma
 
             // Operands of new NCEClusterTilingOp will be extended with profiling buffer
             SmallVector<mlir::Value> newNceClusterTilingOperands(nceClusterTilingOp->getOperands());
-            newNceClusterTilingOperands.push_back(newCluster.profiling_data());
+            newNceClusterTilingOperands.push_back(newCluster.getProfilingData());
 
             // Result of new NCEClusterTilingOp will be extended with profiling result
             SmallVector<mlir::Type> newNceClusterTilingResultTypes(nceClusterTilingOp->getResultTypes());
@@ -237,14 +238,14 @@ void BaseClusterBufferScheduler::addProfilingOps(unsigned& currentDDROffset, Sma
             const auto bodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
                 std::ignore = loc;
 
-                mlir::BlockAndValueMapping mapper;
+                mlir::IRMapping mapper;
 
-                auto origArguments = nceClusterTilingOp.body().front().getArguments();
+                auto origArguments = nceClusterTilingOp.getBody().front().getArguments();
 
                 // Map original NCEClusterTiling argument to new corresponding operands and map
                 // profiling buffer to last operand
                 mapper.map(origArguments, newOperands.take_front(nceClusterTilingOp->getOperands().size()));
-                mapper.map(newCluster.profiling_data(), newOperands.take_back(1).front());
+                mapper.map(newCluster.getProfilingData(), newOperands.take_back(1).front());
 
                 builder.clone(*newCluster.getOperation(), mapper);
             };
@@ -287,7 +288,7 @@ SingleClusterScheduler::SingleClusterScheduler(unsigned profilingWorkloadSize, m
 }
 
 NCETaskSignature SingleClusterScheduler::getTaskSignature(VPUIP::NCEClusterTaskOp nceClusterTaskOp) {
-    const auto dpuIt = nceClusterTaskOp.variants().getOps<VPUIP::DPUTaskOp>();
+    const auto dpuIt = nceClusterTaskOp.getVariants().getOps<VPUIP::DPUTaskOp>();
     const auto maxDpuTasks = static_cast<unsigned>(std::distance(dpuIt.begin(), dpuIt.end()));
     return {nceClusterTaskOp, maxDpuTasks, {maxDpuTasks}};
 }
@@ -318,7 +319,7 @@ mlir::Value SingleClusterScheduler::copyToDDR(mlir::BlockArgument& profilingResu
             mlir::NameLoc::get(mlir::StringAttr::get(_ctx, name + "ProfilingConcat" + std::to_string(offset))),
             dpuProfilingOutputs, cmxMemOp->getResult(0));
 
-    return _builder.create<VPUIP::CopyOp>(copyLoc2, concatview.output(), subDDR).output();
+    return _builder.create<VPUIP::CopyOp>(copyLoc2, concatview.getOutput(), subDDR).getOutput();
 }
 
 mlir::Value SingleClusterScheduler::getViewToBuffer(mlir::Operation* currentProfilingBuffer,
@@ -350,8 +351,8 @@ mlir::Type MultiClusterScheduler::getDistributedTimestampType(unsigned dpuTasksA
 NCETaskSignature MultiClusterScheduler::getTaskSignature(VPUIP::NCEClusterTaskOp nceClusterTaskOp) {
     SmallVector<unsigned> dpuTasksPerCluster(_clustersNum, 0);
     unsigned maxTasksInCluster = 0;
-    for (auto dpuTask : nceClusterTaskOp.variants().getOps<VPUIP::DPUTaskOp>()) {
-        const auto clusterId = dpuTask.cluster_id().value();
+    for (auto dpuTask : nceClusterTaskOp.getVariants().getOps<VPUIP::DPUTaskOp>()) {
+        const auto clusterId = dpuTask.getClusterId().value();
         maxTasksInCluster = std::max(maxTasksInCluster, ++dpuTasksPerCluster[clusterId]);
     }
     return {nceClusterTaskOp, maxTasksInCluster, dpuTasksPerCluster};
@@ -392,7 +393,7 @@ mlir::Value MultiClusterScheduler::copyToDDR(mlir::BlockArgument& profilingResul
     auto concatview = _builder.create<VPUIP::ConcatViewOp>(concatLoc, resultTypeDistributed, dpuProfilingOutputs,
                                                            cmxMemOp->getResult(0));
 
-    SmallVector<mlir::Value> inputsOutputOperands{concatview.output(), subDDR.result()};
+    SmallVector<mlir::Value> inputsOutputOperands{concatview.getOutput(), subDDR.getResult()};
 
     const auto bodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
         builder.create<VPUIP::CopyOp>(loc, newOperands[0], newOperands[1]);

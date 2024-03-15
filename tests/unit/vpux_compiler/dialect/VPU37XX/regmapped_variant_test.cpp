@@ -5,9 +5,11 @@
 
 #include <gtest/gtest.h>
 
+#include <npu_37xx_nnrt.hpp>
 #include "common/utils.hpp"
-#include "vpux/compiler/dialect/VPU37XX/api/vpu_nnrt_api_37xx.h"
 #include "vpux/compiler/dialect/VPU37XX/types.hpp"
+
+using namespace npu37xx;
 
 struct Vpu37XXDPUVariant {
     nn_public::VpuDPUVariant variantReg;

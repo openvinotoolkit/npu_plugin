@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/dialect/VPU/ops.hpp"
-#include "vpux/compiler/dialect/VPU/types.hpp"
+#include "vpux/compiler/dialect/VPU/IR/ops.hpp"
+#include "vpux/compiler/dialect/VPU/IR/types.hpp"
 #include "vpux/compiler/init.hpp"
 
 #include "vpux/utils/core/mem_size.hpp"
@@ -1775,4 +1775,91 @@ TEST_F(MLIR_ClusterShapeUtilsDeathTest, AlignedTensorDistribution) {
                             distributedType.getShape().raw())
                         .failed());
 #endif
+}
+
+TEST_F(MLIR_NDTypeInterface, SubByteSegmentedDistributedTensorType) {
+    mlir::MLIRContext ctx(registry);
+    ctx.loadDialect<VPU::VPUDialect>();
+
+    const auto distributionMode = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
+    const auto numTiles = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
+    const auto numClusters = getIntAttr(&ctx, 4);
+    const auto distributedAttr =
+            VPU::DistributedTensorAttr::get(&ctx, distributionMode, numTiles, nullptr, nullptr, nullptr, numClusters,
+                                            nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+
+    const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
+    // SI4 quantized type
+    const auto elemType = mlir::quant::UniformQuantizedType::getChecked(
+            mlir::UnknownLoc::get(&ctx), mlir::quant::QuantizationFlags::Signed, vpux::getSInt4Type(&ctx),
+            mlir::Float16Type::get(&ctx), 1.0, 0, -7, 7);
+    const auto dimsOrder = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(&ctx));
+    const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
+
+    const auto ndType = VPU::DistributedTensorType::get(&ctx, shape, elemType, dimsOrder, dimsSpace, distributedAttr)
+                                .dyn_cast<vpux::NDTypeInterface>();
+    ASSERT_TRUE(ndType != nullptr) << "Tensor is not of vpux::NDTypeInterface type";
+
+    EXPECT_EQ(ndType.getShape(), vpux::ShapeRef({1, 64, 13, 16}));
+    EXPECT_EQ(ndType.getMemShape(), vpux::MemShape({1, 13, 16, 64}));
+
+    EXPECT_TRUE(ndType.hasRank());
+    EXPECT_EQ(ndType.getRank(), 4);
+    EXPECT_EQ(ndType.getNumElements(), 64 * 13 * 16);
+
+    EXPECT_TRUE(ndType.getElementType().isa<mlir::quant::UniformQuantizedType>());
+
+    EXPECT_EQ(ndType.getDimsOrder(), vpux::DimsOrder::NHWC);
+
+    EXPECT_EQ(ndType.getMemSpace().getLeafName(), CMX_NAME);
+    EXPECT_EQ(ndType.getMemoryKind(), vpux::VPU::MemoryKind::CMX_NN);
+
+    const SmallVector<vpux::Bit> strides({53248_Bit, 4_Bit, 4096_Bit, 256_Bit});
+    const SmallVector<vpux::Bit> memStrides({53248_Bit, 4096_Bit, 256_Bit, 4_Bit});
+    EXPECT_EQ(ndType.getStrides().raw(), strides);
+    EXPECT_EQ(ndType.getMemStrides().raw(), memStrides);
+
+    EXPECT_EQ(ndType.getElemTypeSize().count(), 4);
+    EXPECT_EQ(ndType.getTotalAllocSize().count(), 64 * 4 * 16 / 2);
+    EXPECT_EQ(ndType.getCompactAllocSize().count(), 64 * 4 * 16 / 2);
+
+    const SmallVector<int64_t> newShape({1, 32, 52, 8});
+    const auto changedShape = ndType.changeShape(vpux::ShapeRef(newShape));
+    EXPECT_EQ(changedShape.getShape(), vpux::ShapeRef(newShape));
+    const auto changedShape2 = ndType.changeTypeComponents(TypeComponents().setShape(ShapeRef(newShape)));
+    EXPECT_EQ(changedShape2.getShape(), vpux::ShapeRef(newShape));
+
+    const auto changedElemType = ndType.changeElemType(mlir::Float32Type::get(&ctx));
+    EXPECT_TRUE(changedElemType.getElementType().isa<mlir::Float32Type>());
+
+    const SmallVector<int64_t> newShape2({1, 32, 26, 16});
+    const auto changedShapeElemType =
+            ndType.changeShapeElemType(vpux::ShapeRef(newShape2), mlir::IntegerType::get(&ctx, 4));
+    EXPECT_EQ(changedShapeElemType.getShape(), vpux::ShapeRef(newShape2));
+    EXPECT_TRUE(changedShapeElemType.getElementType().isa<mlir::IntegerType>());
+
+    const auto newDimsOrder = DimsOrder::NCHW;
+    const auto changedDimsOrder = ndType.changeDimsOrder(newDimsOrder);
+    EXPECT_EQ(changedDimsOrder.getDimsOrder(), newDimsOrder);
+
+    const auto newMemSpace = vpux::IndexedSymbolAttr::get(&ctx, DDR_NAME);
+    const auto changedMemSpace = ndType.changeMemSpace(newMemSpace);
+    EXPECT_EQ(changedMemSpace.getMemSpace().getLeafName(), DDR_NAME);
+
+    const SmallVector<Bit> newStrides({106496_Bit, 4_Bit, 4096_Bit, 256_Bit});
+    EXPECT_ANY_THROW(ndType.changeStrides(StridesRef(newStrides)));
+
+    const SmallVector<int64_t> tileOffset({0, 0, 32, 0});
+    const SmallVector<int64_t> tileShape({1, 32, 20, 8});
+    const SmallVector<Bit> tileStrides({20480_Bit, 4_Bit, 1024_Bit, 128_Bit});
+    const auto denseTile = ndType.extractDenseTile(ShapeRef(tileOffset), ShapeRef(tileShape));
+    EXPECT_EQ(denseTile.getShape(), ShapeRef(tileShape));
+    EXPECT_EQ(denseTile.getStrides().raw(), tileStrides);
+
+    const SmallVector<int64_t> tileElemStrides({1, 1, 1, 1});
+    EXPECT_ANY_THROW(ndType.extractViewTile(vpux::ShapeRef(tileOffset), vpux::ShapeRef(tileShape),
+                                            vpux::ShapeRef(tileElemStrides)));
+    EXPECT_EQ(ndType.eraseTiledInfo(), ndType);
+    const SmallVector<int64_t> pads({0, 0, 2, 2});
+    EXPECT_ANY_THROW(ndType.pad(vpux::ShapeRef(pads), vpux::ShapeRef(pads)));
 }

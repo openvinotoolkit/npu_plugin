@@ -10,16 +10,13 @@
 #include "vpux/compiler/core/cost_model_utils.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
 #include "vpux/utils/core/range.hpp"
 
-#include <mlir/IR/BlockAndValueMapping.h>
+#include <mlir/IR/IRMapping.h>
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
-
-#include <llvm/ADT/SmallPtrSet.h>
 
 #include <algorithm>
 
@@ -32,14 +29,8 @@ namespace {
 //
 
 bool isOptimizableOp(mlir::async::ExecuteOp execOp) {
-    auto module = execOp->getParentOfType<mlir::ModuleOp>();
-
     const auto executor = vpux::VPUIP::VPUIPDialect::getExecutor(execOp);
-
-    auto executorInfo = IE::getAvailableExecutor(module, executor.getFullReference());
-    VPUX_THROW_UNLESS(executorInfo != nullptr, "Failed to get information about executor {0}", executor);
-
-    return executorInfo.subExecutors().front().empty();
+    return !IE::isNceTile(executor.getFullReference());
 }
 
 bool isSameExecutor(mlir::async::ExecuteOp execOp1, mlir::async::ExecuteOp execOp2) {
@@ -67,12 +58,12 @@ bool isSameExecutor(mlir::async::ExecuteOp execOp1, mlir::async::ExecuteOp execO
 
 bool haveSameDependencies(mlir::async::ExecuteOp execOp1, mlir::async::ExecuteOp execOp2) {
     // check for prefetched data operations which have an injected dependency
-    if (execOp1.dependencies().size() == 1 && execOp2.dependencies().size() == 1) {
+    if (execOp1.getDependencies().size() == 1 && execOp2.getDependencies().size() == 1) {
         llvm::DenseSet<mlir::Value> dependencies;
-        for (auto dep : execOp1.dependencies()) {
+        for (auto dep : execOp1.getDependencies()) {
             dependencies.insert(dep);
         }
-        for (auto dep : execOp2.dependencies()) {
+        for (auto dep : execOp2.getDependencies()) {
             if (dependencies.find(dep) == dependencies.end()) {
                 return false;
             }
@@ -84,7 +75,7 @@ bool haveSameDependencies(mlir::async::ExecuteOp execOp1, mlir::async::ExecuteOp
 bool prevHasUniqueUsers(mlir::async::ExecuteOp prevExecOp, mlir::async::ExecuteOp execOp) {
     auto getUsers = [](mlir::async::ExecuteOp op) {
         std::set<mlir::async::ExecuteOp> users;
-        for (auto res : op.results()) {
+        for (auto res : op.getBodyResults()) {
             for (auto user : res.getUsers()) {
                 users.insert(mlir::dyn_cast<mlir::async::ExecuteOp>(user));
             }
@@ -111,11 +102,11 @@ bool prevHasUniqueUsers(mlir::async::ExecuteOp prevExecOp, mlir::async::ExecuteO
 
 mlir::async::ExecuteOp mergeAsyncExecuteOps(mlir::async::ExecuteOp prevExecOp, mlir::async::ExecuteOp execOp,
                                             mlir::PatternRewriter& rewriter) {
-    auto* prevBodyBlock = &prevExecOp.body().front();
-    auto* bodyBlock = &execOp.body().front();
+    auto* prevBodyBlock = prevExecOp.getBody();
+    auto* bodyBlock = execOp.getBody();
 
     const auto bodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange blockArgs) {
-        mlir::BlockAndValueMapping mapper;
+        mlir::IRMapping mapper;
 
         const auto prevBlockArgs = prevBodyBlock->getArguments();
         const auto curBlockArgs = bodyBlock->getArguments();
@@ -154,11 +145,11 @@ mlir::async::ExecuteOp mergeAsyncExecuteOps(mlir::async::ExecuteOp prevExecOp, m
     SmallVector<mlir::Type> newResultTypes(prevResultTypes);
     newResultTypes.insert(newResultTypes.end(), resultTypes.begin(), resultTypes.end());
 
-    SmallVector<mlir::Value> newDependencies(prevExecOp.dependencies());
-    newDependencies.insert(newDependencies.end(), execOp.dependencies().begin(), execOp.dependencies().end());
+    SmallVector<mlir::Value> newDependencies(prevExecOp.getDependencies());
+    newDependencies.insert(newDependencies.end(), execOp.getDependencies().begin(), execOp.getDependencies().end());
 
-    SmallVector<mlir::Value> newOperands(prevExecOp.operands());
-    newOperands.insert(newOperands.end(), execOp.operands().begin(), execOp.operands().end());
+    SmallVector<mlir::Value> newOperands(prevExecOp.getBodyOperands());
+    newOperands.insert(newOperands.end(), execOp.getBodyOperands().begin(), execOp.getBodyOperands().end());
 
     auto newExecOp = rewriter.create<mlir::async::ExecuteOp>(prevExecOp->getLoc(), newResultTypes, newDependencies,
                                                              newOperands, bodyBuilder);
@@ -186,14 +177,14 @@ void cleanup(mlir::async::ExecuteOp prevExecOp, mlir::async::ExecuteOp execOp, m
     SmallVector<mlir::Value> matchedResultsCurr;
 
     // newExecOp returns one token which replaces both tokens from original ops
-    matchedResultsPrev.push_back(newExecOp.token());
-    matchedResultsCurr.push_back(newExecOp.token());
+    matchedResultsPrev.push_back(newExecOp.getToken());
+    matchedResultsCurr.push_back(newExecOp.getToken());
 
-    for (auto p : newExecOp.results() | indexed) {
+    for (auto p : newExecOp.getBodyResults() | indexed) {
         const auto ind = p.index();
         const auto newRes = p.value();
 
-        if (ind < prevExecOp.results().size()) {
+        if (ind < prevExecOp.getBodyResults().size()) {
             matchedResultsPrev.push_back(newRes);
         } else {
             matchedResultsCurr.push_back(newRes);

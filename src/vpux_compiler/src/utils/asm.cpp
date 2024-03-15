@@ -169,7 +169,7 @@ void vpux::printOptionalRegion(mlir::OpAsmPrinter& printer, mlir::Operation*, ml
 
 mlir::ParseResult vpux::parseOptionalRegion(mlir::OpAsmParser& parser, mlir::Region& region) {
     const auto res = parser.parseOptionalRegion(region);
-    return res.hasValue() ? res.getValue() : mlir::success();
+    return res.has_value() ? res.value() : mlir::success();
 }
 
 //
@@ -188,8 +188,8 @@ void vpux::printOptionalBlockRegion(mlir::OpAsmPrinter& printer, mlir::Operation
 
 mlir::ParseResult vpux::parseOptionalBlockRegion(mlir::OpAsmParser& parser, mlir::Region& region) {
     const auto res = parser.parseOptionalRegion(region);
-    if (res.hasValue()) {
-        return res.getValue();
+    if (res.has_value()) {
+        return res.value();
     }
 
     region.emplaceBlock();

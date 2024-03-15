@@ -5,15 +5,16 @@
 
 #include "vpux/compiler/utils/rewriter.hpp"
 
-#include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/core/aliases_info.hpp"
 #include "vpux/compiler/core/profiling.hpp"
+#include "vpux/compiler/core/type_interfaces.hpp"
 #include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 
 #include <llvm/ADT/SmallPtrSet.h>
+#include <llvm/ADT/TypeSwitch.h>
 
 using namespace vpux;
 
@@ -73,6 +74,24 @@ mlir::Type bufferizeTensor(mlir::Type tensorType) {
         return tensorToBuffer(rankedType);
     }
     VPUX_THROW("Unsupported type for bufferization '{0}'", tensorType);
+}
+
+VPUIP::SparseBufferType sparseTensorToBuffer(VPU::SparseTensorType type) {
+    const auto data = bufferizeTensor(type.getData());
+    const auto sparsityMap = bufferizeTensor(type.getSparsityMap());
+    const auto storageElementTable = bufferizeTensor(type.getStorageElementTable());
+    const auto seAttr = type.getSeAttr();
+
+    VPUIP::CompressionSchemeAttr compressionScheme = nullptr;
+    if (type.getCompressionScheme() != nullptr) {
+        auto origCompression = type.getCompressionScheme();
+        compressionScheme =
+                VPUIP::CompressionSchemeAttr::get(origCompression.getContext(), origCompression.getAxis(),
+                                                  origCompression.getNumElems(), origCompression.getAlignment());
+    }
+
+    return VPUIP::SparseBufferType::get(data, sparsityMap, storageElementTable, type.getIsWeights(), compressionScheme,
+                                        seAttr);
 }
 
 }  // namespace
@@ -200,6 +219,12 @@ mlir::Location vpux::appendLoc(mlir::Location baseLoc, mlir::StringAttr suffix) 
     VPUX_THROW_WHEN(suffix.getValue().find(LOCATION_ORIGIN_SEPARATOR) != std::string::npos,
                     "{0} character is reserved inside locations", LOCATION_ORIGIN_SEPARATOR);
     const mlir::Location suffixLoc = mlir::NameLoc::get(suffix);
+    if (auto fusedLoc = baseLoc.dyn_cast<mlir::FusedLoc>()) {
+        const auto metadata = fusedLoc.getMetadata();
+        auto locations = fusedLoc.getLocations().vec();
+        locations.push_back(suffixLoc);
+        return mlir::FusedLoc::get(baseLoc.getContext(), locations, metadata);
+    }
     return mlir::FusedLoc::get(baseLoc.getContext(), {baseLoc, suffixLoc});
 }
 
@@ -214,24 +239,7 @@ vpux::BufferizeTypeConverter::BufferizeTypeConverter() {
 
     addConversion(tensorToBuffer);
     addConversion(distributedTensorToBuffer);
-
-    addConversion([&](VPU::SparseTensorType type) {
-        const auto data = bufferizeTensor(type.getData());
-        const auto sparsityMap = bufferizeTensor(type.getSparsityMap());
-        const auto storageElementTable = bufferizeTensor(type.getStorageElementTable());
-        const auto seAttr = type.getSeAttr();
-
-        VPUIP::CompressionSchemeAttr compressionScheme = nullptr;
-        if (type.getCompressionScheme() != nullptr) {
-            auto origCompression = type.getCompressionScheme();
-            compressionScheme =
-                    VPUIP::CompressionSchemeAttr::get(origCompression.getContext(), origCompression.getAxis(),
-                                                      origCompression.getNumElems(), origCompression.getAlignment());
-        }
-
-        return VPUIP::SparseBufferType::get(data, sparsityMap, storageElementTable, type.getIsWeights(),
-                                            compressionScheme, seAttr);
-    });
+    addConversion(sparseTensorToBuffer);
 
     addTargetMaterialization(dummyConverter<mlir::BaseMemRefType>);
     addArgumentMaterialization(dummyConverter<mlir::BaseMemRefType>);
@@ -244,6 +252,120 @@ vpux::BufferizeTypeConverter::BufferizeTypeConverter() {
     addTargetMaterialization(dummyConverter<VPUIP::SparseBufferType>);
     addArgumentMaterialization(dummyConverter<VPUIP::SparseBufferType>);
     addSourceMaterialization(dummyConverter<VPU::SparseTensorType>);
+}
+
+namespace {
+// NPU compiler's wrapper around preferred unknown type bufferization function
+mlir::BaseMemRefType getMemRefTypeForUnknownTensorType(mlir::Type type, mlir::Attribute memorySpace) {
+    auto tensorType = mlir::cast<mlir::TensorType>(type);
+    return mlir::bufferization::getMemRefTypeWithStaticIdentityLayout(tensorType, memorySpace);
+}
+}  // namespace
+
+mlir::bufferization::OneShotBufferizationOptions vpux::getOneShotBufferizationOptions() {
+    mlir::bufferization::OneShotBufferizationOptions options;
+    options.bufferizeFunctionBoundaries = true;
+    options.allowReturnAllocs = true;
+    options.allowUnknownOps = true;
+    options.createDeallocs = false;
+    options.copyBeforeWrite = false;
+    options.unknownTypeConverterFn = [](mlir::Value value, mlir::Attribute memorySpace,
+                                        const mlir::bufferization::BufferizationOptions& /*options*/) {
+        return getMemRefTypeForUnknownTensorType(value.getType(), memorySpace);
+    };
+    options.opFilter.allowDialect<mlir::bufferization::BufferizationDialect, mlir::memref::MemRefDialect,
+                                  mlir::func::FuncDialect, VPU::VPUDialect>();
+
+    return options;
+}
+
+//
+// getBufferType
+//
+
+namespace {
+bool isBufferType(mlir::Type type) {
+    // Note: BaseMemRefType covers both MemRefType and UnrankedMemRefType
+    return mlir::isa<mlir::BaseMemRefType, VPUIP::BufferType, VPUIP::DistributedBufferType, VPUIP::SparseBufferType>(
+            type);
+}
+}  // namespace
+
+vpux::NDTypeInterface vpux::getBufferType(mlir::Type tensorType, const mlir::bufferization::BufferizationOptions&) {
+    const bool isAlreadyABufferType = isBufferType(tensorType);
+    if (isAlreadyABufferType) {
+        return mlir::cast<vpux::NDTypeInterface>(tensorType);
+    }
+
+    return llvm::TypeSwitch<mlir::Type, mlir::Type>(tensorType)
+            .Case<mlir::RankedTensorType>([&](mlir::RankedTensorType rankedTensorType) {
+                return tensorToBuffer(rankedTensorType);
+            })
+            .Case<VPU::DistributedTensorType>([&](VPU::DistributedTensorType distributedTensorType) {
+                return distributedTensorToBuffer(distributedTensorType);
+            })
+            .Case<VPU::SparseTensorType>([&](VPU::SparseTensorType sparseTensorType) {
+                return sparseTensorToBuffer(sparseTensorType);
+            })
+            .Default([&](mlir::Type type) {
+                // this is likely an unranked tensor type and we don't know how
+                // to get a memSpace for it.
+                const mlir::Attribute unknownMemSpace = nullptr;
+                // E#108407: use UnknownTypeConverterFn directly, once it
+                // accepts mlir::Type
+                return getMemRefTypeForUnknownTensorType(type, unknownMemSpace);
+            });
+}
+
+vpux::NDTypeInterface vpux::getBufferType(mlir::Value value, const mlir::bufferization::BufferizationOptions& options) {
+    return vpux::getBufferType(value.getType(), options);
+}
+
+//
+// getBuffer
+//
+
+mlir::Value vpux::getBuffer(mlir::RewriterBase& rewriter, mlir::Value value,
+                            const mlir::bufferization::BufferizationOptions& options) {
+    if (auto toTensorOp = value.getDefiningOp<mlir::bufferization::ToTensorOp>()) {
+        return toTensorOp.getMemref();
+    }
+
+    const auto tensorType = value.getType();
+    const bool isAlreadyABufferType = isBufferType(tensorType);
+    if (isAlreadyABufferType) {
+        return value;
+    }
+
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointAfterValue(value);
+
+    auto bufferType = vpux::getBufferType(value, options);
+    auto origType = value.getType().cast<vpux::NDTypeInterface>();
+    VPUX_THROW_WHEN(origType.hasRank() && origType.getRank() != bufferType.getRank(),
+                    "Incompatible ranks: original rank {0}, buffer rank {1}", origType.getRank(), bufferType.getRank());
+
+    // E#109609: replace with getResult()/getMemref() once we can convert
+    //           VPUIP::{Distributed, Sparse}BufferType to mlir::BaseMemRefType
+    return rewriter.create<mlir::bufferization::ToMemrefOp>(value.getLoc(), bufferType, value)->getResult(0);
+}
+
+//
+// bufferizeOperands
+//
+
+SmallVector<mlir::Value> vpux::bufferizeOperands(mlir::RewriterBase& rewriter, mlir::OperandRange operands,
+                                                 const mlir::bufferization::BufferizationOptions& options) {
+    if (operands.size() == 0) {
+        return {};
+    }
+    SmallVector<mlir::Value> newOperands;
+    newOperands.reserve(llvm::size(operands));
+    for (const auto& operand : operands) {
+        auto buffer = vpux::getBuffer(rewriter, operand, options);
+        newOperands.push_back(buffer);
+    }
+    return newOperands;
 }
 
 //
@@ -264,7 +386,7 @@ void vpux::inferReturnTypes(mlir::Operation* op, InferShapedTypeMode mode) {
 
     SmallVector<mlir::Type> newTypes;
     VPUX_THROW_WHEN(iface.inferReturnTypes(op->getContext(), op->getLoc(), op->getOperands(), op->getAttrDictionary(),
-                                           op->getRegions(), newTypes)
+                                           op->getPropertiesStorage(), op->getRegions(), newTypes)
                             .failed(),
                     "Failed to infer return types for operation '{0}'", op->getName());
 
@@ -296,23 +418,4 @@ void vpux::inferReturnTypes(mlir::Operation* op, InferShapedTypeMode mode) {
 
         val.setType(newType);
     }
-}
-
-//
-// createIdentityMaxPool
-//
-
-mlir::Operation* vpux::createIdentityMaxPool(mlir::Value operand, const mlir::Type outType,
-                                             mlir::PatternRewriter& rewriter) {
-    const SmallVector<int64_t> poolStrides = {1, 1};
-    const SmallVector<int64_t> poolKernels = {1, 1};
-    const SmallVector<int64_t> pads = {0, 0};
-    auto ctx = rewriter.getContext();
-    const auto padsAttr = getIntArrayAttr(ctx, pads);
-
-    auto identityOp = rewriter.create<IE::MaxPoolOp>(
-            operand.getLoc(), outType, operand, getIntArrayAttr(ctx, poolKernels), getIntArrayAttr(ctx, poolStrides),
-            padsAttr, padsAttr, IE::RoundingTypeAttr::get(ctx, IE::RoundingType::FLOOR), nullptr);
-
-    return identityOp;
 }

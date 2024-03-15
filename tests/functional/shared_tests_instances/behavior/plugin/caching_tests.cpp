@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2018-2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
@@ -6,6 +5,7 @@
 #include "behavior/plugin/caching_tests.hpp"
 #include <algorithm>
 #include <vector>
+#include "common/utils.hpp"
 
 using namespace LayerTestsDefinitions;
 
@@ -48,13 +48,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_KeemBay, LoadNetworkCacheTestB
                          ::testing::Combine(::testing::ValuesIn(smoke_functions()),
                                             ::testing::ValuesIn(smoke_precisionsKeemBay),
                                             ::testing::ValuesIn(batchSizesKeemBay),
-                                            ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+                                            ::testing::Values(ov::test::utils::DEVICE_NPU)),
                          LoadNetworkCacheTestBase::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_CachingSupportCase_KeemBay, LoadNetworkCacheTestBase,
                          ::testing::Combine(::testing::ValuesIn(keembay_functions()),
                                             ::testing::ValuesIn(nightly_precisionsKeemBay),
                                             ::testing::ValuesIn(batchSizesKeemBay),
-                                            ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+                                            ::testing::Values(ov::test::utils::DEVICE_NPU)),
                          LoadNetworkCacheTestBase::getTestCaseName);
 }  // namespace

@@ -77,7 +77,7 @@ void FeasibleMemorySchedulerControlEdges::insertScheduleOrderDepsForExecutor(
             continue;
         }
 
-        if (opIt->executor != executorKind) {
+        if (opIt->queueType.execKind != executorKind) {
             continue;
         }
 
@@ -93,7 +93,8 @@ void FeasibleMemorySchedulerControlEdges::insertScheduleOrderDepsForExecutor(
                 continue;
             }
 
-            if (nextTimeOpIt->executor != executorKind) {
+            if (nextTimeOpIt->queueType.execKind != opIt->queueType.execKind ||
+                nextTimeOpIt->queueType.id != opIt->queueType.id) {
                 continue;
             }
 
@@ -130,6 +131,141 @@ void FeasibleMemorySchedulerControlEdges::insertScheduleOrderDepsForExecutor(
     _log = _log.unnest();
 }
 
+// For given operation input and output root buffers update ScheduledOpOneResource structure for
+// produced or consumed memory range so that control edge algorithm can later track all ranges
+// throughout the schedule and insert dependencies for overlaps.
+void vpux::updateScheduledOpsResourcesForControlEdgeBasic(std::list<ScheduledOpOneResource>& scheduledOpsResources,
+                                                          LinearScan<mlir::Value, LinearScanHandler>& scan,
+                                                          size_t opIndex, const ValueOrderedSet& inputBuffers,
+                                                          const ValueOrderedSet& outputBuffers, Logger& log) {
+    // For all identified buffers used by operation create separate entries with information
+    // about memory ranges to properly identify range producer and consumers at a given time
+    auto updateResources = [&](const ValueOrderedSet& bufs, ScheduledOpOneResource::EResRelation relType) {
+        for (auto& buf : bufs) {
+            if (!isBufAllocOp(buf.getDefiningOp())) {
+                continue;
+            }
+            auto addressStart = scan.handler().getAddress(buf);
+            auto addressEnd = addressStart + scan.handler().getSize(buf) - 1;
+            log.trace("op = '{0}'\t {1} = [{3} - {2}]", opIndex,
+                      (relType == ScheduledOpOneResource::EResRelation::CONSUMER) ? "input" : "output", addressStart,
+                      addressEnd);
+            scheduledOpsResources.push_back(ScheduledOpOneResource(opIndex, addressStart, addressEnd, relType));
+        }
+    };
+
+    updateResources(inputBuffers, ScheduledOpOneResource::EResRelation::CONSUMER);
+    updateResources(outputBuffers, ScheduledOpOneResource::EResRelation::PRODUCER);
+}
+
+// For provided operation (execOp) identify operands and update ScheduledOpOneResource structure for
+// each produced or consumed memory range so that control edge algorithm can later track all ranges
+// throughout the schedule and insert dependencies for overlaps.
+// This method is capable of identifying SubViews on the chain from operand to root buffer to understand
+// if given operation uses just part of some root buffer.
+void vpux::updateScheduledOpsResourcesForControlEdge(std::list<ScheduledOpOneResource>& scheduledOpsResources,
+                                                     AliasesInfo& aliasInfo,
+                                                     LinearScan<mlir::Value, LinearScanHandler>& scan,
+                                                     VPU::MemoryKind memKind, size_t opIndex,
+                                                     mlir::async::ExecuteOp execOp, Logger& log) {
+    SmallVector<mlir::Value> inputOperands;
+    SmallVector<mlir::Value> outputOperands;
+
+    // Get operation buffers for all operands. Go through each layer op and
+    // store in a set all root buffers
+    auto* bodyBlock = execOp.getBody();
+    for (auto& innerOp : bodyBlock->getOperations()) {
+        if (!mlir::isa<VPUIP::LayerOpInterface>(innerOp)) {
+            continue;
+        }
+
+        auto inputs = mlir::dyn_cast<VPUIP::LayerOpInterface>(innerOp).getInputs();
+        for (const auto& input : inputs) {
+            const auto type = input.getType().dyn_cast<vpux::NDTypeInterface>();
+            if (type == nullptr || type.getMemoryKind() != memKind) {
+                continue;
+            }
+            inputOperands.push_back(input);
+        }
+
+        auto outputs = mlir::dyn_cast<VPUIP::LayerOpInterface>(innerOp).getOutputs();
+        for (const auto& output : outputs) {
+            const auto type = output.getType().dyn_cast<vpux::NDTypeInterface>();
+            if (type == nullptr || type.getMemoryKind() != memKind) {
+                continue;
+            }
+            outputOperands.push_back(output);
+        }
+    }
+
+    // For all identified buffers used by operation create separate entries with information
+    // about memory ranges to properly identify range producer and consumers at a given time
+    auto updateResources = [&](SmallVector<mlir::Value>& operands, ScheduledOpOneResource::EResRelation relType) {
+        for (auto& operand : operands) {
+            auto buffers = aliasInfo.getRoots(operand);
+            VPUX_THROW_UNLESS(buffers.size() == 1, "Value '{0}' expected to have only one root. Got {1}", operand,
+                              buffers.size());
+            auto buf = *buffers.begin();
+            if (!isBufAllocOp(buf.getDefiningOp())) {
+                continue;
+            }
+
+            std::optional<ScheduledOpOneResource::ResourceView> resView = std::nullopt;
+
+            auto operandSize =
+                    static_cast<size_t>(operand.getType().cast<vpux::NDTypeInterface>().getCompactAllocSize().count());
+            auto allocSize = scan.handler().getSize(buf);
+            if (operandSize < allocSize) {
+                // Check chain of connections from operand to root buffer and look
+                // for SubViewOp that will define chunk of buffer used by operation
+                VPUIP::SubViewOp subViewOp = nullptr;
+                mlir::Value sourceAlias = operand;
+
+                do {
+                    if (auto tmpSubViewOp = sourceAlias.getDefiningOp<VPUIP::SubViewOp>()) {
+                        // If subViewOp has already been encountered treat this as an unsupported scenario and limit
+                        // cases only with single SubView on the chain between operand to root buffer
+                        // TODO: Extend support for multiple subviews (E#106837)
+                        if (subViewOp) {
+                            log.trace("More than 1 SubView for op - {0} identified in operand->root chain. Skip "
+                                      "optimization",
+                                      opIndex);
+                            subViewOp = nullptr;
+                            break;
+                        }
+
+                        subViewOp = tmpSubViewOp;
+                    }
+                } while ((sourceAlias = aliasInfo.getSource(sourceAlias)));
+
+                if (subViewOp) {
+                    const auto subViewShape = parseIntArrayAttr<int64_t>(subViewOp.getStaticSizes());
+                    const auto subViewOffsets = parseIntArrayAttr<int64_t>(subViewOp.getStaticOffsets());
+                    const auto subViewStrides =
+                            subViewOp.getStaticStrides().has_value()
+                                    ? parseIntArrayAttr<int64_t>(subViewOp.getStaticStrides().value())
+                                    : SmallVector<int64_t>(
+                                              subViewOp.getSource().getType().cast<vpux::NDTypeInterface>().getRank(),
+                                              1);
+
+                    resView = ScheduledOpOneResource::ResourceView({subViewOffsets, subViewShape, subViewStrides});
+                }
+            }
+
+            auto addressStart = scan.handler().getAddress(buf);
+            auto addressEnd = addressStart + allocSize - 1;
+            log.trace("op = '{0}'\t {1} = [{3} - {2}]", opIndex,
+                      (relType == ScheduledOpOneResource::EResRelation::CONSUMER) ? "input" : "output", addressStart,
+                      addressEnd);
+            scheduledOpsResources.push_back(
+                    ScheduledOpOneResource(opIndex, addressStart, addressEnd, relType, resView));
+        }
+    };
+
+    updateResources(inputOperands, ScheduledOpOneResource::EResRelation::CONSUMER);
+    updateResources(outputOperands, ScheduledOpOneResource::EResRelation::PRODUCER);
+}
+
 // Insert control flow for overlapping memory regions
 void FeasibleMemorySchedulerControlEdges::insertMemoryControlEdges(
         ArrayRef<FeasibleMemoryScheduler::ScheduledOpInfo> scheduledOps) {
@@ -143,82 +279,17 @@ void FeasibleMemorySchedulerControlEdges::insertMemoryControlEdges(
     for (auto& scheduledOp : scheduledOps) {
         VPUX_THROW_UNLESS(scheduledOp.isOriginalOp(), "Invalid operation identified for control edge insertion");
 
-        // buffers used by operation, both inputs and outputs
-        mlir::DenseSet<mlir::Value> inputBuffers;
-        mlir::DenseSet<mlir::Value> outputBuffers;
+        auto opIndex = scheduledOp.op_;
+        auto execOp = _depsInfo.getExecuteOpAtIndex(opIndex);
 
-        // Get operation buffers for all operands. Go through each layer op and
-        // store in a set all root buffers
-        auto execOp = _depsInfo.getExecuteOpAtIndex(scheduledOp.op_);
-        auto* bodyBlock = &execOp.body().front();
-        for (auto& innerOp : bodyBlock->getOperations()) {
-            if (!mlir::isa<VPUIP::LayerOpInterface>(innerOp)) {
-                continue;
-            }
-
-            auto inputs = mlir::dyn_cast<VPUIP::LayerOpInterface>(innerOp).getInputs();
-            for (const auto& input : inputs) {
-                const auto type = input.getType().dyn_cast<vpux::NDTypeInterface>();
-                if (type == nullptr || type.getMemoryKind() != _memKind) {
-                    continue;
-                }
-                auto rootBuffers = _aliasInfo.getRoots(input);
-                VPUX_THROW_UNLESS(rootBuffers.size() == 1, "Value '{0}' expected to have only one root. Got {1}", input,
-                                  rootBuffers.size());
-                auto rootBuffer = *rootBuffers.begin();
-                inputBuffers.insert(rootBuffer);
-            }
-
-            auto outputs = mlir::dyn_cast<VPUIP::LayerOpInterface>(innerOp).getOutputs();
-            for (const auto& output : outputs) {
-                const auto type = output.getType().dyn_cast<vpux::NDTypeInterface>();
-                if (type == nullptr || type.getMemoryKind() != _memKind) {
-                    continue;
-                }
-                auto rootBuffers = _aliasInfo.getRoots(output);
-                VPUX_THROW_UNLESS(rootBuffers.size() == 1, "Value '{0}' expected to have only one root. Got {1}",
-                                  output, rootBuffers.size());
-                auto rootBuffer = *rootBuffers.begin();
-                outputBuffers.insert(rootBuffer);
-            }
-        }
-
-        // For all identified buffers used by operation create separate entries with information
-        // about memory ranges to properly identify range producer and consumers at a given time
-        for (auto& buf : inputBuffers) {
-            if (!isBufAllocOp(buf.getDefiningOp())) {
-                continue;
-            }
-            auto addressStart = _scan.handler().getAddress(buf);
-            auto bufSize = _scan.handler().getSize(buf);
-            if (bufSize == 0) {
-                continue;
-            }
-            auto addressEnd = addressStart + bufSize - 1;
-            _log.trace("op = '{0}'\t time = '{1}'\t input = [{2} - {3}]", scheduledOp.op_, scheduledOp.cycleBegin_,
-                       addressStart, addressEnd);
-            scheduledOpsResources.push_back(ScheduledOpOneResource(scheduledOp.op_, addressStart, addressEnd,
-                                                                   ScheduledOpOneResource::EResRelation::CONSUMER));
-        }
-        for (auto& buf : outputBuffers) {
-            if (!isBufAllocOp(buf.getDefiningOp())) {
-                continue;
-            }
-            auto addressStart = _scan.handler().getAddress(buf);
-            auto bufSize = _scan.handler().getSize(buf);
-            if (bufSize == 0) {
-                continue;
-            }
-            auto addressEnd = addressStart + bufSize - 1;
-            _log.trace("op = '{0}'\t time = '{1}'\t output = [{2} - {3}]", scheduledOp.op_, scheduledOp.cycleBegin_,
-                       addressStart, addressEnd);
-            scheduledOpsResources.push_back(ScheduledOpOneResource(scheduledOp.op_, addressStart, addressEnd,
-                                                                   ScheduledOpOneResource::EResRelation::PRODUCER));
-        }
+        // Check all operands of operation and prepare entries in scheduledOpsResources that will be used
+        // by control edge algorithm to generate new dependencies
+        updateScheduledOpsResourcesForControlEdge(scheduledOpsResources, _aliasInfo, _scan, _memKind, opIndex, execOp,
+                                                  _log);
     }
 
     ControlEdgeSet controlEdges;
-    ControlEdgeGenerator<ScheduledOpOneResource> controlEdgeGenerator;
+    ControlEdgeGenerator controlEdgeGenerator;
     // Generate control edges for overlapping memory regions
     controlEdgeGenerator.generateControlEdges(scheduledOpsResources.begin(), scheduledOpsResources.end(), controlEdges);
 
@@ -243,6 +314,7 @@ void vpux::updateControlEdgesInDepsInfo(AsyncDepsInfo& depsInfo, ControlEdgeSet&
     // Map represents all control edges for a given sink node
     //  key - sink node
     //  vector of values - source nodes
+    // TODO: This is to be removed when control edge subview awareness is fully completed (E#106837)
     std::map<size_t, SmallVector<size_t>> optimizedEdges;
 
     for (auto itr = controlEdges.begin(); itr != controlEdges.end(); ++itr) {
@@ -272,6 +344,8 @@ void vpux::updateControlEdgesInDepsInfo(AsyncDepsInfo& depsInfo, ControlEdgeSet&
     if (optimizedEdges.empty()) {
         return;
     }
+
+    log.trace("Identified edges to optimize due to overlapping cycles - {0}", optimizedEdges);
 
     // Traverse again to update dependencies from optimized deps sources
     // to destinations of optimized control flow sinks

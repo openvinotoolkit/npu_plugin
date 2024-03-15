@@ -13,7 +13,7 @@ using namespace ngraph::helpers;
 
 namespace LayerTestsDefinitions {
 
-class VPUXGRUSequenceLayerTest : public GRUSequenceTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
+class GRUSequenceLayerTestCommon : public GRUSequenceTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void GenerateInputs() override {
         SequenceTestsMode mode;
         size_t seqLengths;
@@ -23,8 +23,9 @@ class VPUXGRUSequenceLayerTest : public GRUSequenceTest, virtual public LayerTes
         float clip;
         bool linear_before_reset;
         ngraph::op::RecurrentSequenceDirection direction;
+        ngraph::helpers::InputLayerType WRBType;
         InferenceEngine::Precision netPrecision;
-        std::tie(mode, seqLengths, batchSize, hiddenSize, activations, clip, linear_before_reset, direction,
+        std::tie(mode, seqLengths, batchSize, hiddenSize, activations, clip, linear_before_reset, direction, WRBType,
                  netPrecision, targetDevice) = this->GetParam();
         inputs.clear();
         for (const auto& input : executableNetwork.GetInputsInfo()) {
@@ -54,8 +55,9 @@ class VPUXGRUSequenceLayerTest : public GRUSequenceTest, virtual public LayerTes
         float clip;
         bool linear_before_reset;
         ngraph::op::RecurrentSequenceDirection direction;
+        ngraph::helpers::InputLayerType WRBType;
         InferenceEngine::Precision netPrecision;
-        std::tie(m_mode, seq_lengths, batch, hidden_size, activations, clip, linear_before_reset, direction,
+        std::tie(m_mode, seq_lengths, batch, hidden_size, activations, clip, linear_before_reset, direction, WRBType,
                  netPrecision, targetDevice) = this->GetParam();
         size_t num_directions = direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
         std::vector<std::vector<size_t>> inputShapes = {
@@ -68,15 +70,18 @@ class VPUXGRUSequenceLayerTest : public GRUSequenceTest, virtual public LayerTes
         };
         m_max_seq_len = seq_lengths;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0])),
+                                   std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[1]))};
         if (m_mode == SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM ||
             m_mode == SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM ||
             m_mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM) {
-            auto seq_lengths_param = ngraph::builder::makeParams(ngraph::element::i64, {inputShapes[2]}).at(0);
+            auto seq_lengths_param =
+                    std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape(inputShapes[2]));
             seq_lengths_param->set_friendly_name("seq_lengths");
             params.push_back(seq_lengths_param);
         }
 
+        ASSERT_EQ(ngraph::helpers::InputLayerType::CONSTANT, WRBType);
         std::vector<ngraph::Shape> constants = {inputShapes[3], inputShapes[4], inputShapes[5], inputShapes[2]};
         auto in = convert2OutputVector(castOps2Nodes(params));
         std::vector<float> empty;
@@ -124,8 +129,8 @@ class VPUXGRUSequenceLayerTest : public GRUSequenceTest, virtual public LayerTes
                     activations_beta, clip, linear_before_reset);
         }
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gru_sequence->output(0)),
-                                     std::make_shared<ngraph::opset1::Result>(gru_sequence->output(1))};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(gru_sequence->output(0)),
+                                     std::make_shared<ov::op::v0::Result>(gru_sequence->output(1))};
         function = std::make_shared<ngraph::Function>(results, params, "gru_sequence");
         bool is_pure_sequence =
                 (m_mode == SequenceTestsMode::PURE_SEQ || m_mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM ||
@@ -145,9 +150,9 @@ class VPUXGRUSequenceLayerTest : public GRUSequenceTest, virtual public LayerTes
     }
 };
 
-class VPUXGRUSequenceLayerTest_VPU3720 : public VPUXGRUSequenceLayerTest {};
+class GRUSequenceLayerTest_NPU3720 : public GRUSequenceLayerTestCommon {};
 
-TEST_P(VPUXGRUSequenceLayerTest_VPU3720, HW) {
+TEST_P(GRUSequenceLayerTest_NPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -178,38 +183,42 @@ const std::vector<GRUDirection> directionMode{GRUDirection::FORWARD, GRUDirectio
                                               GRUDirection::BIDIRECTIONAL};
 const InferenceEngine::Precision netPrecisions = InferenceEngine::Precision::FP16;
 
-const auto gruSequenceParam0 = testing::Combine(
-        ::testing::Values(testMode), ::testing::ValuesIn(seqLength), ::testing::Values(batchSize),
-        ::testing::Values(hiddenSize), ::testing::Values(activations), ::testing::Values(clip),
-        ::testing::ValuesIn(shouldLinearBeforeReset), ::testing::ValuesIn(directionMode),
-        ::testing::Values(netPrecisions), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
+const auto gruSequenceParam0 =
+        testing::Combine(::testing::Values(testMode), ::testing::ValuesIn(seqLength), ::testing::Values(batchSize),
+                         ::testing::Values(hiddenSize), ::testing::Values(activations), ::testing::Values(clip),
+                         ::testing::ValuesIn(shouldLinearBeforeReset), ::testing::ValuesIn(directionMode),
+                         ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT), ::testing::Values(netPrecisions),
+                         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 const auto gruSequenceParam1 = testing::Combine(
         ::testing::Values(testMode), ::testing::ValuesIn(seqLengthTiling), ::testing::Values(batchSizeTiling),
         ::testing::Values(hiddenSizeTiling), ::testing::Values(activations), ::testing::Values(clip),
         ::testing::ValuesIn(shouldLinearBeforeReset), ::testing::ValuesIn(directionMode),
-        ::testing::Values(netPrecisions), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
+        ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT), ::testing::Values(netPrecisions),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 const auto gruSequenceParam2 = testing::Combine(
         ::testing::Values(testMode), ::testing::ValuesIn(seqLengthSplit), ::testing::Values(batchSizeSplit),
         ::testing::Values(hiddenSizeSplit), ::testing::Values(activations), ::testing::Values(clip),
         ::testing::ValuesIn(shouldLinearBeforeReset), ::testing::ValuesIn(directionMode),
-        ::testing::Values(netPrecisions), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
+        ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT), ::testing::Values(netPrecisions),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 const auto gruSequenceParam3 = testing::Combine(
         ::testing::Values(testMode), ::testing::ValuesIn(seqLengthSplit), ::testing::Values(batchSizeSplit),
         ::testing::Values(hiddenSizeSplit1), ::testing::Values(activations), ::testing::Values(clip),
         ::testing::ValuesIn(shouldLinearBeforeReset), ::testing::ValuesIn(directionMode),
-        ::testing::Values(netPrecisions), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
+        ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT), ::testing::Values(netPrecisions),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-//    VPU3720
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_GRUSequence, VPUXGRUSequenceLayerTest_VPU3720, gruSequenceParam0,
+//    NPU3720
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_GRUSequence, GRUSequenceLayerTest_NPU3720, gruSequenceParam0,
                          GRUSequenceTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_GRUSequence_Tiling, VPUXGRUSequenceLayerTest_VPU3720, gruSequenceParam1,
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_GRUSequence_Tiling, GRUSequenceLayerTest_NPU3720, gruSequenceParam1,
                          GRUSequenceTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_GRUSequence_Split, VPUXGRUSequenceLayerTest_VPU3720, gruSequenceParam2,
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_GRUSequence_Split, GRUSequenceLayerTest_NPU3720, gruSequenceParam2,
                          GRUSequenceTest::getTestCaseName);
 
 }  // namespace

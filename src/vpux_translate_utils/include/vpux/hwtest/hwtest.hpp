@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <mlir/IR/BuiltinOps.h>
 #include <mlir/Tools/mlir-translate/Translation.h>
 
 namespace vpux {

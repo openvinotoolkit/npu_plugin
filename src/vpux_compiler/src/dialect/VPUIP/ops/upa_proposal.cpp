@@ -5,15 +5,12 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
-#include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 #include "vpux/compiler/utils/error.hpp"
-
-#include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::VPUIP::ProposalUPAOp::verify() {
-    IE::ProposalAttr attr = proposal_attrs();
+    IE::ProposalAttr attr = getProposalAttrs();
 
     auto frameworkValue = attr.getFramework().getValue();
 
@@ -25,7 +22,7 @@ mlir::LogicalResult vpux::VPUIP::ProposalUPAOp::verify() {
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ProposalUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    IE::ProposalAttr attr = proposal_attrs();
+    IE::ProposalAttr attr = getProposalAttrs();
     VPUIP::BlobWriter::String framework = writer.createString(attr.getFramework().getValue());
 
     auto ratio_fb = writer.createVector(parseFPArrayAttr<float>(attr.getRatio()));
@@ -45,8 +42,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ProposalUPAOp::serialize(VPUIP::Blo
     builder.add_post_nms_topn(checked_cast<uint32_t>(attr.getPostNmsTopN().getValue().getSExtValue()));
     builder.add_box_size_scale(static_cast<float>(attr.getBoxSizeScale().getValueAsDouble()));
     builder.add_clip_after_nms(attr.getClipAfterNms().getValue());
-    builder.add_for_deformable(false);  // ngraph doesn't have this parameter
-    builder.add_pre_nms_thresh(0.0);    // ngraph doesn't have this parameter
+    builder.add_for_deformable(false);  // ov doesn't have this parameter
+    builder.add_pre_nms_thresh(0.0);    // ov doesn't have this parameter
     builder.add_clip_before_nms(attr.getClipBeforeNms().getValue());
     builder.add_box_coordinate_scale(static_cast<float>(attr.getBoxCoordinateScale().getValueAsDouble()));
 

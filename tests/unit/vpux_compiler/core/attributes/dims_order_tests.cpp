@@ -349,46 +349,6 @@ TEST_F(MLIR_DimsOrderTest, MemDim_4D) {
     EXPECT_EQ(DimsOrder::NHWC.toMemDim(Dim(3)), MemDim(2));
 }
 
-TEST_F(MLIR_DimsOrderTest, fromIETest) {
-    EXPECT_EQ(DimsOrder(), DimsOrder::fromIE(InferenceEngine::Layout::SCALAR));
-    EXPECT_EQ(DimsOrder::C, DimsOrder::fromIE(InferenceEngine::Layout::C));
-    EXPECT_EQ(DimsOrder::NC, DimsOrder::fromIE(InferenceEngine::Layout::NC));
-    EXPECT_EQ(DimsOrder::CHW, DimsOrder::fromIE(InferenceEngine::Layout::CHW));
-    EXPECT_EQ(DimsOrder::HWC, DimsOrder::fromIE(InferenceEngine::Layout::HWC));
-    EXPECT_EQ(DimsOrder::NCHW, DimsOrder::fromIE(InferenceEngine::Layout::NCHW));
-    EXPECT_EQ(DimsOrder::NHWC, DimsOrder::fromIE(InferenceEngine::Layout::NHWC));
-    EXPECT_EQ(DimsOrder::NCDHW, DimsOrder::fromIE(InferenceEngine::Layout::NCDHW));
-    EXPECT_EQ(DimsOrder::NDHWC, DimsOrder::fromIE(InferenceEngine::Layout::NDHWC));
-
-    // weight layouts is not supported yet
-    EXPECT_ANY_THROW(DimsOrder::fromIE(InferenceEngine::Layout::OIHW));
-    EXPECT_ANY_THROW(DimsOrder::fromIE(InferenceEngine::Layout::GOIHW));
-    EXPECT_ANY_THROW(DimsOrder::fromIE(InferenceEngine::Layout::OIDHW));
-    EXPECT_ANY_THROW(DimsOrder::fromIE(InferenceEngine::Layout::GOIDHW));
-
-    // HW 2D and CN 2D layouts is not supported yet
-    EXPECT_ANY_THROW(DimsOrder::fromIE(InferenceEngine::Layout::HW));
-    EXPECT_ANY_THROW(DimsOrder::fromIE(InferenceEngine::Layout::CN));
-
-    // A blocked layout
-    EXPECT_ANY_THROW(DimsOrder::fromIE(InferenceEngine::Layout::BLOCKED));
-}
-
-TEST_F(MLIR_DimsOrderTest, toIETest) {
-    EXPECT_EQ(DimsOrder().toIE(), InferenceEngine::Layout::SCALAR);
-    EXPECT_EQ(DimsOrder::C.toIE(), InferenceEngine::Layout::C);
-    EXPECT_EQ(DimsOrder::NC.toIE(), InferenceEngine::Layout::NC);
-    EXPECT_EQ(DimsOrder::CHW.toIE(), InferenceEngine::Layout::CHW);
-    EXPECT_EQ(DimsOrder::HWC.toIE(), InferenceEngine::Layout::HWC);
-    EXPECT_EQ(DimsOrder::NCHW.toIE(), InferenceEngine::Layout::NCHW);
-    EXPECT_EQ(DimsOrder::NHWC.toIE(), InferenceEngine::Layout::NHWC);
-    EXPECT_EQ(DimsOrder::NCDHW.toIE(), InferenceEngine::Layout::NCDHW);
-    EXPECT_EQ(DimsOrder::NDHWC.toIE(), InferenceEngine::Layout::NDHWC);
-
-    // HCW layout is not supported by IE
-    EXPECT_ANY_THROW(DimsOrder::HCW.toIE());
-}
-
 TEST_F(MLIR_DimsOrderTest, TryToSetIncorrectDimIndx) {
     EXPECT_ANY_THROW(Dim(-1));
     EXPECT_ANY_THROW(Dim(-123456));
@@ -399,12 +359,12 @@ TEST_F(MLIR_DimsOrderTest, getCanonicalName) {
 
     std::for_each(orders2name.begin(), orders2name.end(), [](const std::pair<DimsOrder, StringRef>& order2name) {
         const auto name = order2name.first.getCanonicalName();
-        ASSERT_TRUE(name.has_value()) << order2name.second.data();
-        ASSERT_EQ(name.value(), order2name.second);
+        ASSERT_TRUE(!name.empty()) << order2name.second.data();
+        ASSERT_EQ(name, order2name.second);
     });
 
     const auto nonDefault = DimsOrder::fromNumDims(7).getCanonicalName();
-    ASSERT_FALSE(nonDefault.has_value());
+    ASSERT_TRUE(nonDefault.empty());
 }
 
 TEST_F(MLIR_DimsOrderTest, fromMemRefTypeSimpleTest) {
@@ -477,9 +437,9 @@ TEST_F(MLIR_DimsOrderTest, isCompatibleLayoutTest) {
             elemStrides[i] = memStrides[checked_cast<size_t>(originOrder.toMemDim(Dim(i)).ind())];
         }
 
-        const auto layout = VPUIP::MemRefAttr::get(mlir::AffineMapAttr::get(originOrder.toAffineMap(&ctx)),
-                                                   getIntArrayAttr(&ctx, elemStrides),
-                                                   /*swizzlingScheme=*/nullptr, nullptr, /*allocSize=*/nullptr, &ctx);
+        const auto layout = vpux::MemRefAttr::get(mlir::AffineMapAttr::get(originOrder.toAffineMap(&ctx)),
+                                                  getIntArrayAttr(&ctx, elemStrides),
+                                                  /*allocSize=*/nullptr, &ctx);
 
         const auto memRefType = mlir::MemRefType::get(shape, mlir::Float16Type::get(&ctx),
                                                       layout.cast<mlir::MemRefLayoutAttrInterface>());

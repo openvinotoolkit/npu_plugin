@@ -5,7 +5,6 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
-#include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
 using namespace vpux;
@@ -13,8 +12,8 @@ using namespace vpux;
 mlir::LogicalResult vpux::VPUIP::BucketizeUPAOp::verify() {
     const mlir::Type constInt32 = getSInt32Type(getContext());
 
-    if (!(output_type() == constInt32)) {
-        return errorAt(*this, "Attribute output_type should have only SI32 type. Got {0} type", output_type());
+    if (!(getOutputType() == constInt32)) {
+        return errorAt(*this, "Attribute output_type should have only SI32 type. Got {0} type", getOutputType());
     }
     return mlir::success();
 }
@@ -24,18 +23,18 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BucketizeUPAOp::serialize(VPUIP::Bl
 
     MVCNN::BucketizeOutputType outType;
 
-    if (this->output_type().isSignedInteger(32)) {
+    if (this->getOutputType().isSignedInteger(32)) {
         outType = MVCNN::BucketizeOutputType::BucketizeOutputType_I32;
-    } else if (this->output_type().isSignedInteger(64)) {
+    } else if (this->getOutputType().isSignedInteger(64)) {
         outType = MVCNN::BucketizeOutputType::BucketizeOutputType_I64;
     } else {
         VPUX_THROW("Unsupported type for output_type attribute. Got {0} instead of SI32 or SI64 type, that is defined "
                    "in schema for output_type.",
-                   this->output_type());
+                   this->getOutputType());
     }
 
     builder.add_output_type(outType);
-    builder.add_with_right_bound(with_right_bound());
+    builder.add_with_right_bound(getWithRightBound());
 
     const auto paramsOff = builder.Finish();
 

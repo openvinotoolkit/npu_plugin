@@ -89,8 +89,6 @@ The **IERT Dialect** uses the following scheme to represent scheduling informati
     let extraClassDeclaration = [{
         static void setupExtraInterfaces(mlir::DialectRegistry& registry);
     }];
-
-    let emitAccessorPrefix = kEmitAccessorPrefix_Prefixed;
 }
 
 #endif

@@ -1,33 +1,31 @@
-//
 // Copyright (C) Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpu_ov1_layer_test.hpp"
+#include <vpu_ov2_layer_test.hpp>
 
-#include <ngraph_functions/builders.hpp>
-#include <ngraph_functions/utils/ngraph_helpers.hpp>
+#include <ov_models/builders.hpp>
+#include <ov_models/utils/ov_helpers.hpp>
 #include <shared_test_classes/base/layer_test_utils.hpp>
 
-namespace {
+namespace ov::test {
 
-class VPUXTransposeWithConv2dTest_VPU3700 :
-        public LayerTestsUtils::VpuOv1LayerTestsCommon,
-        public testing::WithParamInterface<std::tuple<std::vector<int64_t>>> {
+class TransposeWithConv2dTest_NPU3700 :
+        public VpuOv2LayerTest,
+        public testing::WithParamInterface<std::vector<int64_t>> {
     void SetUp() override {
-        targetDevice = LayerTestsUtils::testPlatformTargetDevice();
-        const InferenceEngine::SizeVector inputShape = {1, 16, 32, 64};
+        const ov::Shape inputShape = {1, 16, 32, 64};
 
-        const auto params = ngraph::builder::makeParams(ngraph::element::f32, {inputShape});
-        const auto paramOuts =
-                ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+        init_input_shapes(static_shapes_to_test_representation({inputShape}));
 
-        const std::vector<int64_t> transposeArg0Weights = std::get<0>(GetParam());
-        auto transposeArg0Const = std::make_shared<ngraph::op::Constant>(
-                ngraph::element::Type_t::i64, ngraph::Shape{transposeArg0Weights.size()}, transposeArg0Weights.data());
+        ov::ParameterVector params{
+                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputDynamicShapes.front())};
 
-        auto transposeArg0Node =
-                std::make_shared<ngraph::op::v1::Transpose>(paramOuts.at(0), transposeArg0Const->output(0));
+        const std::vector<int64_t> transposeArg0Weights = GetParam();
+        auto transposeArg0Const = std::make_shared<ov::op::v0::Constant>(
+                ov::element::i64, ov::Shape{transposeArg0Weights.size()}, transposeArg0Weights.data());
+
+        auto transposeArg0Node = std::make_shared<ov::op::v1::Transpose>(params.at(0), transposeArg0Const->output(0));
 
         const size_t planesOut = 16;
         const size_t planesIn = transposeArg0Node->get_shape().at(1);
@@ -38,40 +36,36 @@ class VPUXTransposeWithConv2dTest_VPU3700 :
         for (std::size_t i = 0; i < weights.size(); i++) {
             weights.at(i) = std::cos(i * 3.14 / 6.f);
         }
-        auto constLayerNode = std::make_shared<ngraph::op::Constant>(
-                ngraph::element::Type_t::f32, ngraph::Shape{planesOut, planesIn, kernelY, kernelX}, weights.data());
+        auto constLayerNode = std::make_shared<ov::op::v0::Constant>(
+                ov::element::f32, ov::Shape{planesOut, planesIn, kernelY, kernelX}, weights.data());
 
-        auto conv2dNode = std::make_shared<ngraph::op::v1::Convolution>(
-                transposeArg0Node->output(0), constLayerNode->output(0), ngraph::Strides(std::vector<size_t>{1, 1}),
-                ngraph::CoordinateDiff(std::vector<ptrdiff_t>{0, 0}),
-                ngraph::CoordinateDiff(std::vector<ptrdiff_t>{0, 0}), ngraph::Strides(std::vector<size_t>{1, 1}));
+        auto conv2dNode = std::make_shared<ov::op::v1::Convolution>(
+                transposeArg0Node->output(0), constLayerNode->output(0), ov::Strides(std::vector<size_t>{1, 1}),
+                ov::CoordinateDiff(std::vector<ptrdiff_t>{0, 0}), ov::CoordinateDiff(std::vector<ptrdiff_t>{0, 0}),
+                ov::Strides(std::vector<size_t>{1, 1}));
 
-        auto reluNode = std::make_shared<ngraph::op::Relu>(conv2dNode->output(0));
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(reluNode)};
+        auto reluNode = std::make_shared<ov::op::v0::Relu>(conv2dNode->output(0));
+        const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(reluNode)};
 
-        function = std::make_shared<ngraph::Function>(results, params, "VPUXTransposeWithConv2dTest");
-
-        threshold = 0.5f;
+        function = std::make_shared<ov::Model>(results, params, "TransposeWithConv2dTest");
+        rel_threshold = 0.5f;
     }
 };
 
-TEST_P(VPUXTransposeWithConv2dTest_VPU3700, SW) {
-    setPlatformVPU3700();
-    setReferenceSoftwareModeMLIR();
-    Run();
+TEST_P(TransposeWithConv2dTest_NPU3700, SW) {
+    setReferenceSoftwareMode();
+    run(VPUXPlatform::VPU3700);
 }
 
-TEST_P(VPUXTransposeWithConv2dTest_VPU3700, HW) {
-    setPlatformVPU3700();
-    setDefaultHardwareModeMLIR();
-    Run();
+TEST_P(TransposeWithConv2dTest_NPU3700, HW) {
+    setDefaultHardwareMode();
+    run(VPUXPlatform::VPU3700);
 }
 
 const std::vector<std::vector<int64_t>> transposes = {
         {0, 3, 1, 2}, {0, 3, 2, 1}, {0, 2, 1, 3}, {0, 2, 3, 1}, {0, 1, 3, 2},
 };
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_transpose_conv2d, VPUXTransposeWithConv2dTest_VPU3700,
-                         ::testing::Combine(::testing::ValuesIn(transposes)));
+INSTANTIATE_TEST_SUITE_P(transpose_conv2d, TransposeWithConv2dTest_NPU3700, ::testing::ValuesIn(transposes));
 
-}  // namespace
+}  // namespace ov::test

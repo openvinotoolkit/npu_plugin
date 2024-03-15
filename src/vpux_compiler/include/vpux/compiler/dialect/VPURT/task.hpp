@@ -32,6 +32,14 @@ OpTy createOp(mlir::PatternRewriter& rewriter, mlir::Operation* insertionPoint, 
     return rewriter.create<OpTy>(std::forward<Args>(args)...);
 }
 
+template <typename OpTy, typename... Args>
+OpTy createOp(mlir::OpBuilder& builder, mlir::Operation* insertionPoint, Args&&... args) {
+    VPUX_THROW_WHEN(insertionPoint == nullptr, "Insertion point is empty");
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointAfter(insertionPoint);
+    return builder.create<OpTy>(std::forward<Args>(args)...);
+}
+
 struct TaskQueueType {
     VPU::ExecutorKind type;
     int64_t id;
@@ -51,11 +59,7 @@ struct TaskQueueType {
 
 SmallVector<int64_t> getDMATaskPorts(TaskOp task);
 
-// Encode DMA port and channel setting into a single integer for convenient usage during barrier scheduling
-int64_t getDMAQueueIdEncoding(int64_t port, int64_t channelIdx);
-int64_t getDMAQueueIdEncoding(int64_t port, llvm::Optional<vpux::VPUIP::DmaChannelType> channel);
-
-Optional<SmallVector<TaskQueueType>> getDMATaskQueueType(TaskOp task);
+std::optional<SmallVector<TaskQueueType>> getDMATaskQueueType(TaskOp task);
 
 TaskQueueType getTaskQueueType(TaskOp task, bool ignoreIndexForNce = true);
 }  // namespace VPURT

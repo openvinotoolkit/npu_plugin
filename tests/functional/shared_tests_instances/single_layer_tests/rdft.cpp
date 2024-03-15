@@ -2,7 +2,6 @@
 // Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
-
 #include "single_layer_tests/rdft.hpp"
 #include <algorithm>
 #include <vector>
@@ -10,7 +9,7 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXRdftLayerTest : public RDFTLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
+class RdftLayerTestCommon : public RDFTLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void SetUp() override {
         InferenceEngine::SizeVector inputShapes;
         InferenceEngine::Precision inputPrecision;
@@ -23,20 +22,13 @@ class VPUXRdftLayerTest : public RDFTLayerTest, virtual public LayerTestsUtils::
         // Extra increase of precision decrease in fp16 is added by convert to fp16 the precalculated twiddle factors.
         // In this case depend by shape[axes] size. Consider 0.15 cover 64 line width.
         if (inputPrecision == InferenceEngine::Precision::FP16) {
-            abs_threshold = 0.15f * axes.size();
             threshold = 0.15f * axes.size();
         }
         RDFTLayerTest::SetUp();
     }
 };
 
-TEST_P(VPUXRdftLayerTest, VPU3720_SW) {
-    setPlatformVPU3720();
-    setReferenceSoftwareModeMLIR();
-    Run();
-}
-
-TEST_P(VPUXRdftLayerTest, VPU3720_HW) {
+TEST_P(RdftLayerTestCommon, NPU3720) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -69,7 +61,7 @@ const auto combine = [](const std::vector<InferenceEngine::SizeVector>& inputSha
 };
 
 // RDFT can support 1d
-INSTANTIATE_TEST_SUITE_P(smoke_RDFT_1d, VPUXRdftLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_RDFT_1d, RdftLayerTestCommon,
                          testing::Combine(testing::Values(InferenceEngine::SizeVector{10}),
                                           testing::ValuesIn(inputPrecisions), testing::Values(std::vector<int64_t>{0}),
                                           testing::Values(std::vector<int64_t>{}),
@@ -77,8 +69,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_RDFT_1d, VPUXRdftLayerTest,
                                           testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          RDFTLayerTest::getTestCaseName);
 
-// IRDFT openvino not support 2d input tensor
-INSTANTIATE_TEST_SUITE_P(smoke_RDFT_2d, VPUXRdftLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_RDFT_2d, RdftLayerTestCommon,
                          testing::Combine(testing::Values(InferenceEngine::SizeVector{10, 2}),
                                           testing::ValuesIn(inputPrecisions),
                                           testing::ValuesIn(std::vector<std::vector<int64_t>>{{{0}}}),
@@ -87,40 +78,38 @@ INSTANTIATE_TEST_SUITE_P(smoke_RDFT_2d, VPUXRdftLayerTest,
                                           testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          RDFTLayerTest::getTestCaseName);
 
-// IRDFT openvino not support 2d input tensor
-// https://github.com/openvinotoolkit/openvino/issues/17544
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_RDFT_2dx, VPUXRdftLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_RDFT_2dx, RdftLayerTestCommon,
                          combine({{10, 2}},         // input shapes
                                  {{0}},             // axes
                                  {{}, {3}, {11}}),  // signal sizes
                          RDFTLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_RDFT_3d, VPUXRdftLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_RDFT_3d, RdftLayerTestCommon,
                          combine({{10, 4, 2}},    // input shapes
                                  {{0, 1}},        // axes
                                  {{}, {3, 10}}),  // signal sizes
                          RDFTLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_RDFT_4d, VPUXRdftLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_RDFT_4d, RdftLayerTestCommon,
                          combine({{10, 4, 8, 2}},    // input shapes
                                  {{0, 1, 2}},        // axes
                                  {{}, {3, 10, 8}}),  // signal sizes
                          RDFTLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_RDFT_4d_negative_reversed_axes, VPUXRdftLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_RDFT_4d_negative_reversed_axes, RdftLayerTestCommon,
                          combine({{10, 4, 8, 2}},    // input shapes
                                  {{-1, -2, -3}},     // axes
                                  {{}, {8, 10, 3}}),  // signal sizes
                          RDFTLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_RDFT_4d_single_axis, VPUXRdftLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_RDFT_4d_single_axis, RdftLayerTestCommon,
                          combine({{10, 4, 8, 2}},        // input shapes
                                  {{0}, {1}, {2}},        // axes
                                  {{}, {1}, {5}, {20}}),  // signal sizes
                          RDFTLayerTest::getTestCaseName);
 
 // IRDFT can support 5d
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_RDFT_5d, VPUXRdftLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_RDFT_5d, RdftLayerTestCommon,
                          testing::Combine(testing::Values(InferenceEngine::SizeVector{10, 4, 8, 2, 2}),
                                           testing::ValuesIn(inputPrecisions),
                                           testing::ValuesIn(std::vector<std::vector<int64_t>>{{{0, 1, 2, 3}}}),
@@ -128,19 +117,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_precommit_RDFT_5d, VPUXRdftLayerTest,
                                           testing::Values(ngraph::helpers::DFTOpType::INVERSE),
                                           testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          RDFTLayerTest::getTestCaseName);
-// Big size, take significant time even on vpu 3720 board.
-// [Track number E#81761]
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_RDFT_tile_FORWARD, VPUXRdftLayerTest,
-                         testing::Combine(testing::Values(InferenceEngine::SizeVector{1, 120, 64, 64}),
+
+INSTANTIATE_TEST_SUITE_P(smoke_RDFT_tile_FORWARD, RdftLayerTestCommon,
+                         testing::Combine(testing::Values(InferenceEngine::SizeVector{1, 80, 64, 64}),
                                           testing::ValuesIn(inputPrecisions),
                                           testing::Values(std::vector<int64_t>{2, 3}),
                                           testing::Values(std::vector<int64_t>{}),
                                           testing::Values(ngraph::helpers::DFTOpType::FORWARD),
                                           testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          RDFTLayerTest::getTestCaseName);
-// Big size, take significant time even on vpu 3720 board.
-// [Track number E#81761]
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_RDFT_tile_INVERSE, VPUXRdftLayerTest,
+
+INSTANTIATE_TEST_SUITE_P(smoke_RDFT_tile_INVERSE, RdftLayerTestCommon,
                          testing::Combine(testing::Values(InferenceEngine::SizeVector{1, 120, 64, 33, 2}),
                                           testing::ValuesIn(inputPrecisions),
                                           testing::Values(std::vector<int64_t>{2, 3}),

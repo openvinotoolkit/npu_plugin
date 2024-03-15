@@ -6,14 +6,11 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
-#include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
-#include "vpux/utils/IE/loop.hpp"
-
 #include <mlir/Dialect/Quant/QuantTypes.h>
-#include <mlir/IR/BlockAndValueMapping.h>
+#include <mlir/IR/IRMapping.h>
 #include <mlir/IR/PatternMatch.h>
 
 using namespace vpux;
@@ -48,7 +45,7 @@ mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::LayerOpInterface origOp, 
     const auto origOperands = origOp->getOperands();
     VPUX_THROW_UNLESS(origOperands.size() == newOperands.size(), "Wrong operands size : {0}", newOperands.size());
 
-    mlir::BlockAndValueMapping mapper;
+    mlir::IRMapping mapper;
     mapper.map(origOperands, newOperands);
 
     auto* newOp = rewriter.clone(*origOp, mapper);
@@ -157,7 +154,8 @@ void ConvertWeightsToU8Pass::safeRunOnFunc() {
     mlir::TypeConverter typeConverter;
     typeConverter.addConversion([](vpux::NDTypeInterface tensor) {
         if (const auto quantType = tensor.getElementType().dyn_cast_or_null<mlir::quant::QuantizedType>()) {
-            if (quantType.isSigned()) {
+            // Handle I8 only storage type
+            if (quantType.isSigned() && quantType.getStorageTypeIntegralWidth() == 8) {
                 const auto newElemType = changeStorageTypeToU8(quantType);
                 return tensor.changeElemType(newElemType);
             }
@@ -169,15 +167,43 @@ void ConvertWeightsToU8Pass::safeRunOnFunc() {
     typeConverter.addTargetMaterialization(dummyConverter<mlir::RankedTensorType>);
     typeConverter.addArgumentMaterialization(dummyConverter<mlir::RankedTensorType>);
 
-    const auto isLegalOp = [&](mlir::Operation* op) {
-        return typeConverter.isLegal(op);
+    const auto isFloatInputQuantWeightsMixedPrecisionOperation = [&](mlir::Operation* op) {
+        if (!mlir::isa<IE::ConvolutionOp, IE::GroupConvolutionOp>(op)) {
+            return false;
+        }
+        const auto inputElemType = op->getOperand(0).getType().cast<vpux::NDTypeInterface>().getElementType();
+        const auto filterElemType = op->getOperand(1).getType().cast<vpux::NDTypeInterface>().getElementType();
+        // cases of non quant input and quant wt must remain as SI8
+        return !inputElemType.isa<mlir::quant::QuantizedType>() && filterElemType.isa<mlir::quant::QuantizedType>();
+    };
+
+    const auto isLegalConstDeclareOp = [&](Const::DeclareOp constOp) {
+        // handle mixed precision of FP input and I8 weights
+        const auto constTensor = constOp.getResult();
+        const auto constUsers = constTensor.getUsers();
+
+        const auto mixedPrecisionUsers = llvm::count_if(constUsers, [&](mlir::Operation* user) {
+            return isFloatInputQuantWeightsMixedPrecisionOperation(user) && user->getOperand(1) == constTensor;
+        });
+        if (mixedPrecisionUsers == std::distance(constUsers.begin(), constUsers.end())) {
+            return true;
+        }
+
+        // limited support when it comes to handling constants feeding into multiple operations
+        VPUX_THROW_UNLESS(mixedPrecisionUsers == 0,
+                          "Don't support cases of multiple consumer both mixed and non mixed precision at '{0}'",
+                          constOp.getLoc());
+
+        return typeConverter.isLegal(constOp);
     };
 
     mlir::ConversionTarget target(ctx);
-    target.addDynamicallyLegalOp<Const::DeclareOp>(isLegalOp);
+    target.addDynamicallyLegalOp<Const::DeclareOp>(isLegalConstDeclareOp);
     target.markUnknownOpDynamicallyLegal([&](mlir::Operation* op) {
         if (mlir::isa<IE::LayerOpInterface>(op)) {
-            return isLegalOp(op);
+            if (!isFloatInputQuantWeightsMixedPrecisionOperation(op)) {
+                return typeConverter.isLegal(op);
+            }
         }
         return true;
     });

@@ -4,16 +4,14 @@
 //
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
-#include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_invariant.hpp"
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
-#include <mlir/IR/BlockAndValueMapping.h>
+#include <mlir/IR/IRMapping.h>
 #include <mlir/Transforms/DialectConversion.h>
 using namespace vpux;
 
@@ -49,9 +47,9 @@ mlir::Value getZerosConst(mlir::PatternRewriter& rewriter, mlir::Operation* orig
             .getOutput();
 }
 
-mlir::Value createNewOp(mlir::PatternRewriter& rewriter, mlir::Operation* origOp, SmallVector<mlir::Value> operands,
+mlir::Value createNewOp(mlir::PatternRewriter& rewriter, mlir::Operation* origOp, ArrayRef<mlir::Value> operands,
                         ShapeRef padStart, ShapeRef padEnd, bool updatePad, bool removePostOp) {
-    mlir::BlockAndValueMapping mapper;
+    mlir::IRMapping mapper;
     mlir::Builder builder(origOp->getContext());
     mapper.map(origOp->getOperands(), operands);
     auto* newOp = rewriter.clone(*origOp, mapper);
@@ -231,8 +229,8 @@ template <class ConcreteOp>
 mlir::LogicalResult ConvGeneralRewriter<ConcreteOp>::matchAndRewrite(ConcreteOp origOp,
                                                                      mlir::PatternRewriter& rewriter) const {
     _log.trace("Got dilated '{0}'layer at '{1}'", origOp->getName(), origOp->getLoc());
-    const auto dilations = Shape(parseIntArrayAttr<int64_t>(origOp.dilations()));
-    const auto filterShape = getShape(origOp.filter());
+    const auto dilations = Shape(parseIntArrayAttr<int64_t>(origOp.getDilations()));
+    const auto filterShape = getShape(origOp.getFilter());
 
     const auto kernelY = filterShape[Dims4D::Filter::KY];
     const auto kernelX = filterShape[Dims4D::Filter::KX];
@@ -242,9 +240,9 @@ mlir::LogicalResult ConvGeneralRewriter<ConcreteOp>::matchAndRewrite(ConcreteOp 
     if (expandKernelX > vpux::VPU::NCEInvariant::MAX_KERNEL_SIZE ||
         expandKernelY > vpux::VPU::NCEInvariant::MAX_KERNEL_SIZE) {
         _log.trace("Split dilated '{0}' layer at '{1}'", origOp->getName(), origOp->getLoc());
-        const auto padStart = Shape(parseIntArrayAttr<int64_t>(origOp.pads_begin()));
-        const auto padEnd = Shape(parseIntArrayAttr<int64_t>(origOp.pads_end()));
-        const auto strides = Shape(parseIntArrayAttr<int64_t>(origOp.strides()));
+        const auto padStart = Shape(parseIntArrayAttr<int64_t>(origOp.getPadsBegin()));
+        const auto padEnd = Shape(parseIntArrayAttr<int64_t>(origOp.getPadsEnd()));
+        const auto strides = Shape(parseIntArrayAttr<int64_t>(origOp.getStrides()));
         const auto inputShape = getShape(origOp->getOperand(0));
         const auto outputShape = getShape(origOp->getResult(0));
         mlir::MLIRContext* ctx = origOp->getContext();
@@ -254,7 +252,7 @@ mlir::LogicalResult ConvGeneralRewriter<ConcreteOp>::matchAndRewrite(ConcreteOp 
 
         // 1. slice Filters
         SmallVector<mlir::Value> slicedFilters =
-                getSlicedFilters(rewriter, origOp, origOp.filter(), slicedShape, filterShape);
+                getSlicedFilters(rewriter, origOp, origOp.getFilter(), slicedShape, filterShape);
 
         // 2. get activation slice parameters and padding parameters
         auto activationSliceAndPaddingParameters = getActivationSliceAndPaddingParameters(
@@ -265,9 +263,9 @@ mlir::LogicalResult ConvGeneralRewriter<ConcreteOp>::matchAndRewrite(ConcreteOp 
         SmallVector<mlir::Value> newConvs;
         bool biasAdded = false;
         mlir::Value zeroBias;
-        if (origOp.bias() != nullptr) {
+        if (origOp.getBias() != nullptr) {
             biasAdded = true;
-            zeroBias = getZerosConst(rewriter, origOp, getShape(origOp.bias()));
+            zeroBias = getZerosConst(rewriter, origOp, getShape(origOp.getBias()));
         }
         for (auto parameter : activationSliceAndPaddingParameters) {
             Shape offsets(inputShape.size());
@@ -280,14 +278,14 @@ mlir::LogicalResult ConvGeneralRewriter<ConcreteOp>::matchAndRewrite(ConcreteOp 
                                                  getIntArrayAttr(ctx, offsets.raw()), getIntArrayAttr(ctx, sliceShape));
 
             SmallVector<mlir::Value> operands;
-            if (origOp.bias() != nullptr) {
-                operands = {slicedActivation, slicedFilters[parameter.index], biasAdded ? origOp.bias() : zeroBias};
+            if (origOp.getBias() != nullptr) {
+                operands = {slicedActivation, slicedFilters[parameter.index], biasAdded ? origOp.getBias() : zeroBias};
                 biasAdded = false;
             } else {
                 operands = {slicedActivation, slicedFilters[parameter.index]};
             }
             newConvs.push_back(createNewOp(rewriter, origOp, operands, parameter.padStart, parameter.padEnd, true,
-                                           origOp.post_opAttr() != nullptr));
+                                           origOp.getPostOpAttr() != nullptr));
         }
 
         // 4. add the new convolution one by one
@@ -301,14 +299,15 @@ mlir::LogicalResult ConvGeneralRewriter<ConcreteOp>::matchAndRewrite(ConcreteOp 
             mlir::Value add = newConvs.front();
             for (size_t i = 1; i < newConvs.size(); i++)
                 add = rewriter.create<IE::AddOp>(origOp->getLoc(), add, newConvs[i], broadcastType,
-                                                 (i == newConvs.size() - 1) ? origOp.post_opAttr() : nullptr)
+                                                 (i == newConvs.size() - 1) ? origOp.getClampAttr(),
+                                                 origOp.getPostOpAttr() : nullptr, nullptr)
                               ->getResult(0);
             rewriter.replaceOp(origOp, add);
             return mlir::success();
         } else {
             auto conv = newConvs.front().getDefiningOp();
-            if (origOp.post_opAttr() != nullptr) {
-                conv->setAttr("post_op", origOp.post_opAttr());
+            if (origOp.getPostOpAttr() != nullptr) {
+                conv->setAttr("post_op", origOp.getPostOpAttr());
             }
             rewriter.replaceOp(origOp, conv->getResult(0));
             return mlir::success();
@@ -316,10 +315,10 @@ mlir::LogicalResult ConvGeneralRewriter<ConcreteOp>::matchAndRewrite(ConcreteOp 
     } else {
         _log.trace("Expand dilated '{0}' layer at '{1}'", origOp->getName(), origOp->getLoc());
         auto dilatedFilter =
-                rewriter.create<IE::ExpandDilatedOp>(origOp->getLoc(), origOp.filter(), origOp.dilations());
-        auto newOp = createNewOp(rewriter, origOp, {origOp.input(), dilatedFilter.getResult(), origOp.bias()},
-                                 Shape(parseIntArrayAttr<int64_t>(origOp.pads_begin())),
-                                 Shape(parseIntArrayAttr<int64_t>(origOp.pads_end())), false, false);
+                rewriter.create<IE::ExpandDilatedOp>(origOp->getLoc(), origOp.getFilter(), origOp.getDilations());
+        auto newOp = createNewOp(rewriter, origOp, {origOp.getInput(), dilatedFilter.getResult(), origOp.getBias()},
+                                 Shape(parseIntArrayAttr<int64_t>(origOp.getPadsBegin())),
+                                 Shape(parseIntArrayAttr<int64_t>(origOp.getPadsEnd())), false, false);
         rewriter.replaceOp(origOp, newOp);
         return mlir::success();
     }
@@ -337,7 +336,7 @@ private:
 
 template <class ConcreteOp>
 bool isLegalOp(ConcreteOp op) {
-    const auto dilations = parseIntArrayAttr<int64_t>(op.dilations());
+    const auto dilations = parseIntArrayAttr<int64_t>(op.getDilations());
     return dilations[Dims4D::Dilation::X.ind()] == 1 && dilations[Dims4D::Dilation::Y.ind()] == 1;
 }
 

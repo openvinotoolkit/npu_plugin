@@ -50,7 +50,6 @@ public:
      */
     unsigned getThreadId(double taskStartTime, double taskEndTime);
 
-    void setThreadIdOffset(unsigned offset);
     std::vector<unsigned> getThreadIds() const;
 
 private:

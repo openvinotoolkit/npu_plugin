@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
+#include "vpux/compiler/VPU37XX/dialect/VPURT/passes.hpp"
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/core/passes.hpp"
-#include "vpux/compiler/dialect/ELF/passes.hpp"
-#include "vpux/compiler/dialect/EMU/passes.hpp"
+#include "vpux/compiler/dialect/ELFNPU37XX/passes.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUMI37XX/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
@@ -56,8 +56,6 @@ int main(int argc, char* argv[]) {
 
         vpux::registerCorePasses();
         vpux::Const::registerConstPasses();
-        vpux::EMU::registerEMUPasses();
-        vpux::EMU::registerEMUPipelines();
         vpux::IE::registerIEPasses();
         vpux::IE::registerIEPipelines();
         vpux::VPU::registerVPUPasses();
@@ -66,7 +64,7 @@ int main(int argc, char* argv[]) {
         vpux::VPUIP::registerVPUIPPipelines();
         vpux::VPURT::registerVPURTPipelines();
         vpux::VPURT::registerVPURTPasses();
-        vpux::ELF::registerELFPasses();
+        vpux::ELFNPU37XX::registerELFNPU37XXPasses();
         vpux::VPUMI37XX::registerVPUMI37XXPasses();
         vpux::registerConversionPasses();
         vpux::registerConversionPipelines();
@@ -75,7 +73,7 @@ int main(int argc, char* argv[]) {
         mlir::func::registerFuncPasses();
 
         return mlir::asMainReturnCode(
-                mlir::MlirOptMain(argc, argv, "NPU Optimizer Testing Tool", registry, false, hwSpecificRegistration));
+                mlir::MlirOptMain(argc, argv, "NPU Optimizer Testing Tool", registry, hwSpecificRegistration));
     } catch (const std::exception& e) {
         std::cerr << e.what() << std::endl;
         return EXIT_FAILURE;

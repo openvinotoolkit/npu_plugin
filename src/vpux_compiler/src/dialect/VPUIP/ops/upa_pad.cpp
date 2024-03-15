@@ -8,33 +8,30 @@
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/subspaces.hpp"
-
-#include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::VPUIP::PadUPAOp::verify() {
     const auto op = getOperation();
-    const auto inShape = getShape(input());
+    const auto inShape = getShape(getInput());
 
-    if (inShape.size() != pads_begin().size()) {
+    if (inShape.size() != getPadsBegin().size()) {
         return errorAt(op, "pads_begin attr size is not compatible with input tensor."
                            "The length of the list must be equal to the number of dimensions in the input tensor");
     }
 
-    if (inShape.size() != pads_end().size()) {
+    if (inShape.size() != getPadsEnd().size()) {
         return errorAt(op, "pads_end attr size is not compatible with input tensor."
                            "The length of the list must be equal to the number of dimensions in the input tensor");
     }
 
-    const auto padBegin = parseIntArrayAttr<int64_t>(pads_begin());
-    const auto padEnd = parseIntArrayAttr<int64_t>(pads_end());
-    if (pads_begin().size() == 4 && pads_end().size() == 4 && padEnd[0] - padBegin[0] != 0) {
+    const auto padBegin = parseIntArrayAttr<int64_t>(getPadsBegin());
+    const auto padEnd = parseIntArrayAttr<int64_t>(getPadsEnd());
+    if (getPadsBegin().size() == 4 && getPadsEnd().size() == 4 && padEnd[0] - padBegin[0] != 0) {
         return errorAt(op, "PadUPAOp: Cannot expand batch");
     }
 
-    if (mode() == IE::PadMode::CONSTANT && !pad_value().has_value()) {
+    if (getMode() == IE::PadMode::CONSTANT && !getPadValue().has_value()) {
         return errorAt(op, "pad_mode is CONSTANT but pad_value hasn't provided");
     }
 
@@ -42,14 +39,14 @@ mlir::LogicalResult vpux::VPUIP::PadUPAOp::verify() {
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PadUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto padsBegin = writer.createVector(parseIntArrayAttr<uint32_t>(pads_begin()));
-    const auto padsEnd = writer.createVector(parseIntArrayAttr<uint32_t>(pads_end()));
+    const auto padsBegin = writer.createVector(parseIntArrayAttr<uint32_t>(getPadsBegin()));
+    const auto padsEnd = writer.createVector(parseIntArrayAttr<uint32_t>(getPadsEnd()));
 
     MVCNN::PadParamsBuilder builder(writer);
-    const auto padMode = VPUIP::convertVPUXPadMode2MVCNN(mode());
+    const auto padMode = VPUIP::convertVPUXPadMode2MVCNN(getMode());
     builder.add_pad_mode(padMode);
     if (padMode == MVCNN::PadMode::PadMode_Constant) {
-        builder.add_padValue(static_cast<float>(pad_value()->convertToDouble()));
+        builder.add_padValue(static_cast<float>(getPadValue()->convertToDouble()));
     }
     builder.add_pads_begin(padsBegin);
     builder.add_pads_end(padsEnd);

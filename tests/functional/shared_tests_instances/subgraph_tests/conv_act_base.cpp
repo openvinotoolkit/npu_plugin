@@ -1,7 +1,6 @@
 //
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
-//
 
 #include "conv_act_base.hpp"
 #include <ngraph/pass/serialize.hpp>
@@ -20,11 +19,11 @@ std::string ConvActTest::getTestCaseName(const testing::TestParamInfo<convActTes
     std::ostringstream result;
     auto accPartName = LayerTestsDefinitions::ActivationLayerTest::getTestCaseName({aParams, 0});
 
-    result << "K" << CommonTestUtils::vec2str(kernel) << "_";
-    result << "S" << CommonTestUtils::vec2str(stride) << "_";
-    result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
-    result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
-    result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
+    result << "K" << ov::test::utils::vec2str(kernel) << "_";
+    result << "S" << ov::test::utils::vec2str(stride) << "_";
+    result << "PB" << ov::test::utils::vec2str(padBegin) << "_";
+    result << "PE" << ov::test::utils::vec2str(padEnd) << "_";
+    result << "D=" << ov::test::utils::vec2str(dilation) << "_";
     result << "O=" << convOutChannels << "_";
     result << "AP=" << padType << "_";
     result << accPartName;
@@ -46,14 +45,14 @@ void ConvActTest::buildFloatFunction() {
     std::tie(activationDecl, netPrecision, inPrc, outPrc, inLayout, outLayout, shapes, targetDevice) = aParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {shapes.first});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shapes.first))};
     auto paramOuts =
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     std::vector<float> filter_weights;
     auto filter_size = std::accumulate(std::begin(kernel), std::end(kernel), 1, std::multiplies<size_t>());
     filter_weights =
-            CommonTestUtils::generate_float_numbers(convOutChannels * shapes.first[1] * filter_size, -0.5f, 0.5f);
-    auto conv = std::dynamic_pointer_cast<ngraph::opset1::Convolution>(
+            ov::test::utils::generate_float_numbers(convOutChannels * shapes.first[1] * filter_size, -0.5f, 0.5f);
+    auto conv = std::dynamic_pointer_cast<ov::op::v1::Convolution>(
             ngraph::builder::makeConvolution(paramOuts[0], ngPrc, kernel, stride, padBegin, padEnd, dilation, padType,
                                              convOutChannels, false, filter_weights));
 
@@ -63,7 +62,7 @@ void ConvActTest::buildFloatFunction() {
     activationType = activationDecl.first;
     auto constantsValue = activationDecl.second;
     auto activation = ngraph::builder::makeActivation(conv, ngPrc, activationType, shapes.second, constantsValue);
-    results.push_back(std::make_shared<ngraph::opset1::Result>(activation));
+    results.push_back(std::make_shared<ov::op::v0::Result>(activation));
 
     function = std::make_shared<ngraph::Function>(results, params, "convolution");
 
@@ -91,13 +90,13 @@ void ConvActTest::buildFQFunction() {
 
     /// building conv+activation+FQs subgraph
 
-    const InferenceEngine::SizeVector inputShape = shapes.first;  // {1, 3, 62, 62};
+    const ov::Shape inputShape(shapes.first);  // {1, 3, 62, 62};
 
     auto filter_size = std::accumulate(std::begin(kernel), std::end(kernel), 1, std::multiplies<size_t>());
 
     const InferenceEngine::SizeVector weightsShape{convOutChannels * filter_size, shapes.first[1], 1, 1};
 
-    const auto params = ngraph::builder::makeParams(ngraph::element::f32, {inputShape});
+    const ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputShape)};
     const auto paramOuts =
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
@@ -110,7 +109,7 @@ void ConvActTest::buildFQFunction() {
 
     /// building weights FQ - through convert layer
     const auto weightsU8 = ngraph::builder::makeConstant<uint8_t>(ngraph::element::u8, weightsShape, {}, true, 255, 1);
-    const auto weightsFP32 = std::make_shared<ngraph::opset2::Convert>(weightsU8, ngraph::element::f32);
+    const auto weightsFP32 = std::make_shared<ov::op::v0::Convert>(weightsU8, ngraph::element::f32);
 
     const size_t weightsLevels = 255;
 
@@ -129,8 +128,8 @@ void ConvActTest::buildFQFunction() {
                                                                     perChannelLow, false);
     const auto weightsOutHigh = ngraph::builder::makeConstant<float>(ngraph::element::f32, {weightsShape[0], 1, 1, 1},
                                                                      perChannelHigh, false);
-    const auto weightsFq = std::make_shared<ngraph::opset2::FakeQuantize>(weightsFP32, weightsInLow, weightsInHigh,
-                                                                          weightsOutLow, weightsOutHigh, weightsLevels);
+    const auto weightsFq = std::make_shared<ov::op::v0::FakeQuantize>(weightsFP32, weightsInLow, weightsInHigh,
+                                                                      weightsOutLow, weightsOutHigh, weightsLevels);
 
     /// building convolution
     const ngraph::Strides strides = {1, 1};
@@ -138,7 +137,7 @@ void ConvActTest::buildFQFunction() {
     const ngraph::CoordinateDiff pads_end = {0, 0};
     const ngraph::Strides dilations = {1, 1};
     const auto conv =
-            std::make_shared<ngraph::opset2::Convolution>(dataFq, weightsFq, strides, pads_begin, pads_end, dilations);
+            std::make_shared<ov::op::v1::Convolution>(dataFq, weightsFq, strides, pads_begin, pads_end, dilations);
 
     /// building activation
     ngraph::helpers::ActivationTypes activationType;
@@ -152,7 +151,7 @@ void ConvActTest::buildFQFunction() {
     const auto activationaFq = ngraph::builder::makeFakeQuantize(activation, ngraph::element::f32, dataLevels, {},
                                                                  outDataLow, outDataHigh, outDataLow, outDataHigh);
 
-    const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(activationaFq)};
+    const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(activationaFq)};
     function = std::make_shared<ngraph::Function>(results, params, "QuantizedConvAcc");
 
     threshold = 0.4f;

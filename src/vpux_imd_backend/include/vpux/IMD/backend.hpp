@@ -8,13 +8,12 @@
 #include "vpux.hpp"
 
 namespace vpux {
-namespace IMD {
 
-class BackendImpl final : public IEngineBackend {
+class IMDBackend final : public IEngineBackend {
 public:
     const std::shared_ptr<IDevice> getDevice() const override;
     const std::shared_ptr<IDevice> getDevice(const std::string& name) const override;
-    const std::shared_ptr<IDevice> getDevice(const InferenceEngine::ParamMap& params) const override;
+    const std::shared_ptr<IDevice> getDevice(const ov::AnyMap& params) const override;
 
     const std::vector<std::string> getDeviceNames() const override;
 
@@ -23,5 +22,4 @@ public:
     void registerOptions(OptionsDesc& options) const override;
 };
 
-}  // namespace IMD
 }  // namespace vpux

@@ -2,7 +2,6 @@
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
-
 #include <vpux/hwtest/ops/act_shave_op.hpp>
 
 #include "vpux/compiler/dialect/VPUIP/sw_utils.hpp"
@@ -25,32 +24,17 @@ VPUIP::KernelInfo getKernelInfo(nb::ActivationLayer activation, mlir::MLIRContex
         return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{axisParamAttr, padSizeAttr},
                                  {"singleShaveSoftmax"},
                                  {"singleShaveSoftmax.cpp"}};
-    case nb::ActivationType::vau_sigm:
-        return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{}, {"vau_sigm_fp16"}, {"vau_sigm_fp16.c"}};
-    case nb::ActivationType::vau_sqrt:
-        return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{}, {"vau_sqrt_fp16"}, {"vau_sqrt_fp16.c"}};
-    case nb::ActivationType::vau_tanh:
-        return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{}, {"vau_tanh_fp16"}, {"vau_tanh_fp16.c"}};
-    case nb::ActivationType::vau_log:
-        return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{}, {"vau_log_fp16"}, {"vau_log_fp16.c"}};
-    case nb::ActivationType::vau_exp:
-        return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{}, {"vau_exp_fp16"}, {"vau_exp_fp16.c"}};
-    case nb::ActivationType::lsu_b16:
-        return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{}, {"lsu_b16"}, {"lsu_b16.cpp"}};
-    case nb::ActivationType::lsu_b16_vec:
-        return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{}, {"lsu_b16_vec"}, {"lsu_b16_vec.cpp"}};
-    case nb::ActivationType::sau_dp4:
-        return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{}, {"sau_dp4"}, {"sau_dp4.cpp"}};
-    case nb::ActivationType::sau_dp4a:
-        return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{}, {"sau_dp4a"}, {"sau_dp4a.cpp"}};
-    case nb::ActivationType::sau_dp4m:
-        return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{}, {"sau_dp4m"}, {"sau_dp4m.cpp"}};
-    case nb::ActivationType::vau_dp4:
-        return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{}, {"vau_dp4"}, {"vau_dp4.cpp"}};
-    case nb::ActivationType::vau_dp4a:
-        return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{}, {"vau_dp4a"}, {"vau_dp4a.cpp"}};
-    case nb::ActivationType::vau_dp4m:
-        return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{}, {"vau_dp4m"}, {"vau_dp4m.cpp"}};
+    case nb::ActivationType::round_trip_b8h8_to_fp16:
+        return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{},
+                                 {"round_trip_b8h8_to_fp16"},
+                                 {"round_trip_b8h8_to_fp16.cpp"}};
+    case nb::ActivationType::PopulateWeightTable: {
+        const auto baseAttr = getIntAttr(ctx, activation.weightsOffset.value_or(0));
+        const auto stepAttr = getIntAttr(ctx, activation.weightsPtrStep.value_or(0));
+        return VPUIP::KernelInfo{SmallVector<mlir::Attribute>{baseAttr, stepAttr},
+                                 {"populate_weight_table"},
+                                 {"populate_weight_table.cpp"}};
+    }
     default:
         VPUX_THROW("Activation is not supported for ActShave tests");
     }
@@ -61,9 +45,11 @@ VPUIP::KernelInfo getKernelInfo(nb::ActivationLayer activation, mlir::MLIRContex
 void buildActShaveTask(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                        Logger& log, ArrayRef<mlir::Type> inputTypes,
                        SmallVector<vpux::VPURT::DeclareBufferOp>& inputCMX, vpux::VPURT::DeclareBufferOp outputCMX,
-                       mlir::ValueRange waitBarrier, mlir::ValueRange updateBarrier, size_t cluster, size_t /*unit*/) {
+                       vpux::VPURT::DeclareBufferOp profilingDataCMX, mlir::ValueRange waitBarrier,
+                       mlir::ValueRange updateBarrier, size_t cluster, size_t /*unit*/) {
     auto* ctx = builder.getContext();
     auto activation = testDesc.getActivationLayer();
+    auto profilingParams = testDesc.getProfilingParams();
 
     // consider the idx & the order when mapping axis:
     // NB idx starts from the left and order is NCHW
@@ -89,12 +75,13 @@ void buildActShaveTask(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleO
     SmallVector<mlir::Type> inputTypesUnranked;
     std::transform(inputTypes.begin(), inputTypes.end(), std::back_inserter(inputTypesUnranked), convertToUnrankedType);
     std::transform(kernelInfo.args.begin(), kernelInfo.args.end(), std::back_inserter(inputTypesUnranked),
-                   [](mlir::Attribute arg) {
-                       return arg.getType();
+                   [ctx](mlir::Attribute arg) {
+                       const auto typedAttr = arg.dyn_cast<mlir::TypedAttr>();
+                       return typedAttr != nullptr ? typedAttr.getType() : mlir::NoneType::get(ctx);
                    });
 
     // first creating management kernel definition
-    VPUIP::createRuntimeKernelDefinition(module, log, testDesc.getArchitecture());
+    VPUIP::createRuntimeKernelDefinition(module, log);
 
     // Create built-in function ------------------------------------------------
 
@@ -125,9 +112,20 @@ void buildActShaveTask(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleO
             inputCMXValues.push_back(input.getBuffer());
         }
 
-        auto swKernelOp =
-                builder.create<VPUIP::SwKernelOp>(builder.getUnknownLoc(), mlir::ValueRange{inputCMXValues},
-                                                  outputCMX.getBuffer(), builtInFunction, getIntAttr(ctx, tile));
+        auto loc = mlir::NameLoc::get(mlir::StringAttr::get(ctx, "convert?t_Convert"));
+        auto swKernelOp = builder.create<VPUIP::SwKernelOp>(
+                loc, mlir::ValueRange{inputCMXValues}, outputCMX.getBuffer(),
+                profilingParams.swProfilingEnabled ? profilingDataCMX.getBuffer() : nullptr, builtInFunction,
+                getIntAttr(ctx, tile));
+
+        if (profilingParams.swProfilingEnabled) {
+            auto profAttr = VPUIP::SwProfilingMetadataAttr::get(
+                    ctx, /* bufferId */ getIntAttr(ctx, 0), /* bufferOffset */ getIntAttr(ctx, 0),
+                    /* clusterSize */ getIntAttr(ctx, 1), /* dataIndex */ getIntAttr(ctx, 0),
+                    /* tileId */ getIntAttr(ctx, tile), /* clusterId */ getIntAttr(ctx, tile));
+            swKernelOp.setProfilingMetadataAttr(profAttr);
+        }
+
         VPUIP::initSwKernel(swKernelOp, mlir::ValueRange{inputCMXValues}, outputCMX.getBuffer(), kernelInfo.args, log);
     });
 }

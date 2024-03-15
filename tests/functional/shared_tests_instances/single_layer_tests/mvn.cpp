@@ -4,19 +4,20 @@
 //
 
 #include <ngraph/op/parameter.hpp>
-#include <ngraph_functions/builders.hpp>
 #include <openvino/op/mvn.hpp>
+#include <ov_models/builders.hpp>
 #include <shared_test_classes/single_layer/mvn.hpp>
 #include <single_layer_tests/mvn.hpp>
 #include "vpu_ov1_layer_test.hpp"
+#include "vpux_private_properties.hpp"
 
 namespace LayerTestsDefinitions {
 
 // -------------- MVN1 test classes
 
-class VPUXMvn1LayerTest_VPU3700 : public Mvn1LayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
+class Mvn1LayerTest_NPU3700 : public Mvn1LayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
-TEST_P(VPUXMvn1LayerTest_VPU3700, HW) {
+TEST_P(Mvn1LayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
@@ -45,7 +46,7 @@ typedef std::tuple<InferenceEngine::SizeVector,  // Input shapes
 /**
  * For testing particular kernel with variable order currently there is no way to generalize that in KMBLayerTestCommon
  */
-class VPUXMvn1LayerTest_VPU3720 :
+class Mvn1LayerTest_NPU3720 :
         public LayerTestsUtils::VpuOv1LayerTestsCommon,
         public testing::WithParamInterface<mvn2Params> {
     void ConfigureNetwork() override {
@@ -78,14 +79,14 @@ class VPUXMvn1LayerTest_VPU3720 :
             };
         };
 
-        const auto param = ngraph::builder::makeParams(ngraph::element::f16, {inputShapes});
+        const ov::ParameterVector params{
+                std::make_shared<ov::op::v0::Parameter>(ngraph::element::f16, ov::Shape(inputShapes))};
         const auto paramOuts =
-                ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
+                ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
         // order handling
-        auto input_transpose_order =
-                ngraph::opset8::Constant::create(ngraph::element::i64, {4}, make_transpose_order());
-        auto input_transpose = std::make_shared<ngraph::opset1::Transpose>(paramOuts[0], input_transpose_order);
+        auto input_transpose_order = ov::op::v0::Constant::create(ngraph::element::i64, {4}, make_transpose_order());
+        auto input_transpose = std::make_shared<ov::op::v1::Transpose>(paramOuts[0], input_transpose_order);
 
         auto make_mvn_kernel = [&]() {
             if (!axes.empty()) {
@@ -95,8 +96,8 @@ class VPUXMvn1LayerTest_VPU3720 :
             return std::dynamic_pointer_cast<ngraph::op::MVN>(
                     ngraph::builder::makeMVN(input_transpose, acrossChanels, normalizeVariance, eps));
         };
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(make_mvn_kernel())};
-        function = std::make_shared<ngraph::Function>(results, param, "MVN1");
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(make_mvn_kernel())};
+        function = std::make_shared<ngraph::Function>(results, params, "MVN1");
     }
 
 public:
@@ -126,7 +127,24 @@ public:
     }
 };
 
-TEST_P(VPUXMvn1LayerTest_VPU3720, HW) {
+/**
+ * MVN1 Input=0 special case E#96869
+ */
+class Mvn1ZeroInputLayerTestCommon : public Mvn1LayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& inputInfo) const override {
+        return FuncTestUtils::createAndFillBlob(inputInfo.getTensorDesc(), 0, 0, 1, 0);
+    }
+};
+
+class Mvn1ZeroInputLayerTest_NPU3720 : public Mvn1ZeroInputLayerTestCommon {};
+
+TEST_P(Mvn1LayerTest_NPU3720, HW) {
+    setPlatformVPU3720();
+    setDefaultHardwareModeMLIR();
+    Run();
+}
+
+TEST_P(Mvn1ZeroInputLayerTest_NPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -134,23 +152,38 @@ TEST_P(VPUXMvn1LayerTest_VPU3720, HW) {
 
 // -------------- MVN6 test classes
 
-class VPUXMvn6LayerTest : public Mvn6LayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
+class Mvn6LayerTestCommon : public Mvn6LayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     // Avoid f32->f16 converts
     void ConfigureNetwork() override {
         cnnNetwork.getInputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
         cnnNetwork.getOutputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
     }
 };
-class VPUXMvn6LayerTest_VPU3700 : public VPUXMvn6LayerTest {};
-class VPUXMvn6LayerTest_VPU3720 : public VPUXMvn6LayerTest {};
 
-TEST_P(VPUXMvn6LayerTest_VPU3700, HW) {
+class Mvn6LayerTest_NPU3700 : public Mvn6LayerTestCommon {};
+class Mvn6LayerTest_NPU3720 : public Mvn6LayerTestCommon {};
+
+class Mvn6LayerTest_FP32 : public Mvn6LayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
+    void ConfigureNetwork() override {
+        configuration[ov::intel_vpux::compilation_mode_params.name()] = "convert-precision-to-fp16=false";
+    }
+};
+
+TEST_P(Mvn6LayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXMvn6LayerTest_VPU3720, SW) {
+TEST_P(Mvn6LayerTest_NPU3720, SW) {
+    setPlatformVPU3720();
+    setReferenceSoftwareModeMLIR();
+    Run();
+}
+
+// -------------- MVN6 F32 tests
+
+TEST_P(Mvn6LayerTest_FP32, NPU3720) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
@@ -172,7 +205,7 @@ const std::vector<std::string> epsMode = {"inside_sqrt", "outside_sqrt"};
 const std::vector<ngraph::AxisSet> emptyReductionAxes = {{}};
 using AxesVec = std::vector<std::vector<int>>;
 
-/* ================================= MVN1 VPU3700 ================================= */
+/* ================================= MVN1 NPU3700 ================================= */
 
 // Accuracy problem for 3-dim input tensor when acrossChannels = false
 // Traced in Jira S#48579
@@ -191,7 +224,7 @@ const std::vector<std::vector<size_t>> inputShapes = {
     {7, 32, 2, 8},
     {5, 8, 3, 5},
     {4, 41, 6, 9},
-// Currently input dim > 4 is not supported by VPUX-plugin
+// Currently input dim > 4 is not supported by NPU-plugin
     {1, 32, 8, 1, 6},
     {1, 9, 1, 15, 9},
     {6, 64, 6, 1, 18},
@@ -200,27 +233,27 @@ const std::vector<std::vector<size_t>> inputShapes = {
 #endif
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_TestsMVN_3D, VPUXMvn1LayerTest_VPU3700,
+INSTANTIATE_TEST_SUITE_P(smoke_TestsMVN_3D, Mvn1LayerTest_NPU3700,
                          ::testing::Combine(::testing::ValuesIn(inputShapes3D),
                                             ::testing::Values(InferenceEngine::Precision::FP32),
                                             ::testing::ValuesIn(emptyReductionAxes),
                                             ::testing::ValuesIn(acrossChannels3D),
                                             ::testing::ValuesIn(normalizeVariance), ::testing::ValuesIn(epsilon),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-                         VPUXMvn1LayerTest_VPU3700::getTestCaseName);
+                         Mvn1LayerTest_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_TestsMVN, VPUXMvn1LayerTest_VPU3700,
+INSTANTIATE_TEST_SUITE_P(smoke_TestsMVN, Mvn1LayerTest_NPU3700,
                          ::testing::Combine(::testing::ValuesIn(inputShapes),
                                             ::testing::Values(InferenceEngine::Precision::FP32),
                                             ::testing::ValuesIn(emptyReductionAxes),
                                             ::testing::ValuesIn(acrossChannels), ::testing::ValuesIn(normalizeVariance),
                                             ::testing::ValuesIn(epsilon),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-                         VPUXMvn1LayerTest_VPU3700::getTestCaseName);
+                         Mvn1LayerTest_NPU3700::getTestCaseName);
 
 // MVN6 pseudo test (actually testing MVN1 op, as innermost-consecutive norm axes config trigger 'ConvertMVN6toMVN1')
-// MVN6 kernel not available on VPU3700
-INSTANTIATE_TEST_CASE_P(pseudo_MVN6_4D_MLIR, VPUXMvn6LayerTest_VPU3700,
+// MVN6 kernel not available on NPU3700
+INSTANTIATE_TEST_CASE_P(pseudo_MVN6_4D_MLIR, Mvn6LayerTest_NPU3700,
                         ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 10, 5, 17}}),
                                            ::testing::Values(InferenceEngine::Precision::FP16),
                                            ::testing::Values(InferenceEngine::Precision::I32),
@@ -229,7 +262,7 @@ INSTANTIATE_TEST_CASE_P(pseudo_MVN6_4D_MLIR, VPUXMvn6LayerTest_VPU3700,
                                            ::testing::ValuesIn(normalizeVariance), ::testing::ValuesIn(epsilonF),
                                            ::testing::Values("outside_sqrt"),
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-                        VPUXMvn6LayerTest_VPU3700::getTestCaseName);
+                        Mvn6LayerTest_NPU3700::getTestCaseName);
 
 /* ================================= Param builder utils ================================= */
 
@@ -251,37 +284,69 @@ const auto genMvn6LessParams = [](auto shape, auto axes, auto eps) {
                               ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 };
 
-/* ============================ MVN1 tests (VPU3720) ============================= */
+/* ============================ MVN1 tests (NPU3720) ============================= */
 
 const std::vector<std::vector<size_t>> inputShapesForOrder = {{1, 4, 2, 1024}};
 
-const std::vector<std::vector<size_t>> inputShapes4D = {
-        {1, 4, 512, 1}, {1, 999, 2, 3}, {1, 16, 5, 8}, {2, 19, 5, 10}, {7, 32, 2, 8}, {5, 8, 3, 5}, {4, 41, 6, 9},
+const std::vector<std::vector<size_t>> inputShapes4D = {{1, 4, 512, 1}, {1, 999, 2, 3}, {1, 16, 5, 8}, {2, 19, 5, 10},
+                                                        {7, 32, 2, 8},  {5, 8, 3, 5},   {4, 41, 6, 9}
 #if 0  // extra shapes
         {5, 2, 7, 3},   {1, 3, 17, 21}, {2, 5, 13, 27}, {1, 7, 55, 33}, {4, 9, 7, 2},  {3, 13, 9, 9}, {1, 16, 12, 11},
         {1, 512, 3, 2},
 #endif
 };
+const std::vector<std::vector<size_t>> inputShapesForDecomposition = {{1, 1, 1, 515971}, {2, 3, 20, 35971}};
+const std::vector<std::vector<size_t>> inputShapesForNHWCOpt = {{1, 16, 4, 32}, {1, 32, 4, 16}};
+const std::vector<std::vector<size_t>> inputShapesForBigSize = {{1, 1, 8, 48}, {1, 2, 8, 128}};
 
-// -------------- MVN1 - VPU3270
+// -------------- MVN1 - NPU3270
 
-INSTANTIATE_TEST_CASE_P(precommit_MVN1_order, VPUXMvn1LayerTest_VPU3720,
+INSTANTIATE_TEST_CASE_P(precommit_MVN1_order, Mvn1LayerTest_NPU3720,
                         ::testing::Combine(::testing::ValuesIn(inputShapesForOrder),
                                            ::testing::Values(InferenceEngine::Precision::FP16),
                                            ::testing::ValuesIn({HWLayout::NCHW, HWLayout::NCWH, HWLayout::NWHC}),
                                            ::testing::ValuesIn(emptyReductionAxes), ::testing::ValuesIn(acrossChannels),
                                            ::testing::ValuesIn(normalizeVariance), ::testing::ValuesIn(epsilon),
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-                        VPUXMvn1LayerTest_VPU3720::getTestCaseName);
+                        Mvn1LayerTest_NPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_MVN1, VPUXMvn1LayerTest_VPU3720,
+INSTANTIATE_TEST_CASE_P(smoke_MVN1, Mvn1LayerTest_NPU3720,
                         ::testing::Combine(::testing::ValuesIn(inputShapes4D),
                                            ::testing::Values(InferenceEngine::Precision::FP16),
                                            ::testing::ValuesIn({HWLayout::NCHW}),
                                            ::testing::ValuesIn(emptyReductionAxes), ::testing::ValuesIn(acrossChannels),
                                            ::testing::ValuesIn(normalizeVariance), ::testing::ValuesIn(epsilon),
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-                        VPUXMvn1LayerTest_VPU3720::getTestCaseName);
+                        Mvn1LayerTest_NPU3720::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(precommit_MVN1_opt, Mvn1LayerTest_NPU3720,
+                        ::testing::Combine(::testing::ValuesIn(inputShapesForNHWCOpt),
+                                           ::testing::Values(InferenceEngine::Precision::FP16),
+                                           ::testing::ValuesIn({HWLayout::NHWC}),
+                                           ::testing::ValuesIn(emptyReductionAxes), ::testing::ValuesIn(acrossChannels),
+                                           ::testing::ValuesIn(normalizeVariance), ::testing::ValuesIn(epsilon),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
+                        Mvn1LayerTest_NPU3720::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(precommit_MVN1_bigsize, Mvn1LayerTest_NPU3720,
+                        ::testing::Combine(::testing::ValuesIn(inputShapesForBigSize),
+                                           ::testing::Values(InferenceEngine::Precision::FP16),
+                                           ::testing::ValuesIn({HWLayout::NCHW}),
+                                           ::testing::ValuesIn(emptyReductionAxes), ::testing::ValuesIn(acrossChannels),
+                                           ::testing::ValuesIn(normalizeVariance), ::testing::ValuesIn(epsilon),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
+                        Mvn1LayerTest_NPU3720::getTestCaseName);
+
+// -------------- MVN1 Decomposition
+
+INSTANTIATE_TEST_CASE_P(smoke_MVN1_Decomposition, Mvn1LayerTest_NPU3720,
+                        ::testing::Combine(::testing::ValuesIn(inputShapesForDecomposition),
+                                           ::testing::Values(InferenceEngine::Precision::FP16),
+                                           ::testing::ValuesIn({HWLayout::NCHW}),
+                                           ::testing::ValuesIn(emptyReductionAxes), ::testing::ValuesIn(acrossChannels),
+                                           ::testing::ValuesIn(normalizeVariance), ::testing::ValuesIn(epsilon),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
+                        Mvn1LayerTest_NPU3720::getTestCaseName);
 
 // -------------- MVN6 'pseudo' tests : actually testing MVN1 op,
 // as innermost-consecutive norm axes config trigger 'ConvertMVN6toMVN1' to pass
@@ -289,10 +354,20 @@ INSTANTIATE_TEST_CASE_P(smoke_MVN1, VPUXMvn1LayerTest_VPU3720,
 const auto pse2D = genMvn6LessParams(std::vector<size_t>{5, 17}, AxesVec{{1}}, epsilonF);
 const auto pse3D = genMvn6LessParams(std::vector<size_t>{10, 5, 17}, AxesVec{{2}}, epsilonF);
 
-INSTANTIATE_TEST_SUITE_P(pseudo_MVN6_2D, VPUXMvn6LayerTest_VPU3720, pse2D, VPUXMvn6LayerTest_VPU3720::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(pseudo_MVN6_3D, VPUXMvn6LayerTest_VPU3720, pse3D, VPUXMvn6LayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(pseudo_MVN6_2D, Mvn6LayerTest_NPU3720, pse2D, Mvn6LayerTest_NPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(pseudo_MVN6_3D, Mvn6LayerTest_NPU3720, pse3D, Mvn6LayerTest_NPU3720::getTestCaseName);
 
-/* ============================= MVN6 tests (VPU3720) ============================ */
+// -------------- MVN1 Zero-Input test
+
+const auto zeroTestCfg = ::testing::Combine(
+        ::testing::Values(inputShapes4D[0]), ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::ValuesIn(emptyReductionAxes), ::testing::ValuesIn(acrossChannels), ::testing::Values(true),
+        ::testing::ValuesIn(epsilon), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
+
+INSTANTIATE_TEST_CASE_P(zero_input, Mvn1ZeroInputLayerTest_NPU3720, zeroTestCfg,
+                        Mvn1ZeroInputLayerTest_NPU3720::getTestCaseName);
+
+/* ============================= MVN6 tests (NPU3720) ============================ */
 
 const std::vector<float> bigEps = {0.5};
 std::vector<InferenceEngine::SizeVector> shapes1D = {{17}};
@@ -321,16 +396,25 @@ const auto cfgT0 = genMvn6LessParams(InferenceEngine::SizeVector{1, 512, 1219}, 
 const auto cfgT1 = genMvn6LessParams(InferenceEngine::SizeVector{1, 64, 104, 104}, AxesVec{{2}}, bigEps);
 const auto cfgT2 = genMvn6LessParams(InferenceEngine::SizeVector{8, 16, 16, 16, 16}, AxesVec{{4}}, bigEps);
 
-// -------------- MVN6 - VPU3720
+// -------------- MVN6 - NPU3720
 
-INSTANTIATE_TEST_SUITE_P(smoke_MVN6_1D, VPUXMvn6LayerTest_VPU3720, cfg1D, VPUXMvn6LayerTest_VPU3720::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_MVN6_2D, VPUXMvn6LayerTest_VPU3720, cfg2D, VPUXMvn6LayerTest_VPU3720::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_MVN6_3D, VPUXMvn6LayerTest_VPU3720, cfg3D, VPUXMvn6LayerTest_VPU3720::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_MVN6_4D, VPUXMvn6LayerTest_VPU3720, cfg4D, VPUXMvn6LayerTest_VPU3720::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_MVN6_5D, VPUXMvn6LayerTest_VPU3720, cfg5D, VPUXMvn6LayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MVN6_1D, Mvn6LayerTest_NPU3720, cfg1D, Mvn6LayerTest_NPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MVN6_2D, Mvn6LayerTest_NPU3720, cfg2D, Mvn6LayerTest_NPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MVN6_3D, Mvn6LayerTest_NPU3720, cfg3D, Mvn6LayerTest_NPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MVN6_4D, Mvn6LayerTest_NPU3720, cfg4D, Mvn6LayerTest_NPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MVN6_5D, Mvn6LayerTest_NPU3720, cfg5D, Mvn6LayerTest_NPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(tiling_MVN6_a, VPUXMvn6LayerTest_VPU3720, cfgT0, VPUXMvn6LayerTest_VPU3720::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(tiling_MVN6_b, VPUXMvn6LayerTest_VPU3720, cfgT1, VPUXMvn6LayerTest_VPU3720::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(tiling_MVN6_c, VPUXMvn6LayerTest_VPU3720, cfgT2, VPUXMvn6LayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(tiling_MVN6_a, Mvn6LayerTest_NPU3720, cfgT0, Mvn6LayerTest_NPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(tiling_MVN6_b, Mvn6LayerTest_NPU3720, cfgT1, Mvn6LayerTest_NPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(tiling_MVN6_c, Mvn6LayerTest_NPU3720, cfgT2, Mvn6LayerTest_NPU3720::getTestCaseName);
+
+// -------------- MVN6 - f32 tests
+const auto cfgF32 =
+        ::testing::Combine(::testing::Values(shapes4D[0]), ::testing::Values(InferenceEngine::Precision::FP32),
+                           ::testing::Values(InferenceEngine::Precision::I32), ::testing::Values(axes4D[2]),
+                           ::testing::Values(true), ::testing::ValuesIn(bigEps), ::testing::ValuesIn(epsMode),
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
+
+INSTANTIATE_TEST_SUITE_P(smoke_MVN6_fp32, Mvn6LayerTest_FP32, cfgF32, Mvn6LayerTest_FP32::getTestCaseName);
 
 }  // namespace

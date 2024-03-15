@@ -7,18 +7,11 @@
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
-#include "vpux/utils/IE/loop.hpp"
 
 #include "vpux/utils/core/func_ref.hpp"
-#include "vpux/utils/core/numeric.hpp"
 
-#include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
@@ -34,11 +27,17 @@ struct OperationPart {
 };
 
 mlir::Operation* createFQ(mlir::PatternRewriter& rewriter, mlir::Operation* inputOp, IE::FakeQuantizeOp fq) {
-    const auto outputType = fq.output().getType().cast<vpux::NDTypeInterface>();
+    const auto outputType = fq.getOutput().getType().cast<vpux::NDTypeInterface>();
     const auto newOutputType = outputType.changeShape(getShape(inputOp->getResult(0)));
-    return rewriter.create<IE::FakeQuantizeOp>(fq.getLoc(), newOutputType, inputOp->getResult(0), fq.input_low(),
-                                               fq.input_high(), fq.output_low(), fq.output_high(), fq.levels(),
-                                               fq.auto_broadcast());
+    return rewriter.create<IE::FakeQuantizeOp>(fq.getLoc(), newOutputType, inputOp->getResult(0), fq.getInputLow(),
+                                               fq.getInputHigh(), fq.getOutputLow(), fq.getOutputHigh(), fq.getLevels(),
+                                               fq.getAutoBroadcast());
+}
+
+bool hasSupportedStrides(const SmallVector<int64_t>& strides) {
+    const auto SY = strides[0];
+    const auto SX = strides[1];
+    return SY <= MAX_STRIDE && SX <= MAX_STRIDE;
 }
 
 /*
@@ -164,16 +163,16 @@ mlir::LogicalResult ConvGeneralRewriter::matchAndRewrite(IE::ConvolutionOp origO
                                                          mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got Convolution layer at '{1}'", getDebugName(), origOp->getLoc());
 
-    const auto filterShape = getShape(origOp.filter());
+    const auto filterShape = getShape(origOp.getFilter());
 
     return generalSplitter(
-            origOp, rewriter, origOp.strides(),
-            makeArrayRef({filterShape[Dims4D::Filter::KX], filterShape[Dims4D::Filter::KY]}), origOp.pads_begin(),
-            origOp.pads_end(),
+            origOp, rewriter, origOp.getStrides(),
+            ArrayRef({filterShape[Dims4D::Filter::KX], filterShape[Dims4D::Filter::KY]}), origOp.getPadsBegin(),
+            origOp.getPadsEnd(),
             [&](mlir::Location loc, mlir::Value input, OperationPart part) -> mlir::Operation* {
-                return rewriter.create<IE::ConvolutionOp>(loc, input, origOp.filter(), origOp.bias(), part.strides,
-                                                          part.padBegin, part.padEnd, origOp.dilations(),
-                                                          origOp.post_opAttr());
+                return rewriter.create<IE::ConvolutionOp>(
+                        loc, input, origOp.getFilter(), origOp.getBias(), part.strides, part.padBegin, part.padEnd,
+                        origOp.getDilations(), origOp.getPostOpAttr(), origOp.getClampAttr());
             },
             _log.nest());
 }
@@ -199,16 +198,16 @@ mlir::LogicalResult GroupConvGeneralRewriter::matchAndRewrite(IE::GroupConvoluti
                                                               mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got GroupConvolution layer layer at '{1}'", getDebugName(), origOp->getLoc());
 
-    const auto filterShape = getShape(origOp.filter());
+    const auto filterShape = getShape(origOp.getFilter());
 
     return generalSplitter(
-            origOp, rewriter, origOp.strides(),
-            makeArrayRef({filterShape[Dims4D::Filter::KX], filterShape[Dims4D::Filter::KY]}), origOp.pads_begin(),
-            origOp.pads_end(),
+            origOp, rewriter, origOp.getStrides(),
+            ArrayRef({filterShape[Dims4D::Filter::KX], filterShape[Dims4D::Filter::KY]}), origOp.getPadsBegin(),
+            origOp.getPadsEnd(),
             [&](mlir::Location loc, mlir::Value input, OperationPart part) -> mlir::Operation* {
-                return rewriter.create<IE::GroupConvolutionOp>(loc, input, origOp.filter(), origOp.bias(), part.strides,
-                                                               part.padBegin, part.padEnd, origOp.dilations(),
-                                                               origOp.groupsAttr(), origOp.post_opAttr());
+                return rewriter.create<IE::GroupConvolutionOp>(
+                        loc, input, origOp.getFilter(), origOp.getBias(), part.strides, part.padBegin, part.padEnd,
+                        origOp.getDilations(), origOp.getGroupsAttr(), origOp.getPostOpAttr(), origOp.getClampAttr());
             },
             _log.nest());
 }
@@ -234,14 +233,15 @@ mlir::LogicalResult MaxPoolGeneralRewriter::matchAndRewrite(IE::MaxPoolOp origOp
                                                             mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got MaxPool layer at '{1}'", getDebugName(), origOp->getLoc());
 
-    const auto kernelSz = parseIntArrayAttr<int64_t>(origOp.kernel_size());
+    const auto kernelSz = parseIntArrayAttr<int64_t>(origOp.getKernelSize());
 
     return generalSplitter(
-            origOp, rewriter, origOp.strides(), makeArrayRef({kernelSz[1], kernelSz[0]}), origOp.pads_begin(),
-            origOp.pads_end(),
+            origOp, rewriter, origOp.getStrides(), ArrayRef({kernelSz[1], kernelSz[0]}), origOp.getPadsBegin(),
+            origOp.getPadsEnd(),
             [&](mlir::Location loc, mlir::Value input, OperationPart part) -> mlir::Operation* {
-                return rewriter.create<IE::MaxPoolOp>(loc, input, origOp.kernel_size(), part.strides, part.padBegin,
-                                                      part.padEnd, origOp.rounding_type(), origOp.post_opAttr());
+                return rewriter.create<IE::MaxPoolOp>(loc, input, origOp.getKernelSize(), part.strides, part.padBegin,
+                                                      part.padEnd, origOp.getRoundingType(), origOp.getPostOpAttr(),
+                                                      origOp.getClampAttr());
             },
             _log.nest());
 }
@@ -267,32 +267,34 @@ mlir::LogicalResult AvgPoolGeneralRewriter::matchAndRewrite(IE::AvgPoolOp origOp
                                                             mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got AvgPool layer at '{1}'", getDebugName(), origOp->getLoc());
 
-    const auto kernelSz = parseIntArrayAttr<int64_t>(origOp.kernel_size());
+    const auto kernelSz = parseIntArrayAttr<int64_t>(origOp.getKernelSize());
     const auto inputShape = getShape(origOp->getOperand(0));
-    const auto origStrides = parseIntArrayAttr<int64_t>(origOp.strides());
-    auto padX = parseIntArrayAttr<int64_t>(origOp.pads_begin())[Dims4D::PadsBegin::Left.ind()] +
-                parseIntArrayAttr<int64_t>(origOp.pads_end())[Dims4D::PadsEnd::Right.ind()];
-    auto padY = parseIntArrayAttr<int64_t>(origOp.pads_begin())[Dims4D::PadsBegin::Top.ind()] +
-                parseIntArrayAttr<int64_t>(origOp.pads_end())[Dims4D::PadsEnd::Bottom.ind()];
-    // There are some cases that stride size bigger than activation size(including padding).
+    const auto origStrides = parseIntArrayAttr<int64_t>(origOp.getStrides());
+    auto padX = parseIntArrayAttr<int64_t>(origOp.getPadsBegin())[Dims4D::PadsBegin::Left.ind()] +
+                parseIntArrayAttr<int64_t>(origOp.getPadsEnd())[Dims4D::PadsEnd::Right.ind()];
+    auto padY = parseIntArrayAttr<int64_t>(origOp.getPadsBegin())[Dims4D::PadsBegin::Top.ind()] +
+                parseIntArrayAttr<int64_t>(origOp.getPadsEnd())[Dims4D::PadsEnd::Bottom.ind()];
+    // There are some cases that stride size bigger than activation setSize(including padding).
     // It's no need to slice the op and the stride attr should be set to (1, 1).
     if ((origStrides[Dims4D::Strides::X.ind()] >= inputShape[Dims4D::Act::W] + padX) &&
         (origStrides[Dims4D::Strides::Y.ind()] >= inputShape[Dims4D::Act::H] + padY)) {
         const auto newStrides = SmallVector<int64_t>{1, 1};
         const auto newStridesAttr = getIntArrayAttr(getContext(), newStrides);
-        rewriter.replaceOpWithNewOp<IE::AvgPoolOp>(
-                origOp, origOp.getType(), origOp.input(), origOp.kernel_size(), newStridesAttr, origOp.pads_begin(),
-                origOp.pads_end(), origOp.rounding_typeAttr(), origOp.exclude_padsAttr(), origOp.post_opAttr());
+        rewriter.replaceOpWithNewOp<IE::AvgPoolOp>(origOp, origOp.getType(), origOp.getInput(), origOp.getKernelSize(),
+                                                   newStridesAttr, origOp.getPadsBegin(), origOp.getPadsEnd(),
+                                                   origOp.getRoundingTypeAttr(), origOp.getExcludePadsAttr(),
+                                                   origOp.getPostOpAttr(), origOp.getClampAttr());
         return mlir::success();
     }
 
     return generalSplitter(
-            origOp, rewriter, origOp.strides(), makeArrayRef({kernelSz[1], kernelSz[0]}), origOp.pads_begin(),
-            origOp.pads_end(),
+            origOp, rewriter, origOp.getStrides(), ArrayRef({kernelSz[1], kernelSz[0]}), origOp.getPadsBegin(),
+            origOp.getPadsEnd(),
             [&](mlir::Location loc, mlir::Value input, OperationPart part) -> mlir::Operation* {
-                return rewriter.create<IE::AvgPoolOp>(loc, input, origOp.kernel_size(), part.strides, part.padBegin,
-                                                      part.padEnd, origOp.rounding_typeAttr(),
-                                                      origOp.exclude_padsAttr(), origOp.post_opAttr());
+                return rewriter.create<IE::AvgPoolOp>(loc, input, origOp.getKernelSize(), part.strides, part.padBegin,
+                                                      part.padEnd, origOp.getRoundingTypeAttr(),
+                                                      origOp.getExcludePadsAttr(), origOp.getPostOpAttr(),
+                                                      origOp.getClampAttr());
             },
             _log.nest());
 }
@@ -358,7 +360,7 @@ mlir::LogicalResult opWithMaxPoolOptimization(
     log.trace("MaxPool {0} strides are {1}", loc, newStride);
     rewriter.replaceOpWithNewOp<IE::MaxPoolOp>(
             origOp, newOp->getResult(0), getIntArrayAttr(ctx, maxPoolKernels), getIntArrayAttr(ctx, maxPoolStrides),
-            padsAttr, padsAttr, vpux::IE::RoundingTypeAttr::get(ctx, vpux::IE::RoundingType::FLOOR), nullptr);
+            padsAttr, padsAttr, vpux::IE::RoundingTypeAttr::get(ctx, vpux::IE::RoundingType::FLOOR), nullptr, nullptr);
 
     return mlir::success();
 }
@@ -383,13 +385,17 @@ private:
 mlir::LogicalResult ConvMPOptimizationRewriter::matchAndRewrite(IE::ConvolutionOp origOp,
                                                                 mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got Convolution layer at '{1}'", getDebugName(), origOp->getLoc());
+    const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.getStrides());
+    if (hasSupportedStrides(kernelStrides)) {
+        return mlir::failure();
+    }
 
     return opWithMaxPoolOptimization(
-            origOp, rewriter, origOp.strides(),
+            origOp, rewriter, origOp.getStrides(),
             [&](mlir::Location loc, mlir::Value input, mlir::ArrayAttr strides) -> mlir::Operation* {
-                return rewriter.create<IE::ConvolutionOp>(loc, input, origOp.filter(), origOp.bias(), strides,
-                                                          origOp.pads_begin(), origOp.pads_end(), origOp.dilations(),
-                                                          origOp.post_opAttr());
+                return rewriter.create<IE::ConvolutionOp>(
+                        loc, input, origOp.getFilter(), origOp.getBias(), strides, origOp.getPadsBegin(),
+                        origOp.getPadsEnd(), origOp.getDilations(), origOp.getPostOpAttr(), origOp.getClampAttr());
             },
             _log.nest());
 }
@@ -414,13 +420,18 @@ private:
 mlir::LogicalResult GroupConvMPOptimizationRewriter::matchAndRewrite(IE::GroupConvolutionOp origOp,
                                                                      mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got GroupConvolution layer layer at '{1}'", getDebugName(), origOp->getLoc());
+    const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.getStrides());
+    if (hasSupportedStrides(kernelStrides)) {
+        return mlir::failure();
+    }
 
     return opWithMaxPoolOptimization(
-            origOp, rewriter, origOp.strides(),
+            origOp, rewriter, origOp.getStrides(),
             [&](mlir::Location loc, mlir::Value input, mlir::ArrayAttr strides) -> mlir::Operation* {
-                return rewriter.create<IE::GroupConvolutionOp>(
-                        loc, input, origOp.filter(), origOp.bias(), strides, origOp.pads_begin(), origOp.pads_end(),
-                        origOp.dilations(), origOp.groupsAttr(), origOp.post_opAttr());
+                return rewriter.create<IE::GroupConvolutionOp>(loc, input, origOp.getFilter(), origOp.getBias(),
+                                                               strides, origOp.getPadsBegin(), origOp.getPadsEnd(),
+                                                               origOp.getDilations(), origOp.getGroupsAttr(),
+                                                               origOp.getPostOpAttr(), origOp.getClampAttr());
             },
             _log.nest());
 }
@@ -446,12 +457,17 @@ private:
 mlir::LogicalResult MaxPoolMPOptimizationRewriter::matchAndRewrite(IE::MaxPoolOp origOp,
                                                                    mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got MaxPool layer at '{1}'", getDebugName(), origOp->getLoc());
+    const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.getStrides());
+    if (hasSupportedStrides(kernelStrides)) {
+        return mlir::failure();
+    }
 
     return opWithMaxPoolOptimization(
-            origOp, rewriter, origOp.strides(),
+            origOp, rewriter, origOp.getStrides(),
             [&](mlir::Location loc, mlir::Value input, mlir::ArrayAttr strides) -> mlir::Operation* {
-                return rewriter.create<IE::MaxPoolOp>(loc, input, origOp.kernel_size(), strides, origOp.pads_begin(),
-                                                      origOp.pads_end(), origOp.rounding_type(), origOp.post_opAttr());
+                return rewriter.create<IE::MaxPoolOp>(
+                        loc, input, origOp.getKernelSize(), strides, origOp.getPadsBegin(), origOp.getPadsEnd(),
+                        origOp.getRoundingType(), origOp.getPostOpAttr(), origOp.getClampAttr());
             },
             _log.nest());
 }
@@ -476,31 +492,37 @@ private:
 mlir::LogicalResult AvgPoolMPOptimizationRewriter::matchAndRewrite(IE::AvgPoolOp origOp,
                                                                    mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got AvgPool layer at '{1}'", getDebugName(), origOp->getLoc());
+    const auto origStrides = parseIntArrayAttr<int64_t>(origOp.getStrides());
+    if (hasSupportedStrides(origStrides)) {
+        return mlir::failure();
+    }
 
     const auto inputShape = getShape(origOp->getOperand(0));
-    const auto origStrides = parseIntArrayAttr<int64_t>(origOp.strides());
-    auto padX = parseIntArrayAttr<int64_t>(origOp.pads_begin())[Dims4D::PadsBegin::Left.ind()] +
-                parseIntArrayAttr<int64_t>(origOp.pads_end())[Dims4D::PadsEnd::Right.ind()];
-    auto padY = parseIntArrayAttr<int64_t>(origOp.pads_begin())[Dims4D::PadsBegin::Top.ind()] +
-                parseIntArrayAttr<int64_t>(origOp.pads_end())[Dims4D::PadsEnd::Bottom.ind()];
-    // There are some cases that stride size bigger than activation size(including padding).
+
+    auto padX = parseIntArrayAttr<int64_t>(origOp.getPadsBegin())[Dims4D::PadsBegin::Left.ind()] +
+                parseIntArrayAttr<int64_t>(origOp.getPadsEnd())[Dims4D::PadsEnd::Right.ind()];
+    auto padY = parseIntArrayAttr<int64_t>(origOp.getPadsBegin())[Dims4D::PadsBegin::Top.ind()] +
+                parseIntArrayAttr<int64_t>(origOp.getPadsEnd())[Dims4D::PadsEnd::Bottom.ind()];
+    // There are some cases that stride size bigger than activation setSize(including padding).
     // It's no need to slice the op and the stride attr should be set to (1, 1).
     if ((origStrides[Dims4D::Strides::X.ind()] >= inputShape[Dims4D::Act::W] + padX) &&
         (origStrides[Dims4D::Strides::Y.ind()] >= inputShape[Dims4D::Act::H] + padY)) {
         const auto newStrides = SmallVector<int64_t>{1, 1};
         const auto newStridesAttr = getIntArrayAttr(getContext(), newStrides);
-        rewriter.replaceOpWithNewOp<IE::AvgPoolOp>(
-                origOp, origOp.getType(), origOp.input(), origOp.kernel_size(), newStridesAttr, origOp.pads_begin(),
-                origOp.pads_end(), origOp.rounding_typeAttr(), origOp.exclude_padsAttr(), origOp.post_opAttr());
+        rewriter.replaceOpWithNewOp<IE::AvgPoolOp>(origOp, origOp.getType(), origOp.getInput(), origOp.getKernelSize(),
+                                                   newStridesAttr, origOp.getPadsBegin(), origOp.getPadsEnd(),
+                                                   origOp.getRoundingTypeAttr(), origOp.getExcludePadsAttr(),
+                                                   origOp.getPostOpAttr(), origOp.getClampAttr());
         return mlir::success();
     }
 
     return opWithMaxPoolOptimization(
-            origOp, rewriter, origOp.strides(),
+            origOp, rewriter, origOp.getStrides(),
             [&](mlir::Location loc, mlir::Value input, mlir::ArrayAttr strides) -> mlir::Operation* {
-                return rewriter.create<IE::AvgPoolOp>(loc, input, origOp.kernel_size(), strides, origOp.pads_begin(),
-                                                      origOp.pads_end(), origOp.rounding_typeAttr(),
-                                                      origOp.exclude_padsAttr(), origOp.post_opAttr());
+                return rewriter.create<IE::AvgPoolOp>(loc, input, origOp.getKernelSize(), strides,
+                                                      origOp.getPadsBegin(), origOp.getPadsEnd(),
+                                                      origOp.getRoundingTypeAttr(), origOp.getExcludePadsAttr(),
+                                                      origOp.getPostOpAttr(), origOp.getClampAttr());
             },
             _log.nest());
 }
@@ -521,29 +543,33 @@ private:
 
 void HandleLargeStridesPass::safeRunOnFunc() {
     auto& ctx = getContext();
+    auto func = getOperation();
 
-    const auto hasSupportedStrides = [](const SmallVector<int64_t>& strides) {
-        const auto SY = strides[0];
-        const auto SX = strides[1];
-
-        return SY <= MAX_STRIDE && SX <= MAX_STRIDE;
-    };
+    mlir::RewritePatternSet mpPatterns(&ctx);
+    mpPatterns.add<ConvMPOptimizationRewriter>(&ctx, _log);
+    mpPatterns.add<GroupConvMPOptimizationRewriter>(&ctx, _log);
+    mpPatterns.add<MaxPoolMPOptimizationRewriter>(&ctx, _log);
+    mpPatterns.add<AvgPoolMPOptimizationRewriter>(&ctx, _log);
+    if (mlir::failed(
+                mlir::applyPatternsAndFoldGreedily(func, std::move(mpPatterns), getDefaultGreedyRewriteConfig()))) {
+        signalPassFailure();
+    }
 
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalOp<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
-        const auto kernelStrides = parseIntArrayAttr<int64_t>(op.strides());
+        const auto kernelStrides = parseIntArrayAttr<int64_t>(op.getStrides());
         return hasSupportedStrides(kernelStrides);
     });
     target.addDynamicallyLegalOp<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp op) {
-        const auto kernelStrides = parseIntArrayAttr<int64_t>(op.strides());
+        const auto kernelStrides = parseIntArrayAttr<int64_t>(op.getStrides());
         return hasSupportedStrides(kernelStrides);
     });
     target.addDynamicallyLegalOp<IE::MaxPoolOp>([&](IE::MaxPoolOp op) {
-        const auto kernelStrides = parseIntArrayAttr<int64_t>(op.strides());
+        const auto kernelStrides = parseIntArrayAttr<int64_t>(op.getStrides());
         return hasSupportedStrides(kernelStrides);
     });
     target.addDynamicallyLegalOp<IE::AvgPoolOp>([&](IE::AvgPoolOp op) {
-        const auto kernelStrides = parseIntArrayAttr<int64_t>(op.strides());
+        const auto kernelStrides = parseIntArrayAttr<int64_t>(op.getStrides());
         return hasSupportedStrides(kernelStrides);
     });
 
@@ -552,16 +578,12 @@ void HandleLargeStridesPass::safeRunOnFunc() {
     target.addLegalOp<IE::FakeQuantizeOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<ConvMPOptimizationRewriter>(&ctx, _log);
-    patterns.add<GroupConvMPOptimizationRewriter>(&ctx, _log);
-    patterns.add<MaxPoolMPOptimizationRewriter>(&ctx, _log);
-    patterns.add<AvgPoolMPOptimizationRewriter>(&ctx, _log);
+
     patterns.add<ConvGeneralRewriter>(&ctx, _log);
     patterns.add<GroupConvGeneralRewriter>(&ctx, _log);
     patterns.add<MaxPoolGeneralRewriter>(&ctx, _log);
     patterns.add<AvgPoolGeneralRewriter>(&ctx, _log);
 
-    auto func = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }

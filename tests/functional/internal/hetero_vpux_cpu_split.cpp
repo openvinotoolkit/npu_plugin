@@ -7,7 +7,6 @@
 
 #include <hetero/hetero_plugin_config.hpp>
 #include <ngraph/op/util/op_types.hpp>
-#include <ngraph/opsets/opset1.hpp>
 
 PRETTY_PARAM(NetworkPath, std::string)
 PRETTY_PARAM(SplitLayer, std::string)
@@ -39,7 +38,7 @@ void insert_noop_reshape_after(std::shared_ptr<ngraph::Node>& node, const std::s
     constant->set_friendly_name(opName + "_const");
     constant->get_rt_info()["affinity"] = "NPU";
 
-    auto transpose = std::make_shared<ngraph::opset1::Transpose>(node, constant);
+    auto transpose = std::make_shared<ov::op::v1::Transpose>(node, constant);
     transpose->set_friendly_name(opName);
     transpose->get_rt_info()["affinity"] = "NPU";
 

@@ -5,16 +5,10 @@
 
 #pragma once
 
-#include "vpux/compiler/dialect/VPUIP/dialect.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
-
-#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/utils/core/logger.hpp"
-
-#include <memory>
 
 namespace vpux {
 namespace VPUIP {
@@ -23,33 +17,31 @@ namespace VPUIP {
 // ClusterNCEBaseRewriter
 //
 
-class ClusterNCEBaseRewriter : public mlir::OpRewritePattern<VPUIP::NCEClusterTaskOp> {
+class ClusterNCEBaseRewriter {
 public:
-    ClusterNCEBaseRewriter(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<VPUIP::NCEClusterTaskOp>(ctx), _log(log), _ctx(ctx) {
+    ClusterNCEBaseRewriter(mlir::MLIRContext* ctx, Logger log): _log(log), _ctx(ctx) {
         _cmxNameAttr = mlir::FlatSymbolRefAttr::get(ctx, stringifyEnum(VPU::MemoryKind::CMX_NN));
     }
 
-    mlir::LogicalResult matchAndRewrite(VPUIP::NCEClusterTaskOp nceTask, mlir::PatternRewriter& rewriter) const final;
+    void matchAndRewrite(VPUIP::NCEClusterTaskOp nceTask, mlir::OpBuilder& builder) const;
 
 protected:
     virtual void getOutputBuffers(SmallVector<mlir::Value>& parentOutputBuffs, SmallVector<mlir::Value>& outputBuffs,
                                   SmallVector<mlir::Value>& parentOutputSparsityMap,
                                   SmallVector<mlir::Value>& outputSparsityMapBuffs, mlir::Location loc,
-                                  VPUIP::NCEClusterTilingOp clusterOp, VPUIP::NCEClusterTaskOp nceTask,
-                                  const int64_t numClusters, mlir::PatternRewriter& rewriter) const = 0;
+                                  VPUIP::NCEClusterTaskOp nceTask, const int64_t numClusters,
+                                  mlir::OpBuilder& builder) const = 0;
 
     virtual void getInputBuffers(SmallVector<mlir::Value>& parentInputBuffs, SmallVector<mlir::Value>& inputBuffs,
                                  SmallVector<mlir::Value>& parentInputSparsityMap,
                                  SmallVector<mlir::Value>& inputSparsityMapBuffs,
                                  SmallVector<mlir::Value>& parentInputSETable,
                                  SmallVector<mlir::Value>& inputSETableBuffs, mlir::Location loc,
-                                 VPUIP::NCEClusterTilingOp clusterOp, VPUIP::NCEClusterTaskOp nceTask,
-                                 const int64_t numClusters, mlir::PatternRewriter& rewriter) const = 0;
+                                 VPUIP::NCEClusterTaskOp nceTask, const int64_t numClusters,
+                                 mlir::OpBuilder& builder) const = 0;
 
-    virtual SmallVector<mlir::Value> getWeightsBuffers(mlir::Location loc, VPUIP::NCEClusterTilingOp clusterOp,
-                                                       VPUIP::NCEClusterTaskOp nceTask, const int64_t numClusters,
-                                                       mlir::PatternRewriter& rewriter) const;
+    virtual SmallVector<mlir::Value> getWeightsBuffers(mlir::Location loc, VPUIP::NCEClusterTaskOp nceTask,
+                                                       const int64_t numClusters, mlir::OpBuilder& builder) const;
 
     virtual mlir::UnitAttr isSegmentedNCETask(VPUIP::DistributedBufferType inputType) const = 0;
 
@@ -65,30 +57,55 @@ protected:
 };
 
 //
-// ClusterDMARewriter
+// ClusterPerElementDMABaseRewriter
 //
 
-class ClusterDMARewriter final : public mlir::OpRewritePattern<VPUIP::NNDMAOp> {
+class ClusterPerElementDMABaseRewriter {
 public:
-    ClusterDMARewriter(mlir::MLIRContext* ctx, int64_t dmaPortCount, Logger log)
-            : mlir::OpRewritePattern<VPUIP::NNDMAOp>(ctx), _log(log), _ctx(ctx), _dmaPortCount(dmaPortCount) {
-        setDebugName("ClusterDMARewriter");
-
+    ClusterPerElementDMABaseRewriter(mlir::MLIRContext* ctx, int64_t dmaPortCount, Logger log)
+            : _log(log), _ctx(ctx), _dmaPortCount(dmaPortCount) {
         _cmxNameAttr = mlir::FlatSymbolRefAttr::get(ctx, stringifyEnum(VPU::MemoryKind::CMX_NN));
     }
 
-    mlir::LogicalResult matchAndRewrite(VPUIP::NNDMAOp nndmaOp, mlir::PatternRewriter& rewriter) const final;
+    void matchAndRewrite(VPUIP::DMATypeOpInterface dmaOp, mlir::OpBuilder& builder,
+                         bool isDataOverlapped = false) const;
+
+protected:
+    enum UnrollingType { FAILED, SEGMENTED, DUPLICATED };
+    virtual bool isTargetOp(VPUIP::DMATypeOpInterface dmaOp) const = 0;
+    virtual VPUIP::DMATypeOpInterface wrapIntoTaskOp(VPUIP::DMATypeOpInterface dmaOp, VPURT::TaskOp vpurtTask,
+                                                     mlir::Location loc, mlir::Value input, mlir::Value output_buff,
+                                                     int64_t port, mlir::OpBuilder& builder) const = 0;
+    virtual UnrollingType getUnrollingType(VPU::DistributionMode inputMode, VPU::DistributionMode outputMode) const = 0;
 
 private:
-    void unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::NCEClusterTilingOp clusterOp, VPURT::TaskOp vpurtTask,
-                                     VPUIP::DistributedBufferType distributedType,
-                                     mlir::PatternRewriter& rewriter) const;
+    void unrollSegmentedOrOverlapped(mlir::Location loc, VPURT::TaskOp vpurtTask, mlir::OpBuilder& builder,
+                                     bool isDataOverlapped) const;
+    void unrollDuplicated(mlir::Location loc, VPURT::TaskOp vpurtTask, mlir::OpBuilder& builder) const;
 
 private:
     Logger _log;
     mlir::MLIRContext* _ctx;
     int64_t _dmaPortCount;
     mlir::FlatSymbolRefAttr _cmxNameAttr;
+};
+
+//
+// ClusterDMARewriter
+//
+
+class ClusterDMARewriter final : public ClusterPerElementDMABaseRewriter {
+public:
+    ClusterDMARewriter(mlir::MLIRContext* ctx, int64_t dmaPortCount, Logger log)
+            : ClusterPerElementDMABaseRewriter(ctx, dmaPortCount, log) {
+    }
+
+private:
+    bool isTargetOp(VPUIP::DMATypeOpInterface dmaOp) const override;
+    VPUIP::DMATypeOpInterface wrapIntoTaskOp(VPUIP::DMATypeOpInterface dmaOp, VPURT::TaskOp vpurtTask,
+                                             mlir::Location loc, mlir::Value input, mlir::Value output_buff,
+                                             int64_t port, mlir::OpBuilder& builder) const override;
+    UnrollingType getUnrollingType(VPU::DistributionMode inputMode, VPU::DistributionMode outputMode) const override;
 };
 
 }  // namespace VPUIP

@@ -8,11 +8,21 @@
 #include "vpux/compiler/dialect/VPURT/barrier_simulator.hpp"
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/utils/barrier_legalization_utils.hpp"
-#include "vpux/compiler/utils/dma.hpp"
 
 using namespace vpux;
 
 namespace {
+
+class ReduceExceedingActiveCountBarriersPass final :
+        public VPURT::ReduceExceedingActiveCountBarriersBase<ReduceExceedingActiveCountBarriersPass> {
+public:
+    explicit ReduceExceedingActiveCountBarriersPass(Logger log) {
+        Base::initLogger(log, Base::getArgumentName());
+    }
+
+private:
+    void safeRunOnFunc() final;
+};
 
 // check if taskA and taskB use the same barriers
 bool useSameBarriers(size_t taskA, size_t taskB, BarrierInfo& barrierInfo) {
@@ -35,7 +45,8 @@ bool useSameBarriers(size_t taskA, size_t taskB, BarrierInfo& barrierInfo) {
                                       |
                                    TaskOpM
 */
-bool linearizeTasks(std::set<size_t>& linearizationTasks, BarrierInfo& barrierInfo, Logger log) {
+bool linearizeTasks(std::set<size_t>& linearizationTasks, BarrierInfo& barrierInfo, mlir::func::FuncOp func,
+                    Logger log) {
     log.trace("Linearizing tasks");
 
     if (linearizationTasks.size() < 2) {
@@ -45,9 +56,14 @@ bool linearizeTasks(std::set<size_t>& linearizationTasks, BarrierInfo& barrierIn
 
     // account for parallel tasks with same wait & update barrier(s) which do not produce new barriers
     const auto findEndItr = [&](std::set<size_t>::iterator currItr) {
+        auto slotCount = barrierInfo.getNumOfSlotsUsed(barrierInfo.getTaskOpAtIndex(*currItr));
         auto endItr = currItr;
         ++endItr;
         while (endItr != linearizationTasks.end() && useSameBarriers(*currItr, *endItr, barrierInfo)) {
+            slotCount += barrierInfo.getNumOfSlotsUsed(barrierInfo.getTaskOpAtIndex(*endItr));
+            if (slotCount > (VPUIP::getBarrierMaxVariantSum(func) / 2)) {
+                return endItr;
+            }
             ++endItr;
         }
         return endItr;
@@ -84,16 +100,18 @@ bool linearizeTasks(std::set<size_t>& linearizationTasks, BarrierInfo& barrierIn
         barrierInfo.addNewBarrier(newBarrier);
 
         while (currTask != producersEnd) {
-            log.nest().trace("Add producer to new barrier '{0}'", *currTask);
+            log.nest().trace("Add producer '{0}' to new barrier", *currTask);
             barrierInfo.addProducer(newBarrier, *currTask);
             ++currTask;
         }
+        log.trace("Producer slots number - {0}", barrierInfo.getProducerSlotCount(newBarrier));
 
         while (nextTask != consumersEnd) {
-            log.nest().trace("Add consumer to new barrier '{0}'", *nextTask);
+            log.nest().trace("Add consumer '{0}' to new barrier", *nextTask);
             barrierInfo.addConsumer(newBarrier, *nextTask);
             ++nextTask;
         }
+        log.trace("Consumer slots number - {0}", barrierInfo.getConsumerSlotCount(newBarrier));
 
         linearized = true;
     }
@@ -110,7 +128,7 @@ bool linearizeTasks(std::set<size_t>& linearizationTasks, BarrierInfo& barrierIn
     TaskOp1...TaskOpM       TaskOp1 - Bar - ... - Bar - TaskOpm
 */
 void linearizeBarriers(mlir::DenseSet<VPURT::DeclareVirtualBarrierOp>& barrierOps, BarrierInfo& barrierInfo,
-                       Logger log) {
+                       mlir::func::FuncOp func, Logger log) {
     log.trace("Linearizing barriers");
 
     // store barrier producers and consumers to linearize
@@ -118,10 +136,10 @@ void linearizeBarriers(mlir::DenseSet<VPURT::DeclareVirtualBarrierOp>& barrierOp
     for (const auto& barrierOp : barrierOps) {
         log.nest().trace("Barrier '{0}'", barrierOp);
 
-        const auto barrierProducers = barrierInfo.getBarrierProducers(barrierOp);
+        const auto& barrierProducers = barrierInfo.getBarrierProducers(barrierOp);
         tasksToLinearize.insert(barrierProducers.begin(), barrierProducers.end());
 
-        const auto barrierConsumers = barrierInfo.getBarrierConsumers(barrierOp);
+        const auto& barrierConsumers = barrierInfo.getBarrierConsumers(barrierOp);
         tasksToLinearize.insert(barrierConsumers.begin(), barrierConsumers.end());
     }
 
@@ -129,22 +147,9 @@ void linearizeBarriers(mlir::DenseSet<VPURT::DeclareVirtualBarrierOp>& barrierOp
     // Note: might increase compilation time
 
     // linearize producers and consumers
-    auto linearized = linearizeTasks(tasksToLinearize, barrierInfo, log);
+    auto linearized = linearizeTasks(tasksToLinearize, barrierInfo, func, log);
     log.trace("Linearized = '{0}' producers and consumers", linearized);
-    linearizeTasks(tasksToLinearize, barrierInfo, log);
-    log.trace("Linearized producers and consumers");
 }
-
-class ReduceExceedingActiveCountBarriersPass final :
-        public VPURT::ReduceExceedingActiveCountBarriersBase<ReduceExceedingActiveCountBarriersPass> {
-public:
-    explicit ReduceExceedingActiveCountBarriersPass(Logger log) {
-        Base::initLogger(log, Base::getArgumentName());
-    }
-
-private:
-    void safeRunOnFunc() final;
-};
 
 void ReduceExceedingActiveCountBarriersPass::safeRunOnFunc() {
     auto func = getOperation();
@@ -181,17 +186,15 @@ void ReduceExceedingActiveCountBarriersPass::safeRunOnFunc() {
 
     const auto updateAnalysis = [&]() {
         barrierInfo.optimizeBarriers();
-        barrierInfo.buildTaskControllMap(false);
-        // TODO: E#80635 satisfy SRP, do not modify IR
-        barrierInfo.orderBarriers();
-        barrierInfo.updateIR();
+        barrierInfo.buildTaskControlMap(false);
+        VPURT::orderExecutionTasksAndBarriers(func, barrierInfo);
 
         barrierSim = VPURT::BarrierSimulator{func};
         if (mlir::succeeded(barrierSim.simulateBarriers(barSimLog, numBarriersToUse, true))) {
             _log.trace("Barrier simulation passed with '{0}', no isses with exceeding barriers", numBarriersToUse);
-            VPUX_THROW_UNLESS(barrierBatchesToLegalize.empty(),
+            VPUX_THROW_UNLESS(barrierSim.getBarrierBatchesToLegalize().empty(),
                               "Simulation passed, but '{0}' batches to legalize exist",
-                              barrierBatchesToLegalize.size());
+                              barrierSim.getBarrierBatchesToLegalize().size());
         }
         barrierBatchesToLegalize = barrierSim.getBarrierBatchesToLegalize();
     };
@@ -215,7 +218,7 @@ void ReduceExceedingActiveCountBarriersPass::safeRunOnFunc() {
             // Note: currently not merging barriers due to worse performance
 
             // linearize execution
-            linearizeBarriers(activeBarriers, barrierInfo, _log);
+            linearizeBarriers(activeBarriers, barrierInfo, func, _log);
         }
 
         // TODO: merge more barriers and split exceeding active count barriers ?
@@ -225,7 +228,10 @@ void ReduceExceedingActiveCountBarriersPass::safeRunOnFunc() {
 
     // remove attributes before removing barriers
     barrierInfo.clearAttributes();
+
     VPURT::postProcessBarrierOps(func);
+
+    VPURT::verifyBarrierSlots(func, _log);
 }
 
 }  // namespace

@@ -12,19 +12,20 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXSpaceToDepthLayerTest :
+class SpaceToDepthLayerTestCommon :
         public SpaceToDepthLayerTest,
         virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
-class VPUXSpaceToDepthLayerTest_VPU3700 : public VPUXSpaceToDepthLayerTest {};
-class VPUXSpaceToDepthLayerTest_VPU3720 : public VPUXSpaceToDepthLayerTest {};
 
-TEST_P(VPUXSpaceToDepthLayerTest_VPU3700, HW) {
+class SpaceToDepthLayerTest_NPU3700 : public SpaceToDepthLayerTestCommon {};
+class SpaceToDepthLayerTest_NPU3720 : public SpaceToDepthLayerTestCommon {};
+
+TEST_P(SpaceToDepthLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXSpaceToDepthLayerTest_VPU3720, HW) {
+TEST_P(SpaceToDepthLayerTest_NPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -44,25 +45,29 @@ const std::vector<InferenceEngine::Precision> inputPrecisions = {
 const std::vector<SpaceToDepth::SpaceToDepthMode> modes = {SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST,
                                                            SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST};
 
+/* ============= NPU 3700 ============= */
+
 const std::vector<std::vector<size_t>> inputShapesBS2 = {
         {1, 1, 2, 2}, {1, 1, 4, 4}, {1, 1, 6, 6}, {2, 8, 6, 6}, {2, 4, 10, 8}};
+
+const std::vector<std::vector<size_t>> inputShapesBS3 = {
+        {1, 1, 3, 3}, {1, 1, 6, 6}, {1, 1, 9, 9}, {2, 4, 9, 9}, {2, 3, 15, 12}};
 
 const auto SpaceToDepthBS2 = ::testing::Combine(
         ::testing::ValuesIn(inputShapesBS2), ::testing::ValuesIn(inputPrecisions), ::testing::ValuesIn(modes),
         ::testing::Values(2), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_SpaceToDepthBS2, VPUXSpaceToDepthLayerTest_VPU3700, SpaceToDepthBS2,
-                         VPUXSpaceToDepthLayerTest_VPU3700::getTestCaseName);
-
-const std::vector<std::vector<size_t>> inputShapesBS3 = {
-        {1, 1, 3, 3}, {1, 1, 6, 6}, {1, 1, 9, 9}, {2, 4, 9, 9}, {2, 3, 15, 12}};
-
 const auto SpaceToDepthBS3 = ::testing::Combine(
         ::testing::ValuesIn(inputShapesBS3), ::testing::ValuesIn(inputPrecisions), ::testing::ValuesIn(modes),
         ::testing::Values(3), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_SpaceToDepthBS3, VPUXSpaceToDepthLayerTest_VPU3700, SpaceToDepthBS3,
-                         VPUXSpaceToDepthLayerTest_VPU3700::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_SpaceToDepthBS2, SpaceToDepthLayerTest_NPU3700, SpaceToDepthBS2,
+                         SpaceToDepthLayerTest_NPU3700::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_SpaceToDepthBS3, SpaceToDepthLayerTest_NPU3700, SpaceToDepthBS3,
+                         SpaceToDepthLayerTest_NPU3700::getTestCaseName);
+
+/* ============= NPU 3720 ============= */
 
 const auto SpaceToDepthBS2_PRECOMMIT =
         ::testing::Combine(::testing::Values(std::vector<size_t>{1, 2, 3 * 4, 3 * 4}),
@@ -79,15 +84,15 @@ const auto smoke_SpaceToDepthBS4_with_tiling =
                            ::testing::ValuesIn(modes), ::testing::Values(4),
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-/* ============= VPU 3720 ============= */
+/* ============= NPU 3720 ============= */
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_SpaceToDepthBS2_VPU3720, VPUXSpaceToDepthLayerTest_VPU3720,
-                         SpaceToDepthBS2_PRECOMMIT, VPUXSpaceToDepthLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_SpaceToDepthBS2, SpaceToDepthLayerTest_NPU3720, SpaceToDepthBS2_PRECOMMIT,
+                         SpaceToDepthLayerTest_NPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_SpaceToDepthBS3_VPU3720, VPUXSpaceToDepthLayerTest_VPU3720,
-                         SpaceToDepthBS3_PRECOMMIT, VPUXSpaceToDepthLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_SpaceToDepthBS3, SpaceToDepthLayerTest_NPU3720, SpaceToDepthBS3_PRECOMMIT,
+                         SpaceToDepthLayerTest_NPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_SpaceToDepth_with_tiling_VPU3720, VPUXSpaceToDepthLayerTest_VPU3720,
-                         smoke_SpaceToDepthBS4_with_tiling, VPUXSpaceToDepthLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_SpaceToDepth_with_tiling, SpaceToDepthLayerTest_NPU3720,
+                         smoke_SpaceToDepthBS4_with_tiling, SpaceToDepthLayerTest_NPU3720::getTestCaseName);
 
 }  // namespace

@@ -5,7 +5,7 @@
 
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
-#include "vpux/compiler/dialect/VPUIP/utils.hpp"
+#include "vpux/compiler/utils/compression_utils.hpp"
 
 using namespace vpux;
 
@@ -29,11 +29,11 @@ void CompressDmaReserveMemPass::safeRunOnModule() {
     auto module = getOperation();
     auto* ctx = module->getContext();
 
-    auto memSpaceAttr = mlir::StringAttr::get(ctx, stringifyEnum(VPU::MemoryKind::CMX_NN));
+    auto memSpaceAttr = mlir::SymbolRefAttr::get(ctx, stringifyEnum(VPU::MemoryKind::CMX_NN));
 
-    _log.trace("Compressed DMA reserved memory - size: '{0}'", VPUIP::ACT_COMPRESSION_RESERVED_MEM_SIZE);
+    _log.trace("Compressed DMA reserved memory - size: '{0}'", ACT_COMPRESSION_RESERVED_MEM_SIZE);
 
-    IE::setCompressDmaReservedMemory(module, memSpaceAttr, VPUIP::ACT_COMPRESSION_RESERVED_MEM_SIZE);
+    IE::setCompressDmaReservedMemory(module, memSpaceAttr, ACT_COMPRESSION_RESERVED_MEM_SIZE);
 }
 
 }  // namespace

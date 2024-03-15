@@ -4,14 +4,15 @@
 //
 
 #include <mlir/IR/BuiltinTypes.h>
-#include "vpux/compiler/dialect/ELF/utils.hpp"
+#include "vpux/compiler/dialect/ELFNPU37XX/utils.hpp"
 #include "vpux/compiler/dialect/VPUMI37XX/ops.hpp"
 
 #include "vpux/compiler/dialect/VPUMI37XX/utils.hpp"
 
-#include <vpu_nnrt_api_37xx.h>
+#include <npu_37xx_nnrt.hpp>
 
 using namespace vpux;
+using namespace npu37xx;
 
 //
 // ActKernelInvocationOp
@@ -26,9 +27,9 @@ void vpux::VPUMI37XX::ActKernelInvocationOp::serialize(elf::writer::BinaryDataSe
 
     actKernelInvocation.range = rangeIndex.getValue();
     actKernelInvocation.kernel_range_index = rangeIndex.getValue();
-    actKernelInvocation.invo_tile = getTile();
-    actKernelInvocation.barriers_sched.start_after_ = getStartAfter();
-    actKernelInvocation.barriers_sched.clean_after_ = getCleanAfter();
+    actKernelInvocation.invo_tile = checked_cast<uint32_t>(getTile());
+    actKernelInvocation.barriers_sched.start_after_ = checked_cast<uint32_t>(getStartAfter());
+    actKernelInvocation.barriers_sched.clean_after_ = checked_cast<uint32_t>(getCleanAfter());
     actKernelInvocation.invo_index = invoIndex.getValue();
     actKernelInvocation.barriers.wait_mask_ = VPUMI37XX::computeMask(getWaitBarriers());
     actKernelInvocation.barriers.post_mask_ = VPUMI37XX::computeMask(getUpdateBarriers());
@@ -65,12 +66,12 @@ vpux::VPURT::BufferSection vpux::VPUMI37XX::ActKernelInvocationOp::getMemorySpac
     return vpux::VPURT::BufferSection::DDR;
 }
 
-vpux::ELF::SectionFlagsAttr vpux::VPUMI37XX::ActKernelInvocationOp::getAccessingProcs() {
-    return (ELF::SectionFlagsAttr::SHF_EXECINSTR | ELF::SectionFlagsAttr::VPU_SHF_PROC_DMA);
+vpux::ELFNPU37XX::SectionFlagsAttr vpux::VPUMI37XX::ActKernelInvocationOp::getAccessingProcs() {
+    return (ELFNPU37XX::SectionFlagsAttr::SHF_EXECINSTR | ELFNPU37XX::SectionFlagsAttr::VPU_SHF_PROC_DMA);
 }
 
-vpux::ELF::SectionFlagsAttr vpux::VPUMI37XX::ActKernelInvocationOp::getUserProcs() {
-    return (ELF::SectionFlagsAttr::VPU_SHF_PROC_SHAVE);
+vpux::ELFNPU37XX::SectionFlagsAttr vpux::VPUMI37XX::ActKernelInvocationOp::getUserProcs() {
+    return (ELFNPU37XX::SectionFlagsAttr::VPU_SHF_PROC_SHAVE);
 }
 
 mlir::FailureOr<uint64_t> vpux::VPUMI37XX::ActKernelInvocationOp::getOffsetOfWithinOperation(mlir::Value val) {
@@ -79,8 +80,4 @@ mlir::FailureOr<uint64_t> vpux::VPUMI37XX::ActKernelInvocationOp::getOffsetOfWit
     }
 
     return mlir::failure();
-}
-
-vpux::VPURegMapped::TaskType vpux::VPUMI37XX::ActKernelInvocationOp::getTaskType() {
-    return vpux::VPURegMapped::TaskType::ActKernelInvocation;
 }

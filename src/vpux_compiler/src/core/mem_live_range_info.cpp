@@ -16,11 +16,69 @@ using namespace vpux;
 vpux::MemLiveRangeInfo::MemLiveRangeInfo(mlir::func::FuncOp funcOp, mlir::AnalysisManager& am)
         : _log(Logger::global().nest("mem-live-range-info", 0)),
           _aliasInfo(am.getAnalysis<AliasesInfo, mlir::func::FuncOp>()) {
+    buildRangeInfo(funcOp);
+}
+
+vpux::MemLiveRangeInfo::MemLiveRangeInfo(mlir::func::FuncOp funcOp, const AliasesInfo& aliasInfo)
+        : _log(Logger::global().nest("mem-live-range-info", 0)), _aliasInfo(aliasInfo) {
+    buildRangeInfo(funcOp);
+}
+
+vpux::MemLiveRangeInfo::MemLiveRangeInfo(mlir::func::FuncOp funcOp, const AliasesInfo& aliasInfo,
+                                         std::optional<VPU::MemoryKind> memKind)
+        : _log(Logger::global().nest("mem-live-range-info", 0)), _aliasInfo(aliasInfo), _memKind(memKind) {
+    buildRangeInfo(funcOp);
+}
+
+void vpux::MemLiveRangeInfo::buildRangeInfo(mlir::func::FuncOp funcOp) {
     _log.trace("Collect all buffer allocations");
     _log = _log.nest();
 
+    auto isTargetMemType = [&](mlir::Value buf) {
+        auto bufType = buf.getType();
+        if (const auto asyncType = bufType.dyn_cast<mlir::async::ValueType>()) {
+            bufType = asyncType.getValueType();
+        }
+
+        auto bufNDType = bufType.dyn_cast<vpux::NDTypeInterface>();
+
+        if (bufNDType == nullptr) {
+            return false;
+        }
+
+        if (bufNDType.getMemoryKind() != _memKind) {
+            return false;
+        }
+
+        return true;
+    };
+
+    auto updateConsProdMap = [&](mlir::OperandRange buffers, OpToUsedBuffersMap& map, mlir::async::ExecuteOp& execOp) {
+        for (const auto& buffer : buffers) {
+            if (_memKind.has_value() && !isTargetMemType(buffer)) {
+                continue;
+            }
+
+            auto rootBuffers = _aliasInfo.getRoots(buffer);
+            VPUX_THROW_UNLESS(rootBuffers.size() == 1, "Value '{0}' expected to have only one root. Got {1}", buffer,
+                              rootBuffers.size());
+            auto rootBuffer = *rootBuffers.begin();
+            map[execOp].insert(rootBuffer);
+        }
+    };
+
     funcOp->walk([&](mlir::Operation* op) {
         if (!isBufAllocOp(op)) {
+            if (auto curExecOp = mlir::dyn_cast<mlir::async::ExecuteOp>(op)) {
+                // Get live rages of input/output buffers per async::ExecuteOp
+                auto* bodyBlock = curExecOp.getBody();
+                for (auto& innerOp : bodyBlock->getOperations()) {
+                    if (auto layerOp = mlir::dyn_cast<VPUIP::LayerOpInterface>(innerOp)) {
+                        updateConsProdMap(layerOp.getInputs(), _opInputBuffersMap, curExecOp);
+                        updateConsProdMap(layerOp.getOutputs(), _opOutputBuffersMap, curExecOp);
+                    }
+                }
+            }
             return;
         }
 
@@ -28,6 +86,9 @@ vpux::MemLiveRangeInfo::MemLiveRangeInfo(mlir::func::FuncOp funcOp, mlir::Analys
         _log = _log.nest();
 
         for (auto res : op->getResults()) {
+            if (_memKind.has_value() && !isTargetMemType(res)) {
+                continue;
+            }
             addNewBuffer(res);
         }
 
@@ -37,6 +98,7 @@ vpux::MemLiveRangeInfo::MemLiveRangeInfo(mlir::func::FuncOp funcOp, mlir::Analys
     _log = _log.unnest();
 }
 
+// call for each result of allocation operation in function
 void vpux::MemLiveRangeInfo::addNewBuffer(mlir::Value val) {
     _log.trace("Collect all direct and indirect users");
     _log = _log.nest();
@@ -65,7 +127,7 @@ void vpux::MemLiveRangeInfo::addNewBuffer(mlir::Value val) {
                            userAncestor->getLoc());
 
                 allUsers.insert(userAncestor);
-                _reverseUsers[userAncestor].insert(val);
+                _opBuffersMap[userAncestor].insert(val);
             }
 
             _log = _log.unnest();
@@ -85,7 +147,7 @@ void vpux::MemLiveRangeInfo::addNewBuffer(mlir::Value val) {
                        parentAncestor->getLoc());
 
             allUsers.insert(parentAncestor);
-            _reverseUsers[parentAncestor].insert(val);
+            _opBuffersMap[parentAncestor].insert(val);
         }
 
         _log = _log.unnest();
@@ -95,8 +157,26 @@ void vpux::MemLiveRangeInfo::addNewBuffer(mlir::Value val) {
 }
 
 ValueOrderedSet vpux::MemLiveRangeInfo::getUsedBuffers(mlir::Operation* op) const {
-    const auto it = _reverseUsers.find(op);
-    if (it != _reverseUsers.end()) {
+    const auto it = _opBuffersMap.find(op);
+    if (it != _opBuffersMap.end()) {
+        return it->second;
+    }
+
+    return {};
+}
+
+ValueOrderedSet vpux::MemLiveRangeInfo::getInputBuffers(mlir::Operation* op) {
+    const auto it = _opInputBuffersMap.find(op);
+    if (it != _opInputBuffersMap.end()) {
+        return it->second;
+    }
+
+    return {};
+}
+
+ValueOrderedSet vpux::MemLiveRangeInfo::getOutputBuffers(mlir::Operation* op) {
+    const auto it = _opOutputBuffersMap.find(op);
+    if (it != _opOutputBuffersMap.end()) {
         return it->second;
     }
 
@@ -116,8 +196,8 @@ size_t vpux::MemLiveRangeInfo::eraseUser(mlir::Value val, mlir::Operation* op) {
     VPUX_THROW_UNLESS(valIt != _allUsersInBlock.end(), "Value '{0}' is not a buffer", val);
     auto& allUsers = valIt->second;
 
-    const auto opIt = _reverseUsers.find(op);
-    VPUX_THROW_UNLESS(opIt != _reverseUsers.end(), "Operation '{0}' at '{1}' is not a buffer user", op->getName(),
+    const auto opIt = _opBuffersMap.find(op);
+    VPUX_THROW_UNLESS(opIt != _opBuffersMap.end(), "Operation '{0}' at '{1}' is not a buffer user", op->getName(),
                       op->getLoc());
     auto& allBufs = opIt->second;
 

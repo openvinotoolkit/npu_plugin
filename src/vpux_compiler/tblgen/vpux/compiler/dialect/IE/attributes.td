@@ -200,6 +200,24 @@ def IE_ROIAlignMethod :
 def IE_ROIAlignMethodAttr : IE_EnumAttr<IE_ROIAlignMethod, "roi_align_method">;
 
 //
+// ROIAlignAlignedMethod
+//
+
+def IE_ROIAlignAlignedMethod :
+        IE_I64EnumAttr<
+            "ROIAlignAlignedMethod",
+            "ROIAlignAlignedMethod that the InferenceEngine supports",
+            [
+                I64EnumAttrCase<"ASYMMETRIC", 0>,
+                I64EnumAttrCase<"HALF_PIXEL_FOR_NN", 1>,
+                I64EnumAttrCase<"HALF_PIXEL", 2>,
+            ]
+        > {
+}
+
+def IE_ROIAlignAlignedMethodAttr : IE_EnumAttr<IE_ROIAlignAlignedMethod, "roi_align_aligned_method">;
+
+//
 // AutoBroadcastType
 //
 

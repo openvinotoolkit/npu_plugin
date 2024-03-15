@@ -15,8 +15,8 @@
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::ReduceSumOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -24,14 +24,14 @@ mlir::LogicalResult vpux::IE::ReduceSumOp::inferReturnTypeComponents(
     if (mlir::failed(reduceSum.verify(loc))) {
         return mlir::failure();
     }
-    if (reduceSum.axes() != nullptr && reduceSum.axes_value().has_value()) {
+    if (reduceSum.getAxes() != nullptr && reduceSum.getAxesValue().has_value()) {
         return errorAt(loc, "Ambiguous axes representation");
-    } else if (reduceSum.axes() == nullptr && !reduceSum.axes_value().has_value()) {
+    } else if (reduceSum.getAxes() == nullptr && !reduceSum.getAxesValue().has_value()) {
         return errorAt(loc, "Axes was not provided properly");
     }
 
-    const auto input = reduceSum.input();
-    const auto keepDims = reduceSum.keep_dims();
+    const auto input = reduceSum.getInput();
+    const auto keepDims = reduceSum.getKeepDims();
 
     auto axesValue = IE::extractAxes(loc, reduceSum);
 
@@ -41,8 +41,8 @@ mlir::LogicalResult vpux::IE::ReduceSumOp::inferReturnTypeComponents(
 mlir::LogicalResult vpux::IE::ReduceSumOp::verify() {
     llvm::SmallVector<int64_t> axesVec;
     const auto op = getOperation();
-    if (axes() != nullptr) {
-        const auto opAxes = axes().getType().dyn_cast<mlir::RankedTensorType>();
+    if (getAxes() != nullptr) {
+        const auto opAxes = getAxes().getType().dyn_cast<mlir::RankedTensorType>();
 
         if (opAxes == nullptr) {
             return errorAt(op, "Axes is not a 'RankedTensorType', got '{0}'", opAxes);
@@ -63,11 +63,11 @@ mlir::LogicalResult vpux::IE::ReduceSumOp::verify() {
         }
 
         // The axes input must contain unique elements
-        axesVec = parseIntArrayAttr<int64_t>(vpux::IE::getIntArrayAttrValue(axes()));
+        axesVec = parseIntArrayAttr<int64_t>(vpux::IE::getIntArrayAttrValue(getAxes()));
     }
 
-    if (axes_value().has_value()) {
-        const auto opAxesValue = axes_value().value();
+    if (getAxesValue().has_value()) {
+        const auto opAxesValue = getAxesValue().value();
 
         // The axes input must contain unique elements
         axesVec = parseIntArrayAttr<int64_t>(opAxesValue);
@@ -86,9 +86,9 @@ mlir::LogicalResult vpux::IE::ReduceSumOp::verify() {
 // fold
 //
 
-mlir::OpFoldResult vpux::IE::ReduceSumOp::fold(ArrayRef<mlir::Attribute>) {
-    if (input().getType() == output().getType()) {
-        return input();
+mlir::OpFoldResult vpux::IE::ReduceSumOp::fold(FoldAdaptor) {
+    if (getInput().getType() == getOutput().getType()) {
+        return getInput();
     }
 
     return nullptr;

@@ -8,8 +8,7 @@
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
 #include <functional>
-#include "vpux/compiler/dialect/VPU/passes.hpp"
-#include "vpux/compiler/dialect/VPU/utils/ppe_utils.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
@@ -17,6 +16,7 @@
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/utils/VPU/ppe_utils.hpp"
 #include "vpux/compiler/utils/types.hpp"
 #include "vpux/hwtest/hwtest_utils.hpp"
 #include "vpux/hwtest/test_case_json_parser.hpp"
@@ -34,39 +34,25 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     const auto arch = testDesc.getArchitecture();
 
     auto input = testDesc.getInputLayerList().front();
-    auto pool_op = testDesc.getPoolLayer();
+    auto poolOp = testDesc.getPoolLayer();
     auto output = testDesc.getOutputLayers().front();
 
-    SmallVector<int64_t> in_shape(input.shape.begin(), input.shape.end());
-    SmallVector<int64_t> out_shape(output.shape.begin(), output.shape.end());
+    SmallVector<int64_t> inShape(input.shape.begin(), input.shape.end());
+    SmallVector<int64_t> outShape(output.shape.begin(), output.shape.end());
 
-    VPUX_THROW_UNLESS(!in_shape.empty(), "buildAvgpool: Got empty inputShape");
-    VPUX_THROW_UNLESS(!out_shape.empty(), "buildAvgpool: Got empty outputShape");
+    VPUX_THROW_UNLESS(!inShape.empty(), "buildAvgpool: Got empty inputShape");
+    VPUX_THROW_UNLESS(!outShape.empty(), "buildAvgpool: Got empty outputShape");
 
-    std::vector<int64_t> filter_size{pool_op.kernel_shape.at(0), pool_op.kernel_shape.at(1)};
-    std::vector<int64_t> stride_vec(pool_op.stride.begin(), pool_op.stride.end());
-    std::vector<int64_t> padding_vec = convertNBPadtoNCETaskPad(pool_op.pad);
+    std::vector<int64_t> filterSize{poolOp.kernel_shape.at(0), poolOp.kernel_shape.at(1)};
+    std::vector<int64_t> strideVec(poolOp.stride.begin(), poolOp.stride.end());
+    std::vector<int64_t> paddingVec = convertNBPadtoNCETaskPad(poolOp.pad);
 
-    auto output_totalsize = totalTensorSize(out_shape, outputType);
+    auto inputTotalSize = totalTensorSize(inShape, inputType);
+    auto outputTotalSize = totalTensorSize(outShape, outputType);
 
-    SmallVector<int64_t> wt_data_shape{in_shape[1], 1, pool_op.kernel_shape.at(0), pool_op.kernel_shape.at(1)};
-
-    auto scaleValue = 1 / double(pool_op.kernel_shape.at(0) * pool_op.kernel_shape.at(1));
+    auto scaleValue = 1 / double(poolOp.kernel_shape.at(0) * poolOp.kernel_shape.at(1));
 
     mlir::Type weightsType = inputType;
-
-    int64_t clampLow = std::numeric_limits<int32_t>::min();
-    int64_t clampHigh = std::numeric_limits<int32_t>::max();
-    int64_t bypassMult = 1;
-    int64_t bypassShift = 0;
-
-    if (auto outElemQType = outputType.template dyn_cast<mlir::quant::QuantizedType>()) {
-        const auto zps = extractScalesAndZeroPoints(outputType).second;
-
-        clampLow = outElemQType.getStorageTypeMin() - zps.front();
-        clampHigh = outElemQType.getStorageTypeMax() - zps.front();
-    }
-
     if (auto qtype = inputType.dyn_cast<mlir::quant::QuantizedType>()) {
         auto inputStorageType = mlir::quant::QuantizedType::castToStorageType(qtype);
         int64_t zeroPoint = 0;
@@ -84,100 +70,148 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     }
 
     const auto OUTPUT_CMX_OFFSET = 0;
-    const auto INPUT_CMX_OFFSET = OUTPUT_CMX_OFFSET + output_totalsize;
+    const auto INPUT_CMX_OFFSET = OUTPUT_CMX_OFFSET + outputTotalSize;
 
     SmallVector<mlir::Type> inputTypes;
-    inputTypes.push_back(getMemRefType(VPURT::BufferSection::NetworkInput, in_shape, inputType, DimsOrder::NHWC));
-    auto outputParamType = getMemRefType(VPURT::BufferSection::NetworkOutput, out_shape, outputType, DimsOrder::NHWC);
+    inputTypes.push_back(getMemRefType(VPURT::BufferSection::NetworkInput, inShape, inputType, DimsOrder::NHWC));
+    auto outputParamType = getMemRefType(VPURT::BufferSection::NetworkOutput, outShape, outputType, DimsOrder::NHWC);
     inputTypes.push_back(outputParamType);
 
-    const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
+    const auto funcType = builder.getFunctionType(ArrayRef(inputTypes), outputParamType);
 
     auto func = builder.create<mlir::func::FuncOp>(loc, printToString("avgPool_{0}_{1}", inputType, outputType),
-                                                   funcType, builder.getStringAttr("private"));
+                                                   funcType, builder.getStringAttr("private"), /*arg_attrs=*/nullptr,
+                                                   /*res_attrs=*/nullptr);
 
-    auto funcbuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());
+    auto funcBuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());
 
     // Build VPUIP ops
-    auto funcinput = func.getArgument(0);
-    auto funcoutput = func.getArgument(1);
+    auto funcInput = func.getArgument(0);
+    auto funcOutput = func.getArgument(1);
 
     // input - output cmx tensors
 
-    auto inputcmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, 0, in_shape, inputType, DimsOrder::NHWC);
-    auto inputcmx =
-            createDeclareTensorOp(funcbuilder, inputcmx_type, VPURT::BufferSection::CMX_NN, 0, INPUT_CMX_OFFSET);
+    auto inputCmxType = getMemRefType(VPURT::BufferSection::CMX_NN, 0, inShape, inputType, DimsOrder::NHWC);
+    auto inputCmx = createDeclareTensorOp(funcBuilder, inputCmxType, VPURT::BufferSection::CMX_NN, 0, INPUT_CMX_OFFSET);
 
-    auto outputcmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, 0, out_shape, outputType, DimsOrder::NHWC);
-    auto outputcmx =
-            createDeclareTensorOp(funcbuilder, outputcmx_type, VPURT::BufferSection::CMX_NN, 0, OUTPUT_CMX_OFFSET);
+    auto outputCmxType = getMemRefType(VPURT::BufferSection::CMX_NN, 0, outShape, outputType, DimsOrder::NHWC);
+    auto outputCmx =
+            createDeclareTensorOp(funcBuilder, outputCmxType, VPURT::BufferSection::CMX_NN, 0, OUTPUT_CMX_OFFSET);
 
-    auto parent_inputcmx =
-            createDeclareTensorOp(funcbuilder, inputcmx_type, VPURT::BufferSection::CMX_NN, 0, INPUT_CMX_OFFSET);
-    auto parent_outputcmx =
-            createDeclareTensorOp(funcbuilder, outputcmx_type, VPURT::BufferSection::CMX_NN, 0, OUTPUT_CMX_OFFSET);
+    auto parentInputCmx =
+            createDeclareTensorOp(funcBuilder, inputCmxType, VPURT::BufferSection::CMX_NN, 0, INPUT_CMX_OFFSET);
+    auto parentOutputCmx =
+            createDeclareTensorOp(funcBuilder, outputCmxType, VPURT::BufferSection::CMX_NN, 0, OUTPUT_CMX_OFFSET);
 
     // barrier config
-    auto barrier0 = funcbuilder.create<VPURT::ConfigureBarrierOp>(loc, 0);
-    auto barrier1 = funcbuilder.create<VPURT::ConfigureBarrierOp>(loc, 1);
+    auto barrier0 = funcBuilder.create<VPURT::ConfigureBarrierOp>(loc, 0);
+    auto barrier1 = funcBuilder.create<VPURT::ConfigureBarrierOp>(loc, 1);
 
-    // DMAs
-    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(),
-                                                mlir::ValueRange(barrier0.getBarrier()), loc, funcinput,
-                                                inputcmx.getOperation()->getResult(0));
+    // DMA input-->cmx
+    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(),
+                                                mlir::ValueRange(barrier0.getBarrier()), loc, funcInput,
+                                                inputCmx.getOperation()->getResult(0), 0);
+
+    mlir::Value wtTblValue;
+    auto qPerChType = outputType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>();
+    if (qPerChType) {
+        const auto WEIGHTSTABLE_CMX_OFFSET = INPUT_CMX_OFFSET + inputTotalSize;
+
+        // weights table ddr tensor
+        SmallVector<int64_t> wtTblDataShape{output.shape[1], 1, 1, 4};
+        auto wtTblDataDdrType = getMemRefType(VPURT::BufferSection::DDR, wtTblDataShape,
+                                              builder.getIntegerType(32, true), DimsOrder::NHWC);
+        const auto wtTblDataDdrValueType =
+                mlir::RankedTensorType::get(wtTblDataShape, builder.getIntegerType(32, /*isSigned=*/true));
+
+        const std::vector<int32_t> wtTblDataValuesVec = VPU::NCESparsity::getWeightsTable(
+                inputType, outputType, /*weightsPtrs*/ std::nullopt, static_cast<int32_t>(0),
+                /*sparsityPtr*/ std::nullopt, static_cast<int32_t>(0), arch, output.shape[1]);
+
+        auto wtTblDataValues = ArrayRef<int32_t>(wtTblDataValuesVec);
+        auto wtTblDataVals = mlir::DenseElementsAttr::get(wtTblDataDdrValueType, wtTblDataValues);
+        auto wtTblDataDdr =
+                funcBuilder.create<Const::DeclareOp>(builder.getUnknownLoc(), wtTblDataDdrType,
+                                                     Const::ContentAttr::get(wtTblDataVals).reorder(DimsOrder::NHWC));
+
+        // weights table cmx tensor
+
+        auto wtTblCmxType = getMemRefType(VPURT::BufferSection::CMX_NN, 0, wtTblDataShape,
+                                          builder.getIntegerType(32, true), DimsOrder::NHWC);
+        auto wtTblCmx = createDeclareTensorOp(funcBuilder, wtTblCmxType, VPURT::BufferSection::CMX_NN, 0,
+                                              WEIGHTSTABLE_CMX_OFFSET);
+        wtTblValue = wtTblCmx.getOperation()->getResult(0);
+
+        // weights table dma ddr->cmx
+        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
+                                              builder.getUnknownLoc(), wtTblDataDdr.getOperation()->getResult(0),
+                                              wtTblCmx.getOperation()->getResult(0), 0);
+    }
 
     // NCE Task
-    auto filtersize = getIntArrayAttr(funcbuilder, filter_size);
-    auto strides = getIntArrayAttr(funcbuilder, stride_vec);
-    auto kernel_padding = VPU::getPaddingAttr(ctx, padding_vec[PAD_NCETASK_LEFT], padding_vec[PAD_NCETASK_RIGHT],
-                                              padding_vec[PAD_NCETASK_TOP], padding_vec[PAD_NCETASK_BOTTOM]);
+    auto filterSizeAttr = getIntArrayAttr(funcBuilder, filterSize);
+    auto strides = getIntArrayAttr(funcBuilder, strideVec);
+    auto kernelPadding = VPU::getPaddingAttr(ctx, paddingVec[PAD_NCETASK_LEFT], paddingVec[PAD_NCETASK_RIGHT],
+                                             paddingVec[PAD_NCETASK_TOP], paddingVec[PAD_NCETASK_BOTTOM]);
 
     auto nceTask = vpux::VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
-            funcbuilder, mlir::ValueRange(barrier0.getBarrier()), mlir::ValueRange(barrier1.getBarrier()), loc,
-            outputcmx_type, inputcmx.getOperation()->getResult(0), mlir::Value(), mlir::Value(),
-            /*instruction_table_list*/ nullptr, mlir::Value(), parent_inputcmx.getOperation()->getResult(0),
-            parent_outputcmx.getOperation()->getResult(0), outputcmx.getOperation()->getResult(0),
-            VPUIP::NCETaskType::AVEPOOL, filtersize, strides, kernel_padding,
+            funcBuilder, mlir::ValueRange(barrier0.getBarrier()), mlir::ValueRange(barrier1.getBarrier()), loc,
+            outputCmxType, inputCmx.getOperation()->getResult(0), mlir::Value(), wtTblValue,
+            /*instruction_table_list*/ nullptr, /*activation_window=*/nullptr,
+            parentInputCmx.getOperation()->getResult(0), parentOutputCmx.getOperation()->getResult(0),
+            outputCmx.getOperation()->getResult(0), VPUIP::NCETaskType::AVEPOOL, filterSizeAttr, strides, kernelPadding,
             /*actChannelLength*/ nullptr, /*is_continued*/ nullptr, /*sp_pattern*/ nullptr);
 
     // Since AvgPool operation doesn't have weights table it requires final quantization scaling
     // to be part of output tensor description. Scale vector will be placed in PPE block and
     // later used during NCE task serialization
-    auto avgPoolScale = VPU::calculateQuantScaleVectorForAvgPool(inputcmx_type, outputcmx_type, filter_size, arch);
-    // Scale approximation is required for quantized inputs.
-    if (inputcmx_type.getElementType().isa<mlir::FloatType>()) {
+    auto avgPoolScale =
+            qPerChType ? 0 : VPU::calculateQuantScaleVectorForAvgPool(inputCmxType, outputCmxType, filterSize, arch);
+
+    int64_t clampLow = std::numeric_limits<int32_t>::min();
+    int64_t clampHigh = std::numeric_limits<int32_t>::max();
+    if (auto outElemQType = outputType.template dyn_cast<mlir::quant::QuantizedType>()) {
+        const auto zps = extractScalesAndZeroPoints(outputType).second;
+
+        clampLow = outElemQType.getStorageTypeMin() - zps.front();
+        clampHigh = outElemQType.getStorageTypeMax() - zps.front();
+    }
+    int64_t bypassMult = 1;
+    int64_t bypassShift = 0;
+    if (inputCmxType.getElementType().isa<mlir::FloatType>()) {
+        // Scale approximation is required for quantized inputs.
         // It is intentional to apply int32 limits for floating point clamping.
         // See E#50875 for details.
-        nceTask.addPPETask(funcbuilder, VPU::PPEMode::NOOP, clampLow, clampHigh, bypassMult, bypassShift, bypassMult,
+        nceTask.addPPETask(funcBuilder, VPU::PPEMode::NOOP, clampLow, clampHigh, bypassMult, bypassShift, bypassMult,
                            bypassShift, bypassShift, avgPoolScale);
     } else {
         const auto scaleApproximation = QuantizationApproximation(arch, avgPoolScale);
-        nceTask.addPPETask(funcbuilder, VPU::PPEMode::NOOP, clampLow, clampHigh, bypassMult, bypassShift,
+        nceTask.addPPETask(funcBuilder, VPU::PPEMode::NOOP, clampLow, clampHigh, bypassMult, bypassShift,
                            scaleApproximation.mult(), scaleApproximation.shift());
     }
 
     // Create DPU task for NCE task
-    auto variantbuilder = mlir::OpBuilder::atBlockBegin(&nceTask.variants().front(), funcbuilder.getListener());
+    auto variantbuilder = mlir::OpBuilder::atBlockBegin(&nceTask.getVariants().front(), funcBuilder.getListener());
 
     // NB For pooling operations, NTHW_NTK=(16, 4) is the only mode supported by
     // the hardware; this corresponds to CUBOID_16x16.
-    createDPUTaskOp(funcbuilder, variantbuilder, out_shape, in_shape, padding_vec, VPU::MPEMode::CUBOID_16x16);
+    createDPUTaskOp(funcBuilder, variantbuilder, outShape, inShape, paddingVec, VPU::MPEMode::CUBOID_16x16);
 
-    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.getBarrier()),
-                                                mlir::ValueRange(), loc, outputcmx.getOperation()->getResult(0),
-                                                funcoutput);
+    vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(barrier1.getBarrier()),
+                                                mlir::ValueRange(), loc, outputCmx.getOperation()->getResult(0),
+                                                funcOutput, 0);
 
-    funcbuilder.create<mlir::func::ReturnOp>(loc, funcoutput);
+    funcBuilder.create<mlir::func::ReturnOp>(loc, funcOutput);
 
     // set runtime resources
-    mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(arch, VPU::CompilationMode::DefaultHW, 1, None, log));
+    mlir::PassManager pm(module->getName(), mlir::OpPassManager::Nesting::Implicit);
+    pm.addPass(VPU::createInitCompilerPass(arch, VPU::CompilationMode::DefaultHW, 1, std::nullopt, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 
     // IE.CNNNetwork
-    buildCNNOp(builder, func.getName(), {getTensorType(ShapeRef(in_shape), inputType, DimsOrder::NHWC, nullptr)},
-               {getTensorType(ShapeRef(out_shape), outputType, DimsOrder::NHWC, nullptr)});
+    buildCNNOp(builder, func.getName(), {getTensorType(ShapeRef(inShape), inputType, DimsOrder::NHWC, nullptr)},
+               {getTensorType(ShapeRef(outShape), outputType, DimsOrder::NHWC, nullptr)});
 }
 
 }  // namespace hwtest

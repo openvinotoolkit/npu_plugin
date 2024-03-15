@@ -4,8 +4,9 @@
 //
 
 #include "vpux/compiler/core/cost_model_utils.hpp"
+#include "vpux/compiler/core/cycle_cost_info.hpp"
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
-#include "vpux/compiler/dialect/VPU/cost_model.hpp"
+#include "vpux/compiler/dialect/VPU/utils/cost_model/cost_model.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
@@ -14,16 +15,23 @@
 namespace vpux {
 namespace VPURT {
 
+SmallVector<size_t> getSubTasksStartTime(const SmallVector<size_t>& subTasksCost, size_t startTime, size_t queueCount);
+
 struct TaskConfig {
     VPURT::TaskOp taskOp;
     SmallVector<int64_t> virtBarrierWaits;
     SmallVector<int64_t> virtBarrierUpdates;
-    int64_t cycleCost = -1;
-    int64_t cycleStart = -1;
+    size_t cycleCost = 0;
+    size_t cycleStart = 0;
+    SmallVector<size_t> subTasksCycleCost;
+    SmallVector<size_t> subTasksCycleStart;
 
+    TaskConfig() = default;
     TaskConfig(VPURT::TaskOp taskOp, SmallVector<int64_t>& virtBarrierWaitVec,
-               SmallVector<int64_t>& virtBarrierUpdateVec, int64_t cost);
+               SmallVector<int64_t>& virtBarrierUpdateVec, size_t cost, SmallVector<size_t>& subTasksCost);
 };
+
+using TaskConfigVec = SmallVector<TaskConfig, 1>;
 
 // Class for storing information about barrier, its current
 // producer count and cycle when it was last updated
@@ -58,16 +66,16 @@ public:
 // It allows to determine cycleBegin/End of each task
 class InferenceExecutionSimulator {
 public:
-    InferenceExecutionSimulator(Logger log, mlir::func::FuncOp funcOp);
+    InferenceExecutionSimulator(Logger log, mlir::func::FuncOp funcOp, CycleCostInfo& cycleCostInfo);
 
     void runSim();
-    SmallVector<TaskConfig> getTaskCycleConfig();
-    SmallVector<TaskConfig> getTaskCycleConfig(VPU::ExecutorKind execKind);
-    size_t getNumberfOfTasksWithInvalidCost();
-    std::set<std::string> getLayersWithInvalidCost();
-    int64_t getInferenceLatencyInCycles();
+    std::map<TaskQueueType, TaskConfigVec> getQueueTaskMap();
+    TaskConfigVec getTaskCycleConfig();
+    TaskConfigVec getTaskCycleConfig(VPU::ExecutorKind execKind);
+    size_t getInferenceLatencyInCycles();
     void updateCyclesInIR();
-    int64_t getTaskCycleCost(VPURT::TaskOp taskOp);
+    double getDPUTotalEnergy();
+    double getSHAVETotalEnergy();
 
 private:
     void parseFunc();
@@ -75,20 +83,21 @@ private:
     // Store information about all tasks that are assigned to a given
     // queue of execution which is identified by executor type and its specific settings
     // like NCE and cluster number of DMA and port&channel numbers
-    std::map<VPURT::TaskQueueType, SmallVector<TaskConfig>> _queueTasksMap;
+    std::map<TaskQueueType, TaskConfigVec> _queueTasksMap;
     // Map with virtual barrier IDs and its configuration
     mlir::DenseMap<int64_t, BarrierConfig> _virtBarriers;
     // Map of executor kind which on HW side have more engines but are not
     // identifiable on IR or blob level and are dispatched only during inference
+    // Such case is on VPU2 for 2 ActShave engines on single cluster. Tasks
+    // are not assigned to it by compiler but are dispatched during inference
+    // based on availability. Compiler needs to know this to correctly model
+    // this parallelism as this is not modeled on TaskOp level
     mlir::DenseMap<VPU::ExecutorKind, int64_t> _numOfExecutorQueuesForWhichAssignmentIsAtInference;
 
     Logger _log;
     mlir::func::FuncOp _funcOp;
-    VPU::ArchKind _archKind;
-    std::shared_ptr<VPUNN::VPUCostModel> _costModel;
     int64_t _dpuCount = 1;
-    size_t _numOfTasksWithInvalidCost = 0;
-    std::set<std::string> _layersWithInvalidCost;
+    CycleCostInfo& _cycleCostInfo;
 };
 
 }  // namespace VPURT

@@ -14,7 +14,7 @@
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/schema.hpp"
 
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
 
 #include <llvm/ADT/SmallVector.h>
 #include <mlir/IR/Value.h>

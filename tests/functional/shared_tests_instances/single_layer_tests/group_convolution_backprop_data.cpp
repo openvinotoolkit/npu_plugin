@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
@@ -11,19 +10,20 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXGroupConvBackpropLayerTest :
+class GroupConvBackpropLayerTestCommon :
         public GroupConvBackpropLayerTest,
         virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
-class VPUXGroupConvBackpropLayerTest_VPU3700 : public VPUXGroupConvBackpropLayerTest {};
-class VPUXGroupConvBackpropLayerTest_VPU3720 : public VPUXGroupConvBackpropLayerTest {};
 
-TEST_P(VPUXGroupConvBackpropLayerTest_VPU3700, HW) {
+class GroupConvBackpropLayerTest_NPU3700 : public GroupConvBackpropLayerTestCommon {};
+class GroupConvBackpropLayerTest_NPU3720 : public GroupConvBackpropLayerTestCommon {};
+
+TEST_P(GroupConvBackpropLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXGroupConvBackpropLayerTest_VPU3720, HW) {
+TEST_P(GroupConvBackpropLayerTest_NPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -63,7 +63,8 @@ const auto groupConvBackpropData2DParams_OutputPadding = ::testing::Combine(
         ::testing::ValuesIn(numGroups), ::testing::Values(ngraph::op::PadType::EXPLICIT),
         ::testing::ValuesIn(outputPadding2D));
 
-INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_ExplicitPadding, VPUXGroupConvBackpropLayerTest_VPU3700,
+// ------ NPU3700 ------
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_ExplicitPadding, GroupConvBackpropLayerTest_NPU3700,
                          ::testing::Combine(groupConvBackpropData2DParams_ExplicitPadding,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -72,9 +73,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_ExplicitPadding, VPUXGrou
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapes2D), ::testing::ValuesIn(emptyOutputShape),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-                         VPUXGroupConvBackpropLayerTest_VPU3700::getTestCaseName);
+                         GroupConvBackpropLayerTest_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_OutputPadding, VPUXGroupConvBackpropLayerTest_VPU3700,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_OutputPadding, GroupConvBackpropLayerTest_NPU3700,
                          ::testing::Combine(groupConvBackpropData2DParams_OutputPadding,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -83,9 +84,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_OutputPadding, VPUXGroupC
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapes2D), ::testing::ValuesIn(emptyOutputShape),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-                         VPUXGroupConvBackpropLayerTest_VPU3700::getTestCaseName);
+                         GroupConvBackpropLayerTest_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_ExplicitPadding, VPUXGroupConvBackpropLayerTest_VPU3720,
+// ------ NPU3720 ------
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_ExplicitPadding, GroupConvBackpropLayerTest_NPU3720,
                          ::testing::Combine(groupConvBackpropData2DParams_ExplicitPadding,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -94,9 +96,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_ExplicitPadding, VPUXGrou
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapes2D), ::testing::ValuesIn(emptyOutputShape),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-                         VPUXGroupConvBackpropLayerTest_VPU3720::getTestCaseName);
+                         GroupConvBackpropLayerTest_NPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_OutputPadding, VPUXGroupConvBackpropLayerTest_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_OutputPadding, GroupConvBackpropLayerTest_NPU3720,
                          ::testing::Combine(groupConvBackpropData2DParams_OutputPadding,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -105,6 +107,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_OutputPadding, VPUXGroupC
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapes2D), ::testing::ValuesIn(emptyOutputShape),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-                         VPUXGroupConvBackpropLayerTest_VPU3720::getTestCaseName);
+                         GroupConvBackpropLayerTest_NPU3720::getTestCaseName);
 
 }  // namespace

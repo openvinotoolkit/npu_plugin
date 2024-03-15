@@ -1,14 +1,47 @@
-//
-// Copyright (C) 2022 Intel Corporation.
+// Copyright (C) Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
 #pragma once
 
+#include <filesystem>
 #include <openvino/runtime/core.hpp>
+#include "common_test_utils/unicode_utils.hpp"
+
+namespace ov {
+
+namespace test {
+
+namespace utils {
+
+extern const char* DEVICE_NPU;
+
+}  // namespace utils
+
+}  // namespace test
+
+}  // namespace ov
 
 std::string getBackendName(const ov::Core& core);
+
 std::vector<std::string> getAvailableDevices(const ov::Core& core);
+
+std::string modelPriorityToString(const ov::hint::Priority priority);
+
+template <typename C,
+          typename = typename std::enable_if<(std::is_same<C, char>::value || std::is_same<C, wchar_t>::value)>::type>
+void removeDirFilesRecursive(const std::basic_string<C>& path) {
+    if (!ov::util::directory_exists(path)) {
+        return;
+    }
+    for (const auto& entry : std::filesystem::directory_iterator(path)) {
+        ov::test::utils::removeFile(entry.path().generic_string<C>());
+    }
+    ov::test::utils::removeDir(path);
+    // E#105043: [Linux] [Bug] Cannot delete loaded shared libraries unicode directories
+    // `Directory not empty` throw on linux for code below
+    // std::filesystem::remove_all(path);
+}
 
 template <typename T>
 std::string vectorToString(std::vector<T> v) {

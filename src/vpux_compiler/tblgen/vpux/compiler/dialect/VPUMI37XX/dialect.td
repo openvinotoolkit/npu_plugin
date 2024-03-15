@@ -25,6 +25,7 @@ The **VPUMI37XX Dialect** represents NN RunTime IR together with MappedInference
 
     let dependentDialects = [
         "vpux::Const::ConstDialect",
+        "vpux::VPUIP::VPUIPDialect",
         "mlir::func::FuncDialect",
         "mlir::quant::QuantizationDialect",
         "vpux::VPURegMapped::VPURegMappedDialect"
@@ -36,8 +37,6 @@ The **VPUMI37XX Dialect** represents NN RunTime IR together with MappedInference
     }];
 
     let useDefaultAttributePrinterParser = 1;
-
-    let emitAccessorPrefix = kEmitAccessorPrefix_Prefixed;
 }
 
 #endif

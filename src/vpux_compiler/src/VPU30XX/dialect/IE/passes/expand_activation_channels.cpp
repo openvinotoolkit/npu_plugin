@@ -8,7 +8,6 @@
 
 #include "vpux/compiler/utils/rewriter.hpp"
 
-#include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
 using namespace vpux;
@@ -22,7 +21,8 @@ namespace {
 class ExpandActivationChannelsPass final :
         public IE::arch30xx::ExpandActivationChannelsBase<ExpandActivationChannelsPass> {
 public:
-    explicit ExpandActivationChannelsPass(const bool seOpsEnabled, Logger log): _seOpsEnabled(seOpsEnabled) {
+    explicit ExpandActivationChannelsPass(const bool seOpsEnabled, const bool seTransposedConvEnabled, Logger log)
+            : _seOpsEnabled(seOpsEnabled), _seTransposedConvEnabled(seTransposedConvEnabled) {
         Base::initLogger(log, Base::getArgumentName());
     }
 
@@ -33,6 +33,7 @@ private:
 
 private:
     bool _seOpsEnabled;
+    bool _seTransposedConvEnabled;
 };
 
 mlir::LogicalResult ExpandActivationChannelsPass::initialize(mlir::MLIRContext* ctx) {
@@ -45,6 +46,9 @@ mlir::LogicalResult ExpandActivationChannelsPass::initialize(mlir::MLIRContext* 
     if (seOpsEnabled.hasValue()) {
         _seOpsEnabled = seOpsEnabled.getValue();
     }
+    if (seTransposedConvEnabled.hasValue()) {
+        _seTransposedConvEnabled = seTransposedConvEnabled.getValue();
+    }
 
     return mlir::success();
 }
@@ -54,7 +58,11 @@ void ExpandActivationChannelsPass::safeRunOnFunc() {
     auto func = getOperation();
 
     const auto isLegal = [&](mlir::Operation* op) {
-        if (!_seOpsEnabled && mlir::isa<IE::SEOpInterface>(op)) {
+        // TODO E#100360: remove custom flag for IE::TransposedConvolutionOp
+        if (!_seTransposedConvEnabled && mlir::isa<IE::TransposedConvolutionOp>(op)) {
+            return true;
+        }
+        if (!_seOpsEnabled && mlir::isa<IE::SEOpInterface>(op) && !mlir::isa<IE::TransposedConvolutionOp>(op)) {
             return true;
         }
         if (auto iface = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(op)) {
@@ -81,6 +89,9 @@ void ExpandActivationChannelsPass::safeRunOnFunc() {
     if (_seOpsEnabled) {
         patterns.add<IE::InterpolateRewriter>(&ctx, _log);
     }
+    if (_seTransposedConvEnabled) {
+        patterns.add<IE::TransposedConvolutionRewriter>(&ctx, _log);
+    }
 
     if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
@@ -94,6 +105,7 @@ void ExpandActivationChannelsPass::safeRunOnFunc() {
 //
 
 std::unique_ptr<mlir::Pass> vpux::IE::arch30xx::createExpandActivationChannelsPass(const bool seOpsEnabled,
+                                                                                   const bool seTransposedConvEnabled,
                                                                                    Logger log) {
-    return std::make_unique<ExpandActivationChannelsPass>(seOpsEnabled, log);
+    return std::make_unique<ExpandActivationChannelsPass>(seOpsEnabled, seTransposedConvEnabled, log);
 }

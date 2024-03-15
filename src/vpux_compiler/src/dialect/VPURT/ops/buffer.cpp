@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/dialect/ELF/utils.hpp"
+#include "vpux/compiler/dialect/ELFNPU37XX/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 
 #include "vpux/compiler/utils/attributes.hpp"
@@ -27,7 +27,7 @@ void vpux::VPURT::DeclareBufferOp::build(mlir::OpBuilder& builder, ::mlir::Opera
 void vpux::VPURT::DeclareBufferOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Type type,
                                          VPURT::BufferSection section, int64_t sectionIndex, int64_t byteOffset) {
     build(builder, state, type, VPURT::BufferSectionAttr::get(builder.getContext(), section),
-          getIntArrayAttr(builder, makeArrayRef({sectionIndex})), getIntAttr(builder, byteOffset),
+          getIntArrayAttr(builder, ArrayRef({sectionIndex})), getIntAttr(builder, byteOffset),
           /*swizzlingKey=*/nullptr);
 }
 
@@ -42,7 +42,7 @@ void vpux::VPURT::DeclareBufferOp::build(mlir::OpBuilder& builder, ::mlir::Opera
                                          VPURT::BufferSection section, int64_t sectionIndex, int64_t byteOffset,
                                          int64_t swizzlingKey) {
     build(builder, state, type, VPURT::BufferSectionAttr::get(builder.getContext(), section),
-          getIntArrayAttr(builder, makeArrayRef({sectionIndex})), getIntAttr(builder, byteOffset),
+          getIntArrayAttr(builder, ArrayRef({sectionIndex})), getIntAttr(builder, byteOffset),
           getIntAttr(builder, swizzlingKey));
 }
 
@@ -124,15 +124,8 @@ mlir::LogicalResult vpux::VPURT::DeclareBufferOp::verify() {
             return errorAt(op, "Output type must have DDR memory space");
         }
 
-        if (maybeSectionIndex.has_value()) {
-            const auto sectionIndex = parseIntArrayAttr<int64_t>(maybeSectionIndex.value());
-            if (sectionIndex.size() == 1 && sectionIndex[0] != 0) {
-                return errorAt(op, "Wrong section index value for DDR memory space: '{0}'", sectionIndex[0]);
-            }
-
-            if (sectionIndex.size() > 1) {
-                return errorAt(op, "Array of section indexes is supported for DDR memory space");
-            }
+        if (type.getMemSpace().getIndex().has_value() || maybeSectionIndex.has_value()) {
+            return errorAt(op, "Output type with DDR memory space cannot have section index");
         }
     }
 
@@ -156,18 +149,18 @@ size_t vpux::VPURT::DeclareBufferOp::getBinarySize() {
 }
 
 size_t vpux::VPURT::DeclareBufferOp::getAlignmentRequirements() {
-    return ELF::VPUX_NO_ALIGNMENT;
+    return ELFNPU37XX::VPUX_NO_ALIGNMENT;
 }
 
 vpux::VPURT::BufferSection vpux::VPURT::DeclareBufferOp::getMemorySpace() {
     return getSection();
 }
 
-vpux::ELF::SectionFlagsAttr vpux::VPURT::DeclareBufferOp::getAccessingProcs() {
-    auto tempFlagsVal = vpux::ELF::SectionFlagsAttr::SHF_NONE;
+vpux::ELFNPU37XX::SectionFlagsAttr vpux::VPURT::DeclareBufferOp::getAccessingProcs() {
+    auto tempFlagsVal = vpux::ELFNPU37XX::SectionFlagsAttr::SHF_NONE;
 
     for (auto user : getResult().getUsers()) {
-        if (auto binaryIface = mlir::dyn_cast<vpux::ELF::BinaryOpInterface>(user)) {
+        if (auto binaryIface = mlir::dyn_cast<vpux::ELFNPU37XX::BinaryOpInterface>(user)) {
             tempFlagsVal = tempFlagsVal | binaryIface.getUserProcs();
         }
     }
@@ -175,6 +168,6 @@ vpux::ELF::SectionFlagsAttr vpux::VPURT::DeclareBufferOp::getAccessingProcs() {
     return tempFlagsVal;
 }
 
-vpux::ELF::SectionFlagsAttr vpux::VPURT::DeclareBufferOp::getUserProcs() {
-    return (ELF::SectionFlagsAttr::SHF_NONE);
+vpux::ELFNPU37XX::SectionFlagsAttr vpux::VPURT::DeclareBufferOp::getUserProcs() {
+    return (ELFNPU37XX::SectionFlagsAttr::SHF_NONE);
 }

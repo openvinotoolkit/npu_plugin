@@ -5,14 +5,10 @@
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/convert_to_dma_utils.hpp"
-#include "vpux/compiler/dialect/VPUIP/dma_descriptor_generator.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
-#include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
@@ -54,10 +50,10 @@ mlir::LogicalResult ConvertSpace2DepthLayerPass::Space2DepthLayerConverter::matc
         IE::SpaceToDepthOp origOp, mlir::PatternRewriter& rewriter) const {
     const auto ctx = rewriter.getContext();
 
-    const auto inputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
+    const auto inputType = origOp.getInput().getType().cast<vpux::NDTypeInterface>();
     const auto inputShape = inputType.getShape();
-    const auto blockSize = origOp.block_size();
-    const auto mode = origOp.mode();
+    const auto blockSize = origOp.getBlockSize();
+    const auto mode = origOp.getMode();
 
     // Should fail in frontend if input rank < 3
     auto spatialDims = checked_cast<size_t>(inputShape.size() - spatialDimIndex);
@@ -102,19 +98,19 @@ mlir::LogicalResult ConvertSpace2DepthLayerPass::Space2DepthLayerConverter::matc
     }
 
     // Check output shape
-    const auto outShape = to_small_vector(getShape(origOp.output()));
+    const auto outShape = to_small_vector(getShape(origOp.getOutput()));
     VPUX_THROW_UNLESS(
             outShape.size() == shapeEnd.size() && std::equal(shapeEnd.begin(), shapeEnd.end(), outShape.begin()),
             "Replacing failed due to output shape mismatch: original '{0}', new '{1}'", outShape, shapeEnd);
 
-    auto reshapeBegin = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), origOp.input(), nullptr, false,
+    auto reshapeBegin = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), origOp.getInput(), nullptr, false,
                                                        getIntArrayAttr(ctx, shapeBegin));
     auto transpose =
-            rewriter.create<IE::TransposeOp>(origOp->getLoc(), reshapeBegin.output(), nullptr,
+            rewriter.create<IE::TransposeOp>(origOp->getLoc(), reshapeBegin.getOutput(), nullptr,
                                              mlir::AffineMapAttr::get(mlir::AffineMap::getPermutationMap(order, ctx)));
-    auto reshapeEnd = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), transpose.output(), nullptr, false,
+    auto reshapeEnd = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), transpose.getOutput(), nullptr, false,
                                                      getIntArrayAttr(ctx, shapeEnd));
-    rewriter.replaceOp(origOp, reshapeEnd.output());
+    rewriter.replaceOp(origOp, reshapeEnd.getOutput());
 
     return mlir::success();
 }
@@ -130,35 +126,6 @@ void ConvertSpace2DepthLayerPass::safeRunOnFunc() {
 
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalOp<IE::SpaceToDepthOp>([&](IE::SpaceToDepthOp spaceToDepthOp) {
-        // If there is exactly one Quantize after SpaceToDepth, it will be moved
-        // before SpaceToDepthOp and thus the CMX memory requirement is lower
-        // to be converted to NNDMA
-        // TODO: This can be removed after E#56581 solved.
-        if (spaceToDepthOp->hasOneUse()) {
-            if (auto quantizeOp = mlir::dyn_cast<IE::FakeQuantizeOp>(*(spaceToDepthOp->getUsers().begin()))) {
-                auto inputType = spaceToDepthOp.input().getType().cast<vpux::NDTypeInterface>();
-                auto outputType = spaceToDepthOp.output().getType().cast<vpux::NDTypeInterface>();
-                Byte elemSizeBytes = inputType.getElemTypeSize();
-                Byte requiredCMXSize = inputType.getTotalAllocSize() + outputType.getTotalAllocSize();
-
-                Byte quantizedCMXSize = requiredCMXSize / elemSizeBytes.count();
-                Byte totalCMXSize = VPU::getTotalCMXSize(spaceToDepthOp);
-
-                if (quantizedCMXSize > totalCMXSize) {
-                    return false;
-                }
-
-                auto mode = spaceToDepthOp.mode();
-                auto blockSize = spaceToDepthOp.block_size();
-
-                auto dmaDescriptorGenerator =
-                        VPUIP::SpaceToDepthDmaDescriptorGenerator(spaceToDepthOp->getContext(), _log);
-                auto dmaDescriptor = dmaDescriptorGenerator.generate(inputType, outputType, mode, blockSize);
-                auto numPlanes = dmaDescriptor.getNumPlanes().getInt();
-
-                return numPlanes <= VPUIP::DMA_MAX_NUMBER_PLANES;
-            }
-        }
         return VPUIP::isLegalAndBeneficialConvertToDMA(spaceToDepthOp.getOperation(), _log);
     });
     target.addLegalOp<IE::ReshapeOp>();

@@ -10,8 +10,10 @@
 using namespace InferenceEngine;
 
 struct ProfilingTaskCheckParams final {
-    std::set<std::string> allowedTaskExecTypes;     // SW, DMA, DPU
-    std::pair<long long, long long> execTimeRange;  // expected minimal and maximal task durations [us]
+    std::set<std::string> allowedTaskExecTypes;  // SW, DMA, DPU
+    std::map<std::string, std::tuple<unsigned, unsigned, unsigned>>
+            layerExecTimes;  // expected minimal execution cpu time and expected maximal execution cpu and real times
+                             // [us]
 };
 
 //

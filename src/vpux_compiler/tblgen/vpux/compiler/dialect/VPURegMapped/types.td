@@ -143,6 +143,10 @@ class VPURegMapped_RegisterWrapper<Dialect dialect, string regDialectStr, string
     list<string> regFieldListResetValues = !foreach(name, regFieldTypes, "{\"" # name # "\", extractFieldValueFromRegValue<RegField_" # name # "Type>()}," );
     string regFieldStrResetValues = !interleave(regFieldListResetValues, "\n");
 
+    list<string> regFieldListValues = !foreach(name, regFieldTypes, "{\"" # name # "\", extractFieldValue(regType, \"" # name # "\")}," );
+    string regFieldStrValues = !interleave(regFieldListValues, "\n");
+
+
     let extraClassDeclaration = [{
     static vpux::VPURegMapped::RegisterType get(mlir::OpBuilder builder, std::map<std::string, uint64_t> values) {
         auto regFields = getVPURegMapped_RegisterFieldArrayAttr(builder, { }] # "\n" # regFieldStr # "\n" # [{ });
@@ -163,11 +167,18 @@ class VPURegMapped_RegisterWrapper<Dialect dialect, string regDialectStr, string
         }
         return ((long long int)}] # resetValue # [{) >> REG_FIELD::getRegFieldPos();
     }
+    static uint64_t extractFieldValue(vpux::VPURegMapped::RegisterType regType, std::string regFieldName) {
+        return regType.getField(regFieldName).getValue();
+    }
     static std::map<std::string, uint64_t> getZeroInitilizationValues() {
         return { }] # regFieldStrZeroValues # [{ };
     }
     static std::map<std::string, uint64_t> getResetInitilizationValues() {
         return { }] # regFieldStrResetValues # [{ };
+    }
+    static std::map<std::string, uint64_t> getValues(vpux::VPURegMapped::RegMappedType regMapType) {
+        auto regType = regMapType.getRegister("}] # name # [{");
+        return { }] # regFieldStrValues # [{ };
     }
   }];
 }
@@ -187,6 +198,9 @@ class VPURegMapped_RegMappedWrapper<Dialect dialect, string regDialectStr, strin
     list<string> regsListResetValues = !foreach(name, registerTypes, "{ \"" # name # "\", " # regDialectStr # "Register_" # name # "Type::getResetInitilizationValues() }," );
     string regStrResetValues = !interleave(regsListResetValues, "\n");
 
+    list<string> regsListValues = !foreach(name, registerTypes, "{ \"" # name # "\", " # regDialectStr # "Register_" # name # "Type::getValues(regMapType) }," );
+    string regStrValues = !interleave(regsListValues, "\n");
+
 
     let extraClassDeclaration = [{
     static vpux::VPURegMapped::RegMappedType get(mlir::OpBuilder builder, std::map<std::string, std::map<std::string, uint64_t>> values) {
@@ -198,6 +212,9 @@ class VPURegMapped_RegMappedWrapper<Dialect dialect, string regDialectStr, strin
     }
     static std::map<std::string, std::map<std::string, uint64_t>> getResetInitilizationValues() {
         return { }] # regStrResetValues # [{ };
+    }
+    static std::map<std::string, std::map<std::string, uint64_t>> getValues(vpux::VPURegMapped::RegMappedType regMapType) {
+        return { }] # regStrValues # [{ };
     }
   }];
 }

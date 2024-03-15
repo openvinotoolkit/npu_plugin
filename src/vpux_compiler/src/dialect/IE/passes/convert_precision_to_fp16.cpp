@@ -7,8 +7,6 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/utils/convert_op_types.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
 using namespace vpux;
 using namespace IE;
@@ -50,8 +48,11 @@ void ConvertPrecisionToFP16Pass::safeRunOnModule() {
     target.addDynamicallyLegalDialect<IE::IEDialect>(isLegalOp);
     target.addDynamicallyLegalOp<mlir::func::ReturnOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::OneHotOp>(isLegalOp);
+    target.addDynamicallyLegalOp<mlir::func::CallOp>(isLegalOp);
     target.addLegalOp<mlir::ModuleOp>();
     target.addLegalOp<IE::DynamicQuantizeOp>();
+    target.addLegalOp<IE::IfOp>();
+    target.addLegalOp<IE::YieldOp>();
     // AssignOp & ReadValueOp represent inputs/outputs. Cannot convert their type internally.
     target.addLegalOp<IE::AssignOp>();
     target.addLegalOp<IE::ReadValueOp>();
@@ -62,18 +63,19 @@ void ConvertPrecisionToFP16Pass::safeRunOnModule() {
     auto module = getOperation();
 
     // For output element type is inferred based on an attribute
-    auto adjustOpAttrPrecisions = [&](IE::OneHotOp op) {
-        if (op.outElemTypeAttr() == mlir::TypeAttr::get(mlir::Float32Type::get(&ctx))) {
-            auto outElemType = mlir::Float16Type::get(&ctx);
-            op.outElemTypeAttr(mlir::TypeAttr::get(outElemType));
-        }
+    auto isTargetOp = [](mlir::Operation* op) {
+        return mlir::isa<IE::OneHotOp, IE::RandomUniformOp, IE::EyeOp>(op);
     };
-    module.walk(adjustOpAttrPrecisions);
 
-    module.walk([&](IE::RandomUniformOp op) {
-        if (op.output_typeAttr() == mlir::TypeAttr::get(mlir::Float32Type::get(&ctx))) {
-            auto outElemType = mlir::Float16Type::get(&ctx);
-            op.output_typeAttr(mlir::TypeAttr::get(outElemType));
+    module.walk([&](mlir::Operation* op) {
+        if (isTargetOp(op)) {
+            const auto outputTypeAttrStr = "outputType";
+            const auto outputTypeAttr = op->getAttr(outputTypeAttrStr);
+            VPUX_THROW_UNLESS(outputTypeAttr != nullptr, "Failed to get attribute '{0}'", outputTypeAttrStr);
+
+            if (outputTypeAttr.dyn_cast<mlir::TypeAttr>() == mlir::TypeAttr::get(mlir::Float32Type::get(&ctx))) {
+                op->setAttr(outputTypeAttrStr, mlir::TypeAttr::get(mlir::Float16Type::get(&ctx)));
+            }
         }
     });
 

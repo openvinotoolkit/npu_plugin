@@ -5,67 +5,56 @@
 
 #pragma once
 
-#include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
-#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
-#include <ie_input_info.hpp>
-
 #include "vpux.hpp"
 #include "vpux/utils/core/logger.hpp"
 #include "vpux/utils/core/small_string.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 #include "vpux/utils/core/string_ref.hpp"
-#include "vpux_private_config.hpp"
-
-#include <map>
-#include <string>
-#include <vector>
+#include "vpux_private_properties.hpp"
 
 namespace vpux {
-namespace IMD {
 
-using LayerStatistics = std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>;
+using LayerStatistics = std::vector<ov::ProfilingInfo>;
 
-class IMDInferRequest final : public IInferRequest {
+class IMDInferRequest final : public SyncInferRequest {
 public:
     using Ptr = std::shared_ptr<IMDInferRequest>;
 
-    explicit IMDInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
-                             const InferenceEngine::OutputsDataMap& networkOutputs, const Executor::Ptr& executor,
-                             const Config& config, const std::string& netName,
-                             const std::vector<std::shared_ptr<const ov::Node>>& parameters,
-                             const std::vector<std::shared_ptr<const ov::Node>>& results,
-                             const vpux::NetworkIOVector& networkStatesInfo,
-                             const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr);
+    explicit IMDInferRequest(const std::shared_ptr<const ov::ICompiledModel> compiledModel,
+                             const std::shared_ptr<const NetworkDescription> networkDescription,
+                             const Executor::Ptr executor, const Config& config);
 
-    void InferImpl() override;
-    void InferAsync() override;
-    LayerStatistics GetPerformanceCounts() const override;
-    std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> QueryState() override;
+    void infer() override;
+    void infer_async() override;
+    std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
-    void GetResult() override;
+    void get_result() override;
 
 private:
-    SmallString createTempWorkDir();
-    void storeNetworkBlob(StringRef workDir);
-    void storeNetworkInputs(StringRef workDir, const InferenceEngine::BlobMap& inputs);
-    void runApp(StringRef workDir);
-    void readFromFile(const std::string& path, const InferenceEngine::MemoryBlob::Ptr& dataMemoryBlob);
-    void loadNetworkOutputs(StringRef workDir, const InferenceEngine::BlobMap& outputs);
+    void check_network_precision(const ov::element::Type_t precision) override;
 
-    void pull(const InferenceEngine::BlobMap& inputs, InferenceEngine::BlobMap& outputs);
+    SmallString create_temporary_work_directory();
+    void store_compiled_model();
+    void store_network_inputs();
+    void run_app();
+    void read_from_file(const std::string& path, const std::shared_ptr<ov::ITensor>& tensor);
+    void load_network_outputs();
 
+    SmallString _workDirectory;
     const Executor::Ptr _executorPtr;
     const Config _config;
     Logger _logger;
-    std::shared_ptr<InferenceEngine::IAllocator> _allocator;
 
-    const vpux::NetworkIOVector _statesInfo;
-    std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> _states{};
-    std::once_flag _fillStatesOnceFlag;
-    InferenceEngine::MemoryBlob::Ptr _rawProfilingData;
+    std::unordered_map<std::string, size_t> _inputOrder;
+    std::unordered_map<std::string, size_t> _outputOrder;
+
+    std::shared_ptr<ov::ITensor> _rawProfilingData;
 };
+
+namespace profiling {
 
 LayerStatistics getLayerStatistics(const uint8_t* rawData, size_t dataSize, const std::vector<char>& blob);
 
-}  // namespace IMD
+}  //  namespace profiling
+
 }  //  namespace vpux

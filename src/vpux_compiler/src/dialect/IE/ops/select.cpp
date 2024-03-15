@@ -5,13 +5,12 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
-#include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::SelectOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -20,12 +19,12 @@ mlir::LogicalResult vpux::IE::SelectOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto in1Type = select.input1().getType().cast<mlir::ShapedType>();
-    const auto in2Type = select.input2().getType().cast<mlir::ShapedType>();
-    const auto in3Type = select.input3().getType().cast<mlir::ShapedType>();
+    const auto in1Type = select.getInput1().getType().cast<mlir::ShapedType>();
+    const auto in2Type = select.getInput2().getType().cast<mlir::ShapedType>();
+    const auto in3Type = select.getInput3().getType().cast<mlir::ShapedType>();
 
     const auto outShapeRes = IE::broadcastEltwiseShape({in1Type.getShape(), in2Type.getShape(), in3Type.getShape()},
-                                                       select.auto_broadcast(), loc);
+                                                       select.getAutoBroadcast(), loc);
 
     if (mlir::succeeded(outShapeRes)) {
         inferredReturnShapes.emplace_back(outShapeRes.value(), in2Type.getElementType());

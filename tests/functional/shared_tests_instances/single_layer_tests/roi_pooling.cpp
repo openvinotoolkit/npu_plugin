@@ -11,7 +11,7 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXROIPoolingLayerTest : public ROIPoolingLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
+class ROIPoolingLayerTestCommon : public ROIPoolingLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void GenerateInputs() override {
         ngraph::helpers::ROIPoolingTypes poolMethod;
         float spatialScale = 0.f;
@@ -35,7 +35,7 @@ class VPUXROIPoolingLayerTest : public ROIPoolingLayerTest, virtual public Layer
             if (it == 1) {
                 blob = make_blob_with_precision(info->getTensorDesc());
                 blob->allocate();
-                CommonTestUtils::fill_data_roi<InferenceEngine::Precision::FP32>(blob, feat_map_shape[0] - 1, height,
+                ov::test::utils::fill_data_roi<InferenceEngine::Precision::FP32>(blob, feat_map_shape[0] - 1, height,
                                                                                  width, 1.0f, is_roi_max_mode);
             } else {
                 blob = GenerateInput(*info);
@@ -45,7 +45,7 @@ class VPUXROIPoolingLayerTest : public ROIPoolingLayerTest, virtual public Layer
         }
     }
 };
-class VPUXROIPoolingLayerTest_VPU3700 : public VPUXROIPoolingLayerTest {
+class ROIPoolingLayerTest_NPU3700 : public ROIPoolingLayerTestCommon {
     void SkipBeforeInfer() override {
         // Tracking number [E#85137]
         if (getBackendName(*getCore()) == "LEVEL0") {
@@ -53,15 +53,16 @@ class VPUXROIPoolingLayerTest_VPU3700 : public VPUXROIPoolingLayerTest {
         }
     }
 };
-class VPUXROIPoolingLayerTest_VPU3720 : public VPUXROIPoolingLayerTest {};
 
-TEST_P(VPUXROIPoolingLayerTest_VPU3700, HW) {
+class ROIPoolingLayerTest_NPU3720 : public ROIPoolingLayerTestCommon {};
+
+TEST_P(ROIPoolingLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXROIPoolingLayerTest_VPU3720, SW) {
+TEST_P(ROIPoolingLayerTest_NPU3720, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
@@ -93,15 +94,16 @@ const auto test_ROIPooling_bilinear = ::testing::Combine(
         ::testing::Values(spatial_scales[1]), ::testing::Values(ngraph::helpers::ROIPoolingTypes::ROI_BILINEAR),
         ::testing::ValuesIn(netPRCs), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-// --------- VPU3700 ---------
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_TestsROIPooling_max, VPUXROIPoolingLayerTest_VPU3700, test_ROIPooling_max,
-                         VPUXROIPoolingLayerTest_VPU3700::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_TestsROIPooling_bilinear, VPUXROIPoolingLayerTest_VPU3700, test_ROIPooling_bilinear,
-                         VPUXROIPoolingLayerTest_VPU3700::getTestCaseName);
+// --------- NPU3700 ---------
+INSTANTIATE_TEST_SUITE_P(smoke_TestsROIPooling_max, ROIPoolingLayerTest_NPU3700, test_ROIPooling_max,
+                         ROIPoolingLayerTest_NPU3700::getTestCaseName);
 
-// --------- VPU3720 ---------
-INSTANTIATE_TEST_SUITE_P(smoke_TestsROIPooling_max, VPUXROIPoolingLayerTest_VPU3720, test_ROIPooling_max,
-                         VPUXROIPoolingLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsROIPooling_bilinear, ROIPoolingLayerTest_NPU3700, test_ROIPooling_bilinear,
+                         ROIPoolingLayerTest_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_TestsROIPooling_bilinear, VPUXROIPoolingLayerTest_VPU3720, test_ROIPooling_bilinear,
-                         VPUXROIPoolingLayerTest_VPU3720::getTestCaseName);
+// --------- NPU3720 ---------
+INSTANTIATE_TEST_SUITE_P(smoke_TestsROIPooling_max, ROIPoolingLayerTest_NPU3720, test_ROIPooling_max,
+                         ROIPoolingLayerTest_NPU3720::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_TestsROIPooling_bilinear, ROIPoolingLayerTest_NPU3720, test_ROIPooling_bilinear,
+                         ROIPoolingLayerTest_NPU3720::getTestCaseName);

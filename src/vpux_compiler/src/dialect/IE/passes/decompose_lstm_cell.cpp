@@ -6,13 +6,7 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/IE/utils/const_attributes.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
-
-#include <mlir/Pass/PassManager.h>
-#include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
 
@@ -37,19 +31,20 @@ private:
 mlir::LogicalResult LSTMCellRewriter::matchAndRewrite(IE::LSTMCellOp lstmCell, mlir::PatternRewriter& rewriter) const {
     _log.trace("Got op {0} at {1}", lstmCell->getName(), lstmCell->getLoc());
 
-    auto matMulInputOp =
-            rewriter.create<IE::MatMulOp>(lstmCell->getLoc(), lstmCell.inputData(), lstmCell.weights(), false, true);
-    auto matMulHiddenStateOp = rewriter.create<IE::MatMulOp>(lstmCell->getLoc(), lstmCell.initialHiddenState(),
-                                                             lstmCell.recurrenceWeights(), false, true);
+    auto matMulInputOp = rewriter.create<IE::MatMulOp>(lstmCell->getLoc(), lstmCell.getInputData(),
+                                                       lstmCell.getWeights(), false, true);
+    auto matMulHiddenStateOp = rewriter.create<IE::MatMulOp>(lstmCell->getLoc(), lstmCell.getInitialHiddenState(),
+                                                             lstmCell.getRecurrenceWeights(), false, true);
 
     auto biasesAddOp = rewriter.create<IE::AddOp>(
-            lstmCell->getLoc(), matMulInputOp.output(), lstmCell.biases(),
-            IE::AutoBroadcastTypeAttr::get(getContext(), IE::AutoBroadcastType::NUMPY), nullptr);
+            lstmCell->getLoc(), matMulInputOp.getOutput(), lstmCell.getBiases(),
+            IE::AutoBroadcastTypeAttr::get(getContext(), IE::AutoBroadcastType::NUMPY), nullptr, nullptr);
     auto lstmGatesInputOp = rewriter.create<IE::AddOp>(
-            lstmCell->getLoc(), biasesAddOp.output(), matMulHiddenStateOp.output(),
-            IE::AutoBroadcastTypeAttr::get(getContext(), IE::AutoBroadcastType::NONE_OR_EXPLICIT), nullptr);
+            lstmCell->getLoc(), biasesAddOp.getOutput(), matMulHiddenStateOp.getOutput(),
+            IE::AutoBroadcastTypeAttr::get(getContext(), IE::AutoBroadcastType::NONE_OR_EXPLICIT), nullptr, nullptr);
 
-    rewriter.replaceOpWithNewOp<IE::LSTMGatesOp>(lstmCell, lstmGatesInputOp.output(), lstmCell.initialCellState());
+    rewriter.replaceOpWithNewOp<IE::LSTMGatesOp>(lstmCell, lstmGatesInputOp.getOutput(),
+                                                 lstmCell.getInitialCellState());
 
     return mlir::success();
 }

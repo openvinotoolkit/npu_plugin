@@ -8,8 +8,6 @@
 
 #include "vpux/compiler/utils/rewriter.hpp"
 
-#include "vpux/utils/IE/loop.hpp"
-
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
@@ -38,12 +36,12 @@ private:
 
 mlir::LogicalResult ConvertQuantizeRewriter::matchAndRewrite(IE::QuantizeOp quantizeOp,
                                                              mlir::PatternRewriter& rewriter) const {
-    auto convertOp = quantizeOp.input().getDefiningOp<IE::ConvertOp>();
+    auto convertOp = quantizeOp.getInput().getDefiningOp<IE::ConvertOp>();
     if (convertOp == nullptr) {
         return mlir::failure();
     }
 
-    auto inElemType = convertOp.input().getType().cast<vpux::NDTypeInterface>().getElementType();
+    auto inElemType = convertOp.getInput().getType().cast<vpux::NDTypeInterface>().getElementType();
     if (!inElemType.isInteger(CHAR_BIT)) {
         return mlir::failure();
     }
@@ -51,7 +49,7 @@ mlir::LogicalResult ConvertQuantizeRewriter::matchAndRewrite(IE::QuantizeOp quan
     const double inDataScale = 1.0;
     const int64_t inDataZP = 0;
     mlir::quant::QuantizedType dstType;
-    auto originDstType = quantizeOp.dstElemType();
+    auto originDstType = quantizeOp.getDstElemType();
     if (const auto uniformType = originDstType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
         dstType = mlir::quant::UniformQuantizedType::getChecked(
                 quantizeOp.getLoc(), uniformType.isSigned(), uniformType.getStorageType(),
@@ -66,7 +64,7 @@ mlir::LogicalResult ConvertQuantizeRewriter::matchAndRewrite(IE::QuantizeOp quan
     } else {
         VPUX_THROW("Unsupported Quantized Type {0}", originDstType);
     }
-    rewriter.replaceOpWithNewOp<IE::QuantizeCastOp>(quantizeOp, convertOp.input(), dstType);
+    rewriter.replaceOpWithNewOp<IE::QuantizeCastOp>(quantizeOp, convertOp.getInput(), dstType);
     return mlir::success();
 }
 
@@ -90,7 +88,7 @@ private:
 
 mlir::LogicalResult DequantizeConvertRewriter::matchAndRewrite(IE::ConvertOp convertOp,
                                                                mlir::PatternRewriter& rewriter) const {
-    auto dequantizeOp = convertOp.input().getDefiningOp<IE::DequantizeOp>();
+    auto dequantizeOp = convertOp.getInput().getDefiningOp<IE::DequantizeOp>();
     if (dequantizeOp == nullptr) {
         return mlir::failure();
     }
@@ -102,9 +100,9 @@ mlir::LogicalResult DequantizeConvertRewriter::matchAndRewrite(IE::ConvertOp con
 
     _log.trace("Fusing operations: '{1}' and '{2}'", dequantizeOp->getName(), convertOp->getName());
 
-    auto originDstType = convertOp.dstElemType();
+    auto originDstType = convertOp.getDstElemType();
 
-    rewriter.replaceOpWithNewOp<IE::QuantizeCastOp>(convertOp, dequantizeOp.input(), originDstType);
+    rewriter.replaceOpWithNewOp<IE::QuantizeCastOp>(convertOp, dequantizeOp.getInput(), originDstType);
 
     return mlir::success();
 }

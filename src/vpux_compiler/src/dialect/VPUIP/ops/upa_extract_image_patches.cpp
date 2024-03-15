@@ -5,9 +5,6 @@
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/utils/error.hpp"
-
-#include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
 
@@ -16,19 +13,19 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ExtractImagePatchesUPAOp::serialize
 
     MVCNN::ExtractImagePatchesPadMode vpux_padding;
 
-    if (this->autoPad() == IE::PadType::SAME_UPPER) {
+    if (this->getAutoPad() == IE::PadType::SAME_UPPER) {
         vpux_padding = MVCNN::ExtractImagePatchesPadMode::ExtractImagePatchesPadMode_SAME_UPPER;
-    } else if (this->autoPad() == IE::PadType::SAME_LOWER) {
+    } else if (this->getAutoPad() == IE::PadType::SAME_LOWER) {
         vpux_padding = MVCNN::ExtractImagePatchesPadMode::ExtractImagePatchesPadMode_SAME_LOWER;
-    } else if (this->autoPad() == IE::PadType::VALID) {
+    } else if (this->getAutoPad() == IE::PadType::VALID) {
         vpux_padding = MVCNN::ExtractImagePatchesPadMode::ExtractImagePatchesPadMode_VALID;
     } else {
-        VPUX_THROW("Unsupported pad type {0}", this->autoPad());
+        VPUX_THROW("Unsupported pad type {0}", this->getAutoPad());
     }
 
-    const auto sizes = parseIntArrayAttr<int64_t>(sizesAttr());
-    const auto strides = parseIntArrayAttr<int64_t>(stridesAttr());
-    const auto rates = parseIntArrayAttr<int64_t>(ratesAttr());
+    const auto sizes = parseIntArrayAttr<int64_t>(getSizesAttr());
+    const auto strides = parseIntArrayAttr<int64_t>(getStridesAttr());
+    const auto rates = parseIntArrayAttr<int64_t>(getRatesAttr());
 
     builder.add_sizeRows(checked_cast<int32_t>(sizes[0]));
     builder.add_sizeCols(checked_cast<int32_t>(sizes[1]));

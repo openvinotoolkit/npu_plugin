@@ -4,11 +4,6 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
-
-#include "vpux/compiler/utils/logging.hpp"
-#include "vpux/utils/core/range.hpp"
 
 using namespace vpux;
 

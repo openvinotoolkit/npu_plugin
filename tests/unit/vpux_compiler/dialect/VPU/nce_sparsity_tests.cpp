@@ -3,12 +3,13 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
-#include "vpux/compiler/dialect/VPU/ops.hpp"
-#include "vpux/compiler/dialect/VPU/sparsity_strategy.hpp"
-#include "vpux/compiler/dialect/VPU/types.hpp"
+#include "vpux/compiler/dialect/VPU/IR/ops.hpp"
+#include "vpux/compiler/dialect/VPU/IR/types.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_sparsity.hpp"
+#include "vpux/compiler/dialect/VPU/utils/strategy_manager/sparsity_strategy.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/init.hpp"
+#include "vpux/compiler/utils/sparsity.hpp"
 
 #include "vpux/utils/core/mem_size.hpp"
 #include "vpux/utils/core/small_vector.hpp"
@@ -25,7 +26,7 @@ using namespace VPU::NCESparsity;
 
 namespace {
 
-mlir::Operation* createConstOp(mlir::MLIRContext* context, const std::initializer_list<int64_t>& rawShape,
+Const::DeclareOp createConstOp(mlir::MLIRContext* context, const std::initializer_list<int64_t>& rawShape,
                                double ratio) {
     const Shape shape(rawShape);
     const auto dataType = mlir::RankedTensorType::get(shape.raw(), mlir::Float32Type::get(context));
@@ -39,6 +40,12 @@ mlir::Operation* createConstOp(mlir::MLIRContext* context, const std::initialize
     mlir::OpBuilder builder(context);
     return builder.create<Const::DeclareOp>(mlir::UnknownLoc::get(context), dataType,
                                             Const::ContentAttr::get(dataAttr));
+}
+
+SmallVector<int64_t> getNumElemsPerOC(Const::DeclareOp constOp) {
+    const auto content = constOp.getContent();
+    const auto elemType = content.getType().getElementType();
+    return vpux::countNonSparseElementsPerOC(content, elemType);
 }
 
 std::unique_ptr<BaseWeightsSparsityStrategy> getRatioBasedStrategy(
@@ -74,15 +81,19 @@ void ratioBasedStrategyTestTemplate(double threshold, bool isFloat, mlir::Dialec
 
     const auto defaultFloatRatioThreshold = ThresholdPair(threshold);
 
-    const auto lowSparsity =
-            createConstOp(&ctx, {1, 64, 32, 32}, defaultFloatRatioThreshold._lowerThreshold)->getResult(0);
-    const auto highSparsity =
-            createConstOp(&ctx, {1, 64, 32, 32}, defaultFloatRatioThreshold._upperThreshold)->getResult(0);
+    auto lowSparsity = createConstOp(&ctx, {1, 64, 32, 32}, defaultFloatRatioThreshold._lowerThreshold);
+    auto highSparsity = createConstOp(&ctx, {1, 64, 32, 32}, defaultFloatRatioThreshold._upperThreshold);
+    const auto lowSparsityType = lowSparsity.getType().cast<vpux::NDTypeInterface>();
+    const auto highSparsityType = highSparsity.getType().cast<vpux::NDTypeInterface>();
+    const auto lowSparsityNumElems = getNumElemsPerOC(lowSparsity);
+    const auto highSparsityNumElems = getNumElemsPerOC(highSparsity);
 
     // LOWER_FLOAT_THRESHOLD < threshold -> no sparsity
-    EXPECT_EQ(getRatioBasedStrategy()->shouldSparsifyWeights(log, lowSparsity, isFloat), false);
+    EXPECT_EQ(getRatioBasedStrategy()->shouldSparsifyWeights(log, lowSparsityType, lowSparsityNumElems, isFloat),
+              false);
     // UPPER_FLOAT_THRESHOLD > threshold -> enable sparsity
-    EXPECT_EQ(getRatioBasedStrategy()->shouldSparsifyWeights(log, highSparsity, isFloat), true);
+    EXPECT_EQ(getRatioBasedStrategy()->shouldSparsifyWeights(log, highSparsityType, highSparsityNumElems, isFloat),
+              true);
 }
 
 TEST_F(MLIR_WeightsSparsity, RatioBasedStrategyFloatInput) {
@@ -106,13 +117,22 @@ TEST_F(MLIR_WeightsSparsity, CMXBasedStrategy) {
                     "CMX_BASED_STRATEGY_DEFAULT_INTERVALS should contain at least 2 intervals and first of them should "
                     "disable sparsity");
 
-    const auto lightWeightAlmostDense = createConstOp(&ctx, {1, 1, 32, 32}, 0.01)->getResult(0);
-    const auto lightWeightAlmostSparse = createConstOp(&ctx, {1, 1, 32, 32}, 0.99)->getResult(0);
+    auto lightWeightAlmostDense = createConstOp(&ctx, {1, 1, 32, 32}, 0.01);
+    auto lightWeightAlmostSparse = createConstOp(&ctx, {1, 1, 32, 32}, 0.99);
+    const auto lightWeightAlmostDenseType = lightWeightAlmostDense.getType().cast<vpux::NDTypeInterface>();
+    const auto lightWeightAlmostSparseType = lightWeightAlmostSparse.getType().cast<vpux::NDTypeInterface>();
+    const auto lightWeightAlmostDenseNumElems = getNumElemsPerOC(lightWeightAlmostDense);
+    const auto lightWeightAlmostSparseNumElems = getNumElemsPerOC(lightWeightAlmostSparse);
+
     const auto bigCMX = static_cast<int64_t>(4. * 32. * 32. / (firstInterval._cmxSizeRatio + 0.0001) * 2.);
 
     // No sparsity regardless to content in first interval
-    EXPECT_EQ(getCMXBasedStrategy(bigCMX)->shouldSparsifyWeights(log, lightWeightAlmostDense, true), false);
-    EXPECT_EQ(getCMXBasedStrategy(bigCMX)->shouldSparsifyWeights(log, lightWeightAlmostSparse, true), false);
+    EXPECT_EQ(getCMXBasedStrategy(bigCMX)->shouldSparsifyWeights(log, lightWeightAlmostDenseType,
+                                                                 lightWeightAlmostDenseNumElems, true),
+              false);
+    EXPECT_EQ(getCMXBasedStrategy(bigCMX)->shouldSparsifyWeights(log, lightWeightAlmostSparseType,
+                                                                 lightWeightAlmostSparseNumElems, true),
+              false);
 
     auto it = CMX_BASED_STRATEGY_DEFAULT_INTERVALS.begin();
     const auto end = CMX_BASED_STRATEGY_DEFAULT_INTERVALS.end();
@@ -125,9 +145,14 @@ TEST_F(MLIR_WeightsSparsity, CMXBasedStrategy) {
         // 5-50% => weights should have 22% of CMX size
         const auto cmxSize = static_cast<int64_t>(4 * 32. * 32. / targetCMXRatio);
 
-        const auto denseOp = createConstOp(&ctx, {1, 1, 32, 32}, sparsityThreshold._lowerThreshold)->getResult(0);
-        EXPECT_EQ(getCMXBasedStrategy(cmxSize)->shouldSparsifyWeights(log, denseOp, false), false);
-        const auto sparseOp = createConstOp(&ctx, {1, 1, 32, 32}, sparsityThreshold._upperThreshold)->getResult(0);
-        EXPECT_EQ(getCMXBasedStrategy(cmxSize)->shouldSparsifyWeights(log, sparseOp, false), true);
+        auto denseOp = createConstOp(&ctx, {1, 1, 32, 32}, sparsityThreshold._lowerThreshold);
+        const auto denseType = denseOp.getType().cast<vpux::NDTypeInterface>();
+        const auto denseNumElems = getNumElemsPerOC(denseOp);
+        EXPECT_EQ(getCMXBasedStrategy(cmxSize)->shouldSparsifyWeights(log, denseType, denseNumElems, false), false);
+
+        auto sparseOp = createConstOp(&ctx, {1, 1, 32, 32}, sparsityThreshold._upperThreshold);
+        const auto sparseType = sparseOp.getType().cast<vpux::NDTypeInterface>();
+        const auto sparseNumElems = getNumElemsPerOC(sparseOp);
+        EXPECT_EQ(getCMXBasedStrategy(cmxSize)->shouldSparsifyWeights(log, sparseType, sparseNumElems, false), true);
     }
 }

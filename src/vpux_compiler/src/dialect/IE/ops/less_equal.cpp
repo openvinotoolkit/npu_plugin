@@ -9,8 +9,8 @@
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::LessEqualOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -19,11 +19,11 @@ mlir::LogicalResult vpux::IE::LessEqualOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto in1Type = lessEqual.input1().getType().cast<mlir::ShapedType>();
-    const auto in2Type = lessEqual.input2().getType().cast<mlir::ShapedType>();
+    const auto in1Type = lessEqual.getInput1().getType().cast<mlir::ShapedType>();
+    const auto in2Type = lessEqual.getInput2().getType().cast<mlir::ShapedType>();
 
     const auto outShapeRes =
-            IE::broadcastEltwiseShape(in1Type.getShape(), in2Type.getShape(), lessEqual.auto_broadcast(), loc);
+            IE::broadcastEltwiseShape(in1Type.getShape(), in2Type.getShape(), lessEqual.getAutoBroadcast(), loc);
 
     if (mlir::succeeded(outShapeRes)) {
         inferredReturnShapes.emplace_back(outShapeRes.value(), in1Type.getElementType());

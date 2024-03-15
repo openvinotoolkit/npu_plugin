@@ -6,9 +6,6 @@
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
-#include "vpux/compiler/core/cost_model_utils.hpp"
-#include "vpux/compiler/dialect/VPU/cost_model.hpp"
-
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
@@ -35,12 +32,8 @@ private:
 
 class InlineAsyncRegion final : public mlir::OpConversionPattern<mlir::async::ExecuteOp> {
 public:
-    InlineAsyncRegion(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log, VPU::ArchKind arch,
-                      std::shared_ptr<VPUNN::VPUCostModel> costModel)
-            : mlir::OpConversionPattern<mlir::async::ExecuteOp>(typeConverter, ctx),
-              _log(log),
-              _arch(arch),
-              _costModel(std::move(costModel)) {
+    InlineAsyncRegion(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<mlir::async::ExecuteOp>(typeConverter, ctx), _log(log) {
     }
 
 public:
@@ -49,8 +42,6 @@ public:
 
 private:
     Logger _log;
-    VPU::ArchKind _arch;
-    std::shared_ptr<VPUNN::VPUCostModel> _costModel;
 };
 
 mlir::LogicalResult InlineAsyncRegion::matchAndRewrite(mlir::async::ExecuteOp execOp, OpAdaptor newArgs,
@@ -64,70 +55,65 @@ mlir::LogicalResult InlineAsyncRegion::matchAndRewrite(mlir::async::ExecuteOp ex
 
     _log.nest(1).trace("Traverse 'async.execute' body");
 
-    SmallVector<mlir::Operation*> ops;
+    SmallVector<mlir::Operation*> ops, declareBufferOps;
     for (auto& op : execOp.getBody()->without_terminator()) {
         if (!mlir::isa<VPURT::DeclareBufferOp>(op)) {
             ops.push_back(&op);
+        } else {
+            declareBufferOps.push_back(&op);
         }
     }
 
-    bool hasCycleCost = execOp->hasAttr(cycleBegin) && execOp->hasAttr(cycleEnd);
-    bool singleNestedOp = ops.size() == 1;
-    size_t currentStart = 0;
-    if (hasCycleCost) {
-        currentStart = checked_cast<size_t>(execOp->getAttrOfType<mlir::IntegerAttr>(cycleBegin).getInt());
+    for (auto op : declareBufferOps) {
+        op->moveBefore(execOp);
     }
+
+    auto blockArgs = execOp.getBody()->getArguments();
 
     for (auto op : ops) {
         mlir::SmallVector<mlir::Value> waitBarriers, updateBarriers;
-        if (!newArgs.dependencies().empty()) {
+        if (!newArgs.getDependencies().empty()) {
             _log.nest(3).trace("Append it's wait barrier list");
-            waitBarriers.append(newArgs.dependencies().begin(), newArgs.dependencies().end());
+            waitBarriers.append(newArgs.getDependencies().begin(), newArgs.getDependencies().end());
         }
-        if (!execOp.token().use_empty()) {
+        if (!execOp.getToken().use_empty()) {
             _log.nest(3).trace("Append it's update barrier list");
             updateBarriers.push_back(barrierOp.getBarrier());
         }
 
-        rewriter.setInsertionPoint(op);
-        auto taskOp = rewriter.create<VPURT::TaskOp>(op->getLoc(), waitBarriers, updateBarriers);
+        auto taskOp = rewriter.create<VPURT::TaskOp>(execOp.getLoc(), waitBarriers, updateBarriers);
         auto& block = taskOp.getBody().emplaceBlock();
-        op->moveBefore(&block, block.end());
-
-        if (!hasCycleCost) {
-            continue;
-        }
-
-        if (singleNestedOp) {
-            taskOp->setAttr(cycleBegin, execOp->getAttr(cycleBegin));
-            taskOp->setAttr(cycleEnd, execOp->getAttr(cycleEnd));
-        } else {
-            if (auto tilingOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(op)) {
-                op = tilingOp.getInnerTaskOp();
+        // If the operation has operand from its block. Need to reset it to Execute operand.
+        auto opInputs = op->getOperands();
+        for (unsigned int idx = 0; idx < opInputs.size(); idx++) {
+            auto input = opInputs[idx];
+            for (auto arg : blockArgs) {
+                if (input == arg) {
+                    op->setOperand(idx, newArgs.getBodyOperands()[arg.getArgNumber()]);
+                    break;
+                }
             }
-            VPUX_THROW_UNLESS(mlir::isa<VPUIP::DMATypeOpInterface>(op),
-                              "Found unsupported operation nested inside async.execute: {0}", *op);
-            size_t dmaCost = calculateCopyCycles(op, _arch, _costModel);
-            taskOp->setAttr(cycleBegin, getIntAttr(taskOp->getContext(), currentStart));
-            taskOp->setAttr(cycleCostAttrName, getIntAttr(taskOp->getContext(), dmaCost));
-            taskOp->setAttr(cycleEnd, getIntAttr(taskOp->getContext(), currentStart + dmaCost));
-            currentStart += dmaCost;
         }
+        op->moveBefore(&block, block.end());
     }
-    if (!singleNestedOp && hasCycleCost) {
-        auto execOpCycleEnd = checked_cast<size_t>(execOp->getAttrOfType<mlir::IntegerAttr>(cycleEnd).getInt());
-        VPUX_THROW_UNLESS(currentStart == execOpCycleEnd,
-                          "Calculated operation cost doesn't add up to expected: {0} != {1}", currentStart,
-                          execOpCycleEnd);
+
+    // Same goes to 'yieldOp', need to reset respective 'blockArg' to Execute operand.
+    auto opInputs = yieldOp->getOperands();
+    for (unsigned int idx = 0; idx < opInputs.size(); idx++) {
+        auto input = opInputs[idx];
+        for (auto arg : blockArgs) {
+            if (input == arg) {
+                yieldOp->setOperand(idx, newArgs.getBodyOperands()[arg.getArgNumber()]);
+                break;
+            }
+        }
     }
 
     SmallVector<mlir::Value> newResults;
     newResults.reserve(execOp->getNumResults());
     newResults.push_back(barrierOp.getBarrier());
-    newResults.append(yieldOp.operands().begin(), yieldOp.operands().end());
+    newResults.append(yieldOp.getOperands().begin(), yieldOp.getOperands().end());
 
-    rewriter.eraseOp(yieldOp);
-    rewriter.mergeBlockBefore(execOp.getBody(), execOp, newArgs.operands());
     rewriter.replaceOp(execOp, newResults);
 
     return mlir::success();
@@ -153,11 +139,11 @@ private:
 
 mlir::LogicalResult RemoveWait::matchAndRewrite(mlir::async::AwaitOp waitOp, OpAdaptor newArgs,
                                                 mlir::ConversionPatternRewriter& rewriter) const {
-    VPUX_THROW_UNLESS(waitOp.result() != nullptr, "'async.await' Operation without result is not supported");
+    VPUX_THROW_UNLESS(waitOp.getResult() != nullptr, "'async.await' Operation without result is not supported");
 
     // Pure view like operation were replaced with DeclareTensorOp
     // so the remaining Await ops have no users
-    if (waitOp.result().use_empty()) {
+    if (waitOp.getResult().use_empty()) {
         rewriter.eraseOp(waitOp);
         return mlir::success();
     }
@@ -165,11 +151,11 @@ mlir::LogicalResult RemoveWait::matchAndRewrite(mlir::async::AwaitOp waitOp, OpA
     // If you faced with "'async.await' has more than one consumer" make sure you add your layer
     // into src/vpux_compiler/src/dialect/VPUIP/ops.cpp `redirectOpInterfacesForIE(...)`
     // and `redirectOpInterfacesForIERT(...)`
-    VPUX_THROW_UNLESS(waitOp.result().hasOneUse(), "'async.await' doesn't have only one consumer");
-    VPUX_THROW_UNLESS(mlir::isa<mlir::func::ReturnOp>(*waitOp.result().user_begin()),
+    VPUX_THROW_UNLESS(waitOp.getResult().hasOneUse(), "'async.await' doesn't have only one consumer");
+    VPUX_THROW_UNLESS(mlir::isa<mlir::func::ReturnOp>(*waitOp.getResult().user_begin()),
                       "'async.await' has non 'return' consumer");
 
-    rewriter.replaceOp(waitOp, newArgs.operand());
+    rewriter.replaceOp(waitOp, newArgs.getOperand());
     return mlir::success();
 }
 
@@ -181,7 +167,6 @@ void ConvertAsyncOpsToTasksPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     auto func = getOperation();
-    auto module = func->getParentOfType<mlir::ModuleOp>();
 
     mlir::TypeConverter typeConverter;
 
@@ -211,10 +196,8 @@ void ConvertAsyncOpsToTasksPass::safeRunOnFunc() {
         return true;
     });
 
-    const auto arch = VPU::getArch(module);
-    const auto costModel = VPU::createCostModel(arch);
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<InlineAsyncRegion>(typeConverter, &ctx, _log, arch, costModel);
+    patterns.add<InlineAsyncRegion>(typeConverter, &ctx, _log);
     patterns.add<RemoveWait>(typeConverter, &ctx, _log);
 
     if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {

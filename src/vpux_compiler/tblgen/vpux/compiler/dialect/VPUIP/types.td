@@ -12,8 +12,6 @@ include "vpux/compiler/dialect/VPU/type_interfaces.td"
 include "vpux/compiler/dialect/VPU/attributes.td"
 include "vpux/compiler/core/type_interfaces.td"
 
-include "mlir/IR/SubElementInterfaces.td"
-
 // Base class for VPUIP dialect types.
 class VPUIP_Type<string name, list<Trait> traits = []>
     : TypeDef<VPUIP_Dialect, name, traits> {
@@ -74,7 +72,6 @@ def VPUIP_DistributedBuffer :
         VPUIP_Type<
             "DistributedBuffer",
             [
-                DeclareTypeInterfaceMethods<SubElementTypeInterface>,
                 DeclareTypeInterfaceMethods<NDTypeInterface>,
                 DeclareTypeInterfaceMethods<ClusterTypeInterface>,
                 VPU_DistributedTypeInterface
@@ -132,7 +129,10 @@ def VPUIP_SparseBuffer :
             [
                 GroupedTypeInterface,
                 DeclareTypeInterfaceMethods<NDTypeInterface>,
-                DeclareTypeInterfaceMethods<VPU_DistributedTypeInterface, ["containsDistributedTypes", "getDistributedTypes"]>
+                DeclareTypeInterfaceMethods<VPU_DistributedTypeInterface,
+                    ["containsDistributedTypes", "getDistributedTypes", "changeShapeForExplicitDistribution",
+                     "changeShapeElemTypeForExplicitDistribution", "changeTypeComponentsForExplicitDistribution",
+                     "extractDenseTileForExplicitDistribution", "extractViewTileForExplicitDistribution"]>
             ]
         > {
     let summary = "VPUIP Sparse Buffer Type";

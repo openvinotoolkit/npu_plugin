@@ -5,14 +5,13 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
-#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::ROIAlignOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -21,12 +20,12 @@ mlir::LogicalResult vpux::IE::ROIAlignOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto pooled_h = roiAlign.pooled_h();
-    const auto pooled_w = roiAlign.pooled_w();
-    const auto inTypeFeatureMap = roiAlign.input().getType().cast<mlir::ShapedType>();
+    const auto pooled_h = roiAlign.getPooledH();
+    const auto pooled_w = roiAlign.getPooledW();
+    const auto inTypeFeatureMap = roiAlign.getInput().getType().cast<mlir::ShapedType>();
     const auto inShapeFeatureMap = inTypeFeatureMap.getShape();
 
-    const auto inTypeCoord = roiAlign.coords().getType().cast<mlir::ShapedType>();
+    const auto inTypeCoord = roiAlign.getCoords().getType().cast<mlir::ShapedType>();
     const auto inShapeCoord = inTypeCoord.getShape();
 
     if (inShapeFeatureMap.size() != 4) {

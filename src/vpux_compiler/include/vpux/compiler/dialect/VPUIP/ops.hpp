@@ -8,9 +8,9 @@
 #include "vpux/compiler/core/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/dialect/VPU/dialect.hpp"
-#include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/dialect.hpp"
+#include "vpux/compiler/dialect/VPU/IR/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/dialect.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPUIP/types.hpp"
@@ -48,6 +48,7 @@ constexpr KB SHAVE_LIB_DATA_SIZE = 112_KB;
 // According to the documentation, total transfer length (LEN) field is stored in 24 bits that means max value is 16MB
 constexpr Byte DMA_LIMIT = MB(16).to<Byte>() - Byte(1);
 constexpr int64_t CMX_DMA_MAX_NUM_PLANES_30XX_37XX = 255;
+// According to the documentation, size of the highest dimension is stored in 16 bits
 constexpr int64_t CMX_DMA_MAX_STRIDING_LEVEL_30XX_37XX = 2;
 
 }  // namespace VPUIP
@@ -62,19 +63,19 @@ namespace VPUIP {
 
 template <typename... Args>
 VPUIP::PPETaskOp NCEClusterTaskOp::addPPETask(mlir::OpBuilder& builder, Args&&... args) {
-    if (ppe().empty()) {
-        ppe().emplaceBlock();
+    if (getPpe().empty()) {
+        getPpe().emplaceBlock();
     }
 
     mlir::OpBuilder::InsertionGuard guard(builder);
-    builder.setInsertionPointToEnd(&ppe().front());
+    builder.setInsertionPointToEnd(&getPpe().front());
 
     return builder.create<VPUIP::PPETaskOp>(getLoc(), std::forward<Args>(args)...);
 }
 
 template <typename T>
 T vpux::VPUIP::NCEClusterTilingOp::getInnerTaskOpOfType() {
-    return mlir::dyn_cast<T>(&body().front().front());
+    return mlir::dyn_cast<T>(&getBody().front().front());
 }
 }  // namespace VPUIP
 }  // namespace vpux

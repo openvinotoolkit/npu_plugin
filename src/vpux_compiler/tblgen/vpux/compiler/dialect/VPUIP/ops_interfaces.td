@@ -9,6 +9,23 @@
 include "mlir/IR/OpBase.td"
 
 //
+// CycleCostInterface
+//
+
+def VPUIP_CycleCostInterface : OpInterface<"CycleCostInterface"> {
+    let description = "Interface for layers that will have ops to get cycle cost e.g mlir::async::ExecuteOp, TaskOp";
+    let cppNamespace = "vpux::VPUIP";
+
+    let methods = [
+        InterfaceMethod<
+            "GetCycle Cost",
+
+            "size_t", "getOperationCycleCost", (ins "std::shared_ptr<VPUNN::VPUCostModel>&":$costModel)
+        >
+    ];
+}
+
+//
 // LayerOpInterface
 //
 
@@ -88,9 +105,10 @@ class VPUIP_InferLayerReturnTypes<int numResult> {
     code impl = [{
         static mlir::LogicalResult inferReturnTypes(
                 mlir::MLIRContext*,
-                llvm::Optional<mlir::Location>,
+                std::optional<mlir::Location>,
                 mlir::ValueRange operands,
                 mlir::DictionaryAttr,
+                mlir::OpaqueProperties,
                 mlir::RegionRange,
                 llvm::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
             return vpux::VPUIP::inferLayerReturnTypes(operands, }] #numResult# [{, inferredReturnTypes);
@@ -134,7 +152,7 @@ def VPUIP_TaskOpInterface : OpInterface<"TaskOpInterface"> {
 // DMATypeOpInterface
 //
 
-def VPUIP_DMATypeOpInterface : OpInterface<"DMATypeOpInterface"> {
+def VPUIP_DMATypeOpInterface : OpInterface<"DMATypeOpInterface", [DeclareOpInterfaceMethods<VPUIP_CycleCostInterface>]> {
     let description = "Interface for DMA type layers";
 
     let cppNamespace = "vpux::VPUIP";
@@ -164,7 +182,7 @@ def VPUIP_DMATypeOpInterface : OpInterface<"DMATypeOpInterface"> {
         >,
         InterfaceMethod<
             "Get DMA port value",
-            "int64_t", "getPortVal", (ins),
+            "::std::optional<int64_t>", "getPortVal", (ins),
             [{}],
             [{
                 return $_op.getPort();
@@ -179,27 +197,19 @@ def VPUIP_DMATypeOpInterface : OpInterface<"DMATypeOpInterface"> {
             }]
         >,
         InterfaceMethod<
-            "Get DMA channel attr",
-            "VPUIP::DmaChannelTypeAttr", "getChannelTypeAttr", (ins),
-            [{}],
-            [{
-                return $_op.getChannelTypeAttr();
-            }]
-        >,
-        InterfaceMethod<
             "Get DMA channel value",
-            "::llvm::Optional<VPUIP::DmaChannelType>", "getChannelType", (ins),
+            "::std::optional<VPUIP::DmaChannelType>", "getChannelType", (ins),
             [{}],
             [{
-                return $_op.getChannelType();
+                return vpux::VPUIP::getChannelType($_op);
             }]
         >,
         InterfaceMethod<
-            "Set DMA channel attr",
-            "void", "setChannelTypeAttr", (ins "VPUIP::DmaChannelTypeAttr":$channelTypeAttr),
+            "Set Out Of Order attribute",
+            "void", "setOutOfOrder", (ins),
             [{}],
             [{
-                return $_op.setChannelTypeAttr(channelTypeAttr);
+                return $_op.setIsOutOfOrderAttr(mlir::UnitAttr::get($_op->getContext()));
             }]
         >,
         InterfaceMethod<
@@ -208,6 +218,38 @@ def VPUIP_DMATypeOpInterface : OpInterface<"DMATypeOpInterface"> {
             [{}],
             [{
                 return $_op.getInput();
+            }]
+        >,
+        InterfaceMethod<
+            "Get DMA output value",
+            "mlir::Value", "getOutput", (ins),
+            [{}],
+            [{
+                return $_op.getOutput();
+            }]
+        >,
+        InterfaceMethod<
+            "Set DMA profiling metadata attribute",
+            "void", "setProfilingMetadata", (ins "vpux::VPUIP::DmaProfilingMetadataAttr":$profAttr),
+            [{}],
+            [{
+                $_op.setProfilingMetadataAttr(profAttr);
+            }]
+        >,
+        InterfaceMethod<
+            "Get DMA output buffer value",
+            "mlir::Value", "getOutputBuff", (ins),
+            [{}],
+            [{
+                return $_op.getOutputBuff();
+            }]
+        >,
+        InterfaceMethod<
+            "Get DMA profiling metadata attribute",
+            "::std::optional<VPUIP::DmaProfilingMetadataAttr>", "getProfilingMetadata", (ins),
+            [{}],
+            [{
+                return $_op.getProfilingMetadata();
             }]
         >
     ];

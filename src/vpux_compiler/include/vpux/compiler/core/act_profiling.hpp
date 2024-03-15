@@ -15,7 +15,7 @@
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
-#include <mlir/IR/BlockAndValueMapping.h>
+#include <mlir/IR/IRMapping.h>
 
 #include <deque>
 #include <iterator>
@@ -33,19 +33,6 @@ unsigned countTasks(const SmallVector<std::pair<T, unsigned>>& vector) {
     });
 }
 
-// Create a string that should be placed as a suffix for operation name (Loc) with relevant metadata
-// allowing post processing tools to correctly interpret profiling data
-std::string createActShaveProfilingLocSuffix(size_t inDdrOffset, size_t clusterSize, size_t inClusterOffset,
-                                             Optional<size_t> tileId);
-
-// Gather profiling metadata from a profiled ActShave task
-// Returns tuple: (size_t inDdrOffset, size_t clusterSize, size_t inClusterOffset and optional tile id)
-std::tuple<size_t, size_t, size_t, Optional<size_t>> parseActShaveProfilingOffsets(mlir::Location loc);
-
-// Update already existing profiling metadata which is a suffix task Loc setting with new
-// offset. This is to be used when ActShave task with multiple SwKernelRun ops is being unrolled
-mlir::Location getUpdatedActShaveProfilingLoc(mlir::Location loc, size_t inClusterOffset);
-
 mlir::IntegerType getActShaveProfilingElementType(mlir::MLIRContext* ctx);
 
 // Base pure virtual class for handling ActShave profiling
@@ -53,11 +40,17 @@ class BaseActShaveProfiler {
 public:
     using ProfilingResults = SmallVector<std::pair<mlir::Value, unsigned>>;
 
+    static unsigned getNextBufferId();
+
+    // In case of tests same class may be called several times, so counter will be reused. Not a problem for parser, but
+    // for clarity better to reset
+    static void resetBufferIdCounter();
+
 private:
     // Return number of SwKernelRun tasks within this SwKernelOp
     static unsigned getNumProfiledTasks(VPUIP::SwKernelOp swOp) {
-        auto swKernelRunIt = swOp.body().getOps<VPUIP::SwKernelRun>();
-        return std::distance(swKernelRunIt.begin(), swKernelRunIt.end());
+        auto swKernelRunIt = swOp.getBody().getOps<VPUIP::SwKernelRun>();
+        return checked_cast<unsigned int>(std::distance(swKernelRunIt.begin(), swKernelRunIt.end()));
     }
 
 public:
@@ -94,7 +87,7 @@ protected:
 
     // Replace a Actshave task with new one that has profiling output set
     virtual mlir::Value replaceOpWithProfiledOp(VPUIP::SwKernelOp origSwTask, mlir::Value profilingBuffer,
-                                                mlir::Location loc) = 0;
+                                                mlir::Location loc, VPUIP::SwProfilingMetadataAttr profMeta) = 0;
 
     SWTaskSignature getTaskSignature(VPUIP::SwKernelOp swOp) const;
 
@@ -112,6 +105,9 @@ protected:
     vpux::IndexedSymbolAttr _memKindAttr;
     vpux::Logger& _log;
     std::shared_ptr<NameUniqifier> _uniqifier;
+
+private:
+    static inline unsigned uniqBufferId = 0;
 };
 
 // Class for handling ActShave profiling if none of Actshave tasks in the model is multiclustered.
@@ -139,8 +135,8 @@ protected:
                                 int64_t numTasks) override;
 
     // Replace a Actshave task with new one that has profiling output set
-    mlir::Value replaceOpWithProfiledOp(VPUIP::SwKernelOp origSwTask, mlir::Value profilingBuffer,
-                                        mlir::Location loc) override;
+    mlir::Value replaceOpWithProfiledOp(VPUIP::SwKernelOp origSwTask, mlir::Value profilingBuffer, mlir::Location loc,
+                                        VPUIP::SwProfilingMetadataAttr profMeta) override;
 };
 
 // Class for handling ActShave profiling if at least one of ActShave tasks in the model is multiclustered.
@@ -172,8 +168,8 @@ protected:
 
     // Replace a Actshave task with new one that has profiling output set. If this task is not multiclustered
     // then additional cast (ViewOp) is inserted for profiling slot to maintain type compatibility
-    mlir::Value replaceOpWithProfiledOp(VPUIP::SwKernelOp origSwTask, mlir::Value profilingBuffer,
-                                        mlir::Location loc) override;
+    mlir::Value replaceOpWithProfiledOp(VPUIP::SwKernelOp origSwTask, mlir::Value profilingBuffer, mlir::Location loc,
+                                        VPUIP::SwProfilingMetadataAttr profMeta) override;
 };
 
 }  // namespace vpux

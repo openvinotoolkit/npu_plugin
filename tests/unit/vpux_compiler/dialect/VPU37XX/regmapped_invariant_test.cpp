@@ -5,9 +5,11 @@
 
 #include <gtest/gtest.h>
 
+#include <npu_37xx_nnrt.hpp>
 #include "common/utils.hpp"
-#include "vpux/compiler/dialect/VPU37XX/api/vpu_nnrt_api_37xx.h"
 #include "vpux/compiler/dialect/VPU37XX/types.hpp"
+
+using namespace npu37xx;
 
 struct Vpu37XXDPUInvariant {
     nn_public::VpuDPUInvariant invReg;
@@ -542,13 +544,13 @@ std::vector<std::pair<MappedRegValues, Vpu37XXDPUInvariant>> dpuInvariantFieldSe
          CREATE_HW_DPU_INVARIANT_DESC(invReg.barriers_.mask_, 0xFF)},
         // barriers_sched_ ---------------------------------------------------------------------
         {{
-                 {"barriers_sched_", {{"start_after_", 0xFFFF}}},
+                 {"barriers_sched_", {{"start_after_", 0xFFFFFFFF}}},
          },
-         CREATE_HW_DPU_INVARIANT_DESC(invReg.barriers_sched_.start_after_, 0xFFFF)},
+         CREATE_HW_DPU_INVARIANT_DESC(invReg.barriers_sched_.start_after_, 0xFFFFFFFF)},
         {{
-                 {"barriers_sched_", {{"clean_after_", 0xFFFF}}},
+                 {"barriers_sched_", {{"clean_after_", 0xFFFFFFFF}}},
          },
-         CREATE_HW_DPU_INVARIANT_DESC(invReg.barriers_sched_.clean_after_, 0xFFFF)},
+         CREATE_HW_DPU_INVARIANT_DESC(invReg.barriers_sched_.clean_after_, 0xFFFFFFFF)},
         // variant_count_ ---------------------------------------------------------------------
         {{
                  {"variant_count_", {{"variant_count_", 0xFFFF}}},

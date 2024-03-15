@@ -5,8 +5,6 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
-#include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
-
 using namespace vpux;
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EmbeddingBagOffsetsSumUPAOp::serialize(VPUIP::BlobWriter& writer) {
@@ -20,15 +18,15 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EmbeddingBagOffsetsSumUPAOp::serial
     };
 
     VPUIP::BlobWriter::Vector<uint16_t> serializedWeights;
-    const auto weightsArr = parseFPArrayAttr<double>(weights_value());
-    const auto indices = writer.createVector(parseIntArrayAttr<int32_t>(indices_value()));
-    const auto offsets = writer.createVector(parseIntArrayAttr<int32_t>(offsets_value()));
+    const auto weightsArr = parseFPArrayAttr<double>(getWeightsValue());
+    const auto indices = writer.createVector(parseIntArrayAttr<int32_t>(getIndicesValue()));
+    const auto offsets = writer.createVector(parseIntArrayAttr<int32_t>(getOffsetsValue()));
     serializedWeights = getVecFP16(weightsArr);
 
     MVCNN::EmbeddingBagOffsetsSumParamsBuilder builder(writer);
     builder.add_indices(indices);
     builder.add_offsets(offsets);
-    builder.add_default_index(checked_cast<int32_t>(default_index_value()));
+    builder.add_default_index(checked_cast<int32_t>(getDefaultIndexValue()));
     builder.add_weights(serializedWeights);
     const auto paramsOff = builder.Finish();
     return writer.createUPALayerTask(*this,

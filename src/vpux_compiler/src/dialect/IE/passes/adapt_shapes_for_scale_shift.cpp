@@ -8,7 +8,6 @@
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IE/utils/const_attributes.hpp"
-#include "vpux/compiler/utils/strings.hpp"
 
 using namespace vpux;
 
@@ -47,13 +46,13 @@ mlir::LogicalResult BroadcastEltwiseRewriter<EltwiseOp>::matchAndTranspose(Eltwi
     const auto origOpLoc = origOp.getLoc();
 
     // Reshape NxM input to 1xNxMx1
-    const auto lhsType = origOp.input1().getType().template cast<vpux::NDTypeInterface>();
+    const auto lhsType = origOp.getInput1().getType().template cast<vpux::NDTypeInterface>();
     const auto lhsShape = lhsType.getShape();
     const std::array<int64_t, 4> lhs4D = {1, lhsShape[Dim(broadcastAxis - 1)], lhsShape[Dim(broadcastAxis)], 1};
     const auto reshapedLhsType = lhsType.changeShape(ShapeRef(lhs4D));
     const auto reshapedLhsLoc = appendLoc(origOpLoc, "reshape_lhs");
-    auto reshapedLhs = rewriter.create<IE::ReshapeOp>(reshapedLhsLoc, reshapedLhsType, origOp.input1(), nullptr, false,
-                                                      getIntArrayAttr(ctx, ShapeRef(lhs4D)));
+    auto reshapedLhs = rewriter.create<IE::ReshapeOp>(reshapedLhsLoc, reshapedLhsType, origOp.getInput1(), nullptr,
+                                                      false, getIntArrayAttr(ctx, ShapeRef(lhs4D)));
     _log.trace("[{0}]: reshaped LHS: {1}", this->getDebugName(), reshapedLhsLoc);
 
     // Transpose 1xNxMx1 input 1xMxNx1
@@ -64,18 +63,18 @@ mlir::LogicalResult BroadcastEltwiseRewriter<EltwiseOp>::matchAndTranspose(Eltwi
     _log.trace("[{0}]: transposed LHS: {1}", this->getDebugName(), transposeLhsLoc);
 
     // Reshape 1xM input to 1xMx1x1
-    const auto rhsType = origOp.input2().getType().template cast<vpux::NDTypeInterface>();
+    const auto rhsType = origOp.getInput2().getType().template cast<vpux::NDTypeInterface>();
     const auto rhsShape = rhsType.getShape();
     const std::array<int64_t, 4> rhs4D = {1, rhsShape[Dim(broadcastAxis)], 1, 1};
     const auto reshapedRhsType = rhsType.changeShape(ShapeRef(rhs4D));
     const auto reshapedRhsLoc = appendLoc(origOpLoc, "reshape_rhs");
-    auto reshapedRhs = rewriter.create<IE::ReshapeOp>(reshapedRhsLoc, reshapedRhsType, origOp.input2(), nullptr, false,
-                                                      getIntArrayAttr(ctx, ShapeRef(rhs4D)));
+    auto reshapedRhs = rewriter.create<IE::ReshapeOp>(reshapedRhsLoc, reshapedRhsType, origOp.getInput2(), nullptr,
+                                                      false, getIntArrayAttr(ctx, ShapeRef(rhs4D)));
     _log.trace("[{0}]: reshaped RHS: {1}", this->getDebugName(), reshapedRhs);
 
     // Create new IE.Add operation
-    auto newOp = rewriter.create<EltwiseOp>(origOp->getLoc(), transposedLhs, reshapedRhs, origOp.auto_broadcast(),
-                                            origOp.post_opAttr());
+    auto newOp = rewriter.create<EltwiseOp>(origOp->getLoc(), transposedLhs, reshapedRhs, origOp.getAutoBroadcast(),
+                                            origOp.getPostOpAttr(), origOp.getClampAttr());
     _log.trace("[{0}]: new element-wise: {1}", this->getDebugName(), newOp);
 
     // Transpose the 1xMxNx1 output to 1xNxMx1
@@ -86,15 +85,15 @@ mlir::LogicalResult BroadcastEltwiseRewriter<EltwiseOp>::matchAndTranspose(Eltwi
     _log.trace("[{0}]: transposed output: {1}", this->getDebugName(), transposedOut);
 
     // Reshape 1xNxMx1 output to NxM
-    const auto reshapedOutType = origOp.output().getType().template cast<vpux::NDTypeInterface>();
+    const auto reshapedOutType = origOp.getOutput().getType().template cast<vpux::NDTypeInterface>();
     const auto outputShape = reshapedOutType.getShape();
     const auto reshapedOutLoc = appendLoc(origOpLoc, "reshape_out");
-    auto reshapedOut = rewriter.create<IE::ReshapeOp>(reshapedOutLoc, reshapedOutType, transposedOut.output(), nullptr,
-                                                      false, getIntArrayAttr(ctx, outputShape));
+    auto reshapedOut = rewriter.create<IE::ReshapeOp>(reshapedOutLoc, reshapedOutType, transposedOut.getOutput(),
+                                                      nullptr, false, getIntArrayAttr(ctx, outputShape));
 
     _log.trace("[{0}]: reshaped output: {1}", this->getDebugName(), reshapedOut);
 
-    rewriter.replaceOp(origOp, reshapedOut.output());
+    rewriter.replaceOp(origOp, reshapedOut.getOutput());
 
     return mlir::success();
 }
@@ -193,16 +192,6 @@ private:
 private:
     Logger _log;
 };
-
-SmallVector<Dim> getNonOneDim(ShapeRef inputShape) {
-    SmallVector<Dim> nonOneDims;
-    for (auto index : irange(inputShape.size())) {
-        if (inputShape[Dim(index)] != 1) {
-            nonOneDims.push_back(Dim(index));
-        }
-    }
-    return nonOneDims;
-}
 
 SmallVector<mlir::Value> getActInputs(mlir::Operation* eltwiseOp) {
     SmallVector<mlir::Value> actInputs;

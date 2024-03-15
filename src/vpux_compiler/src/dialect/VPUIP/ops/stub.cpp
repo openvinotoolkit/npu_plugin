@@ -4,7 +4,6 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/utils/error.hpp"
 
 using namespace vpux;
 
@@ -14,5 +13,5 @@ mlir::Value VPUIP::StubOp::getViewSource() {
     // In the case of ViewLikeOpInterface, getViewSource returns the associated input buffer for the single output
     // buffer, but this doesn't fully cover our Stub Operation, which supports any combination of inputs and outputs.
     // For now, we use this approach.
-    return inputs()[0];
+    return getInputs()[0];
 }

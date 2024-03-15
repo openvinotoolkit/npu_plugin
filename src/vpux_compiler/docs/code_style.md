@@ -380,7 +380,7 @@ So we get a dangling pointer:
         inputShape = computerShape.tiles[0].shape; // 'inputShape' stores a copy of field of local variable
     }
 
-    return isSOHSupportedByDPU(inputShape, _numClusters, false, VPU::getArch(nceOp.getOperation()));
+    return isSOHSupportedByDPU(inputShape, _numTiles, false, VPU::getArch(nceOp.getOperation()));
 
     // BAD: The result from 'computerShape' object is stored in an instance of ShapeRef type that does not own memory
     auto inputShape = getShape(origOp.input()); // The return type of 'getShape' is ShapeRef
@@ -391,7 +391,7 @@ So we get a dangling pointer:
     }
 
     // The lifetime of 'computerShape' is over. 'inputShape' contains a dangling pointer
-    return isSOHSupportedByDPU(inputShape, _numClusters, false, VPU::getArch(nceOp.getOperation()));
+    return isSOHSupportedByDPU(inputShape, _numTiles, false, VPU::getArch(nceOp.getOperation()));
 ```
 
 ### Using method 'llvm::make_early_inc_range'
@@ -432,6 +432,26 @@ This method is useful when you iterate through a list of objects and you need to
     });
 ```
 
+### Invalidation of MLIR operations
+
+Methods of `mlir::PatternRewriter`, such as: `replaceOp`, `replaceOpWithNewOp`, and `eraseOp`, invalidate the
+`mlir::Operation` passed to them as an argument. Avoid using the object after invalidation to prevent
+undefined behavior.
+
+```cpp
+// OK: Print the location before invalidation.
+_log.trace("{0}", origOp->getLoc());
+rewriter.replaceOp(origOp, newOp->getResult(0));
+
+// OK: Store a copy of the location before invalidation, then print it.
+const auto loc = origOp->getLoc();
+rewriter.replaceOp(origOp, newOp->getResult(0));
+_log.trace("{0}", loc);
+
+// BAD: origOp has been erased inside replaceOp. mlir::Operation::getLoc is not well-defined.
+rewriter.replaceOp(origOp, newOp->getResult(0));
+_log.trace("{0}", origOp->getLoc());
+```
 
 ## Using AliasesInfo
 
@@ -484,121 +504,6 @@ void OptimizeCopiesPass::safeRunOnFunc() {
 }
 ```
 
-## Project structure
-
-At a high level, the project is divided into common part and HW-specific part.
-HW-specific stuff is placed separately for each architecture in folders such as: [VPU30XX](../include/vpux/compiler/VPU30XX), [VPU37XX](../include/vpux/compiler/VPU37XX), etc.
-
-The newer generation of the device may depend on the older one, but not vice versa. And all devices depend on a common part. The relationship between the components is shown in the diagram:
-
-```mermaid
-  graph TD;
-      VPU30XX-->Common;
-      VPU37XX-->Common & VPU30XX;
-```
-
-Thus, if a class/method/constant/etc. is used by all generations, it should be placed in the common part. Otherwise place the object in the oldest device folder that uses it and reuse it in newer ones if needed.
-
-## Lit-tests
-
-### Command line
-
-The device type must always be specified using the command line in order for the appropriate passes to be registered.
-There are two ways to do this:
-
-`vpu-arch` -- please use this option to test pipelines only (DefaultHW, ReferenceSW, etc.):
-```
-// RUN: vpux-opt --vpu-arch=VPUX37XX --split-input-file --mlir-elide-elementsattrs-if-larger 8 --default-hw-mode %s | FileCheck %s
-```
-
-`vpux-arch` is also required to be used with vpux-translate to specify platform for import
-```
-./vpux-translate --vpu-arch=VPUX30XX --import-IE <xml path> --mlir-print-debuginfo -o net.mlir
-```
-and export:
-```
-// RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" %s | vpux-translate --vpu-arch=VPUX37XX --export-VPUIP -o %t
-```
-
-> Note: TODO(E#84874): currently, --vpu-arch is used for both import and export. However, it would be a better option to extract arch info from module for the export case
-
-
-`init-compiler` for passes and sub-pipelines:
-```
-// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX37XX" --unroll-cluster-tiling  %s | FileCheck %s
-```
-
-In some cases, it is necessary to save predefined resources in IR:
-```
-module @memory {
-    IE.MemoryResource 10000 bytes of @CMX_NN
-}
-```
-
-There is a special option `allow-custom-values`, which sets the remaining resources and saves the existing ones:
-```
-// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX37XX allow-custom-values=true" --unroll-cluster-tiling  %s | FileCheck %s
-```
-
-### Naming
-
-#### Files
-
-The file name have to match the pass name, so for `OptimizeCopiesPass` the file name have to be `optimize_copies.mlir`.
-It is allowed to divide the file into several specialized test suites and use the suffix for this: `optimize_copies_DDR.mlir`, `optimize_copies_CMX.mlir`.
-
-Test system has several folders:
-- For common tests: [VPUX](../../../tests/lit/VPUX). If the test suite is suitable for all types of devices, then it should only follow general naming rules.
-Otherwise, add suffix for each supported device: `optimize_copies_37XX_30XX.mlir`
-- For specic tests: [VPUX30XX](../../../tests/lit/VPUX30XX)/[VPUX37XX](../../../tests/lit/VPUX37XX). The test suite suitable for only one device have to be placed here and follow general naming rules.
-
-#### Variables
-
-Prefer to use `.+` expression to capture a variable:
-
-```cpp
-// OK
-// CHECK:       [[CST0:%.+]] = const.Declare tensor<1x8x4x4xf32>
-
-// BAD: The asterisk indicates zero or more occurrences of the preceding element.
-//      But at least one character must be present
-// CHECK:       [[CST0:%.*]] = const.Declare tensor<1x8x4x4xf32>
-```
-
-Please use `%` inside the capture expression:
-
-```cpp
-// OK
-// CHECK:       [[CST0:%.+]] = const.Declare tensor<1x8x4x4xf32> = dense<5.000000e+00> : tensor<1x8x4x4xf32>
-// CHECK-NOT:   const.Declare
-// CHECK-NOT:   IE.Add
-// CHECK:       return [[CST0]]
-
-// BAD: You need to write `%` again when using the captured variable
-// CHECK:       %[[CST0:.+]] = const.Declare tensor<1x8x4x4xf32> = dense<5.000000e+00> : tensor<1x8x4x4xf32>
-// CHECK-NOT:   const.Declare
-// CHECK-NOT:   IE.Add
-// CHECK:       return %[[CST0]]
-```
-
-Each variable should have a meaningful name:
-
-```cpp
-// OK
-// CHECK-DAG:   [[FILTERS:%.+]] = const.Declare tensor<16x3x3x3xf32> = dense<1.000000e+00> : tensor<16x3x3x3xf32>
-// CHECK-DAG:   [[BIAS:%.+]] = const.Declare tensor<1x16x1x1xf32> = dense<1.000000e+00> : tensor<1x16x1x1xf32>
-// CHECK:       [[CONV:%.+]] = IE.Convolution([[ARG0]], [[FILTERS]], [[BIAS]])
-// CHECK:       return [[CONV]]
-
-// BAD: Such a test is much more difficult to understand,
-//      since the origin of the variables and what they mean are unknown.
-//      There is also a high probability of making a "green" test for the wrong behavior of the pass
-// CHECK-DAG:   [[VAR1:%.+]] = const.Declare tensor<16x3x3x3xf32> = dense<1.000000e+00> : tensor<16x3x3x3xf32>
-// CHECK-DAG:   [[VAR2:%.+]] = const.Declare tensor<1x16x1x1xf32> = dense<1.000000e+00> : tensor<1x16x1x1xf32>
-// CHECK:       [[VAR3:%.+]] = IE.Convolution([[VAR0]], [[VAR1]], [[VAR2]])
-// CHECK:       return [[VAR4]]
-```
-
 ## Unit tests
 
 ### Using MLIR_UnitBase
@@ -632,9 +537,9 @@ TEST_F(MLIR_IndexedSymbolAttr, CheckNestedAttr) {
     void vpux::IE::buildOptimizeActivationsPipeline(mlir::OpPassManager& pm, Logger log) {
         const auto grc = getDefaultGreedyRewriteConfig();
 
-        pm.addPass(IE::createSwapOperationsPass(log));
+        pm.addPass(IE::createSwapOperationsPass(isOptionEnabled(options.enableSEPtrsOperations), log));
         pm.addPass(IE::createInsertIdentityPoolBeforeActivationPass(log));
-        pm.addPass(IE::createFusePostOpsPass(log));
+        pm.addPass(IE::createFuseActivationOpsPass(options.enableFuseClampOperations, log));
         pm.addPass(mlir::createCanonicalizerPass(grc));
     }
 
@@ -648,9 +553,9 @@ TEST_F(MLIR_IndexedSymbolAttr, CheckNestedAttr) {
     // It's impossible to test the solution of the problem in isolation, need to test the entire DefaultHW pipeline.
     void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOptions37XX& options, Logger log) {
         // ...
-        pm.addPass(IE::createSwapOperationsPass(log));
+        pm.addPass(IE::createSwapOperationsPass(isOptionEnabled(options.enableSEPtrsOperations), log));
         pm.addPass(IE::createInsertIdentityPoolBeforeActivationPass(log));
-        pm.addPass(IE::createFusePostOpsPass(log));
+        pm.addPass(IE::createFuseActivationOpsPass(options.enableFuseClampOperations, log));
         pm.addPass(mlir::createCanonicalizerPass(grc));
         // ...
     }

@@ -6,9 +6,7 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
-#include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
@@ -24,14 +22,14 @@ using namespace vpux;
 
 mlir::LogicalResult vpux::VPUIP::PermuteUPAOp::verify() {
     const auto op = getOperation();
-    const auto inType = input().getType().cast<vpux::NDTypeInterface>();
-    const auto outType = output().getType().cast<vpux::NDTypeInterface>();
+    const auto inType = getInput().getType().cast<vpux::NDTypeInterface>();
+    const auto outType = getOutput().getType().cast<vpux::NDTypeInterface>();
 
     if (inType.getRank() > outType.getRank()) {
         return errorAt(op, "Input rank {0} doesn't match output rank {1}", inType.getRank(), outType.getRank());
     }
 
-    const auto order = DimsOrder::fromAffineMap(order_value());
+    const auto order = DimsOrder::fromAffineMap(getOrderValue());
     const auto inShape = inType.getShape();
 
     if (order.numDims() > inShape.size()) {
@@ -53,10 +51,10 @@ mlir::LogicalResult vpux::VPUIP::PermuteUPAOp::verify() {
 //
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PermuteUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const mlir::AffineMap inputOrderMap = DimsOrder::fromValue(input()).toAffineMap(this->getContext());
-    const mlir::AffineMap permMem = order_value();
+    const mlir::AffineMap inputOrderMap = DimsOrder::fromValue(getInput()).toAffineMap(this->getContext());
+    const mlir::AffineMap permMem = getOrderValue();
     const mlir::AffineMap outputOrderMapInv =
-            inversePermutation(DimsOrder::fromValue(output()).toAffineMap(this->getContext()));
+            inversePermutation(DimsOrder::fromValue(getOutput()).toAffineMap(this->getContext()));
 
     const mlir::AffineMap permLog = outputOrderMapInv.compose(permMem.compose(inputOrderMap));
 
@@ -84,7 +82,7 @@ mlir::Operation* vpux::VPUIP::BlobReader::parsePermute(mlir::OpBuilder& builder,
     const auto params = task->softLayerParams_as_PermuteNDParams();
     const SmallVector<uint32_t> permuteNdOrder{params->permute_nd_order()->cbegin(),
                                                params->permute_nd_order()->cend()};
-    const auto permutationMap = mlir::AffineMap::getPermutationMap(makeArrayRef(permuteNdOrder), _ctx);
+    const auto permutationMap = mlir::AffineMap::getPermutationMap(ArrayRef(permuteNdOrder), _ctx);
 
     return builder.create<VPUIP::PermuteUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0],
                                                mlir::AffineMapAttr::get(permutationMap));

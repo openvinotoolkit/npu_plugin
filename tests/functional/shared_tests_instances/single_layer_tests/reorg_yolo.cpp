@@ -7,9 +7,9 @@
 #include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
-class VPUXReorgYoloLayerTest : public ReorgYoloLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
+class ReorgYoloLayerTestCommon : public ReorgYoloLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
-class VPUXReorgYoloLayerTest_VPU3700 : public VPUXReorgYoloLayerTest {
+class ReorgYoloLayerTest_NPU3700 : public ReorgYoloLayerTestCommon {
     void SkipBeforeLoad() override {
         ngraph::Shape inputShape;
         std::tie(inputShape, std::ignore, std::ignore, std::ignore) = GetParam();
@@ -20,15 +20,15 @@ class VPUXReorgYoloLayerTest_VPU3700 : public VPUXReorgYoloLayerTest {
     }
 };
 
-class VPUXReorgYoloLayerTest_VPU3720 : public VPUXReorgYoloLayerTest {};
+class ReorgYoloLayerTest_NPU3720 : public ReorgYoloLayerTestCommon {};
 
-TEST_P(VPUXReorgYoloLayerTest_VPU3700, HW) {
+TEST_P(ReorgYoloLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXReorgYoloLayerTest_VPU3720, HW) {
+TEST_P(ReorgYoloLayerTest_NPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -65,16 +65,16 @@ const auto paramsB =
         testing::Combine(testing::ValuesIn(inputShapesB), testing::ValuesIn(stridesB), testing::ValuesIn(netPrecisions),
                          testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_CASE_P(smoke_ReorgYolo_a, VPUXReorgYoloLayerTest_VPU3700, paramsA,
-                        VPUXReorgYoloLayerTest_VPU3700::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_ReorgYolo_a, ReorgYoloLayerTest_NPU3700, paramsA,
+                        ReorgYoloLayerTest_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ReorgYolo_b, VPUXReorgYoloLayerTest_VPU3700, paramsB,
-                        VPUXReorgYoloLayerTest_VPU3700::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_ReorgYolo_b, ReorgYoloLayerTest_NPU3700, paramsB,
+                        ReorgYoloLayerTest_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ReorgYolo_a, VPUXReorgYoloLayerTest_VPU3720, paramsA,
-                        VPUXReorgYoloLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_ReorgYolo_a, ReorgYoloLayerTest_NPU3720, paramsA,
+                        ReorgYoloLayerTest_NPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ReorgYolo_b, VPUXReorgYoloLayerTest_VPU3720, paramsB,
-                        VPUXReorgYoloLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_ReorgYolo_b, ReorgYoloLayerTest_NPU3720, paramsB,
+                        ReorgYoloLayerTest_NPU3720::getTestCaseName);
 
 }  // namespace

@@ -7,15 +7,12 @@
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 #include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/subspaces.hpp"
-
-#include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::VPUIP::CTCGreedyDecoderUPAOp::verify() {
     const auto op = getOperation();
-    const auto inShape = getShape(input());
+    const auto inShape = getShape(getInput());
 
     if (inShape.size() != 3) {
         return errorAt(op, "Input shape should have 3 dimensions");
@@ -31,7 +28,7 @@ mlir::LogicalResult vpux::VPUIP::CTCGreedyDecoderUPAOp::verify() {
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::CTCGreedyDecoderUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::CTCDecoderParamsBuilder builder(writer);
-    builder.add_ctc_merge_repeated(mergeRepeated());
+    builder.add_ctc_merge_repeated(getMergeRepeated());
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_CTCDecoderParams});

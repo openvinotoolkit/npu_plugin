@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
@@ -12,16 +11,18 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXRollLayerTest_VPU3700 : public RollLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
-class VPUXRollLayerTest_VPU3720 : public RollLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
+class RollLayerTestCommon : public RollLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
-TEST_P(VPUXRollLayerTest_VPU3700, HW) {
+class RollLayerTest_NPU3700 : public RollLayerTestCommon {};
+class RollLayerTest_NPU3720 : public RollLayerTestCommon {};
+
+TEST_P(RollLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXRollLayerTest_VPU3720, SW) {
+TEST_P(RollLayerTest_NPU3720, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
@@ -35,7 +36,7 @@ namespace {
 
 const std::vector<InferenceEngine::Precision> inputPrecisions = {
         InferenceEngine::Precision::U8, InferenceEngine::Precision::I32,
-        InferenceEngine::Precision::FP16,  // CPU-plugin has parameter I16, but VPU does not support it. So value from
+        InferenceEngine::Precision::FP16,  // CPU-plugin has parameter I16, but NPU does not support it. So value from
                                            // CPU-plugin I16 is changed to FP16.
         InferenceEngine::Precision::FP32};
 
@@ -83,48 +84,60 @@ const auto testRollParams6 = ::testing::Combine(::testing::Values(inputShapes[6]
                                                 ::testing::Values(shift[6]), ::testing::Values(axes[6]),
                                                 ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-// VPU3700
+const auto testRollParams3D =
+        ::testing::Combine(::testing::Values(inputShapes[3]),
+                           ::testing::Values(InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16,
+                                             InferenceEngine::Precision::U8),
+                           ::testing::Values(shift[3]), ::testing::Values(axes[3]),
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check0, VPUXRollLayerTest_VPU3700, testRollParams0,
-                        VPUXRollLayerTest_VPU3700::getTestCaseName);
+const auto testRollParams3DDisabled =
+        ::testing::Combine(::testing::Values(inputShapes[3]), ::testing::Values(InferenceEngine::Precision::I32),
+                           ::testing::Values(shift[3]), ::testing::Values(axes[3]),
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check1, VPUXRollLayerTest_VPU3700, testRollParams1,
-                        VPUXRollLayerTest_VPU3700::getTestCaseName);
+// NPU3700
 
-INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check2, VPUXRollLayerTest_VPU3700, testRollParams2,
-                        VPUXRollLayerTest_VPU3700::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check0, RollLayerTest_NPU3700, testRollParams0,
+                        RollLayerTest_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check3, VPUXRollLayerTest_VPU3700, testRollParams3,
-                        VPUXRollLayerTest_VPU3700::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check1, RollLayerTest_NPU3700, testRollParams1,
+                        RollLayerTest_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check4, VPUXRollLayerTest_VPU3700, testRollParams4,
-                        VPUXRollLayerTest_VPU3700::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check2, RollLayerTest_NPU3700, testRollParams2,
+                        RollLayerTest_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check5, VPUXRollLayerTest_VPU3700, testRollParams5,
-                        VPUXRollLayerTest_VPU3700::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check3, RollLayerTest_NPU3700, testRollParams3,
+                        RollLayerTest_NPU3700::getTestCaseName);
 
-// VPU3720
+INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check4, RollLayerTest_NPU3700, testRollParams4,
+                        RollLayerTest_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check0, VPUXRollLayerTest_VPU3720, testRollParams0,
-                        VPUXRollLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check5, RollLayerTest_NPU3700, testRollParams5,
+                        RollLayerTest_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check1, VPUXRollLayerTest_VPU3720, testRollParams1,
-                        VPUXRollLayerTest_VPU3720::getTestCaseName);
+// NPU3720
 
-INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check2, VPUXRollLayerTest_VPU3720, testRollParams2,
-                        VPUXRollLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check0, RollLayerTest_NPU3720, testRollParams0,
+                        RollLayerTest_NPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check3, VPUXRollLayerTest_VPU3720, testRollParams3,
-                        VPUXRollLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check1, RollLayerTest_NPU3720, testRollParams1,
+                        RollLayerTest_NPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check4, VPUXRollLayerTest_VPU3720, testRollParams4,
-                        VPUXRollLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check2, RollLayerTest_NPU3720, testRollParams2,
+                        RollLayerTest_NPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check5, VPUXRollLayerTest_VPU3720, testRollParams5,
-                        VPUXRollLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check3, RollLayerTest_NPU3720, testRollParams3,
+                        RollLayerTest_NPU3720::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check4, RollLayerTest_NPU3720, testRollParams4,
+                        RollLayerTest_NPU3720::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check5, RollLayerTest_NPU3720, testRollParams5,
+                        RollLayerTest_NPU3720::getTestCaseName);
 
 // Tracking number [E#86494]
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Roll_Test_Check6, VPUXRollLayerTest_VPU3720, testRollParams6,
-                        VPUXRollLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Roll_Test_Check6, RollLayerTest_NPU3720, testRollParams6,
+                        RollLayerTest_NPU3720::getTestCaseName);
 
 }  // namespace

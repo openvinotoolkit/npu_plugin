@@ -5,26 +5,22 @@
 
 #pragma once
 
-#include "vpux/utils/core/enums.hpp"
-#include "vpux/utils/core/error.hpp"
-#include "vpux/utils/core/func_ref.hpp"
-#include "vpux/utils/core/hash.hpp"
-#include "vpux/utils/core/logger.hpp"
-#include "vpux/utils/core/optional.hpp"
-#include "vpux/utils/core/small_vector.hpp"
-#include "vpux/utils/core/string_ref.hpp"
-#include "vpux/utils/core/string_utils.hpp"
-
-#include <llvm/ADT/FunctionExtras.h>
-#include <llvm/Support/TypeName.h>
+#include <utility>
+#include "vpux/utils/IE/logger_adapter.hpp"
+#include "vpux/utils/core/common_string_utils.hpp"
+#include "vpux/utils/core/exceptions.hpp"
+#include "vpux/utils/core/type_traits.hpp"
 
 #include <cassert>
 #include <chrono>
 #include <functional>
+#include <iomanip>
 #include <map>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <unordered_map>
 #include <vector>
@@ -40,41 +36,41 @@ struct OptionParser;
 
 template <>
 struct OptionParser<std::string> final {
-    static std::string parse(StringRef val) {
-        return val.str();
+    static std::string parse(std::string_view val) {
+        return {val.data(), val.size()};
     }
 };
 
 template <>
 struct OptionParser<bool> final {
-    static bool parse(StringRef val);
+    static bool parse(std::string_view val);
 };
 
 template <>
 struct OptionParser<int64_t> final {
-    static int64_t parse(StringRef val);
+    static int64_t parse(std::string_view val);
 };
 
 template <>
 struct OptionParser<uint64_t> final {
-    static uint64_t parse(StringRef val);
+    static uint64_t parse(std::string_view val);
 };
 
 template <>
 struct OptionParser<double> final {
-    static double parse(StringRef val);
+    static double parse(std::string_view val);
 };
 
 template <>
 struct OptionParser<LogLevel> final {
-    static LogLevel parse(StringRef val);
+    static LogLevel parse(std::string_view val);
 };
 
 template <typename T>
 struct OptionParser<std::vector<T>> final {
-    static std::vector<T> parse(StringRef val) {
+    static std::vector<T> parse(std::string_view val) {
         std::vector<T> res;
-        splitStringList(val, ',', [&](StringRef item) {
+        splitStringList(val, ',', [&](std::string_view item) {
             res.push_back(OptionParser<T>::parse(item));
         });
         return res;
@@ -83,18 +79,18 @@ struct OptionParser<std::vector<T>> final {
 
 template <typename Rep, typename Period>
 struct OptionParser<std::chrono::duration<Rep, Period>> final {
-    static std::chrono::duration<Rep, Period> parse(StringRef val) {
-        std::istringstream stream(val.str());
+    static std::chrono::duration<Rep, Period> parse(std::string_view val) {
+        std::istringstream stream(val.data());
 
         Rep count{};
         if (stream >> count) {
-            VPUX_THROW_UNLESS(count >= 0, "Value '{0}' is not a valid time duration, non-negative values expected",
-                              count);
+            CORE_VPUX_THROW_UNLESS(count >= 0, "Value '%ld' is not a valid time duration, non-negative values expected",
+                                   count);
 
             return std::chrono::duration<Rep, Period>(count);
         }
 
-        VPUX_THROW("Can't parse '{0}' as time duration", val);
+        CORE_VPUX_THROW("Can't parse '%s' as time duration", val.data());
     }
 };
 
@@ -105,7 +101,16 @@ struct OptionParser<std::chrono::duration<Rep, Period>> final {
 template <typename T>
 struct OptionPrinter final {
     static std::string toString(const T& val) {
-        return printToString("{0}", val);
+        std::stringstream ss;
+        if constexpr (std::is_floating_point_v<std::decay_t<T>>) {
+            ss << std::fixed << std::setprecision(2) << val;
+        } else if constexpr (std::is_enum_v<std::decay_t<T>>) {
+            ss << stringifyEnum(val);
+            return ss.str();
+        } else {
+            ss << val;
+        }
+        return ss.str();
     }
 };
 
@@ -137,7 +142,7 @@ enum class OptionMode {
     RunTime,
 };
 
-StringLiteral stringifyEnum(OptionMode val);
+std::string_view stringifyEnum(OptionMode val);
 
 //
 // OptionBase
@@ -149,26 +154,33 @@ struct OptionBase {
     using ValueType = T;
 
     // `ActualOpt` must implement the following method:
-    // static StringRef key()
+    // static std::string_view key()
 
+    static constexpr std::string_view getTypeName() {
+        if constexpr (vpux::TypePrinter<T>::hasName()) {
+            return vpux::TypePrinter<T>::name();
+        }
+        static_assert(vpux::TypePrinter<T>::hasName(),
+                      "Options type is not a standard type, please add `getTypeName()` to your option");
+    }
     // Overload this to provide environment variable support.
-    static StringRef envVar() {
-        return {};
+    static std::string_view envVar() {
+        return "";
     }
 
     // Overload this to provide deprecated keys names.
-    static SmallVector<StringRef> deprecatedKeys() {
+    static std::vector<std::string_view> deprecatedKeys() {
         return {};
     }
 
     // Overload this to provide default value if it wasn't specified by user.
-    // If it is None - exception will be thrown in case of missing option access.
-    static Optional<T> defaultValue() {
-        return None;
+    // If it is std::nullopt - exception will be thrown in case of missing option access.
+    static std::optional<T> defaultValue() {
+        return std::nullopt;
     }
 
     // Overload this to provide more specific parser.
-    static ValueType parse(StringRef val) {
+    static ValueType parse(std::string_view val) {
         return OptionParser<ValueType>::parse(val);
     }
 
@@ -201,11 +213,11 @@ class OptionValue {
 public:
     virtual ~OptionValue();
 
-    virtual StringRef getTypeName() const = 0;
+    virtual std::string_view getTypeName() const = 0;
     virtual std::string toString() const = 0;
 };
 
-template <typename T>
+template <typename Opt, typename T>
 class OptionValueImpl final : public OptionValue {
     using ToStringFunc = std::string (*)(const T&);
 
@@ -214,8 +226,12 @@ public:
     OptionValueImpl(U&& val, ToStringFunc toStringImpl): _val(std::forward<U>(val)), _toStringImpl(toStringImpl) {
     }
 
-    StringRef getTypeName() const final {
-        return llvm::getTypeName<T>();
+    std::string_view getTypeName() const final {
+        if constexpr (vpux::TypePrinter<T>::hasName()) {
+            return vpux::TypePrinter<T>::name();
+        } else {
+            return Opt::getTypeName();
+        }
     }
 
     const T& getValue() const {
@@ -240,23 +256,23 @@ private:
 namespace details {
 
 struct OptionConcept final {
-    StringRef (*key)() = nullptr;
-    StringRef (*envVar)() = nullptr;
+    std::string_view (*key)() = nullptr;
+    std::string_view (*envVar)() = nullptr;
     OptionMode (*mode)() = nullptr;
     bool (*isPublic)() = nullptr;
-    std::shared_ptr<OptionValue> (*validateAndParse)(StringRef val) = nullptr;
+    std::shared_ptr<OptionValue> (*validateAndParse)(std::string_view val) = nullptr;
 };
 
 template <class Opt>
-std::shared_ptr<OptionValue> validateAndParse(StringRef val) {
+std::shared_ptr<OptionValue> validateAndParse(std::string_view val) {
     using ValueType = typename Opt::ValueType;
 
     try {
         auto parsedVal = Opt::parse(val);
         Opt::validateValue(parsedVal);
-        return std::make_shared<OptionValueImpl<ValueType>>(std::move(parsedVal), &Opt::toString);
+        return std::make_shared<OptionValueImpl<Opt, ValueType>>(std::move(parsedVal), &Opt::toString);
     } catch (const std::exception& e) {
-        VPUX_THROW("Failed to parse '{0}' option : {1}", Opt::key(), e.what());
+        CORE_VPUX_THROW("Failed to parse '%s' option : %s", Opt::key().data(), e.what());
     }
 }
 
@@ -296,25 +312,27 @@ public:
     std::vector<std::string> getSupported(bool includePrivate = false) const;
 
 public:
-    details::OptionConcept get(StringRef key, OptionMode mode) const;
-    void walk(FuncRef<void(const details::OptionConcept&)> cb) const;
+    details::OptionConcept get(std::string_view key, OptionMode mode) const;
+    void walk(std::function<void(const details::OptionConcept&)> cb) const;
 
 private:
-    std::unordered_map<StringRef, details::OptionConcept> _impl;
-    std::unordered_map<StringRef, StringRef> _deprecated;
+    std::unordered_map<std::string, details::OptionConcept> _impl;
+    std::unordered_map<std::string, std::string> _deprecated;
 
     // Keep pointer to `_so` to avoid shared library unloading prior destruction of the `_impl` object.
-    SmallVector<std::shared_ptr<void>> _so;
+    std::vector<std::shared_ptr<void>> _so;
 };
 
 template <class Opt>
 void OptionsDesc::add() {
-    VPUX_THROW_UNLESS(_impl.count(Opt::key()) == 0, "Option '{0}' was already registered", Opt::key());
-    _impl.insert({Opt::key(), details::makeOptionModel<Opt>()});
+    CORE_VPUX_THROW_UNLESS(_impl.count(Opt::key().data()) == 0, "Option '%s' was already registered",
+                           Opt::key().data());
+    _impl.insert({Opt::key().data(), details::makeOptionModel<Opt>()});
 
     for (const auto& deprecatedKey : Opt::deprecatedKeys()) {
-        VPUX_THROW_UNLESS(_deprecated.count(deprecatedKey) == 0, "Option '{0}' was already registered", deprecatedKey);
-        _deprecated.insert({deprecatedKey, Opt::key()});
+        CORE_VPUX_THROW_UNLESS(_deprecated.count(deprecatedKey.data()) == 0, "Option '%s' was already registered",
+                               deprecatedKey.data());
+        _deprecated.insert({deprecatedKey.data(), Opt::key().data()});
     }
 }
 
@@ -325,22 +343,22 @@ void OptionsDesc::add() {
 class Config final {
 public:
     using ConfigMap = std::map<std::string, std::string>;
-    using ImplMap = std::unordered_map<StringRef, std::shared_ptr<details::OptionValue>>;
+    using ImplMap = std::unordered_map<std::string, std::shared_ptr<details::OptionValue>>;
 
-public:
     explicit Config(const std::shared_ptr<const OptionsDesc>& desc);
 
-public:
     void update(const ConfigMap& options, OptionMode mode = OptionMode::Both);
 
     void parseEnvVars();
 
-public:
     template <class Opt>
     bool has() const;
 
     template <class Opt>
     typename Opt::ValueType get() const;
+
+    template <class Opt>
+    typename std::string getString() const;
 
     std::string toString() const;
 
@@ -351,42 +369,49 @@ private:
 
 template <class Opt>
 bool Config::has() const {
-    return _impl.count(Opt::key()) != 0;
+    return _impl.count(Opt::key().data()) != 0;
 }
 
 template <class Opt>
 typename Opt::ValueType Config::get() const {
     using ValueType = typename Opt::ValueType;
 
-    auto log = Logger::global().nest("Config", 0);
-    log.trace("Get value for the option '{0}'", Opt::key());
+    auto log = LoggerAdapter("Config");
+    log.trace("Get value for the option '%s'", Opt::key().data());
 
-    const auto it = _impl.find(Opt::key());
+    const auto it = _impl.find(Opt::key().data());
 
     if (it == _impl.end()) {
-        const Optional<ValueType> optional = Opt::defaultValue();
-        log.nest().trace("The option was not set by user, try default value");
+        const std::optional<ValueType> optional = Opt::defaultValue();
+        log.trace("The option '%s' was not set by user, try default value", Opt::key().data());
 
-        VPUX_THROW_UNLESS(optional.has_value(), "Option '{0}' was not provided, no default value is available",
-                          Opt::key());
-        return optional.getValue();
+        CORE_VPUX_THROW_UNLESS(optional.has_value(), "Option '%s' was not provided, no default value is available",
+                               Opt::key().data());
+        return optional.value();
     }
 
-    VPUX_THROW_WHEN(it->second == nullptr, "Got NULL OptionValue for '{0}'", Opt::key());
+    CORE_VPUX_THROW_WHEN(it->second == nullptr, "Got NULL OptionValue for '%s'", Opt::key().data());
 
-    const auto optVal = std::dynamic_pointer_cast<details::OptionValueImpl<ValueType>>(it->second);
+    const auto optVal = std::dynamic_pointer_cast<details::OptionValueImpl<Opt, ValueType>>(it->second);
 #if defined(__CHROMIUMOS__)
     if (optVal == nullptr) {
-        if (llvm::getTypeName<ValueType>().equals(it->second->getTypeName())) {
-            const auto val = std::static_pointer_cast<details::OptionValueImpl<ValueType>>(it->second);
+        if (Opt::getTypeName() == it->second->getTypeName()) {
+            const auto val = std::static_pointer_cast<details::OptionValueImpl<Opt, ValueType>>(it->second);
             return val->getValue();
         }
     }
 #endif
-    VPUX_THROW_WHEN(optVal == nullptr, "Option '{0}' has wrong parsed type: expected '{1}', got '{2}'", Opt::key(),
-                    llvm::getTypeName<ValueType>(), it->second->getTypeName());
+    CORE_VPUX_THROW_WHEN(optVal == nullptr, "Option '%s' has wrong parsed type: expected '%s', got '%s'",
+                         Opt::key().data(), Opt::getTypeName().data(), it->second->getTypeName().data());
 
     return optVal->getValue();
+}
+
+template <class Opt>
+typename std::string Config::getString() const {
+    typename Opt::ValueType value = Config::get<Opt>();
+
+    return Opt::toString(value);
 }
 
 //

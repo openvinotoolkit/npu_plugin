@@ -2,19 +2,13 @@
 // Copyright (C) 2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 #include "vpux/compiler/utils/permute_utils.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
-#include "vpux/utils/IE/loop.hpp"
-#include "vpux/utils/core/enums.hpp"
-
-#include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/PatternMatch.h>
-#include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
 using namespace vpux;
 
@@ -36,21 +30,21 @@ private:
 mlir::LogicalResult FusePermuteRewrite::matchAndRewrite(IE::ReorderOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got '{1}' at '{2}'", getDebugName(), origOp->getName(), origOp->getLoc());
 
-    const auto inOrder = DimsOrder::fromValue(origOp.input());
-    const auto outOrder = DimsOrder::fromValue(origOp.output());
+    const auto inOrder = DimsOrder::fromValue(origOp.getInput());
+    const auto outOrder = DimsOrder::fromValue(origOp.getOutput());
 
     auto memPermAttr = mlir::AffineMapAttr::get(getPermutationFromOrders(inOrder, outOrder, origOp->getContext()));
     SmallVector<int64_t> noPadBeginEnd(inOrder.numDims(), 0);
     const auto& ctx = origOp.getContext();
-    const auto permQuantOutType = origOp.output().getType();
+    const auto permQuantOutType = origOp.getOutput().getType();
     const auto permQuantElemType = permQuantOutType.cast<vpux::NDTypeInterface>().getElementType();
     const auto dstElemTypeAttr = mlir::TypeAttr::get(permQuantElemType);
     const auto permQuantLoc = appendLoc(origOp->getLoc(), "PermuteQuantize");
     auto permuteQuantizeOp = rewriter.create<IE::PermuteQuantizeOp>(
-            permQuantLoc, permQuantOutType, origOp.input(), origOp.dstOrderAttr(), memPermAttr, dstElemTypeAttr,
+            permQuantLoc, permQuantOutType, origOp.getInput(), origOp.getDstOrderAttr(), memPermAttr, dstElemTypeAttr,
             getIntArrayAttr(ctx, noPadBeginEnd), getIntArrayAttr(ctx, noPadBeginEnd));
 
-    rewriter.replaceOp(origOp, permuteQuantizeOp.output());
+    rewriter.replaceOp(origOp, permuteQuantizeOp.getOutput());
 
     return mlir::success();
 }
@@ -75,12 +69,12 @@ private:
 };
 
 bool ConvertReorderToPermuteQuantizePass::isSupportedReorder(IE::ReorderOp reorder, Logger log) const {
-    const auto inType = reorder.input().getType().dyn_cast<vpux::NDTypeInterface>();
+    const auto inType = reorder.getInput().getType().dyn_cast<vpux::NDTypeInterface>();
     if (inType == nullptr) {
         log.trace("Input type does not implement NDTypeInterface");
         return false;
     }
-    const auto outType = reorder.output().getType().dyn_cast<vpux::NDTypeInterface>();
+    const auto outType = reorder.getOutput().getType().dyn_cast<vpux::NDTypeInterface>();
     if (outType == nullptr) {
         log.trace("Output type does not implement NDTypeInterface");
         return false;

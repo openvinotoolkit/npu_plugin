@@ -4,6 +4,7 @@
 //
 
 #include "vpux/compiler/conversion.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include <mlir/IR/Operation.h>
 #include <mlir/Pass/Pass.h>
@@ -44,8 +45,41 @@ void updateReturnOps(mlir::func::FuncOp func, ArrayRef<mlir::BlockArgument> appe
         mlir::OpBuilder builder(op);
         for (auto i : irange(op.getNumOperands())) {
             auto copyOp = builder.create<VPUIP::CopyOp>(op.getLoc(), op.getOperand(i), appendedEntryArgs[i]);
-            op.setOperand(i, copyOp.output());
+            op.setOperand(i, copyOp.getOutput());
         }
+    });
+}
+
+// Updates call op
+void updateCallOp(mlir::ModuleOp module) {
+    module.walk([&](mlir::func::CallOp callOp) {
+        mlir::OpBuilder builder(callOp);
+
+        SmallVector<mlir::Value> outParams;
+        SmallVector<mlir::Value> currentResults;
+        SmallVector<mlir::Type> resultTypes;
+        for (auto result : callOp.getResults()) {
+            auto resType = result.getType().dyn_cast<mlir::MemRefType>();
+            VPUX_THROW_WHEN(resType == nullptr, "Only MemRefType is supported for now");
+
+            auto outParam = builder.create<mlir::memref::AllocOp>(callOp.getLoc(), resType);
+            outParams.push_back(outParam);
+
+            currentResults.push_back(result);
+            resultTypes.push_back(resType);
+        }
+
+        auto newOperands = to_vector(callOp.getOperands());
+        newOperands.append(outParams.begin(), outParams.end());
+
+        auto newCallOp =
+                builder.create<mlir::func::CallOp>(callOp.getLoc(), callOp.getCalleeAttr(), resultTypes, newOperands);
+
+        for (const auto& [result, newResult] : zip(currentResults, newCallOp.getResults())) {
+            result.replaceAllUsesWith(newResult);
+        }
+
+        callOp.erase();
     });
 }
 
@@ -80,6 +114,8 @@ void AddBuffersForNetResults::safeRunOnModule() {
         updateFuncOp(func, appendedEntryArgs);
         updateReturnOps(func, appendedEntryArgs);
     }
+
+    updateCallOp(module);
 }
 
 }  // namespace

@@ -13,25 +13,6 @@
 using namespace vpux;
 
 //
-// ReverseAttr::walkImmediateSubElements
-//
-
-void vpux::Const::ReverseAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)> walkAttrsFn,
-                                                        llvm::function_ref<void(mlir::Type)>) const {
-    walkAttrsFn(getAxis());
-}
-
-//
-// ReverseAttr::replaceImmediateSubElements
-//
-
-mlir::Attribute vpux::Const::ReverseAttr::replaceImmediateSubElements(ArrayRef<mlir::Attribute> replAttrs,
-                                                                      ArrayRef<mlir::Type>) const {
-    VPUX_THROW_WHEN(replAttrs.size() < 1, "Replace attrs array is too short: '{0}'", replAttrs.size());
-    return get(replAttrs[0].dyn_cast_or_null<mlir::IntegerAttr>());
-}
-
-//
 // ReverseAttr::print
 //
 
@@ -55,7 +36,7 @@ mlir::Attribute vpux::Const::ReverseAttr::parse(mlir::AsmParser& parser, mlir::T
         return nullptr;
     }
 
-    if (mlir::failed(parser.parseComma())) {
+    if (mlir::failed(parser.parseGreater())) {
         return nullptr;
     }
 
@@ -138,6 +119,6 @@ Const::Content vpux::Const::ReverseAttr::transform(vpux::Const::Content& input) 
 //
 
 Const::ContentAttr vpux::Const::ContentAttr::reverse(Dim axis) const {
-    return get(*this,
-               Const::ReverseAttr::get(getIntAttr(getContext(), axis.ind())).cast<Const::TransformAttrInterface>());
+    return ContentAttr::addTransformation(
+            *this, Const::ReverseAttr::get(getIntAttr(getContext(), axis.ind())).cast<Const::TransformAttrInterface>());
 }

@@ -6,10 +6,10 @@
 #include "vpux/compiler/VPU30XX/pipelines_register.hpp"
 #include "vpux/compiler/VPU30XX/conversion.hpp"
 #include "vpux/compiler/VPU30XX/dialect/IE/passes.hpp"
-#include "vpux/compiler/VPU30XX/dialect/VPU/passes.hpp"
+#include "vpux/compiler/VPU30XX/dialect/VPU/transforms/passes.hpp"
 #include "vpux/compiler/VPU30XX/pipelines.hpp"
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
 
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
@@ -57,5 +57,6 @@ void PipelineRegistry30XX::registerPipelines() {
             });
     vpux::IE::arch30xx::registerIEPipelines();
     vpux::VPU::arch30xx::registerVPUPipelines();
-    vpux::arch30xx::registerConversionPipeline30XX();
+    vpux::VPUIP::arch30xx::registerVPUIPPipelines();
+    vpux::arch30xx::registerConversionPipeline();
 }

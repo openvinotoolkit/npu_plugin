@@ -9,9 +9,7 @@
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
-#include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
@@ -58,15 +56,15 @@ mlir::LogicalResult ConvertScatterNDUpdateToStridedConcatPass::ConvertToStridedC
         return dim > 1;
     };
 
-    const auto inputShape = getShape(origOp.input());
-    const auto indices = origOp.indices();
+    const auto inputShape = getShape(origOp.getInput());
+    const auto indices = origOp.getIndices();
     const auto indicesShape = getShape(indices);
     auto indicesConst = indices.getDefiningOp<Const::DeclareOp>();
     if (indicesConst == nullptr) {
         return mlir::failure();
     }
 
-    const auto origInType = origOp.input().getType().cast<vpux::NDTypeInterface>();
+    const auto origInType = origOp.getInput().getType().cast<vpux::NDTypeInterface>();
     const int64_t origInRank = origInType.getRank();
 
     // only optimize elementwise case.
@@ -140,25 +138,25 @@ mlir::LogicalResult ConvertScatterNDUpdateToStridedConcatPass::ConvertToStridedC
 
     for (const auto ind : irange(stride)) {
         if (ind == offsetValue) {
-            subSlices.push_back(origOp.updates());
+            subSlices.push_back(origOp.getUpdates());
         } else {
             auto offsetValues = SmallVector<int64_t>(inputShape.size(), 0);
             offsetValues[axisIndex] = ind;
 
-            const auto stridesAttr = getIntArrayAttr(ctx, makeArrayRef(potentialStrides));
-            const auto beginsAttr = getIntArrayAttr(ctx, makeArrayRef(offsetValues));
+            const auto stridesAttr = getIntArrayAttr(ctx, ArrayRef(potentialStrides));
+            const auto beginsAttr = getIntArrayAttr(ctx, ArrayRef(offsetValues));
             const auto endsAttr = getIntArrayAttr(ctx, inputShape);
-            const auto zeroMask = getIntArrayAttr(ctx, makeArrayRef(zeros));
+            const auto zeroMask = getIntArrayAttr(ctx, ArrayRef(zeros));
 
             auto stridedSliceOp = rewriter.create<IE::StridedSliceOp>(
-                    origOp->getLoc(), origOp.input(), nullptr, nullptr, nullptr, beginsAttr, endsAttr, stridesAttr,
+                    origOp->getLoc(), origOp.getInput(), nullptr, nullptr, nullptr, beginsAttr, endsAttr, stridesAttr,
                     /*beginMask =*/zeroMask, /*endMask =*/zeroMask, /*newAxisMask =*/zeroMask,
                     /*shrinkAxisMask =*/zeroMask, /*ellipsisMask = */ zeroMask);
 
             subSlices.push_back(stridedSliceOp);
         }
     }
-    auto concatOutput = rewriter.create<IE::ConcatOp>(origOp->getLoc(), subSlices, axisIndex, 1, stride).output();
+    auto concatOutput = rewriter.create<IE::ConcatOp>(origOp->getLoc(), subSlices, axisIndex, 1, stride).getOutput();
     rewriter.replaceOp(origOp, concatOutput);
 
     return mlir::success();
@@ -176,13 +174,13 @@ public:
 public:
     mlir::LogicalResult matchAndRewrite(IE::ScatterNDUpdateOp origOp, mlir::PatternRewriter& rewriter) const final;
 
-    Optional<Dim> getUpdateDim(ShapeRef inputShape, ShapeRef indicesShape, Const::DeclareOp indicesConst) const;
+    std::optional<Dim> getUpdateDim(ShapeRef inputShape, ShapeRef indicesShape, Const::DeclareOp indicesConst) const;
 
 private:
     Logger _log;
 };
 
-Optional<Dim> ConvertScatterNDUpdateToStridedConcatPass::ConvertToSliceConcat::getUpdateDim(
+std::optional<Dim> ConvertScatterNDUpdateToStridedConcatPass::ConvertToSliceConcat::getUpdateDim(
         ShapeRef inputShape, ShapeRef indicesShape, Const::DeclareOp indicesConst) const {
     const auto indicesConstValue = indicesConst.getContent();
     const auto indicesData = indicesConstValue.getValues<int64_t>();
@@ -203,7 +201,7 @@ Optional<Dim> ConvertScatterNDUpdateToStridedConcatPass::ConvertToSliceConcat::g
                 std::count_if(indicesShape.begin(), indicesShape.end() - 1, greaterThanOne);
         if (inputShapeGreaterThanOne > 1 || indicesShapeGreaterThanOne > 1) {
             _log.trace("Elements Update: Only support ScatterNDUpdate Op update at one axis");
-            return None;
+            return std::nullopt;
         }
 
         // Input shape 1x1x1, indices shape 1x1x1x3
@@ -221,7 +219,7 @@ Optional<Dim> ConvertScatterNDUpdateToStridedConcatPass::ConvertToSliceConcat::g
         for (auto idx = 1; idx < indicesShape[Dim(updateDim)]; idx++) {
             if (indicesData[updateDim + inputRank * idx] != beginOffset + idx) {
                 _log.trace("Elements Update: The data in indices and at the updateDim should be increase with step 1");
-                return None;
+                return std::nullopt;
             }
         }
 
@@ -237,13 +235,13 @@ Optional<Dim> ConvertScatterNDUpdateToStridedConcatPass::ConvertToSliceConcat::g
         for (auto idx = 1; idx < indicesShape.totalSize(); idx++) {
             if (indicesData[idx] != beginOffset + idx) {
                 _log.trace("Tensor Update: The data in indices and at the updateDim should be increase with step 1");
-                return None;
+                return std::nullopt;
             }
         }
         return Dim(0);
     }
 
-    return None;
+    return std::nullopt;
 }
 
 // There are two possible patterns can be converted
@@ -265,8 +263,8 @@ mlir::LogicalResult ConvertScatterNDUpdateToStridedConcatPass::ConvertToSliceCon
         IE::ScatterNDUpdateOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Got '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
 
-    const auto inputShape = getShape(origOp.input());
-    const auto indices = origOp.indices();
+    const auto inputShape = getShape(origOp.getInput());
+    const auto indices = origOp.getIndices();
     const auto indicesShape = getShape(indices);
     auto indicesConst = indices.getDefiningOp<Const::DeclareOp>();
     if (indicesConst == nullptr) {
@@ -293,12 +291,12 @@ mlir::LogicalResult ConvertScatterNDUpdateToStridedConcatPass::ConvertToSliceCon
 
     if (beginOffset != 0) {
         concatInputs.push_back(
-                rewriter.create<IE::SliceOp>(origOp->getLoc(), origOp.input(), leftSliceOffset, leftSliceShape)
-                        .result());
+                rewriter.create<IE::SliceOp>(origOp->getLoc(), origOp.getInput(), leftSliceOffset, leftSliceShape)
+                        .getResult());
     }
 
     // Update data value
-    concatInputs.push_back(origOp.updates());
+    concatInputs.push_back(origOp.getUpdates());
 
     // Create the right Slice Op
     auto endOffset = beginOffset + indicesShape[Dim(updateDim)];
@@ -309,8 +307,8 @@ mlir::LogicalResult ConvertScatterNDUpdateToStridedConcatPass::ConvertToSliceCon
 
     if (rightSliceShape[updateDim] != 0) {
         concatInputs.push_back(
-                rewriter.create<IE::SliceOp>(origOp->getLoc(), origOp.input(), rightSliceOffset, rightSliceShape)
-                        .result());
+                rewriter.create<IE::SliceOp>(origOp->getLoc(), origOp.getInput(), rightSliceOffset, rightSliceShape)
+                        .getResult());
     }
 
     _log.trace("Replace '{0}' at '{1}' with Slice and Concat Op", origOp->getName(), origOp->getLoc());

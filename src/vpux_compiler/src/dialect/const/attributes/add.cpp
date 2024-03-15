@@ -15,25 +15,6 @@
 using namespace vpux;
 
 //
-// AddAttr::walkImmediateSubElements
-//
-
-void vpux::Const::AddAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)> walkAttrsFn,
-                                                    llvm::function_ref<void(mlir::Type)>) const {
-    walkAttrsFn(getBias());
-}
-
-//
-// AddAttr::replaceImmediateSubElements
-//
-
-mlir::Attribute vpux::Const::AddAttr::replaceImmediateSubElements(ArrayRef<mlir::Attribute> replAttrs,
-                                                                  ArrayRef<mlir::Type>) const {
-    VPUX_THROW_WHEN(replAttrs.size() < 1, "Replace attrs array is too short: '{0}'", replAttrs.size());
-    return get(replAttrs[0].dyn_cast_or_null<mlir::FloatAttr>());
-}
-
-//
 // AddAttr::print
 //
 
@@ -69,10 +50,6 @@ mlir::Attribute vpux::Const::AddAttr::parse(mlir::AsmParser& parser, mlir::Type)
 //
 
 vpux::NDTypeInterface vpux::Const::AddAttr::inferOutputType(vpux::NDTypeInterface input) const {
-    const Bit typeSizeInBits = input.getElemTypeSize();
-    VPUX_THROW_UNLESS(typeSizeInBits.count() >= CHAR_BIT, "Got sub-byte input '{0}' in AddAttr",
-                      input.getElementType());
-
     return input;
 }
 
@@ -97,5 +74,6 @@ Const::Content vpux::Const::AddAttr::transform(vpux::Const::Content& input) cons
 }
 
 Const::ContentAttr vpux::Const::ContentAttr::add(double bias) const {
-    return get(*this, Const::AddAttr::get(getFPAttr(getContext(), bias)).cast<Const::TransformAttrInterface>());
+    return ContentAttr::addTransformation(
+            *this, Const::AddAttr::get(getFPAttr(getContext(), bias)).cast<Const::TransformAttrInterface>());
 }

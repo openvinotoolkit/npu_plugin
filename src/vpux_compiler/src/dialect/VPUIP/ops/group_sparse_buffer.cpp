@@ -47,9 +47,9 @@ mlir::ValueRange VPUIP::GroupSparseBufferOp::getViewSources() {
 //
 
 mlir::LogicalResult VPUIP::GroupSparseBufferOp::inferReturnTypes(mlir::MLIRContext* ctx,
-                                                                 Optional<mlir::Location> optLoc,
+                                                                 std::optional<mlir::Location> optLoc,
                                                                  mlir::ValueRange operands, mlir::DictionaryAttr attrs,
-                                                                 mlir::RegionRange /*ranges*/,
+                                                                 mlir::OpaqueProperties, mlir::RegionRange /*ranges*/,
                                                                  SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -58,14 +58,14 @@ mlir::LogicalResult VPUIP::GroupSparseBufferOp::inferReturnTypes(mlir::MLIRConte
         return mlir::failure();
     }
 
-    const auto dataType = groupOp.data().getType();
-    const auto sparsityMapType = groupOp.sparsityMap() != nullptr ? groupOp.sparsityMap().getType() : nullptr;
+    const auto dataType = groupOp.getData().getType();
+    const auto sparsityMapType = groupOp.getSparsityMap() != nullptr ? groupOp.getSparsityMap().getType() : nullptr;
     const auto storageElementTableType =
-            groupOp.storageElementTable() != nullptr ? groupOp.storageElementTable().getType() : nullptr;
+            groupOp.getStorageElementTable() != nullptr ? groupOp.getStorageElementTable().getType() : nullptr;
 
-    inferredReturnTypes.push_back(VPUIP::SparseBufferType::get(dataType, sparsityMapType, storageElementTableType,
-                                                               groupOp.is_weightsAttr(),
-                                                               groupOp.compression_schemeAttr(), groupOp.seAttrAttr()));
+    inferredReturnTypes.push_back(
+            VPUIP::SparseBufferType::get(dataType, sparsityMapType, storageElementTableType, groupOp.getIsWeightsAttr(),
+                                         groupOp.getCompressionSchemeAttr(), groupOp.getSeAttrAttr()));
 
     return mlir::success();
 }
@@ -87,14 +87,14 @@ public:
 
 mlir::LogicalResult RemoveGroupUngroup::matchAndRewrite(VPUIP::GroupSparseBufferOp groupOp,
                                                         mlir::PatternRewriter& /*rewriter*/) const {
-    if (llvm::any_of(groupOp.output().getUsers(), [](mlir::Operation* userOp) {
+    if (llvm::any_of(groupOp.getOutput().getUsers(), [](mlir::Operation* userOp) {
             return !mlir::isa<VPUIP::UngroupSparseBufferOp>(userOp);
         })) {
         return mlir::failure();
     }
 
     const auto operands = groupOp.getOperands();
-    for (auto userOp : groupOp.output().getUsers()) {
+    for (auto userOp : groupOp.getOutput().getUsers()) {
         for (auto userResult : userOp->getResults() | indexed) {
             userResult.value().replaceAllUsesWith(operands[userResult.index()]);
         }

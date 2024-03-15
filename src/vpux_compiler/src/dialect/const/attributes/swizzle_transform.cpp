@@ -4,8 +4,8 @@
 //
 
 #include "vpux/compiler/utils/swizzle_transform.hpp"
-#include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
-#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_invariant.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/swizzling_utils.hpp"
@@ -79,28 +79,6 @@ uint32_t AddressTransform::getPhysicalAddress(uint32_t dpuAddr) {
 }
 
 //
-// SwizzleConstantAttr::walkImmediateSubElements
-//
-
-void vpux::Const::SwizzleConstantAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)> walkAttrsFn,
-                                                                llvm::function_ref<void(mlir::Type)>) const {
-    walkAttrsFn(getSwizzleKey());
-    walkAttrsFn(getArch());
-    walkAttrsFn(getAlignSize());
-}
-
-//
-// SwizzleConstantAttr::replaceImmediateSubElements
-//
-
-mlir::Attribute vpux::Const::SwizzleConstantAttr::replaceImmediateSubElements(ArrayRef<mlir::Attribute> replAttrs,
-                                                                              ArrayRef<mlir::Type>) const {
-    VPUX_THROW_WHEN(replAttrs.size() < 3, "Replace attrs array is too short: '{0}'", replAttrs.size());
-    return get(replAttrs[0].dyn_cast_or_null<mlir::IntegerAttr>(), replAttrs[1].dyn_cast_or_null<mlir::IntegerAttr>(),
-               replAttrs[2].dyn_cast_or_null<mlir::BoolAttr>());
-}
-
-//
 // SwizzleConstantAttr::print
 //
 
@@ -109,10 +87,6 @@ void vpux::Const::SwizzleConstantAttr::print(mlir::AsmPrinter& printer) const {
     printer.printAttribute(getSwizzleKey());
     printer << ", ";
     printer.printAttribute(getArch());
-    if (getAlignSize() != nullptr) {
-        printer << ", ";
-        printer.printAttribute(getAlignSize());
-    }
     printer << ">";
 }
 
@@ -139,17 +113,10 @@ mlir::Attribute vpux::Const::SwizzleConstantAttr::parse(mlir::AsmParser& parser,
         return nullptr;
     }
 
-    mlir::BoolAttr alignSize;
-    if (mlir::succeeded(parser.parseOptionalComma())) {
-        if (mlir::failed(parser.parseAttribute(alignSize))) {
-            return nullptr;
-        }
-    }
-
     if (mlir::failed(parser.parseGreater())) {
         return nullptr;
     }
-    return Const::SwizzleConstantAttr::get(swizzleKey, arch, alignSize);
+    return Const::SwizzleConstantAttr::get(swizzleKey, arch);
 }
 
 //
@@ -157,27 +124,27 @@ mlir::Attribute vpux::Const::SwizzleConstantAttr::parse(mlir::AsmParser& parser,
 //
 
 vpux::NDTypeInterface vpux::Const::SwizzleConstantAttr::inferOutputType(vpux::NDTypeInterface inputType) const {
-    const auto alignSizeAttr = getAlignSize();
+    const uint32_t arch = static_cast<int32_t>(*getArch().getValue().getRawData());
+    VPU::ArchKind archKind = static_cast<VPU::ArchKind>(arch);
 
-    if (alignSizeAttr != nullptr && alignSizeAttr.getValue() == true) {
-        const uint32_t arch = static_cast<int32_t>(*getArch().getValue().getRawData());
-        VPU::ArchKind archKind = static_cast<VPU::ArchKind>(arch);
+    const auto newSize =
+            alignSizeForSwizzling(inputType.getTotalAllocSize().count(), getSizeAlignmentForSwizzling(archKind));
 
-        auto newSize = alignSizeForSwizzling(inputType.getTotalAllocSize().count(), archKind);
-
-        // Create a flat type with aligned size based on HW requirements
-        auto newShape = Shape({newSize, 1, 1, 1});
-
+    // Create a flat type with aligned size based on HW requirements
+    if (inputType.getElemTypeSize().count() == 1) {
         // For sub-byte type (i1) use same type on output
         // to align with swizzle transform
-        if (inputType.getElemTypeSize().count() == 1) {
-            newShape = Shape({newSize * CHAR_BIT, 1, 1, 1});
-            return inputType.changeShape(newShape);
-        }
-
+        auto newShape = Shape({newSize * CHAR_BIT, 1, 1, 1});
+        return inputType.changeShape(newShape);
+    } else if (inputType.getElementType().isF16()) {
+        // For FP16 maintain same type
+        auto newShape = Shape({newSize / static_cast<int64_t>(sizeof(float16)), 1, 1, 1});
+        return inputType.changeShape(newShape);
+    } else {
+        // For any other type use U8
+        auto newShape = Shape({newSize, 1, 1, 1});
         return inputType.changeShapeElemType(newShape, getUInt8Type(inputType.getContext()));
     }
-    return inputType;
 }
 
 //
@@ -185,21 +152,22 @@ vpux::NDTypeInterface vpux::Const::SwizzleConstantAttr::inferOutputType(vpux::ND
 //
 
 Const::Content swizzleValues(Const::Content& input, BufferSwizzleTransform& bufferSwizzleTransform,
-                             NDTypeInterface outputType) {
-    auto output = Const::Content::allocTempBuffer(outputType, outputType.getElementType(), false);
+                             NDTypeInterface outputType, VPU::ArchKind archKind) {
+    const auto newSize =
+            alignSizeForSwizzling(input.getType().getTotalAllocSize().count(), getSizeAlignmentForSwizzling(archKind));
+    auto output = Const::Content::allocTempBuffer(outputType, outputType.getElementType(), false, newSize);
 
-    auto totalSize = static_cast<size_t>(outputType.getTotalAllocSize().count());
     auto swizzledBuffer = output.getRawTempBuf();
 
     // Create new buffer with required size. Fill it with input data
-    std::vector<char> inputValues(totalSize);
-    input.copyTo(makeMutableArrayRef(inputValues.data(), totalSize));
+    std::vector<char> inputValues(newSize);
+    input.copyTo(MutableArrayRef(inputValues.data(), newSize));
 
     // Pad if final aligned size is larger than input size
     // If input constant was splat then pad with the same value to allow
     // having splat constant also after swizzling transformation
-    auto inputTotalSize = static_cast<size_t>(input.getType().getTotalAllocSize().count());
-    if (totalSize > inputTotalSize) {
+    auto inputTotalSize = input.getType().getTotalAllocSize().count();
+    if (newSize > inputTotalSize) {
         char padVal = 0;
         if (input.isSplat()) {
             padVal = inputValues[0];
@@ -234,8 +202,11 @@ Const::Content vpux::Const::SwizzleConstantAttr::transform(vpux::Const::Content&
 
     BufferSwizzleTransform bufferSwizzleTransform{swizzleKey, archKind};
 
+    // Since vpux::Const::Content::copyTo works now with sub 8 bit datatypes we can
+    // get rid of the I1 specific code bellow and instead use copyTo in a generic way
+    // E#103418
     if (dataWidth != 1) {
-        return swizzleValues(input, bufferSwizzleTransform, outputType);
+        return swizzleValues(input, bufferSwizzleTransform, outputType, archKind);
     }
 
     // Handle i1 type differently.
@@ -253,11 +224,11 @@ Const::Content vpux::Const::SwizzleConstantAttr::transform(vpux::Const::Content&
     // ui8 as destination type should be converted to 0xFF
     SmallVector<char> byteBuff0xFF = {(char)0xFF};
     if (input.isSplat() && data[0] == 1) {
-        data = makeArrayRef(byteBuff0xFF.data(), byteBuff0xFF.size());
+        data = ArrayRef(byteBuff0xFF.data(), byteBuff0xFF.size());
     }
     auto packedInput = Const::Content::fromRawBuffer(packedInputType, data, packedElemType, input.isSplat());
 
-    auto packedOutput = swizzleValues(packedInput, bufferSwizzleTransform, outputType);
+    auto packedOutput = swizzleValues(packedInput, bufferSwizzleTransform, outputType, archKind);
     auto output = Const::Content::moveBuffer(outputType, std::move(packedOutput));
 
     // Set storage element type to be equal to the sub-byte element type in order to have trivial storage
@@ -276,7 +247,15 @@ Const::details::PositionRequirement Const::SwizzleConstantAttr::getPositionRequi
 }
 
 Const::ContentAttr vpux::Const::ContentAttr::swizzleConstant(uint64_t swizzleKey, uint64_t arch) const {
-    return get(*this,
-               Const::SwizzleConstantAttr::get(getIntAttr(getContext(), swizzleKey), getIntAttr(getContext(), arch))
-                       .cast<Const::TransformAttrInterface>());
+    return ContentAttr::addTransformation(
+            *this, Const::SwizzleConstantAttr::get(getIntAttr(getContext(), swizzleKey), getIntAttr(getContext(), arch))
+                           .cast<Const::TransformAttrInterface>());
+}
+
+//
+// SwizzleConstantAttr::supportsSubByteStorageType
+//
+
+bool Const::SwizzleConstantAttr::supportsSubByteStorageType() const {
+    return true;
 }

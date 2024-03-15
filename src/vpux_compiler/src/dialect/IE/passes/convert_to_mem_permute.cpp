@@ -7,10 +7,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/permute_utils.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
-#include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
@@ -56,12 +53,12 @@ mlir::LogicalResult ConvertToMemPermutePass::ReorderOpConverter::matchAndRewrite
         IE::ReorderOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Found IE::Reorder Operation '{0}'", origOp->getLoc());
 
-    auto inOrder = DimsOrder::fromValue(origOp.input());
-    auto outOrder = DimsOrder::fromValue(origOp.output());
+    auto inOrder = DimsOrder::fromValue(origOp.getInput());
+    auto outOrder = DimsOrder::fromValue(origOp.getOutput());
 
     auto memPermAttr = mlir::AffineMapAttr::get(getPermutationFromOrders(inOrder, outOrder, origOp->getContext()));
 
-    rewriter.replaceOpWithNewOp<IE::MemPermuteOp>(origOp, origOp.input(), origOp.dstOrderAttr(), memPermAttr);
+    rewriter.replaceOpWithNewOp<IE::MemPermuteOp>(origOp, origOp.getInput(), origOp.getDstOrderAttr(), memPermAttr);
 
     _log.trace("Replaced with 'IE::MemPermute'");
 
@@ -88,16 +85,16 @@ private:
 mlir::LogicalResult ConvertToMemPermutePass::TransposeOpConverter::matchAndRewrite(
         IE::TransposeOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Found IE::Transpose Operation '{0}'", origOp->getLoc());
-    VPUX_THROW_UNLESS(origOp.order_value().has_value(), "IE::Transpose Operation doesn't have order_value attribute");
+    VPUX_THROW_UNLESS(origOp.getOrderValue().has_value(), "IE::Transpose Operation doesn't have order_value attribute");
 
-    auto outputOrder = DimsOrder::fromValue(origOp.output());
+    auto outputOrder = DimsOrder::fromValue(origOp.getOutput());
     auto dstOrder = mlir::AffineMapAttr::get(outputOrder.toAffineMap(origOp.getContext()));
-    auto inputOrder = DimsOrder::fromValue(origOp.input());
+    auto inputOrder = DimsOrder::fromValue(origOp.getInput());
     auto inPerm = inputOrder.toAffineMap(origOp.getContext());
-    auto memPerm = inPerm.compose(origOp.order_value().value());
+    auto memPerm = inPerm.compose(origOp.getOrderValue().value());
     auto memPermAttr = mlir::AffineMapAttr::get(memPerm);
 
-    rewriter.replaceOpWithNewOp<IE::MemPermuteOp>(origOp, origOp.input(), dstOrder, memPermAttr);
+    rewriter.replaceOpWithNewOp<IE::MemPermuteOp>(origOp, origOp.getInput(), dstOrder, memPermAttr);
 
     _log.trace("Replaced with 'IE::MemPermute'");
 

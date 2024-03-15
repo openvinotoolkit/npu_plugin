@@ -1,14 +1,13 @@
 //
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
-//
 
 #include <numeric>
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
-#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
-#include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
@@ -89,7 +88,7 @@ void buildReadAfterWriteDMADPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
 
     auto function = builder.create<mlir::func::FuncOp>(
             loc, printToString("read_after_write_dpu_dma_{0}_{1}_{2}", inputType, weightsType, outputType), funcType,
-            builder.getStringAttr("private"));
+            builder.getStringAttr("private"), /*arg_attrs=*/nullptr, /*res_attrs=*/nullptr);
 
     auto functionBuilder = mlir::OpBuilder::atBlockBegin(function.addEntryBlock(), builder.getListener());
 
@@ -97,16 +96,7 @@ void buildReadAfterWriteDMADPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
     auto functionOutput = function.getArgument(1);
 
     const auto weightsValues = generateWeights(weightsShape, weightsType, ctx, weightsFileName);
-    auto weightsAttribute = vpux::Const::ContentAttr::get(weightsValues);
-    weightsAttribute = weightsAttribute.reorder(vpux::DimsOrder::OYXI);
-
-    if (auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>()) {
-        const auto quantizedType = vpux::changeStorageType(qty, weightsAttribute.getType().getElementType());
-        weightsAttribute = weightsAttribute.quantCast(quantizedType);
-        if (qty.getStorageType().isInteger(4)) {
-            weightsAttribute = weightsAttribute.bitPack(4);
-        }
-    }
+    const auto weightsAttribute = generateDefaultWeightsAttr(weightsValues, weightsType);
 
     const auto weightsDDRType =
             getMemRefType(VPURT::BufferSection::Constant, weightsShape, weightsType, DimsOrder::NHWC);
@@ -128,6 +118,10 @@ void buildReadAfterWriteDMADPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
 
     auto& weightsOutputChannelsStrideInBits = weightsStrides[vpux::Dims4D::Filter::OC];
 
+    if (weightsOutputChannelsStrideInBits.count() / CHAR_BIT < alignment) {
+        weightsOutputChannelsStrideInBits = vpux::Bit(alignment * CHAR_BIT);
+    }
+
     const auto weightsTableDDRType = mlir::RankedTensorType::get(weightsTableShape, int32);
     const auto sparsityPtrStep = 0;
     const auto weightsTable = VPU::NCESparsity::getWeightsTable(
@@ -139,7 +133,7 @@ void buildReadAfterWriteDMADPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
     const auto weightsTableDDRMemRef =
             getMemRefType(VPURT::BufferSection::Constant, weightsTableShape, int32, DimsOrder::NHWC);
     const auto weightsTableValues =
-            mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::makeArrayRef<std::int32_t>(weightsTable));
+            mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::ArrayRef<std::int32_t>(weightsTable));
     auto weightsTableDDR = functionBuilder.create<vpux::Const::DeclareOp>(
             loc, weightsTableDDRMemRef,
             vpux::Const::ContentAttr::get(weightsTableValues).reorder(vpux::DimsOrder::NHWC));
@@ -151,13 +145,13 @@ void buildReadAfterWriteDMADPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
 
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(),
                                           mlir::ValueRange(updateBarrier.getBarrier()), loc, functionInput,
-                                          inputCMX.getOperation()->getResult(0));
+                                          inputCMX.getOperation()->getResult(0), 0);
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
             functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.getBarrier()), loc,
-            weightsDDR.getOperation()->getResult(0), weightsCMX.getOperation()->getResult(0));
+            weightsDDR.getOperation()->getResult(0), weightsCMX.getOperation()->getResult(0), 0);
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
             functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.getBarrier()), loc,
-            weightsTableDDR.getOperation()->getResult(0), weightsTableCMX.getOperation()->getResult(0));
+            weightsTableDDR.getOperation()->getResult(0), weightsTableCMX.getOperation()->getResult(0), 0);
 
     auto waitBarrier = updateBarrier;
 
@@ -189,7 +183,7 @@ void buildReadAfterWriteDMADPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
         VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.getBarrier()),
                                               mlir::ValueRange(updateBarrier.getBarrier()), loc,
                                               inputCMX.getOperation()->getResult(0),
-                                              outputDMACMX.getOperation()->getResult(0), cluster);
+                                              outputDMACMX.getOperation()->getResult(0), 0, cluster);
 
         waitBarrier = updateBarrier;
         updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, i + 1);
@@ -214,14 +208,14 @@ void buildReadAfterWriteDMADPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
 
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.getBarrier()),
                                           mlir::ValueRange(), loc, outputDMACMX.getOperation()->getResult(0),
-                                          functionOutput);
+                                          functionOutput, 0);
 
     functionBuilder.create<mlir::func::ReturnOp>(loc, mlir::ValueRange{functionOutput});
 
-    mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
+    mlir::PassManager pm(module->getName(), mlir::OpPassManager::Nesting::Implicit);
 
     pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW,
-                                           /*numOfDPUGroups=*/2, None, log));
+                                           /*numOfDPUGroups=*/2, std::nullopt, log));
 
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsBTCPass(log));

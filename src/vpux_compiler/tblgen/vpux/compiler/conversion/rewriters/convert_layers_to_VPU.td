@@ -99,7 +99,7 @@ def createAvgPoolOp :
 
 def RewriteAvgPool :
         Pat<
-            (IE_AvgPoolOp $input, $kernel_size, $strides, $pads_begin, $pads_end, $rounding_type, $exclude_pads, $post_op),
+            (IE_AvgPoolOp $input, $kernel_size, $strides, $pads_begin, $pads_end, $rounding_type, $exclude_pads, $post_op, $clamp),
             (createAvgPoolOp $input, $kernel_size, $strides, $pads_begin, $pads_end, $rounding_type, $exclude_pads)
         >;
 
@@ -277,8 +277,8 @@ def createMaxPoolOp :
 
 def RewriteMaxPool :
         Pat<
-            (IE_MaxPoolOp $input, $kernel_size, $strides, $pads_begin, $pads_end, $rounding_type, $post_op),
-            (createMaxPoolOp $input, $kernel_size, $strides, $pads_begin, $pads_end, $rounding_type, $post_op)
+            (IE_MaxPoolOp $input, $kernel_size, $strides, $pads_begin, $pads_end, $rounding_type, $post_op, $clamp),
+            (createMaxPoolOp $input, $kernel_size, $strides, $pads_begin, $pads_end, $rounding_type, $post_op, $clamp)
         >;
 
 //
@@ -295,8 +295,8 @@ def createConvolutionOp :
 
 def RewriteConvolution :
         Pat<
-            (IE_ConvolutionOp $input, $filter, $bias, $strides, $pads_begin, $pads_end, $dilations, $post_op),
-            (createConvolutionOp $input, $filter, $bias, $strides, $pads_begin, $pads_end, $dilations, $post_op)
+            (IE_ConvolutionOp $input, $filter, $bias, $strides, $pads_begin, $pads_end, $dilations, $post_op, $clamp),
+            (createConvolutionOp $input, $filter, $bias, $strides, $pads_begin, $pads_end, $dilations, $post_op, $clamp)
         >;
 
 //
@@ -313,26 +313,8 @@ def createGroupConvolutionOp :
 
 def RewriteGroupConvolution :
         Pat<
-            (IE_GroupConvolutionOp $input, $filter, $bias, $strides, $pads_begin, $pads_end, $dilations, $groups, $post_op),
-            (createGroupConvolutionOp $input, $filter, $bias, $strides, $pads_begin, $pads_end, $dilations, $groups, $post_op)
-        >;
-
-//
-// IE.Deconvolution -> VPU.Deconvolution
-//
-
-def createDeconvolutionOp :
-        NativeCodeCall<[{
-            $_builder.create<vpux::VPU::DeconvolutionOp>(
-                $_loc, $0, $1,
-                $2.size() == 1 ? $2[0] : nullptr,
-                $3, $4, $5, $6, $7)
-        }]>;
-
-def RewriteDeconvolution :
-        Pat<
-            (IE_DeconvolutionOp $feature, $filter, $output_shape, $strides, $pads_begin, $pads_end, $dilations, $output_padding, $post_op),
-            (createDeconvolutionOp $feature, $filter, $output_shape, $strides, $pads_begin, $pads_end, $dilations, $output_padding)
+            (IE_GroupConvolutionOp $input, $filter, $bias, $strides, $pads_begin, $pads_end, $dilations, $groups, $post_op, $clamp),
+            (createGroupConvolutionOp $input, $filter, $bias, $strides, $pads_begin, $pads_end, $dilations, $groups, $post_op, $clamp)
         >;
 
 //
@@ -954,8 +936,8 @@ def RewritePerAxisTile :
         >;
 
 //
-// IE.[Add|Subtract|Multiply|Divide|SquaredDiff|Power|FloorMod|Min|Max|And|Equal|Less|LessEqual|NotEqual|Greater|GreaterEqual|LogicalOr|LogicalXor]Pool
-//     -> VPU.[Add|Subtract|Multiply|Divide|SquaredDiff|Power|FloorMod|Min|Max|And|Equal|Less|LessEqual|NotEqual|Greater|GreaterEqual|LogicalOr|LogicalXor]Pool
+// IE.[Add|Subtract|Multiply|Divide|SquaredDiff|Power|FloorMod|Mod|Min|Max|And|Equal|Less|LessEqual|NotEqual|Greater|GreaterEqual|LogicalOr|LogicalXor]Pool
+//     -> VPU.[Add|Subtract|Multiply|Divide|SquaredDiff|Power|FloorMod|Mod|Min|Max|And|Equal|Less|LessEqual|NotEqual|Greater|GreaterEqual|LogicalOr|LogicalXor]Pool
 //
 
 class createEltwiseOp<string type> :
@@ -978,14 +960,14 @@ def RewritePower :
 
 def RewriteAdd :
         Pat<
-            (IE_AddOp $input1, $input2, $auto_broadcast, $post_op),
-            (createEltwiseOpWithPostOp<"Add"> $input1, $input2, $auto_broadcast, $post_op)
+            (IE_AddOp $input1, $input2, $auto_broadcast, $post_op, $clamp),
+            (createEltwiseOpWithPostOp<"Add"> $input1, $input2, $auto_broadcast, $post_op, $clamp)
         >;
 
 def RewriteSubtract :
         Pat<
-            (IE_SubtractOp $input1, $input2, $auto_broadcast, $post_op),
-            (createEltwiseOpWithPostOp<"Subtract"> $input1, $input2, $auto_broadcast, $post_op)
+            (IE_SubtractOp $input1, $input2, $auto_broadcast, $post_op, $clamp),
+            (createEltwiseOpWithPostOp<"Subtract"> $input1, $input2, $auto_broadcast, $post_op, $clamp)
         >;
 
 def RewriteDivide :
@@ -1004,6 +986,12 @@ def RewriteFloorMod :
         Pat<
             (IE_FloorModOp $input1, $input2, $auto_broadcast),
             (createEltwiseOp<"FloorMod"> $input1, $input2, $auto_broadcast)
+        >;
+
+def RewriteMod :
+        Pat<
+            (IE_ModOp $input1, $input2, $auto_broadcast),
+            (createEltwiseOp<"Mod"> $input1, $input2, $auto_broadcast)
         >;
 
 def RewriteLess :
@@ -1044,14 +1032,14 @@ def RewriteLogicalXor :
 
 def RewriteMultiply :
         Pat<
-            (IE_MultiplyOp $input1, $input2, $auto_broadcast, $post_op),
-            (createEltwiseOpWithPostOp<"Multiply"> $input1, $input2, $auto_broadcast, $post_op)
+            (IE_MultiplyOp $input1, $input2, $auto_broadcast, $post_op, $clamp),
+            (createEltwiseOpWithPostOp<"Multiply"> $input1, $input2, $auto_broadcast, $post_op, $clamp)
         >;
 
 def RewriteAnd :
         Pat<
-            (IE_AndOp $input1, $input2, $auto_broadcast, $post_op),
-            (createEltwiseOpWithPostOp<"And"> $input1, $input2, $auto_broadcast, $post_op)
+            (IE_AndOp $input1, $input2, $auto_broadcast, $post_op, $clamp),
+            (createEltwiseOpWithPostOp<"And"> $input1, $input2, $auto_broadcast, $post_op, $clamp)
         >;
 
 def RewriteMinimum :
@@ -1280,12 +1268,12 @@ def RewritePSROIPooling :
 def createROIAlignOp :
         NativeCodeCall<[{
             $_builder.create<vpux::VPU::ROIAlignOp>(
-                $_loc, $0, $1, $2, $3, $4, $5, $6, $7)
+                $_loc, $0, $1, $2, $3, $4, $5, $6, $7, $8)
         }]>;
 def RewriteROIAlign :
         Pat<
-            (IE_ROIAlignOp $input, $coords, $roisIdx, $pooled_h, $pooled_w, $sampling_ratio, $spatial_scale, $poolingMode),
-            (createROIAlignOp $input, $coords, $roisIdx, $pooled_h, $pooled_w, $sampling_ratio, $spatial_scale, $poolingMode)
+            (IE_ROIAlignOp $input, $coords, $roisIdx, $pooled_h, $pooled_w, $sampling_ratio, $spatial_scale, $poolingMode, $alignedMode),
+            (createROIAlignOp $input, $coords, $roisIdx, $pooled_h, $pooled_w, $sampling_ratio, $spatial_scale, $poolingMode, $alignedMode)
         >;
 
 //
@@ -1564,8 +1552,8 @@ def RewriteYuvToRgb :
 
 def RewriteRandomUniform :
         Pat<
-            (IE_RandomUniformOp $min, $max, $shape, $type, $global_seed, $op_seed),
-            (VPU_RandomUniformOp $min, $max, $shape, $type, $global_seed, $op_seed)
+            (IE_RandomUniformOp $min, $max, $shape, $outputType, $global_seed, $op_seed),
+            (VPU_RandomUniformOp $min, $max, $shape, $outputType, $global_seed, $op_seed)
         >;
 
 //
@@ -1581,8 +1569,8 @@ def createOneHotOp :
 def RewriteOneHot :
         Pat<
             (IE_OneHotOp $input, $depth, $on_value, $off_value, $depth_attr,
-             $on_value_attr, $off_value_attr, $axis_attr, $outElemType),
-            (createOneHotOp $input, $depth_attr, $on_value_attr, $off_value_attr, $axis_attr, $outElemType)
+             $on_value_attr, $off_value_attr, $axis_attr, $outputType),
+            (createOneHotOp $input, $depth_attr, $on_value_attr, $off_value_attr, $axis_attr, $outputType)
         >;
 
 //
@@ -1599,6 +1587,22 @@ def RewriteSpaceToDepth :
         Pat<
             (IE_SpaceToDepthOp $input, $block_size, $mode),
             (createSpaceToDepthOp $input, $block_size, $mode)
+        >;
+
+//
+// IE.SpaceToBatch -> VPU.SpaceToBatch
+//
+
+def createSpaceToBatch :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPU::SpaceToBatch>(
+                $_loc, $0, $1, $2, $3)
+        }]>;
+
+def RewriteSpaceToBatch :
+        Pat<
+            (IE_SpaceToBatch $input, $block_shape, $pads_begin, $pads_end, $block_shape_value, $pads_begin_value, $pads_end_value),
+            (createSpaceToBatch $input, $block_shape_value, $pads_begin_value, $pads_end_value)
         >;
 
 //
@@ -1711,21 +1715,6 @@ def RewriteCeiling :
             (createCeilingOp $input)
         >;
 
-//
-// IE.NormalizeL2 -> VPU.NormalizeL2
-//
-
-def createNormalizeL2Op :
-        NativeCodeCall<[{
-            $_builder.create<vpux::VPU::NormalizeL2Op>(
-                $_loc, $0, $1, $2, $3)
-        }]>;
-
-def RewriteNormalizeL2 :
-        Pat<
-            (IE_NormalizeL2Op $data, $axes, $eps, $eps_mode),
-            (createNormalizeL2Op $data, $axes, $eps, $eps_mode)
-        >;
 
 //
 // IE.NormalizeIE -> VPU.NormalizeIE
@@ -1757,6 +1746,22 @@ def RewriteCumSum :
         Pat<
             (IE_CumSumOp $input, $axis, $axis_value, $exclusive, $reverse),
             (createCumSumOp $input, $axis_value, $exclusive, $reverse)
+        >;
+
+//
+// IE.Eye -> VPU.Eye
+//
+
+def createEyeOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPU::EyeOp>(
+                $_loc, $0, $1, $2, $3, $4)
+        }]>;
+
+def RewriteEye :
+        Pat<
+            (IE_EyeOp $num_rows, $num_columns, $diagonal_index, $batch_shape, $num_rows_value, $num_columns_value, $batch_shape_value, $outputType),
+            (createEyeOp $diagonal_index, $num_rows_value, $num_columns_value, $batch_shape_value, $outputType)
         >;
 
 //

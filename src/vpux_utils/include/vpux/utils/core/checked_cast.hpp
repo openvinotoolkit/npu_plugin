@@ -4,6 +4,8 @@
 //
 
 //
+
+//
 // Safe version of `static_cast` with run-time checks.
 //
 
@@ -21,12 +23,12 @@ namespace vpux {
 namespace details {
 
 template <bool Cond, class Func>
-enable_if_t<Cond> staticIf(Func&& func) {
+std::enable_if_t<Cond> staticIf(Func&& func) {
     func();
 }
 
 template <bool Cond, class Func>
-enable_if_t<!Cond> staticIf(Func&&) {
+std::enable_if_t<!Cond> staticIf(Func&&) {
 }
 
 // To overcame syntax parse error, when `>` comparison operator is threated as

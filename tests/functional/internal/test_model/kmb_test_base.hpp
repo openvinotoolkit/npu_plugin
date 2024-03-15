@@ -13,8 +13,6 @@
 #include "kmb_test_softmax_def.hpp"
 #include "pretty_test_arguments.hpp"
 
-#include <vpux/vpux_plugin_config.hpp>
-
 #include <vpux/utils/core/format.hpp>
 
 #include <common_test_utils/test_common.hpp>
@@ -128,7 +126,7 @@ enum ImageFormat { RGB, BGR };
 // KmbTestBase
 //
 
-class KmbTestBase : public CommonTestUtils::TestsCommon {
+class KmbTestBase : public ov::test::TestsCommon {
 public:
     using BlobGenerator = std::function<Blob::Ptr(const TensorDesc& desc)>;
     using CompileConfig = std::map<std::string, std::string>;

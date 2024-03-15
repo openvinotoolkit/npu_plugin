@@ -9,13 +9,13 @@
 #include <vpux_elf/accessor.hpp>
 #include <vpux_elf/types/symbol_entry.hpp>
 #include <vpux_elf/utils/error.hpp>
-#include <vpux_loader/vpux_loader.hpp>
+#include <vpux_hpi.hpp>
 
 #include <vpux_elf/types/vpu_extensions.hpp>
-#include <vpux_headers/array_ref.hpp>
 #include <vpux_headers/buffer_specs.hpp>
 #include <vpux_headers/device_buffer.hpp>
 
+#include <chrono>
 #include <cstdint>
 #include <ctime>
 #include <fstream>
@@ -30,6 +30,8 @@
 #include <vpux_elf/utils/log.hpp>
 
 using namespace elf;
+using namespace std;
+using namespace chrono;
 
 namespace {
 
@@ -47,7 +49,7 @@ llvm::cl::opt<InputSource> inputSource(
                          clEnumValN(Zeroes, "zeroes", "Fill with Zeores"), clEnumValN(Ones, "ones", "Fill ones"),
                          clEnumValN(CheckerBoard, "checkerBoard", "Fill with checkerBoardPattern"),
                          clEnumValN(Files, "files", "FileList specified by -f commandLine list")),
-        llvm::cl::init(Files), llvm::cl::desc("Input buffer source: "));
+        llvm::cl::init(Zeroes), llvm::cl::desc("Input buffer source: "));
 
 llvm::cl::list<std::string> inputFiles("f", llvm::cl::value_desc("Input Files"),
                                        llvm::cl::desc("Input file names. If buffer source is set to a generator "
@@ -164,59 +166,8 @@ private:
     uint8_t* m_tracker;
 };
 
-// TODO(E#23975): This beautiful piece of code contains the "special symtab" that normally needs to be queried from
-// the runtime. In IMDemo example we have a similar class that constructs this symTab based on data from the
-// InferenceRuntimeService. Since we cannot include that in VPUX-plugin, we will occasionally manually check the
-// values, and update them here Hopefully if we solve the riddle of integration between VPUX Plugin and vpuip_2, then
-// we will not have to resort to magical solutions (This is my wish to SantaClaus this year :) ) This ticket will
-// not totally solve the problem, but will greatly reduce the hack-ishness of this solution
-
-class HardCodedSymtabToCluster0 {
-private:
-    static constexpr size_t SPECIAL_SYMTAB_SIZE = 8;  // I counted!!!! Twice!!
-    SymbolEntry symTab_[SPECIAL_SYMTAB_SIZE];
-
-public:
-    HardCodedSymtabToCluster0(): symTab_() {
-        for (size_t i = 0; i < SPECIAL_SYMTAB_SIZE; ++i) {
-            symTab_[i].st_info = static_cast<unsigned char>(elf64STInfo(STB_GLOBAL, STT_OBJECT));
-            symTab_[i].st_other = STV_DEFAULT;
-            symTab_[i].st_shndx = 0;
-            symTab_[i].st_name = 0;
-        }
-
-        symTab_[VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR].st_value = 0x2e014000;
-        symTab_[VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR].st_size = 2097152;
-
-        symTab_[VPU_NNRD_SYM_RTM_IVAR].st_value = 0x2e004000;
-        symTab_[VPU_NNRD_SYM_RTM_IVAR].st_size = 64;
-
-        symTab_[VPU_NNRD_SYM_RTM_ACT].st_value = 0;
-        symTab_[VPU_NNRD_SYM_RTM_ACT].st_size = 0;
-
-        symTab_[VPU_NNRD_SYM_RTM_DMA0].st_value = 0x2e1f8000;
-        symTab_[VPU_NNRD_SYM_RTM_DMA0].st_size = 64;
-
-        symTab_[VPU_NNRD_SYM_RTM_DMA1].st_value = 0x2e1fc000;
-        symTab_[VPU_NNRD_SYM_RTM_DMA1].st_size = 64;
-
-        symTab_[VPU_NNRD_SYM_FIFO_BASE].st_value = 0x0;
-        symTab_[VPU_NNRD_SYM_FIFO_BASE].st_size = 0;
-
-        symTab_[VPU_NNRD_SYM_BARRIERS_START].st_value = 0;
-        symTab_[VPU_NNRD_SYM_BARRIERS_START].st_size = 0;
-
-        symTab_[VPU_NNRD_SYM_HW_REGISTER].st_value = 0;
-        symTab_[VPU_NNRD_SYM_HW_REGISTER].st_size = 0;
-    }
-
-    const ArrayRef<SymbolEntry> symTab() const {
-        return ArrayRef<SymbolEntry>(symTab_, SPECIAL_SYMTAB_SIZE);
-    }
-};
-
-void allocIO(BufferManager* mngr, std::vector<DeviceBuffer>& ioVec, ArrayRef<DeviceBuffer> sizes, uint32_t* ioPtrs,
-             uint32_t* ioSizesP, uint32_t* ioSize) {
+void allocIO(BufferManager* mngr, std::vector<DeviceBuffer>& ioVec, const std::vector<DeviceBuffer>& sizes,
+             uint32_t* ioPtrs, uint32_t* ioSizesP, uint32_t* ioSize) {
     auto ioPtrBuf = mngr->allocate(BufferSpecs(1, sizes.size() * sizeof(uint32_t), SHF_NONE));
     auto ioSizesBuf = mngr->allocate(BufferSpecs(1, sizes.size() * sizeof(uint32_t), SHF_NONE));
 
@@ -322,7 +273,6 @@ int main(int argc, char* argv[]) {
         std::vector<uint8_t> elfFile((std::istreambuf_iterator<char>(inputStream)), (std::istreambuf_iterator<char>()));
         inputStream.close();
 
-        HardCodedSymtabToCluster0 singleClusterSymTab;
         FlatHexBufferManager bufferManager(baseAddr, memSize);
 
         HexMappedInferenceEntry* hexEntry = reinterpret_cast<HexMappedInferenceEntry*>(
@@ -330,7 +280,17 @@ int main(int argc, char* argv[]) {
 
         ElfDDRAccessManager accessor(reinterpret_cast<const uint8_t*>(elfFile.data()), elfFile.size());
 
-        VPUXLoader loader(&accessor, &bufferManager, singleClusterSymTab.symTab());
+        auto start = high_resolution_clock::now();
+
+        elf::HPIConfigs hpiConfigs;
+
+        hpiConfigs.archKind = elf::platform::ArchKind::VPUX37XX;
+
+        HostParsedInference loader(&bufferManager, &accessor, hpiConfigs);
+        loader.load();
+
+        auto end = high_resolution_clock::now();
+        llvm::outs() << llvm::formatv("ELF loaded in {0}ms\n", duration_cast<milliseconds>(end - start).count());
 
         std::vector<DeviceBuffer> inputs;
         std::vector<DeviceBuffer> outputs;
@@ -345,16 +305,14 @@ int main(int argc, char* argv[]) {
                 &hexEntry->outputsCount);
         allocIO(&bufferManager, profiling, profilingSizes, &hexEntry->profilingPtr, &hexEntry->profilingSizesPtr,
                 &hexEntry->profilingCount);
-        hexEntry->elfEntryPtr = static_cast<uint32_t>(loader.getEntry());
 
         setInputs(inputs);
 
-        llvm::outs() << llvm::formatv("Mapped Inferece pointer at:\n\t {0:x}\n", loader.getEntry());
         dumpInputs(inputs);
         dumpOutputs(outputs);
         dumpProfiling(profiling);
 
-        loader.applyJitRelocations(inputs, outputs, profiling);
+        loader.applyInputOutput(inputs, outputs, profiling);
 
         hexEntry->totalSize = static_cast<uint32_t>(bufferManager.size());
 

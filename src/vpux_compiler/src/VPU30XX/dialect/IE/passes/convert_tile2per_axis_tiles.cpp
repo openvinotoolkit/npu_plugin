@@ -55,12 +55,12 @@ mlir::LogicalResult ConvertTile2PerAxisTilePass::TileOpConverter::matchAndRewrit
         IE::TileOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Got Tile Operation '{0}'", origOp->getLoc());
 
-    if (!origOp.repeats_values().has_value()) {
+    if (!origOp.getRepeatsValues().has_value()) {
         return errorAt(origOp->getLoc(), "Got non repeats_values parameters");
     }
-    auto repeats = parseIntArrayAttr<int64_t>(origOp.repeats_values().value());
+    auto repeats = parseIntArrayAttr<int64_t>(origOp.getRepeatsValues().value());
 
-    const auto gapSize = static_cast<int>(getShape(origOp.input()).size()) - static_cast<int>(repeats.size());
+    const auto gapSize = static_cast<int>(getShape(origOp.getInput()).size()) - static_cast<int>(repeats.size());
 
     if (gapSize < 0) {
         _log.error("Op: {0}. Rank of input tensor less then input repeats array size. This case should be handled by "
@@ -69,14 +69,14 @@ mlir::LogicalResult ConvertTile2PerAxisTilePass::TileOpConverter::matchAndRewrit
         return mlir::failure();
     }
 
-    mlir::Value lastResult = origOp.input();
+    mlir::Value lastResult = origOp.getInput();
     for (size_t i = 0; i < repeats.size(); ++i) {
         if (repeats[i] > 1) {
             lastResult = rewriter.create<IE::PerAxisTileOp>(origOp->getLoc(), lastResult, i + gapSize, repeats[i])
                                  .getResult();
         }
     }
-    if (lastResult == origOp.input()) {
+    if (lastResult == origOp.getInput()) {
         return mlir::failure();
     }
     rewriter.replaceOp(origOp, lastResult);

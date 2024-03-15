@@ -34,8 +34,29 @@ static constexpr auto PAD_NCETASK_RIGHT = 1;
 static constexpr auto PAD_NCETASK_TOP = 2;
 static constexpr auto PAD_NCETASK_BOTTOM = 3;
 
+// vpux::profiling::ExecutorType definition ref:
+// src/vpux_utils/include/vpux/utils/plugin/profiling_parser.hpp#L42
+static constexpr auto HWP_DPU_SECTION_EXEC_TYPE = 1;
+static constexpr auto HWP_SW_SECTION_EXEC_TYPE = 3;
+static constexpr auto HWP_WORKPOINT_SECTION_EXEC_TYPE = 5;
+static constexpr auto HWP_DMA_SECTION_EXEC_TYPE = 6;
+
+// ref: src/vpux_compiler/include/vpux/compiler/dialect/VPUIP/utils.hpp
+static constexpr size_t HWP_DMA_PROFILING_MAX_BUFFER_SIZE = 512;
+static constexpr size_t HWP_DPU_BYTES_PER_ENTRY = 16;
+static constexpr size_t HWP_DMA_BYTES_PER_ENTRY = 8;
+static constexpr size_t HWP_ACTSHAVE_BYTES_PER_ENTRY = 16;
+static constexpr size_t HWP_PLL_WORKPOINT_BYTES_PER_ENTRY = 64;
+
+struct ProfilingDataSection {
+    int64_t execType;
+    size_t offset;
+    int64_t size;
+};
+
 mlir::DenseElementsAttr generateWeights(llvm::ArrayRef<int64_t> wt_shape, mlir::Type dtype, mlir::MLIRContext* ctx,
                                         const char* weight_file_name);
+vpux::Const::ContentAttr generateDefaultWeightsAttr(mlir::DenseElementsAttr weights, mlir::Type type);
 
 std::size_t totalTensorSize(llvm::ArrayRef<int64_t> shape, mlir::Type elementtype);
 
@@ -47,6 +68,8 @@ mlir::Type parseWeightsType(mlir::OpBuilder builder, const nb::WeightLayer& weig
 
 void buildCNNOp(mlir::OpBuilder& builder, llvm::StringRef mainFuncName, llvm::ArrayRef<mlir::Type> inputs,
                 llvm::ArrayRef<mlir::Type> outputs);
+void buildCNNOp(mlir::OpBuilder& builder, llvm::StringRef mainFuncName, llvm::ArrayRef<mlir::Type> inputs,
+                llvm::ArrayRef<mlir::Type> outputs, llvm::ArrayRef<ProfilingDataSection> profilingSections);
 
 void buildDMA(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder, Logger& log,
               mlir::Type inputType, mlir::Type outputType);
@@ -60,8 +83,8 @@ void buildDoubleConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
                      Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
 void buildSparseZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                            Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
-void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
-                     Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
+void buildEltwise(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                  Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
 void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
                                 mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
                                 mlir::Type outputType);
@@ -123,6 +146,9 @@ void buildRaceConditionDPUDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc,
                                      mlir::Type outputType);
 void buildDualChannelDMATest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                              Logger& log, mlir::Type inputType, mlir::Type outputType);
+void buildGenerateScaleTableTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
+                                 mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
+                                 mlir::Type outputType);
 mlir::DenseElementsAttr splitWeightsOverC(mlir::DenseElementsAttr wt_vec, ArrayRef<int64_t> wt_shape, mlir::Type dtype,
                                           mlir::MLIRContext* ctx, size_t startC, size_t endC);
 template <typename T>
@@ -156,6 +182,8 @@ vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, VPU
 vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder builder, VPURT::BufferSection section,
                                                    ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
                                                    StridesRef strides, int64_t locale, size_t offset);
+vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, mlir::Type type,
+                                                   VPURT::BufferSection section, size_t offset);
 vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, mlir::MemRefType type,
                                                    VPURT::BufferSection section, int64_t locale, size_t offset);
 vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, mlir::Type type,
@@ -172,7 +200,8 @@ mlir::OpResult getConstResult(vpux::Const::DeclareOp op);
 
 vpux::VPUIP::DPUTaskOp createDPUTaskOp(mlir::OpBuilder builder, mlir::OpBuilder variantbuilder,
                                        ArrayRef<int64_t> outputShape, ArrayRef<int64_t> inputShape,
-                                       const std::vector<int64_t>& paddingVec, VPU::MPEMode mpeMode);
+                                       const std::vector<int64_t>& paddingVec, VPU::MPEMode mpeMode,
+                                       int64_t clusterId = 0);
 
 vpux::DimsOrder oduPermutationToLayout(const MVCNN::Permutation oduPermutation);
 vpux::Dim getInnermostDim(const vpux::DimsOrder& order);

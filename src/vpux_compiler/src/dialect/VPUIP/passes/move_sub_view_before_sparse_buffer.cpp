@@ -3,22 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/dialect/VPUIP/passes.hpp"
-
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/utils.hpp"
-#include "vpux/compiler/dialect/VPURT/ops.hpp"
-
-#include "vpux/compiler/core/aliases_info.hpp"
-
-#include "vpux/compiler/utils/analysis.hpp"
-#include "vpux/compiler/utils/logging.hpp"
+#include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
-
-#include "vpux/utils/core/range.hpp"
 
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
@@ -45,21 +33,21 @@ private:
 
 mlir::LogicalResult MoveViewOpUp::matchAndRewrite(VPUIP::SubViewOp origSubViewOp,
                                                   mlir::PatternRewriter& rewriter) const {
-    auto groupSparseBuffer = origSubViewOp.source().getDefiningOp<VPUIP::GroupSparseBufferOp>();
+    auto groupSparseBuffer = origSubViewOp.getSource().getDefiningOp<VPUIP::GroupSparseBufferOp>();
     if (groupSparseBuffer == nullptr) {
         return mlir::failure();
     }
 
     // Data is mandatory, SparsityMap and Storage Element table are optional
-    auto origDataValue = groupSparseBuffer.data();
+    auto origDataValue = groupSparseBuffer.getData();
     if (origDataValue == nullptr) {
         return mlir::failure();
     }
-    auto sparsityMapValue = groupSparseBuffer.sparsityMap();
+    auto sparsityMapValue = groupSparseBuffer.getSparsityMap();
 
     VPUIP::StorageElementTableOp seTableOp = nullptr;
-    if (groupSparseBuffer.storageElementTable() != nullptr) {
-        seTableOp = groupSparseBuffer.storageElementTable().getDefiningOp<VPUIP::StorageElementTableOp>();
+    if (groupSparseBuffer.getStorageElementTable() != nullptr) {
+        seTableOp = groupSparseBuffer.getStorageElementTable().getDefiningOp<VPUIP::StorageElementTableOp>();
         // Do not rewrite if SETable operation is not directly attached to GroupSparseBufferOp
         if (seTableOp == nullptr) {
             return mlir::failure();
@@ -68,14 +56,14 @@ mlir::LogicalResult MoveViewOpUp::matchAndRewrite(VPUIP::SubViewOp origSubViewOp
 
     auto ctx = getContext();
 
-    const auto subViewOffsets = parseIntArrayAttr<int64_t>(origSubViewOp.static_offsets());
-    const auto subViewSizes = parseIntArrayAttr<int64_t>(origSubViewOp.static_sizes());
-    if (origSubViewOp.static_strides().has_value()) {
+    const auto subViewOffsets = parseIntArrayAttr<int64_t>(origSubViewOp.getStaticOffsets());
+    const auto subViewSizes = parseIntArrayAttr<int64_t>(origSubViewOp.getStaticSizes());
+    if (origSubViewOp.getStaticStrides().has_value()) {
         return mlir::failure();
     }
 
-    auto seAttr = groupSparseBuffer.seAttr().value_or(nullptr);
-    auto compressionSchemeAttr = groupSparseBuffer.compression_scheme().value_or(nullptr);
+    auto seAttr = groupSparseBuffer.getSeAttr().value_or(nullptr);
+    auto compressionSchemeAttr = groupSparseBuffer.getCompressionScheme().value_or(nullptr);
     if (compressionSchemeAttr != nullptr) {
         compressionSchemeAttr =
                 VPUIP::tileCompressionScheme(compressionSchemeAttr, Shape(subViewOffsets), Shape(subViewSizes));
@@ -93,7 +81,7 @@ mlir::LogicalResult MoveViewOpUp::matchAndRewrite(VPUIP::SubViewOp origSubViewOp
         }
         auto newSubViewOp = rewriter.create<VPUIP::SubViewOp>(value.getLoc(), value, getIntArrayAttr(ctx, offsets),
                                                               getIntArrayAttr(ctx, sizes));
-        return newSubViewOp.result();
+        return newSubViewOp.getResult();
     };
 
     // Data
@@ -121,22 +109,22 @@ mlir::LogicalResult MoveViewOpUp::matchAndRewrite(VPUIP::SubViewOp origSubViewOp
         seTableOffsets[Dims4D::Act::N.ind()] = 0;
         seTableSizes[Dims4D::Act::N.ind()] = 1;
 
-        const auto seSliceOffset = std::div(subViewOffsets[Dims4D::Act::C.ind()], seTableOp.seSize());
+        const auto seSliceOffset = std::div(subViewOffsets[Dims4D::Act::C.ind()], seTableOp.getSeSize());
         VPUX_THROW_WHEN(seSliceOffset.rem != 0, "Slice over channels offset is not aligned with SE size");
         seTableOffsets[Dims4D::Act::C.ind()] = seSliceOffset.quot;
 
-        const auto seSliceSize = std::div(subViewSizes[Dims4D::Act::C.ind()], seTableOp.seSize());
+        const auto seSliceSize = std::div(subViewSizes[Dims4D::Act::C.ind()], seTableOp.getSeSize());
         VPUX_THROW_WHEN(seSliceSize.rem != 0, "Slice over channels size is not aligned with SE size");
         seTableSizes[Dims4D::Act::C.ind()] = seSliceSize.quot;
 
-        auto seTableSliceOp = rewriter.create<VPUIP::SubViewOp>(origSubViewOp.getLoc(), seTableOp.output(),
+        auto seTableSliceOp = rewriter.create<VPUIP::SubViewOp>(origSubViewOp.getLoc(), seTableOp.getOutput(),
                                                                 getIntArrayAttr(ctx, seTableOffsets),
                                                                 getIntArrayAttr(ctx, seTableSizes));
-        newSETableValue = seTableSliceOp.result();
+        newSETableValue = seTableSliceOp.getResult();
     }
 
     auto newOp = rewriter.replaceOpWithNewOp<VPUIP::GroupSparseBufferOp>(
-            origSubViewOp, newDataValue, newSparsityMapValue, newSETableValue, groupSparseBuffer.is_weightsAttr(),
+            origSubViewOp, newDataValue, newSparsityMapValue, newSETableValue, groupSparseBuffer.getIsWeightsAttr(),
             compressionSchemeAttr, seAttr);
 
     // Reinfer child ops return types if necessary due to strides info may be erased

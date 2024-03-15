@@ -10,8 +10,21 @@
 namespace vpux {
 namespace IE {
 
+enum class FuseMode { CONVERT_TO_SLICE, CONVERT_TO_EXPAND };
+
+FuseMode getFuseMode(ShapeRef patternInShape, ShapeRef patternOutShape);
+
+// If FuseMode is 'CONVERT_TO_SLICE',  the 'firstShape' is 'newSliceOffsets'; the 'secondShape' is 'newSliceStaticSizes'
+// If FuseMode is 'CONVERT_TO_EXPAND', the 'firstShape' is 'newPadsBegin'; the 'secondShape' is 'newPadsEnd'
+mlir::FailureOr<std::tuple<Shape, Shape, FuseMode>> getSliceExpandFusedParameters(IE::SliceOp sliceOp,
+                                                                                  IE::ExpandOp expandOp);
+mlir::FailureOr<std::tuple<Shape, Shape, FuseMode>> getExpandSliceFusedParameters(IE::ExpandOp expandOp,
+                                                                                  IE::SliceOp sliceOp);
+
 mlir::LogicalResult genericOptimizeSliceImplicitExpand(IE::ExpandOp layerOp, mlir::Operation* implicitOp,
-                                                       mlir::PatternRewriter& rewriter);
+                                                       bool hasCalculationCost, mlir::PatternRewriter& rewriter,
+                                                       Logger innerLog);
+
 //
 // OptimizeSliceImplicitExpand
 //
@@ -19,33 +32,56 @@ mlir::LogicalResult genericOptimizeSliceImplicitExpand(IE::ExpandOp layerOp, mli
 template <class ImplicitLayer>
 class OptimizeSliceImplicitExpand : public mlir::OpRewritePattern<IE::ExpandOp> {
 public:
-    OptimizeSliceImplicitExpand(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<IE::ExpandOp>(ctx), _log(log) {
+    OptimizeSliceImplicitExpand(mlir::MLIRContext* ctx, Logger log, bool hasCalculationCost)
+            : mlir::OpRewritePattern<IE::ExpandOp>(ctx), _log(log), _hasCalculationCost(hasCalculationCost) {
         setDebugName("OptimizeSliceImplicitExpand");
     }
 
 public:
     mlir::LogicalResult matchAndRewrite(IE::ExpandOp origOp, mlir::PatternRewriter& rewriter) const final {
-        auto implicitOp = origOp.input().getDefiningOp<ImplicitLayer>();
+        _log.trace("[{0}] Got '{1}' at '{2}'", getDebugName(), origOp->getName(), origOp->getLoc());
+        const auto innerLog = _log.nest();
+
+        auto implicitOp = origOp.getInput().getDefiningOp<ImplicitLayer>();
         if (implicitOp == nullptr) {
             return mlir::failure();
         }
-        return genericOptimizeSliceImplicitExpand(origOp, implicitOp.getOperation(), rewriter);
+        return genericOptimizeSliceImplicitExpand(origOp, implicitOp.getOperation(), _hasCalculationCost, rewriter,
+                                                  innerLog);
     }
+
+private:
+    Logger _log;
+    bool _hasCalculationCost;
+};
+
+//
+// OptimizeSliceConcatExpand
+//
+
+class OptimizeSliceConcatExpand final : public mlir::OpRewritePattern<IE::ExpandOp> {
+public:
+    OptimizeSliceConcatExpand(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IE::ExpandOp>(ctx), _log(log) {
+        setDebugName("OptimizeSliceConcatExpand");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::ExpandOp layerOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
 //
-// OptimizeSingleSliceConcatExpand
+// OptimizeSliceTwoConcatsExpand
 //
 
-class OptimizeSingleSliceConcatExpand final : public mlir::OpRewritePattern<IE::ExpandOp> {
+class OptimizeSliceTwoConcatsExpand final : public mlir::OpRewritePattern<IE::ExpandOp> {
 public:
-    OptimizeSingleSliceConcatExpand(mlir::MLIRContext* ctx, Logger log)
+    OptimizeSliceTwoConcatsExpand(mlir::MLIRContext* ctx, Logger log)
             : mlir::OpRewritePattern<IE::ExpandOp>(ctx), _log(log) {
-        setDebugName("OptimizeSingleSliceConcatExpand");
+        setDebugName("OptimizeSliceTwoConcatsExpand");
     }
 
 public:

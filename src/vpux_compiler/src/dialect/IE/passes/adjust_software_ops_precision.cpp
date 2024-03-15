@@ -6,11 +6,9 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
-#include <mlir/IR/BlockAndValueMapping.h>
+#include <mlir/IR/IRMapping.h>
 
 using namespace vpux;
 
@@ -43,7 +41,7 @@ mlir::LogicalResult PrecisionConverter::matchAndRewrite(IE::LayerOpInterface ori
     const auto inputCvtToFP16 = rewriter.createOrFold<IE::ConvertOp>(origOp->getLoc(), origOp->getOperand(0),
                                                                      mlir::TypeAttr::get(elemTypeFP16));
 
-    mlir::BlockAndValueMapping mapper;
+    mlir::IRMapping mapper;
     mapper.map(origOp->getOperand(0), inputCvtToFP16);
     auto newOp = rewriter.clone(*origOp, mapper);
     vpux::inferReturnTypes(newOp, vpux::InferShapedTypeMode::ELEM_TYPE);
@@ -82,7 +80,7 @@ void AdjustSoftwareOpsPrecisionPass::safeRunOnModule() {
     auto& ctx = getContext();
 
     const auto isLegalTopKOp = [](IE::TopKOp op) {
-        const auto inputElemType = op.input().getType().cast<vpux::NDTypeInterface>().getElementType();
+        const auto inputElemType = op.getInput().getType().cast<vpux::NDTypeInterface>().getElementType();
         return inputElemType.isF16();
     };
 

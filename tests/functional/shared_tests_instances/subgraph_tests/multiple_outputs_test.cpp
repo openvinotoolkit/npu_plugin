@@ -5,16 +5,15 @@
 
 #include "shared_test_classes/subgraph/multiple_outputs.hpp"
 #include "common_test_utils/test_constants.hpp"
-// #include "vpux_private_config.hpp"
 
 #include <vector>
 
 #include "vpu_ov1_layer_test.hpp"
 
 namespace SubgraphTestsDefinitions {
-class VPUXMultipleoutputTest : public MultioutputTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
+class MultipleoutputTestCommon : public MultioutputTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
-class VPUXMultipleoutputTest_VPU3700 : public VPUXMultipleoutputTest {
+class MultipleoutputTest_NPU3700 : public MultipleoutputTestCommon {
     /* tests dumping intermediate outputs
 
         input
@@ -29,7 +28,7 @@ class VPUXMultipleoutputTest_VPU3700 : public VPUXMultipleoutputTest {
     */
 };
 
-TEST_P(VPUXMultipleoutputTest_VPU3700, HW) {
+TEST_P(MultipleoutputTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
@@ -54,7 +53,7 @@ std::vector<convParams> convParams = {
 
 std::vector<size_t> outputChannels = {16};
 
-INSTANTIATE_TEST_SUITE_P(smoke_MultipleOutputs, VPUXMultipleoutputTest_VPU3700,
+INSTANTIATE_TEST_SUITE_P(smoke_MultipleOutputs, MultipleoutputTest_NPU3700,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::ValuesIn(configs), ::testing::ValuesIn(convParams),

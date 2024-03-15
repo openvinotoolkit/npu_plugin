@@ -24,11 +24,11 @@ mlir::Value detectValueAfterOperation(mlir::Value val, SmallVector<mlir::Operati
 
     if (auto concreteOp = mlir::dyn_cast<ConcreteOp1>(*val.user_begin())) {
         ops.push_back(concreteOp);
-        return detectValueAfterOperation<ConcreteOp1, ConcreteOp2>(concreteOp.output(), ops);
+        return detectValueAfterOperation<ConcreteOp1, ConcreteOp2>(concreteOp.getOutput(), ops);
     }
     if (auto concreteOp = mlir::dyn_cast<ConcreteOp2>(*val.user_begin())) {
         ops.push_back(concreteOp);
-        return detectValueAfterOperation<ConcreteOp1, ConcreteOp2>(concreteOp.output(), ops);
+        return detectValueAfterOperation<ConcreteOp1, ConcreteOp2>(concreteOp.getOutput(), ops);
     }
 
     return val;
@@ -43,11 +43,11 @@ mlir::Value detectValueBeforeOperation(mlir::Value val, SmallVector<mlir::Operat
 
     if (auto concreteOp = mlir::dyn_cast<ConcreteOp1>(producer)) {
         ops.push_back(concreteOp);
-        return detectValueBeforeOperation<ConcreteOp1, ConcreteOp2>(concreteOp.input(), ops);
+        return detectValueBeforeOperation<ConcreteOp1, ConcreteOp2>(concreteOp.getInput(), ops);
     }
     if (auto concreteOp = mlir::dyn_cast<ConcreteOp2>(producer)) {
         ops.push_back(concreteOp);
-        return detectValueBeforeOperation<ConcreteOp1, ConcreteOp2>(concreteOp.input(), ops);
+        return detectValueBeforeOperation<ConcreteOp1, ConcreteOp2>(concreteOp.getInput(), ops);
     }
 
     return val;

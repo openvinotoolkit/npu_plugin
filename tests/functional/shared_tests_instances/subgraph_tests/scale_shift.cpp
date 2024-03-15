@@ -13,11 +13,11 @@
 
 namespace SubgraphTestsDefinitions {
 
-class VPUXScaleShiftLayerTest : public ScaleShiftLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
+class ScaleShiftLayerTestCommon : public ScaleShiftLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
-class VPUXScaleShiftLayerTest_VPU3700 : public VPUXScaleShiftLayerTest {};
+class ScaleShiftLayerTest_NPU3700 : public ScaleShiftLayerTestCommon {};
 
-TEST_P(VPUXScaleShiftLayerTest_VPU3700, HW) {
+TEST_P(ScaleShiftLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
@@ -50,10 +50,10 @@ std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16,
 };
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_scale_shift_mlir, VPUXScaleShiftLayerTest_VPU3700,
+INSTANTIATE_TEST_SUITE_P(smoke_scale_shift_mlir, ScaleShiftLayerTest_NPU3700,
                          ::testing::Combine(::testing::ValuesIn(inShapes), ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::ValuesIn(Scales), ::testing::ValuesIn(Shifts)),
-                         VPUXScaleShiftLayerTest_VPU3700::getTestCaseName);
+                         ScaleShiftLayerTest_NPU3700::getTestCaseName);
 
 }  // namespace

@@ -4,14 +4,10 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
-#include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
-#include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/IR/BuiltinAttributes.h>
-#include <mlir/Pass/PassManager.h>
-#include <mlir/Transforms/DialectConversion.h>
+#include <mlir/IR/IRMapping.h>
 
 using namespace vpux;
 
@@ -21,7 +17,7 @@ namespace {
 // and reinfers the return types of the inner ops, now that they no longer receive
 // sparse buffers
 void adaptNCEClusterTilingBody(VPUIP::NCEClusterTilingOp tilingOp, ArrayRef<mlir::Value> individualOperands) {
-    auto& body = tilingOp.body();
+    auto& body = tilingOp.getBody();
     for (auto p : body.getArguments() | indexed) {
         auto arg = p.value();
         const auto argIndex = p.index();
@@ -50,7 +46,7 @@ mlir::Operation* createUngroupedOp(Logger& log, mlir::OpBuilder& builder, mlir::
     log.nest().trace("Creating ungrouped op {0} with {1} operands and {2} result types", op->getName(),
                      individualOperands.size(), individualResultTypes.size());
 
-    mlir::BlockAndValueMapping mapper;
+    mlir::IRMapping mapper;
     mapper.map(sparseOperands, individualOperands);
     auto individualOp = builder.clone(*op, mapper);
 
@@ -79,12 +75,12 @@ void ungroupOperation(Logger& log, mlir::OpBuilder& builder, mlir::Operation* op
     SmallVector<mlir::Value> seTableOperands;
     for (auto operand : sparseOperands) {
         auto ungroupOp = builder.create<VPUIP::UngroupSparseBufferOp>(op->getLoc(), operand);
-        dataOperands.push_back(ungroupOp.data());
-        if (ungroupOp.sparsityMap() != nullptr) {
-            smOperands.push_back(ungroupOp.sparsityMap());
+        dataOperands.push_back(ungroupOp.getData());
+        if (ungroupOp.getSparsityMap() != nullptr) {
+            smOperands.push_back(ungroupOp.getSparsityMap());
         }
-        if (ungroupOp.storageElementTable() != nullptr) {
-            seTableOperands.push_back(ungroupOp.storageElementTable());
+        if (ungroupOp.getStorageElementTable() != nullptr) {
+            seTableOperands.push_back(ungroupOp.getStorageElementTable());
         }
     }
 
@@ -121,7 +117,7 @@ void ungroupOperation(Logger& log, mlir::OpBuilder& builder, mlir::Operation* op
 
     auto groupOp = builder.create<VPUIP::GroupSparseBufferOp>(op->getLoc(), dataResult, smResult, seTableResult,
                                                               isWeightsAttr, compressionSchemeAttr, seAttr);
-    op->getResult(0).replaceAllUsesExcept(groupOp.output(), llvm::SmallPtrSet<mlir::Operation*, 1>{groupOp});
+    op->getResult(0).replaceAllUsesExcept(groupOp.getOutput(), llvm::SmallPtrSet<mlir::Operation*, 1>{groupOp});
     op->erase();
 }
 

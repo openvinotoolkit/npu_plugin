@@ -7,8 +7,8 @@
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
-#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
-#include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
@@ -52,6 +52,7 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     auto* ctx = builder.getContext();
     auto loc = builder.getUnknownLoc();
 
+    const auto arch = testDesc.getArchitecture();
     auto input = testDesc.getInputLayerList().front();
     auto weight = testDesc.getWeightLayers().front();
     auto conv = testDesc.getConvLayer();
@@ -92,12 +93,12 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     auto outputParamType = getMemRefType(VPURT::BufferSection::NetworkOutput, out_shape, outputType, DimsOrder::NHWC);
     inputTypes.push_back(outputParamType);
 
-    const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
+    const auto funcType = builder.getFunctionType(ArrayRef(inputTypes), outputParamType);
 
     // TODO: Func should not return
     auto func = builder.create<mlir::func::FuncOp>(
             builder.getUnknownLoc(), printToString("dw_conv_{0}_{1}_{2}", inputType, weightsType, outputType), funcType,
-            builder.getStringAttr("private"));
+            builder.getStringAttr("private"), /*arg_attrs=*/nullptr, /*res_attrs=*/nullptr);
 
     auto funcbuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());
 
@@ -106,7 +107,7 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     auto funcoutput = func.getArgument(1);
 
     // weights data
-    auto wt_data_shape_padded = getWeightsPaddedShape(makeArrayRef(wt_data_shape));
+    auto wt_data_shape_padded = getWeightsPaddedShape(ArrayRef(wt_data_shape));
     auto weightData_ddr_type =
             getMemRefType(VPURT::BufferSection::Constant, wt_data_shape_padded, weightsType, DimsOrder::NHWC);
 
@@ -150,10 +151,10 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     // DMAs
     vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(),
                                                 mlir::ValueRange(barrier0.getBarrier()), loc, funcinput,
-                                                inputcmx.getOperation()->getResult(0));
+                                                inputcmx.getOperation()->getResult(0), 0);
     vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
             funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()), loc,
-            weight_data_ddr.getOperation()->getResult(0), wtData_cmx.getOperation()->getResult(0));
+            weight_data_ddr.getOperation()->getResult(0), wtData_cmx.getOperation()->getResult(0), 0);
 
     // Activation Window ddr
     const auto bitPatternSize = VPU::NCESparsity::getBitPatternSize(
@@ -173,7 +174,7 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     SmallVector<int64_t> sparsity_shape{1, 1, 1, static_cast<int64_t>(fakeSparsity.size())};
 
     const auto dataStorageType = mlir::RankedTensorType::get(sparsity_shape, sparsity_type);
-    const auto sparsityAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(fakeSparsity));
+    const auto sparsityAttr = mlir::DenseElementsAttr::get(dataStorageType, ArrayRef(fakeSparsity));
 
     auto activationWindow_ddr_type =
             getMemRefType(VPURT::BufferSection::Constant, sparsity_shape, sparsity_type, DimsOrder::NHWC);
@@ -194,7 +195,7 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     // activation window dma ddr->cmx
     vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
             funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()), loc,
-            activationWindow_ddr.getOperation()->getResult(0), actWindow_cmx.getOperation()->getResult(0));
+            activationWindow_ddr.getOperation()->getResult(0), actWindow_cmx.getOperation()->getResult(0), 0);
 
     // weights table ddr tensor
     auto weights_outChannel = wtData_cmx_type.getShape()[0];
@@ -218,10 +219,9 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     const auto sparsityPtrStep = 0;
     const std::vector<int32_t> wtTbl_data_values_vec = VPU::NCESparsity::getWeightsTable(
             inputType, outputType, static_cast<int32_t>(WEIGHTS_CMX_OFFSET), static_cast<int32_t>(weights_set_nbytes),
-            static_cast<int32_t>(ACTIVATIONWINDOW_CMX_OFFSET), sparsityPtrStep, testDesc.getArchitecture(),
-            weights_outChannel, weightsType);
+            static_cast<int32_t>(ACTIVATIONWINDOW_CMX_OFFSET), sparsityPtrStep, arch, weights_outChannel, weightsType);
 
-    auto wtTbl_data_values = makeArrayRef<int32_t>(wtTbl_data_values_vec);
+    auto wtTbl_data_values = ArrayRef<int32_t>(wtTbl_data_values_vec);
     auto wtTbl_data_vals = mlir::DenseElementsAttr::get(wtTblData_ddr_valueType, wtTbl_data_values);
     auto weightTbl_data_ddr =
             funcbuilder.create<Const::DeclareOp>(builder.getUnknownLoc(), weightTblData_ddr_type,
@@ -239,7 +239,7 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     // weights table dma ddr->cmx
     vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
             funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()), loc,
-            weightTbl_data_ddr.getOperation()->getResult(0), wtTbl_cmx.getOperation()->getResult(0));
+            weightTbl_data_ddr.getOperation()->getResult(0), wtTbl_cmx.getOperation()->getResult(0), 0);
 
     // NCE Task
     auto filtersize = getIntArrayAttr(builder, filter_size);
@@ -284,14 +284,15 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
 
     vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.getBarrier()),
                                                 mlir::ValueRange(), loc, outputcmx.getOperation()->getResult(0),
-                                                funcoutput);
+                                                funcoutput, 0);
 
     // TODO : return empty as func does not return anything
     /* auto returnOp = */ funcbuilder.create<mlir::func::ReturnOp>(builder.getUnknownLoc(), funcoutput);
 
     // set runtime resources
-    mlir::PassManager pm(builder.getContext(), mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, log));
+    mlir::PassManager pm(module->getName(), mlir::OpPassManager::Nesting::Implicit);
+    pm.addPass(VPU::createInitCompilerPass(arch, VPU::CompilationMode::DefaultHW, /*numOfDPUGroups=*/1, std::nullopt,
+                                           log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 

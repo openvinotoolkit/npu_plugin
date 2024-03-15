@@ -58,11 +58,12 @@ struct hash<tuple<Args...>> final {
 
 private:
     template <size_t Index = 0>
-    static auto hashItems(const tuple<Args...>&, size_t&) -> enable_if_t<Index == sizeof...(Args)> {
+    static auto hashItems(const tuple<Args...>&, size_t&) -> std::enable_if_t<Index == sizeof...(Args)> {
     }
 
     template <size_t Index = 0>
-            static auto hashItems(const tuple<Args...>& val, size_t& seed) -> enable_if_t < Index<sizeof...(Args)> {
+            static auto hashItems(const tuple<Args...>& val, size_t& seed)
+                    -> std::enable_if_t < Index<sizeof...(Args)> {
         seed = vpux::getHash(seed, get<Index>(val));
         hashItems<Index + 1>(val, seed);
     }

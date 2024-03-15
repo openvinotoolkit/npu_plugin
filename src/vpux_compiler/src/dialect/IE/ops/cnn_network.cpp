@@ -8,13 +8,9 @@
 #include "vpux/compiler/core/aliases_info.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
-#include "vpux/utils/core/format.hpp"
-#include "vpux/utils/core/hash.hpp"
 #include "vpux/utils/core/range.hpp"
 
 #include <mlir/IR/BuiltinOps.h>
-
-#include <unordered_set>
 
 using namespace vpux;
 
@@ -29,7 +25,7 @@ static mlir::LogicalResult checkFunctionPrototype(vpux::IE::CNNNetworkOp cnnOp, 
 
     if (!hoistedIOs && netFuncType.getNumResults() != outputsInfo.size() + profilingOutputsInfo.size()) {
         return errorAt(cnnOp, "entryPoint '@{0}' outputs count '{1}' doesn't match userOutputs count '{2}'",
-                       cnnOp.entryPoint(), netFuncType.getNumResults(), outputsInfo.size());
+                       cnnOp.getEntryPoint(), netFuncType.getNumResults(), outputsInfo.size());
     }
 
     const auto isArgsTensorized = std::all_of(args.begin(), args.end(), [](mlir::Type type) {
@@ -54,8 +50,7 @@ static mlir::LogicalResult checkFunctionPrototype(vpux::IE::CNNNetworkOp cnnOp, 
 
     if (isBufferized && !hoistedIOs) {
         mlir::LogicalResult res = mlir::success();
-        const AliasesInfo info{netFunc};
-        netFunc.walk([&inputsInfo, &netFunc, &res, &info](mlir::func::ReturnOp op) {
+        netFunc.walk([&inputsInfo, &netFunc, &res](mlir::func::ReturnOp op) {
             const auto operands = op.getOperands();
             for (const auto ind : irange(operands.size())) {
                 const auto rawInd = checked_cast<unsigned>(inputsInfo.size() + ind);
@@ -63,6 +58,7 @@ static mlir::LogicalResult checkFunctionPrototype(vpux::IE::CNNNetworkOp cnnOp, 
                 const auto output = operands[ind];
                 const auto outputBuffer = netFunc.getArgument(rawInd);
 
+                const vpux::ValueSourceInfo info(output);
                 const auto roots = info.getRoots(output);
                 VPUX_THROW_UNLESS(roots.size() == 1, "Value '{0}' expected to have only one root. Got {1}", output,
                                   roots.size());
@@ -85,7 +81,7 @@ static mlir::LogicalResult checkFunctionPrototype(vpux::IE::CNNNetworkOp cnnOp, 
     return errorAt(cnnOp,
                    "entryPoint '@{0}' has invalid state. inputs count '{1}', results count '{2}', user inputs "
                    "count '{3}', user outputs count '{4}'",
-                   cnnOp.entryPoint(), netFuncType.getNumInputs(), netFuncType.getNumResults(), inputsInfo.size(),
+                   cnnOp.getEntryPoint(), netFuncType.getNumInputs(), netFuncType.getNumResults(), inputsInfo.size(),
                    outputsInfo.size());
 }
 
@@ -95,14 +91,14 @@ static mlir::LogicalResult checkFunctionPrototype(vpux::IE::CNNNetworkOp cnnOp, 
 
 void vpux::IE::CNNNetworkOp::build(mlir::OpBuilder& builder, mlir::OperationState& state,
                                    mlir::FlatSymbolRefAttr entryPoint, bool withProfiling) {
-    build(builder, state, entryPoint, static_cast<unsigned>(withProfiling ? 1 : 0));
+    build(builder, state, entryPoint, nullptr, static_cast<unsigned>(withProfiling ? 1 : 0));
 }
 
 mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCollection& symbolTable) {
-    auto netFunc = symbolTable.lookupNearestSymbolFrom<mlir::func::FuncOp>(*this, entryPointAttr());
+    auto netFunc = symbolTable.lookupNearestSymbolFrom<mlir::func::FuncOp>(*this, getEntryPointAttr());
 
     if (netFunc == nullptr) {
-        return errorAt(*this, "entryPoint '@{0}' doesn't refer to existing Function", entryPoint());
+        return errorAt(*this, "entryPoint '@{0}' doesn't refer to existing Function", getEntryPoint());
     }
 
     auto& cnnOp = *this;
@@ -119,8 +115,8 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
 
     const auto compareShape = [&cnnOp](vpux::NDTypeInterface funcType, vpux::NDTypeInterface userType, size_t ind) {
         if (funcType == nullptr) {
-            return errorAt(cnnOp, "entryPoint '@{0}' input #{1} is not a 'vpux::NDTypeInterface'", cnnOp.entryPoint(),
-                           ind);
+            return errorAt(cnnOp, "entryPoint '@{0}' input #{1} is not a 'vpux::NDTypeInterface'",
+                           cnnOp.getEntryPoint(), ind);
         }
 
         if (userType == nullptr) {
@@ -129,7 +125,7 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
 
         if (funcType.getNumElements() != userType.getNumElements()) {
             return errorAt(cnnOp, "entryPoint '@{0}' input #{1} is not compatible with user type '{2}'",
-                           cnnOp.entryPoint(), ind, userType);
+                           cnnOp.getEntryPoint(), ind, userType);
         }
 
         return mlir::success();
@@ -144,7 +140,7 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
 
     for (const auto ind : irange(inputsInfo.size())) {
         const auto funcType = netFuncType.getInput(static_cast<uint32_t>(ind)).dyn_cast<vpux::NDTypeInterface>();
-        const auto userType = inputsInfo[ind].userType().dyn_cast<vpux::NDTypeInterface>();
+        const auto userType = inputsInfo[ind].getUserType().dyn_cast<vpux::NDTypeInterface>();
 
         if (compareShape(funcType, userType, ind).failed()) {
             return mlir::failure();
@@ -153,7 +149,7 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
 
     for (const auto ind : irange(outputsInfo.size())) {
         const auto funcType = netFuncType.getResult(static_cast<uint32_t>(ind)).dyn_cast<vpux::NDTypeInterface>();
-        const auto userType = outputsInfo[ind].userType().dyn_cast<vpux::NDTypeInterface>();
+        const auto userType = outputsInfo[ind].getUserType().dyn_cast<vpux::NDTypeInterface>();
 
         if (compareShape(funcType, userType, ind).failed()) {
             return mlir::failure();
@@ -185,7 +181,7 @@ mlir::LogicalResult verifyDataInfoRegion(mlir::Operation* op, mlir::Region& regi
 }  // namespace
 
 mlir::LogicalResult vpux::IE::CNNNetworkOp::verify() {
-    if (entryPointAttr() == nullptr) {
+    if (getEntryPointAttr() == nullptr) {
         return errorAt(*this, "entryPoint attribute is NULL");
     }
 
@@ -242,9 +238,9 @@ void vpux::IE::CNNNetworkOp::getFromModule(mlir::ModuleOp module, CNNNetworkOp& 
                       netOps.size());
 
     netInfo = netOps.front();
-    netFunc = module.lookupSymbol<mlir::func::FuncOp>(netInfo.entryPointAttr());
+    netFunc = module.lookupSymbol<mlir::func::FuncOp>(netInfo.getEntryPointAttr());
 
-    VPUX_THROW_UNLESS(netFunc != nullptr, "Can't find entryPoint '@{0}' for '{1}' Operation", netInfo.entryPoint(),
+    VPUX_THROW_UNLESS(netFunc != nullptr, "Can't find entryPoint '@{0}' for '{1}' Operation", netInfo.getEntryPoint(),
                       netInfo->getName());
 }
 
@@ -254,10 +250,10 @@ void vpux::IE::CNNNetworkOp::getFromModule(mlir::ModuleOp module, CNNNetworkOp& 
 
 mlir::LogicalResult vpux::IE::DataInfoOp::verify() {
     const auto op = getOperation();
-    const auto opUserType = userType().dyn_cast<mlir::RankedTensorType>();
+    const auto opUserType = getUserType().dyn_cast<mlir::RankedTensorType>();
 
     if (opUserType == nullptr) {
-        return errorAt(op, "User type is not a 'RankedTensorType', got '{0}'", userType());
+        return errorAt(op, "User type is not a 'RankedTensorType', got '{0}'", getUserType());
     }
 
     const auto precision = opUserType.getElementType();
@@ -272,5 +268,5 @@ mlir::LogicalResult vpux::IE::DataInfoOp::verify() {
 }
 
 DimsOrder vpux::IE::DataInfoOp::getDimsOrder() {
-    return userType().cast<vpux::NDTypeInterface>().getDimsOrder();
+    return getUserType().cast<vpux::NDTypeInterface>().getDimsOrder();
 }

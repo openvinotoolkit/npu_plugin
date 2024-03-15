@@ -10,7 +10,7 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXGridSampleLayerTest : public GridSampleLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
+class GridSampleLayerTestCommon : public GridSampleLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void SetUp() override {
         inPrc = InferenceEngine::Precision::FP16;
         outPrc = InferenceEngine::Precision::FP16;
@@ -37,9 +37,9 @@ class VPUXGridSampleLayerTest : public GridSampleLayerTest, virtual public Layer
     }
 };
 
-class VPUXGridSampleLayerTest_VPU3720 : public VPUXGridSampleLayerTest {};
+class GridSampleLayerTest_NPU3720 : public GridSampleLayerTestCommon {};
 
-TEST_P(VPUXGridSampleLayerTest_VPU3720, HW) {
+TEST_P(GridSampleLayerTest_NPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -79,7 +79,7 @@ const std::vector<InferenceEngine::Precision> gridPrecisions = {
         InferenceEngine::Precision::FP16,
 };
 
-const auto paramsVPUX = testing::Combine(
+const auto params = testing::Combine(
         ::testing::ValuesIn(dataShapes), ::testing::ValuesIn(gridShapes), ::testing::ValuesIn(alignCorners),
         ::testing::ValuesIn(modes), ::testing::ValuesIn(paddingModes), ::testing::ValuesIn(dataPrecisions),
         ::testing::ValuesIn(gridPrecisions), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
@@ -89,11 +89,11 @@ const auto paramsTiling = testing::Combine(
         ::testing::ValuesIn(modes), ::testing::ValuesIn(paddingModes), ::testing::ValuesIn(dataPrecisions),
         ::testing::ValuesIn(gridPrecisions), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-// VPU3720
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_GridSample, VPUXGridSampleLayerTest_VPU3720, paramsVPUX,
+// NPU3720
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_GridSample, GridSampleLayerTest_NPU3720, params,
                          GridSampleLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_GridSample_Tiling, VPUXGridSampleLayerTest_VPU3720, paramsTiling,
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_GridSample_Tiling, GridSampleLayerTest_NPU3720, paramsTiling,
                          GridSampleLayerTest::getTestCaseName);
 
 }  // namespace

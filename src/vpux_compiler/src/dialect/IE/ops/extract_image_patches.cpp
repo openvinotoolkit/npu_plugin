@@ -6,15 +6,14 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/core/layers.hpp"
-#include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::ExtractImagePatchesOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -23,13 +22,13 @@ mlir::LogicalResult vpux::IE::ExtractImagePatchesOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto paddingType = extractImagePatches.autoPad();
-    const auto inType = extractImagePatches.data().getType().cast<mlir::ShapedType>().getElementType();
-    const auto inputShape = getShape(extractImagePatches.data());
+    const auto paddingType = extractImagePatches.getAutoPad();
+    const auto inType = extractImagePatches.getData().getType().cast<mlir::ShapedType>().getElementType();
+    const auto inputShape = getShape(extractImagePatches.getData());
 
-    const auto sizes = parseIntArrayAttr<int64_t>(extractImagePatches.sizes());
-    const auto strides = parseIntArrayAttr<int64_t>(extractImagePatches.strides());
-    const auto rates = parseIntArrayAttr<int64_t>(extractImagePatches.rates());
+    const auto sizes = parseIntArrayAttr<int64_t>(extractImagePatches.getSizes());
+    const auto strides = parseIntArrayAttr<int64_t>(extractImagePatches.getStrides());
+    const auto rates = parseIntArrayAttr<int64_t>(extractImagePatches.getRates());
 
     const auto checkAttributes = [loc](ArrayRef<int64_t> values, StringRef name) {
         if (values.size() != 2) {

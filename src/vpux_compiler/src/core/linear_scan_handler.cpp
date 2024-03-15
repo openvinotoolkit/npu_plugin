@@ -37,8 +37,22 @@ Byte LinearScanHandler::maxAllocatedSize() const {
     return _maxAllocatedSize;
 }
 
+void LinearScanHandler::markAsDynamicSpill(mlir::Value val) {
+    _dynamicSpillValues.insert(val);
+}
+
+void LinearScanHandler::removeDynamicSpill(mlir::Value val) {
+    VPUX_THROW_UNLESS(_dynamicSpillValues.count(val) > 0, "Value '{0}' was not dynamic spilled", val);
+
+    _dynamicSpillValues.erase(val);
+}
+
 bool LinearScanHandler::isAlive(mlir::Value val) const {
     return _aliveValues.contains(val);
+}
+
+bool LinearScanHandler::isDynamicSpill(mlir::Value val) const {
+    return _dynamicSpillValues.contains(val);
 }
 
 bool LinearScanHandler::isFixedAlloc(mlir::Value val) {
@@ -77,7 +91,7 @@ AddressType LinearScanHandler::getAlignment(mlir::Value val) const {
 
 AddressType LinearScanHandler::getAddress(mlir::Value val) const {
     if (auto staticAllocOp = val.getDefiningOp<VPUIP::StaticAllocOp>()) {
-        return checked_cast<AddressType>(staticAllocOp.offset());
+        return checked_cast<AddressType>(staticAllocOp.getOffset());
     }
 
     const auto it = _valOffsets.find(val);
@@ -117,82 +131,6 @@ mlir::DenseSet<mlir::Value> LinearScanHandler::getAliveValues() {
 
 void LinearScanHandler::freed(mlir::Value val) {
     markAsDead(val);
-}
-
-VPUIP::SubViewOp LinearScanHandler::getSubViewUserOp(mlir::Value val) const {
-    for (auto use : val.getUsers()) {
-        if (mlir::isa<VPUIP::SubViewOp>(use)) {
-            return mlir::cast<VPUIP::SubViewOp>(use);
-        }
-    }
-
-    return nullptr;
-}
-
-bool LinearScanHandler::hasEltwiseUser(mlir::Value val) const {
-    for (auto use : val.getUsers()) {
-        auto nceClusterTaskOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(use);
-        if (nceClusterTaskOp && nceClusterTaskOp.task_type() == VPUIP::NCETaskType::ELTWISE) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-AddressType LinearScanHandler::calculateStaticOffsetWithStrides(ArrayRef<AddressType> subViewStaticOffsets,
-                                                                StridesRef subViewStrides) const {
-    Byte offset(0);
-
-    for (auto p : zip(subViewStaticOffsets, subViewStrides)) {
-        offset += Byte(std::get<0>(p) * std::get<1>(p));
-    }
-
-    return offset.count();
-}
-
-bool LinearScanHandler::addressWithStridesExceedsNNCMX(AddressType baseOffset, AddressType staticOffsetWithStrides,
-                                                       StridesRef subViewStrides, AddressType cmxSize) const {
-    Byte cmxLeft(cmxSize - (baseOffset + staticOffsetWithStrides));
-
-    for (auto stride : subViewStrides) {
-        if (Byte(alignMemSize(stride, Byte(1))) > cmxLeft) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-bool LinearScanHandler::checkInvariantExceedingNNCMX(mlir::Value val, AddressType baseOffset,
-                                                     AddressType cmxSize) const {
-    // for concatenation in NNCMX with non contigious block memory write
-    // prevent a scenario where tensor strides exceed NNCMX size
-
-    auto subView = getSubViewUserOp(val);
-    if (subView == nullptr) {
-        return false;
-    }
-
-    if (!hasEltwiseUser(subView.result())) {
-        // only impacted with Eltwise users
-        return false;
-    }
-
-    const auto subViewStaticOffsets = parseIntArrayAttr<AddressType>(subView.static_offsets());
-    const auto subViewStrides = getStrides(subView.source());
-    VPUX_THROW_UNLESS(subViewStrides.size() == subViewStaticOffsets.size(),
-                      "SubView offsets '{0}' doesn't match strides '{1}'", subViewStaticOffsets, subViewStrides);
-
-    auto staticOffsetWithStrides = calculateStaticOffsetWithStrides(subViewStaticOffsets, subViewStrides);
-
-    if (addressWithStridesExceedsNNCMX(baseOffset, staticOffsetWithStrides, subViewStrides, cmxSize)) {
-        // set attribute to change the order of buffer allocation
-        subView->setAttr("exceedingNNCMX", mlir::BoolAttr::get(subView.getContext(), true));
-        return true;
-    }
-
-    return false;
 }
 
 int LinearScanHandler::getSpillWeight(mlir::Value) {

@@ -213,8 +213,11 @@ Precision typeToPrecision(const ngraph::element::Type& type) {
 }
 
 std::ostream& operator<<(std::ostream& os, const RunProfilingParams& p) {
-    vpux::printTo(os, "outputName: {0}, compiler: {1}, profiling: {2}", p.outputName,
-                  InferenceEngine::VPUXConfigParams::stringifyEnum(ov::intel_vpux::cvtCompilerType(p.compiler)),
+    vpux::printTo(os, "compiler: {0}, profiling: {1}", InferenceEngine::VPUXConfigParams::stringifyEnum(p.compiler),
                   p.profiling);
+    if (p.nTiles.has_value()) {
+        vpux::printTo(os, ", nTiles: {0}", p.nTiles.value());
+    }
+
     return os;
 }

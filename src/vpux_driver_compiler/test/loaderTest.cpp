@@ -10,7 +10,6 @@
 #include <vpux_elf/utils/error.hpp>
 #include <vpux_loader/vpux_loader.hpp>
 
-#include <vpux_headers/array_ref.hpp>
 #include <vpux_headers/buffer_specs.hpp>
 #include <vpux_headers/device_buffer.hpp>
 

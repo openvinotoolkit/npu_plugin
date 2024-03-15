@@ -13,11 +13,10 @@ VPUX driver compiler package contains the driver compiler library, header of lib
    ├── pdb
    ├── profilingTest.exe
    ├── README.md
-   ├── VPUXCompilerL0.h
    ├── vpuxCompilerL0Test.exe
    ├── vpuxCompilerL0Test.exe
    ├── vpux_driver_compiler.h
-   └── vpux_elf
+   └── npu_elf
 ```
 - `data` contains an xml and bin for test.
 - `lib` contains compiler module with all dependent dlls.

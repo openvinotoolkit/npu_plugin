@@ -7,13 +7,13 @@
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
-#include "vpux/compiler/dialect/VPU/passes.hpp"
-#include "vpux/compiler/dialect/VPU/utils/ppe_utils.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/utils/VPU/ppe_utils.hpp"
 #include "vpux/compiler/utils/types.hpp"
 #include "vpux/hwtest/hwtest_utils.hpp"
 #include "vpux/hwtest/test_case_json_parser.hpp"
@@ -24,7 +24,6 @@ namespace hwtest {
 
 void buildRaceConditionDMATest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
                                mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type outputType) {
-    auto* ctx = builder.getContext();
     auto loc = builder.getUnknownLoc();
 
     auto input = testDesc.getInputLayerList().front();
@@ -46,11 +45,11 @@ void buildRaceConditionDMATest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
 
     SmallVector<mlir::Type> outputTypes(numClusters, outType);
 
-    const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), makeArrayRef(outputTypes));
+    const auto funcType = builder.getFunctionType(ArrayRef(inputTypes), ArrayRef(outputTypes));
 
-    auto func =
-            builder.create<mlir::func::FuncOp>(loc, printToString("race_condition_dma_{0}_{1}", inputType, outputType),
-                                               funcType, builder.getStringAttr("private"));
+    auto func = builder.create<mlir::func::FuncOp>(
+            loc, printToString("race_condition_dma_{0}_{1}", inputType, outputType), funcType,
+            builder.getStringAttr("private"), /*arg_attrs=*/nullptr, /*res_attrs=*/nullptr);
 
     auto funcBuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());
 
@@ -81,11 +80,14 @@ void buildRaceConditionDMATest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
                     mlir::ValueRange(updateBarrier.getBarrier()), loc, funcInput,
                     outputs[clusterIdx].getOperation()->getResult(0), 0);
 
-            vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
-                    funcBuilder, i == 0 ? mlir::ValueRange() : mlir::ValueRange(lastBarrier.getBarrier()),
-                    mlir::ValueRange(updateBarrier.getBarrier()), loc, funcInput,
-                    outputs[clusterIdx + 1].getOperation()->getResult(0), 1);
+            if (clusterIdx + 1 < numClusters) {
+                vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
+                        funcBuilder, i == 0 ? mlir::ValueRange() : mlir::ValueRange(lastBarrier.getBarrier()),
+                        mlir::ValueRange(updateBarrier.getBarrier()), loc, funcInput,
+                        outputs[clusterIdx + 1].getOperation()->getResult(0), 1);
+            }
         }
+
         lastBarrier = updateBarrier;
     }
 
@@ -93,6 +95,7 @@ void buildRaceConditionDMATest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
         vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
                 funcBuilder, mlir::ValueRange(lastBarrier.getBarrier()), mlir::ValueRange(), loc,
                 outputs[clusterIdx].getOperation()->getResult(0), funcOutputs[clusterIdx], 0);
+
         if (clusterIdx + 1 < numClusters) {
             vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
                     funcBuilder, mlir::ValueRange(lastBarrier.getBarrier()), mlir::ValueRange(), loc,
@@ -100,14 +103,14 @@ void buildRaceConditionDMATest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
         }
     }
 
-    auto outputsRef = makeArrayRef(funcOutputs);
+    auto outputsRef = ArrayRef(funcOutputs);
     funcBuilder.create<mlir::func::ReturnOp>(loc, mlir::ValueRange(outputsRef));
 
     // set runtime resources
-    mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
+    mlir::PassManager pm(module->getName(), mlir::OpPassManager::Nesting::Implicit);
 
     pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW,
-                                           /*numOfDPUGroups=*/numClusters, None, log));
+                                           /*numOfDPUGroups=*/numClusters, std::nullopt, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 
@@ -115,7 +118,7 @@ void buildRaceConditionDMATest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
                                         getTensorType(ShapeRef(outShape), outputType, DimsOrder::NHWC, nullptr));
     // IE.CNNNetwork
     buildCNNOp(builder, func.getName(), {getTensorType(ShapeRef(inShape), inputType, DimsOrder::NHWC, nullptr)},
-               makeArrayRef(userOutputs));
+               ArrayRef(userOutputs));
 }
 
 }  // namespace hwtest

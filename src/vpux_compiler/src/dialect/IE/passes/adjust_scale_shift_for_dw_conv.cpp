@@ -5,21 +5,12 @@
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IE/utils/broadcast_utils.hpp"
 #include "vpux/compiler/dialect/IE/utils/scale_shift_utils.hpp"
-#include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
-
-#include "vpux/utils/core/checked_cast.hpp"
-
-#include <mlir/Pass/PassManager.h>
-#include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
 
@@ -35,7 +26,7 @@ mlir::LogicalResult mergeNCAndRewrite(mlir::PatternRewriter& rewriter, mlir::MLI
     static const auto H = Dims4D::Act::H;
     static const auto W = Dims4D::Act::W;
 
-    auto activation = origScaleShiftOp.input();
+    auto activation = origScaleShiftOp.getInput();
     auto origOutShape = getShape(origScaleShiftOp->getResult(0));
 
     auto getNewValue = [&](mlir::Value origValue) {
@@ -57,10 +48,11 @@ mlir::LogicalResult mergeNCAndRewrite(mlir::PatternRewriter& rewriter, mlir::MLI
     auto activationReshapeShape = Shape({1, origOutShape[N] * origOutShape[C], origOutShape[H], origOutShape[W]});
     auto activationReshapeOp = rewriter.createOrFold<IE::ReshapeOp>(loc, activation, nullptr, false,
                                                                     getIntArrayAttr(ctx, activationReshapeShape));
-    auto scaleShiftOp = rewriter.create<IE::ScaleShiftOp>(
-            loc, activationReshapeOp, getNewValue(origScaleShiftOp.weights()), getNewValue(origScaleShiftOp.biases()));
+    auto scaleShiftOp =
+            rewriter.create<IE::ScaleShiftOp>(loc, activationReshapeOp, getNewValue(origScaleShiftOp.getWeights()),
+                                              getNewValue(origScaleShiftOp.getBiases()));
 
-    rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origScaleShiftOp, scaleShiftOp.output(), nullptr, false,
+    rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origScaleShiftOp, scaleShiftOp.getOutput(), nullptr, false,
                                                getIntArrayAttr(ctx, origOutShape));
 
     return mlir::success();
@@ -104,7 +96,7 @@ mlir::LogicalResult AdjustScaleShiftForDWConvPass::ScaleShiftOpConverter::matchA
         IE::ScaleShiftOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Got '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
 
-    auto inputShape = getShape(origOp.input());
+    auto inputShape = getShape(origOp.getInput());
     if (inputShape.size() != 4 || inputShape[Dims4D::Act::N] == 1) {
         return mlir::failure();
     }
@@ -130,12 +122,12 @@ mlir::LogicalResult AdjustScaleShiftForDWConvPass::ScaleShiftOpConverter::matchA
         return declareOp.getContent().isSplat();
     };
 
-    if (!isNullOrConstWithSingleValue(origOp.weights()) && inputShape[Dims4D::Act::N] < MAX_SCALE_SHIFT_N) {
+    if (!isNullOrConstWithSingleValue(origOp.getWeights()) && inputShape[Dims4D::Act::N] < MAX_SCALE_SHIFT_N) {
         _log.trace("No benefit due to Weights is not splat constant and N smaller than '{0}'", MAX_SCALE_SHIFT_N);
         return mlir::failure();
     }
 
-    if (!isNullOrConstWithSingleValue(origOp.biases()) && inputShape[Dims4D::Act::N] < MAX_SCALE_SHIFT_N) {
+    if (!isNullOrConstWithSingleValue(origOp.getBiases()) && inputShape[Dims4D::Act::N] < MAX_SCALE_SHIFT_N) {
         _log.trace("No benefit due to Biases is not splat constant and N smaller than '{0}'", MAX_SCALE_SHIFT_N);
         return mlir::failure();
     }

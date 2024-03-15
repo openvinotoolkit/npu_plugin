@@ -9,25 +9,37 @@
 #include <regex>
 #include <sstream>
 #include <string>
+#include <string_view>
+#include <unordered_set>
 #include <utility>
 
 #include "vcl_compiler.hpp"
 #include "vpux/al/config/compiler.hpp"
-#include "vpux/vpux_plugin_config.hpp"
+
+namespace {
 
 /**
  * @name Key of build flags
  * @{
  */
-#define KEY_INPUTS_PRECISIONS "--inputs_precisions"
-#define KEY_INPUTS_LAYOUTS "--inputs_layouts"
-#define KEY_INPUTS_MODEL_LAYOUTS "--inputs_model_layouts"
-#define KEY_OUTPUTS_PRECISIONS "--outputs_precisions"
-#define KEY_OUTPUTS_LAYOUTS "--outputs_layouts"
-#define KEY_OUTPUTS_MODEL_LAYOUTS "--outputs_model_layouts"
+constexpr std::string_view KEY_INPUTS_PRECISIONS = "--inputs_precisions";
+constexpr std::string_view KEY_INPUTS_LAYOUTS = "--inputs_layouts";
+constexpr std::string_view KEY_INPUTS_MODEL_LAYOUTS = "--inputs_model_layouts";
+constexpr std::string_view KEY_OUTPUTS_PRECISIONS = "--outputs_precisions";
+constexpr std::string_view KEY_OUTPUTS_LAYOUTS = "--outputs_layouts";
+constexpr std::string_view KEY_OUTPUTS_MODEL_LAYOUTS = "--outputs_model_layouts";
 /// The seperator of input output info and compilation configs
-#define KEY_CONFIGS "--config"
+constexpr std::string_view KEY_CONFIGS = "--config";
+
+// <option key>="<option value>"
+constexpr std::string_view KEY_VALUE_SEPARATOR = "=";
+constexpr std::string_view VALUE_DELIMITER = "\"";  // marks beginning and end of value
 /** @} */
+
+const std::unordered_set<std::string> SUPPORTED_LAYOUTS = {"NCDHW", "NDHWC", "NCHW", "NHWC",      "CHW",
+                                                           "HWC",   "NC",    "C",    "**SCALAR**"};
+
+}  // namespace
 
 using namespace vpux;
 
@@ -48,7 +60,7 @@ template <typename T>
 vcl_result_t parseSingleOption(const std::string& option, VCLLogger* vclLogger,
                                std::unordered_map<std::string, T>& results, T (*function)(std::string, bool&)) {
     /// The content of option may like --inputs_precisions="A:fp16", the final key is A, value is
-    /// InferenceEngine::Precision::FP16
+    /// ov::element::Type_t::f16
     std::size_t firstDelimPos = option.find_first_of('"');
     std::size_t lastDelimPos = option.find_last_of('"');
     /// The stream may like A:FP32 B:FP32 C:U8
@@ -118,31 +130,43 @@ VAL getElementFromCon(KEY& key, bool& matched, const std::unordered_map<KEY, VAL
 BuildInfo::BuildInfo(VPUXCompilerL0* pvc): pvc(pvc), parsedConfig(pvc->getOptions()), logger(pvc->getLogger()) {
 }
 
-InferenceEngine::Precision BuildInfo::getPrecisionIE(std::string value, bool& matched) {
-    /// Remove some IE precisions to follow checkNetworkPrecision() of zero backend.
-    /// Removed U64, I64, BF16, U16, I16, BOOL.
+ov::element::Type_t BuildInfo::stringToOVPrecision(std::string value, bool& matched) {
+    /// Ticket: E-88902
     /// @todo Update the map when zero backend begin to support more types
-    static const std::unordered_map<std::string, InferenceEngine::Precision> supported_precisions = {
-            {"FP32", InferenceEngine::Precision::FP32}, {"FP16", InferenceEngine::Precision::FP16},
-            {"U32", InferenceEngine::Precision::U32},   {"I32", InferenceEngine::Precision::I32},
-            {"U8", InferenceEngine::Precision::U8},     {"I8", InferenceEngine::Precision::I8},
+    static const std::unordered_map<std::string, ov::element::Type_t> supported_precisions = {
+            {"UNSPECIFIED", ov::element::Type_t::undefined},
+            {"DYNAMIC", ov::element::Type_t::dynamic},
+            {"BOOL", ov::element::Type_t::boolean},
+            {"BF16", ov::element::Type_t::bf16},
+            {"FP16", ov::element::Type_t::f16},
+            {"FP32", ov::element::Type_t::f32},
+            {"FP64", ov::element::Type_t::f64},
+            {"I4", ov::element::Type_t::i4},
+            {"I8", ov::element::Type_t::i8},
+            {"I16", ov::element::Type_t::i16},
+            {"I32", ov::element::Type_t::i32},
+            {"I64", ov::element::Type_t::i64},
+            {"BIN", ov::element::Type_t::u1},
+            {"U4", ov::element::Type_t::u4},
+            {"U8", ov::element::Type_t::u8},
+            {"U16", ov::element::Type_t::u16},
+            {"U32", ov::element::Type_t::u32},
+            {"U64", ov::element::Type_t::u64},
     };
 
-    return getElementFromCon<std::string, InferenceEngine::Precision>(value, matched, supported_precisions,
-                                                                      InferenceEngine::Precision::UNSPECIFIED);
+    return getElementFromCon<std::string, ov::element::Type_t>(value, matched, supported_precisions,
+                                                               ov::element::Type_t::undefined);
 }
 
-InferenceEngine::Layout BuildInfo::getLayoutIE(std::string value, bool& matched) {
-    /// @todo Update map when the supported layout changed
-    static const std::unordered_map<std::string, InferenceEngine::Layout> supported_layouts = {
-            {"NCDHW", InferenceEngine::Layout::NCDHW}, {"NDHWC", InferenceEngine::Layout::NDHWC},
-            {"NCHW", InferenceEngine::Layout::NCHW},   {"NHWC", InferenceEngine::Layout::NHWC},
-            {"CHW", InferenceEngine::Layout::CHW},     {"HWC", InferenceEngine::Layout::HWC},
-            {"NC", InferenceEngine::Layout::NC},       {"C", InferenceEngine::Layout::C},
-    };
-
-    return getElementFromCon<std::string, InferenceEngine::Layout>(value, matched, supported_layouts,
-                                                                   InferenceEngine::Layout::ANY);
+std::string BuildInfo::checkSupportedLayout(std::string value, bool& matched) {
+    /// Update map when the supported layout changed
+    if (value.find('?') != std::string::npos || value.find('.') != std::string::npos) {
+        /// For partial layout, use it directly
+        matched = true;
+    } else {
+        matched = SUPPORTED_LAYOUTS.count(value);
+    }
+    return value;
 }
 
 vcl_result_t BuildInfo::parseIOOption(const std::vector<std::string>& ioInfoOptions) {
@@ -150,13 +174,13 @@ vcl_result_t BuildInfo::parseIOOption(const std::vector<std::string>& ioInfoOpti
     /// Parse the precision && layout of input && output
     for (auto& option : ioInfoOptions) {
         if (option.find(KEY_INPUTS_PRECISIONS) != std::string::npos) {
-            ret = parseSingleOption(option, logger, inPrcsIE, getPrecisionIE);
+            ret = parseSingleOption(option, logger, inputPrecisions, stringToOVPrecision);
         } else if (option.find(KEY_INPUTS_LAYOUTS) != std::string::npos) {
-            ret = parseSingleOption(option, logger, inLayoutsIE, getLayoutIE);
+            ret = parseSingleOption(option, logger, inputLayouts, checkSupportedLayout);
         } else if (option.find(KEY_OUTPUTS_PRECISIONS) != std::string::npos) {
-            ret = parseSingleOption(option, logger, outPrcsIE, getPrecisionIE);
+            ret = parseSingleOption(option, logger, outputPrecisions, stringToOVPrecision);
         } else if (option.find(KEY_OUTPUTS_LAYOUTS) != std::string::npos) {
-            ret = parseSingleOption(option, logger, outLayoutsIE, getLayoutIE);
+            ret = parseSingleOption(option, logger, outputLayouts, checkSupportedLayout);
         } else {
             logger->outputError(formatv("Invalid key in option! Option: {0}", option));
             return VCL_RESULT_ERROR_INVALID_ARGUMENT;
@@ -234,12 +258,37 @@ vcl_result_t BuildInfo::prepareBuildFlags(const std::string& descOptions) {
     if (configSeparator != std::string::npos) {
         /// Skip "--config" during parsing, The content may like:
         /// NPU_PLATFORM="3720"  NPU_COMPILATION_MODE_PARAMS="swap-transpose-with-fq=1 force-z-major-concat=1"
-        std::string content = descOptions.substr(configSeparator + strlen(KEY_CONFIGS));
+        std::string content = descOptions.substr(configSeparator + strlen(KEY_CONFIGS.data()));
         // From 5.0.0, compiler only support NPU_ prefix, replace VPUX_ or VPU_ with NPU_
         std::regex reg("VPUX_");
         content = std::regex_replace(content, reg, "NPU_");
         reg = "VPU_";
         content = std::regex_replace(content, reg, "NPU_");
+
+        // As a consequence of complying to the conventions established in the 2.0 OV API, the set of values
+        // corresponding to the "model priority" key has been modified. The change was introduced in the 5.2 version of
+        // the driver->compiler adapter.
+        const auto& getTargetRegex = [](const ov::intel_vpux::LegacyPriority& priorityValue) -> std::regex {
+            std::ostringstream result;
+            result << ov::intel_vpux::legacy_model_priority.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER
+                   << priorityValue << VALUE_DELIMITER;
+            return std::regex(result.str());
+        };
+        const auto& getStringReplacement = [](const ov::hint::Priority& priorityValue) -> std::string {
+            std::ostringstream result;
+            result << ov::hint::model_priority.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << priorityValue
+                   << VALUE_DELIMITER;
+            return result.str();
+        };
+
+        // E.g. (valid as of writing this): MODEL_PRIORITY="MODEL_PRIORITY_MED" -> MODEL_PRIORITY="MEDIUM"
+        content = std::regex_replace(content, getTargetRegex(ov::intel_vpux::LegacyPriority::LOW),
+                                     getStringReplacement(ov::hint::Priority::LOW));
+        content = std::regex_replace(content, getTargetRegex(ov::intel_vpux::LegacyPriority::MEDIUM),
+                                     getStringReplacement(ov::hint::Priority::MEDIUM));
+        content = std::regex_replace(content, getTargetRegex(ov::intel_vpux::LegacyPriority::HIGH),
+                                     getStringReplacement(ov::hint::Priority::HIGH));
+
         std::stringstream input(content);
 
         /// A singleOption is consist of one or more words, like value of VPUX_COMPILATION_MODE_PARAMS
@@ -311,19 +360,20 @@ vcl_result_t BuildInfo::prepareBuildFlags(const std::string& descOptions) {
     }
 
     /// Foce to use MLIR compiler.
-    config[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
+    config[ov::intel_vpux::compiler_type.name()] = "MLIR";
 
     // Use platform information provided by driver if platform config is either not found or set on AUTO_DETECT
-    if (config.find(VPUX_CONFIG_KEY(PLATFORM)) == config.end() || "AUTO_DETECT" == config[VPUX_CONFIG_KEY(PLATFORM)]) {
+    if (config.find(ov::intel_vpux::platform.name()) == config.end() ||
+        "AUTO_DETECT" == config[ov::intel_vpux::platform.name()]) {
         // Set platform
         switch (pvc->getCompilerDesc().platform) {
         case VCL_PLATFORM_VPU3700:
-            config[VPUX_CONFIG_KEY(PLATFORM)] = "3700";
-            config[CONFIG_KEY(DEVICE_ID)] = "3700";
+            config[ov::intel_vpux::platform.name()] = "3700";
+            config[ov::device::id.name()] = "3700";
             break;
         case VCL_PLATFORM_VPU3720:
-            config[VPUX_CONFIG_KEY(PLATFORM)] = "3720";
-            config[CONFIG_KEY(DEVICE_ID)] = "3720";
+            config[ov::intel_vpux::platform.name()] = "3720";
+            config[ov::device::id.name()] = "3720";
             break;
         default:
             logger->outputError(formatv("Unrecognized platform! {0}", pvc->getCompilerDesc().platform));
@@ -332,9 +382,9 @@ vcl_result_t BuildInfo::prepareBuildFlags(const std::string& descOptions) {
     }
 
     /// When we use LOG_INFO, show vcl level profiling log
-    std::map<std::string, std::string>::iterator iter = config.find(CONFIG_KEY(LOG_LEVEL));
+    std::map<std::string, std::string>::iterator iter = config.find(ov::log::level.name());
     if (iter != config.end()) {
-        if (iter->second == CONFIG_VALUE(LOG_INFO))
+        if (iter->second == "LOG_INFO")
             enableProfiling = true;
     }
 
@@ -435,7 +485,7 @@ vcl_result_t BuildInfo::prepareModel(const uint8_t* modelIR, uint64_t modelIRSiz
     const uint8_t* buffer = modelIR + bufferOffset;
     /// The pointer to model weight
     const uint8_t* weights = modelIR + weightsOffset;
-    /// Create CNNNetwork with model data
+    /// Deserialize the model
     try {
         std::string modelData(buffer, buffer + bufferSize);
         ov::runtime::Tensor weightsTensor;
@@ -448,11 +498,7 @@ vcl_result_t BuildInfo::prepareModel(const uint8_t* modelIR, uint64_t modelIRSiz
             stopWatch.start();
         }
 
-        std::shared_ptr<ov::Model> model = core.read_model(modelData, weightsTensor);
-        /// Current compiler still uses CNNNetwork
-        /// @todo Use OV::Model once we drop CNNNetwork
-        // cnnNet = InferenceEngine::CNNNetwork(std::const_pointer_cast<ngraph::Function>(model));
-        cnnNet = InferenceEngine::CNNNetwork(model);
+        model = core.read_model(modelData, weightsTensor);
 
         if (enableProfiling) {
             stopWatch.stop();
@@ -462,7 +508,7 @@ vcl_result_t BuildInfo::prepareModel(const uint8_t* modelIR, uint64_t modelIRSiz
         logger->outputError(error.what());
         return VCL_RESULT_ERROR_UNKNOWN;
     } catch (...) {
-        logger->outputError("Internal exception! Can not create cnnnetwork!");
+        logger->outputError("Internal exception! Could not deserialize the model!");
         return VCL_RESULT_ERROR_UNKNOWN;
     }
 

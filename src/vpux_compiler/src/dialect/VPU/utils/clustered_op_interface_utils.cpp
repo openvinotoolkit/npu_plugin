@@ -1,0 +1,231 @@
+//
+// Copyright (C) 2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
+//
+
+#include "vpux/compiler/dialect/VPU/utils/clustered_op_interface_utils.hpp"
+#include "vpux/compiler/dialect/VPU/IR/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/VPU/utils/distributed_tensor_utils.hpp"
+
+using namespace vpux;
+
+bool VPU::isOperationSplitOverHeightCompatible(mlir::Operation* op, const vpux::TileInfo& outputTile) {
+    auto clusteredOp = mlir::dyn_cast_or_null<VPU::ClusteredOpInterface>(op);
+    if (clusteredOp == nullptr) {
+        return false;
+    }
+
+    auto outputShape = ShapeRef(outputTile.shape);
+    auto offset = ShapeRef(outputTile.offsets);
+    if (!outputShape.empty() && !offset.empty()) {
+        const auto numClusters = vpux::VPU::getOptimalNumClusters(clusteredOp, outputShape[Dims4D::Act::C],
+                                                                  clusteredOp.getMultiClusterStrategy().value());
+        const auto outputType = clusteredOp->getResult(0).getType().cast<vpux::NDTypeInterface>();
+        const auto outputTileType = outputType.extractDenseTile(offset, outputShape);
+        auto outDistributedType = VPU::getDistributedOutputTypeFromOp(clusteredOp, outputTileType, numClusters);
+        if (outDistributedType != nullptr && outDistributedType.containsDistributedTypes()) {
+            auto distribution = outDistributedType.getDistributedTypes()
+                                        .front()
+                                        .cast<VPU::DistributedTensorType>()
+                                        .getDistribution();
+            if (distribution.getMemoryShapes() == nullptr) {
+                auto optionalPerClusterMemoryShapes = VPU::getPerClusterMemoryShapes(outputShape, distribution);
+                if (!optionalPerClusterMemoryShapes.has_value()) {
+                    return false;
+                }
+            }
+        }
+
+        if (auto tilingOp = mlir::dyn_cast<VPU::TilingBuilderOpInterface>(op)) {
+            const auto inputTiles = tilingOp.backInferTileInfo(outputTile, vpux::Logger::global()).tiles;
+            if (inputTiles.empty()) {
+                return false;
+            }
+            const auto& inputTile = inputTiles[0];
+            const auto inputType = clusteredOp->getOperand(0).getType().cast<vpux::NDTypeInterface>();
+            const auto inputTileType = inputType.extractDenseTile(inputTile.offsets, inputTile.shape);
+            auto inDistributedType = VPU::getDistributedActivationTypeFromOp(clusteredOp, inputTileType, numClusters);
+            if (inDistributedType != nullptr && inDistributedType.containsDistributedTypes()) {
+                auto distribution = inDistributedType.getDistributedTypes()
+                                            .front()
+                                            .cast<VPU::DistributedTensorType>()
+                                            .getDistribution();
+                if (distribution.getMemoryShapes() == nullptr) {
+                    auto optionalPerClusterMemoryShapes =
+                            VPU::getPerClusterMemoryShapes(inputTileType.getShape(), distribution);
+                    if (!optionalPerClusterMemoryShapes.has_value()) {
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+
+    auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
+    auto tileOp = IE::getTileExecutor(moduleOp);
+    const auto numTiles = tileOp.getCount();
+    const auto minimumOutputHeightForSOH = numTiles;
+
+    const auto arch = VPU::getArch(clusteredOp);
+    if (outputShape == ShapeRef()) {
+        outputShape = getShape(clusteredOp->getResult(0));
+    }
+    auto isUniformDistributedSegments = !VPU::isArchVPUX3XXX(arch);
+    auto heightCompatibleCheck = [&](ShapeRef outputShape) {
+        const auto OH = outputShape[Dims4D::Act::H];
+        auto numClustersForSOH = VPU::getNumberOfClustersForSpatialDim(outputShape[Dims4D::Act::H], numTiles,
+                                                                       isUniformDistributedSegments);
+        // Each cluster should be used. When it is just with 3 or 2 clusters, there is an accuracy issue.
+        // TODO: Find the root cause for this accuracy regression, E#41297
+        auto isSOHCompatible = (OH >= minimumOutputHeightForSOH && numClustersForSOH == numTiles);
+        return isSOHCompatible;
+    };
+
+    auto isSOHCompatible = heightCompatibleCheck(outputShape);
+
+    return isSOHCompatible;
+}
+
+bool VPU::isOperationSplitOverWidthCompatible(mlir::Operation* op, ShapeRef outputShape, ShapeRef /*offset*/,
+                                              ShapeRef /*axis*/) {
+    auto clusteredOp = mlir::dyn_cast_or_null<VPU::ClusteredOpInterface>(op);
+    if (clusteredOp == nullptr) {
+        return false;
+    }
+
+    auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
+    auto tileOp = IE::getTileExecutor(moduleOp);
+    const auto numTiles = tileOp.getCount();
+    const auto minimumOutputWidthForSOW = numTiles;
+
+    if (outputShape == ShapeRef()) {
+        outputShape = getShape(clusteredOp->getResult(0));
+    }
+
+    auto widthCompatibleCheck = [&](ShapeRef outputShape) {
+        const auto OW = outputShape[Dims4D::Act::W];
+        auto numClustersForSOW = getNumberOfClustersForSpatialDim(outputShape[Dims4D::Act::W], numTiles, true);
+        // Each cluster should be used. When it is just with 3 or 2 clusters, there is an accuracy issue.
+        // TODO: Find the root cause for this accuracy regression, E#41297
+        auto isSOWCompatible = (OW >= minimumOutputWidthForSOW && numClustersForSOW == numTiles);
+        return isSOWCompatible;
+    };
+
+    auto isSOWCompatible = widthCompatibleCheck(outputShape);
+
+    return isSOWCompatible;
+}
+
+bool VPU::isOperationSplitOverKernelCompatible(mlir::Operation* op, ShapeRef outputShape, ShapeRef /*offset*/,
+                                               ShapeRef /*axis*/) {
+    auto clusteredOp = mlir::dyn_cast_or_null<VPU::ClusteredOpInterface>(op);
+    if (clusteredOp == nullptr) {
+        return false;
+    }
+
+    auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
+    auto tileOp = IE::getTileExecutor(moduleOp);
+    const auto numTiles = tileOp.getCount();
+
+    if (outputShape == ShapeRef()) {
+        outputShape = getShape(clusteredOp->getResult(0));
+    }
+    const auto OC = outputShape[Dims4D::Act::C];
+
+    // Sparse Eltwise consuming SOK activations leads to the storage element size different than the number of input
+    // channels, which is not a validated scenario
+    if (clusteredOp->getResult(0).getType().isa<VPU::SparseTensorType>()) {
+        const auto hasEltwiseUser = llvm::any_of(clusteredOp->getResult(0).getUsers(), [](mlir::Operation* userOp) {
+            return mlir::isa<VPU::NCEEltwiseOp>(userOp);
+        });
+        if (hasEltwiseUser) {
+            return false;
+        }
+    }
+    // Channel alignment is specific for NCE DPU operations and CMX CONCAT
+    auto nceOp = mlir::dyn_cast<VPU::NCEOpInterface>(clusteredOp.getOperation());
+
+    auto minChannelSize = (nceOp != nullptr) ? VPU::NCEInvariant::VPU_CHANNEL_ALIGNMENT * numTiles : numTiles;
+    if (OC < minChannelSize) {
+        return false;
+    }
+
+    if (nceOp == nullptr) {
+        return true;
+    }
+
+    // SOK will split the weights over output channels. If the weights are sparse, it is necessary to make sure that
+    // no split will have only sparse values inside, since that would lead to zero-sized weights
+    auto weights = nceOp.getWeightsOperand();
+    if (weights != nullptr && weights.getType().isa<VPU::SparseTensorType>()) {
+        if (const auto compressionScheme = weights.getType().cast<VPU::SparseTensorType>().getCompressionScheme()) {
+            // Create a new type with the new number of output channels
+            // If the element type is quantized per-axis, it is replaced with a per-tensor type to avoid the
+            // incompatibility between the number of elements per axis and the number of scales & zero-points
+            const auto origType = weights.getType().cast<vpux::NDTypeInterface>();
+            auto newShape = Shape(origType.getShape().raw());
+            newShape[Dims4D::Filter::OC] = OC;
+            auto elemType = origType.getElementType();
+            if (auto qElemType = elemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+                elemType = mlir::quant::UniformQuantizedType::get(
+                        qElemType.getFlags(), qElemType.getStorageType(), qElemType.getExpressedType(), /*scale=*/1.0,
+                        /*zeroPoint=*/0, qElemType.getStorageTypeMin(), qElemType.getStorageTypeMax());
+            }
+            const auto newType = origType.changeShapeElemType(newShape, elemType);
+
+            // Create a distributed type in order to determine the channel split over clusters
+            const auto numClustersAttr = getIntAttr(clusteredOp.getContext(), numTiles);
+            const auto filterType = VPU::getDistributedFilterTypeFromOp(nceOp, newType, numClustersAttr,
+                                                                        VPU::MultiClusterStrategy::SplitOverKernel);
+            const auto filterDistType = filterType.getDistributedTypes().front().cast<VPU::DistributedTensorType>();
+            const auto computeOffsets = filterDistType.getPerClusterComputeShapeOffsets();
+            if (!computeOffsets.empty()) {
+                int64_t startOC = computeOffsets[0][Dims4D::Filter::OC];
+                for (size_t i = 1; i < computeOffsets.size(); ++i) {
+                    const int64_t sizeOC = computeOffsets[i][Dims4D::Filter::OC] - startOC;
+                    const auto numElems = compressionScheme.getNumElemsInRange(startOC, sizeOC);
+                    if (numElems == 0) {
+                        return false;
+                    }
+                    startOC += sizeOC;
+                }
+                const auto remainingOC = OC - startOC;
+                const auto numElems = compressionScheme.getNumElemsInRange(startOC, remainingOC);
+                if (numElems == 0) {
+                    return false;
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+bool VPU::checkMCRestrictions(mlir::Operation* op) {
+    auto module = op->getParentOfType<mlir::ModuleOp>();
+    if (IE::getAvailableExecutor(module, VPU::ExecutorKind::SHAVE_ACT) == nullptr) {
+        return false;
+    }
+
+    auto inputShape = getShape(op->getOperand(0));
+    auto outputShape = getShape(op->getResult(0));
+    return !(inputShape.front() > VPU::SINGLE_BATCH || inputShape.size() != VPU::RANK_REQUIRED_FOR_TILING ||
+             outputShape.size() != VPU::RANK_REQUIRED_FOR_TILING);
+}
+
+bool VPU::doesLayerFitIntoCMX(mlir::Operation* op, VPU::MultiClusterStrategy strategy, Byte reservedMem) {
+    if (op == nullptr) {
+        return false;
+    }
+
+    auto swOp = mlir::dyn_cast<VPU::SWOpInterface>(op);
+    VPUX_THROW_WHEN(swOp == nullptr, "Expected software operation, got {0} at {1}", op->getName(), op->getLoc());
+
+    const auto outputType = op->getResult(0).getType().cast<vpux::NDTypeInterface>();
+    auto numClusters = getOptimalNumClusters(op, outputType.getShape()[Dims4D::Act::C], strategy);
+    auto clusteredOp = mlir::cast<VPU::ClusteredOpInterface>(op);
+    SmallVector<vpux::NDTypeInterface> distributedTensorNDTypes = {
+            getDistributedActivationTypeFromOp(clusteredOp, op->getOperand(0).getType(), numClusters, strategy),
+            getDistributedOutputTypeFromOp(clusteredOp, op->getResult(0).getType(), numClusters, strategy)};
+    return swOp.fitIntoCMX(distributedTensorNDTypes, reservedMem);
+}

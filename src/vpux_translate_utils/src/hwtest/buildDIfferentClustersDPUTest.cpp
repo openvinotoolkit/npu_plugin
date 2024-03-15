@@ -1,14 +1,13 @@
 //
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
-//
 
 #include <numeric>
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
-#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
-#include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
@@ -94,22 +93,13 @@ void buildDifferentClustersDPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
 
     auto function = builder.create<mlir::func::FuncOp>(
             loc, printToString("different_clusters_dpu_{0}_{1}_{2}", inputType, weightsType, outputType), funcType,
-            builder.getStringAttr("private"));
+            builder.getStringAttr("private"), /*arg_attrs=*/nullptr, /*res_attrs=*/nullptr);
 
     auto functionBuilder = mlir::OpBuilder::atBlockBegin(function.addEntryBlock(), builder.getListener());
     auto functionInput = function.getArgument(0);
 
     const auto weightsValues = generateWeights(weightsShape, weightsType, ctx, weightsFileName);
-    auto weightsAttribute = vpux::Const::ContentAttr::get(weightsValues);
-    weightsAttribute = weightsAttribute.reorder(vpux::DimsOrder::OYXI);
-
-    if (auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>()) {
-        const auto quantizedType = vpux::changeStorageType(qty, weightsAttribute.getType().getElementType());
-        weightsAttribute = weightsAttribute.quantCast(quantizedType);
-        if (qty.getStorageType().isInteger(4)) {
-            weightsAttribute = weightsAttribute.bitPack(4);
-        }
-    }
+    const auto weightsAttribute = generateDefaultWeightsAttr(weightsValues, weightsType);
 
     const auto weightsDDRType =
             getMemRefType(VPURT::BufferSection::Constant, weightsShape, weightsType, DimsOrder::NHWC);
@@ -126,6 +116,10 @@ void buildDifferentClustersDPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
 
     auto& weightsOutputChannelsStrideInBits = weightsStrides[vpux::Dims4D::Filter::OC];
 
+    if (weightsOutputChannelsStrideInBits.count() / CHAR_BIT < alignment) {
+        weightsOutputChannelsStrideInBits = vpux::Bit(alignment * CHAR_BIT);
+    }
+
     const auto weightsTableDDRType = mlir::RankedTensorType::get(weightsTableShape, int32);
     const auto sparsityPtrStep = 0;
     const auto weightsTable = VPU::NCESparsity::getWeightsTable(
@@ -137,7 +131,7 @@ void buildDifferentClustersDPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
     const auto weightsTableDDRMemRef =
             getMemRefType(VPURT::BufferSection::Constant, weightsTableShape, int32, DimsOrder::NHWC);
     const auto weightsTableValues =
-            mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::makeArrayRef<std::int32_t>(weightsTable));
+            mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::ArrayRef<std::int32_t>(weightsTable));
     auto weightsTableDDR = functionBuilder.create<vpux::Const::DeclareOp>(
             loc, weightsTableDDRMemRef,
             vpux::Const::ContentAttr::get(weightsTableValues).reorder(vpux::DimsOrder::NHWC));
@@ -171,8 +165,7 @@ void buildDifferentClustersDPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
                                                      return stride.count() / outputTypeIf.getElemTypeSize().count();
                                                  }));
         const auto stridesAttr = getIntArrayAttr(ctx, elemStrides);
-        const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr,
-                                                   /*allocSize=*/nullptr, ctx);
+        const auto layout = vpux::MemRefAttr::get(orderAttr, stridesAttr, /*allocSize=*/nullptr, ctx);
 
         const auto dimsSpace = vpux::IndexedSymbolAttr::get(ctx, stringifyMemoryKind(outputTypeIf.getMemoryKind()));
 
@@ -188,12 +181,13 @@ void buildDifferentClustersDPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
 
     // Create DMAs for input act, weights and weights table
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(),
-                                          mlir::ValueRange(updateBarrier.getBarrier()), loc, functionInput, inputCMX);
+                                          mlir::ValueRange(updateBarrier.getBarrier()), loc, functionInput, inputCMX,
+                                          0);
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(),
-                                          mlir::ValueRange(updateBarrier.getBarrier()), loc, weightsDDR, weightsCMX);
+                                          mlir::ValueRange(updateBarrier.getBarrier()), loc, weightsDDR, weightsCMX, 0);
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(),
                                           mlir::ValueRange(updateBarrier.getBarrier()), loc, weightsTableDDR,
-                                          weightsTableCMX);
+                                          weightsTableCMX, 0);
 
     auto waitBarrier = updateBarrier;
 
@@ -230,20 +224,20 @@ void buildDifferentClustersDPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
         auto functionOutput = function.getArgument(1 + idx);
         functionOutputs[idx] = functionOutput;
         VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.getBarrier()),
-                                              mlir::ValueRange(), loc, outCMXBufferVec[idx], functionOutput);
+                                              mlir::ValueRange(), loc, outCMXBufferVec[idx], functionOutput, 0);
     }
 
     functionBuilder.create<mlir::func::ReturnOp>(loc, functionOutputs);
 
     module.dump();
 
-    mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
+    mlir::PassManager pm(module->getName(), mlir::OpPassManager::Nesting::Implicit);
 
     const auto maxClusterOutput = static_cast<size_t>(*std::max_element(outputClusters.begin(), outputClusters.end()));
     const auto numTiles = std::max({inputCluster, weightsCluster, weightsTableCluster, maxClusterOutput}) + 1;
 
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, numTiles, None,
-                                           log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, numTiles,
+                                           std::nullopt, log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsBTCPass(log));
     }

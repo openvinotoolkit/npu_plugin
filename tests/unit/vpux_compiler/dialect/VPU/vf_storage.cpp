@@ -4,9 +4,9 @@
 //
 
 #include "vpux/compiler/core/tiling.hpp"
-#include "vpux/compiler/dialect/VPU/ops.hpp"
-#include "vpux/compiler/dialect/VPU/types.hpp"
-#include "vpux/compiler/dialect/VPU/vertical_fusion_storage.hpp"
+#include "vpux/compiler/dialect/VPU/IR/ops.hpp"
+#include "vpux/compiler/dialect/VPU/IR/types.hpp"
+#include "vpux/compiler/dialect/VPU/utils/vertical_fusion_storage.hpp"
 
 #include "common/utils.hpp"
 

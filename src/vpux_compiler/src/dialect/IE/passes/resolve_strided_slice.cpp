@@ -7,12 +7,9 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
-#include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
-#include <ngraph/slice_plan.hpp>
+#include <openvino/op/util/slice_plan.hpp>
 
 using namespace vpux;
 
@@ -46,15 +43,15 @@ public:
 
 public:
     mlir::LogicalResult matchAndRewrite(IE::StridedSliceOp origOp, mlir::PatternRewriter& rewriter) const final;
-    static ngraph::SlicePlan getSlicePlan(IE::StridedSliceOp origOp);
+    static ov::op::util::SlicePlan getSlicePlan(IE::StridedSliceOp origOp);
 
 private:
     Logger _log;
 };
 
-ngraph::SlicePlan ResolveStridedSlicePass::SlicePlanning::getSlicePlan(IE::StridedSliceOp origOp) {
+ov::op::util::SlicePlan ResolveStridedSlicePass::SlicePlanning::getSlicePlan(IE::StridedSliceOp origOp) {
     const auto getAxisSetArr = [](mlir::ArrayAttr attr) {
-        ngraph::AxisSet axis_set;
+        ov::AxisSet axis_set;
 
         const auto arr = parseIntArrayAttr<int64_t>(attr);
         for (const auto& p : arr | indexed) {
@@ -66,25 +63,25 @@ ngraph::SlicePlan ResolveStridedSlicePass::SlicePlanning::getSlicePlan(IE::Strid
         return axis_set;
     };
 
-    VPUX_THROW_UNLESS(origOp.begins_attr().has_value(), "begins_attr is null");
-    VPUX_THROW_UNLESS(origOp.ends_attr().has_value(), "ends_attr is null");
-    VPUX_THROW_UNLESS(origOp.strides_attr().has_value(), "strides_attr is null");
+    VPUX_THROW_UNLESS(origOp.getBeginsAttr().has_value(), "begins_attr is null");
+    VPUX_THROW_UNLESS(origOp.getEndsAttr().has_value(), "ends_attr is null");
+    VPUX_THROW_UNLESS(origOp.getStridesAttr().has_value(), "strides_attr is null");
 
-    const auto beginsVec = to_std_vector(parseIntArrayAttr<int64_t>(origOp.begins_attr().value()));
-    const auto endsVec = to_std_vector(parseIntArrayAttr<int64_t>(origOp.ends_attr().value()));
-    const auto stridesVec = to_std_vector(parseIntArrayAttr<int64_t>(origOp.strides_attr().value()));
+    const auto beginsVec = to_std_vector(parseIntArrayAttr<int64_t>(origOp.getBeginsAttr().value()));
+    const auto endsVec = to_std_vector(parseIntArrayAttr<int64_t>(origOp.getEndsAttr().value()));
+    const auto stridesVec = to_std_vector(parseIntArrayAttr<int64_t>(origOp.getStridesAttr().value()));
 
-    const auto beginMask = getAxisSetArr(origOp.begin_mask());
-    const auto endMask = getAxisSetArr(origOp.end_mask());
-    const auto newAxisMask = getAxisSetArr(origOp.new_axis_mask());
-    const auto shrinkAxisMask = getAxisSetArr(origOp.shrink_axis_mask());
-    const auto ellipsisMask = getAxisSetArr(origOp.ellipsis_mask());
+    const auto beginMask = getAxisSetArr(origOp.getBeginMask());
+    const auto endMask = getAxisSetArr(origOp.getEndMask());
+    const auto newAxisMask = getAxisSetArr(origOp.getNewAxisMask());
+    const auto shrinkAxisMask = getAxisSetArr(origOp.getShrinkAxisMask());
+    const auto ellipsisMask = getAxisSetArr(origOp.getEllipsisMask());
 
-    const auto inDataType = origOp.input().getType().cast<vpux::NDTypeInterface>();
+    const auto inDataType = origOp.getInput().getType().cast<vpux::NDTypeInterface>();
     const auto inDataShape = inDataType.getShape();
 
-    return ngraph::make_slice_plan(ngraph::Shape(inDataShape.begin(), inDataShape.end()), beginsVec, endsVec,
-                                   stridesVec, beginMask, endMask, newAxisMask, shrinkAxisMask, ellipsisMask);
+    return ov::op::util::make_slice_plan(ov::Shape(inDataShape.begin(), inDataShape.end()), beginsVec, endsVec,
+                                         stridesVec, beginMask, endMask, newAxisMask, shrinkAxisMask, ellipsisMask);
 }
 
 mlir::LogicalResult ResolveStridedSlicePass::SlicePlanning::matchAndRewrite(IE::StridedSliceOp origOp,
@@ -102,26 +99,30 @@ mlir::LogicalResult ResolveStridedSlicePass::SlicePlanning::matchAndRewrite(IE::
         const auto stridesAttr = getIntArrayAttr(getContext(), plan.strides);
         const auto zeroesArrayAttr = getIntArrayAttr(getContext(), SmallVector<int64_t>(plan.begins.size(), 0));
 
-        newOp = rewriter.create<IE::StridedSliceOp>(origOp->getLoc(), origOp.input(), origOp.begins(), origOp.ends(),
-                                                    origOp.strides(), beginAttr, endsAttr, stridesAttr, zeroesArrayAttr,
-                                                    zeroesArrayAttr, zeroesArrayAttr, zeroesArrayAttr, zeroesArrayAttr);
+        newOp = rewriter.create<IE::StridedSliceOp>(origOp->getLoc(), origOp.getInput(), origOp.getBegins(),
+                                                    origOp.getEnds(), origOp.getStrides(), beginAttr, endsAttr,
+                                                    stridesAttr, zeroesArrayAttr, zeroesArrayAttr, zeroesArrayAttr,
+                                                    zeroesArrayAttr, zeroesArrayAttr);
     } else {
         auto sizes = std::vector<int64_t>(plan.ends.size());
         std::transform(plan.ends.cbegin(), plan.ends.cend(), plan.begins.cbegin(), sizes.begin(),
                        std::minus<int64_t>());
-        auto source = origOp.input();
-        // Merge the adjacent dims if their values are both 1 and not slice dim, such as 1x1x9x16x1000 -> 1x1x9x16x478
+        auto source = origOp.getInput();
+
         auto it = std::adjacent_find(sizes.begin(), sizes.end());
-        auto newInputShape = std::vector<int64_t>(getShape(origOp.input()).raw());
+        auto newInputShape = std::vector<int64_t>(getShape(origOp.getInput()).raw());
         auto index = it - sizes.begin();
-        if (it != sizes.end() && *it == 1 && newInputShape[index] == 1) {
+        // Merge the adjacent dims if their values are both 1 and not slice dim
+        // For example: 1x1x9x16x1000 -> 1x1x9x16x478
+        // Only handle cases with input tensor rank greater than 4 and convert it to 4D tensor
+        if (it != sizes.end() && *it == 1 && newInputShape[index] == 1 && newInputShape.size() > 4) {
             sizes.erase(it);
             auto newBegin = std::vector<int64_t>(plan.begins);
             newBegin.erase(newBegin.begin() + index);
             beginAttr = getIntArrayAttr(getContext(), newBegin);
             newInputShape.erase(newInputShape.begin() + index);
-            source = rewriter.createOrFold<IE::ReshapeOp>(origOp->getLoc(), source, nullptr, false,
-                                                          getIntArrayAttr(getContext(), newInputShape));
+            source = mlir::cast<mlir::TypedValue<mlir::RankedTensorType>>(rewriter.createOrFold<IE::ReshapeOp>(
+                    origOp->getLoc(), source, nullptr, false, getIntArrayAttr(getContext(), newInputShape)));
         }
         const auto endsAttr = getIntArrayAttr(getContext(), sizes);
         newOp = rewriter.create<IE::SliceOp>(origOp->getLoc(), source, beginAttr, endsAttr);
@@ -147,10 +148,19 @@ void ResolveStridedSlicePass::safeRunOnFunc() {
             return val == 1;
         };
 
-        VPUX_THROW_UNLESS(slice.begins_attr().has_value(), "begins_attr is null");
-        VPUX_THROW_UNLESS(slice.ends_attr().has_value(), "ends_attr is null");
+        VPUX_THROW_UNLESS(slice.getBeginsAttr().has_value(), "begins_attr is null");
+        VPUX_THROW_UNLESS(slice.getEndsAttr().has_value(), "ends_attr is null");
+        VPUX_THROW_UNLESS(slice.getStridesAttr().has_value(), "strides_attr is null");
 
-        return slice.isSimplified() && !llvm::all_of(parseIntArrayAttr<int64_t>(slice.strides_attr().value()), isOne);
+        auto inputRank = getShape(slice.getInput()).size();
+        auto beginsRank = slice.getBeginsAttr().value().size();
+        auto endsRank = slice.getEndsAttr().value().size();
+        auto stridesRank = slice.getStridesAttr().value().size();
+
+        bool hasSameRank = (beginsRank == inputRank) && (endsRank == inputRank) && (stridesRank == inputRank);
+
+        return slice.isSimplified() &&
+               !llvm::all_of(parseIntArrayAttr<int64_t>(slice.getStridesAttr().value()), isOne) && hasSameRank;
     };
 
     mlir::ConversionTarget target(ctx);

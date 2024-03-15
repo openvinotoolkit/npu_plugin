@@ -6,7 +6,6 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/core/attributes/shape.hpp"
-#include "vpux/compiler/dialect/IE/utils/permute_infer.hpp"
 #include "vpux/compiler/utils/permute_utils.hpp"
 
 using namespace vpux;
@@ -16,8 +15,8 @@ using namespace vpux;
 //
 
 mlir::LogicalResult vpux::IE::PermuteQuantizeOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -26,15 +25,15 @@ mlir::LogicalResult vpux::IE::PermuteQuantizeOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    mlir::Value input = permute_quantize.input();
-    mlir::AffineMap memPerm = permute_quantize.mem_perm();
-    mlir::AffineMap dstOrder = permute_quantize.dst_order();
-    const auto dstElemType = permute_quantize.dstElemType();
+    mlir::Value input = permute_quantize.getInput();
+    mlir::AffineMap memPerm = permute_quantize.getMemPerm();
+    mlir::AffineMap dstOrder = permute_quantize.getDstOrder();
+    const auto dstElemType = permute_quantize.getDstElemType();
 
-    const auto padBegin = parseIntArrayAttr<int64_t>(permute_quantize.pads_begin());
-    const auto padEnd = parseIntArrayAttr<int64_t>(permute_quantize.pads_end());
+    const auto padBegin = parseIntArrayAttr<int64_t>(permute_quantize.getPadsBegin());
+    const auto padEnd = parseIntArrayAttr<int64_t>(permute_quantize.getPadsEnd());
 
-    const auto inType = permute_quantize.input().getType().cast<vpux::NDTypeInterface>();
+    const auto inType = permute_quantize.getInput().getType().cast<vpux::NDTypeInterface>();
 
     const auto inOrder = DimsOrder::fromValue(input);
     const auto outOrder = DimsOrder::fromAffineMap(dstOrder);
@@ -69,20 +68,20 @@ public:
 
 mlir::LogicalResult ConvertToPermuteCast::matchAndRewrite(IE::PermuteQuantizeOp origOp,
                                                           mlir::PatternRewriter& rewriter) const {
-    const auto inOrder = DimsOrder::fromValue(origOp.input());
-    const auto inShape = getShape(origOp.input());
+    const auto inOrder = DimsOrder::fromValue(origOp.getInput());
+    const auto inShape = getShape(origOp.getInput());
     const auto inMemShape = inOrder.toMemoryOrder(inShape);
 
-    const auto inputType = origOp.input().getType().cast<NDTypeInterface>().getElementType();
-    const auto outputType = origOp.output().getType().cast<NDTypeInterface>().getElementType();
+    const auto inputType = origOp.getInput().getType().cast<NDTypeInterface>().getElementType();
+    const auto outputType = origOp.getOutput().getType().cast<NDTypeInterface>().getElementType();
 
-    if (!isTrivialPermute(inMemShape, origOp.mem_perm()) || inputType != outputType ||
-        inShape != getShape(origOp.output())) {
+    if (!isTrivialPermute(inMemShape, origOp.getMemPerm()) || inputType != outputType ||
+        inShape != getShape(origOp.getOutput())) {
         return mlir::failure();
     }
 
-    rewriter.replaceOpWithNewOp<IE::PermuteCastOp>(origOp, origOp.input(), origOp.dst_orderAttr(),
-                                                   origOp.mem_permAttr());
+    rewriter.replaceOpWithNewOp<IE::PermuteCastOp>(origOp, origOp.getInput(), origOp.getDstOrderAttr(),
+                                                   origOp.getMemPermAttr());
     return mlir::success();
 }
 
@@ -93,9 +92,9 @@ void vpux::IE::PermuteQuantizeOp::getCanonicalizationPatterns(mlir::RewritePatte
     patterns.add<ConvertToPermuteCast>(context);
 }
 
-mlir::OpFoldResult vpux::IE::PermuteQuantizeOp::fold(ArrayRef<mlir::Attribute>) {
-    if (input().getType() == output().getType() && mem_perm().isIdentity()) {
-        return input();
+mlir::OpFoldResult vpux::IE::PermuteQuantizeOp::fold(FoldAdaptor) {
+    if (getInput().getType() == getOutput().getType() && getMemPerm().isIdentity()) {
+        return getInput();
     }
 
     return nullptr;

@@ -5,10 +5,10 @@
 
 #include "vpux/compiler/dialect/IE/passes/insert_identity_pool_before_op.hpp"
 #include "vpux/compiler/VPU30XX/dialect/IE/passes.hpp"
+#include "vpux/compiler/dialect/IE/utils/pooling_utils.hpp"
 
 #include "vpux/compiler/utils/rewriter.hpp"
 
-#include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
 using namespace vpux;
@@ -21,7 +21,7 @@ mlir::Operation* insertMaxPool(mlir::Operation* concreteOp, mlir::PatternRewrite
     }
 
     const auto outputType = concreteOp->getOperand(0).getType();
-    return createIdentityMaxPool(concreteOp->getOperand(0), outputType, rewriter);
+    return IE::createIdentityMaxPool(concreteOp->getOperand(0), outputType, rewriter);
 }
 
 //

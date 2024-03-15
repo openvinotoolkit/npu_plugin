@@ -1,4 +1,3 @@
-//
 // Copyright (C) Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
@@ -6,7 +5,7 @@
 #include "nce_tasks.hpp"
 #include "vpu_ov1_layer_test.hpp"
 
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 
 namespace {
 
@@ -91,9 +90,9 @@ std::shared_ptr<ov::Node> buildGroupConv2d(const ov::Output<ov::Node>& param) {
     const auto quantWeights = NCETasksHelpers::quantize(weightsLayer->output(0), quantWeightRange);
     const auto targetShape = std::vector<int64_t>{static_cast<int64_t>(FILT_IN_OUT), 1, 1,
                                                   static_cast<int64_t>(KERNEL_H), static_cast<int64_t>(KERNEL_W)};
-    const auto targetShapeConst = std::make_shared<ngraph::opset1::Constant>(
+    const auto targetShapeConst = std::make_shared<ov::op::v0::Constant>(
             ngraph::element::Type_t::i64, ngraph::Shape{targetShape.size()}, targetShape.data());
-    const auto reshapedWeights = std::make_shared<ngraph::opset1::Reshape>(quantWeights, targetShapeConst, false);
+    const auto reshapedWeights = std::make_shared<ov::op::v1::Reshape>(quantWeights, targetShapeConst, false);
 
     auto groupConvLayer = std::make_shared<ngraph::op::v1::GroupConvolution>(
             quantInput, reshapedWeights->output(0), ngraph::Strides(std::vector<size_t>{1, 1}),
@@ -131,7 +130,7 @@ std::shared_ptr<ov::Node> buildMaxPool(const ov::Output<ov::Node>& param) {
     const ngraph::Shape padsBegin = {0, 0};
     const ngraph::Shape padsEnd = {0, 0};
     const ngraph::Shape poolKernel = {3, 3};
-    return std::make_shared<ngraph::opset2::MaxPool>(quantInput, poolStrides, padsBegin, padsEnd, poolKernel);
+    return std::make_shared<ov::op::v1::MaxPool>(quantInput, poolStrides, padsBegin, padsEnd, poolKernel);
 }
 
 }  // namespace

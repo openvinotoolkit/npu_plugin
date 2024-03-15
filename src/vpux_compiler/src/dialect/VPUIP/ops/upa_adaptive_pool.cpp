@@ -5,8 +5,6 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
-#include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
-
 using namespace vpux;
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::AdaptiveAvgPoolUPAOp::serialize(VPUIP::BlobWriter& writer) {

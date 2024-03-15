@@ -4,14 +4,13 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/utils/error.hpp"
 
 using namespace vpux;
 using namespace IE;
 
 mlir::LogicalResult vpux::IE::ShapeCastOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnTypes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -20,17 +19,28 @@ mlir::LogicalResult vpux::IE::ShapeCastOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto outShape = parseIntArrayAttr<int64_t>(shapeCast.shape());
+    const auto outShape = parseIntArrayAttr<int64_t>(shapeCast.getShape());
 
-    const auto inType = shapeCast.source().getType().cast<vpux::NDTypeInterface>();
+    const auto inType = shapeCast.getSource().getType().cast<vpux::NDTypeInterface>();
     const auto outDesc = vpux::getTensorAttr(ctx, inType.getDimsOrder(), inType.getMemSpace());
     inferredReturnTypes.emplace_back(outShape, inType.getElementType(), outDesc);
     return mlir::success();
 }
 
-mlir::OpFoldResult vpux::IE::ShapeCastOp::fold(ArrayRef<mlir::Attribute>) {
-    if (source().getType() == result().getType()) {
-        return source();
+mlir::OpFoldResult vpux::IE::ShapeCastOp::fold(FoldAdaptor adaptor) {
+    auto operands = adaptor.getOperands();
+    auto inputType = getSource().getType().cast<vpux::NDTypeInterface>();
+    auto outputType = getResult().getType().cast<vpux::NDTypeInterface>();
+    if (getSource().getType() == getResult().getType()) {
+        return getSource();
+    }
+
+    VPUX_THROW_UNLESS(!operands.empty(), "Wrong number of operands : {0}", operands.size());
+    if (inputType.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
+        return nullptr;
+    }
+    if (const auto attr = operands[0].dyn_cast_or_null<Const::ContentAttr>()) {
+        return attr.reshape(outputType.getShape());
     }
 
     return nullptr;
@@ -50,12 +60,12 @@ public:
 };
 
 mlir::LogicalResult FuseShapeCast::matchAndRewrite(IE::ShapeCastOp origOp, mlir::PatternRewriter& rewriter) const {
-    auto prevOp = origOp.source().getDefiningOp<IE::ShapeCastOp>();
+    auto prevOp = origOp.getSource().getDefiningOp<IE::ShapeCastOp>();
     if (prevOp == nullptr) {
         return mlir::failure();
     }
 
-    rewriter.replaceOpWithNewOp<IE::ShapeCastOp>(origOp, prevOp.source(), origOp.shape());
+    rewriter.replaceOpWithNewOp<IE::ShapeCastOp>(origOp, prevOp.getSource(), origOp.getShape());
     return mlir::success();
 }
 

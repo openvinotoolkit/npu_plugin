@@ -12,7 +12,7 @@
 
 namespace vpux {
 
-void VPURegMapped::ResolveTaskLocationPass::safeRunOnFunc() {
+void VPURegMapped::ResolveTaskLocationPass::createTaskLocationBuffers() {
     auto function = getOperation();
     auto builder = mlir::OpBuilder::atBlockBegin(&function.getBody().front());
     auto context = function.getContext();

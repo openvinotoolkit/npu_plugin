@@ -15,46 +15,61 @@
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 
 #include "vpux/compiler/core/cost_model_utils.hpp"
+#include "vpux/compiler/core/profiling.hpp"
 
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
 using namespace vpux;
 
+namespace {
+void updateSwProfilingMetadata(VPUIP::SwKernelOp newTask, VPUIP::SwProfilingMetadataAttr attr, size_t clusterId) {
+    if (attr == nullptr) {
+        return;
+    }
+    const size_t bufferId = attr.getBufferId().getInt();
+    const size_t bufferOffset = attr.getBufferOffset().getInt();
+    const size_t clusterSize = attr.getClusterSize().getInt();
+    const size_t dataIndex = attr.getDataIndex().getInt();
+    const size_t tileId = attr.getTileId().getInt();
+    auto profMeta = vpux::getSwProfilingMetaAttr(attr.getContext(), bufferId, bufferOffset, clusterSize, dataIndex,
+                                                 tileId, clusterId);
+    newTask.setProfilingMetadataAttr(profMeta);
+}
+};  // namespace
+
 //
 // ClusterSWRewriter
 //
 
-mlir::LogicalResult VPUIP::arch37xx::ClusterSWRewriter::matchAndRewrite(VPUIP::SwKernelOp swTask,
-                                                                        mlir::PatternRewriter& rewriter) const {
+void VPUIP::arch37xx::ClusterSWRewriter::matchAndRewrite(VPUIP::SwKernelOp swTask, mlir::OpBuilder& builder) const {
     _log.trace("Process SW op: '{0}'", swTask);
-    auto clusterOp = swTask->getParentOfType<VPUIP::NCEClusterTilingOp>();
-    if (clusterOp == nullptr) {
-        return mlir::failure();
-    }
 
-    auto vpurtTask = clusterOp->getParentOfType<VPURT::TaskOp>();
+    auto vpurtTask = swTask->getParentOfType<VPURT::TaskOp>();
     VPUX_THROW_UNLESS(vpurtTask != nullptr, "Can't get VPURT task operation");
 
-    auto cycleBeginAttr = vpurtTask->getAttr(cycleBegin);
-    auto cycleEndAttr = vpurtTask->getAttr(cycleEnd);
+    builder.setInsertionPointAfter(vpurtTask);
 
-    rewriter.setInsertionPointAfter(vpurtTask);
+    if (swTask.getInputs().empty() || swTask.getOutputs().empty()) {
+        return;
+    }
 
-    VPUX_THROW_UNLESS(!clusterOp.getInputs().empty(), "Wrong inputs size: {0}", clusterOp.getInputs().size());
-    VPUX_THROW_UNLESS(!clusterOp.getOutputs().empty(), "Wrong outputs size: {0}", clusterOp.getOutputs().size());
+    auto input = *swTask.getInputs().begin();
+    auto output = *swTask.getOutputs().begin();
 
-    auto parentInput = *clusterOp.getInputs().begin();
-    auto parentOutput = *clusterOp.getOutputs().begin();
+    auto inputType = input.getType().dyn_cast<VPUIP::DistributedBufferType>();
+    auto outputType = output.getType().dyn_cast<VPUIP::DistributedBufferType>();
 
-    auto parentInputType = parentInput.getType().dyn_cast<VPUIP::DistributedBufferType>();
-    auto parentOutputType = parentOutput.getType().dyn_cast<VPUIP::DistributedBufferType>();
+    if (inputType == nullptr && outputType == nullptr) {
+        _log.trace("Input and output types are not distributed, nothing to unroll");
+        auto oldLoc = swTask->getLoc();
+        VPUX_THROW_WHEN(stringifyPrimaryLocation(oldLoc).find("/cluster_") != std::string::npos,
+                        "/cluster_ suffix should not be present yet but was found in {0}", oldLoc);
+        swTask->setLoc(appendLoc(oldLoc, "cluster_0"));
+        return;
+    }
 
-    VPUX_THROW_UNLESS(parentInputType != nullptr && parentOutputType != nullptr,
-                      "Input and output types must have distributed type. Got: inT={0}, outT={1}", parentInputType,
-                      parentOutputType);
-
-    auto inDistribution = parentInputType.getDistribution();
-    auto outDistribution = parentOutputType.getDistribution();
+    auto inDistribution = inputType.getDistribution();
+    auto outDistribution = outputType.getDistribution();
 
     VPUX_THROW_UNLESS(inDistribution.getNumClusters() == outDistribution.getNumClusters(),
                       "Input '{0}' and output '{1}' number of clusters are not equal", inDistribution.getNumClusters(),
@@ -72,29 +87,27 @@ mlir::LogicalResult VPUIP::arch37xx::ClusterSWRewriter::matchAndRewrite(VPUIP::S
     auto numClusters = inDistribution.getNumClusters().getInt();
     auto loc = swTask->getLoc();
 
-    auto parentInputBuffs = swTask.inputs();
-    auto parentOutputBuffs = swTask.output_buffs();
+    auto parentInputBuffs = swTask.getInputs();
+    auto parentOutputBuffs = swTask.getOutputBuffs();
 
     // store inputs/outputs per cluster
-    _log.trace("Cluster inputs");
     mlir::DenseMap<int64_t, SmallVector<mlir::Value>> inputBuffs;
     mlir::DenseMap<int64_t, SmallVector<mlir::Value>> outputBuffs;
     SmallVector<TileInfo> outputTiles;
     SmallVector<TilingInfo> inputTiles;
 
     auto allowDiscontinuousBuffers = VPUIP::isStridedDataAccessSupported(swTask);
-    for (auto input : parentInputBuffs) {
-        auto currBuffs = VPUIP::getPerClusterSWMemoryBuffers(_ctx, loc, "input", clusterOp, input, numClusters,
-                                                             rewriter, _log, allowDiscontinuousBuffers);
+    for (const auto& input : parentInputBuffs) {
+        auto currBuffs = VPUIP::getPerClusterSWMemoryBuffers(_ctx, loc, "input", swTask, input, numClusters, builder,
+                                                             _log, allowDiscontinuousBuffers);
         for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
             inputBuffs[clusterId].push_back(currBuffs[clusterId]);
         }
     }
 
-    _log.trace("Cluster outputs");
-    for (auto output : parentOutputBuffs) {
-        auto currBuffs = VPUIP::getPerClusterSWComputeBuffers(_ctx, loc, "outputBuff", clusterOp, output, numClusters,
-                                                              rewriter, _log, true);
+    for (const auto& output : parentOutputBuffs) {
+        auto currBuffs = VPUIP::getPerClusterSWComputeBuffers(_ctx, loc, "outputBuff", swTask, output, numClusters,
+                                                              builder, _log, true);
         for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
             outputBuffs[clusterId].push_back(currBuffs[clusterId]);
         }
@@ -109,13 +122,12 @@ mlir::LogicalResult VPUIP::arch37xx::ClusterSWRewriter::matchAndRewrite(VPUIP::S
     // For overlapped input, the Swkernel's attr need to be updated according to its input/output tiles
     auto needUpdateAttrs = inDistributionMode == VPU::DistributionMode::OVERLAPPED;
     if (needUpdateAttrs) {
-        auto outTileIndex = VPUIP::getTilingDimIndex(parentOutputType);
-        VPUX_THROW_UNLESS(outTileIndex.has_value(), "Can not get tiling dim for {0}", parentOutputType);
+        auto outTileIndex = VPUIP::getTilingDimIndex(outputType);
+        VPUX_THROW_UNLESS(outTileIndex.has_value(), "Can not get tiling dim for {0}", outputType);
         for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
             SmallVector<TileInfo> tiles;
-            for (auto operand : parentInputBuffs) {
-                auto clusterOperand = VPU::getDistributedOperandFromNCEClusterTiling(clusterOp, operand);
-                auto distributedType = clusterOperand.getType().dyn_cast<VPUIP::DistributedBufferType>();
+            for (const auto& operand : parentInputBuffs) {
+                auto distributedType = operand.getType().dyn_cast<VPUIP::DistributedBufferType>();
                 auto tileIndex = VPUIP::getTilingDimIndex(distributedType);
                 VPUX_THROW_UNLESS(tileIndex.has_value(), "Can not get tiling dim for {0}", distributedType);
                 auto tileInfo = getPerClusterTileInfo(distributedType.getPerClusterMemoryShapes()[clusterId],
@@ -124,70 +136,54 @@ mlir::LogicalResult VPUIP::arch37xx::ClusterSWRewriter::matchAndRewrite(VPUIP::S
                 tiles.push_back(tileInfo);
             }
             auto inTiles = TilingInfo(tiles);
-            auto outTile = getPerClusterTileInfo(parentOutputType.getPerClusterComputeShapes()[clusterId],
-                                                 parentOutputType.getPerClusterComputeShapeOffsets()[clusterId],
+            auto outTile = getPerClusterTileInfo(outputType.getPerClusterComputeShapes()[clusterId],
+                                                 outputType.getPerClusterComputeShapeOffsets()[clusterId],
                                                  outTileIndex.value());
             inputTiles.push_back(inTiles);
             outputTiles.push_back(outTile);
         }
     }
 
-    auto profilingBuffs = VPUIP::getPerClusterSWMemoryBuffers(_ctx, loc, "profilingBuff", clusterOp,
-                                                              swTask.profiling_data(), numClusters, rewriter, _log);
-
-    mlir::OperationName kernelName = swTask->getName();
-    auto kernelArgsRange = [&kernelName](VPUIP::SwKernelOp swKernelOp) {
-        SmallVector<mlir::Attribute> attrStorage;
-
-        for (auto&& kernelRun : swKernelOp.body().getOps<VPUIP::SwKernelRun>()) {
-            kernelName = kernelRun->getName();
-            if (kernelRun.attrs().has_value()) {
-                const mlir::ArrayAttr arrayAttrs = kernelRun.attrs().value();
-                const auto& attrs = arrayAttrs.getValue();
-                for (const auto& attr : attrs) {
-                    attrStorage.push_back(attr);
-                }
-            }
-        }
-        return attrStorage;
-    };
+    auto profilingBuffs = VPUIP::getPerClusterSWMemoryBuffers(_ctx, loc, "profilingBuff", swTask,
+                                                              swTask.getProfilingData(), numClusters, builder, _log);
 
     auto taskArgs = kernelArgsRange(swTask);
 
-    _log.trace("Create new ops");
     for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
         const auto newLoc = appendLoc(loc, "cluster_{0}", clusterId);
         mlir::Value profilingData = nullptr;
         mlir::Type profilingOutputType = nullptr;
 
-        if (swTask.profiling_data()) {
+        if (swTask.getProfilingData()) {
             profilingOutputType = profilingBuffs[clusterId].getType();
             profilingData = profilingBuffs[clusterId];
+            VPUX_THROW_WHEN(swTask.getProfilingMetadataAttr() == nullptr, "Missing profiling metadata for '{0}'",
+                            swTask);
         }
-
-        _log.trace("Create new task");
 
         SmallVector<mlir::Type> inputTypes;
-        for (auto temp : inputBuffs[clusterId]) {
+        for (auto& temp : inputBuffs[clusterId]) {
             inputTypes.push_back(temp.getType());
         }
-        for (auto temp : outputBuffs[clusterId]) {
+        for (auto& temp : outputBuffs[clusterId]) {
             inputTypes.push_back(temp.getType());
         }
 
         auto newArgs = needUpdateAttrs ? VPUIP::getSwkernelNewAttrsAfterTiling(swTask, taskArgs, inputTiles[clusterId],
                                                                                outputTiles[clusterId], _log.nest())
                                        : taskArgs;
-        for (auto arg : newArgs) {
-            inputTypes.push_back(arg.getType());
+        for (auto& arg : newArgs) {
+            const auto typedAttr = arg.dyn_cast_or_null<mlir::TypedAttr>();
+            const auto type = typedAttr != nullptr ? typedAttr.getType() : mlir::NoneType::get(_ctx);
+            inputTypes.push_back(type);
         }
 
-        VPUIP::createRuntimeKernelDefinition(_module, _log.nest(), VPU::getArch(swTask.getOperation()));
+        VPUIP::createRuntimeKernelDefinition(_module, _log.nest());
 
         auto module = swTask->getParentOfType<mlir::ModuleOp>();
-        auto kernelFunc = module.lookupSymbol<mlir::func::FuncOp>(swTask.kernelFunctionAttr());
+        auto kernelFunc = module.lookupSymbol<mlir::func::FuncOp>(swTask.getKernelFunctionAttr());
         VPUX_THROW_UNLESS(kernelFunc, "Invalid function call : '{0}', undefined kernel name",
-                          swTask.kernelFunctionAttr());
+                          swTask.getKernelFunctionAttr());
 
         const auto kernelCode = kernelFunc->getAttrOfType<mlir::StringAttr>("VPU.kernel_code");
         const auto kernelEntryPoint = kernelFunc->getAttrOfType<mlir::StringAttr>("VPU.kernel_entry");
@@ -197,27 +193,17 @@ mlir::LogicalResult VPUIP::arch37xx::ClusterSWRewriter::matchAndRewrite(VPUIP::S
                 VPUIP::createBuiltInFunction(_module, newOperands, inputTypes, kernelEntryPoint, kernelCode, _log);
 
         auto newTask = VPURT::wrapIntoTaskOp<VPUIP::SwKernelOp>(
-                rewriter, vpurtTask.getWaitBarriers(), vpurtTask.getUpdateBarriers(), newLoc, inputBuffs[clusterId],
-                outputBuffs[clusterId], profilingData, builtInFunction, getIntAttr(rewriter, clusterId));
+                builder, vpurtTask.getWaitBarriers(), vpurtTask.getUpdateBarriers(), newLoc, inputBuffs[clusterId],
+                outputBuffs[clusterId], profilingData, builtInFunction, getIntAttr(builder, clusterId));
+        updateSwProfilingMetadata(newTask, swTask.getProfilingMetadataAttr(), clusterId);
 
         initSwKernel(newTask, inputBuffs[clusterId], outputBuffs[clusterId], newArgs, _log.nest());
 
         _log.trace("Task created: {0}", newTask);
-
-        auto newVpurtTask = newTask->getParentOfType<VPURT::TaskOp>();
-
-        if (cycleBeginAttr) {
-            newVpurtTask->setAttr(cycleBegin, cycleBeginAttr);
-        }
-        if (cycleEndAttr) {
-            newVpurtTask->setAttr(cycleEnd, cycleEndAttr);
-        }
     }
 
-    _log.trace("Remove task");
-
-    rewriter.eraseOp(vpurtTask);
-    return mlir::success();
+    vpurtTask->dropAllReferences();
+    vpurtTask->remove();
 }
 
 namespace {
@@ -242,17 +228,24 @@ void UnrollClusterTilingPass::safeRunOnFunc() {
     auto module = func->getParentOfType<mlir::ModuleOp>();
 
     auto dmaOp = IE::getAvailableExecutor(module, VPU::ExecutorKind::DMA_NN);
-    auto dmaPortCount = dmaOp.count();
+    auto dmaPortCount = dmaOp.getCount();
 
-    mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<VPUIP::ClusterDMARewriter>(&ctx, dmaPortCount, _log);
-    patterns.add<VPUIP::arch37xx::ClusterSWRewriter>(&ctx, module, _log);
-    patterns.add<VPUIP::arch30xx::ClusterNCERewriter>(&ctx, _log);
+    const VPUIP::ClusterDMARewriter dmaRewriter(&ctx, dmaPortCount, _log);
+    const VPUIP::arch37xx::ClusterSWRewriter swRewriter(&ctx, module, _log);
+    const VPUIP::arch30xx::ClusterNCERewriter nceRewriter(&ctx, _log);
 
-    if (mlir::failed(
-                mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), vpux::getDefaultGreedyRewriteConfig()))) {
-        signalPassFailure();
-    }
+    mlir::SmallVector<mlir::Operation*> toRemove;
+
+    func.walk([&](mlir::Operation* op) {
+        mlir::OpBuilder builder(op);
+        if (auto nndmaOp = mlir::dyn_cast<VPUIP::NNDMAOp>(op)) {
+            dmaRewriter.matchAndRewrite(nndmaOp, builder);
+        } else if (auto taskOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(op)) {
+            nceRewriter.matchAndRewrite(taskOp, builder);
+        } else if (auto swOp = mlir::dyn_cast<VPUIP::SwKernelOp>(op)) {
+            swRewriter.matchAndRewrite(swOp, builder);
+        }
+    });
 }
 
 }  // namespace

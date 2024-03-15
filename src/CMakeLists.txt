@@ -7,16 +7,13 @@ if(BUILD_COMPILER_FOR_DRIVER)
     set(COMPILER_FOR_DRIVER_VERSION_FILE ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpux_al/src/version.cpp)
 endif()
 
-add_definitions(-DIE_BUILD_POSTFIX=${IE_BUILD_POSTFIX_VAR})
+if(NOT ENABLE_NPU_MONO)
+    add_definitions(-DIE_BUILD_POSTFIX=${IE_BUILD_POSTFIX_VAR})
+endif()
 
-add_subdirectory(utils)
 add_subdirectory(vpux_al)
 
 add_subdirectory(vpux_ngraph_transformations)
-
-if(ENABLE_EMULATOR)
-    message(FATAL_ERROR "VPUX emulator is not currently supported! Aborting...")
-endif()
 
 if(ENABLE_ZEROAPI_BACKEND)
     add_subdirectory(zero_backend)

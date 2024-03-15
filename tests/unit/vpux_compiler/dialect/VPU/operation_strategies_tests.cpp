@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/dialect/VPU/operation_strategies.hpp"
-#include "vpux/compiler/dialect/VPU/ops.hpp"
-#include "vpux/compiler/dialect/VPU/passes.hpp"
-#include "vpux/compiler/dialect/VPU/types.hpp"
+#include "vpux/compiler/dialect/VPU/IR/ops.hpp"
+#include "vpux/compiler/dialect/VPU/IR/types.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/strategy_manager/operation_strategies.hpp"
 
 #include "common/utils.hpp"
 
@@ -45,16 +45,16 @@ TEST_F(MLIR_VPU_OpStrategies, OS_Storage_Insert) {
     auto func = module.get().lookupSymbol<mlir::func::FuncOp>("main");
     ASSERT_TRUE(func != nullptr);
 
-    mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(vpux::VPU::createInitCompilerPass(ArchKind::VPUX37XX, vpux::VPU::CompilationMode::DefaultHW, vpux::None,
-                                                 vpux::None, vpux::Logger::global()));
+    mlir::PassManager pm(module.get()->getName(), mlir::OpPassManager::Nesting::Implicit);
+    pm.addPass(vpux::VPU::createInitCompilerPass(ArchKind::VPUX37XX, vpux::VPU::CompilationMode::DefaultHW,
+                                                 std::nullopt, std::nullopt, vpux::Logger::global()));
 
     ASSERT_TRUE(mlir::succeeded(pm.run(module.get())));
 
     VPU::OperationStrategies storage;
 
     VPU::Strategy sohStr(VPU::MultiClusterStrategy::SplitOverHeight, nullptr);
-    VPU::Strategy sokStr(VPU::MultiClusterStrategy::SplitOverKernel, getIntArrayAttr(&ctx, makeArrayRef({1, 1, 2, 1})),
+    VPU::Strategy sokStr(VPU::MultiClusterStrategy::SplitOverKernel, getIntArrayAttr(&ctx, ArrayRef({1, 1, 2, 1})),
                          TilingMode::PIPELINING);
 
     func->walk([&](VPU::NCEConvolutionOp convOp) {
@@ -116,9 +116,9 @@ TEST_F(MLIR_VPU_OpStrategies, OS_Storage_TransitionCost) {
     auto func = module.get().lookupSymbol<mlir::func::FuncOp>("main");
     ASSERT_TRUE(func != nullptr);
 
-    mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(vpux::VPU::createInitCompilerPass(ArchKind::VPUX37XX, vpux::VPU::CompilationMode::DefaultHW, vpux::None,
-                                                 vpux::None, vpux::Logger::global()));
+    mlir::PassManager pm(module.get()->getName(), mlir::OpPassManager::Nesting::Implicit);
+    pm.addPass(vpux::VPU::createInitCompilerPass(ArchKind::VPUX37XX, vpux::VPU::CompilationMode::DefaultHW,
+                                                 std::nullopt, std::nullopt, vpux::Logger::global()));
 
     ASSERT_TRUE(mlir::succeeded(pm.run(module.get())));
 
@@ -128,7 +128,7 @@ TEST_F(MLIR_VPU_OpStrategies, OS_Storage_TransitionCost) {
     mlir::Operation* maxOp = (*convOp->getUsers().begin());
 
     VPU::Strategy sohStr(VPU::MultiClusterStrategy::SplitOverHeight, nullptr);
-    VPU::Strategy sokStr(VPU::MultiClusterStrategy::SplitOverKernel, getIntArrayAttr(&ctx, makeArrayRef({1, 1, 2, 1})));
+    VPU::Strategy sokStr(VPU::MultiClusterStrategy::SplitOverKernel, getIntArrayAttr(&ctx, ArrayRef({1, 1, 2, 1})));
 
     VPU::OperationStrategy firstOpStrategy = std::make_pair(convOp, sohStr);
     VPU::OperationStrategy secondOpStrategy = std::make_pair(maxOp, sokStr);

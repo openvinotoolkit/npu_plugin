@@ -33,7 +33,7 @@ private:
 };
 
 mlir::LogicalResult DequantizeConst::matchAndRewrite(IE::DequantizeOp dCastOp, mlir::PatternRewriter& rewriter) const {
-    auto inputConst = dCastOp.input().getDefiningOp<Const::DeclareOp>();
+    auto inputConst = dCastOp.getInput().getDefiningOp<Const::DeclareOp>();
     if (inputConst == nullptr) {
         return mlir::failure();
     }

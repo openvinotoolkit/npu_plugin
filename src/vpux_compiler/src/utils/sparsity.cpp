@@ -53,7 +53,7 @@ SmallVector<int64_t> countValue(int64_t sparsifyValue, const Const::Content& con
     return elems;
 }
 
-SmallVector<int64_t> vpux::getNumActualElements(const Const::Content& content, mlir::Type elementType) {
+SmallVector<int64_t> vpux::countNonSparseElementsPerOC(const Const::Content& content, mlir::Type elementType) {
     int64_t sparsifyValue = getSparsifyValue(elementType);
     SmallVector<int64_t> numActualElements;
     if (elementType.isSignedInteger(8)) {

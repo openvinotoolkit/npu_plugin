@@ -139,6 +139,46 @@ def OptimizeSliceExpand : PassBase<"optimize-slice-expand", "vpux::FunctionPass"
 }
 
 //
+// PropagateExpand
+//
+
+def PropagateExpand : PassBase<"propagate-expand", "vpux::FunctionPass"> {
+    let summary = "Propagate Expand operation in order to fuse it with other layers";
+
+    let description = [{
+        Propagate Expand through Eltwise Add in case layers before might be fused with Expand
+        in following cases:
+        1. PermuteQuntize might be fused with Expand in FusePermuteQuantizeExpand pass
+        2. DepthToSpace is used with padded channels' descriptor
+        3. SpaceToDepth might be executed with expanded input on dpu with following convolution with padded filter
+    }];
+
+    let constructor = "vpux::IE::arch37xx::createPropagateExpandPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// FusePermuteQuantizeExpand
+//
+
+def FusePermuteQuantizeExpand : PassBase<"fuse-permute-quantize-expand", "vpux::FunctionPass"> {
+    let summary = "Converts Quantize-MemPermute-Expand combination in 1 common operation";
+
+    let description = [{
+        Converts Quantize-MemPermute-Expand combination in 1 common operation.
+    }];
+
+    let constructor = "vpux::IE::arch37xx::createFusePermuteQuantizeExpandPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // ExpandActivationChannels
 //
 
@@ -164,6 +204,11 @@ def ExpandActivationChannels : PassBase<"expand-activation-channels", "vpux::Fun
             "seOpsEnabled", "se-ops-enabled",
             "bool", "false",
             "Flag to identify whether operations that can be executed using the Storage Element hardware feature are enabled"
+        >,
+        Option<
+            "seTransposedConvEnabled", "se-transposed-conv-enabled",
+            "bool", "false",
+            "(Experimental) Flag to identify whether Transposed Convolutions can be executed using the Storage Element hardware feature"
         >
     ];
 }
@@ -185,6 +230,73 @@ def UnrollBatch : PassBase<"unroll-batch", "vpux::FunctionPass"> {
     }];
 
     let constructor = "vpux::IE::arch37xx::createUnrollBatchPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// ConvertFFTToConv
+//
+
+def ConvertFFTToConv : PassBase<"convert-fft-to-conv", "vpux::FunctionPass"> {
+    let summary = "Replace FFT operations (I/R/ DFT) with a subgraph of smaller operations";
+
+    let description = [{
+        Decomposes `FFT` operations (DFT, IDFT, RDFT, IRDFT) into smaller `convolution` friendly operations.
+    }];
+
+    let constructor = "vpux::IE::arch37xx::createConvertFFTToConvPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// ConvertToMixPrecision
+//
+
+def ConvertToMixedPrecision: PassBase<"convert-to-mixed-precision", "vpux::FunctionPass"> {
+    let summary = "Convert DPU task without fake quantize behind to mixed-precision operation";
+
+    let description = [{
+        The pass is a part of `LowPrecision` pipeline.
+        Converts DPU task to mixed-precision operation where there is no quantize operation for the output of a DPU task
+    }];
+
+    let constructor = "vpux::IE::arch37xx::createConvertToMixedPrecision()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+
+    let options = [
+        Option<
+            "enableFloatInQuantWeightsMixedMode", "enable-float-in-quant-weights-mixed-mode",
+            "bool", "true",
+            "Enable mixed mode for NCE tasks with float input and quantized weights"
+        >
+    ];
+}
+
+//
+// OptimizeNetworkInputConvert
+//
+
+def OptimizeNetworkInputConvert: PassBase<"optimize-network-input-convert", "vpux::FunctionPass"> {
+    let summary = "Fuses outstanding Convert operations into input of quantized consumers";
+
+    let description = [{
+        The pass is a part of `LowPrecision` pipeline.
+        To avoid extra FP->Quant Convert operations at network start, fuses these Convert ops into quantized consumers
+        resulting mixed precision operations with FP input and Quant output.
+        As a side effect, also the original quantized weights are dequantized.
+        There is later logic which attempts to enable mixed precision of FP input activations and Quant weights.
+    }];
+
+    let constructor = "vpux::IE::arch37xx::createOptimizeNetworkInputConvertPass()";
 
     let dependentDialects = [
         "vpux::IE::IEDialect"

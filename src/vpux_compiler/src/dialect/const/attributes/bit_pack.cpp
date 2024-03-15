@@ -21,25 +21,6 @@
 using namespace vpux;
 
 //
-// BitPackAttr::walkImmediateSubElements
-//
-
-void vpux::Const::BitPackAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)> walkAttrsFn,
-                                                        llvm::function_ref<void(mlir::Type)>) const {
-    walkAttrsFn(getWidth());
-}
-
-//
-// BitPackAttr::replaceImmediateSubElements
-//
-
-mlir::Attribute vpux::Const::BitPackAttr::replaceImmediateSubElements(ArrayRef<mlir::Attribute> replAttrs,
-                                                                      ArrayRef<mlir::Type>) const {
-    VPUX_THROW_WHEN(replAttrs.size() < 1, "Replace attrs array is too short: '{0}'", replAttrs.size());
-    return get(replAttrs[0].dyn_cast_or_null<mlir::IntegerAttr>());
-}
-
-//
 // BitPackAttr::verify
 //
 
@@ -157,5 +138,6 @@ Const::details::PositionRequirement vpux::Const::BitPackAttr::getPositionRequire
 }
 
 Const::ContentAttr vpux::Const::ContentAttr::bitPack(int64_t width) const {
-    return get(*this, Const::BitPackAttr::get(getIntAttr(getContext(), width)).cast<Const::TransformAttrInterface>());
+    return ContentAttr::addTransformation(
+            *this, Const::BitPackAttr::get(getIntAttr(getContext(), width)).cast<Const::TransformAttrInterface>());
 }

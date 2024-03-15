@@ -3,7 +3,9 @@
 # SPDX-License-Identifier: Apache 2.0
 #
 
-add_definitions(-DIE_BUILD_POSTFIX=${IE_BUILD_POSTFIX_VAR})
+if(NOT ENABLE_NPU_MONO)
+    add_definitions(-DIE_BUILD_POSTFIX=${IE_BUILD_POSTFIX_VAR})
+endif()
 
 add_subdirectory(libs)
 

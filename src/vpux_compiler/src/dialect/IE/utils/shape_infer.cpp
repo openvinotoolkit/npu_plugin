@@ -4,10 +4,11 @@
 //
 
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
-#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_invariant.hpp"
+#include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/factors.hpp"
 
-#include "vpux/compiler/utils/error.hpp"
+#include <numeric>
 
 using namespace vpux;
 
@@ -145,7 +146,7 @@ mlir::FailureOr<SmallVector<int64_t>> getFactors(int64_t total, size_t num) {
     if (num > 2) {
         return mlir::failure();
     }
-    for (int64_t i = sqrt(total); i >= 1; i--) {
+    for (int64_t i = static_cast<int64_t>(sqrt(total)); i >= 1; i--) {
         if (total % i == 0) {
             return SmallVector<int64_t>({total / i, i});
         }

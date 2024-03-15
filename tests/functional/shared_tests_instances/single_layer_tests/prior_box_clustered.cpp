@@ -8,20 +8,20 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXPriorBoxClusteredLayerTest :
+class PriorBoxClusteredLayerTestCommon :
         public PriorBoxClusteredLayerTest,
         virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
-class VPUXPriorBoxClusteredLayerTest_VPU3700 : public VPUXPriorBoxClusteredLayerTest {};
-class VPUXPriorBoxClusteredLayerTest_VPU3720 : public VPUXPriorBoxClusteredLayerTest {};
+class PriorBoxClusteredLayerTest_NPU3700 : public PriorBoxClusteredLayerTestCommon {};
+class PriorBoxClusteredLayerTest_NPU3720 : public PriorBoxClusteredLayerTestCommon {};
 
-TEST_P(VPUXPriorBoxClusteredLayerTest_VPU3700, HW) {
+TEST_P(PriorBoxClusteredLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXPriorBoxClusteredLayerTest_VPU3720, SW) {
+TEST_P(PriorBoxClusteredLayerTest_NPU3720, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
@@ -63,12 +63,6 @@ const auto params = testing::Combine(
         testing::Values(InferenceEngine::Layout::ANY), testing::Values(std::vector<size_t>({4, 4})),
         testing::Values(std::vector<size_t>({50, 50})), testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_CASE_P(smoke_PriorBoxClustered, VPUXPriorBoxClusteredLayerTest_VPU3700, params,
-                        VPUXPriorBoxClusteredLayerTest_VPU3700::getTestCaseName);
-
-INSTANTIATE_TEST_CASE_P(smoke_PriorBoxClustered, VPUXPriorBoxClusteredLayerTest_VPU3720, params,
-                        VPUXPriorBoxClusteredLayerTest_VPU3720::getTestCaseName);
-
 const auto precommit_layerSpeficParams =
         testing::Combine(testing::ValuesIn(std::vector<std::vector<float>>{{2.56f, 7.3f, 6.75f}}),
                          testing::ValuesIn(std::vector<std::vector<float>>{{7.56f, 7.8f, 16.75f}}),
@@ -82,7 +76,17 @@ const auto paramsPrecommit = testing::Combine(
         testing::Values(InferenceEngine::Layout::ANY), testing::Values(std::vector<size_t>({4, 4})),
         testing::Values(std::vector<size_t>({13, 13})), testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_CASE_P(smoke_precommit_PriorBoxClustered, VPUXPriorBoxClusteredLayerTest_VPU3720, paramsPrecommit,
-                        VPUXPriorBoxClusteredLayerTest_VPU3720::getTestCaseName);
+// ------ NPU3700 ------
+
+INSTANTIATE_TEST_CASE_P(smoke_PriorBoxClustered, PriorBoxClusteredLayerTest_NPU3700, params,
+                        PriorBoxClusteredLayerTest_NPU3700::getTestCaseName);
+
+// ------ NPU3720 ------
+
+INSTANTIATE_TEST_CASE_P(smoke_PriorBoxClustered, PriorBoxClusteredLayerTest_NPU3720, params,
+                        PriorBoxClusteredLayerTest_NPU3720::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_precommit_PriorBoxClustered, PriorBoxClusteredLayerTest_NPU3720, paramsPrecommit,
+                        PriorBoxClusteredLayerTest_NPU3720::getTestCaseName);
 
 }  // namespace

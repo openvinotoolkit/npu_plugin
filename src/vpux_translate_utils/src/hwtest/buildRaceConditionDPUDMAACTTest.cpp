@@ -1,14 +1,13 @@
 //
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
-//
 
 #include <numeric>
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
-#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
-#include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
@@ -59,6 +58,7 @@ void buildRaceConditionDPUDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc,
     const auto conv = testDesc.getConvLayer();
     const auto output = testDesc.getOutputLayers().front();
     const auto iterationCount = testDesc.getIterationCount();
+    const auto numClusters = testDesc.getNumClusters();
 
     const llvm::SmallVector<std::int64_t> inputShape{input.shape.begin(), input.shape.end()};
     const llvm::SmallVector<std::int64_t> outputShape{output.shape.begin(), output.shape.end()};
@@ -123,7 +123,7 @@ void buildRaceConditionDPUDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc,
 
     auto function = builder.create<mlir::func::FuncOp>(
             loc, printToString("race_condition_dpu_dma_act_{0}_{1}_{2}", inputType, weightsType, outputType), funcType,
-            builder.getStringAttr("private"));
+            builder.getStringAttr("private"), /*arg_attrs=*/nullptr, /*res_attrs=*/nullptr);
 
     auto functionBuilder = mlir::OpBuilder::atBlockBegin(function.addEntryBlock(), builder.getListener());
 
@@ -133,16 +133,7 @@ void buildRaceConditionDPUDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc,
     auto functionOutput_2 = function.getArgument(3);
 
     const auto weightsValues = generateWeights(weightsShape, weightsType, ctx, weightsFileName);
-    auto weightsAttribute = vpux::Const::ContentAttr::get(weightsValues);
-    weightsAttribute = weightsAttribute.reorder(vpux::DimsOrder::OYXI);
-
-    if (auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>()) {
-        const auto quantizedType = vpux::changeStorageType(qty, weightsAttribute.getType().getElementType());
-        weightsAttribute = weightsAttribute.quantCast(quantizedType);
-        if (qty.getStorageType().isInteger(4)) {
-            weightsAttribute = weightsAttribute.bitPack(4);
-        }
-    }
+    const auto weightsAttribute = generateDefaultWeightsAttr(weightsValues, weightsType);
 
     const auto weightsDDRType =
             getMemRefType(VPURT::BufferSection::Constant, weightsShape, weightsType, DimsOrder::NHWC);
@@ -173,7 +164,7 @@ void buildRaceConditionDPUDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc,
     const auto weightsTableDDRMemRef =
             getMemRefType(VPURT::BufferSection::Constant, weightsTableShape, int32, DimsOrder::NHWC);
     const auto weightsTableValues =
-            mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::makeArrayRef<std::int32_t>(weightsTable));
+            mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::ArrayRef<std::int32_t>(weightsTable));
     auto weightsTableDDR = functionBuilder.create<vpux::Const::DeclareOp>(
             loc, weightsTableDDRMemRef,
             vpux::Const::ContentAttr::get(weightsTableValues).reorder(vpux::DimsOrder::NHWC));
@@ -190,13 +181,13 @@ void buildRaceConditionDPUDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc,
 
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(),
                                           mlir::ValueRange(updateBarrier.getBarrier()), loc, functionInput,
-                                          inputCMXVec[0].getOperation()->getResult(0));
+                                          inputCMXVec[0].getOperation()->getResult(0), 0);
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
             functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.getBarrier()), loc,
-            weightsDDR.getOperation()->getResult(0), weightsCMX.getOperation()->getResult(0));
+            weightsDDR.getOperation()->getResult(0), weightsCMX.getOperation()->getResult(0), 0);
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
             functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.getBarrier()), loc,
-            weightsTableDDR.getOperation()->getResult(0), weightsTableCMX.getOperation()->getResult(0));
+            weightsTableDDR.getOperation()->getResult(0), weightsTableCMX.getOperation()->getResult(0), 0);
 
     waitBarrier = updateBarrier;
 
@@ -235,27 +226,29 @@ void buildRaceConditionDPUDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc,
                                               inputCMXVec[0].getOperation()->getResult(0),
                                               outputCMX_1.getOperation()->getResult(0), 0);
         // ActShave
-        buildActShaveTask(testDesc, module, functionBuilder, log, makeArrayRef(inputTypes), inputCMXVec, outputCMX_2,
-                          mlir::ValueRange(waitBarrier.getBarrier()), mlir::ValueRange(updateBarrier.getBarrier()));
+        buildActShaveTask(testDesc, module, functionBuilder, log, ArrayRef(inputTypes), inputCMXVec, outputCMX_2,
+                          /*profilingDataCMX*/ nullptr, mlir::ValueRange(waitBarrier.getBarrier()),
+                          mlir::ValueRange(updateBarrier.getBarrier()));
         waitBarrier = updateBarrier;
     }
 
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.getBarrier()),
                                           mlir::ValueRange(), loc, outputCMX_0.getOperation()->getResult(0),
-                                          functionOutput_0);
+                                          functionOutput_0, 0);
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.getBarrier()),
                                           mlir::ValueRange(), loc, outputCMX_1.getOperation()->getResult(0),
-                                          functionOutput_1);
+                                          functionOutput_1, 0);
 
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.getBarrier()),
                                           mlir::ValueRange(), loc, outputCMX_2.getOperation()->getResult(0),
-                                          functionOutput_2);
+                                          functionOutput_2, 0);
 
     functionBuilder.create<mlir::func::ReturnOp>(
             loc, mlir::ValueRange{functionOutput_0, functionOutput_1, functionOutput_2});
 
-    mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::ReferenceHW, 1, 1, log));
+    mlir::PassManager pm(module->getName(), mlir::OpPassManager::Nesting::Implicit);
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::ReferenceHW, numClusters,
+                                           1, log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsBTCPass(log));
     }

@@ -21,6 +21,9 @@ add_subdirectory(protopipe)
 
 add_subdirectory(legacy/single-image-test)
 
+add_subdirectory(legacy/benchmark_app)
+
+add_subdirectory(compile_tool)
 
 #
 # install python tools

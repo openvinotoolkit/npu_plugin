@@ -4,6 +4,7 @@
 //
 
 #include "vpux/compiler/dialect/VPUMI37XX/dialect.hpp"
+#include "vpux/compiler/dialect/VPUIP/dialect.hpp"
 #include "vpux/compiler/dialect/VPUMI37XX/ops.hpp"
 
 using namespace vpux;

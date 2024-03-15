@@ -4,7 +4,7 @@
 //
 
 #include "shared_test_classes/subgraph/multiple_outputs.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -21,8 +21,8 @@ std::string MultioutputTest::getTestCaseName(testing::TestParamInfo<multiOutputT
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "KS=" << CommonTestUtils::vec2str(kernelShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "KS=" << ov::test::utils::vec2str(kernelShape) << "_";
     result << "S=" << stride << "_";
     result << "OC=" << outputChannels << "_";
     result << "netPRC=" << netPrecision.name() << "_";
@@ -67,16 +67,16 @@ void MultioutputTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     // input
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    auto params = std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape));
     // conv 1
-    auto conv1Weights = CommonTestUtils::generate_float_numbers(
+    auto conv1Weights = ov::test::utils::generate_float_numbers(
             outputChannels * inputShape[1] * kernelShape[0] * kernelShape[1], -0.2f, 0.2f);
-    auto conv1 = ngraph::builder::makeConvolution(params[0], ngPrc, {kernelShape[0], kernelShape[1]}, {stride, stride},
+    auto conv1 = ngraph::builder::makeConvolution(params, ngPrc, {kernelShape[0], kernelShape[1]}, {stride, stride},
                                                   {1, 1}, {1, 1}, {1, 1}, ngraph::op::PadType::VALID, outputChannels,
                                                   false, conv1Weights);
     // conv 2
     std::vector<size_t> conv2InputShape = {1, outputChannels, inputShape[2], inputShape[3]};
-    auto conv2Weights = CommonTestUtils::generate_float_numbers(
+    auto conv2Weights = ov::test::utils::generate_float_numbers(
             outputChannels * conv2InputShape[1] * kernelShape[0] * kernelShape[1], -0.2f, 0.2f);
     auto conv2 = ngraph::builder::makeConvolution(conv1, ngPrc, {kernelShape[0], kernelShape[1]}, {stride, stride},
                                                   {0, 0}, {0, 0}, {1, 1}, ngraph::op::PadType::VALID, outputChannels,
@@ -87,7 +87,7 @@ void MultioutputTest::SetUp() {
 
     ngraph::ResultVector results{std::make_shared<ngraph::op::Result>(conv1),
                                  std::make_shared<ngraph::op::Result>(pool)};
-    function = std::make_shared<ngraph::Function>(results, params, "MultioutputTest");
+    function = std::make_shared<ngraph::Function>(results, ov::ParameterVector{params}, "MultioutputTest");
 }
 
 }  // namespace SubgraphTestsDefinitions

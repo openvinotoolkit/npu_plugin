@@ -5,13 +5,11 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
-#include "vpux/utils/core/checked_cast.hpp"
-
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::ProposalOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -20,13 +18,13 @@ mlir::LogicalResult vpux::IE::ProposalOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = proposal.class_probs().getType().cast<mlir::ShapedType>();
+    const auto inType = proposal.getClassProbs().getType().cast<mlir::ShapedType>();
 
     // out shape must be [batch_size * post_nms_topn, 5]
-    const SmallVector<int64_t> outShape{inType.getShape().front() * proposal.proposal_attrs().getPostNmsTopN().getInt(),
-                                        5};
+    const SmallVector<int64_t> outShape{
+            inType.getShape().front() * proposal.getProposalAttrs().getPostNmsTopN().getInt(), 5};
     const SmallVector<int64_t> probsShape{inType.getShape().front() *
-                                          proposal.proposal_attrs().getPostNmsTopN().getInt()};
+                                          proposal.getProposalAttrs().getPostNmsTopN().getInt()};
     inferredReturnShapes.emplace_back(outShape, inType.getElementType());
     inferredReturnShapes.emplace_back(probsShape, inType.getElementType());
 

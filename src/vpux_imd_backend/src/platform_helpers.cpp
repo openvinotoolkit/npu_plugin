@@ -10,8 +10,9 @@
 #include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/error.hpp"
 
-using namespace vpux;
 using InferenceEngine::VPUXConfigParams::VPUXPlatform;
+
+namespace vpux {
 
 namespace {
 
@@ -22,12 +23,14 @@ const EnumMap<VPUXPlatform, StringRef> platformToAppNameMap = {
 
 }  // namespace
 
-bool vpux::IMD::platformSupported(VPUXPlatform platform) {
+bool platformSupported(VPUXPlatform platform) {
     return platformToAppNameMap.find(platform) != platformToAppNameMap.end();
 }
 
-StringRef vpux::IMD::getAppName(VPUXPlatform platform) {
+StringRef getAppName(VPUXPlatform platform) {
     const auto it = platformToAppNameMap.find(platform);
-    VPUX_THROW_WHEN(it == platformToAppNameMap.end(), "Platform '{0}' is not supported", platform);
+    VPUX_THROW_WHEN(it == platformToAppNameMap.end(), "Platform '{0}' is not supported", stringifyEnum(platform));
     return it->second;
 }
+
+}  // namespace vpux

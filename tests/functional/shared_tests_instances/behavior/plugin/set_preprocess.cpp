@@ -7,6 +7,8 @@
 
 #include "behavior/plugin/set_preprocess.hpp"
 #include "common/functions.h"
+#include "common/utils.hpp"
+#include "common/vpu_test_env_cfg.hpp"
 
 using namespace LayerTestsUtils;
 
@@ -31,9 +33,9 @@ const std::vector<InferenceEngine::Precision> outputPrecisions = {InferenceEngin
 const std::vector<std::map<std::string, std::string>> configs = {{}};
 
 const std::vector<std::map<std::string, std::string>> autoConfigs = {
-        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_KEEMBAY},
+        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, ov::test::utils::DEVICE_NPU},
          {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
-          CommonTestUtils::DEVICE_KEEMBAY + std::string(",") + CommonTestUtils::DEVICE_CPU}}};
+          ov::test::utils::DEVICE_NPU + std::string(",") + ov::test::utils::DEVICE_CPU}}};
 
 // Layout types:
 /*
@@ -61,25 +63,95 @@ const std::vector<InferenceEngine::Layout> inputLayouts = {InferenceEngine::Layo
 // Output layout is similarly limited as the input layout
 const std::vector<InferenceEngine::Layout> outputLayouts = {InferenceEngine::Layout::NCHW,
                                                             InferenceEngine::Layout::NHWC};
+namespace InferRequestPreprocessTestName {
+typedef std::tuple<InferenceEngine::Precision,         // Network precision
+                   std::string,                        // Device name
+                   std::map<std::string, std::string>  // Config
+                   >
+        BehaviorBasicParams;
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_VPU3720_BehaviorTestsPreprocess, InferRequestPreprocessTest,
+static std::string getTestCaseName(testing::TestParamInfo<BehaviorBasicParams> obj) {
+    using namespace ov::test::utils;
+
+    InferenceEngine::Precision netPrecision;
+    std::string targetDevice;
+    std::map<std::string, std::string> configuration;
+    std::tie(netPrecision, targetDevice, configuration) = obj.param;
+    std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
+    targetDevice = LayerTestsUtils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
+
+    std::ostringstream result;
+    result << "netPRC=" << netPrecision.name() << "_";
+    result << "targetDevice=" << targetDevice << "_";
+    if (!configuration.empty()) {
+        result << "config=" << configuration;
+    }
+    return result.str();
+}
+}  // namespace InferRequestPreprocessTestName
+
+namespace InferRequestPreprocessConversionTestName {
+typedef std::tuple<InferenceEngine::Precision,         // Network precision
+                   InferenceEngine::Precision,         // Set input precision
+                   InferenceEngine::Precision,         // Set output precision
+                   InferenceEngine::Layout,            // Network layout - always NCHW
+                   InferenceEngine::Layout,            // Set input layout
+                   InferenceEngine::Layout,            // Set output layout
+                   bool,                               // SetBlob or GetBlob for input blob
+                   bool,                               // SetBlob or GetBlob for output blob
+                   std::string,                        // Device name
+                   std::map<std::string, std::string>  // Config
+                   >
+        PreprocessConversionParams;
+
+static std::string getTestCaseName(testing::TestParamInfo<PreprocessConversionParams> obj) {
+    InferenceEngine::Precision netPrecision, iPrecision, oPrecision;
+    InferenceEngine::Layout netLayout, iLayout, oLayout;
+    bool setInputBlob, setOutputBlob;
+    std::string targetDevice;
+    std::map<std::string, std::string> configuration;
+    std::tie(netPrecision, iPrecision, oPrecision, netLayout, iLayout, oLayout, setInputBlob, setOutputBlob,
+             targetDevice, configuration) = obj.param;
+    std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
+    targetDevice = LayerTestsUtils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
+
+    std::ostringstream result;
+    result << "netPRC=" << netPrecision.name() << "_";
+    result << "iPRC=" << iPrecision.name() << "_";
+    result << "oPRC=" << oPrecision.name() << "_";
+    result << "netLT=" << netLayout << "_";
+    result << "iLT=" << iLayout << "_";
+    result << "oLT=" << oLayout << "_";
+    result << "setIBlob=" << setInputBlob << "_";
+    result << "setOBlob=" << setOutputBlob << "_";
+    result << "target_device=" << targetDevice;
+    if (!configuration.empty()) {
+        for (auto& configItem : configuration) {
+            result << "configItem=" << configItem.first << "_" << configItem.second << "_";
+        }
+    }
+    return result.str();
+}
+}  // namespace InferRequestPreprocessConversionTestName
+
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_BehaviorTestsPreprocess, InferRequestPreprocessTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
+                                            ::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configs)),
-                         InferRequestPreprocessTest::getTestCaseName);
+                         InferRequestPreprocessTestName::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_VPU3720_Auto_BehaviorTestsPreprocess, InferRequestPreprocessTest,
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_Auto_BehaviorTestsPreprocess, InferRequestPreprocessTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                            ::testing::Values(ov::test::utils::DEVICE_AUTO),
                                             ::testing::ValuesIn(autoConfigs)),
-                         InferRequestPreprocessTest::getTestCaseName);
+                         InferRequestPreprocessTestName::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_VPU3720_BehaviorTestsPreprocess, InferRequestPreprocessConversionTest,
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_BehaviorTestsPreprocess, InferRequestPreprocessConversionTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions), ::testing::ValuesIn(inputPrecisions),
                                             ::testing::ValuesIn(outputPrecisions), ::testing::ValuesIn(netLayouts),
                                             ::testing::ValuesIn(inputLayouts), ::testing::ValuesIn(outputLayouts),
                                             ::testing::Bool(), ::testing::Bool(),
-                                            ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
+                                            ::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configs)),
-                         InferRequestPreprocessConversionTest::getTestCaseName);
+                         InferRequestPreprocessConversionTestName::getTestCaseName);
 }  // namespace

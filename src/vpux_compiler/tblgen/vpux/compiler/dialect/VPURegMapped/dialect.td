@@ -26,7 +26,7 @@ The **VPURegMapped Dialect** defines attributes and types common
 
     let dependentDialects = [
         "vpux::Const::ConstDialect",
-        "vpux::ELF::ELFDialect",
+        "vpux::ELFNPU37XX::ELFNPU37XXDialect",
         "mlir::func::FuncDialect",
         "mlir::quant::QuantizationDialect"
     ];
@@ -38,8 +38,6 @@ The **VPURegMapped Dialect** defines attributes and types common
 
     let useDefaultTypePrinterParser = 1;
     let useDefaultAttributePrinterParser = 1;
-
-    let emitAccessorPrefix = kEmitAccessorPrefix_Prefixed;
 }
 
 #endif

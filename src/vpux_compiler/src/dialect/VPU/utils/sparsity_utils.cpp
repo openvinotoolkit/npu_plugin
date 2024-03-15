@@ -42,3 +42,15 @@ bool VPU::isActSparsityEnabled(const StrOption& enableActivationSparsityOption) 
     return actSparsityMode == VPU::EnableActivationSparsityMode::TRUE ||
            actSparsityMode == VPU::EnableActivationSparsityMode::AUTO;
 }
+
+//
+// SparsityConstraint
+//
+
+bool VPU::SparsityConstraint::areChannelsFitForSESize(int64_t channels) const {
+    return self->areChannelsFitForSESize(channels);
+}
+
+bool VPU::SparsityConstraint::areChannelsFitForSESize(mlir::Type inputType, int64_t channels) const {
+    return self->areChannelsFitForSESize(inputType, channels);
+}

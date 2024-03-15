@@ -1,0 +1,48 @@
+//
+// Copyright (C) 2022 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
+//
+
+#include <vpux_elf/writer.hpp>
+#include "vpux/compiler/dialect/ELFNPU37XX/ops.hpp"
+
+void vpux::ELFNPU37XX::CreateSymbolTableSectionOp::serialize(elf::Writer& writer,
+                                                             vpux::ELFNPU37XX::SectionMapType& sectionMap,
+                                                             vpux::ELFNPU37XX::SymbolMapType& symbolMap) {
+    if (getIsBuiltin())
+        return;
+
+    const auto name = getSecName().str();
+    auto section = writer.addSymbolSection(name);
+
+    section->maskFlags(static_cast<elf::Elf_Xword>(getSecFlags()));
+
+    auto block = getBody();
+    for (auto& op : block->getOperations()) {
+        auto symbol = section->addSymbolEntry();
+
+        if (auto symOp = llvm::dyn_cast<vpux::ELFNPU37XX::SymbolOp>(op)) {
+            symOp.serialize(symbol, sectionMap);
+            symbolMap[symOp.getOperation()] = symbol;
+        } else if (auto placeholder = llvm::dyn_cast<vpux::ELFNPU37XX::PutOpInSectionOp>(op)) {
+            auto actualOp = placeholder.getInputArg().getDefiningOp();
+            auto symOp = llvm::dyn_cast<vpux::ELFNPU37XX::SymbolOp>(actualOp);
+
+            VPUX_THROW_UNLESS(
+                    symOp != nullptr,
+                    "Symbol table section op is expected to have PutOpInSectionOps that point to SymbolOps only."
+                    " Got *actualOp {0}.",
+                    *actualOp);
+
+            symOp.serialize(symbol, sectionMap);
+            symbolMap[symOp.getOperation()] = symbol;
+        } else {
+            VPUX_THROW("Symbol table section op is expected to have either SymbolOps or PutOpInSectionOps that have as "
+                       "params "
+                       "SymbolOps. Got {0}.",
+                       op);
+        }
+    }
+
+    sectionMap[getOperation()] = section;
+}

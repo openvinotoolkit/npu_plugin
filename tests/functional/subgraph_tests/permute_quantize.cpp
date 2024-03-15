@@ -3,58 +3,60 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "subgraph_tests/nce_tasks.hpp"
-#include "vpu_ov1_layer_test.hpp"
+#include <vpu_ov2_layer_test.hpp>
 
-#include <ngraph_functions/builders.hpp>
-#include <ngraph_functions/utils/ngraph_helpers.hpp>
+#include <ov_models/builders.hpp>
+#include <ov_models/utils/ov_helpers.hpp>
 #include <shared_test_classes/base/layer_test_utils.hpp>
+#include "subgraph_tests/nce_tasks.hpp"
 
-namespace {
+namespace ov::test {
 
-class VPUXPermuteQuantizeTest :
-        public LayerTestsUtils::VpuOv1LayerTestsCommon,
-        public testing::WithParamInterface<std::tuple<InferenceEngine::SizeVector>> {
-    void ConfigureNetwork() override {
-        cnnNetwork.getInputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
-        cnnNetwork.getOutputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
-        cnnNetwork.getInputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NCHW);
-        cnnNetwork.getOutputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NHWC);
-    }
+class PermuteQuantizeTestCommon :
+        public VpuOv2LayerTest,
+        public testing::WithParamInterface<
+                std::tuple<ov::Shape, ov::element::Type, ov::element::Type, ov::Layout, ov::Layout>> {
     void SetUp() override {
-        targetDevice = LayerTestsUtils::testPlatformTargetDevice();
-        const auto inputShape = std::get<0>(GetParam());
+        ov::Shape inputShape;
+        ov::Layout inLayout, outLayout;
+        std::tie(inputShape, inType, outType, inLayout, outLayout) = GetParam();
 
-        const auto params = ngraph::builder::makeParams(ngraph::element::f16, {inputShape});
-        const auto paramOuts =
-                ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+        init_input_shapes(static_shapes_to_test_representation({inputShape}));
 
-        const auto nceTask = NCETasksHelpers::buildNCETask(paramOuts.at(0), NCETasksHelpers::NCEOpType::GroupConv2d);
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes.front())};
+
+        const auto nceTask = NCETasksHelpers::buildNCETask(params.at(0), NCETasksHelpers::NCEOpType::GroupConv2d);
         const auto quantRange = std::array<float, 4>{0.f, 255.f, 0.f, 255.f};
         const auto quantOp = NCETasksHelpers::quantize(nceTask, quantRange);
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(quantOp)};
+        const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(quantOp)};
 
-        function = std::make_shared<ngraph::Function>(results, params, "PermuteQuantizeTest");
-
-        threshold = 0.5f;
+        function = std::make_shared<ov::Model>(results, params, "PermuteQuantizeTest");
+        auto preProc = ov::preprocess::PrePostProcessor(function);
+        preProc.input().tensor().set_layout(inLayout);
+        preProc.input().model().set_layout(inLayout);
+        preProc.output().tensor().set_layout(outLayout);
+        preProc.output().model().set_layout(outLayout);
+        function = preProc.build();
+        rel_threshold = 0.5f;
     }
 };
 
-class VPUXPermuteQuantizeTest_VPU3720 : public VPUXPermuteQuantizeTest {};
+class PermuteQuantizeTest_NPU3720 : public PermuteQuantizeTestCommon {};
 
-TEST_P(VPUXPermuteQuantizeTest_VPU3720, HW) {
-    setPlatformVPU3720();
-    setDefaultHardwareModeMLIR();
+TEST_P(PermuteQuantizeTest_NPU3720, HW) {
+    setDefaultHardwareMode();
     configuration["PERFORMANCE_HINT"] = "LATENCY";
     configuration["NPU_DPU_GROUPS"] = "2";
-    Run();
+    run(VPUXPlatform::VPU3720);
 }
 
-const std::vector<InferenceEngine::SizeVector> inputShapes = {
+const std::vector<ov::Shape> inputShapes = {
         {1, 3, 224, 224}, {1, 3, 128, 256}, {1, 1, 64, 64}, {1, 3, 224, 225}, {1, 3, 640, 320},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_PermuteQuantizeTest, VPUXPermuteQuantizeTest_VPU3720,
-                         ::testing::Combine(::testing::ValuesIn(inputShapes)));
+INSTANTIATE_TEST_SUITE_P(smoke_PermuteQuantizeTest, PermuteQuantizeTest_NPU3720,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes), ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::f16), ::testing::Values(ov::Layout("NCHW")),
+                                            ::testing::Values(ov::Layout("NHWC"))));
 
-}  // namespace
+}  // namespace ov::test

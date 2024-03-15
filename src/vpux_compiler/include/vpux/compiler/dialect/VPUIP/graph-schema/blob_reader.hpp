@@ -6,7 +6,7 @@
 #pragma once
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/schema.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 

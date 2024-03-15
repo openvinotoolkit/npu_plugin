@@ -10,15 +10,10 @@
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
 #include "vpux/compiler/utils/constant_fusion.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/logging.hpp"
-
-#include "vpux/compiler/dialect/VPUIP/utils.hpp"
-#include "vpux/utils/core/range.hpp"
 
 using namespace vpux;
 namespace {
@@ -58,7 +53,7 @@ mlir::Value createAllocOp(Const::DeclareOp declOp, VPURT::AllocDistributed alloc
                 IndexedSymbolAttr::get(rewriter.getContext(), stringifyEnum(VPU::MemoryKind::CMX_NN), 0);
         auto newType = type.changeMemSpace(memKindAttr);
         auto memrefType = newType.cast<mlir::MemRefType>();
-        return rewriter.create<mlir::memref::AllocOp>(declOp.getLoc(), memrefType).memref();
+        return rewriter.create<mlir::memref::AllocOp>(declOp.getLoc(), memrefType).getMemref();
     }
 }
 
@@ -73,7 +68,7 @@ VPUIP::CopyOp createFusedCopyOp(mlir::Value allocDefiningOp, Const::DeclareOp de
         rewriter.create<VPUIP::NCEClusterTilingOp>(appendLoc(declOp.getLoc(), "_fused_tile"), allocDefiningOp.getType(),
                                                    inputsOutputOperands, bodyBuilder);
     } else if (auto allocOp = allocDefiningOp.getDefiningOp<mlir::memref::AllocOp>()) {
-        fusedCopyOp = rewriter.create<VPUIP::CopyOp>(declOp->getLoc(), declOp.getOutput(), allocOp.memref());
+        fusedCopyOp = rewriter.create<VPUIP::CopyOp>(declOp->getLoc(), declOp.getOutput(), allocOp.getMemref());
     } else {
         VPUX_THROW("Unrecognized allocDefiningOp encountered");
     }
@@ -91,9 +86,7 @@ mlir::RankedTensorType FuseConstants::populateFusedConstantBuffer(vpux::Constant
     }
 
     fusedValuesBuf.reserve(totalTensorsize);
-    SmallVector<int64_t> fusedConstShape({1, 1, 1, totalTensorsize});
-    auto fusedConstElemType = getUInt8Type(rewriter.getContext());
-    const auto fusedTensorType = mlir::RankedTensorType::get(fusedConstShape, fusedConstElemType);
+    unsigned jointF16constantsSize = 0;
 
     for (auto& pair : constantVector) {
         // In case of some layers like MaxPool the weights won't be present so skip over to the next
@@ -102,30 +95,45 @@ mlir::RankedTensorType FuseConstants::populateFusedConstantBuffer(vpux::Constant
             auto content = pair.second.getContent();
             auto contentType = pair.second.getType().cast<vpux::NDTypeInterface>();
             auto elemType = contentType.getElementType();
+            auto origElemType = elemType;
 
             if (VPUIP::getCompressionSchemeAttr(contentType) != nullptr) {
                 elemType = getUInt8Type(elemType.getContext());
             }
-
-            if (elemType.isa<mlir::quant::QuantizedType>() || elemType.isUnsignedInteger(8)) {
-                // If the weights are quantized they will be UI8 else it is activation window
+            // Currently assuming that Quant types are 8 bit integers
+            // To be updated for future FP8, INT4, FP4 support
+            if (auto quantElemType = elemType.dyn_cast<mlir::quant::QuantizedType>()) {
+                if (quantElemType.isSigned()) {
+                    auto values = content.getValues<int8_t>();
+                    for (size_t idx = 0; idx < values.size(); ++idx) {
+                        auto int8Val = values[idx];
+                        fusedValuesBuf.push_back(*reinterpret_cast<uint8_t*>(&int8Val));
+                    }
+                } else {
+                    auto values = content.getValues<uint8_t>();
+                    for (size_t idx = 0; idx < values.size(); ++idx) {
+                        fusedValuesBuf.push_back(values[idx]);
+                    }
+                }
+            } else if (elemType.isUnsignedInteger(8)) {
                 auto values = content.getValues<uint8_t>();
                 for (size_t idx = 0; idx < values.size(); ++idx) {
                     fusedValuesBuf.push_back(values[idx]);
                 }
-
+                if (origElemType.isF16()) {
+                    jointF16constantsSize += values.size();
+                }
             } else if (elemType.isF16()) {
                 auto weightsValues = content.getValues<float16>();
                 for (size_t idx = 0; idx < weightsValues.size(); ++idx) {
                     vpux::ConstantFusing::convertToU8<float16>(weightsValues[idx], fusedValuesBuf);
                 }
-
+                jointF16constantsSize += weightsValues.size() * 2;
             } else if (elemType.isSignedInteger(32)) {
                 auto weightTableValues = content.getValues<int32_t>();
                 for (size_t idx = 0; idx < weightTableValues.size(); ++idx) {
                     vpux::ConstantFusing::convertToU8<int32_t>(weightTableValues[idx], fusedValuesBuf);
                 }
-
             } else if (elemType.isInteger(1)) {
                 const auto packedNumElems = contentType.getNumElements() / CHAR_BIT;
                 const auto packedElemType = getUInt8Type(contentType.getContext());
@@ -133,17 +141,30 @@ mlir::RankedTensorType FuseConstants::populateFusedConstantBuffer(vpux::Constant
                         contentType.changeShapeElemType(Shape({1, 1, 1, packedNumElems}), packedElemType);
                 auto packedContent = Const::Content::fromRawBuffer(packedContentType, content.getRawStorageBuf(),
                                                                    packedElemType, content.isSplat());
-
                 auto weightsSMValues = packedContent.getValues<uint8_t>();
                 for (size_t idx = 0; idx < weightsSMValues.size(); ++idx) {
                     fusedValuesBuf.push_back(weightsSMValues[idx]);
                 }
-
             } else {
                 VPUX_THROW("Unsupported data type for constant {0}", pair.second.getLoc());
             }
         }
     }
+
+    mlir::RankedTensorType fusedTensorType = nullptr;
+    if (jointF16constantsSize * 2 > totalTensorsize) {  // use F16 type if the fused constant
+                                                        // is to be dominated by this type
+        auto fusedConstantElementType = mlir::FloatType::getF16(rewriter.getContext());
+        SmallVector<int64_t> fusedConstShape({1, 1, 1, totalTensorsize / 2});
+
+        fusedTensorType = mlir::RankedTensorType::get(fusedConstShape, fusedConstantElementType);
+    } else {
+        auto fusedConstantElementType = getUInt8Type(rewriter.getContext());
+        SmallVector<int64_t> fusedConstShape({1, 1, 1, totalTensorsize});
+
+        fusedTensorType = mlir::RankedTensorType::get(fusedConstShape, fusedConstantElementType);
+    }
+
     return fusedTensorType;
 }
 
@@ -151,6 +172,8 @@ void replaceConstantsWithFusedConstant(vpux::ConstantFusing::ConstantVector& con
                                        vpux::ConstantFusing::TilingOpVector& tilingVector,
                                        mlir::PatternRewriter& rewriter, VPUIP::CopyOp newCopyOp) {
     VPUIP::NCEClusterTilingOp newTilingOp = newCopyOp->getParentOfType<VPUIP::NCEClusterTilingOp>();
+    auto opElementType = newCopyOp.getOutput().getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto opElementSizeBytes = opElementType.getIntOrFloatBitWidth() / CHAR_BIT;
 
     // 5.  Replace constants constant with sequence fused_constant -> subview -> view
     int64_t offset = 0;
@@ -161,19 +184,19 @@ void replaceConstantsWithFusedConstant(vpux::ConstantFusing::ConstantVector& con
             continue;
         }
         auto constTilingOp = tilingVector[i].second;
-        size = vpux::getTotalSize(constant->getOpResult(0));
+        size = vpux::getTotalSize(constant->getOpResult(0)) / opElementSizeBytes;
         SmallVector<int64_t> subtensor({1, 1, 1, size.count()});
         auto offsets = SmallVector<int64_t>{0, 0, 0, offset};
         if (constTilingOp != nullptr) {
             auto subViewOp =
                     rewriter.create<VPUIP::SubViewOp>(constant.getLoc(), newTilingOp->getResult(0), offsets, subtensor);
-            rewriter.replaceOpWithNewOp<VPUIP::ViewOp>(constTilingOp, constTilingOp.output_buffs()[0].getType(),
-                                                       subViewOp.result());
+            rewriter.replaceOpWithNewOp<VPUIP::ViewOp>(constTilingOp, constTilingOp.getOutputBuffs()[0].getType(),
+                                                       subViewOp.getResult());
         } else {
             auto copyOp = constantVector[i].first;
             auto subViewOp =
-                    rewriter.create<VPUIP::SubViewOp>(constant.getLoc(), newCopyOp.output(), offsets, subtensor);
-            rewriter.replaceOpWithNewOp<VPUIP::ViewOp>(copyOp, copyOp.output_buff().getType(), subViewOp.result());
+                    rewriter.create<VPUIP::SubViewOp>(constant.getLoc(), newCopyOp.getOutput(), offsets, subtensor);
+            rewriter.replaceOpWithNewOp<VPUIP::ViewOp>(copyOp, copyOp.getOutputBuff().getType(), subViewOp.getResult());
         }
         offset += size.count();
     }
@@ -206,20 +229,20 @@ mlir::LogicalResult getInputsInFusingOrder(VPUIP::NCEClusterTaskOp& nceOp,
         return tilingCopyOp == nullptr ? copyOp->hasOneUse() : tilingCopyOp->hasOneUse();
     };
 
-    vpux::ConstantFusing::getCopyAndDeclareOpForFusion(nceOp, nceOp.weight_table(), copyOp, declareOp, allocDistributed,
-                                                       tilingOp);
+    vpux::ConstantFusing::getCopyAndDeclareOpForFusion(nceOp, nceOp.getWeightTable(), copyOp, declareOp,
+                                                       allocDistributed, tilingOp);
 
     if (copyOp != nullptr && declareOp != nullptr) {
         constantVector[0] = {copyOp, declareOp};
         tilingVector[0] = {allocDistributed, tilingOp};
     } else {
-        return matchFailed(rewriter, nceOp, "Cloudn't find weight table");
+        return matchFailed(rewriter, nceOp, "Couldn't find weight table");
     }
 
-    if (nceOp.weights() != nullptr) {
+    if (nceOp.getWeights() != nullptr) {
         resetTemporaries();
-        vpux::ConstantFusing::getCopyAndDeclareOpForFusion(nceOp, nceOp.weights(), copyOp, declareOp, allocDistributed,
-                                                           tilingOp);
+        vpux::ConstantFusing::getCopyAndDeclareOpForFusion(nceOp, nceOp.getWeights(), copyOp, declareOp,
+                                                           allocDistributed, tilingOp);
         if (copyOp == nullptr) {
             return matchFailed(rewriter, nceOp, "Weights Copy Op missing");
         }
@@ -234,13 +257,13 @@ mlir::LogicalResult getInputsInFusingOrder(VPUIP::NCEClusterTaskOp& nceOp,
         } else {
             // Special condition when weights come in from a different source
             // e.g. Activation tensor
-            return matchFailed(rewriter, nceOp, "The layer weights are not constant and not present in the graphfile");
+            return matchFailed(rewriter, nceOp, "Non constant layer weights");
         }
     }
 
-    if (nceOp.weights_sparsity_map() != nullptr) {
+    if (nceOp.getWeightsSparsityMap() != nullptr) {
         resetTemporaries();
-        vpux::ConstantFusing::getCopyAndDeclareOpForFusion(nceOp, nceOp.weights_sparsity_map(), copyOp, declareOp,
+        vpux::ConstantFusing::getCopyAndDeclareOpForFusion(nceOp, nceOp.getWeightsSparsityMap(), copyOp, declareOp,
                                                            allocDistributed, tilingOp);
         if (copyOp == nullptr) {
             return matchFailed(rewriter, nceOp, "Weights sparsity map Copy Op missing");
@@ -258,9 +281,9 @@ mlir::LogicalResult getInputsInFusingOrder(VPUIP::NCEClusterTaskOp& nceOp,
         }
     }
 
-    if (nceOp.activation_window() != nullptr) {
+    if (nceOp.getActivationWindow() != nullptr) {
         resetTemporaries();
-        vpux::ConstantFusing::getCopyAndDeclareOpForFusion(nceOp, nceOp.activation_window(), copyOp, declareOp,
+        vpux::ConstantFusing::getCopyAndDeclareOpForFusion(nceOp, nceOp.getActivationWindow(), copyOp, declareOp,
                                                            allocDistributed, tilingOp);
         if (declareOp != nullptr && copyOp != nullptr) {
             if (!hasOneUse(copyOp)) {
@@ -284,7 +307,7 @@ mlir::LogicalResult FuseConstants::matchAndRewrite(VPUIP::NCEClusterTaskOp nceOp
         rewriter.setInsertionPoint(parentTilingOp);
     }
 
-    if (nceOp.task_type() == VPUIP::NCETaskType::ELTWISE || nceOp.task_type() == VPUIP::NCETaskType::AVEPOOL) {
+    if (nceOp.getTaskType() == VPUIP::NCETaskType::ELTWISE || nceOp.getTaskType() == VPUIP::NCETaskType::AVEPOOL) {
         return mlir::failure();
     }
 
@@ -308,7 +331,16 @@ mlir::LogicalResult FuseConstants::matchAndRewrite(VPUIP::NCEClusterTaskOp nceOp
 
     // 3. Build new constant memref
     auto fusedTensorTypeMemref = vpux::convertToMemRef(tensorType);
-    mlir::ElementsAttr value = mlir::DenseElementsAttr::get(tensorType, makeArrayRef(fusedValuesBuf));
+    mlir::ElementsAttr value;
+    if (tensorType.getElementType().isF16()) {
+        auto f16Type = mlir::FloatType::getF16(rewriter.getContext());
+        unsigned f16TypeSizeBytes = f16Type.getWidth() / CHAR_BIT;
+        value = mlir::DenseElementsAttr::get(tensorType,
+                                             ArrayRef<float16>(reinterpret_cast<const float16*>(fusedValuesBuf.data()),
+                                                               fusedValuesBuf.size() / f16TypeSizeBytes));
+    } else {
+        value = mlir::DenseElementsAttr::get(tensorType, ArrayRef(fusedValuesBuf));
+    }
     auto fusedConstant =
             rewriter.create<Const::DeclareOp>(newLoc, fusedTensorTypeMemref, Const::ContentAttr::get(value));
 

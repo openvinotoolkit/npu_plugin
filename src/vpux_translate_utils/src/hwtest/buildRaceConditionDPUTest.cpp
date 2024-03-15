@@ -1,14 +1,13 @@
 //
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
-//
 
 #include <numeric>
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
-#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
-#include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
@@ -104,11 +103,11 @@ void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
 
     SmallVector<mlir::Type> outputTypes(numClusters, outputParamType);
 
-    const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), makeArrayRef(outputTypes));
+    const auto funcType = builder.getFunctionType(ArrayRef(inputTypes), ArrayRef(outputTypes));
 
     auto function = builder.create<mlir::func::FuncOp>(
             loc, printToString("race_condition_dpu_{0}_{1}_{2}", inputType, weightsType, outputType), funcType,
-            builder.getStringAttr("private"));
+            builder.getStringAttr("private"), /*arg_attrs=*/nullptr, /*res_attrs=*/nullptr);
 
     auto functionBuilder = mlir::OpBuilder::atBlockBegin(function.addEntryBlock(), builder.getListener());
 
@@ -120,16 +119,7 @@ void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
     }
 
     const auto weightsValues = generateWeights(weightsShape, weightsType, ctx, weightsFileName);
-    auto weightsAttribute = vpux::Const::ContentAttr::get(weightsValues);
-    weightsAttribute = weightsAttribute.reorder(vpux::DimsOrder::OYXI);
-
-    if (auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>()) {
-        const auto quantizedType = vpux::changeStorageType(qty, weightsAttribute.getType().getElementType());
-        weightsAttribute = weightsAttribute.quantCast(quantizedType);
-        if (qty.getStorageType().isInteger(4)) {
-            weightsAttribute = weightsAttribute.bitPack(4);
-        }
-    }
+    const auto weightsAttribute = generateDefaultWeightsAttr(weightsValues, weightsType);
 
     const auto weightsDDRType =
             getMemRefType(VPURT::BufferSection::Constant, weightsShape, weightsType, DimsOrder::NHWC);
@@ -159,6 +149,10 @@ void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
 
     auto& weightsOutputChannelsStrideInBits = weightsStrides[vpux::Dims4D::Filter::OC];
 
+    if (weightsOutputChannelsStrideInBits.count() / CHAR_BIT < alignment) {
+        weightsOutputChannelsStrideInBits = vpux::Bit(alignment * CHAR_BIT);
+    }
+
     const auto weightsTableDDRType = mlir::RankedTensorType::get(weightsTableShape, int32);
     const auto sparsityPtrStep = 0;
     const auto weightsTable = VPU::NCESparsity::getWeightsTable(
@@ -170,7 +164,7 @@ void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
     const auto weightsTableDDRMemRef =
             getMemRefType(VPURT::BufferSection::Constant, weightsTableShape, int32, DimsOrder::NHWC);
     const auto weightsTableValues =
-            mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::makeArrayRef<std::int32_t>(weightsTable));
+            mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::ArrayRef<std::int32_t>(weightsTable));
     auto weightsTableDDR = functionBuilder.create<vpux::Const::DeclareOp>(
             loc, weightsTableDDRMemRef,
             vpux::Const::ContentAttr::get(weightsTableValues).reorder(vpux::DimsOrder::NHWC));
@@ -181,13 +175,13 @@ void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
     for (std::size_t idx = 0; idx < numClusters; ++idx) {
         VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(),
                                               mlir::ValueRange(updateBarrier.getBarrier()), loc, functionInput,
-                                              inputsCMX[idx].getOperation()->getResult(0));
+                                              inputsCMX[idx].getOperation()->getResult(0), 0);
         VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
                 functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.getBarrier()), loc,
-                weightsDDR.getOperation()->getResult(0), weightsCMX[idx].getOperation()->getResult(0));
+                weightsDDR.getOperation()->getResult(0), weightsCMX[idx].getOperation()->getResult(0), 0);
         VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
                 functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.getBarrier()), loc,
-                weightsTableDDR.getOperation()->getResult(0), weightsTablesCMX[idx].getOperation()->getResult(0));
+                weightsTableDDR.getOperation()->getResult(0), weightsTablesCMX[idx].getOperation()->getResult(0), 0);
     }
 
     waitBarrier = updateBarrier;
@@ -223,16 +217,16 @@ void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
     for (std::size_t idx = 0; idx < numClusters; ++idx) {
         VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.getBarrier()),
                                               mlir::ValueRange(), loc, outputsCMX[idx].getOperation()->getResult(0),
-                                              functionOutputs[idx]);
+                                              functionOutputs[idx], 0);
     }
-    auto outputsRef = makeArrayRef(functionOutputs);
+    auto outputsRef = ArrayRef(functionOutputs);
     functionBuilder.create<mlir::func::ReturnOp>(loc, mlir::ValueRange{outputsRef});
 
     module.dump();
 
-    mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
+    mlir::PassManager pm(module->getName(), mlir::OpPassManager::Nesting::Implicit);
     pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW,
-                                           /*numOfDPUGroups=*/numClusters, None, log));
+                                           /*numOfDPUGroups=*/numClusters, std::nullopt, log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsBTCPass(log));
     }
@@ -242,8 +236,7 @@ void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
     SmallVector<mlir::Type> userOutputs(numClusters,
                                         getTensorType(ShapeRef(outputShape), outputType, DimsOrder::NHWC, nullptr));
     buildCNNOp(builder, function.getName(),
-               {getTensorType(ShapeRef(inputShape), inputType, vpux::DimsOrder::NHWC, nullptr)},
-               makeArrayRef(userOutputs));
+               {getTensorType(ShapeRef(inputShape), inputType, vpux::DimsOrder::NHWC, nullptr)}, ArrayRef(userOutputs));
 }
 
 }  // namespace hwtest

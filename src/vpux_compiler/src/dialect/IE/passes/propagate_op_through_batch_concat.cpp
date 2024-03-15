@@ -5,21 +5,18 @@
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
-#include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/utils/attributes_utils.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
-#include <llvm/ADT/TypeSwitch.h>
-
 using namespace vpux;
 
 namespace {
 
-Optional<Dim> getBatchDim(ShapeRef shape) {
-    Optional<Dim> batchDim = None;
+std::optional<Dim> getBatchDim(ShapeRef shape) {
+    std::optional<Dim> batchDim = std::nullopt;
     switch (shape.size()) {
     case 4:
         // batch dim is at position 1 for 4d shape when dim 0 is 1
@@ -33,19 +30,19 @@ Optional<Dim> getBatchDim(ShapeRef shape) {
         batchDim = Dim(0);
         break;
     default:
-        batchDim = None;
+        batchDim = std::nullopt;
         break;
     }
     return batchDim;
 }
 
 bool isBatchConcat(IE::ConcatOp concatOp) {
-    const auto concatAttrs = concatOp.per_axisAttr();
+    const auto concatAttrs = concatOp.getPerAxisAttr();
     if (concatAttrs == nullptr) {
         return false;
     }
 
-    const auto outputType = concatOp.output().getType().dyn_cast<NDTypeInterface>();
+    const auto outputType = concatOp.getOutput().getType().dyn_cast<NDTypeInterface>();
     const auto rank = outputType.getRank();
     const auto concatAxis = getPositiveAxisInd(concatAttrs.getAxis(), rank);
     const auto batchDim = getBatchDim(outputType.getShape());
@@ -85,7 +82,7 @@ private:
 mlir::LogicalResult PropagateSoftmax::matchAndRewrite(IE::SoftMaxOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Got '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
 
-    if (origOp.input().isa<mlir::BlockArgument>()) {
+    if (origOp.getInput().isa<mlir::BlockArgument>()) {
         return matchFailed(_log, rewriter, origOp, "Input of SoftmaxOp is block argument");
     }
 
@@ -100,23 +97,23 @@ mlir::LogicalResult PropagateSoftmax::matchAndRewrite(IE::SoftMaxOp origOp, mlir
         return mlir::isa_and_nonnull<IE::MatMulOp>(inputOp) && inputOp->hasOneUse();
     };
 
-    auto maybeAddOp = origOp.input().getDefiningOp<IE::AddOp>();
-    if (maybeAddOp != nullptr && (maybeAddOp.input2().getDefiningOp<Const::DeclareOp>() == nullptr ||
-                                  getShape(maybeAddOp.input2()).totalSize() != 1)) {
+    auto maybeAddOp = origOp.getInput().getDefiningOp<IE::AddOp>();
+    if (maybeAddOp != nullptr && (maybeAddOp.getInput2().getDefiningOp<Const::DeclareOp>() == nullptr ||
+                                  getShape(maybeAddOp.getInput2()).totalSize() != 1)) {
         return matchFailed(_log, rewriter, origOp, "Found invalid AddOp before SoftmaxOp");
     }
 
-    auto concatOp = maybeAddOp == nullptr ? origOp.input().getDefiningOp<IE::ConcatOp>()
-                                          : maybeAddOp.input1().getDefiningOp<IE::ConcatOp>();
+    auto concatOp = maybeAddOp == nullptr ? origOp.getInput().getDefiningOp<IE::ConcatOp>()
+                                          : maybeAddOp.getInput1().getDefiningOp<IE::ConcatOp>();
     if (concatOp == nullptr || !isBatchConcat(concatOp) || !llvm::all_of(concatOp.getInputs(), isEnabledInput)) {
         return matchFailed(_log, rewriter, origOp, "No valid ConcatOp found");
     }
 
     // Concat axis must be different from softmax axis
-    const auto rank = origOp.input().getType().dyn_cast<NDTypeInterface>().getRank();
-    const auto concatAttrs = concatOp.per_axisAttr();
+    const auto rank = origOp.getInput().getType().dyn_cast<NDTypeInterface>().getRank();
+    const auto concatAttrs = concatOp.getPerAxisAttr();
     const auto concatAxis = getPositiveAxisInd(concatAttrs.getAxis(), rank);
-    const auto softmaxAxis = getPositiveAxisInd(origOp.axisIndAttr(), rank);
+    const auto softmaxAxis = getPositiveAxisInd(origOp.getAxisIndAttr(), rank);
     if (concatAxis == softmaxAxis) {
         return matchFailed(_log, rewriter, origOp, "Concat axis conflicts with softmax axis");
     }
@@ -124,15 +121,16 @@ mlir::LogicalResult PropagateSoftmax::matchAndRewrite(IE::SoftMaxOp origOp, mlir
     rewriter.startRootUpdate(concatOp);
     rewriter.setInsertionPoint(concatOp);
 
-    for (auto& concatInput : concatOp.getInputs() | indexed) {
+    for (auto concatInput : concatOp.getInputs() | indexed) {
         auto sliceSoftmaxInput =
                 maybeAddOp == nullptr
                         ? concatInput.value()
-                        : rewriter.create<IE::AddOp>(maybeAddOp.getLoc(), concatInput.value(), maybeAddOp.input2(),
-                                                     maybeAddOp.auto_broadcastAttr(), maybeAddOp.post_opAttr());
-        auto sliceSoftmaxOp = rewriter.create<IE::SoftMaxOp>(origOp.getLoc(), sliceSoftmaxInput, origOp.axisIndAttr(),
-                                                             origOp.padSizeAttr());
-        concatOp.setOperand(checked_cast<uint32_t>(concatInput.index()), sliceSoftmaxOp.output());
+                        : rewriter.create<IE::AddOp>(maybeAddOp.getLoc(), concatInput.value(), maybeAddOp.getInput2(),
+                                                     maybeAddOp.getAutoBroadcastAttr(), maybeAddOp.getPostOpAttr(),
+                                                     maybeAddOp.getClampAttr());
+        auto sliceSoftmaxOp = rewriter.create<IE::SoftMaxOp>(origOp.getLoc(), sliceSoftmaxInput,
+                                                             origOp.getAxisIndAttr(), origOp.getPadSizeAttr());
+        concatOp.setOperand(checked_cast<uint32_t>(concatInput.index()), sliceSoftmaxOp.getOutput());
     }
 
     rewriter.replaceOp(origOp, concatOp->getResults());
@@ -160,21 +158,21 @@ private:
 mlir::LogicalResult PropagateReshape::matchAndRewrite(IE::ReshapeOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Got '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
 
-    if (origOp.input().isa<mlir::BlockArgument>()) {
+    if (origOp.getInput().isa<mlir::BlockArgument>()) {
         return matchFailed(_log, rewriter, origOp, "Input of ReshapeOp is block argument");
     }
 
-    auto concatOp = origOp.input().getDefiningOp<IE::ConcatOp>();
+    auto concatOp = origOp.getInput().getDefiningOp<IE::ConcatOp>();
     if (concatOp == nullptr || !concatOp->hasOneUse() || !isBatchConcat(concatOp)) {
         return matchFailed(_log, rewriter, origOp, "ConcatOp not found or invalid");
     }
 
-    const auto inputShape = getShape(origOp.input());
+    const auto inputShape = getShape(origOp.getInput());
     if (inputShape.size() != 2) {
         return matchFailed(_log, rewriter, origOp, "Unsupported input shape: {0}", inputShape);
     }
 
-    const auto outputShape = getShape(origOp.output());
+    const auto outputShape = getShape(origOp.getOutput());
     const auto batchDim = getBatchDim(outputShape);
     if (!batchDim.has_value()) {
         return matchFailed(_log, rewriter, origOp, "Unsupported output shape: {0}", outputShape);
@@ -199,11 +197,11 @@ mlir::LogicalResult PropagateReshape::matchAndRewrite(IE::ReshapeOp origOp, mlir
         auto sliceReshape4D =
                 rewriter.create<IE::ReshapeOp>(origOp.getLoc(), concatInput, nullptr, false, sliceOutShape4DAttr);
         _log.nest(2).trace("Inserted ReshapeOp: {0}", sliceReshape4D);
-        newConcatInputs.push_back(sliceReshape4D.output());
+        newConcatInputs.push_back(sliceReshape4D.getOutput());
     }
 
     auto newConcatOp = rewriter.create<IE::ConcatOp>(concatOp->getLoc(), newConcatInputs, batchDim.value());
-    rewriter.replaceOp(origOp, newConcatOp.output());
+    rewriter.replaceOp(origOp, newConcatOp.getOutput());
 
     return mlir::success();
 }

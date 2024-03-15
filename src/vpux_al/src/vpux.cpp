@@ -5,8 +5,8 @@
 
 #include "vpux.hpp"
 
-#include <memory>
 #include <openvino/util/shared_object.hpp>
+#include "openvino/util/file_util.hpp"
 
 #include "vpux/utils/IE/itt.hpp"
 
@@ -17,7 +17,6 @@
 #include <zero_backend.h>
 #endif
 
-namespace ie = InferenceEngine;
 namespace vpux {
 
 //------------------------------------------------------------------------------
@@ -36,7 +35,11 @@ EngineBackend::EngineBackend(const std::string& pathToLib, const Config& config)
     bool successLoaded = false;
     std::string errorMessage = "Unexpected exception from backend library: " + pathToLib;
     try {
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        _so = ov::util::load_shared_object(ov::util::string_to_wstring(pathToLib).c_str());
+#else
         _so = ov::util::load_shared_object(pathToLib.c_str());
+#endif
 
         const auto createFunc = reinterpret_cast<CreateFuncT>(ov::util::get_symbol(_so, CreateFuncName));
         createFunc(_impl, config);
@@ -47,7 +50,7 @@ EngineBackend::EngineBackend(const std::string& pathToLib, const Config& config)
     }
 
     if (!successLoaded) {
-        IE_THROW() << errorMessage;
+        OPENVINO_THROW(errorMessage);
     }
 }
 #endif
@@ -68,44 +71,40 @@ const std::shared_ptr<Device> EngineBackend::getDevice(const std::string& specif
     return wrapDeviceWithImpl(_impl->getDevice(specificDeviceName), _so);
 }
 
-const std::shared_ptr<Device> EngineBackend::getDevice(const ie::ParamMap& paramMap) const {
+const std::shared_ptr<Device> EngineBackend::getDevice(const ov::AnyMap& paramMap) const {
     return wrapDeviceWithImpl(_impl->getDevice(paramMap), _so);
 }
 
 const std::shared_ptr<IDevice> IEngineBackend::getDevice() const {
-    IE_THROW() << "Default getDevice() not implemented";
+    OPENVINO_THROW("Default getDevice() not implemented");
 }
 const std::shared_ptr<IDevice> IEngineBackend::getDevice(const std::string&) const {
-    IE_THROW() << "Specific device search not implemented";
+    OPENVINO_THROW("Specific device search not implemented");
 }
-const std::shared_ptr<IDevice> IEngineBackend::getDevice(const ie::ParamMap&) const {
-    IE_THROW() << "Get device based on params not implemented";
+const std::shared_ptr<IDevice> IEngineBackend::getDevice(const ov::AnyMap&) const {
+    OPENVINO_THROW("Get device based on params not implemented");
 }
 const std::vector<std::string> IEngineBackend::getDeviceNames() const {
-    IE_THROW() << "Get all device names not implemented";
+    OPENVINO_THROW("Get all device names not implemented");
 }
 
 void IEngineBackend::registerOptions(OptionsDesc&) const {
 }
 
-void* Allocator::wrapRemoteMemory(const ie::ParamMap&) noexcept {
-    std::cerr << "Wrapping remote memory not implemented" << std::endl;
-    return nullptr;
-}
-std::shared_ptr<Allocator> IDevice::getAllocator(const ie::ParamMap&) const {
-    IE_THROW() << "Not supported";
+Uuid IDevice::getUuid() const {
+    OPENVINO_THROW("Get UUID not supported");
 }
 
-Uuid IDevice::getUuid() const {
-    IE_THROW() << "Get UUID not supported";
+uint64_t IDevice::getAllocMemSize() const {
+    OPENVINO_THROW("Get AllocMemSize is not supported");
 }
 
 uint64_t IDevice::getTotalMemSize() const {
-    IE_THROW() << "Get TotalMemSize is not supported";
+    OPENVINO_THROW("Get TotalMemSize is not supported");
 }
 
 uint32_t IDevice::getDriverVersion() const {
-    IE_THROW() << "Get VPU driver version is not supported with this backend";
+    OPENVINO_THROW("Get VPU driver version is not supported with this backend");
 }
 
 }  // namespace vpux

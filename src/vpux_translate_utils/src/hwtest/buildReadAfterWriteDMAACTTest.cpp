@@ -1,9 +1,8 @@
 //
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
-//
 
-#include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
@@ -18,7 +17,6 @@ namespace hwtest {
 
 void buildReadAfterWriteDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
                                    mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type outputType) {
-    auto* ctx = builder.getContext();
     auto loc = builder.getUnknownLoc();
 
     const auto input = testDesc.getInputLayerList().front();
@@ -49,11 +47,11 @@ void buildReadAfterWriteDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
     inputTypes.push_back(inputParamType);
     inputTypes.push_back(outputParamType);
 
-    const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
+    const auto funcType = builder.getFunctionType(ArrayRef(inputTypes), outputParamType);
 
     auto function = builder.create<mlir::func::FuncOp>(
             loc, printToString("read_after_write_dma_act_{0}_{1}", inputType, outputType), funcType,
-            builder.getStringAttr("private"));
+            builder.getStringAttr("private"), /*arg_attrs=*/nullptr, /*res_attrs=*/nullptr);
 
     auto functionBuilder = mlir::OpBuilder::atBlockBegin(function.addEntryBlock(), builder.getListener());
 
@@ -72,7 +70,7 @@ void buildReadAfterWriteDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
 
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(),
                                           mlir::ValueRange(updateBarrier.getBarrier()), loc, functionInput,
-                                          inputCMXVec[0].getOperation()->getResult(0));
+                                          inputCMXVec[0].getOperation()->getResult(0), 0);
 
     auto waitBarrier = updateBarrier;
     for (std::size_t i = 1; i + 1 < iterationCount; i += 2) {
@@ -90,25 +88,25 @@ void buildReadAfterWriteDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
         VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.getBarrier()),
                                               mlir::ValueRange(updateBarrier.getBarrier()), loc,
                                               inputCMXVec[0].getOperation()->getResult(0),
-                                              outputDMACMX.getOperation()->getResult(0), cluster);
+                                              outputDMACMX.getOperation()->getResult(0), 0, cluster);
 
         waitBarrier = updateBarrier;
         updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, i + 1);
 
-        buildActShaveTask(testDesc, module, functionBuilder, log, makeArrayRef(inputTypes), inputCMXVec, outputACTCMX,
-                          mlir::ValueRange(waitBarrier.getBarrier()), mlir::ValueRange(updateBarrier.getBarrier()),
-                          cluster);
+        buildActShaveTask(testDesc, module, functionBuilder, log, ArrayRef(inputTypes), inputCMXVec, outputACTCMX,
+                          /*profilingDataCMX*/ nullptr, mlir::ValueRange(waitBarrier.getBarrier()),
+                          mlir::ValueRange(updateBarrier.getBarrier()), cluster);
 
         waitBarrier = updateBarrier;
     }
 
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.getBarrier()),
                                           mlir::ValueRange(), loc, outputDMACMX.getOperation()->getResult(0),
-                                          functionOutput);
+                                          functionOutput, 0);
 
     functionBuilder.create<mlir::func::ReturnOp>(loc, mlir::ValueRange{functionOutput});
 
-    mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
+    mlir::PassManager pm(module->getName(), mlir::OpPassManager::Nesting::Implicit);
     pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, 1, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");

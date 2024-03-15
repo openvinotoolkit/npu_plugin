@@ -7,8 +7,8 @@
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/tiling.hpp"
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include <vpu_cost_model.h>
@@ -23,6 +23,8 @@ struct WorkloadCostParams {
     VPUIP::NCETaskType nceTaskType;
     mlir::Type inDataType;
     mlir::Type outDataType;
+    DimsOrder inOrder;
+    DimsOrder outOrder;
     VPU::ArchKind arch;
     Shape fullInputShape;
     Shape inputShape;
@@ -38,6 +40,9 @@ struct WorkloadCostParams {
     float weightsSparsityRatio = 0.0;
     VPU::MultiClusterStrategy layerStrategy = VPU::MultiClusterStrategy::Clustering;
     VPU::PPETaskAttr ppeTask = nullptr;
+    // Output layout default: ZMAJOR , odu permute is PERMUTE_ZXY
+    // For NCE.PermuteQuantize op, odu permute is PERMUTE_YZX
+    VPU::ODUPermuteDataMode oduPermutation = VPU::ODUPermuteDataMode::PERMUTE_ZXY;
 };
 
 enum class SplitDimension { SPLIT_OVER_H = 0, SPLIT_OVER_W = 1, SPLIT_OVER_HW = 2 };
@@ -65,9 +70,14 @@ private:
     VPU::MPEMode _mpeMode;
 };
 
-int64_t computeSplitCost(const WorkloadSplit& split, const WorkloadCostParams& params,
-                         const std::shared_ptr<VPUNN::VPUCostModel>& costModel, Logger log = Logger::global());
+int64_t computeSplitCostForVPUX30XX(const WorkloadSplit& split, const WorkloadCostParams& params,
+                                    const std::shared_ptr<VPUNN::VPUCostModel>& costModel, LogCb logCb = emptyLogCb);
+int64_t computeSplitCostForVPUX37XX(const WorkloadSplit& split, const WorkloadCostParams& params,
+                                    const std::shared_ptr<VPUNN::VPUCostModel>& costModel, LogCb logCb = emptyLogCb);
 VPUNN::Operation getOperationType(VPUIP::NCETaskType taskType);
 
 }  // namespace VPUIP
+
+SmallVector<int64_t> splitWorkloadChannel(int64_t wlChannel, ArrayRef<int64_t> supportedChannels);
+
 }  // namespace vpux

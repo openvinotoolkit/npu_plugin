@@ -4,16 +4,15 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 
 using namespace vpux;
 
 mlir::Value VPUIP::QuantizeCastOp::getViewSource() {
-    return input();
+    return getInput();
 }
 
-mlir::OpFoldResult VPUIP::QuantizeCastOp::fold(ArrayRef<mlir::Attribute>) {
-    return input().getType() == output().getType() ? input() : nullptr;
+mlir::OpFoldResult VPUIP::QuantizeCastOp::fold(FoldAdaptor) {
+    return getInput().getType() == getOutput().getType() ? getInput() : mlir::TypedValue<mlir::MemRefType>{nullptr};
 }
 
 //
@@ -31,12 +30,12 @@ public:
 
 mlir::LogicalResult FuseQuantizeCastOps::matchAndRewrite(VPUIP::QuantizeCastOp origOp,
                                                          mlir::PatternRewriter& rewriter) const {
-    auto producerQuantizeCastOp = origOp.input().getDefiningOp<VPUIP::QuantizeCastOp>();
+    auto producerQuantizeCastOp = origOp.getInput().getDefiningOp<VPUIP::QuantizeCastOp>();
     if (producerQuantizeCastOp == nullptr) {
         return mlir::failure();
     }
 
-    rewriter.replaceOpWithNewOp<VPUIP::QuantizeCastOp>(origOp, origOp.getType(), producerQuantizeCastOp.input());
+    rewriter.replaceOpWithNewOp<VPUIP::QuantizeCastOp>(origOp, origOp.getType(), producerQuantizeCastOp.getInput());
 
     return mlir::success();
 }
@@ -53,8 +52,8 @@ void VPUIP::QuantizeCastOp::getCanonicalizationPatterns(mlir::RewritePatternSet&
 
 mlir::LogicalResult vpux::VPUIP::QuantizeCastOp::verify() {
     const auto op = getOperation();
-    auto distributedInType = input().getType().dyn_cast<VPUIP::DistributedBufferType>();
-    auto distributedOutType = output().getType().dyn_cast<VPUIP::DistributedBufferType>();
+    auto distributedInType = getInput().getType().dyn_cast<VPUIP::DistributedBufferType>();
+    auto distributedOutType = getOutput().getType().dyn_cast<VPUIP::DistributedBufferType>();
     if (distributedInType && distributedOutType) {
         auto inputDistribution = distributedInType.getDistribution();
         auto outputDistribution = distributedOutType.getDistribution();
@@ -63,21 +62,21 @@ mlir::LogicalResult vpux::VPUIP::QuantizeCastOp::verify() {
         }
     }
 
-    auto inElemType = input().getType().cast<NDTypeInterface>().getElementType();
-    auto outElemType = output().getType().cast<NDTypeInterface>().getElementType();
+    auto inElemType = getInput().getType().cast<NDTypeInterface>().getElementType();
+    auto outElemType = getOutput().getType().cast<NDTypeInterface>().getElementType();
     if (inElemType.isa<mlir::FloatType>() || outElemType.isa<mlir::FloatType>()) {
         return errorAt(op, " QuantizeCastOp input and output must have the legal element type");
     }
 
-    auto inputStrides = getStrides(input());
-    auto outputStrides = getStrides(output());
+    auto inputStrides = getStrides(getInput());
+    auto outputStrides = getStrides(getOutput());
     if (inputStrides != outputStrides) {
         return errorAt(op, "QuantizeCastOp input and output must have the same strides, but got {0} and {1}",
                        inputStrides, outputStrides);
     }
 
-    auto inputShape = getShape(input());
-    auto outputShape = getShape(output());
+    auto inputShape = getShape(getInput());
+    auto outputShape = getShape(getOutput());
     if (inputShape != outputShape) {
         return errorAt(op, "QuantizeCastOp input and output must have the same shape, but got {0} and {1}", inputShape,
                        outputShape);

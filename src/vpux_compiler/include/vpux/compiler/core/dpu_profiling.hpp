@@ -6,15 +6,9 @@
 #pragma once
 
 #include "vpux/compiler/core/profiling.hpp"
-#include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/utils/core/func_ref.hpp"
-#include "vpux/utils/core/profiling.hpp"
-
-#include "vpux/compiler/dialect/VPUIP/dialect.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include <deque>
-#include <iterator>
 
 namespace vpux {
 

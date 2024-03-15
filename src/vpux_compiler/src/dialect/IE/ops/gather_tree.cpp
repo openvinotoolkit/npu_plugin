@@ -6,8 +6,6 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
-#include "vpux/utils/core/checked_cast.hpp"
-
 using namespace vpux;
 
 //
@@ -15,14 +13,14 @@ using namespace vpux;
 //
 
 mlir::LogicalResult vpux::IE::GatherTreeOp::verify() {
-    const auto stepIdsType = stepIds().getType().cast<mlir::ShapedType>();
+    const auto stepIdsType = getStepIds().getType().cast<mlir::ShapedType>();
     const auto stepIdsShape = stepIdsType.getShape();
 
     if (stepIdsType.getRank() != 3) {
         return errorAt(*this, "Wrong GatherTree step_ids rank {0}, step_ids should have rank 3", stepIdsType.getRank());
     }
 
-    const auto parentIdsType = parentIds().getType().cast<mlir::ShapedType>();
+    const auto parentIdsType = getParentIds().getType().cast<mlir::ShapedType>();
     const auto parentIdsShape = parentIdsType.getShape();
 
     if (parentIdsType.getRank() != 3) {
@@ -30,7 +28,7 @@ mlir::LogicalResult vpux::IE::GatherTreeOp::verify() {
                        parentIdsType.getRank());
     }
 
-    const auto maxSeqLenType = maxSeqLen().getType().cast<mlir::ShapedType>();
+    const auto maxSeqLenType = getMaxSeqLen().getType().cast<mlir::ShapedType>();
     const auto maxSeqLenShape = maxSeqLenType.getShape();
 
     if (maxSeqLenType.getRank() != 1) {
@@ -38,7 +36,7 @@ mlir::LogicalResult vpux::IE::GatherTreeOp::verify() {
                        maxSeqLenType.getRank());
     }
 
-    const auto endTokenType = endToken().getType().cast<mlir::ShapedType>();
+    const auto endTokenType = getEndToken().getType().cast<mlir::ShapedType>();
 
     if (stepIdsShape != parentIdsShape) {
         return errorAt(*this, "GatherTree step_ids and parent_id got shape mismatch: {0} {1}", stepIdsShape,
@@ -61,8 +59,8 @@ mlir::LogicalResult vpux::IE::GatherTreeOp::verify() {
 }
 
 mlir::LogicalResult vpux::IE::GatherTreeOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -71,7 +69,7 @@ mlir::LogicalResult vpux::IE::GatherTreeOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto stepIdsType = gatherTree.stepIds().getType().cast<mlir::ShapedType>();
+    const auto stepIdsType = gatherTree.getStepIds().getType().cast<mlir::ShapedType>();
     const auto stepIdsShape = stepIdsType.getShape();
 
     inferredReturnShapes.emplace_back(stepIdsShape, stepIdsType.getElementType());

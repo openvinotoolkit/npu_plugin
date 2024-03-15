@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include <mlir/IR/BuiltinTypes.h>
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
@@ -12,7 +11,7 @@
 using namespace vpux;
 
 mlir::LogicalResult vpux::VPUIP::SpaceToDepthUPAOp::verify() {
-    if (block_size() <= 0) {
+    if (getBlockSize() <= 0) {
         return errorAt(*this, "block_size should be greater than zero");
     }
 
@@ -22,10 +21,10 @@ mlir::LogicalResult vpux::VPUIP::SpaceToDepthUPAOp::verify() {
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SpaceToDepthUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::SpaceToDepthParamsBuilder builder(writer);
 
-    const auto blockSize = checked_cast<int32_t>(block_size());
+    const auto blockSize = checked_cast<int32_t>(getBlockSize());
     builder.add_blockSize(blockSize);
 
-    const auto spdMode = VPUIP::convertVPUXSpaceToDepthMode2MVCNN(mode());
+    const auto spdMode = VPUIP::convertVPUXSpaceToDepthMode2MVCNN(getMode());
     builder.add_mode(spdMode);
 
     const auto paramsOff = builder.Finish();

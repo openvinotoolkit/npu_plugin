@@ -40,17 +40,6 @@ mlir::LogicalResult TimestampRewrite::matchAndRewrite(VPUIP::TimestampOp origOp,
     const auto timerType = origType.changeMemSpace(VPU::MemoryKind::Register);
 
     uint32_t hwAddress = 0;
-    int64_t dmaPort = 0;
-    auto execOp = origOp->getParentOfType<mlir::async::ExecuteOp>();
-    if (execOp != nullptr && VPUIP::VPUIPDialect::hasExecutorInstanceMask(execOp)) {
-        auto portMask = parseIntArrayAttr<int64_t>(VPUIP::VPUIPDialect::getExecutorInstanceMask(execOp));
-        // Only use port number if one is configured, else assume it will be later unrolled
-        // into per port operations
-        // TODO: Maybe dmaPort from NNDMAOp should also hold array of ports
-        if (portMask.size() == 1) {
-            dmaPort = portMask[0];
-        }
-    }
 
     switch (_arch) {
     case VPU::ArchKind::VPUX30XX:
@@ -70,7 +59,7 @@ mlir::LogicalResult TimestampRewrite::matchAndRewrite(VPUIP::TimestampOp origOp,
     auto bufferOp = rewriter.create<VPURT::DeclareBufferOp>(origOp->getLoc(), timerType, VPURT::BufferSection::Register,
                                                             hwAddress);
 
-    rewriter.replaceOpWithNewOp<VPUIP::NNDMAOp>(origOp, bufferOp.getBuffer(), origOp.output_buff(), dmaPort);
+    rewriter.replaceOpWithNewOp<VPUIP::NNDMAOp>(origOp, bufferOp.getBuffer(), origOp.getOutputBuff());
 
     _log.trace("Replaced with 'VPURT::DeclareBufferOp'");
 
@@ -96,20 +85,7 @@ private:
 mlir::LogicalResult CopyOpRewrite::matchAndRewrite(VPUIP::CopyOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Found CopyOp Operation '{0}'", origOp->getLoc());
 
-    int64_t dmaPort = 0;
-    auto execOp = origOp->getParentOfType<mlir::async::ExecuteOp>();
-    if (execOp != nullptr && VPUIP::VPUIPDialect::hasExecutorInstanceMask(execOp)) {
-        auto portMask = parseIntArrayAttr<int64_t>(VPUIP::VPUIPDialect::getExecutorInstanceMask(execOp));
-        // Only use port number if one is configured, else assume it will be later unrolled
-        // into per port operations
-        // TODO: Maybe dmaPort from NNDMAOp should also hold array of ports
-        if (portMask.size() == 1) {
-            dmaPort = portMask[0];
-        }
-    }
-
-    rewriter.replaceOpWithNewOp<VPUIP::NNDMAOp>(origOp, origOp.input(), origOp.output_buff(), dmaPort,
-                                                origOp.channelTypeAttr(), false, false, origOp.spillIdAttr(), nullptr);
+    rewriter.replaceOpWithNewOp<VPUIP::NNDMAOp>(origOp, origOp.getInput(), origOp.getOutputBuff());
 
     return mlir::success();
 }

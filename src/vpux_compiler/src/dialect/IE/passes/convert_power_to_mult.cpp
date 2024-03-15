@@ -5,16 +5,8 @@
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
-#include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
-#include <ngraph/coordinate_diff.hpp>
-#include <ngraph/op/op.hpp>
-
-#include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
@@ -39,7 +31,7 @@ private:
 mlir::LogicalResult PowerToMultRewriter::matchAndRewrite(IE::PowerOp powerOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Got PowerOp for conversion to MultOp - '{0}'", powerOp->getLoc());
 
-    auto cstOp = powerOp.input2().getDefiningOp<Const::DeclareOp>();
+    auto cstOp = powerOp.getInput2().getDefiningOp<Const::DeclareOp>();
     VPUX_THROW_WHEN(cstOp == nullptr, "PowerOp exponent input is not a constant");
 
     auto constAttr = cstOp.getContentAttr().fold();
@@ -54,8 +46,8 @@ mlir::LogicalResult PowerToMultRewriter::matchAndRewrite(IE::PowerOp powerOp, ml
     const auto broadcastType =
             vpux::IE::AutoBroadcastTypeAttr::get(getContext(), IE::AutoBroadcastType::NONE_OR_EXPLICIT);
 
-    rewriter.replaceOpWithNewOp<IE::MultiplyOp>(powerOp, powerOp.input1(), powerOp.input1(), broadcastType,
-                                                /*post_op=*/nullptr);
+    rewriter.replaceOpWithNewOp<IE::MultiplyOp>(powerOp, powerOp.getInput1(), powerOp.getInput1(), broadcastType,
+                                                /*post_op=*/nullptr, /*clamp=*/nullptr);
 
     return mlir::success();
 }
@@ -81,7 +73,7 @@ void ConvertPowerToMultPass::safeRunOnFunc() {
         // Check if given PowerOp has constant single value exponent
         // with small value. If yes then such PowerOp should be converted
         // to Mult
-        if (auto cstOp = powerOp.input2().getDefiningOp<Const::DeclareOp>()) {
+        if (auto cstOp = powerOp.getInput2().getDefiningOp<Const::DeclareOp>()) {
             // Exponent constant must be a scalar or tensor with
             // all elements equal
             auto constAttr = cstOp.getContentAttr().fold();

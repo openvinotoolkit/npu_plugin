@@ -9,8 +9,8 @@
  */
 
 #include "vpux/compiler/VPU37XX/pipelines.hpp"
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
 #include "vpux/compiler/init.hpp"
 
 #include <ie_common.h>
@@ -60,8 +60,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         const auto log = vpux::Logger::global();
 
         mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
-        pm.addPass(VPU::createInitCompilerPass(VPU::ArchKind::VPUX37XX, VPU::CompilationMode::DefaultHW, vpux::None,
-                                               vpux::None, vpux::None, log));
+        pm.addPass(VPU::createInitCompilerPass(VPU::ArchKind::VPUX37XX, VPU::CompilationMode::DefaultHW, std::nullopt,
+                                               std::nullopt, std::nullopt, log));
 
         const DefaultHWOptions37XX options;
         buildDefaultHWModePipeline(pm, options, log.nest());

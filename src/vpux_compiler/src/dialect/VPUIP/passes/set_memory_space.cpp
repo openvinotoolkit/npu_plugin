@@ -26,7 +26,7 @@ public:
 private:
     void updateFunction(mlir::func::FuncOp func, const AliasesInfo& aliasInfo) const;
     void updateAliases(AliasesInfo& aliasInfo, mlir::Value value) const;
-    void safeRunOnFunc() final;
+    void safeRunOnModule() final;
 
 private:
     VPUIP::MemKindCreateFunc _memKindCb;
@@ -114,53 +114,62 @@ void SetMemorySpacePass::updateAliases(AliasesInfo& aliasInfo, mlir::Value value
     }
 }
 
-void SetMemorySpacePass::safeRunOnFunc() {
-    auto& aliasInfo = getAnalysis<AliasesInfo>();
-    auto func = getOperation();
+void SetMemorySpacePass::safeRunOnModule() {
+    auto moduleOp = getOperation();
 
-    updateFunction(func, aliasInfo);
-
-    const auto allocOpCallback = [&](mlir::memref::AllocOp allocOp) {
-        _log.trace("Got Alloc Operation '{0}'", allocOp->getLoc());
-
-        if (allocOp.getType().getMemorySpace() != nullptr) {
-            _log.nest().trace("It already has a memory space '{0}'", allocOp.getType().getMemorySpace());
+    moduleOp.walk([&](mlir::func::FuncOp funcOp) {
+        // Probably is ACT_SHAVE kernel
+        if (funcOp.isExternal()) {
             return;
         }
 
-        updateAliases(aliasInfo, allocOp.memref());
-    };
+        auto& aliasInfo = getChildAnalysis<AliasesInfo>(funcOp);
+        updateFunction(funcOp, aliasInfo);
 
-    const auto groupOpCallback = [&](vpux::GroupedViewOpInterface groupOp) {
-        _log.trace("Got grouping operation '{0}'", groupOp->getLoc());
+        const auto allocOpCallback = [&](mlir::memref::AllocOp allocOp) {
+            _log.trace("Got Alloc Operation '{0}'", allocOp->getLoc());
 
-        // For grouping op memory space is set only if one of the buffers already has memory space set
-        auto isMemSpaceSet = llvm::any_of(groupOp->getOperands(), [&](mlir::Value operand) {
-            const auto operandMemSpaceAttr = operand.getType().cast<vpux::NDTypeInterface>().getMemSpace();
-            if (operandMemSpaceAttr == nullptr) {
-                return false;
-            }
-            const auto operandMemSpace = VPU::symbolizeEnum<VPU::MemoryKind>(operandMemSpaceAttr.getLeafName()).value();
-            return operandMemSpace == _memKind;
-        });
-        if (!isMemSpaceSet) {
-            return;
-        }
-
-        for (auto operand : groupOp->getOperands() | indexed) {
-            const auto operandMemSpace = operand.value().getType().cast<vpux::NDTypeInterface>().getMemSpace();
-            if (operandMemSpace != nullptr) {
-                _log.nest().trace("Operand '{0}' already has a memory space '{1}'", operand.index(), operandMemSpace);
-                continue;
+            if (allocOp.getType().getMemorySpace() != nullptr) {
+                _log.nest().trace("It already has a memory space '{0}'", allocOp.getType().getMemorySpace());
+                return;
             }
 
-            _log.nest().trace("Updating memory space for operand '{0}'", operand.index());
-            updateAliases(aliasInfo, operand.value());
-        }
-    };
+            updateAliases(aliasInfo, allocOp.getMemref());
+        };
 
-    func.walk(allocOpCallback);
-    func.walk(groupOpCallback);
+        const auto groupOpCallback = [&](vpux::GroupedViewOpInterface groupOp) {
+            _log.trace("Got grouping operation '{0}'", groupOp->getLoc());
+
+            // For grouping op memory space is set only if one of the buffers already has memory space set
+            auto isMemSpaceSet = llvm::any_of(groupOp->getOperands(), [&](mlir::Value operand) {
+                const auto operandMemSpaceAttr = operand.getType().cast<vpux::NDTypeInterface>().getMemSpace();
+                if (operandMemSpaceAttr == nullptr) {
+                    return false;
+                }
+                const auto operandMemSpace =
+                        VPU::symbolizeEnum<VPU::MemoryKind>(operandMemSpaceAttr.getLeafName()).value();
+                return operandMemSpace == _memKind;
+            });
+            if (!isMemSpaceSet) {
+                return;
+            }
+
+            for (auto operand : groupOp->getOperands() | indexed) {
+                const auto operandMemSpace = operand.value().getType().cast<vpux::NDTypeInterface>().getMemSpace();
+                if (operandMemSpace != nullptr) {
+                    _log.nest().trace("Operand '{0}' already has a memory space '{1}'", operand.index(),
+                                      operandMemSpace);
+                    continue;
+                }
+
+                _log.nest().trace("Updating memory space for operand '{0}'", operand.index());
+                updateAliases(aliasInfo, operand.value());
+            }
+        };
+
+        funcOp.walk(allocOpCallback);
+        funcOp.walk(groupOpCallback);
+    });
 }
 
 }  // namespace

@@ -10,25 +10,23 @@
 #include <mlir/IR/Value.h>
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPU/IR/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 namespace vpux {
 
 int64_t getDMAPortValue(mlir::Operation* wrappedTaskOp);
 
-// In VPU different DMA channel receives data movement job from link agent.
-// Different channel is used based on transaction source
-// - DDR channel - DMA SRC is DDR
-// - CMX channel - DMA SRC is CMX or HW register
-VPUIP::DmaChannelType setDMAChannelType(VPUIP::DMATypeOpInterface dmaOp, VPU::ArchKind arch);
+SmallVector<VPUIP::DmaChannelType> getDMAChannelsWithIndependentLinkAgents(VPU::ArchKind arch);
 
-/// @brief Checks if the ConvertOp is supported on DMA
-/// @param convertOp template argument
-/// @return boolean
+// Encode DMA port and channel setting into a single integer for convenient usage by scheduling modules
+int64_t getDMAQueueIdEncoding(int64_t port, int64_t channelIdx);
+int64_t getDMAQueueIdEncoding(int64_t port, std::optional<vpux::VPUIP::DmaChannelType> channel);
+int64_t getDMAQueueIdEncoding(std::optional<vpux::VPUIP::DmaChannelType> channel);
+int64_t getDMAQueueIdEncoding(VPU::MemoryKind srcMemKind, VPU::ArchKind arch);
 
-template <typename T>
-bool isConvertSupportedOnDMA(T /* convertOp */) {
-    return false;
-}
+VPUIP::DmaChannelType getDMAQueueTypeFromEncodedId(int64_t dmaQueueIdEncoding, VPU::ArchKind arch);
+std::string getDMAChannelTypeAsString(VPUIP::DmaChannelType channelType, VPU::ArchKind arch);
+std::string getDMAChannelTypeAsString(int64_t dmaQueueIdEncoding, VPU::ArchKind arch);
+
 }  // namespace vpux

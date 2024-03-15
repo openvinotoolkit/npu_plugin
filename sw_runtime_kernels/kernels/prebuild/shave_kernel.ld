@@ -15,6 +15,8 @@ SECTIONS
     .text : {               
         *(.text*)
         . = ALIGN(16);
+        *(.gnu.linkonce.text.*)
+        . = ALIGN(16);
         *(.rodata*)
         . = ALIGN(16);
         KEEP(*(.uuid.rodata*))           

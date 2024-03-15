@@ -4,31 +4,19 @@
 //
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
 
 #include "vpux/compiler/dialect/const/ops.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
 
 #include "vpux/utils/core/numeric.hpp"
 
-#include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
 
 namespace {
-
-bool hasNegativeValues(const Const::Content& low) {
-    if (low.isSplat()) {
-        return low.getSplatValue<double>() < 0;
-    }
-
-    const auto vals = low.getValues<double>();
-    return std::any_of(vals.begin(), vals.end(), [](double val) {
-        return val < 0;
-    });
-}
 
 bool checkRange(Const::ContentAttr lowConst, Const::ContentAttr highConst, IE::AutoBroadcastType broadcast,
                 bool (*predicate)(const double low, const double high)) {
@@ -67,13 +55,13 @@ bool containsValueZero(Const::ContentAttr lowConst, Const::ContentAttr highConst
 
 // Ranges without value zero lead to a negative zero-point which is not supported in the DPU PPE
 bool hasRangeWithoutZero(IE::FakeQuantizeOp fqOp) {
-    auto inLowConst = fqOp.input_low().getDefiningOp<Const::DeclareOp>();
-    auto inHighConst = fqOp.input_high().getDefiningOp<Const::DeclareOp>();
-    auto outLowConst = fqOp.output_low().getDefiningOp<Const::DeclareOp>();
-    auto outHighConst = fqOp.output_high().getDefiningOp<Const::DeclareOp>();
+    auto inLowConst = fqOp.getInputLow().getDefiningOp<Const::DeclareOp>();
+    auto inHighConst = fqOp.getInputHigh().getDefiningOp<Const::DeclareOp>();
+    auto outLowConst = fqOp.getOutputLow().getDefiningOp<Const::DeclareOp>();
+    auto outHighConst = fqOp.getOutputHigh().getDefiningOp<Const::DeclareOp>();
 
-    if (!containsValueZero(inLowConst.getContentAttr(), inHighConst.getContentAttr(), fqOp.auto_broadcast()) ||
-        !containsValueZero(outLowConst.getContentAttr(), outHighConst.getContentAttr(), fqOp.auto_broadcast())) {
+    if (!containsValueZero(inLowConst.getContentAttr(), inHighConst.getContentAttr(), fqOp.getAutoBroadcast()) ||
+        !containsValueZero(outLowConst.getContentAttr(), outHighConst.getContentAttr(), fqOp.getAutoBroadcast())) {
         return true;
     }
 
@@ -83,14 +71,15 @@ bool hasRangeWithoutZero(IE::FakeQuantizeOp fqOp) {
 // Scalar like [7, 7] is handled separately and zero value is not required.
 // In this case ZP=0, scale=scalar.
 bool isScalar(IE::FakeQuantizeOp fqOp) {
-    auto inLowConst = fqOp.input_low().getDefiningOp<Const::DeclareOp>();
-    auto inHighConst = fqOp.input_high().getDefiningOp<Const::DeclareOp>();
+    auto inLowConst = fqOp.getInputLow().getDefiningOp<Const::DeclareOp>();
+    auto inHighConst = fqOp.getInputHigh().getDefiningOp<Const::DeclareOp>();
 
     auto isScalarLambda = [](const double low, const double high) {
         return std::fabs(high - low) < std::numeric_limits<double>::epsilon();
     };
 
-    return checkRange(inLowConst.getContentAttr(), inHighConst.getContentAttr(), fqOp.auto_broadcast(), isScalarLambda);
+    return checkRange(inLowConst.getContentAttr(), inHighConst.getContentAttr(), fqOp.getAutoBroadcast(),
+                      isScalarLambda);
 }
 
 //
@@ -114,14 +103,14 @@ mlir::LogicalResult UseQuantDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
     _log.trace("[{0}] Got FakeQuantize Operation '{1}'", getDebugName(), origOp->getLoc());
     auto innerLog = _log.nest();
 
-    if (origOp.input().getDefiningOp<Const::DeclareOp>() != nullptr) {
+    if (origOp.getInput().getDefiningOp<Const::DeclareOp>() != nullptr) {
         return matchFailed(innerLog, rewriter, origOp, "Got constant input");
     }
 
-    auto inLowConst = origOp.input_low().getDefiningOp<Const::DeclareOp>();
-    auto inHighConst = origOp.input_high().getDefiningOp<Const::DeclareOp>();
-    auto outLowConst = origOp.output_low().getDefiningOp<Const::DeclareOp>();
-    auto outHighConst = origOp.output_high().getDefiningOp<Const::DeclareOp>();
+    auto inLowConst = origOp.getInputLow().getDefiningOp<Const::DeclareOp>();
+    auto inHighConst = origOp.getInputHigh().getDefiningOp<Const::DeclareOp>();
+    auto outLowConst = origOp.getOutputLow().getDefiningOp<Const::DeclareOp>();
+    auto outHighConst = origOp.getOutputHigh().getDefiningOp<Const::DeclareOp>();
 
     if (inLowConst == nullptr || inHighConst == nullptr || outLowConst == nullptr || outHighConst == nullptr) {
         return matchFailed(innerLog, rewriter, origOp, "Got non constant parameters");
@@ -129,19 +118,19 @@ mlir::LogicalResult UseQuantDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
 
     innerLog.trace("Try to use Quantize/[QuantizeCast]/Dequantize operations");
 
-    const auto realType = origOp.input().getType().cast<vpux::NDTypeInterface>();
+    const auto realType = origOp.getInput().getType().cast<vpux::NDTypeInterface>();
     const auto realElemType = realType.getElementType().cast<mlir::FloatType>();
 
     const auto inQuantizeElemType =
-            getQuantizedType(inLowConst.getContentAttr(), inHighConst.getContentAttr(), origOp.levels(), realElemType,
-                             false, origOp.getLoc(), origOp.auto_broadcast());
+            getQuantizedType(inLowConst.getContentAttr(), inHighConst.getContentAttr(), origOp.getLevels(),
+                             realElemType, false, origOp.getLoc(), origOp.getAutoBroadcast());
 
     const auto outQuantizeElemType =
-            getQuantizedType(outLowConst.getContentAttr(), outHighConst.getContentAttr(), origOp.levels(), realElemType,
-                             false, origOp.getLoc(), origOp.auto_broadcast());
+            getQuantizedType(outLowConst.getContentAttr(), outHighConst.getContentAttr(), origOp.getLevels(),
+                             realElemType, false, origOp.getLoc(), origOp.getAutoBroadcast());
 
     innerLog.trace("Insert Quantize op '{0}' -> '{1}'", realElemType, inQuantizeElemType);
-    auto quantizeOp = rewriter.create<IE::QuantizeOp>(origOp.getLoc(), origOp.input(), inQuantizeElemType);
+    auto quantizeOp = rewriter.create<IE::QuantizeOp>(origOp.getLoc(), origOp.getInput(), inQuantizeElemType);
 
     auto result = quantizeOp.getResult();
     if (inQuantizeElemType != outQuantizeElemType) {
@@ -205,15 +194,15 @@ mlir::LogicalResult UseConstDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
     _log.trace("[{0}] Got FakeQuantize Operation '{1}'", getDebugName(), origOp->getLoc());
     auto innerLog = _log.nest();
 
-    auto inConst = origOp.input().getDefiningOp<Const::DeclareOp>();
+    auto inConst = origOp.getInput().getDefiningOp<Const::DeclareOp>();
     if (inConst == nullptr) {
         return matchFailed(innerLog, rewriter, origOp, "Got non constant input");
     }
 
-    auto inLowConst = origOp.input_low().getDefiningOp<Const::DeclareOp>();
-    auto inHighConst = origOp.input_high().getDefiningOp<Const::DeclareOp>();
-    auto outLowConst = origOp.output_low().getDefiningOp<Const::DeclareOp>();
-    auto outHighConst = origOp.output_high().getDefiningOp<Const::DeclareOp>();
+    auto inLowConst = origOp.getInputLow().getDefiningOp<Const::DeclareOp>();
+    auto inHighConst = origOp.getInputHigh().getDefiningOp<Const::DeclareOp>();
+    auto outLowConst = origOp.getOutputLow().getDefiningOp<Const::DeclareOp>();
+    auto outHighConst = origOp.getOutputHigh().getDefiningOp<Const::DeclareOp>();
 
     if (inLowConst == nullptr || inHighConst == nullptr || outLowConst == nullptr || outHighConst == nullptr) {
         return matchFailed(innerLog, rewriter, origOp, "Got non constant parameters");
@@ -221,7 +210,7 @@ mlir::LogicalResult UseConstDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
 
     const auto inConstAttr = inConst.getContentAttr();
     const auto inBaseVals = inConstAttr.getBaseContent();
-    const auto inBaseElemType = inBaseVals.getType().getElementType();
+    const auto inBaseElemType = inBaseVals.getShapedType().getElementType();
 
     // TODO: make this check more reliable
     if (!inBaseElemType.isa<mlir::IntegerType>()) {
@@ -269,9 +258,9 @@ mlir::LogicalResult UseConstDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
     const auto realElemType = realType.getElementType().cast<mlir::FloatType>();
 
     const auto lowContent = inLowConst.getContentAttr().fold();
-    const auto qElemType =
-            getQuantizedType(outLowConst.getContentAttr(), outHighConst.getContentAttr(), origOp.levels(), realElemType,
-                             hasNegativeValues(lowContent), origOp.getLoc(), origOp.auto_broadcast());
+    const auto qElemType = getQuantizedType(outLowConst.getContentAttr(), outHighConst.getContentAttr(),
+                                            origOp.getLevels(), realElemType, VPU::hasNegativeValues(lowContent),
+                                            origOp.getLoc(), origOp.getAutoBroadcast());
     if (qElemType == nullptr) {
         return mlir::failure();
     }
@@ -313,20 +302,20 @@ void SplitFakeQuantPass::safeRunOnFunc() {
             return true;
         }
 
-        auto inLowConst = fqOp.input_low().getDefiningOp<Const::DeclareOp>();
-        auto inHighConst = fqOp.input_high().getDefiningOp<Const::DeclareOp>();
-        auto outLowConst = fqOp.output_low().getDefiningOp<Const::DeclareOp>();
-        auto outHighConst = fqOp.output_high().getDefiningOp<Const::DeclareOp>();
-        const auto realType = fqOp.input().getType().cast<vpux::NDTypeInterface>();
+        auto inLowConst = fqOp.getInputLow().getDefiningOp<Const::DeclareOp>();
+        auto inHighConst = fqOp.getInputHigh().getDefiningOp<Const::DeclareOp>();
+        auto outLowConst = fqOp.getOutputLow().getDefiningOp<Const::DeclareOp>();
+        auto outHighConst = fqOp.getOutputHigh().getDefiningOp<Const::DeclareOp>();
+        const auto realType = fqOp.getInput().getType().cast<vpux::NDTypeInterface>();
         const auto realElemType = realType.getElementType().cast<mlir::FloatType>();
 
         const auto inQuantizeElemType =
-                getQuantizedType(inLowConst.getContentAttr(), inHighConst.getContentAttr(), fqOp.levels(), realElemType,
-                                 false, fqOp.getLoc(), fqOp.auto_broadcast());
+                getQuantizedType(inLowConst.getContentAttr(), inHighConst.getContentAttr(), fqOp.getLevels(),
+                                 realElemType, false, fqOp.getLoc(), fqOp.getAutoBroadcast());
 
         const auto outQuantizeElemType =
-                getQuantizedType(outLowConst.getContentAttr(), outHighConst.getContentAttr(), fqOp.levels(),
-                                 realElemType, false, fqOp.getLoc(), fqOp.auto_broadcast());
+                getQuantizedType(outLowConst.getContentAttr(), outHighConst.getContentAttr(), fqOp.getLevels(),
+                                 realElemType, false, fqOp.getLoc(), fqOp.getAutoBroadcast());
 
         return inQuantizeElemType == nullptr || outQuantizeElemType == nullptr;
     });

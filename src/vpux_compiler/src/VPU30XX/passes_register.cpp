@@ -6,6 +6,7 @@
 #include "vpux/compiler/VPU30XX/passes_register.hpp"
 #include "vpux/compiler/VPU30XX/conversion.hpp"
 #include "vpux/compiler/VPU30XX/dialect/IE/passes.hpp"
+#include "vpux/compiler/VPU30XX/dialect/VPU/transforms/passes.hpp"
 #include "vpux/compiler/VPU30XX/dialect/VPUIP/passes.hpp"
 
 using namespace vpux;

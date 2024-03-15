@@ -42,10 +42,6 @@ public:
         return _name == "VPUAL";
     }
 
-    bool isEmulator() const {
-        return _name == "EMULATOR";
-    }
-
     bool isIMD() const {
         return _name == "IMD";
     }
@@ -89,25 +85,6 @@ public:
 private:
     std::vector<std::string> _availableDevices;
     vpux::Logger _log = vpux::Logger::global().nest("AvailableDevices", 0);
-};
-
-class Platform {
-public:
-    bool isARM() const noexcept {
-#if defined(__arm__) || defined(__aarch64__)
-        return true;
-#else
-        return false;
-#endif
-    }
-
-    bool isX86() const noexcept {
-#if defined(__x86_64) || defined(__x86_64__)
-        return true;
-#else
-        return false;
-#endif
-    }
 };
 
 class SkipRegistry {
@@ -169,7 +146,6 @@ std::vector<std::string> disabledTestPatterns() {
 
         const BackendName backendName;
         const AvailableDevices devices;
-        const Platform platform;
 
         // clang-format off
 
@@ -226,8 +202,6 @@ std::vector<std::string> disabledTestPatterns() {
         _skipRegistry.addPatterns(
                 "double free detected", {
                 ".*InferConfigInTests\\.CanInferWithConfig.*",
-                ".*InferConfigTests\\.withoutExclusiveAsyncRequests.*",
-                ".*InferConfigTests\\.canSetExclusiveAsyncRequests.*",
         });
 
         // TODO:
@@ -266,12 +240,6 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*OVClassNetworkTestP.*LoadNetworkCreateDefaultExecGraphResult.*",
         });
 
-        // TODO: [Track number: S#14836]
-        _skipRegistry.addPatterns(
-                "Async tests break on dKMB", {
-                ".*ExclusiveAsyncRequests.*",
-        });
-
         _skipRegistry.addPatterns(
                 "This is openvino specific test", {
                 ".*ExecutableNetworkBaseTest.canExport.*",
@@ -280,7 +248,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO:
         _skipRegistry.addPatterns(
                 "Issue: E#63469", {
-                ".*VPUXConversionLayerTest.*ConvertLike.*",
+                ".*ConversionLayerTest.*ConvertLike.*",
         });
 
         _skipRegistry.addPatterns(
@@ -295,15 +263,15 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*InferRequestCheckTensorPrecision.*type=boolean.*",
                 ".*InferRequestCheckTensorPrecision.*type=bf16.*",
                 ".*InferRequestCheckTensorPrecision.*type=f64.*",
-                ".*InferRequestCheckTensorPrecision.*type=i64.*",
-                ".*InferRequestCheckTensorPrecision.*type=u64.*",
                 ".*InferRequestCheckTensorPrecision.*type=i4.*",
                 ".*InferRequestCheckTensorPrecision.*type=u4.*",
                 ".*InferRequestCheckTensorPrecision.*type=u1\\D.*",
+                // [Track number: E#97469]
+                ".*InferRequestCheckTensorPrecision.*type=i64.*",
         });
 
         _skipRegistry.addPatterns(!backendName.isZero() || !devices.has3720(),
-                "Tests enabled only for L0 VPU3720", {
+                "Tests enabled only for L0 NPU3720", {
                 // [Track number: E#70764]
                 ".*InferRequestCheckTensorPrecision.*",
                 ".*InferRequestIOTensorSetPrecisionTest.*",
@@ -331,6 +299,12 @@ std::vector<std::string> disabledTestPatterns() {
                 R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=(CN|HW).*)",
         });
 
+        // [Track number: E#89084]
+        _skipRegistry.addPatterns(
+                "Not expected behavior", {
+                R"(.*Auto_Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=ANY.*)",
+        });
+
         // [Track number: E#67741]
         _skipRegistry.addPatterns(
                 "Cannot call setShape for Blobs", {
@@ -356,17 +330,27 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*CachingSupportCase_KeemBay.*CompileModelCacheTestBase.*CompareWithRefImpl.*ReadConcatSplitAssign.*",
         });
 
-        // [Track number: E#73523]
+        // [Tracking number: E#99817]
         _skipRegistry.addPatterns(
                 "NPU Plugin currently fails to get a valid output in these test cases", {
-                "smoke_precommit_.*BehaviorTestsPreprocess/InferRequestPreprocessTest.SetMeanImagePreProcessGetBlob.*",
-                "smoke_precommit_.*BehaviorTestsPreprocess/InferRequestPreprocessTest.SetMeanImagePreProcessSetBlob.*",
-                "smoke_precommit_.*BehaviorTestsPreprocess/InferRequestPreprocessTest.SetMeanValuePreProcessGetBlob.*",
-                "smoke_precommit_.*BehaviorTestsPreprocess/InferRequestPreprocessTest.SetMeanValuePreProcessSetBlob.*",
-                "smoke_precommit_.*BehaviorTestsPreprocess/InferRequestPreprocessTest.SetScalePreProcessGetBlob.*",
-                "smoke_precommit_.*BehaviorTestsPreprocess/InferRequestPreprocessTest.SetScalePreProcessSetBlob.*",
+                ".*InferRequestIOBBlobTest.canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*",
+                ".*InferRequestIOBBlobTestVpux.canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*",
+                R"(.*InferRequestIOBBlobTest.secondCallGetInputDoNotReAllocateData/targetDevice=(NPU3720_).*)",
+                R"(.*InferRequestIOBBlobTestVpux.secondCallGetInputDoNotReAllocateData/targetDevice=(NPU3720_).*)",
+                R"(.*InferRequestIOBBlobTest.secondCallGetOutputDoNotReAllocateData/targetDevice=(NPU3720_).*)",
+                R"(.*InferRequestIOBBlobTestVpux.secondCallGetOutputDoNotReAllocateData/targetDevice=(NPU3720_).*)",
+                R"(.*InferRequestIOBBlobTest.secondCallGetInputAfterInferSync/targetDevice=(NPU3720_).*)",
+                R"(.*InferRequestIOBBlobTestVpux.secondCallGetInputAfterInferSync/targetDevice=(NPU3720_).*)",
+                R"(.*InferRequestIOBBlobTest.secondCallGetOutputAfterInferSync/targetDevice=(NPU3720_).*)",
+                R"(.*InferRequestIOBBlobTestVpux.secondCallGetOutputAfterInferSync/targetDevice=(NPU3720_).*)",
+                ".*OVInferRequestIOTensorTest.InferStaticNetworkSetChangedInputTensorThrow.*",
+                ".*OVInferRequestIOTensorTestVpux.InferStaticNetworkSetChangedInputTensorThrow.*",
+                R"(.*InferRequestIOBBlobTest.canReallocateExternalBlobViaGet/targetDevice=(NPU3720_)configItem=MULTI_DEVICE_PRIORITIES_NPU.*)",
+                R"(.*OVInferRequestIOTensorTestVpux.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=(NPU3720_).*)",
+                R"(.*OVInferRequestIOTensorTestVpux.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=(NPU3720_)configItem=MULTI_DEVICE_PRIORITIES_NPU_.*)",
+                R"(.*OVInferRequestIOTensorTest.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=(NPU3720_).*)",
+                R"(.*OVInferRequestIOTensorTest.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=(NPU3720_)configItem=MULTI_DEVICE_PRIORITIES_NPU_.*)",
         });
-
 
         // [Track number: E#68774]
         _skipRegistry.addPatterns(
@@ -394,6 +378,26 @@ std::vector<std::string> disabledTestPatterns() {
                 "smoke_BehaviorTests/DefaultValuesConfigTests.CanSetDefaultValueBackToPlugin.*",
         });
 
+        // [Track number: E#80555]
+        _skipRegistry.addPatterns(devices.has3700(),
+                "Problems with SplitConcat ngraph function", {
+                R"(.*smoke_BehaviorTests/InferRequest(CallbackTests|MultithreadingTests|PerfCountersTest|WaitTests)\..*)",
+                R"(.*smoke_BehaviorTests(/|/OV)InferRequestCancellationTests\..*)",
+                R"(.*smoke(_|_Auto_)BehaviorTests/InferRequestIOBBlobTest\..*)",
+                R"(.*smoke(_|_Multi_)BehaviorTests/OVInferRequestIOTensorTest\..*)",
+                R"(.*smoke(_|_Auto_|_Multi_)BehaviorTests/OVInferRequest(CallbackTests|IOTensorSetPrecisionTest|MultithreadingTests)\..*)",
+                ".*OVClassNetworkTestP.LoadNetworkActual.*",
+                ".*OVClassLoadNetworkTest.LoadNetworkHETEROWithDeviceIDNoThrow.*",
+                R"(.*OVHoldersTest\..*)",
+                R"(.*OVHoldersTestOnImportedNetwork\..*)",
+        });
+
+        // [Track number: E#84510]
+        _skipRegistry.addPatterns(
+                "Test failed on static shape ([1,3,24,24]): rel_threshold: 0.01, rel_max: 0.225794", {
+                "smoke.*PrePostProcess.*PreProcessTestCommon.*NPU3720_HW.Func=scale_mean.*",
+        });
+
         _skipRegistry.addPatterns(
                 "Disabled with ticket number", {
                 // [Track number: E#48480]
@@ -407,22 +411,44 @@ std::vector<std::string> disabledTestPatterns() {
                  ".*OVClassNetworkTestP.*SetAffinityWithConstantBranches.*"
         });
 
-        // [Track number: E#73598]
-        _skipRegistry.addPatterns(
-                "The test tries to concatenate an extra .0123 after the typical VPU.0123 name, and it fails currently", {
-                "smoke_InterfaceTests.TestEngineClassGetMetric*",
-        });
-
         // [Tracking number: E#86380]
         _skipRegistry.addPatterns(
                 "The output tensor gets freed when the inference request structure's destructor is called. The issue is unrelated to the caching feature.", {
                 ".*CacheTestBase.CompareWithRefImpl.*",
         });
 
-        // [Tracking number: E#90079]
         _skipRegistry.addPatterns(
-                "Compiling the model leads to segmentation fault/\"double free or corruption\" error.", {
-                ".*smoke_Split/VPUXSplitLayerTest_VPU3720.HW/IS=.*_numSplits=.*_axis=0_ISnetPRC=.*_inPRC=FP32_outPRC=FP16_inL=NHWC_outL=NHWC.*",
+                "Expected: ie->SetConfig(configuration, target_device) throws an exception of type InferenceEngine::Exception. Throws nothing.", {
+                // [Tracking number: E#89274]
+                ".*AutoBatch.*Behavior.*IncorrectConfigAPITests.SetConfigWithNoExistingKey.*AUTO_BATCH_TIMEOUT.*",
+                // [Track number: E#89084]
+                ".*AutoBatch.*Behavior.*IncorrectConfigTests.SetConfigWithIncorrectKey.*AUTO_BATCH_TIMEOUT.*",
+                ".*AutoBatch.*Behavior.*IncorrectConfigTests.CanNotLoadNetworkWithIncorrectConfig.*AUTO_BATCH_TIMEOUT.*",
+        });
+
+        _skipRegistry.addPatterns(
+                "Dynamic I/O shapes are being used when running the tests. This feature is not yet supported by the NPU plugin.", {
+                ".*SetPreProcessTo.*"
+        });
+
+        _skipRegistry.addPatterns(
+                "This scenario became invalid upon refactoring the implementation as to use the 2.0 OV API. "
+                "The \"set tensor\" operation expects the shape of the new tensor to match the shape of the previous one.", {
+                ".*InferRequestIOBBlobSetLayoutTest.*ANY.*"
+        });
+
+        _skipRegistry.addPatterns(
+                "This scenario became invalid upon refactoring the implementation as to use the 2.0 OV API. "
+                "The legacy version structure contains major and minor version attributes, but these fields are not found anymore "
+                "in the corresponding 2.0 API structure.", {
+                ".*smoke_BehaviorTests/VersionTest.pluginCurrentVersionIsCorrect.*"
+        });
+
+        // [Tracking number: E#102428]
+        _skipRegistry.addPatterns(
+                "Tests throw errors as expected but drivers post-v.1657 will fail to catch them", {
+                ".*FailGracefullyTest.*",
+                ".*VPUQueryNetworkTestSuite3.*"
         });
 
         //
@@ -432,7 +458,7 @@ std::vector<std::string> disabledTestPatterns() {
         _skipRegistry.addPatterns(devices.count() && !devices.has3720(), "Tests are disabled for all devices except VPU3720",
                                   {
                                           // [Track number: E#49620]
-                                          ".*VPU3700(\\.|_)(SW|HW).*",
+                                          ".*NPU3700(\\.|_)(SW|HW).*",
                                           ".*VPU3720.*",
                                           // [Track number: E#84621]
                                           ".*VpuxDriverCompilerAdapterDowngradeInterpolate11Test.*",
@@ -476,8 +502,14 @@ std::vector<std::string> disabledTestPatterns() {
                         ".*OVClassLoadNetworkTest.*LoadNetwork.*",
                         // [Track number: E#84621]
                         ".*VpuxDriverCompilerAdapterDowngradeInterpolate11Test.*",
-                        ".*VPUQueryNetworkTest.*",                 
+                        ".*VPUQueryNetworkTest.*",
                 });
+
+        // [Track number: S#14836]
+        _skipRegistry.addPatterns(devices.has3700(),
+                "Async tests break on dKMB", {
+                ".*ExclusiveAsyncRequests.*",
+        });
 
         _skipRegistry.addPatterns(backendName.isZero() && devices.has3700(),
                                   "TensorIterator layer is not supported by dKMB platform",
@@ -491,9 +523,22 @@ std::vector<std::string> disabledTestPatterns() {
         _skipRegistry.addPatterns(backendName.isZero() && devices.has3700(), "Convert layer is not supported by dKMB platform",
                                  {".*PreprocessingPrecisionConvertTest.*", ".*InferRequestPreprocess.*"});
 
-        _skipRegistry.addPatterns(backendName.isZero() && devices.has3700(), "Tests hang when run one after another",
-                                  // [Tracking number: E#90056]
-                                  {".*OVInferConsistencyTest.*"});
+        _skipRegistry.addPatterns(backendName.isZero() && devices.has3700(),
+                        "Tests fail on RPL dKMB boards, start_async() fails intermittently",
+                        { // [Tracking number: E#90056]
+                          ".*OVInferConsistencyTest.*",
+                          // [Tracking number: E#92317]
+                          ".*OVInferRequestIOTensorTest.*",
+                          ".*OVInferRequestMultithreadingTests.*",
+                          ".*InferRequestIOBBlobTest.*",
+                          ".*OVInferRequestCallbackTests.*",
+                          ".*InferRequestMultithreadingTests.*",
+                          ".*InferRequestPerfCountersTest.*",
+                          ".*InferRequestWaitTests.*",
+                          ".*OVInferRequestCancellationTest.*",
+                          ".*InferRequestRunTests.*",
+                          ".*InferRequestCallbackTests.*",
+                          ".*InferRequestCancellationTests.*"});
 
         _skipRegistry.addPatterns(!(backendName.isZero()), "These tests runs only on LevelZero backend",
                                   {".*InferRequestRunTests.*",
@@ -502,18 +547,23 @@ std::vector<std::string> disabledTestPatterns() {
                                    ".*CompileModelLoadFromFileTestBase.*",
                                    ".*CorrectConfigTests.*"});
 
-        _skipRegistry.addPatterns(!(devices.has3720()), "Runs only on 3720 device with Level Zero enabled. E#85493",
+        _skipRegistry.addPatterns(!(devices.has3720()), "Runs only on NPU3720 with Level Zero enabled #85493",
                                   {".*InferRequestRunTests.MultipleExecutorStreamsTestsSyncInfers.*"});
 
-        _skipRegistry.addPatterns("DEVICE_BATCH doesn't allow to set VPU config with OV1.0 and CACHE_DIR + MLIR is not supported",
-                                  {".*smoke_AutoBatch_BehaviorTests/CorrectConfigTests.CanUseCache.*"});
+        _skipRegistry.addPatterns("Other devices than NPU doesn't allow to set NPU properties with OV1.0 and CACHE_DIR + MLIR is not supported",
+                                  {".*smoke_AutoBatch_BehaviorTests/CorrectConfigTests.*"});
 
-        _skipRegistry.addPatterns("Disable tests till the CiD version will be updated",
+        _skipRegistry.addPatterns("OpenVINO issues when using caching mechanism",
+                                  {// [Tracking number: C#119359]
+                                   ".*smoke_Auto_CachingSupportCase_KeemBay/CompileModelLoadFromFileTestBase.*",
+                                   // [Tracking number: C#120240]
+                                   ".*smoke_CachingSupportCase_KeemBay/CompileModelLoadFromFileTestBase.*"});
+
+        _skipRegistry.addPatterns(devices.has3700(), "Do not run the tests that require a new CiD version on the 3700 platform",
                                   {
-                                   // [Tracking number: E#88007]
+                                   // [Tracking number: E#92279]
                                    ".*CompileModelLoadFromFileTestBase.*",
                                    ".*CorrectConfigTests.CanUseCache.*",
-                                   // [Tracking number: E#88357]
                                    ".*CorrectConfigTests.CanLoadNetworkWithCorrectConfig.*",
                                    ".*VpuxDriverCompilerAdapterDowngradeInterpolate11Test.CheckOpsetVersion.*",
                                    ".*VpuxDriverCompilerAdapterInputsOutputsTest.CheckInOutputs.*",
@@ -522,8 +572,7 @@ std::vector<std::string> disabledTestPatterns() {
         _skipRegistry.addPatterns(backendName.isZero(), "Most ProfilingTest_VPU3700 instances break sporadically, only stable instances are left, #65844", {
                                                 ".*precommit_profilingDisabled/ProfilingTest_VPU3700.*",
                                                 ".*precommit_profilingDisabled_drv/ProfilingTest_VPU3700.*",
-                                                ".*precommit_profilingNonMatchedName_drv/ProfilingTest_VPU3700.*",
-                                                ".*precommit_profilingMatchedName_drv/ProfilingTest_VPU3700.*",
+                                                ".*precommit_profilingEnabled_drv/ProfilingTest_VPU3700.*",
                                                 });
 
         _skipRegistry.addPatterns(backendName.isIMD(), "IMD/Simics do not support the tests",
@@ -535,17 +584,6 @@ std::vector<std::string> disabledTestPatterns() {
                                   {
                                         // [Tracking number: E#85488]
                                         ".*VpuxPreprocessingPrecisionConvertTest.*",
-                                  });
-
-        _skipRegistry.addPatterns(platform.isARM(), "CumSum layer is not supported by ARM platform",
-                                  {
-                                          ".*SetBlobTest.CompareWithRefs.*",
-                                  });
-
-        // TODO: [Track number: E#26428]
-        _skipRegistry.addPatterns(platform.isARM(), "LoadNetwork throws an exception",
-                                  {
-                                          ".*VPUXGatherLayerTest_VPU3700.HW/.*",
                                   });
 
         _skipRegistry.addPatterns(!backendName.isZero() || !devices.has3720(),
@@ -561,6 +599,12 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*VPUQueryNetworkTest.*"
         });
 
+        // [Tracking number: E#98601]
+        _skipRegistry.addPatterns(backendName.isZero() && devices.has3720(),
+                "Test fails when run with Multi_Device_Priorities=NPU,CPU", {
+                ".*InferRequestIOBBlobTestVpux.canReallocateExternalBlobViaGet.*MULTI_DEVICE_PRIORITIES_.*CPU.*"
+        });
+
         _skipRegistry.addPatterns(
                 devices.count() > 1,
                 "Some VPU Plugin metrics require single device to work in auto mode or set particular device",
@@ -569,12 +613,7 @@ std::vector<std::string> disabledTestPatterns() {
                         ".*OVClassGetConfigTest.*GetConfigHeteroNoThrow.*",
                 });
 
-#ifdef __unix__
-        _skipRegistry.addPatterns(backendName.isZero() && devices.has3720(), "E#77822", {".*CTCGreedyDecoder.*"});
-        _skipRegistry.addPatterns(backendName.isZero() && devices.has3720(), "E#78232", {".*smoke_Tile3720_tiling_2.*"});
-        _skipRegistry.addPatterns(backendName.isZero() && devices.has3720(), "E#78232", {".*smoke_Tile3720_tiling_3.*"});
-        _skipRegistry.addPatterns(backendName.isZero() && devices.has3720(), "E#93069", {".*InferRequestCheckTensorPrecision.*type=u32.*"});
-#endif
+     _skipRegistry.addPatterns(backendName.isZero() && devices.has3720(), "E#93069", {".*InferRequestCheckTensorPrecision.*type=u32.*"});
 
         return _skipRegistry;
     }();

@@ -6,15 +6,14 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
-#include "vpux/compiler/utils/subspaces.hpp"
 
 #include <mlir/IR/BuiltinTypes.h>
 
 vpux::VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LSTMSequenceUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::LSTMCellParamsBuilder builder(writer);
-    builder.add_RNNForward(direction() == IE::RNNSequenceDirection::FORWARD ? 1 : 0);
-    builder.add_nCells(checked_cast<int32_t>(sequenceLength()));
-    const auto inputDataShape = inputData().getType().cast<vpux::NDTypeInterface>().getShape().raw();
+    builder.add_RNNForward(getDirection() == IE::RNNSequenceDirection::FORWARD ? 1 : 0);
+    builder.add_nCells(checked_cast<int32_t>(getSequenceLength()));
+    const auto inputDataShape = getInputData().getType().cast<vpux::NDTypeInterface>().getShape().raw();
     VPUX_THROW_UNLESS(inputDataShape.size() == 3, "LSTMSequenceUPAOp inputData shape must be 3D");
     const auto batchSize = inputDataShape[0];
     builder.add_nBatches(checked_cast<int32_t>(batchSize));

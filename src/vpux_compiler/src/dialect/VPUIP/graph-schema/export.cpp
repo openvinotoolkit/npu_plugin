@@ -10,7 +10,7 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/generated/schema/gf_version.h"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_writer.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/schema.hpp"
@@ -18,8 +18,8 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
-#include "vpux/utils/plugin/profiling_parser.hpp"
 
+#include "vpux/compiler/dialect/VPU/utils/performance_metrics.hpp"
 #include "vpux/utils/IE/loop.hpp"
 #include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
@@ -29,6 +29,8 @@
 #include "vpux/utils/core/numeric.hpp"
 #include "vpux/utils/core/range.hpp"
 #include "vpux/utils/core/string_ref.hpp"
+#include "vpux/utils/plugin/profiling_meta.hpp"
+#include "vpux/utils/plugin/profiling_parser.hpp"
 
 #include <llvm/ADT/DenseMap.h>
 #include <mlir/IR/BuiltinOps.h>
@@ -40,45 +42,9 @@
 
 #include <unordered_map>
 
-// Base of frequency values used in tables (in MHz).
-static constexpr uint32_t FREQ_BASE = 700;
-// Step of frequency for each entry in tables (in MHz).
-static constexpr uint32_t FREQ_STEP = 100;
-// Base of bandwidth values used in tables (in MB/s).
-static constexpr uint32_t BW_BASE = 2000;
-// Step of bandwidth values used in tables (in MB/s).
-static constexpr uint32_t BW_STEP = 100;
-// Num entries in table, each entry contains set of values for particular frequency
-static constexpr uint32_t NUM_ENTRIES = 5;
-
 using namespace vpux;
 
 namespace {
-
-bool isProfilingEnabled(IE::CNNNetworkOp netOp) {
-    auto profilingOutputsInfo = netOp.getProfilingOutputsDataInfo();
-    VPUX_THROW_WHEN(profilingOutputsInfo.size() > 1, "Unexpected number of profiling outputs (expected 1, got {0})",
-                    profilingOutputsInfo.size());
-    return profilingOutputsInfo.size() > 0;
-}
-
-llvm::Optional<VPUIP::ProfilingSectionOp> getProfilingSection(mlir::ModuleOp module, profiling::ExecutorType secType) {
-    IE::CNNNetworkOp netOp;
-    mlir::func::FuncOp netFunc;
-    IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
-    if (!isProfilingEnabled(netOp)) {
-        return {};
-    }
-    auto profilingOutputInfo = *netOp.getProfilingOutputsInfo().front().getOps<IE::DataInfoOp>().begin();
-
-    auto& sections = profilingOutputInfo.sections().front().front();
-    for (VPUIP::ProfilingSectionOp section : sections.getOps<VPUIP::ProfilingSectionOp>()) {
-        if (static_cast<profiling::ExecutorType>(section.sectionType()) == secType) {
-            return section;
-        }
-    }
-    return {};
-}
 
 flatbuffers::Offset<MVCNN::Version> createVersion(VPUIP::BlobWriter& writer, Logger log) {
     log.info("Blob version: majorV={0}, minorV={1}, patch={2}, hash={3}, context={4}", MVCNN_VERSION_MAJOR,
@@ -100,7 +66,6 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
     const EnumSet<VPU::ExecutorKind> supportedProcessors{
             VPU::ExecutorKind::SHAVE_UPA,  //
             VPU::ExecutorKind::SHAVE_NN,   //
-            VPU::ExecutorKind::NCE,        //
             VPU::ExecutorKind::DPU         //
     };
 
@@ -110,13 +75,16 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
 
     SmallVector<flatbuffers::Offset<MVCNN::ProcessorMapping>> executorsOffsets;
     SmallVector<flatbuffers::Offset<MVCNN::ProcessorMapping>> processorVec;
+    module.walk([&](IE::TileResourceOp res) {
+        executorsOffsets.push_back(VPUIP::createProcessorMapping(writer, res, module));
+        if (res.hasProcessorFrequency()) {
+            processorVec.push_back(VPUIP::createProcessorFreqMapping(writer, res));
+        }
+    });
     module.walk([&](IE::ExecutorResourceOp res) {
         const auto execKind = VPU::getKindValue<VPU::ExecutorKind>(res);
         if (supportedProcessors.count(execKind) != 0) {
             executorsOffsets.push_back(createProcessorMapping(writer, res, module));
-            if (res.hasProcessorFrequency()) {
-                processorVec.push_back(createProcessorFreqMapping(writer, res));
-            }
         }
     });
     const auto executors = writer.createVector(executorsOffsets);
@@ -152,26 +120,26 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
     return builder.Finish();
 }
 
-flatbuffers::Offset<MVCNN::PerformanceMetrics> createPerformanceMetrics(VPUIP::BlobWriter& writer) {
-    // value in [0.0..1.0] range indicating scalability of network for a given DDR bandwidth.
-    static const SmallVector<float> byBWScales({0.0F, 0.2F, 0.4F, 0.6F, 0.8F});
-
-    // expected ticks (based on FRC @37.5MHz) an inference should take for a given DDR bandwidth.
-    static const SmallVector<uint64_t> byBWTicks({10UL, 12UL, 14UL, 16UL, 18UL});
+flatbuffers::Offset<MVCNN::PerformanceMetrics> createPerformanceMetrics(VPUIP::BlobWriter& writer,
+                                                                        mlir::ModuleOp module) {
+    // same range for each entry
+    auto byBWScales = VPU::getBWScales();
+    auto numEntries = VPU::getNumEntries();
 
     SmallVector<flatbuffers::Offset<MVCNN::ScalabilityByBandwidth>> scaleByFreq;
     SmallVector<flatbuffers::Offset<MVCNN::InferenceTimingByBandwidth>> inferenceTimingByFreq;
-    scaleByFreq.reserve(NUM_ENTRIES);
-    inferenceTimingByFreq.reserve(NUM_ENTRIES);
+    scaleByFreq.reserve(numEntries);
+    inferenceTimingByFreq.reserve(numEntries);
 
-    for (uint32_t i = 0; i < NUM_ENTRIES; ++i) {
+    auto byBWTicks = VPU::getBWTicks(module);
+    for (uint32_t i = 0; i < numEntries; ++i) {
         scaleByFreq.push_back(MVCNN::CreateScalabilityByBandwidth(writer, writer.createVector(byBWScales)));
         inferenceTimingByFreq.push_back(
-                MVCNN::CreateInferenceTimingByBandwidth(writer, writer.createVector(byBWTicks)));
+                MVCNN::CreateInferenceTimingByBandwidth(writer, writer.createVector(byBWTicks[i])));
     }
 
     return MVCNN::CreatePerformanceMetrics(
-            writer, FREQ_BASE, FREQ_STEP, BW_BASE, BW_STEP,
+            writer, VPU::getFreqBase(), VPU::getFreqStep(), VPU::getBWBase(), VPU::getBWStep(),
             MVCNN::CreateScalability(writer, writer.createVector(scaleByFreq)),
             MVCNN::CreateInferenceTiming(writer, writer.createVector(inferenceTimingByFreq)));
 }
@@ -191,7 +159,6 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
 
     // TODO: always extract num shaves info from VPURT::SW.Runtime, which can be extracted from module
     auto maxShaves = 4;
-
     constexpr auto defaultStackSize = Byte(4_KB).count();
     constexpr auto alignmentReq = Byte(1_KB).count();
 
@@ -215,7 +182,7 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
     const std::vector<uint8_t> shave_stack_data_max(*maxStackIt);
 
     for (auto shvInd : irange(maxShaves)) {
-        const auto shaveStackData = makeArrayRef(shave_stack_data_max).take_front(runtimeStacks[shvInd]);
+        const auto shaveStackData = ArrayRef(shave_stack_data_max).take_front(runtimeStacks[shvInd]);
 
         log.trace("act-shave {0}_stack size is {1}", shvInd, shaveStackData.size());
 
@@ -262,20 +229,6 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
     return builder.Finish();
 }
 
-VPUIP::BlobWriter::TensorReference createDmaHwpBase(VPUIP::BlobWriter& writer, mlir::ModuleOp& module) {
-    auto maybeDmaSection = getProfilingSection(module, profiling::ExecutorType::DMA_HW);
-    VPUX_THROW_UNLESS(maybeDmaSection.has_value(), "Cannot find DMAHW section in profiling output");
-    auto dmaSection = maybeDmaSection.value();
-
-    auto ctx = module->getContext();
-    const auto outputType = getMemRefType({dmaSection.size() / 4}, getUInt32Type(ctx), DimsOrder::C,
-                                          VPURT::BufferSection::ProfilingOutput)
-                                    .cast<vpux::NDTypeInterface>();
-
-    return writer.createTensorRef("dma_hwp_base", outputType, VPURT::BufferSection::ProfilingOutput, 0,
-                                  dmaSection.offset());
-}
-
 flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
         VPUIP::BlobWriter& writer, mlir::ModuleOp module, IE::CNNNetworkOp netOp, mlir::func::FuncOp netFunc,
         bool withDynamicBarriers, mlir::TimingScope& rootTiming,
@@ -301,12 +254,13 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
         auto userInfo = p.value();
         const auto val = netFunc.getArgument(ind);
 
-        const auto userType = userInfo.userType().cast<vpux::NDTypeInterface>();
+        const auto userType = userInfo.getUserType().cast<vpux::NDTypeInterface>();
 
-        graphInputs.push_back(writer.createTensorRef(val, userInfo.name(), VPURT::BufferSection::NetworkInput, ind, 0));
+        graphInputs.push_back(
+                writer.createTensorRef(val, userInfo.getName(), VPURT::BufferSection::NetworkInput, ind, 0));
 
         userInputs.push_back(
-                writer.createTensorRef(userInfo.name(), userType, VPURT::BufferSection::NetworkInput, ind, 0));
+                writer.createTensorRef(userInfo.getName(), userType, VPURT::BufferSection::NetworkInput, ind, 0));
     }
 
     SmallVector<VPUIP::BlobWriter::TensorReference> graphOutputs, graphProfilingOutputs, userOutputs;
@@ -321,18 +275,18 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
         auto userInfo = p.value();
         const auto val = netFunc.getArgument(checked_cast<uint32_t>(funcArgInd));
 
-        const auto userType = userInfo.userType().cast<vpux::NDTypeInterface>();
+        const auto userType = userInfo.getUserType().cast<vpux::NDTypeInterface>();
 
         graphOutputs.push_back(
-                writer.createTensorRef(val, userInfo.name(), VPURT::BufferSection::NetworkOutput, ind, 0));
+                writer.createTensorRef(val, userInfo.getName(), VPURT::BufferSection::NetworkOutput, ind, 0));
 
         userOutputs.push_back(
-                writer.createTensorRef(userInfo.name(), userType, VPURT::BufferSection::NetworkOutput, ind, 0));
+                writer.createTensorRef(userInfo.getName(), userType, VPURT::BufferSection::NetworkOutput, ind, 0));
     }
 
-    if (isProfilingEnabled(netOp)) {
+    if (vpux::isProfilingEnabled(netOp)) {
         auto profilingOutputInfo = profilingOutputsInfo.front();
-        const auto profilingOutputsName = profilingOutputInfo.name().str();
+        const auto profilingOutputsName = profilingOutputInfo.getName().str();
 
         const auto funcArgInd = inputsInfo.size() + outputsInfo.size();
         const auto val = netFunc.getArgument(checked_cast<uint32_t>(funcArgInd));
@@ -386,13 +340,9 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
     const auto serializedParameters = writer.createVector(ovParam);
     const auto serializedResults = writer.createVector(ovRes);
     const auto serializedActKernelsRuntime = createActKernelRuntime(writer, module, netFunc, log);
-    const auto serializedPerformanceMetrics = createPerformanceMetrics(writer);
+    const auto serializedPerformanceMetrics = createPerformanceMetrics(writer, module);
     VPUIP::BlobWriter::TensorReference serializedDmaHwpBase;
-    const bool isDmaHwpUsed = isDmaHwpUsedInVPURT(module);
-    if (isDmaHwpUsed) {
-        serializedDmaHwpBase = createDmaHwpBase(writer, module);
-    }
-    VPUIP::BlobWriter::TensorReference serializedWorkpointSectionOutput = {};
+    VPUIP::BlobWriter::TensorReference serializedWorkpointSectionOutput;
 
     MVCNN::SummaryHeaderBuilder builder(writer);
     builder.add_version(serializedVersion);
@@ -412,7 +362,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
     builder.add_act_kernel_runtime(serializedActKernelsRuntime);
     builder.add_performance_metrics(serializedPerformanceMetrics);
     builder.add_profiling_data_mode(VPUIP::mapProfilingMode(VPU::getArch(module)));
-    builder.add_dma_hwp_enabled(isDmaHwpUsed);
+    builder.add_dma_hwp_enabled(false);
     builder.add_dma_hwp_base(serializedDmaHwpBase);
     builder.add_workpoint_output(serializedWorkpointSectionOutput);
     return builder.Finish();
@@ -421,16 +371,17 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
 void serializeTensorDecls(VPUIP::BlobWriter& writer, mlir::func::FuncOp netFunc, mlir::TimingScope& rootTiming) {
     auto scopeTiming = rootTiming.nest("Serialize tensor declarations");
 
-    llvm::DenseMap<mlir::Operation*, std::tuple<Optional<int64_t>, Optional<int64_t>, Optional<int64_t>>> sparsityInfo;
+    llvm::DenseMap<mlir::Operation*, std::tuple<std::optional<int64_t>, std::optional<int64_t>, std::optional<int64_t>>>
+            sparsityInfo;
     const auto findSparsityInfo = [&](mlir::Value data, mlir::Value sparsityMap, mlir::Value storageElementTable,
-                                      Optional<int64_t> seSize = None) {
+                                      std::optional<int64_t> seSize = std::nullopt) {
         if (data == nullptr) {
             return;
         }
         auto dataBuffer = data.getDefiningOp<VPURT::DeclareBufferOp>();
 
-        Optional<int64_t> sparsityMapOffset = None;
-        Optional<int64_t> storageElementOffset = None;
+        std::optional<int64_t> sparsityMapOffset = std::nullopt;
+        std::optional<int64_t> storageElementOffset = std::nullopt;
         if (sparsityMap != nullptr) {
             auto buffer = sparsityMap.getDefiningOp<VPURT::DeclareBufferOp>();
             sparsityMapOffset = buffer.getByteOffset();
@@ -450,20 +401,22 @@ void serializeTensorDecls(VPUIP::BlobWriter& writer, mlir::func::FuncOp netFunc,
     };
 
     netFunc.walk([&](VPUIP::NCEClusterTaskOp nceTask) {
-        findSparsityInfo(nceTask.input(), nceTask.input_sparsity_map(), nceTask.input_storage_element_table(),
-                         nceTask.input_se_size());
-        findSparsityInfo(nceTask.weights(), nceTask.weights_sparsity_map(), nullptr);
-        findSparsityInfo(nceTask.parent_input(), nceTask.parent_input_sparsity_map(),
-                         nceTask.parent_input_storage_element_table(), nceTask.input_se_size());
-        findSparsityInfo(nceTask.parent_output(), nceTask.parent_output_sparsity_map(), nullptr,
-                         nceTask.output_se_size());
-        findSparsityInfo(nceTask.output_buff(), nceTask.output_sparsity_map_buff(), nullptr, nceTask.output_se_size());
+        findSparsityInfo(nceTask.getInput(), nceTask.getInputSparsityMap(), nceTask.getInputStorageElementTable(),
+                         nceTask.getInputSeSize());
+        findSparsityInfo(nceTask.getWeights(), nceTask.getWeightsSparsityMap(), nullptr);
+        findSparsityInfo(nceTask.getParentInput(), nceTask.getParentInputSparsityMap(),
+                         nceTask.getParentInputStorageElementTable(), nceTask.getInputSeSize());
+        findSparsityInfo(nceTask.getParentOutput(), nceTask.getParentOutputSparsityMap(), nullptr,
+                         nceTask.getOutputSeSize());
+        findSparsityInfo(nceTask.getOutputBuff(), nceTask.getOutputSparsityMapBuff(), nullptr,
+                         nceTask.getOutputSeSize());
     });
 
     size_t tempTensorInd = 0;
-    const auto createTensorRef = [&](VPURT::DeclareBufferOp bufOp, const Optional<int64_t> sparsityMapOffset = None,
-                                     const Optional<int64_t> storageElementOffset = None,
-                                     const Optional<int64_t> storageElementSize = None) {
+    const auto createTensorRef = [&](VPURT::DeclareBufferOp bufOp,
+                                     const std::optional<int64_t> sparsityMapOffset = std::nullopt,
+                                     const std::optional<int64_t> storageElementOffset = std::nullopt,
+                                     const std::optional<int64_t> storageElementSize = std::nullopt) {
         auto sectionIndex = bufOp.getNonEmptySectionIndex();
         writer.createTensorRef(bufOp.getBuffer(), printToString("temp-{0}", tempTensorInd), bufOp.getSection(),
                                sectionIndex, bufOp.getByteOffset(), sparsityMapOffset, storageElementOffset,
@@ -472,9 +425,9 @@ void serializeTensorDecls(VPUIP::BlobWriter& writer, mlir::func::FuncOp netFunc,
     };
 
     netFunc.walk([&](VPURT::DeclareBufferOp bufOp) {
-        Optional<int64_t> sparsityMapOffset = None;
-        Optional<int64_t> storageElementOffset = None;
-        Optional<int64_t> storageElementSize = None;
+        std::optional<int64_t> sparsityMapOffset = std::nullopt;
+        std::optional<int64_t> storageElementOffset = std::nullopt;
+        std::optional<int64_t> storageElementSize = std::nullopt;
         if (sparsityInfo.find(bufOp.getOperation()) != sparsityInfo.end()) {
             std::tie(sparsityMapOffset, storageElementOffset, storageElementSize) = sparsityInfo[bufOp.getOperation()];
         }
@@ -486,7 +439,7 @@ void serializeTensorDecls(VPUIP::BlobWriter& writer, mlir::func::FuncOp netFunc,
 void extendBinaryDataWithProfilingSchema(VPUIP::BlobWriter& writer, IE::CNNNetworkOp netOp, mlir::func::FuncOp netFunc,
                                          SmallVector<VPUIP::BlobWriter::BinaryData>& binaryData, Logger log) {
     log.trace("Got profiling metadata");
-    auto profilingData = buildProfilingMetaVPURT(netOp, netFunc, log);
+    auto profilingData = buildProfilingMetadataBuffer(netOp, netFunc, log);
     const auto dataSize = profilingData.size();
 
     // Binary data is stored as vector of uint64_t, while FB return array of uint8_t. Align buffer to be compatible with
@@ -494,7 +447,6 @@ void extendBinaryDataWithProfilingSchema(VPUIP::BlobWriter& writer, IE::CNNNetwo
     const auto alignedDstBufferSize = alignValUp(dataSize, sizeof(uint64_t)) / sizeof(uint64_t);
     std::vector<uint64_t> alignedBuffer(alignedDstBufferSize, 0);
     std::memcpy(alignedBuffer.data(), profilingData.data(), dataSize);
-
     binaryData.push_back(writer.createBinaryData(alignedBuffer, dataSize));
 }
 
@@ -505,7 +457,7 @@ SmallVector<VPUIP::BlobWriter::BinaryData> serializeBinaryData(VPUIP::BlobWriter
 
     auto constOps = to_small_vector(netFunc.getOps<Const::DeclareOp>());
     size_t opsToSerializeCount = constOps.size();
-    if (isProfilingEnabled(netOp)) {
+    if (vpux::isProfilingEnabled(netOp)) {
         ++opsToSerializeCount;
     }
 
@@ -521,8 +473,8 @@ SmallVector<VPUIP::BlobWriter::BinaryData> serializeBinaryData(VPUIP::BlobWriter
         bufs[static_cast<size_t>(ind)].resize(
                 alignValUp(static_cast<size_t>(totalByteSize.count()), sizeof(uint64_t)) / sizeof(uint64_t), 0);
 
-        const auto buf = makeMutableArrayRef(reinterpret_cast<char*>(bufs[static_cast<size_t>(ind)].data()),
-                                             totalByteSize.count());
+        const auto buf =
+                MutableArrayRef(reinterpret_cast<char*>(bufs[static_cast<size_t>(ind)].data()), totalByteSize.count());
         content.copyTo(buf);
     });
 
@@ -658,7 +610,7 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
 
     serializeTensorDecls(writer, netFunc, rootTiming);
     auto binaryData = serializeBinaryData(writer, netFunc, netOp, rootTiming, log);
-    if (isProfilingEnabled(netOp)) {
+    if (vpux::isProfilingEnabled(netOp)) {
         extendBinaryDataWithProfilingSchema(writer, netOp, netFunc, binaryData, log);
     }
 
@@ -704,24 +656,24 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
         // check whether given kernelData element already aligned
         if (kernelDataAligned.find(section->locale_offset()) == kernelDataAligned.end()) {
             // if there is no data - do not move
-            if (section_data->Length() == 0) {
+            if (section_data->size() == 0) {
                 return static_cast<ptrdiff_t>(0);
             }
             // check whether we do have a room for alignment
-            VPUX_THROW_UNLESS(section_data->Length() > alignmentReq,
+            VPUX_THROW_UNLESS(section_data->size() > alignmentReq,
                               "cannot align section: {0} {1},  space(alignment + size): {2} alignment: {3}",
-                              section->name()->c_str(), sectionLogical, section_data->Length(), alignmentReq);
+                              section->name()->c_str(), sectionLogical, section_data->size(), alignmentReq);
 
-            auto moveSize = section_data->Length() - alignmentReq;
-            VPUX_THROW_UNLESS(section_data->Length() > moveSize + offset,
+            auto moveSize = section_data->size() - alignmentReq;
+            VPUX_THROW_UNLESS(section_data->size() > moveSize + offset,
                               "cannot align section: {0} {1}, no room for moving space={2} offset={3} size={4}",
-                              section->name()->c_str(), sectionLogical, section_data->Length(), offset, moveSize);
+                              section->name()->c_str(), sectionLogical, section_data->size(), offset, moveSize);
 
             log.trace("move kernel {0} {1} by {2} bytes to be {3}", section->name()->c_str(), sectionLogical, offset,
                       aligned_offset);
 
             memmove(const_cast<uint8_t*>(section_data->Data() + offset), section_data->Data(),
-                    section_data->Length() - alignmentReq);
+                    section_data->size() - alignmentReq);
 
             // clear beginning
             memset(const_cast<uint8_t*>(section_data->Data()), 0, offset);

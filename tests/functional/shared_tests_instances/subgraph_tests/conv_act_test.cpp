@@ -1,9 +1,7 @@
-//
 // Copyright (C) 2019-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
-// #include "single_layer_tests/convolution.hpp"
 #include "conv_act_base.hpp"
 
 #include <vector>
@@ -12,11 +10,18 @@
 #include "vpu_ov1_layer_test.hpp"
 
 namespace SubgraphTestsDefinitions {
-class VPUXConvActivationSubgraphTest : public ConvActTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
-class VPUXConvActivationSubgraphTest_VPU3700 : public VPUXConvActivationSubgraphTest {};
+class ConvActivationSubgraphTestCommon : public ConvActTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
+class ConvActivationSubgraphTest_NPU3700 : public ConvActivationSubgraphTestCommon {};
+class ConvActivationSubgraphTest_NPU3720 : public ConvActivationSubgraphTestCommon {};
 
-TEST_P(VPUXConvActivationSubgraphTest_VPU3700, HW) {
+TEST_P(ConvActivationSubgraphTest_NPU3700, HW) {
     setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
+    Run();
+}
+
+TEST_P(ConvActivationSubgraphTest_NPU3720, HW) {
+    setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
 }
@@ -42,6 +47,15 @@ const std::vector<InferenceEngine::SizeVector> strides = {{1, 1}};
 const std::vector<std::vector<ptrdiff_t>> padBegins = {{1, 1}};
 const std::vector<std::vector<ptrdiff_t>> padEnds = {{1, 1}};
 const std::vector<InferenceEngine::SizeVector> dilations = {{1, 1}};
+
+/* ============= 3D Convolution ============= */
+
+const std::vector<InferenceEngine::SizeVector> kernels3D = {{3, 3, 3}};
+const std::vector<InferenceEngine::SizeVector> strides3D = {{1, 1, 1}};
+const std::vector<std::vector<ptrdiff_t>> padBegins3D = {{1, 1, 1}};
+const std::vector<std::vector<ptrdiff_t>> padEnds3D = {{1, 1, 1}};
+const std::vector<InferenceEngine::SizeVector> dilations3D = {{1, 1, 1}};
+
 const std::vector<size_t> numOutCannels = {64};
 const std::vector<ngraph::op::PadType> padTypes = {ngraph::op::PadType::EXPLICIT, ngraph::op::PadType::VALID};
 
@@ -61,10 +75,10 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
 };
 
 const auto activationCases = ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)), ::testing::ValuesIn(netPrecisions),
+        ::testing::ValuesIn(ov::test::utils::combineParams(activationTypes)), ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputPrecisions), ::testing::ValuesIn(outputPrecisions),
         ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
+        ::testing::ValuesIn(ov::test::utils::combineParams(basic)),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 const auto convCases =
@@ -72,7 +86,18 @@ const auto convCases =
                            ::testing::ValuesIn(padBegins), ::testing::ValuesIn(padEnds), ::testing::ValuesIn(dilations),
                            ::testing::ValuesIn(numOutCannels), ::testing::Values(ngraph::op::PadType::EXPLICIT));
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvActivation_Test, VPUXConvActivationSubgraphTest_VPU3700, convCases,
+const auto conv3DCases = ::testing::Combine(
+        activationCases, ::testing::ValuesIn(kernels3D), ::testing::ValuesIn(strides3D),
+        ::testing::ValuesIn(padBegins3D), ::testing::ValuesIn(padEnds3D), ::testing::ValuesIn(dilations3D),
+        ::testing::ValuesIn(numOutCannels), ::testing::Values(ngraph::op::PadType::EXPLICIT));
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvActivation_Test, ConvActivationSubgraphTest_NPU3700, convCases,
+                         ConvActTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvActivation_Test, ConvActivationSubgraphTest_NPU3720, convCases,
+                         ConvActTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_3DConvActivation_Test, ConvActivationSubgraphTest_NPU3720, conv3DCases,
                          ConvActTest::getTestCaseName);
 
 }  // namespace

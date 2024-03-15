@@ -5,13 +5,6 @@
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
-#include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
-
-#include <mlir/Transforms/GreedyPatternRewriteDriver.h>
-
-#include <vpux/compiler/conversion.hpp>
-
 using namespace vpux;
 
 namespace {
@@ -62,17 +55,18 @@ private:
 
 mlir::LogicalResult SwapConvertWithTransposeReshape::OpSwapConverter::matchAndRewrite(
         IE::ConvertOp origOp, mlir::PatternRewriter& rewriter) const {
-    auto swapOp = *origOp.output().getUsers().begin();
+    auto swapOp = *origOp.getOutput().getUsers().begin();
     if (isReshapeKindOp(swapOp)) {
-        const auto origDataType = origOp.input().getType().cast<vpux::NDTypeInterface>();
+        const auto origDataType = origOp.getInput().getType().cast<vpux::NDTypeInterface>();
         auto swapDataType = swapOp->getResult(0).getType().cast<vpux::NDTypeInterface>();
         const auto newDataType = swapDataType.changeElemType(origDataType.getElementType());
 
         rewriter.setInsertionPointAfter(swapOp);
-        auto newConvert = rewriter.create<IE::ConvertOp>(origOp->getLoc(), swapOp->getResult(0), origOp.dstElemType());
-        swapOp->getResult(0).replaceAllUsesExcept(newConvert.output(),
+        auto newConvert =
+                rewriter.create<IE::ConvertOp>(origOp->getLoc(), swapOp->getResult(0), origOp.getDstElemType());
+        swapOp->getResult(0).replaceAllUsesExcept(newConvert.getOutput(),
                                                   llvm::SmallPtrSet<mlir::Operation*, 1>{newConvert});
-        origOp->replaceAllUsesWith(mlir::ValueRange(origOp.input()));
+        origOp->replaceAllUsesWith(mlir::ValueRange(origOp.getInput()));
         swapOp->getResult(0).setType(newDataType);
         rewriter.eraseOp(origOp);
     }
@@ -86,17 +80,17 @@ void SwapConvertWithTransposeReshape::safeRunOnFunc() {
     auto& ctx = getContext();
 
     const auto isLegalOp = [](IE::ConvertOp op) -> bool {
-        if (!op.output().hasOneUse()) {
+        if (!op.getOutput().hasOneUse()) {
             return true;
         }
-        auto childOp = *op.output().getUsers().begin();
+        auto childOp = *op.getOutput().getUsers().begin();
         if (isReshapeKindOp(childOp)) {
             // For OV 2.0 API U8 we can have:
             // NetworkInput (NCHW) -> Convert -> Transpose-> FQ . Because of this lately after propagate quantize
             // dequantize pass and fuse convert with quantize pass, will be needed to propagate the quantizeCast
             // quantParams to Transpose. We want to avoid this. Also in the end this Transpose will be done as
             // PermuteCast.
-            return !op.input().isa<mlir::BlockArgument>();
+            return !op.getInput().isa<mlir::BlockArgument>();
         }
 
         return true;

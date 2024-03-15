@@ -13,13 +13,18 @@ add_mlir_library(${TARGET_NAME}
     PRIVATE
         npu_compiler_core
         npu_compiler_utils
-        npu_utils
-        npu_compiler_dialect_vpumi37xx
-        npu_compiler_dialect_elf
+        npu_ov_utils
+        npu_llvm_utils
+        npu_profiling_utils
+        npu_elf
+        flatbuffers
+        # E#98178: remove depedency on firmware headers
+        npu_37xx_firmware_headers
+        npu_compiler_dialect_elfnpu37xx
     PUBLIC
-        mlir-dependencies
-    DEPENDS
-        MLIRVPUXIncGenList)
+        mlir-dependencies)
+add_dependencies(${TARGET_NAME} MLIRVPUXIncGenList)
+
 target_include_directories(${TARGET_NAME}
     SYSTEM PRIVATE
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/sw_runtime_kernels>

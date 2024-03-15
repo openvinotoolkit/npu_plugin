@@ -5,10 +5,11 @@
 
 #pragma once
 
+#include <stddef.h>
 #include <cassert>
 #include <limits>
 #include <map>
-#include <unordered_set>
+#include <set>
 
 namespace vpux {
 
@@ -20,6 +21,8 @@ struct IntervalTraits {
     static UnitType intervalBegin(const IntervalType&);
     static UnitType intervalEnd(const IntervalType&);
     static bool isIntervalProducer(const IntervalType&);
+    static bool canProducersCoexist(const IntervalType& existingProd, const IntervalType& newProd);
+    static bool sameIntervalAccess(const IntervalType& intA, const IntervalType& intB);
     static void setInterval(IntervalType&, const UnitType& beg, const UnitType& end);
 };  // struct IntervalTraits //
 
@@ -242,24 +245,28 @@ public:
     // Struct for storing ownership of interval
     // Each interval must have one producer and can have multiple users
     struct ProdConsType {
-        Element _producer;
+        std::set<Element> _producers;
         std::set<Element> _consumers;
 
-        ProdConsType(Element prod): _producer(prod) {
+        ProdConsType(const Element& prod): _producers({prod}) {
         }
-        ProdConsType(Element prod, std::set<Element> cons): _producer(prod), _consumers(cons) {
+        ProdConsType(const Element& prod, const std::set<Element>& cons): _producers({prod}), _consumers(cons) {
         }
 
         bool operator==(const ProdConsType& o) const {
-            return (_producer == o._producer) && (_consumers == o._consumers);
+            return (_producers == o._producers) && (_consumers == o._consumers);
         }
 
-        void newProducer(Element prod) {
-            _producer = prod;
+        void newProducer(const Element& prod) {
+            _producers = {prod};
             _consumers.clear();
         }
 
-        void addConsumer(Element cons) {
+        void addProducer(const Element& prod) {
+            _producers.insert(prod);
+        }
+
+        void addConsumer(const Element& cons) {
             _consumers.insert(cons);
         }
     };  // struct ProdConsType //
@@ -294,8 +301,8 @@ public:
             return *this;
         }
 
-        const Element& getProducer() const {
-            return itrBegin_->second._producer;
+        const std::set<Element>& getProducers() const {
+            return itrBegin_->second._producers;
         }
 
         const std::set<Element>& getConsumers() const {

@@ -10,13 +10,11 @@
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/IE/float16.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/mem_size.hpp"
-#include "vpux/utils/core/numeric.hpp"
 #include "vpux/utils/core/range.hpp"
 
 #include <mlir/IR/BuiltinTypes.h>
@@ -58,18 +56,18 @@ mlir::LogicalResult vpux::VPUIP::FakeQuantizeUPAOp::verify() {
     const auto op = getOperation();
     static const auto C = Dim(1);
 
-    const auto inShape = getShape(input());
-    const auto outShape = getShape(output());
+    const auto inShape = getShape(getInput());
+    const auto outShape = getShape(getOutput());
     if (inShape != outShape) {
         return errorAt(op, "Input and output shapes must be equal. Got: {0} != {1}", inShape, outShape);
     }
 
-    const auto inOrder = DimsOrder::fromValue(input());
-    const auto inStrides = getStrides(input());
+    const auto inOrder = DimsOrder::fromValue(getInput());
+    const auto inStrides = getStrides(getInput());
     const auto memShape = inOrder.toMemoryOrder(inShape);
 
     const auto strideReqs = StrideReqs::compact(inShape.size());
-    if (!strideReqs.checkStrides(input())) {
+    if (!strideReqs.checkStrides(getInput())) {
         return errorAt(op, "Only compact strides are supported");
     }
 
@@ -82,10 +80,10 @@ mlir::LogicalResult vpux::VPUIP::FakeQuantizeUPAOp::verify() {
 
     const auto numChannels = inShape[C];
 
-    const auto inLowShape = input_low().getType().cast<vpux::NDTypeInterface>().getShape();
-    const auto inHighShape = input_high().getType().cast<vpux::NDTypeInterface>().getShape();
-    const auto outLowShape = output_low().getType().cast<vpux::NDTypeInterface>().getShape();
-    const auto outHighShape = output_high().getType().cast<vpux::NDTypeInterface>().getShape();
+    const auto inLowShape = getInputLow().getType().cast<vpux::NDTypeInterface>().getShape();
+    const auto inHighShape = getInputHigh().getType().cast<vpux::NDTypeInterface>().getShape();
+    const auto outLowShape = getOutputLow().getType().cast<vpux::NDTypeInterface>().getShape();
+    const auto outHighShape = getOutputHigh().getType().cast<vpux::NDTypeInterface>().getShape();
 
     if (!checkFakeQuantizeParamsShape(inLowShape, numChannels)) {
         return errorAt(op, "input_low shape is not per-tensor/per-channel : '{0}'", inLowShape);
@@ -113,13 +111,13 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::FakeQuantizeUPAOp::serialize(VPUIP:
         return writer.createVector(attrContent.getValues<float16>() | transformed(getRawFP16));
     };
 
-    const auto input_low = getVecFP16(this->input_lowAttr());
-    const auto input_high = getVecFP16(this->input_highAttr());
-    const auto output_low = getVecFP16(this->output_lowAttr());
-    const auto output_high = getVecFP16(this->output_highAttr());
+    const auto input_low = getVecFP16(this->getInputLowAttr());
+    const auto input_high = getVecFP16(this->getInputHighAttr());
+    const auto output_low = getVecFP16(this->getOutputLowAttr());
+    const auto output_high = getVecFP16(this->getOutputHighAttr());
 
     MVCNN::FakeQuantizeParamsBuilder builder(writer);
-    builder.add_levels(checked_cast<uint32_t>(levels()));
+    builder.add_levels(checked_cast<uint32_t>(getLevels()));
     builder.add_input_low(input_low);
     builder.add_input_high(input_high);
     builder.add_output_low(output_low);
@@ -155,8 +153,8 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseFakeQuantize(mlir::OpBuilder& bui
 
     return builder.create<VPUIP::FakeQuantizeUPAOp>(
             mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0], levels,
-            Const::ContentAttr::get(mlir::DenseElementsAttr::get(inputShapeType, makeArrayRef(inputLow))),
-            Const::ContentAttr::get(mlir::DenseElementsAttr::get(inputShapeType, makeArrayRef(inputHigh))),
-            Const::ContentAttr::get(mlir::DenseElementsAttr::get(outputShapeType, makeArrayRef(outputLow))),
-            Const::ContentAttr::get(mlir::DenseElementsAttr::get(outputShapeType, makeArrayRef(outputHigh))));
+            Const::ContentAttr::get(mlir::DenseElementsAttr::get(inputShapeType, ArrayRef(inputLow))),
+            Const::ContentAttr::get(mlir::DenseElementsAttr::get(inputShapeType, ArrayRef(inputHigh))),
+            Const::ContentAttr::get(mlir::DenseElementsAttr::get(outputShapeType, ArrayRef(outputLow))),
+            Const::ContentAttr::get(mlir::DenseElementsAttr::get(outputShapeType, ArrayRef(outputHigh))));
 }

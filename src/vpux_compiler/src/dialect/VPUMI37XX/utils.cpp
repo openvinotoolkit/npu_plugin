@@ -33,5 +33,16 @@ uint64_t computeMask(mlir::Operation::operand_range barriers) {
     return mask;
 }
 
+bool isSwKernelCacheOp(VPUMI37XX::ActKernelRangeOp kernelRange) {
+    auto kernelTaskType = kernelRange.getKernelTaskType();
+    if (kernelTaskType.has_value()) {
+        auto taskType = VPU::symbolizeActShaveTaskType(kernelTaskType.value().getLeafReference().strref());
+        VPUX_THROW_UNLESS(taskType.has_value(), "Operation '{0}' has invalid task type attribute '{1}'", kernelRange,
+                          kernelTaskType.value().getLeafReference());
+        return taskType.value() != VPU::ActShaveTaskType::COMPUTE;
+    }
+    return false;
+}
+
 }  // namespace VPUMI37XX
 }  // namespace vpux

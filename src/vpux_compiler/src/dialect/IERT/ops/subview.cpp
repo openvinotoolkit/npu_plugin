@@ -56,9 +56,10 @@ mlir::Value vpux::IERT::SubViewOp::getViewSource() {
 // InferTypeOpInterface
 //
 
-mlir::LogicalResult vpux::IERT::SubViewOp::inferReturnTypes(mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc,
+mlir::LogicalResult vpux::IERT::SubViewOp::inferReturnTypes(mlir::MLIRContext* ctx,
+                                                            std::optional<mlir::Location> optLoc,
                                                             mlir::ValueRange operands, mlir::DictionaryAttr attrs,
-                                                            mlir::RegionRange /*regions*/,
+                                                            mlir::OpaqueProperties, mlir::RegionRange /*regions*/,
                                                             mlir::SmallVectorImpl<mlir::Type>& inferredTypes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -96,7 +97,8 @@ mlir::LogicalResult vpux::IERT::SubViewOp::inferReturnTypes(mlir::MLIRContext* c
 // fold
 //
 
-mlir::OpFoldResult vpux::IERT::SubViewOp::fold(ArrayRef<mlir::Attribute> operands) {
+mlir::OpFoldResult vpux::IERT::SubViewOp::fold(FoldAdaptor adaptor) {
+    auto operands = adaptor.getOperands();
     if (getSource().getType() == getResult().getType()) {
         return getSource();
     }

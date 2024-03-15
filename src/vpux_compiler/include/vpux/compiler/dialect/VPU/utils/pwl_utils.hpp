@@ -5,9 +5,9 @@
 
 #pragma once
 
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
-#include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/ops.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_sparsity.hpp"
 
 #include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/numeric.hpp"

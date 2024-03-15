@@ -13,7 +13,7 @@
 
 #include <llvm/Support/TargetSelect.h>
 #include <mlir/Conversion/AffineToStandard/AffineToStandard.h>
-#include <mlir/Conversion/ArithmeticToLLVM/ArithmeticToLLVM.h>
+#include <mlir/Conversion/ArithToLLVM/ArithToLLVM.h>
 #include <mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h>
 #include <mlir/Conversion/FuncToLLVM/ConvertFuncToLLVM.h>
 #include <mlir/Conversion/LLVMCommon/ConversionTarget.h>
@@ -21,7 +21,7 @@
 #include <mlir/Conversion/MathToLLVM/MathToLLVM.h>
 #include <mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h>
 #include <mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h>
-#include <mlir/Dialect/Arithmetic/IR/Arithmetic.h>
+#include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/LLVMIR/LLVMTypes.h>
 
 // TODO: E66812, it should be sufficient to have warnings disabled for 3-rd parties
@@ -36,7 +36,6 @@
 #pragma warning(pop)
 #endif
 
-#include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/Pass/Pass.h>
 #include <mlir/Support/LLVM.h>
 #include <mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h>
@@ -61,7 +60,7 @@ private:
 };
 
 // The RewritePattern below is taken from
-// https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/Arithmetic/Transforms/ExpandOps.cpp#L149
+// https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/Arith/Transforms/ExpandOps.cpp#L149
 //   (referred from
 //   https://discourse.llvm.org/t/support-for-lowering-to-llvm-for-the-standard-dialects-maxfop-and-minfop-operations/63588/3)
 template <typename OpTy, mlir::arith::CmpFPredicate pred>
@@ -186,7 +185,9 @@ void ConvertAffine2LLVMPass::safeRunOnModule() {
     // ensures that only legal operations will remain after the conversion.
     auto module = getOperation();
 
-    mlir::LLVMTypeConverter typeConverter(&ctx);
+    mlir::LowerToLLVMOptions options(&ctx);
+    options.useOpaquePointers = false;  // E#105505: change the compiler's behavior instead to use opaque pointers
+    mlir::LLVMTypeConverter typeConverter(&ctx, options);
 
     // static constexpr StringLiteral vpuSwModuleName{"VPU.SW"};
     auto vpuSwmoduleOp = module.lookupSymbol<mlir::ModuleOp>("VPU.SW");
@@ -202,9 +203,9 @@ void ConvertAffine2LLVMPass::safeRunOnModule() {
 
         mlir::populateAffineToStdConversionPatterns(patterns);
         mlir::populateSCFToControlFlowConversionPatterns(patterns);
-        mlir::arith::populateArithmeticToLLVMConversionPatterns(typeConverter, patterns);
+        mlir::arith::populateArithToLLVMConversionPatterns(typeConverter, patterns);
         mlir::populateMathToLLVMConversionPatterns(typeConverter, patterns);
-        mlir::populateMemRefToLLVMConversionPatterns(typeConverter, patterns);
+        mlir::populateFinalizeMemRefToLLVMConversionPatterns(typeConverter, patterns);
         mlir::cf::populateControlFlowToLLVMConversionPatterns(typeConverter, patterns);
         mlir::populateFuncToLLVMConversionPatterns(typeConverter, patterns);
 

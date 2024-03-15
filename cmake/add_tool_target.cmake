@@ -26,6 +26,7 @@ function(add_tool_target)
 
     set(options
         ENABLE_WARNINGS_AS_ERRORS
+        ADD_CPPLINT                   # Enables code style checks for the target
     )
 
     set(oneValueRequiredArgs
@@ -72,12 +73,22 @@ function(add_tool_target)
     # define the target
     #
 
-    addIeTarget(TYPE EXECUTABLE
-                NAME ${ARG_NAME}
-                ROOT ${ARG_ROOT}
-                DEPENDENCIES ${ARG_DEPENDENCIES}
-                LINK_LIBRARIES ${ARG_LINK_LIBRARIES}
-                ${ARG_UNPARSED_ARGUMENTS})
+    if (ARG_ADD_CPPLINT)
+        addIeTarget(ADD_CPPLINT
+                    TYPE EXECUTABLE
+                    NAME ${ARG_NAME}
+                    ROOT ${ARG_ROOT}
+                    DEPENDENCIES ${ARG_DEPENDENCIES}
+                    LINK_LIBRARIES ${ARG_LINK_LIBRARIES}
+                    ${ARG_UNPARSED_ARGUMENTS})
+    else()
+        addIeTarget(TYPE EXECUTABLE
+                    NAME ${ARG_NAME}
+                    ROOT ${ARG_ROOT}
+                    DEPENDENCIES ${ARG_DEPENDENCIES}
+                    LINK_LIBRARIES ${ARG_LINK_LIBRARIES}
+                    ${ARG_UNPARSED_ARGUMENTS})
+    endif()
 
     set_target_properties(${ARG_NAME} PROPERTIES
                           FOLDER ${ARG_ROOT}

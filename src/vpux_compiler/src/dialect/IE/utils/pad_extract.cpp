@@ -19,7 +19,8 @@ mlir::FailureOr<SmallVector<int64_t>> extractPads(mlir::ArrayAttr padValue, Logg
 }
 
 mlir::FailureOr<SmallVector<int64_t>> extractPads(mlir::Location loc, const mlir::Value& padValue,
-                                                  const Optional<mlir::ArrayAttr>& padAttr, vpux::ShapeRef inputShape) {
+                                                  const std::optional<mlir::ArrayAttr>& padAttr,
+                                                  vpux::ShapeRef inputShape) {
     if (padAttr.has_value()) {
         return parseIntArrayAttr<int64_t>(padAttr.value());
     } else if (padValue != nullptr) {

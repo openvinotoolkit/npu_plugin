@@ -6,6 +6,7 @@
 #include "vpux/compiler/core/barrier_info.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
+#include "vpux/compiler/dialect/VPURT/utils/barrier_legalization_utils.hpp"
 
 using namespace vpux;
 
@@ -24,6 +25,8 @@ private:
 
 // split barriers if producer count > AVAILABLE SLOTS
 // will produce ceil(NUM PRODUCERS / AVAILABLE SLOTS) barriers
+// Note: if maxSlotsSumLimitEnabled is true, the maxAvailableSlots passed will be half of MAX_VARIANT_SUM not
+// MAX_VARIANT_COUNT
 /*
     x1  x2  ... xn             x1  ... x256   x257 ... xn
      \  \   /   /               \   |   /        \  |  /
@@ -34,14 +37,14 @@ private:
 void splitBarrierProducers(VPURT::DeclareVirtualBarrierOp barrierOp, size_t availableSlots, BarrierInfo& barrierInfo,
                            Logger log) {
     // producers will be divided into batches
-    auto barrierProducers = barrierInfo.getBarrierProducers(barrierOp);
+    const auto& barrierProducers = barrierInfo.getBarrierProducers(barrierOp);
     auto barrierProducersCount = barrierProducers.size();
     log.trace("Got barrier: '{0}' at '{1}' with barrier producer count '{2}'", barrierOp->getName(),
               barrierOp->getLoc(), barrierProducersCount);
 
     // consumers remain the same for all produced batched barriers
     const auto barrierConsumers = barrierInfo.getBarrierConsumers(barrierOp);
-    // crete batches for producers
+    // create batches for producers
     auto producerBatches = barrierInfo.createLegalVariantBatches(barrierProducers, availableSlots);
 
     mlir::OpBuilder builder(barrierOp);
@@ -54,12 +57,14 @@ void splitBarrierProducers(VPURT::DeclareVirtualBarrierOp barrierOp, size_t avai
         barrierInfo.addNewBarrier(newBarrier);
 
         for (const auto& producer : producerBatch) {
-            log.nest().trace("Add producer to new barrier '{0}'", producer);
+            log.nest().trace("Add producer '{0}' to new barrier, whose slots are {1}", producer,
+                             barrierInfo.getNumOfSlotsUsed(barrierInfo.getTaskOpAtIndex(producer)));
             barrierInfo.addProducer(newBarrier, producer);
         }
 
         for (const auto& consumer : barrierConsumers) {
-            log.nest().trace("Add consumer to new barrier '{0}'", consumer);
+            log.nest().trace("Add consumer '{0}' to new barrier, whose slots are {1}", consumer,
+                             barrierInfo.getNumOfSlotsUsed(barrierInfo.getTaskOpAtIndex(consumer)));
             barrierInfo.addConsumer(newBarrier, consumer);
         }
     }
@@ -70,6 +75,8 @@ void splitBarrierProducers(VPURT::DeclareVirtualBarrierOp barrierOp, size_t avai
 
 // split barriers if consumer count > AVAILABLE SLOTS
 // will produce ceil(NUM PRODUCERS / AVAILABLE SLOTS) barriers
+// Note: if maxSlotsSumLimitEnabled is true, the maxAvailableSlots passed will be half of MAX_VARIANT_SUM not
+// MAX_VARIANT_COUNT
 /*
           u0                                u0
           |                            /          \
@@ -80,7 +87,7 @@ void splitBarrierProducers(VPURT::DeclareVirtualBarrierOp barrierOp, size_t avai
 void splitBarrierConsumers(VPURT::DeclareVirtualBarrierOp barrierOp, size_t availableSlots, BarrierInfo& barrierInfo,
                            Logger log) {
     // consumers will be divided into batches
-    auto barrierConsumers = barrierInfo.getBarrierConsumers(barrierOp);
+    const auto& barrierConsumers = barrierInfo.getBarrierConsumers(barrierOp);
     auto barrierConsumersCount = barrierConsumers.size();
     log.trace("Got barrier: '{0}' at '{1}' with barrier consumer count '{2}'", barrierOp->getName(),
               barrierOp->getLoc(), barrierConsumersCount);
@@ -100,12 +107,14 @@ void splitBarrierConsumers(VPURT::DeclareVirtualBarrierOp barrierOp, size_t avai
         barrierInfo.addNewBarrier(newBarrier);
 
         for (const auto& producer : barrierProducers) {
-            log.nest().trace("Add producer to new barrier '{0}'", producer);
+            log.nest().trace("Add producer '{0}' to new barrier, whose slots are {1}", producer,
+                             barrierInfo.getNumOfSlotsUsed(barrierInfo.getTaskOpAtIndex(producer)));
             barrierInfo.addProducer(newBarrier, producer);
         }
 
         for (const auto& consumer : consumerBatch) {
-            log.nest().trace("Add consumer to new barrier '{0}'", consumer);
+            log.nest().trace("Add consumer '{0}' to new barrier, whose slots are {1}", consumer,
+                             barrierInfo.getNumOfSlotsUsed(barrierInfo.getTaskOpAtIndex(consumer)));
             barrierInfo.addConsumer(newBarrier, consumer);
         }
     }
@@ -120,35 +129,45 @@ void SplitExceedingVariantCountBarriersPass::safeRunOnFunc() {
 
     const auto maxAvailableSlots = maxVariantCount.hasValue() ? checked_cast<size_t>(maxVariantCount.getValue())
                                                               : VPUIP::getBarrierMaxVariantCount(func);
-    _log.trace("There are {0} slots for each barrier", maxAvailableSlots);
+
+    const auto maxSlotsSum = maxVariantSum.hasValue() ? checked_cast<size_t>(maxVariantSum.getValue())
+                                                      : VPUIP::getBarrierMaxVariantSum(func);
+    bool maxSlotsSumLimitEnabled = false;
+    // TODO: we may need more clear way to set maxSlotsSumLimitEnabled after more Arch need this
+    if (maxSlotsSum < maxAvailableSlots) {
+        maxSlotsSumLimitEnabled = true;
+    }
+    _log.trace("There are {0} slots for each barrier, means max available variants for each barrier (producers and "
+               "consumers)",
+               maxSlotsSumLimitEnabled ? maxSlotsSum : maxAvailableSlots);
 
     // divide max available slots equally for producers and consumers to a barrier
     // for a unified solution for all architectures
-    auto availableSlots = maxAvailableSlots / 2;
+    // TODO: E#107973: allow a unequal/uneven barrier slots assignment
+    const auto availableSlots = maxSlotsSumLimitEnabled ? maxSlotsSum / 2 : maxAvailableSlots / 2;
 
     // verify each task individually satisfies variant count
     func->walk([&](VPURT::TaskOp taskOp) {
         VPUX_THROW_UNLESS(!mlir::isa<VPUIP::NCEClusterTilingOp>(taskOp.getInnerTaskOp()),
                           "Inner task op wrapped with NCEClusterTilingOp '{0}'", taskOp);
         VPUX_THROW_UNLESS(barrierInfo.getNumOfSlotsUsed(taskOp) <= availableSlots,
-                          "Task '{0}' uses too many barrier slots '{1}'", barrierInfo.getNumOfSlotsUsed(taskOp),
-                          taskOp);
+                          "Task '{0}' uses too many barrier slots '{1}', available slots are '{2}' for producers "
+                          "or consumers",
+                          taskOp->getLoc(), barrierInfo.getNumOfSlotsUsed(taskOp), availableSlots);
     });
-
-    const auto removeBarriersWithNoUse = [&]() {
-        func->walk([&](VPURT::DeclareVirtualBarrierOp barrierOp) {
-            if (barrierOp.getBarrier().use_empty()) {
-                barrierOp->erase();
-            }
-        });
-    };
 
     // Note: profiling parser logic assumes that
     // invariants of the same layer should use the same barriers
 
     // split barriers if needed
     func->walk([&](VPURT::DeclareVirtualBarrierOp barrierOp) {
-        if (barrierInfo.getProducerSlotCount(barrierOp) <= availableSlots) {
+        auto producerNum = barrierInfo.getProducerSlotCount(barrierOp);
+        auto consumerNum = barrierInfo.getConsumerSlotCount(barrierOp);
+        if (maxSlotsSumLimitEnabled && (producerNum + consumerNum <= maxSlotsSum)) {
+            return;
+        }
+
+        if (producerNum <= availableSlots) {
             // valid producer configuration - barrier is legal
             return;
         }
@@ -158,7 +177,13 @@ void SplitExceedingVariantCountBarriersPass::safeRunOnFunc() {
 
     // split barriers if needed
     func->walk([&](VPURT::DeclareVirtualBarrierOp barrierOp) {
-        if (barrierInfo.getConsumerSlotCount(barrierOp) <= availableSlots) {
+        auto producerNum = barrierInfo.getProducerSlotCount(barrierOp);
+        auto consumerNum = barrierInfo.getConsumerSlotCount(barrierOp);
+        if (maxSlotsSumLimitEnabled && (producerNum + consumerNum <= maxSlotsSum)) {
+            return;
+        }
+
+        if (consumerNum <= availableSlots) {
             // valid consumer configuration - barrier is legal
             return;
         }
@@ -166,9 +191,10 @@ void SplitExceedingVariantCountBarriersPass::safeRunOnFunc() {
         splitBarrierConsumers(barrierOp, availableSlots, barrierInfo, _log);
     });
 
-    barrierInfo.updateIR();
+    VPURT::orderExecutionTasksAndBarriers(func, barrierInfo);
     barrierInfo.clearAttributes();
-    removeBarriersWithNoUse();
+    VPURT::postProcessBarrierOps(func);
+    VPURT::verifyBarrierSlots(func, _log);
 }
 
 }  // namespace

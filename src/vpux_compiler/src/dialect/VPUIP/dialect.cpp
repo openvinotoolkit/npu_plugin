@@ -54,13 +54,14 @@ void vpux::VPUIP::VPUIPDialect::setExecutorInstanceMask(mlir::async::ExecuteOp e
 
         auto portIdxAttr = executorInstanceMask[0].cast<mlir::IntegerAttr>();
 
-        auto* bodyBlock = &execOp.body().front();
-        for (auto& innerOp : bodyBlock->getOperations()) {
-            if (mlir::isa<VPUIP::CopyOp>(innerOp)) {
-                continue;
+        auto* bodyBlock = execOp.getBody();
+        for (auto& op : bodyBlock->getOperations()) {
+            auto opToCheck = &op;
+            if (auto nceClustOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(opToCheck)) {
+                opToCheck = nceClustOp.getInnerTaskOp();
             }
 
-            if (auto dmaOp = mlir::dyn_cast<VPUIP::DMATypeOpInterface>(innerOp)) {
+            if (auto dmaOp = mlir::dyn_cast<VPUIP::DMATypeOpInterface>(opToCheck)) {
                 dmaOp.setPortAttribute(portIdxAttr);
             }
         }
@@ -96,7 +97,7 @@ bool vpux::VPUIP::VPUIPDialect::hasExecutorInstanceMask(mlir::async::ExecuteOp e
 
 bool vpux::VPUIP::VPUIPDialect::isComputeExecutorKind(VPU::ExecutorKind executorKind) {
     static const llvm::DenseSet<VPU::ExecutorKind> computeExecutors = {
-            VPU::ExecutorKind::NCE, VPU::ExecutorKind::SHAVE_ACT, VPU::ExecutorKind::SHAVE_UPA};
+            VPU::ExecutorKind::DPU, VPU::ExecutorKind::SHAVE_ACT, VPU::ExecutorKind::SHAVE_UPA};
     return computeExecutors.find(executorKind) != computeExecutors.end();
 }
 

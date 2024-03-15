@@ -8,6 +8,7 @@
 #include "vpux/compiler/core/passes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
+#include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
 
 using namespace vpux;

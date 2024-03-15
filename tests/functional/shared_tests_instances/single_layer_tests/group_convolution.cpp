@@ -12,33 +12,33 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXGroupConvolutionLayerTest :
+class GroupConvolutionLayerTestCommon :
         public GroupConvolutionLayerTest,
         virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
-class VPUXGroupConvolutionLayerTest_VPU3700 : public VPUXGroupConvolutionLayerTest {};
+class GroupConvolutionLayerTest_NPU3700 : public GroupConvolutionLayerTestCommon {};
 
-using VPUXGroupConvolutionLayerTest_VPU3720_HW = VPUXGroupConvolutionLayerTest;
-using VPUXGroupConvolutionLayerTest_VPU3720_SW = VPUXGroupConvolutionLayerTest;
+using GroupConvolutionLayerTest_NPU3720_HW = GroupConvolutionLayerTestCommon;
+using GroupConvolutionLayerTest_NPU3720_SW = GroupConvolutionLayerTestCommon;
 
-TEST_P(VPUXGroupConvolutionLayerTest_VPU3700, SW) {
+TEST_P(GroupConvolutionLayerTest_NPU3700, SW) {
     setPlatformVPU3700();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXGroupConvolutionLayerTest_VPU3700, HW) {
+TEST_P(GroupConvolutionLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXGroupConvolutionLayerTest_VPU3720_HW, HW) {
+TEST_P(GroupConvolutionLayerTest_NPU3720_HW, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXGroupConvolutionLayerTest_VPU3720_SW, SW) {
+TEST_P(GroupConvolutionLayerTest_NPU3720_SW, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
@@ -86,16 +86,18 @@ const auto groupConv1D_AutoPadValid = testing::Combine(
         ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(std::vector<size_t>({1, 16, 30})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_GroupConvolution1D_ExplicitPadding, VPUXGroupConvolutionLayerTest_VPU3700,
-                         groupConv1D_ExplicitPadding, VPUXGroupConvolutionLayerTest_VPU3700::getTestCaseName);
+// ------ NPU3700 ------
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution1D_ExplicitPadding, GroupConvolutionLayerTest_NPU3700,
+                         groupConv1D_ExplicitPadding, GroupConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_GroupConvolution1D_AutoPadValid, VPUXGroupConvolutionLayerTest_VPU3700,
-                         groupConv1D_AutoPadValid, VPUXGroupConvolutionLayerTest_VPU3700::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution1D_AutoPadValid, GroupConvolutionLayerTest_NPU3700,
+                         groupConv1D_AutoPadValid, GroupConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution1D_ExplicitPadding, VPUXGroupConvolutionLayerTest_VPU3720_SW,
+// ------ NPU3720 ------
+INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution1D_ExplicitPadding, GroupConvolutionLayerTest_NPU3720_SW,
                         groupConv1D_ExplicitPadding, GroupConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution1D_AutoPadValid, VPUXGroupConvolutionLayerTest_VPU3720_SW,
+INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution1D_AutoPadValid, GroupConvolutionLayerTest_NPU3720_SW,
                         groupConv1D_AutoPadValid, GroupConvolutionLayerTest::getTestCaseName);
 
 /* ============= 2D GroupConvolution ============= */
@@ -142,22 +144,24 @@ const auto groupConv2D_LargeStrides = testing::Combine(
         ::testing::Values(std::vector<size_t>({1, 16, 30, 30})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_GroupConvolution2D_ExplicitPadding, VPUXGroupConvolutionLayerTest_VPU3700,
-                         groupConv2D_ExplicitPadding, VPUXGroupConvolutionLayerTest_VPU3700::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_GroupConvolution2D_AutoPadValid, VPUXGroupConvolutionLayerTest_VPU3700,
-                         groupConv2D_AutoPadValid, VPUXGroupConvolutionLayerTest_VPU3700::getTestCaseName);
-
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_GroupConvolution2D_LargeStrides, VPUXGroupConvolutionLayerTest_VPU3700,
-                        groupConv2D_LargeStrides, VPUXGroupConvolutionLayerTest_VPU3700::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D_ExplicitPadding, VPUXGroupConvolutionLayerTest_VPU3720_SW,
+// ------ NPU3700 ------
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D_ExplicitPadding, GroupConvolutionLayerTest_NPU3700,
                          groupConv2D_ExplicitPadding, GroupConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D_AutoPadValid, VPUXGroupConvolutionLayerTest_VPU3720_SW,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D_AutoPadValid, GroupConvolutionLayerTest_NPU3700,
                          groupConv2D_AutoPadValid, GroupConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution2D_LargeStrides, VPUXGroupConvolutionLayerTest_VPU3720_SW,
+INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution2D_LargeStrides, GroupConvolutionLayerTest_NPU3700,
+                        groupConv2D_LargeStrides, GroupConvolutionLayerTest::getTestCaseName);
+
+// ------ NPU3720 ------
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D_ExplicitPadding, GroupConvolutionLayerTest_NPU3720_SW,
+                         groupConv2D_ExplicitPadding, GroupConvolutionLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D_AutoPadValid, GroupConvolutionLayerTest_NPU3720_SW,
+                         groupConv2D_AutoPadValid, GroupConvolutionLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution2D_LargeStrides, GroupConvolutionLayerTest_NPU3720_SW,
                         groupConv2D_LargeStrides, GroupConvolutionLayerTest::getTestCaseName);
 
 /* ============= 3D GroupConvolution ============= */
@@ -178,7 +182,7 @@ const auto groupConv3DParams_AutoPadValid =
                            ::testing::Values(4), ::testing::Values(2), ::testing::Values(ngraph::op::PadType::VALID));
 
 // Tracking number [E#85137]
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_GroupConvolution3D_ExplicitPadding, VPUXGroupConvolutionLayerTest_VPU3700,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_GroupConvolution3D_ExplicitPadding, GroupConvolutionLayerTest_NPU3700,
                          ::testing::Combine(groupConv3DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -186,10 +190,10 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_GroupConvolution3D_ExplicitPadding, VPUX
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(std::vector<size_t>(inputShapes3d)),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-                         VPUXGroupConvolutionLayerTest_VPU3700::getTestCaseName);
+                         GroupConvolutionLayerTest::getTestCaseName);
 
 // Tracking number [E#85137]
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_GroupConvolution3D_AutoPadValid, VPUXGroupConvolutionLayerTest_VPU3700,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_GroupConvolution3D_AutoPadValid, GroupConvolutionLayerTest_NPU3700,
                          ::testing::Combine(groupConv3DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -197,6 +201,6 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_GroupConvolution3D_AutoPadValid, VPUXGro
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(std::vector<size_t>({1, 4, 10, 10, 10})),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-                         VPUXGroupConvolutionLayerTest_VPU3700::getTestCaseName);
+                         GroupConvolutionLayerTest::getTestCaseName);
 
 }  // namespace

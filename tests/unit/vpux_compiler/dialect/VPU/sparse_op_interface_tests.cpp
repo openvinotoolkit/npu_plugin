@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/dialect/VPU/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/VPU/passes.hpp"
-#include "vpux/compiler/dialect/VPU/types.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/VPU/IR/types.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
 #include "vpux/compiler/init.hpp"
 
 #include <mlir/IR/MLIRContext.h>
@@ -30,9 +30,9 @@ void testSparsitySupport(llvm::StringLiteral inputIR, ArchKind arch, bool suppor
     auto func = module.get().lookupSymbol<mlir::func::FuncOp>("main");
     ASSERT_TRUE(func != nullptr);
 
-    mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(vpux::VPU::createInitCompilerPass(arch, vpux::VPU::CompilationMode::DefaultHW, vpux::None, vpux::None,
-                                                 vpux::Logger::global()));
+    mlir::PassManager pm(module.get()->getName(), mlir::OpPassManager::Nesting::Implicit);
+    pm.addPass(vpux::VPU::createInitCompilerPass(arch, vpux::VPU::CompilationMode::DefaultHW, std::nullopt,
+                                                 std::nullopt, vpux::Logger::global()));
 
     ASSERT_TRUE(mlir::succeeded(pm.run(module.get())));
 
@@ -94,7 +94,7 @@ TEST(MLIR_VPU_Sparsity, NCEEltwiseSparsitySupport) {
 
         module @test {
             func.func @main(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>) -> tensor<1x16x16x16xf16, {order = #NHWC}> {
-                %0 = VPU.NCE.Eltwise(%arg0, %arg0) {op_type = #VPU.eltwise_type<ADD>, ppe = #VPU.PPETask<mode = <ADD>, clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64>} -> tensor<1x16x16x16xf16, {order = #NHWC}> 
+                %0 = VPU.NCE.Eltwise(%arg0, %arg0) {op_type = #VPU.eltwise_type<ADD>, ppe = #VPU.PPETask<mode = <ADD>, clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64>} -> tensor<1x16x16x16xf16, {order = #NHWC}>
                 return %0 : tensor<1x16x16x16xf16, {order = #NHWC}>
             }
         }

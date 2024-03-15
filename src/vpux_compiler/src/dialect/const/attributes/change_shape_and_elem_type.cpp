@@ -11,27 +11,6 @@
 using namespace vpux;
 
 //
-// ChangeShapeAndElemTypeAttr::walkImmediateSubElements
-//
-
-void vpux::Const::ChangeShapeAndElemTypeAttr::walkImmediateSubElements(
-        llvm::function_ref<void(Attribute)> walkAttrsFn, llvm::function_ref<void(mlir::Type)> walkTypesFn) const {
-    walkAttrsFn(getShape());
-    walkTypesFn(getElemType());
-}
-
-//
-// ChangeShapeAndElemTypeAttr::replaceImmediateSubElements
-//
-
-mlir::Attribute vpux::Const::ChangeShapeAndElemTypeAttr::replaceImmediateSubElements(
-        ArrayRef<mlir::Attribute> replAttrs, ArrayRef<mlir::Type> replTypes) const {
-    VPUX_THROW_WHEN(replAttrs.size() < 1, "Replace attrs array is too short: '{0}'", replAttrs.size());
-    VPUX_THROW_WHEN(replTypes.size() < 1, "Replace types array is too short: '{0}'", replTypes.size());
-    return get(replAttrs[0].dyn_cast_or_null<mlir::ArrayAttr>(), replTypes[0].dyn_cast_or_null<mlir::Type>());
-}
-
-//
 // ChangeShapeAndElemTypeAttr::verify
 //
 
@@ -92,7 +71,7 @@ mlir::Attribute vpux::Const::ChangeShapeAndElemTypeAttr::parse(mlir::AsmParser& 
         return nullptr;
     }
 
-    if (mlir::failed(parser.parseComma())) {
+    if (mlir::failed(parser.parseGreater())) {
         return nullptr;
     }
 
@@ -122,6 +101,7 @@ Const::Content vpux::Const::ChangeShapeAndElemTypeAttr::transform(vpux::Const::C
 //
 
 Const::ContentAttr vpux::Const::ContentAttr::changeShapeAndElemType(ShapeRef newShape, mlir::Type newElemType) const {
-    return get(*this, Const::ChangeShapeAndElemTypeAttr::get(getIntArrayAttr(getContext(), newShape), newElemType)
-                              .cast<Const::TransformAttrInterface>());
+    return ContentAttr::addTransformation(
+            *this, Const::ChangeShapeAndElemTypeAttr::get(getIntArrayAttr(getContext(), newShape), newElemType)
+                           .cast<Const::TransformAttrInterface>());
 }

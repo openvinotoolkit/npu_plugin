@@ -149,7 +149,7 @@ vpux::Byte TensorNDTypeInterface::getTotalAllocSize(mlir::Type type) const {
     VPUX_THROW_UNLESS(type.isa<mlir::RankedTensorType>(),
                       "Only RankedTensorType is supported for 'getTotalAllocSize'. Got '{0}'", type);
     if (getRank(type) == 0) {
-        return getElemTypeSize(type);
+        return alignMemSize(getElemTypeSize(type), Byte(1));
     }
 
     const auto memShape = getMemShape(type);
@@ -164,13 +164,13 @@ vpux::Byte TensorNDTypeInterface::getTotalAllocSize(mlir::Type type) const {
 vpux::Byte TensorNDTypeInterface::getCompactAllocSize(mlir::Type type) const {
     VPUX_THROW_UNLESS(type.isa<mlir::RankedTensorType>(),
                       "Only RankedTensorType is supported for 'getCompactAllocSize'. Got '{0}'", type);
-    const auto typeSize = static_cast<Bit>(getElemTypeSize(type));
+    const Bit typeSize = getElemTypeSize(type);
     if (getRank(type) == 0) {
-        return typeSize;
+        return alignMemSize(typeSize, Byte(1));
     }
 
     const auto shape = getShape(type);
-    return shape.totalSize() * typeSize;
+    return alignMemSize(typeSize * shape.totalSize(), Byte(1));
 }
 
 vpux::NDTypeInterface TensorNDTypeInterface::changeShape(mlir::Type type, vpux::ShapeRef shape) const {
@@ -375,7 +375,7 @@ vpux::DimsOrder MemRefNDTypeInterface::getDimsOrder(mlir::Type type) const {
     if (const auto mapAttr = layout.dyn_cast<mlir::AffineMapAttr>()) {
         return DimsOrder::fromAffineMap(mapAttr.getValue());
     }
-    if (const auto descAttr = layout.dyn_cast<VPUIP::MemRefAttr>()) {
+    if (const auto descAttr = layout.dyn_cast<vpux::MemRefAttr>()) {
         return DimsOrder::fromAffineMap(descAttr.order().getValue());
     }
     VPUX_THROW("Missing layout information");
@@ -419,10 +419,10 @@ vpux::Strides MemRefNDTypeInterface::getStrides(mlir::Type type) const {
         VPUX_THROW_UNLESS(mapAttr.getValue().isPermutation(), "Got non permutation layout attribute '{0}'", layout);
     }
 
-    if (const auto descAttr = layout.dyn_cast<VPUIP::MemRefAttr>()) {
+    if (const auto descAttr = layout.dyn_cast<vpux::MemRefAttr>()) {
         if (auto stridesAttr = descAttr.strides()) {
             const auto elemStrides = parseIntArrayAttr<int64_t>(stridesAttr);
-            const auto elemSize = getElemTypeSize(type);
+            const Bit elemSize = getElemTypeSize(type);
 
             return Strides(to_small_vector(elemStrides | transformed([&](int64_t stride) {
                                                return stride * elemSize;
@@ -454,7 +454,7 @@ vpux::Byte MemRefNDTypeInterface::getTotalAllocSize(mlir::Type type) const {
                       type);
 
     const auto layout = type.cast<mlir::MemRefType>().getLayout();
-    const auto memRefAttr = layout.dyn_cast<VPUIP::MemRefAttr>();
+    const auto memRefAttr = layout.dyn_cast<vpux::MemRefAttr>();
     if (memRefAttr) {
         if (auto allocSizeAttr = memRefAttr.allocSize()) {
             return Byte(allocSizeAttr.getInt());
@@ -462,7 +462,7 @@ vpux::Byte MemRefNDTypeInterface::getTotalAllocSize(mlir::Type type) const {
     }
 
     if (getRank(type) == 0) {
-        return getElemTypeSize(type);
+        return alignMemSize(getElemTypeSize(type), Byte(1));
     }
 
     const auto memShape = getMemShape(type);
@@ -471,10 +471,9 @@ vpux::Byte MemRefNDTypeInterface::getTotalAllocSize(mlir::Type type) const {
     VPUX_THROW_UNLESS(memShape.size() == memStrides.size(), "Shape and strides mismatch : {0} vs {1}", memShape,
                       memStrides);
 
-    auto allocSizeByte = Byte(memStrides.front() * memShape.front());
-
+    auto allocSizeByte = alignMemSize(memStrides.front() * memShape.front(), Byte(1)).to<Byte>();
     if (memRefAttr) {
-        const auto compressionScheme = memRefAttr.compressionScheme();
+        const auto compressionScheme = memRefAttr.hwSpecificField<VPUIP::CompressionSchemeAttr>();
         if (compressionScheme != nullptr) {
             const auto order = getDimsOrder(type);
             const auto compactMemStrides = StrideReqs::compact(order.numDims()).calcStrides(order, type);
@@ -482,7 +481,7 @@ vpux::Byte MemRefNDTypeInterface::getTotalAllocSize(mlir::Type type) const {
             allocSizeByte = compressionScheme.getAllocSize(getElementType(type));
         }
 
-        auto swizzlingScheme = memRefAttr.swizzlingScheme();
+        auto swizzlingScheme = memRefAttr.hwSpecificField<vpux::VPUIP::SwizzlingSchemeAttr>();
         if (!swizzlingScheme || swizzlingScheme.getKey().getInt() == 0) {
             return allocSizeByte;
         }
@@ -497,9 +496,9 @@ vpux::Byte MemRefNDTypeInterface::getTotalAllocSize(mlir::Type type) const {
 vpux::Byte MemRefNDTypeInterface::getCompactAllocSize(mlir::Type type) const {
     VPUX_THROW_UNLESS(type.isa<mlir::MemRefType>(), "Only MemRefType is supported for 'getCompactAllocSize'. Got '{0}'",
                       type);
-    const auto typeSize = static_cast<Bit>(getElemTypeSize(type));
+    const Bit typeSize = getElemTypeSize(type);
     if (getRank(type) == 0) {
-        return typeSize;
+        return alignMemSize(typeSize, Byte(1));
     }
 
     auto compressionScheme = VPUIP::getCompressionSchemeAttr(type);
@@ -508,7 +507,7 @@ vpux::Byte MemRefNDTypeInterface::getCompactAllocSize(mlir::Type type) const {
     }
 
     const auto shape = getShape(type);
-    return shape.totalSize() * typeSize;
+    return alignMemSize(typeSize * shape.totalSize(), Byte(1));
 }
 
 vpux::NDTypeInterface MemRefNDTypeInterface::changeShape(mlir::Type type, vpux::ShapeRef shape) const {
@@ -524,10 +523,10 @@ vpux::NDTypeInterface MemRefNDTypeInterface::changeShape(mlir::Type type, vpux::
 
     VPUIP::SwizzlingSchemeAttr swizzlingSchemeAttr = nullptr;
     VPUIP::CompressionSchemeAttr compressionSchemeAttr = nullptr;
-    const auto descAttr = layout.dyn_cast<VPUIP::MemRefAttr>();
+    const auto descAttr = layout.dyn_cast<vpux::MemRefAttr>();
     if (descAttr != nullptr) {
-        swizzlingSchemeAttr = descAttr.swizzlingScheme();
-        compressionSchemeAttr = descAttr.compressionScheme();
+        swizzlingSchemeAttr = descAttr.hwSpecificField<vpux::VPUIP::SwizzlingSchemeAttr>();
+        compressionSchemeAttr = descAttr.hwSpecificField<VPUIP::CompressionSchemeAttr>();
     }
     auto newType = vpux::getMemRefType(shape, getElementType(type), newOrder, getMemSpace(type), StridesRef(),
                                        swizzlingSchemeAttr, compressionSchemeAttr);

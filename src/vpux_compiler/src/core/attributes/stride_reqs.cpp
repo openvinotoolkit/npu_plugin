@@ -124,7 +124,7 @@ bool vpux::StrideReqs::hasReqFor(MemDim memDim) const {
     return (*this)[memDim].has_value();
 }
 
-Optional<DimStrideReq> vpux::StrideReqs::operator[](MemDim memDim) const {
+std::optional<DimStrideReq> vpux::StrideReqs::operator[](MemDim memDim) const {
     return StrideReqsRef(*this)[memDim];
 }
 
@@ -168,7 +168,7 @@ bool vpux::StrideReqsRef::hasReqFor(MemDim memDim) const {
     return (*this)[memDim].has_value();
 }
 
-Optional<DimStrideReq> vpux::StrideReqsRef::operator[](MemDim memDim) const {
+std::optional<DimStrideReq> vpux::StrideReqsRef::operator[](MemDim memDim) const {
     const auto it = std::find_if(_ref.begin(), _ref.end(), [memDim](const DimStrideReq& req) {
         return req.memDim() == memDim;
     });
@@ -176,7 +176,7 @@ Optional<DimStrideReq> vpux::StrideReqsRef::operator[](MemDim memDim) const {
     if (it != _ref.end()) {
         return *it;
     } else {
-        return None;
+        return std::nullopt;
     }
 }
 
@@ -230,14 +230,14 @@ MemStrides vpux::StrideReqsRef::calcStrides(Bit elemSize, MemShapeRef memShape) 
 }
 
 MemStrides vpux::StrideReqsRef::calcStrides(DimsOrder order, vpux::NDTypeInterface type) const {
-    const auto elemSize = type.getElemTypeSize();
+    const Bit elemSize = type.getElemTypeSize();
     const auto shape = type.getShape();
     const auto memShape = order.toMemoryOrder(shape);
     return calcStrides(elemSize, memShape);
 }
 
 bool vpux::StrideReqsRef::checkStrides(vpux::NDTypeInterface type) const {
-    const auto elemSize = type.getElemTypeSize();
+    const Bit elemSize = type.getElemTypeSize();
     const auto shape = type.getShape();
     const auto strides = type.getStrides();
     const auto order = type.getDimsOrder();

@@ -4,7 +4,6 @@
 //
 
 #include "vpux/compiler/dialect/IE/utils/reduce_infer.hpp"
-#include "vpux/compiler/dialect/IE/utils/const_attributes.hpp"
 
 mlir::LogicalResult vpux::IE::inferReduceReturnTypeComponents(
         mlir::Location loc, mlir::Value input, bool keepDims, SmallVector<int64_t>& axes,

@@ -22,31 +22,31 @@ constexpr char SPILL_WRITE_OP_NAME_SUFFIX[] = "spill_write_";
 
 //
 // FeasibleMemorySchedulerSpilling class is a support class for FeasibleMemoryScheduler
-// to handle spilling and insert correct spill-write and spill-read CopyOps within
+// to handle spilling and insert correct spill-write and spill-read DmaOps within
 // async dialect and perform required connections between new ops to achieve correct
 // execution order for models that need spilling
 //
 class FeasibleMemorySchedulerSpilling final {
 public:
-    explicit FeasibleMemorySchedulerSpilling(VPU::MemoryKind memKind, Optional<VPU::MemoryKind> secondLvlMemKind,
+    explicit FeasibleMemorySchedulerSpilling(VPU::MemoryKind memKind, VPU::MemoryKind secondLvlMemKind,
                                              AsyncDepsInfo& depsInfo, AliasesInfo& aliasInfo, Logger log,
-                                             LinearScan<mlir::Value, LinearScanHandler>& scan, VPU::ArchKind arch);
+                                             LinearScan<mlir::Value, LinearScanHandler>& scan);
 
     void removeComputeOpRelocationSpills(FeasibleMemoryScheduler::ScheduledOpInfoVec& scheduledOps);
     void optimizeDataOpsSpills(FeasibleMemoryScheduler::ScheduledOpInfoVec& scheduledOps);
     void removeRedundantSpillWrites(FeasibleMemoryScheduler::ScheduledOpInfoVec& scheduledOps);
-    void insertSpillCopyOps(FeasibleMemoryScheduler::ScheduledOpInfoVec& scheduledOps);
+    void insertSpillDmaOps(FeasibleMemoryScheduler::ScheduledOpInfoVec& scheduledOps);
 
 private:
     void createSpillWrite(FeasibleMemoryScheduler::ScheduledOpInfoVec& scheduledOps, size_t schedOpIndex);
     void createSpillRead(FeasibleMemoryScheduler::ScheduledOpInfoVec& scheduledOps, size_t schedOpIndex);
-    mlir::async::ExecuteOp insertSpillWriteCopyOp(mlir::async::ExecuteOp opThatWasSpilled,
-                                                  mlir::async::ExecuteOp insertAfterExecOp, mlir::Value bufferToSpill,
-                                                  size_t allocatedAddress, int spillId);
-    mlir::async::ExecuteOp insertSpillReadCopyOp(mlir::async::ExecuteOp opThatWasSpilled, mlir::Value bufferToSpill,
-                                                 mlir::async::ExecuteOp spillWriteExecOp,
-                                                 mlir::async::ExecuteOp insertAfterExecOp, size_t allocatedAddress,
-                                                 int spillId);
+    mlir::async::ExecuteOp insertSpillWriteDmaOp(mlir::async::ExecuteOp opThatWasSpilled,
+                                                 mlir::async::ExecuteOp insertAfterExecOp, mlir::Value bufferToSpill,
+                                                 size_t allocatedAddress, int spillId);
+    mlir::async::ExecuteOp insertSpillReadDmaOp(mlir::async::ExecuteOp opThatWasSpilled, mlir::Value bufferToSpill,
+                                                mlir::async::ExecuteOp spillWriteExecOp,
+                                                mlir::async::ExecuteOp insertAfterExecOp, size_t allocatedAddress,
+                                                int spillId);
     void updateSpillWriteReadUsers(mlir::Value bufferToSpill, mlir::async::ExecuteOp spillWriteExecOp,
                                    mlir::async::ExecuteOp spillReadExecOp);
     SmallVector<mlir::Value> getAsyncResultsForBuffer(mlir::async::ExecuteOp opThatWasSpilled, mlir::Value buffer);
@@ -93,15 +93,13 @@ private:
     // first level mem space
     VPU::MemoryKind _memKind;
     // second level mem space which is used for spilling
-    mlir::Optional<VPU::MemoryKind> _secondLvlMemKind;
+    VPU::MemoryKind _secondLvlMemKind;
     // dependencies of ops
     AsyncDepsInfo& _depsInfo;
     // aliases information for buffers
     AliasesInfo& _aliasInfo;
     // allocator class
     LinearScan<mlir::Value, LinearScanHandler>& _scan;
-    // information about architecture
-    VPU::ArchKind _arch;
     // Vector storing information about already inserted spill-writes. Used when spill-read is inerted
     // to properly connect both operations
     SmallVector<SpillWriteInfo> _spillWriteInfoVec;

@@ -8,6 +8,7 @@
 #include "vpux_compiler.hpp"
 
 #include <ze_graph_ext.h>
+#include "vpux/utils/core/logger.hpp"
 
 namespace vpux {
 namespace driverCompilerAdapter {

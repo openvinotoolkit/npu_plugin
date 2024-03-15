@@ -7,8 +7,8 @@
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
-#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
-#include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
@@ -81,11 +81,11 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     inputTypes.push_back(getMemRef(inputShape, inputType, VPU::MemoryKind::DDR));
     inputTypes.push_back(outputParamType);
 
-    const auto funcType = builder.getFunctionType(llvm::makeArrayRef(inputTypes), outputParamType);
+    const auto funcType = builder.getFunctionType(llvm::ArrayRef(inputTypes), outputParamType);
 
     auto function = builder.create<mlir::func::FuncOp>(
             builder.getUnknownLoc(), printToString("continued_conv_{0}_{1}_{2}", inputType, weightsType, outputType),
-            funcType, builder.getStringAttr("private"));
+            funcType, builder.getStringAttr("private"), /*arg_attrs=*/nullptr, /*res_attrs=*/nullptr);
 
     auto functionBuilder = mlir::OpBuilder::atBlockBegin(function.addEntryBlock(), builder.getListener());
 
@@ -155,7 +155,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
 
     const auto weightsTableDDRMemRef = getMemRef(weightsTableShape, int32, VPU::MemoryKind::DDR);
     const auto weightsTable0Values =
-            mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::makeArrayRef<std::int32_t>(weightsTable0));
+            mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::ArrayRef<std::int32_t>(weightsTable0));
     auto weightsTable0DDR = functionBuilder.create<vpux::Const::DeclareOp>(
             builder.getUnknownLoc(), weightsTableDDRMemRef,
             vpux::Const::ContentAttr::get(weightsTable0Values).reorder(vpux::DimsOrder::NHWC));
@@ -170,7 +170,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
             outputShape[1], weightsType);
 
     const auto weightsTable1Values =
-            mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::makeArrayRef<std::int32_t>(weightsTable1));
+            mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::ArrayRef<std::int32_t>(weightsTable1));
     auto weightsTable1DDR = functionBuilder.create<vpux::Const::DeclareOp>(
             builder.getUnknownLoc(), weightsTableDDRMemRef,
             vpux::Const::ContentAttr::get(weightsTable1Values).reorder(vpux::DimsOrder::NHWC));
@@ -186,19 +186,19 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
 
     // Input DMAs
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), barriers[0], builder.getUnknownLoc(),
-                                          functionInput, inputCMX.getOperation()->getResult(0));
+                                          functionInput, inputCMX.getOperation()->getResult(0), 0);
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), barriers[0], builder.getUnknownLoc(),
                                           weightsPartial0DDR.getOperation()->getResult(0),
-                                          weightsPartial0CMX.getOperation()->getResult(0));
+                                          weightsPartial0CMX.getOperation()->getResult(0), 0);
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), barriers[0], builder.getUnknownLoc(),
                                           weightsPartial1DDR.getOperation()->getResult(0),
-                                          weightsPartial1CMX.getOperation()->getResult(0));
+                                          weightsPartial1CMX.getOperation()->getResult(0), 0);
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), barriers[0], builder.getUnknownLoc(),
                                           weightsTable0DDR.getOperation()->getResult(0),
-                                          weightsTable0CMX.getOperation()->getResult(0));
+                                          weightsTable0CMX.getOperation()->getResult(0), 0);
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), barriers[0], builder.getUnknownLoc(),
                                           weightsTable1DDR.getOperation()->getResult(0),
-                                          weightsTable1CMX.getOperation()->getResult(0));
+                                          weightsTable1CMX.getOperation()->getResult(0), 0);
 
     // NCE params
     const auto strides = getIntArrayAttr(ctx, conv.stride);
@@ -242,12 +242,13 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     nceTask_1.addDPUTask(functionBuilder, start, outEnd, start, inEnd, pad, VPU::MPEMode::CUBOID_16x16);
 
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, barriers[2], mlir::ValueRange(), builder.getUnknownLoc(),
-                                          output1CMX.getOperation()->getResult(0), functionOutput);
+                                          output1CMX.getOperation()->getResult(0), functionOutput, 0);
 
     functionBuilder.create<mlir::func::ReturnOp>(builder.getUnknownLoc(), functionOutput);
 
-    mlir::PassManager pm(builder.getContext(), mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, log));
+    mlir::PassManager pm(module->getName(), mlir::OpPassManager::Nesting::Implicit);
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, std::nullopt,
+                                           log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 

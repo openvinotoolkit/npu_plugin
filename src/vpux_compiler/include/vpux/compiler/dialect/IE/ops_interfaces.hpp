@@ -132,31 +132,31 @@ private:
 
 mlir::LogicalResult verifyLayer(mlir::Operation* op);
 
-using InferTypeComponentsCb = FuncRef<mlir::LogicalResult(mlir::MLIRContext*, Optional<mlir::Location>,
-                                                          mlir::ValueRange, mlir::DictionaryAttr, mlir::RegionRange,
-                                                          SmallVectorImpl<mlir::ShapedTypeComponents>&)>;
+using InferTypeComponentsCb = FuncRef<mlir::LogicalResult(
+        mlir::MLIRContext*, std::optional<mlir::Location>, mlir::ValueRange, mlir::DictionaryAttr,
+        mlir::OpaqueProperties, mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>&)>;
 
 mlir::LogicalResult inferTensorTypes(InferTypeComponentsCb componentsCb, mlir::MLIRContext* ctx,
-                                     Optional<mlir::Location> loc, mlir::ValueRange operands,
-                                     mlir::DictionaryAttr attrs, mlir::RegionRange regions,
-                                     SmallVectorImpl<mlir::Type>& inferredTypes);
+                                     std::optional<mlir::Location> loc, mlir::ValueRange operands,
+                                     mlir::DictionaryAttr attrs, mlir::OpaqueProperties props,
+                                     mlir::RegionRange regions, SmallVectorImpl<mlir::Type>& inferredTypes);
 
 //
 // LayerWithPostOpInterface
 //
 
 template <typename ConcreteOp>
-Optional<mlir::OperationName> getLayerPostOp(ConcreteOp mainOp) {
-    if (auto postOpInfo = mainOp.post_opAttr()) {
+std::optional<mlir::OperationName> getLayerPostOp(ConcreteOp mainOp) {
+    if (auto postOpInfo = mainOp.getPostOpAttr()) {
         return mlir::OperationName(postOpInfo.getName().getValue(), mainOp->getContext());
     }
 
-    return None;
+    return std::nullopt;
 }
 
 template <typename ConcreteOp>
 mlir::DictionaryAttr getLayerPostOpAttrs(ConcreteOp mainOp) {
-    if (auto postOpInfo = mainOp.post_opAttr()) {
+    if (auto postOpInfo = mainOp.getPostOpAttr()) {
         return postOpInfo.getAttrs();
     }
 
@@ -165,20 +165,20 @@ mlir::DictionaryAttr getLayerPostOpAttrs(ConcreteOp mainOp) {
 
 template <typename ConcreteOp>
 void setLayerPostOp(ConcreteOp mainOp, mlir::Operation* postOp) {
-    VPUX_THROW_UNLESS(mainOp.post_opAttr() == nullptr, "Operation '{0}' at '{1}' already has a PostOp '{2}'",
-                      mainOp->getName(), mainOp->getLoc(), mainOp.post_opAttr());
+    VPUX_THROW_UNLESS(mainOp.getPostOpAttr() == nullptr, "Operation '{0}' at '{1}' already has a PostOp '{2}'",
+                      mainOp->getName(), mainOp->getLoc(), mainOp.getPostOpAttr());
     VPUX_THROW_UNLESS(postOp->getNumOperands() == 1,
                       "Only single input operation can be attached as PostOp via attributes");
 
     const auto postOpName = mlir::StringAttr::get(mainOp->getContext(), postOp->getName().getStringRef());
     const auto postOpInfo = IE::PostOpAttr::get(mainOp->getContext(), postOpName, postOp->getAttrDictionary());
 
-    mainOp.post_opAttr(postOpInfo);
+    mainOp.setPostOpAttr(postOpInfo);
 }
 
 template <typename ConcreteOp>
 void clearLayerPostOp(ConcreteOp mainOp) {
-    mainOp.removePost_opAttr();
+    mainOp.removePostOpAttr();
 }
 
 //

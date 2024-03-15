@@ -9,7 +9,7 @@
 include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/const/dialect.td"
 include "vpux/compiler/dialect/const/attributes.td"
-include "vpux/compiler/dialect/ELF/ops_interfaces.td"
+include "vpux/compiler/dialect/ELFNPU37XX/ops_interfaces.td"
 
 
 include "mlir/Interfaces/SideEffectInterfaces.td"
@@ -26,7 +26,7 @@ class Const_Op<string mnemonic, list<Trait> traits = []> :
             !listconcat(
               traits,
               [
-                DeclareOpInterfaceMethods<ELF_BinaryOpInterface>
+                DeclareOpInterfaceMethods<ELFNPU37XX_BinaryOpInterface>
               ]
             )
         >;
@@ -40,7 +40,7 @@ def Const_DeclareOp :
             "Declare",
             [
                 ConstantLike,
-                NoSideEffect,
+                Pure,
                 DeclarationOp,
                 DotInterface,
                 OpAsmOpInterface
@@ -62,7 +62,7 @@ def Const_DeclareOp :
 
     let hasFolder = 1;
     let hasVerifier = 1;
-    let hasCustomAssemblyFormat = 1;
+    let assemblyFormat = "attr-dict type($output) `=` $content";
 
     let extraClassDeclaration = [{
         vpux::DotNodeColor getNodeColor() {

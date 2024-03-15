@@ -10,7 +10,8 @@ namespace vpux {
 namespace zeroMemory {
 HostMem::HostMem(const ze_context_handle_t context, const std::size_t size, ze_host_mem_alloc_flag_t flag)
         : _size(size), _context(context), _log(Logger::global().nest("HostMem", 0)) {
-    ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, flag};
+    ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr,
+                                     static_cast<ze_host_mem_alloc_flags_t>(flag)};
     zeroUtils::throwOnFail("zeMemAllocHost", zeMemAllocHost(_context, &desc, _size, _alignment, &_data));
 }
 HostMem& HostMem::operator=(HostMem&& other) {
@@ -81,19 +82,23 @@ void MemoryManagementUnit::appendArgument(const std::string& name, const ze_grap
 }
 
 void MemoryManagementUnit::allocate(const ze_context_handle_t context, ze_host_mem_alloc_flag_t flag) {
-    if (_host && _host->size() != 0)
-        IE_THROW() << "Memory already allocated";
-    if (0 == _size)
-        IE_THROW() << "Can't allocate empty buffer";
+    if (_host && _host->size() != 0) {
+        OPENVINO_THROW("Memory already allocated");
+    }
+    if (_size == 0) {
+        OPENVINO_THROW("Can't allocate empty buffer");
+    }
 
     _host = std::make_unique<HostMem>(context, _size, flag);
 }
 
 void MemoryManagementUnit::allocate(const ze_device_handle_t device_handle, const ze_context_handle_t context) {
-    if (_host && _host->size() != 0)
-        IE_THROW() << "Memory already allocated";
-    if (_size == 0)
-        IE_THROW() << "Can't allocate empty buffer";
+    if (_host && _host->size() != 0) {
+        OPENVINO_THROW("Memory already allocated");
+    }
+    if (_size == 0) {
+        OPENVINO_THROW("Can't allocate empty buffer");
+    }
 
     _host = std::make_unique<HostMem>(context, _size);
     _device = std::make_unique<DeviceMem>(device_handle, context, _size);
@@ -116,10 +121,10 @@ void* MemoryManagementUnit::getDeviceMemRegion() {
 void* MemoryManagementUnit::getHostPtr(const std::string& name) {
     uint8_t* from = static_cast<uint8_t*>(_host ? _host->data() : nullptr);
     if (from == nullptr) {
-        IE_THROW() << "Host memory not allocated yet";
+        OPENVINO_THROW("Host memory not allocated yet");
     }
     if (!_offsets.count(name)) {
-        IE_THROW() << "Invalid memory offset key: " + name;
+        OPENVINO_THROW("Invalid memory offset key: ", name);
     }
 
     return _offsets.at(name) + from;
@@ -127,10 +132,10 @@ void* MemoryManagementUnit::getHostPtr(const std::string& name) {
 void* MemoryManagementUnit::getDevicePtr(const std::string& name) {
     uint8_t* from = static_cast<uint8_t*>(_device ? _device->data() : nullptr);
     if (from == nullptr) {
-        IE_THROW() << "Device memory not allocated yet";
+        OPENVINO_THROW("Device memory not allocated yet");
     }
     if (!_offsets.count(name)) {
-        IE_THROW() << "Invalid memory offset key: " + name;
+        OPENVINO_THROW("Invalid memory offset key: ", name);
     }
 
     return _offsets.at(name) + from;

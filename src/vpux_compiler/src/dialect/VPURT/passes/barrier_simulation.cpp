@@ -3,10 +3,8 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/dialect/VPURT/passes.hpp"
-
 #include "vpux/compiler/dialect/VPURT/barrier_simulator.hpp"
-#include "vpux/compiler/dialect/VPURT/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/passes.hpp"
 
 using namespace vpux;
 
@@ -32,6 +30,10 @@ void BarrierSimulationPass::safeRunOnFunc() {
     VPUX_THROW_WHEN(barrierSim.isDynamicBarriers(), "The pass should be called for static barriers only");
 
     if (mlir::failed(barrierSim.checkProducerCount(_log.nest()))) {
+        signalPassFailure();
+        return;
+    }
+    if (mlir::failed(barrierSim.checkProducerAndConsumerCount(_log.nest()))) {
         signalPassFailure();
         return;
     }

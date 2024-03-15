@@ -43,6 +43,8 @@ const DimsOrder vpux::DimsOrder::NCWH = DimsOrder(0x1243);
 const DimsOrder vpux::DimsOrder::WCHN = DimsOrder(0x4231);
 const DimsOrder vpux::DimsOrder::WHNC = DimsOrder(0x4312);
 const DimsOrder vpux::DimsOrder::HWCN = DimsOrder(0x3421);
+const DimsOrder vpux::DimsOrder::HCNW = DimsOrder(0x3214);
+const DimsOrder vpux::DimsOrder::CWNH = DimsOrder(0x2413);
 
 const DimsOrder vpux::DimsOrder::NCDHW = DimsOrder(0x12345);
 const DimsOrder vpux::DimsOrder::NDHWC = DimsOrder(0x13452);
@@ -325,56 +327,7 @@ bool vpux::DimsOrder::isCompatibleLayout(mlir::Value val) const {
     return isCompatibleLayout(type);
 }
 
-DimsOrder vpux::DimsOrder::fromIE(InferenceEngine::Layout layout) {
-    switch (layout) {
-    case InferenceEngine::Layout::SCALAR:
-        return DimsOrder();
-    case InferenceEngine::Layout::C:
-        return DimsOrder::C;
-    case InferenceEngine::Layout::NC:
-        return DimsOrder::NC;
-    case InferenceEngine::Layout::CHW:
-        return DimsOrder::CHW;
-    case InferenceEngine::Layout::HWC:
-        return DimsOrder::HWC;
-    case InferenceEngine::Layout::NCHW:
-        return DimsOrder::NCHW;
-    case InferenceEngine::Layout::NHWC:
-        return DimsOrder::NHWC;
-    case InferenceEngine::Layout::NCDHW:
-        return DimsOrder::NCDHW;
-    case InferenceEngine::Layout::NDHWC:
-        return DimsOrder::NDHWC;
-    default:
-        VPUX_THROW("Unsupported InferenceEngine Layout {0}", layout);
-    }
-}
-
-InferenceEngine::Layout vpux::DimsOrder::toIE() const {
-    if (*this == DimsOrder()) {
-        return InferenceEngine::Layout::SCALAR;
-    } else if (*this == DimsOrder::C) {
-        return InferenceEngine::Layout::C;
-    } else if (*this == DimsOrder::NC) {
-        return InferenceEngine::Layout::NC;
-    } else if (*this == DimsOrder::CHW) {
-        return InferenceEngine::Layout::CHW;
-    } else if (*this == DimsOrder::HWC) {
-        return InferenceEngine::Layout::HWC;
-    } else if (*this == DimsOrder::NCHW) {
-        return InferenceEngine::Layout::NCHW;
-    } else if (*this == DimsOrder::NHWC) {
-        return InferenceEngine::Layout::NHWC;
-    } else if (*this == DimsOrder::NCDHW) {
-        return InferenceEngine::Layout::NCDHW;
-    } else if (*this == DimsOrder::NDHWC) {
-        return InferenceEngine::Layout::NDHWC;
-    } else {
-        VPUX_THROW("Can't convert DimsOrder {0} to InferenceEngine Layout", *this);
-    }
-}
-
-Optional<StringLiteral> vpux::DimsOrder::getCanonicalName() const {
+StringLiteral vpux::DimsOrder::getCanonicalName() const {
     if (*this == DimsOrder()) {
         return StringLiteral("SCALAR");
     } else if (*this == DimsOrder::C) {
@@ -406,13 +359,13 @@ Optional<StringLiteral> vpux::DimsOrder::getCanonicalName() const {
     } else if (*this == DimsOrder::YXOI) {
         return StringLiteral("YXOI");
     } else {
-        return None;
+        return StringLiteral("");
     }
 }
 
 void vpux::DimsOrder::printFormat(llvm::raw_ostream& stream) const {
-    if (const auto name = getCanonicalName()) {
-        stream << name.value();
+    if (const auto name = getCanonicalName(); !name.empty()) {
+        stream << name;
     } else {
         printTo(stream, "{0}", toPermutation());
     }

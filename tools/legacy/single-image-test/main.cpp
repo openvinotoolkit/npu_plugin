@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/utils/IE/blob.hpp"
-#include "yolo_helpers.hpp"
+#include "vpux/utils/models/blob.hpp"
+#include "vpux/utils/models/yolo_helpers.hpp"
 
 #include <file_utils.h>
 #include <precision_utils.h>

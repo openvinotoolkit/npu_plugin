@@ -22,7 +22,6 @@
 #include <vpux/compiler/dialect/VPUIP/attributes.cpp.inc>
 
 #include <vpux/compiler/dialect/VPUIP/enums.cpp.inc>
-#include <vpux/compiler/dialect/VPUIP/structs.cpp.inc>
 
 using namespace vpux;
 
@@ -73,8 +72,8 @@ VPUIP::CompressionSchemeAttr VPUIP::getCompressionSchemeAttr(mlir::Type type) {
     }
 
     if (auto memref = type.dyn_cast<mlir::MemRefType>()) {
-        if (const auto memRefAttr = memref.getLayout().dyn_cast_or_null<VPUIP::MemRefAttr>()) {
-            return memRefAttr.compressionScheme();
+        if (const auto memRefAttr = memref.getLayout().dyn_cast_or_null<vpux::MemRefAttr>()) {
+            return memRefAttr.hwSpecificField<VPUIP::CompressionSchemeAttr>();
         }
     } else if (auto distributedBuffer = type.dyn_cast<VPUIP::DistributedBufferType>()) {
         return distributedBuffer.getCompressionScheme();
@@ -131,7 +130,7 @@ VPUIP::CompressionSchemeAttr VPUIP::tileCompressionScheme(VPUIP::CompressionSche
     auto ctx = compressionScheme.getContext();
     const auto tileNumElemsType =
             mlir::RankedTensorType::get({static_cast<int64_t>(tileNumElems.size())}, getInt64Type(ctx));
-    const auto tileNumElemsAttr = mlir::DenseElementsAttr::get(tileNumElemsType, makeArrayRef(tileNumElems));
+    const auto tileNumElemsAttr = mlir::DenseElementsAttr::get(tileNumElemsType, ArrayRef(tileNumElems));
     return VPUIP::CompressionSchemeAttr::get(ctx, compressionScheme.getAxis(), tileNumElemsAttr,
                                              compressionScheme.getAlignment());
 }
@@ -148,62 +147,4 @@ mlir::Type VPUIP::tileTypeCompressionScheme(mlir::Type type, ShapeRef tileOffset
 
     const auto tiledCompressionScheme = VPUIP::tileCompressionScheme(compressionScheme, tileOffsets, tileShape);
     return VPUIP::setCompressionSchemeAttr(type, tiledCompressionScheme);
-}
-
-//
-// MemRefAttrLayout
-//
-
-mlir::AffineMap VPUIP::MemRefAttrLayout::getAffineMap(mlir::Attribute attr) const {
-    const auto desc = attr.dyn_cast<VPUIP::MemRefAttr>();
-    VPUX_THROW_WHEN(desc == nullptr, "Unsupported MemRef layout '{0}'", attr);
-
-    const auto orderMap = desc.order().getValue();
-    if (!desc.strides()) {
-        return orderMap;
-    }
-
-    const auto elemStrides = parseIntArrayAttr<int64_t>(desc.strides());
-    const auto stridesMap = mlir::makeStridedLinearLayoutMap(elemStrides, 0, attr.getContext());
-
-    return stridesMap.compose(orderMap);
-}
-
-bool VPUIP::MemRefAttrLayout::isIdentity(mlir::Attribute) const {
-    return false;
-}
-
-mlir::LogicalResult VPUIP::MemRefAttrLayout::verifyLayout(mlir::Attribute attr, ArrayRef<int64_t> shape,
-                                                          FuncRef<mlir::InFlightDiagnostic()> emitError) const {
-    const auto desc = attr.dyn_cast<VPUIP::MemRefAttr>();
-    if (desc == nullptr) {
-        return printTo(emitError(), "Unsupported MemRef layout '{0}'", attr);
-    }
-
-    if (!desc.order().getValue().isPermutation()) {
-        return printTo(emitError(), "Dims order '{0}' is not a permutation affine map", desc.order());
-    }
-
-    if (auto stridesAttr = desc.strides()) {
-        const auto order = DimsOrder::fromAffineMap(desc.order().getValue());
-
-        const auto elemStrides = parseIntArrayAttr<int64_t>(stridesAttr);
-
-        const auto memShape = order.toMemoryOrder(ShapeRef(shape));
-
-        const auto elemSize = 1_Bit;
-        const auto strides = Strides(to_small_vector(elemStrides | transformed([&](int64_t stride) {
-                                                         return stride * elemSize;
-                                                     })));
-        const auto memStrides = order.toMemoryOrder(strides);
-
-        StrideReqs reqs;
-
-        if (!reqs.checkStrides(memStrides, elemSize, memShape)) {
-            return printTo(emitError(), "Strides '{0}' do not match with shape '{1}' and order '{2}'", desc.strides(),
-                           shape, order);
-        }
-    }
-
-    return mlir::success();
 }

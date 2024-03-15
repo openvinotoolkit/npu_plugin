@@ -4,15 +4,12 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/const/ops.hpp"
-
-#include <mlir/IR/PatternMatch.h>
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::ConvertOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -21,8 +18,8 @@ mlir::LogicalResult vpux::IE::ConvertOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = cvt.input().getType().cast<mlir::RankedTensorType>();
-    const auto dstElemType = cvt.dstElemType();
+    const auto inType = cvt.getInput().getType().cast<mlir::RankedTensorType>();
+    const auto dstElemType = cvt.getDstElemType();
 
     inferredReturnShapes.emplace_back(inType.getShape(), dstElemType);
     return mlir::success();
@@ -53,11 +50,12 @@ void vpux::IE::ConvertOp::getCanonicalizationPatterns(mlir::RewritePatternSet& p
     populateWithGenerated(patterns);
 }
 
-mlir::OpFoldResult vpux::IE::ConvertOp::fold(ArrayRef<mlir::Attribute> operands) {
+mlir::OpFoldResult vpux::IE::ConvertOp::fold(FoldAdaptor adaptor) {
+    auto operands = adaptor.getOperands();
     VPUX_THROW_UNLESS(operands.size() == 1, "Wrong number of operands : {0}", operands.size());
 
     if (const auto attr = operands[0].dyn_cast_or_null<Const::ContentAttr>()) {
-        return attr.convertElemType(dstElemType());
+        return attr.convertElemType(getDstElemType());
     }
 
     return nullptr;

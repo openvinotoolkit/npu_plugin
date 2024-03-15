@@ -13,18 +13,18 @@ using namespace vpux;
 // Options
 //
 
-Optional<int> vpux::convertToOptional(const IntOption& intOption) {
+std::optional<int> vpux::convertToOptional(const IntOption& intOption) {
     if (intOption.hasValue()) {
         return intOption.getValue();
     }
-    return None;
+    return std::nullopt;
 }
 
-Optional<std::string> vpux::convertToOptional(const StrOption& strOption) {
+std::optional<std::string> vpux::convertToOptional(const StrOption& strOption) {
     if (strOption.hasValue()) {
         return strOption.getValue();
     }
-    return None;
+    return std::nullopt;
 }
 
 bool vpux::isOptionEnabled(const BoolOption& option) {

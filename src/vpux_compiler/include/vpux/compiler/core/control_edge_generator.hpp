@@ -9,6 +9,8 @@
 #include "vpux/compiler/core/feasible_scheduler_utils.hpp"
 #include "vpux/utils/core/error.hpp"
 
+#include <llvm/ADT/SmallVector.h>
+
 namespace vpux {
 
 struct ControlEdge {
@@ -46,6 +48,19 @@ struct IntervalTraits<ScheduledOpOneResource> {
     static bool isIntervalProducer(const IntervalType& interval) {
         return (interval._resRelation == ScheduledOpOneResource::EResRelation::PRODUCER);
     }
+
+    static bool canProducersCoexist(const IntervalType& existingProd, const IntervalType& newProd) {
+        return existingProd.canOverlap(newProd);
+    }
+
+    static bool sameIntervalAccess(const IntervalType& intA, const IntervalType& intB) {
+        return !intA.canOverlap(intB);
+    }
+
+    static void setInterval(IntervalType& interval, const UnitType& beg, const UnitType& end) {
+        interval._addressStart = beg;
+        interval._addressEnd = end;
+    }
 };  // struct IntervalTraits<ScheduledOpOneResource> //
 
 class ControlEdgeSet {
@@ -57,23 +72,31 @@ public:
         _controlEdgeSet.push_back(ControlEdge(a._op, b._op));
     }
 
-    SmallVector<ControlEdge>::const_iterator begin() const {
+    auto size() const {
+        return _controlEdgeSet.size();
+    }
+
+    const auto& operator[](size_t ind) const {
+        assert(ind < _controlEdgeSet.size());
+        return _controlEdgeSet[ind];
+    }
+
+    llvm::SmallVector<ControlEdge>::const_iterator begin() const {
         return _controlEdgeSet.begin();
     }
-    SmallVector<ControlEdge>::const_iterator end() const {
+    llvm::SmallVector<ControlEdge>::const_iterator end() const {
         return _controlEdgeSet.end();
     }
 
 private:
-    SmallVector<ControlEdge> _controlEdgeSet;
+    llvm::SmallVector<ControlEdge> _controlEdgeSet;
 };  //  class ControlEdgeSet //
 
 // Given an iterator over sorted intervals the algorithm produces control
 // edges for overlapping memory ranges in order of schedule
-template <typename T>
 class ControlEdgeGenerator {
 public:
-    using Traits = IntervalTraits<T>;
+    using Traits = IntervalTraits<ScheduledOpOneResource>;
     using UnitType = typename Traits::UnitType;
     using IntervalType = typename Traits::IntervalType;
     using IntervalUtilsType = IntervalUtils<IntervalType>;
@@ -141,34 +164,52 @@ protected:
             // [currRemBeg,currRemEnd] //
             auto qbeg = qitr.intervalBegin();
             auto qend = qitr.intervalEnd();
-            auto qintProd = qitr.getProducer();
 
             auto qitrProdCons = qitr.getProdCons();
             auto newProdCons = qitrProdCons;
             ProdConsType currIntervalProdCons(currInterval);
             if (isCurrIntervalProducer) {
-                if (qitrProdCons._consumers.empty()) {
-                    // If previous interval had no consumers just
-                    // output the control edge from it to new producer
-                    // of this interval
-                    outputDependency(qintProd, currInterval);
-                    ++edgeCount;
+                // Check if currInterval producer can coexist with already present producers of this interval
+                // Same range can have multiple producers as each can give different view of interval
+                auto canProdCoexist = llvm::all_of(qitrProdCons._producers, [&](const IntervalType& prod) {
+                    return Traits::canProducersCoexist(currInterval, prod);
+                });
+
+                if (canProdCoexist) {
+                    // Add additional producer for this interval
+                    newProdCons.addProducer(currInterval);
                 } else {
-                    // If previous interval had consumers output
-                    // control edges from all of them to new producer
-                    // of this interval
-                    for (auto& cons : qitrProdCons._consumers) {
-                        outputDependency(cons, currInterval);
+                    if (qitrProdCons._consumers.empty()) {
+                        // If previous interval had no consumers just
+                        // output the control edge from it to new producer
+                        // of this interval
+                        for (auto& prod : qitrProdCons._producers) {
+                            outputDependency(prod, currInterval);
+                            ++edgeCount;
+                        }
+                    } else {
+                        // If previous interval had consumers output
+                        // control edges from all of them to new producer
+                        // of this interval
+                        for (auto& cons : qitrProdCons._consumers) {
+                            outputDependency(cons, currInterval);
+                            ++edgeCount;
+                        }
+                    }
+                    // Set new producer for new interval. This will
+                    // also clear previous info about users
+                    newProdCons.newProducer(currInterval);
+                }
+            } else {
+                // Add edge from interval producer to new user
+                for (auto& prod : qitrProdCons._producers) {
+                    // If range has multiple producers each providing different view of interval
+                    // then add edge to new user only from producer with matching interval access
+                    if (Traits::sameIntervalAccess(currInterval, prod)) {
+                        outputDependency(prod, currInterval);
                         ++edgeCount;
                     }
                 }
-                // Set new producer for new interval. This will
-                // also clear previous info about users
-                newProdCons.newProducer(currInterval);
-            } else {
-                // Add edge from interval producer to new user
-                outputDependency(qintProd, currInterval);
-                ++edgeCount;
 
                 // Update interval owners with new user
                 newProdCons.addConsumer(currInterval);

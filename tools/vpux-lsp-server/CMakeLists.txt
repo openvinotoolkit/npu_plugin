@@ -3,7 +3,10 @@
 # SPDX-License-Identifier: Apache 2.0
 #
 
+#
+
 set(TARGET_NAME "npu-lsp-server")
+find_package(MLIR REQUIRED CONFIG)
 
 add_tool_target(
     NAME ${TARGET_NAME}

@@ -7,11 +7,8 @@
 #include "vpux/compiler/dialect/IE/utils/interpolate_utils.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
-#include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
@@ -28,11 +25,11 @@ Const::DeclareOp createShapeConstForBroadCast(mlir::PatternRewriter& rewriter, m
 }
 
 mlir::Value createFQ(mlir::PatternRewriter& rewriter, mlir::Value input, IE::FakeQuantizeOp fq) {
-    const auto outputType = fq.output().getType().cast<vpux::NDTypeInterface>();
+    const auto outputType = fq.getOutput().getType().cast<vpux::NDTypeInterface>();
     const auto newOutputType = outputType.changeShape(getShape(input));
     return rewriter
-            .create<IE::FakeQuantizeOp>(fq.getLoc(), newOutputType, input, fq.input_low(), fq.input_high(),
-                                        fq.output_low(), fq.output_high(), fq.levels(), fq.auto_broadcast())
+            .create<IE::FakeQuantizeOp>(fq.getLoc(), newOutputType, input, fq.getInputLow(), fq.getInputHigh(),
+                                        fq.getOutputLow(), fq.getOutputHigh(), fq.getLevels(), fq.getAutoBroadcast())
             ->getResult(0);
 }
 
@@ -94,14 +91,14 @@ private:
 mlir::LogicalResult ConvertNearestToBroadcastOrStridedConcatPass::NearestToBroadcastConverter::matchAndRewrite(
         IE::InterpolateOp origOp, mlir::PatternRewriter& rewriter) const {
     const auto& ctx = origOp.getContext();
-    const auto outShape = getShape(origOp.output());
+    const auto outShape = getShape(origOp.getOutput());
 
     if (!IE::isBroadCastInterpolate(origOp)) {
         return mlir::failure();
     }
 
     rewriter.replaceOpWithNewOp<IE::BroadcastOp>(
-            origOp, origOp.input(), createShapeConstForBroadCast(rewriter, ctx, origOp->getLoc(), outShape), nullptr,
+            origOp, origOp.getInput(), createShapeConstForBroadCast(rewriter, ctx, origOp->getLoc(), outShape), nullptr,
             IE::BroadcastTypeAttr::get(ctx, IE::BroadcastType::NUMPY));
 
     return mlir::success();
@@ -125,8 +122,8 @@ private:
 
 mlir::LogicalResult ConvertNearestToBroadcastOrStridedConcatPass::NearestToStridedConcatConverter::matchAndRewrite(
         IE::InterpolateOp origOp, mlir::PatternRewriter& rewriter) const {
-    const auto inputShape = getShape(origOp.input());
-    const auto outShape = getShape(origOp.output());
+    const auto inputShape = getShape(origOp.getInput());
+    const auto outShape = getShape(origOp.getOutput());
 
     int64_t outputW = 0;
     int64_t outputH = 0;
@@ -149,7 +146,7 @@ mlir::LogicalResult ConvertNearestToBroadcastOrStridedConcatPass::NearestToStrid
     const auto scaleX = outputW / inputShape[Dims4D::Act::W];
     const auto scaleY = outputH / inputShape[Dims4D::Act::H];
 
-    const auto inputFQ = origOp.input().getDefiningOp<IE::FakeQuantizeOp>();
+    const auto inputFQ = origOp.getInput().getDefiningOp<IE::FakeQuantizeOp>();
     const auto outputFQ = !(origOp->getResult(0).use_empty())
                                   ? mlir::dyn_cast<IE::FakeQuantizeOp>(*(origOp->getResult(0).user_begin()))
                                   : nullptr;
@@ -160,13 +157,13 @@ mlir::LogicalResult ConvertNearestToBroadcastOrStridedConcatPass::NearestToStrid
     // Here is an assumption : scaleX !=0 AND scaleY !=0 as output shape is non-zero
 
     for (int j = 0; j < scaleX; ++j) {
-        widthSlices.push_back(origOp.input());
+        widthSlices.push_back(origOp.getInput());
     }
 
-    widthConcatOp =
-            widthSlices.size() != 1
-                    ? rewriter.create<IE::ConcatOp>(origOp->getLoc(), widthSlices, Dims4D::Act::W, 1, scaleX).output()
-                    : widthSlices.front();
+    widthConcatOp = widthSlices.size() != 1
+                            ? rewriter.create<IE::ConcatOp>(origOp->getLoc(), widthSlices, Dims4D::Act::W, 1, scaleX)
+                                      .getOutput()
+                            : widthSlices.front();
 
     // TODO remove this propagation after moving such functionality to Q-D propagation pass
     if (inputFQ != nullptr && outputFQ != nullptr && widthSlices.size() != 0) {
@@ -191,10 +188,10 @@ void ConvertNearestToBroadcastOrStridedConcatPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     const auto isLegalConvertToStrideConcat = [&](IE::InterpolateOp op) {
-        const auto attrs = op.attr();
-        const bool validAxesAttrSize = (op.axes_attrAttr().size() == 2 || op.axes_attrAttr().size() == 4);
-        const auto inputShape = getShape(op.input());
-        const auto outShape = getShape(op.output());
+        const auto attrs = op.getAttr();
+        const bool validAxesAttrSize = (op.getAxesAttrAttr().size() == 2 || op.getAxesAttrAttr().size() == 4);
+        const auto inputShape = getShape(op.getInput());
+        const auto outShape = getShape(op.getOutput());
 
         return attrs.getMode().getValue() == IE::InterpolateMode::NEAREST && !attrs.getAntialias().getValue() &&
                attrs.getCoordMode().getValue() == IE::InterpolateCoordMode::ASYMMETRIC && validAxesAttrSize &&

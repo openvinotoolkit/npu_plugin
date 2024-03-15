@@ -10,8 +10,6 @@
 
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
-#include <vpux/compiler/conversion.hpp>
-
 using namespace vpux;
 
 namespace {
@@ -38,28 +36,29 @@ template <class ConcreteOp>
 mlir::LogicalResult GenericConverter<ConcreteOp>::matchAndRewrite(ConcreteOp originOp,
                                                                   mlir::PatternRewriter& rewriter) const {
     _log.trace("Got '{0}' at '{1}'", originOp->getName(), originOp->getLoc());
-    if (!originOp.input().hasOneUse()) {
+    if (!originOp.getInput().hasOneUse()) {
         return matchFailed(rewriter, originOp, "Operation {0} is not the only user of its operand",
                            originOp->getName());
     }
 
-    auto maxPool = originOp.input().template getDefiningOp<IE::MaxPoolOp>();
+    auto maxPool = originOp.getInput().template getDefiningOp<IE::MaxPoolOp>();
     if (maxPool == nullptr) {
         return matchFailed(rewriter, originOp, "Producer is not a MaxPool operation");
     }
 
-    auto producerOp = maxPool.input().template getDefiningOp<IE::LayerWithPostOpInterface>();
+    auto producerOp = maxPool.getInput().template getDefiningOp<IE::LayerWithPostOpInterface>();
     if (producerOp == nullptr) {
         return matchFailed(rewriter, originOp, "Producer of MaxPool does not support post-processing");
     }
 
     _log.trace("Swap MaxPool with '{0}'", originOp->getName());
-    const auto activationOutType = maxPool.input().getType();
-    auto newActivationOp = rewriter.create<ConcreteOp>(maxPool.getLoc(), activationOutType, maxPool.input());
+    const auto activationOutType = maxPool.getInput().getType();
+    auto newActivationOp = rewriter.create<ConcreteOp>(maxPool.getLoc(), activationOutType, maxPool.getInput());
 
-    rewriter.replaceOpWithNewOp<IE::MaxPoolOp>(originOp, maxPool.getType(), newActivationOp.output(),
-                                               maxPool.kernel_size(), maxPool.strides(), maxPool.pads_begin(),
-                                               maxPool.pads_end(), maxPool.rounding_type(), maxPool.post_opAttr());
+    rewriter.replaceOpWithNewOp<IE::MaxPoolOp>(originOp, maxPool.getType(), newActivationOp.getOutput(),
+                                               maxPool.getKernelSize(), maxPool.getStrides(), maxPool.getPadsBegin(),
+                                               maxPool.getPadsEnd(), maxPool.getRoundingType(), maxPool.getPostOpAttr(),
+                                               maxPool.getClampAttr());
 
     return mlir::success();
 }
@@ -87,7 +86,10 @@ void SwapMaxPoolWithActivation::safeRunOnFunc() {
 
     auto module = func->getParentOfType<mlir::ModuleOp>();
     const auto arch = VPU::getArch(module);
-    if (arch != VPU::ArchKind::VPUX37XX) {
+    const std::set<VPU::ArchKind> compatibleTargets = {
+            VPU::ArchKind::VPUX37XX,
+    };
+    if (compatibleTargets.count(arch) <= 0) {
         _log.trace("SwapMaxPoolWithActivation enabled only for VPUX37XX device. Got: {0}", arch);
         return;
     }

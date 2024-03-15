@@ -12,7 +12,6 @@
 #include <mlir/Support/FileUtilities.h>
 
 #include "vpux/compiler/VPU37XX/conversion.hpp"
-#include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/export.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
@@ -21,7 +20,7 @@
 #include "vpux/hwtest/hwtest_utils.hpp"
 #include "vpux/utils/core/error.hpp"
 
-#include "vpux/compiler/dialect/ELF/export.hpp"
+#include "vpux/compiler/dialect/ELFNPU37XX/export.hpp"
 
 namespace {
 
@@ -115,11 +114,11 @@ mlir::OwningOpRef<mlir::ModuleOp> importHWTEST(llvm::StringRef sourceJson, mlir:
         hwtest::buildDoubleConv(jsonDesc, module, builder, log, input_types.front(), weightTypes.front(), output_type);
         break;
     }
-    case nb::CaseType::EltwiseAdd: {
-        hwtest::buildEltwiseAdd(jsonDesc, module, builder, log, input_types.front(), weightTypes.front(), output_type);
+    case nb::CaseType::EltwiseDense: {
+        hwtest::buildEltwise(jsonDesc, module, builder, log, input_types.front(), weightTypes.front(), output_type);
         break;
     }
-    case nb::CaseType::EltwiseMult: {
+    case nb::CaseType::EltwiseMultDW: {
         hwtest::buildEltwiseMultWithDwConv(jsonDesc, module, builder, log, input_types.front(), weightTypes.front(),
                                            output_type);
         break;
@@ -215,6 +214,11 @@ mlir::OwningOpRef<mlir::ModuleOp> importHWTEST(llvm::StringRef sourceJson, mlir:
         hwtest::buildDualChannelDMATest(jsonDesc, module, builder, log, input_types.front(), output_type);
         break;
     }
+    case nb::CaseType::GenerateScaleTable: {
+        hwtest::buildGenerateScaleTableTest(jsonDesc, module, builder, log, input_types.front(), weightTypes.front(),
+                                            output_type);
+        break;
+    }
     default:
         VPUX_THROW("Unknown type: {0}", opType);
         break;
@@ -222,8 +226,7 @@ mlir::OwningOpRef<mlir::ModuleOp> importHWTEST(llvm::StringRef sourceJson, mlir:
 
     // llvm::dbgs() << "Current module: " << mlir::debugString(module);
 
-    VPUX_THROW_UNLESS(mlir::succeeded(mlir::verify(module)),
-                      "Failed to create a valid MLIR module for InferenceEngine IR");
+    VPUX_THROW_UNLESS(mlir::succeeded(mlir::verify(module)), "Failed to create a valid MLIR module for the IR model");
 
     const std::vector<std::shared_ptr<const ov::Node>> params;
     const std::vector<std::shared_ptr<const ov::Node>> results;
@@ -234,18 +237,12 @@ mlir::OwningOpRef<mlir::ModuleOp> importHWTEST(llvm::StringRef sourceJson, mlir:
 
         serialize(blob.data(), blob.size(), log);
     } else if (jsonDesc.getCompilerBackend() == nb::CompilerBackend::ELF) {
-        mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
+        mlir::PassManager pm(module->getName(), mlir::OpPassManager::Nesting::Implicit);
 
-        auto getLoweringPipeline = [](vpux::VPU::ArchKind /* arch */) {
-            return vpux::arch37xx::buildLowerVPUIP2ELFPipeline;
-        };
-        auto getExportToELFfunc = [](vpux::VPU::ArchKind /* arch */) {
-            return ELF::exportToELF;
-        };
+        vpux::arch37xx::buildLowerVPUIP2ELFPipeline(pm, log);
 
-        getLoweringPipeline(jsonDesc.getArchitecture())(pm, log);
         VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Failed to lower test model to ELF");
-        auto blob = getExportToELFfunc(jsonDesc.getArchitecture())(module, params, results, log);
+        auto blob = ELFNPU37XX::exportToELF(module, params, results, log);
 
         serialize(blob.data(), blob.size(), log);
     } else {

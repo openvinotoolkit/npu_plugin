@@ -39,5 +39,6 @@ protected:
 
 std::unique_ptr<Pipeline> makePipeline(const Executor::Ptr& executorPtr, const Config& config,
                                        vpux::zeroProfiling::ProfilingPool& profiling_pool,
-                                       vpux::zeroProfiling::ProfilingQuery& profiling_query);
+                                       vpux::zeroProfiling::ProfilingQuery& profiling_query,
+                                       std::shared_ptr<vpux::zeroProfiling::VpuInferProfiling> vpu_profiling);
 }  // namespace vpux

@@ -1,21 +1,20 @@
-//
 // Copyright (C) 2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
-//
 
 namespace ProfilingFB;
 
 // Each task represent individual task, which can be executed and so be profiled.
-// DMATask - DMA transaction, DPUTask - DPU invariant, SWTask - UPA task or single kernel invokation
+// DMATask - DMA transaction, DPUTask - DPU invariant, SWTask - UPA task or single kernel invocation,
 // Some fields are common, like name(consist of original layer name, which come from IR location) 
 // and wait/update barriers, which represent dependencies. Other fields specific to engine
 
 table DMATask {
     name: string;
-    sourceLocale: string;   // Stringified locale of source argument(may be CMX, DDR, Register)
     waitBarriers: [uint];
     updateBarriers: [uint];
     hwpId: ushort;          // DMA hardware profiling ID
+    dataIndex: uint;        // The position in the profiling output binary
+    isProfBegin: bool;      // Marker of profBeginDma
 }
 
 // DPU tasks are special, because of memory layout, which may be distributed across multiple clusters.
@@ -41,6 +40,12 @@ table SWTask {
     waitBarriers: [uint];
     updateBarriers: [uint];
     taskType: string;       // name of the kernel or layer type
+    bufferId: ushort;       // id of buffer(single SW profiling buffer in CMX)
+    bufferOffset: uint;     // offset to start of current buffer from beginning of master buffer(in tasks)
+    clusterSize: uint;      // size of buffer(in tasks)
+    dataIndex: uint;        // index of current task
+    tileId: uint;
+    clusterId: uint;
 }
 
 table ProfilingSection {
@@ -54,8 +59,15 @@ table ProfilingBuffer {
     size: uint;
 }
 
+table Platform {
+    device: byte;
+}
+
 // High level container over others
 table ProfilingMeta {
+    majorVersion: uint;
+    minorVersion: uint;
+    platform: Platform;
     profilingBuffer: ProfilingBuffer;
     dmaTasks: [DMATask];
     dpuTasks: [DPUTask];

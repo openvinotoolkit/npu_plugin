@@ -3,15 +3,13 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/core/aliases_info.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/utils/error.hpp"
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::GridSampleOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -21,10 +19,10 @@ mlir::LogicalResult vpux::IE::GridSampleOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = gridSample.input().getType().cast<mlir::ShapedType>();
+    const auto inType = gridSample.getInput().getType().cast<mlir::ShapedType>();
     const auto inShape = inType.getShape();
 
-    const auto gridType = gridSample.grid().getType().cast<mlir::ShapedType>();
+    const auto gridType = gridSample.getGrid().getType().cast<mlir::ShapedType>();
     const auto gridShape = gridType.getShape();
 
     SmallVector<int64_t> outShape = {inShape[0], inShape[1], gridShape[1], gridShape[2]};

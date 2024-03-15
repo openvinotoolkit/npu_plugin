@@ -3,20 +3,37 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
-
-#include "vpux/utils/core/numeric.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 
 #include <mlir/IR/BuiltinAttributes.h>
-#include <mlir/Pass/PassManager.h>
-
-#include <llvm/ADT/TypeSwitch.h>
 
 using namespace vpux;
 
-namespace {
+// Receives the start offsets of the data for the cluster and the strides of the input data.
+// Uses this information to compute the byte offset of the start of the cluster.
+//
+// For example, let's take an input data with the shape [1, 16, 20, 20], layout NHWC, split equally across two clusters
+// over the height dimension, where we want to find the start offset of the second cluster:
+//                                 N   C    H   W
+//   clusterOffsets:          [    0,  0,  10,  0]
+//   dataStrides (in bytes):  [12800,  2, 640, 32]
+// The start offset of the cluster is 10*640 = 6400.
+int32_t convertClusterOffsetToByteOffset(ShapeRef clusterOffsets, StridesRef dataStrides) {
+    VPUX_THROW_UNLESS(clusterOffsets.size() == dataStrides.size(),
+                      "Expected cluster offsets size {0} to be equal to the strides size {1}", clusterOffsets.size(),
+                      dataStrides.size());
 
+    int32_t byteOffset = 0;
+    for (auto offset : clusterOffsets | indexed) {
+        auto stride = dataStrides[Dim(offset.index())].to<Byte>().count();
+        byteOffset += checked_cast<int32_t>(offset.value() * stride);
+    }
+    return byteOffset;
+}
+
+namespace {
 //
 // ConvertSETablesToConstantsPass
 //
@@ -35,45 +52,83 @@ private:
 void ConvertSETablesToConstantsPass::safeRunOnFunc() {
     auto func = getOperation();
 
-    func.walk([](VPUIP::StorageElementTableOp seTableOp) {
-        auto seAttr = seTableOp.seAttr();
-        if (!seAttr.has_value()) {
+    func.walk([&](VPUIP::NCEClusterTaskOp nceOp) {
+        if (nceOp.getInputStorageElementTable() == nullptr) {
             return;
         }
 
-        const auto dataShape = Shape(parseIntArrayAttr<int64_t>(seTableOp.dataShape()));
-        const auto strides = seTableOp.dataStrides().has_value()
-                                     ? parseIntArrayAttr<int64_t>(seTableOp.dataStrides().value())
-                                     : SmallVector<int64_t>{};
-        const auto dataStrides = Strides(to_small_vector(strides | transformed([](int64_t stride) {
-                                                             return Bit(stride);
-                                                         })));
-        const auto elemByteSize = getElemTypeSize(seTableOp.dataElemType()).to<Byte>();
-        const auto seSize = seTableOp.seSize();
+        _log.trace("Found NCE operation with an input SE table at '{0}'", nceOp->getLoc());
+
+        VPUX_THROW_WHEN(nceOp.getTaskType() == VPUIP::NCETaskType::ELTWISE,
+                        "Eltwise operations with input storage element tables are not yet supported");
+
+        auto inputOperand = nceOp.getInput();
+        auto seTableOperand = nceOp.getInputStorageElementTable();
+        if (auto parentTilingOp = nceOp->getParentOfType<VPUIP::NCEClusterTilingOp>()) {
+            auto inputArg = nceOp.getInput().dyn_cast<mlir::BlockArgument>();
+            VPUX_THROW_WHEN(inputArg == nullptr, "Input is not a block argument");
+            inputOperand = parentTilingOp.getOperand(inputArg.getArgNumber());
+
+            auto seTableBlockArg = nceOp.getInputStorageElementTable().dyn_cast<mlir::BlockArgument>();
+            VPUX_THROW_WHEN(seTableBlockArg == nullptr, "Input storage element table is not a block argument");
+            seTableOperand = parentTilingOp.getOperand(seTableBlockArg.getArgNumber());
+        }
+
+        auto seTable = VPUIP::findSETableOp(seTableOperand);
+        VPUX_THROW_WHEN(seTable == nullptr, "Unable to find the storage element table");
+        if (mlir::isa<Const::DeclareOp>(seTable)) {
+            _log.nest().trace("Storage element table was already converted to a constant");
+            return;
+        }
+
+        auto seTableOp = mlir::cast<VPUIP::StorageElementTableOp>(seTable);
+        auto seAttr = seTableOp.getSeAttr();
+        if (!seAttr.has_value()) {
+            _log.nest().trace("Storage element table has no SE attribute. Skipping");
+            return;
+        }
+
+        auto inputType = inputOperand.getType().cast<vpux::NDTypeInterface>();
+
+        const auto dataShape = Shape(parseIntArrayAttr<int64_t>(seTableOp.getDataShape()));
+        const auto dataStrides = inputType.getStrides();
+        const auto elemByteSize = getElemTypeSize(seTableOp.getDataElemType()).to<Byte>();
+        const auto seSize = seTableOp.getSeSize();
         auto seOffsets = seAttr.value().computeSEOffsets(dataShape, dataStrides, elemByteSize, seSize);
 
         std::vector<int32_t> basePtrs(seOffsets.size(), 0);
-        if (seTableOp.basePtrs().has_value()) {
-            basePtrs = to_std_vector(seTableOp.basePtrs().value().getValues<int32_t>());
+        if (seTableOp.getBasePtrs().has_value()) {
+            basePtrs = to_std_vector(seTableOp.getBasePtrs().value().getValues<int32_t>());
             VPUX_THROW_UNLESS(seOffsets.size() == basePtrs.size(), "Expected {0} base pointers, got {1}",
                               seOffsets.size(), basePtrs.size());
         }
 
-        // Reset offsets when the base pointer value changes
-        // This can happen for SOH strategy, when the offset refers to a new cluster
-        int32_t prevBasePtr = -1;
-        int32_t baseOffset = 0;
-        for (auto p : zip(seOffsets, basePtrs) | indexed) {
-            const auto offset = std::get<0>(p.value());
-            const auto basePtr = std::get<1>(p.value());
-            if (basePtr != prevBasePtr) {
-                VPUX_THROW_UNLESS(basePtr > prevBasePtr,
-                                  "Expected incremental base pointer values, got previous value {0}, current value {1}",
-                                  prevBasePtr, basePtr);
-                prevBasePtr = basePtr;
-                baseOffset = offset;
+        if (auto distType = inputType.dyn_cast<VPUIP::DistributedBufferType>()) {
+            auto perClusterOffsets = distType.getPerClusterMemoryShapeOffsets();
+
+            // Reset offsets when the base pointer value changes
+            // This can happen for SOH strategy, when the offset refers to a new cluster
+            std::optional<int32_t> prevBasePtr = std::nullopt;
+            int32_t baseOffset = 0;
+            for (auto p : zip(seOffsets, basePtrs) | indexed) {
+                const auto offset = std::get<0>(p.value());
+                const auto basePtr = std::get<1>(p.value());
+                if (!prevBasePtr.has_value()) {
+                    prevBasePtr = basePtr;
+                }
+                if (basePtr != prevBasePtr.value()) {
+                    VPUX_THROW_UNLESS(
+                            basePtr > prevBasePtr.value(),
+                            "Expected incremental base pointer values, got previous value {0}, current value {1}",
+                            prevBasePtr.value(), basePtr);
+                    prevBasePtr = basePtr;
+                    VPUX_THROW_UNLESS(checked_cast<size_t>(basePtr) < perClusterOffsets.size(),
+                                      "Unexpected base pointer value {0}, while {1} clusters are used", basePtr,
+                                      perClusterOffsets.size());
+                    baseOffset = convertClusterOffsetToByteOffset(perClusterOffsets[basePtr], dataStrides);
+                }
+                seOffsets[p.index()] = offset - baseOffset;
             }
-            seOffsets[p.index()] = offset - baseOffset;
         }
 
         // SE pointers have the following format:
@@ -96,11 +151,11 @@ void ConvertSETablesToConstantsPass::safeRunOnFunc() {
         }
 
         mlir::OpBuilder builder(seTableOp);
-        auto seTableType = seTableOp.output().getType().cast<vpux::NDTypeInterface>();
+        auto seTableType = seTableOp.getOutput().getType().cast<vpux::NDTypeInterface>();
         auto contentType = mlir::RankedTensorType::get(seTableType.getShape().raw(), seTableType.getElementType())
                                    .cast<vpux::NDTypeInterface>()
                                    .changeDimsOrder(seTableType.getDimsOrder());
-        auto seTableContent = mlir::DenseElementsAttr::get(contentType, makeArrayRef(sePtrs));
+        auto seTableContent = mlir::DenseElementsAttr::get(mlir::cast<mlir::ShapedType>(contentType), ArrayRef(sePtrs));
         auto constantOp = builder.create<Const::DeclareOp>(seTableOp.getLoc(), seTableType,
                                                            Const::ContentAttr::get(seTableContent));
 

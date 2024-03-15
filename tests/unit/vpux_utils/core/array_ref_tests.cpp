@@ -63,7 +63,7 @@ public:
 
 using ArrayRefContTestTypes = testing::Types<std::vector<int>, std::array<int, 5>, SmallVector<int, 10>,
                                              SmallVector<int, 2>, std::initializer_list<int>>;
-TYPED_TEST_CASE(ArrayRefContTest, ArrayRefContTestTypes);
+TYPED_TEST_SUITE(ArrayRefContTest, ArrayRefContTestTypes);
 
 TYPED_TEST(ArrayRefContTest, FromContainer) {
     this->testFromContainer();

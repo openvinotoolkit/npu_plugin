@@ -8,7 +8,6 @@
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
-#include "vpux/utils/core/numeric.hpp"
 #include "vpux/utils/core/range.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
@@ -56,8 +55,8 @@ std::pair<VPUIP::BlobWriter::Vector<uint16_t>, VPUIP::BlobWriter::Vector<uint16_
 
 mlir::LogicalResult vpux::VPUIP::QuantCastUPAOp::verify() {
     const auto op = getOperation();
-    const auto inType = input().getType().cast<vpux::NDTypeInterface>().getElementType();
-    const auto outType = output().getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto inType = getInput().getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto outType = getOutput().getType().cast<vpux::NDTypeInterface>().getElementType();
 
     if (!((inType.isF16() && outType.isa<mlir::quant::QuantizedType>()) ||
           (inType.isa<mlir::quant::QuantizedType>() && outType.isF16()))) {
@@ -79,7 +78,7 @@ mlir::LogicalResult vpux::VPUIP::QuantCastUPAOp::verify() {
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::QuantCastUPAOp::serialize(BlobWriter& writer) {
-    auto scalesAndZeroPoints = serializeScalesAndZeroPoints(input(), output(), writer);
+    auto scalesAndZeroPoints = serializeScalesAndZeroPoints(getInput(), getOutput(), writer);
 
     MVCNN::QuantizeParamsBuilder builder(writer);
     builder.add_scale(scalesAndZeroPoints.first);

@@ -11,24 +11,16 @@
 #include "vpux/compiler/core/feasible_memory_scheduler_control_edges.hpp"
 #include "vpux/compiler/core/feasible_memory_scheduler_spilling.hpp"
 #include "vpux/compiler/core/mem_live_range_info.hpp"
-#include "vpux/compiler/core/overlap_DPU_and_DMA.hpp"
+#include "vpux/compiler/core/prefetch_data_ops.hpp"
 #include "vpux/compiler/core/schedule_analysis_utils.hpp"
-#include "vpux/compiler/dialect/VPU/cost_model.hpp"
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/cost_model/cost_model.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/hw_settings.hpp"
 #include "vpux/compiler/utils/linear_scan.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/strings.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
-
-#include <file_utils.h>
-#include <llvm/Support/FileSystem.h>
-#include <llvm/Support/Path.h>
 
 #if defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
 
@@ -62,7 +54,7 @@ mlir::LogicalResult MemRefAllocRewrite::matchAndRewrite(mlir::memref::AllocOp or
                                                         mlir::PatternRewriter& rewriter) const {
     _log.trace("Found Alloc Operation '{0}'", origOp->getLoc());
 
-    const auto val = origOp.memref();
+    const auto val = origOp.getMemref();
 
     for (auto* user : origOp->getUsers()) {
         if (auto iface = mlir::dyn_cast<mlir::MemoryEffectOpInterface>(user)) {
@@ -80,7 +72,7 @@ mlir::LogicalResult MemRefAllocRewrite::matchAndRewrite(mlir::memref::AllocOp or
     auto sectionIndex = valType.getMemSpace().getIndex();
 
     if (sectionIndex.has_value()) {
-        auto sectionIndexArrayAttr = getIntArrayAttr(getContext(), makeArrayRef(sectionIndex.value()));
+        auto sectionIndexArrayAttr = getIntArrayAttr(getContext(), ArrayRef(sectionIndex.value()));
         rewriter.replaceOpWithNewOp<VPURT::DeclareBufferOp>(origOp, val.getType(), section, sectionIndexArrayAttr,
                                                             offset, nullptr);
     } else {
@@ -131,7 +123,7 @@ mlir::LogicalResult AllocRewrite::matchAndRewrite(VPURT::Alloc origOp, mlir::Pat
     auto swizzlingKey = origOp.getSwizzlingKeyAttr();
 
     if (sectionIndex.has_value()) {
-        auto sectionIndexArrayAttr = getIntArrayAttr(getContext(), makeArrayRef(sectionIndex.value()));
+        auto sectionIndexArrayAttr = getIntArrayAttr(getContext(), ArrayRef(sectionIndex.value()));
         rewriter.replaceOpWithNewOp<VPURT::DeclareBufferOp>(origOp, val.getType(), section, sectionIndexArrayAttr,
                                                             offset, swizzlingKey);
     } else {
@@ -193,29 +185,47 @@ mlir::LogicalResult AllocDistributedRewrite::matchAndRewrite(VPURT::AllocDistrib
 class FeasibleAllocationPass final : public VPUIP::FeasibleAllocationBase<FeasibleAllocationPass> {
 public:
     FeasibleAllocationPass(VPUIP::MemKindCreateFunc memKindCb, VPUIP::MemKindCreateFunc secondLevelmemKindCb,
-                           Logger log);
+                           bool linearizeSchedule, bool enablePipelining, bool enablePrefetching,
+                           bool optimizeFragmentation, bool optimizeDynamicSpilling, Logger log);
 
 public:
     mlir::LogicalResult initialize(mlir::MLIRContext* ctx) final;
 
 private:
-    void safeRunOnModule() final;
+    void safeRunOnFunc() final;
     void updateAsyncExecuteOpPosition(mlir::func::FuncOp& netFunc, AsyncDepsInfo& depsInfo,
                                       llvm::ArrayRef<FeasibleMemoryScheduler::ScheduledOpInfo> scheduledOps);
+    void updateAsyncExecuteOpPositionOfSpillOps(AsyncDepsInfo& depsInfo,
+                                                FeasibleMemoryScheduler::ScheduledOpInfoVec& scheduledOps);
     void assignCyclesToExecOps(AsyncDepsInfo& depsInfo, FeasibleMemoryScheduler::ScheduledOpInfoVec& scheduledOps);
+    void linearizeComputeOps(bool linearizeSchedule, bool enablePipelining, mlir::func::FuncOp& netFunc,
+                             AsyncDepsInfo& depsInfo);
 
 private:
     VPUIP::MemKindCreateFunc _memKindCb;
     VPUIP::MemKindCreateFunc _secondLvlMemKindCb;
-    VPU::MemoryKind _memKind{vpux::VPU::MemoryKind::DDR};
-    mlir::Optional<VPU::MemoryKind> _secondLvlMemKind{vpux::VPU::MemoryKind::DDR};
-    mlir::StringAttr _memKindAttr;
+    VPU::MemoryKind _memKind{vpux::VPU::MemoryKind::CMX_NN};
+    VPU::MemoryKind _secondLvlMemKind{vpux::VPU::MemoryKind::DDR};
+    mlir::SymbolRefAttr _memKindAttr;
+    bool _linearizeSchedule{false};
+    bool _enablePipelining{true};
+    bool _enablePrefetching{true};
     bool _enableScheduleStatistics{false};
+    bool _optimizeFragmentation{true};
+    bool _optimizeDynamicSpilling{true};
 };
 
 FeasibleAllocationPass::FeasibleAllocationPass(VPUIP::MemKindCreateFunc memKindCb,
-                                               VPUIP::MemKindCreateFunc secondLvlmemKindCb, Logger log)
-        : _memKindCb(std::move(memKindCb)), _secondLvlMemKindCb(std::move(secondLvlmemKindCb)) {
+                                               VPUIP::MemKindCreateFunc secondLvlmemKindCb, bool linearizeSchedule,
+                                               bool enablePipelining, bool enablePrefetching,
+                                               bool optimizeFragmentation, bool optimizeDynamicSpilling, Logger log)
+        : _memKindCb(std::move(memKindCb)),
+          _secondLvlMemKindCb(std::move(secondLvlmemKindCb)),
+          _linearizeSchedule(linearizeSchedule),
+          _enablePipelining(enablePipelining),
+          _enablePrefetching(enablePrefetching),
+          _optimizeFragmentation(optimizeFragmentation),
+          _optimizeDynamicSpilling(optimizeDynamicSpilling) {
     Base::initLogger(log, Base::getArgumentName());
 }
 
@@ -230,9 +240,30 @@ mlir::LogicalResult FeasibleAllocationPass::initialize(mlir::MLIRContext* ctx) {
     }
 
     _memKind = maybeMemKind.value();
-    _memKindAttr = mlir::StringAttr::get(ctx, stringifyEnum(_memKind));
+    _memKindAttr = mlir::SymbolRefAttr::get(ctx, stringifyEnum(_memKind));
 
-    _secondLvlMemKind = (_secondLvlMemKindCb != nullptr ? _secondLvlMemKindCb(secondLvlMemSpaceName.getValue()) : None);
+    auto maybeSecondLvlMemKind = _secondLvlMemKindCb(secondLvlMemSpaceName.getValue());
+    if (!maybeSecondLvlMemKind.has_value()) {
+        return mlir::failure();
+    }
+
+    _secondLvlMemKind = maybeSecondLvlMemKind.value();
+
+    if (enablePipelining.hasValue()) {
+        _enablePipelining = enablePipelining.getValue();
+    }
+
+    if (enablePrefetching.hasValue()) {
+        _enablePrefetching = enablePrefetching.getValue();
+    }
+
+    if (optimizeDynamicSpilling.hasValue()) {
+        _optimizeDynamicSpilling = optimizeDynamicSpilling.getValue();
+    }
+
+    if (linearizeSchedule.hasValue()) {
+        _linearizeSchedule = linearizeSchedule.getValue();
+    }
 
     return mlir::success();
 }
@@ -265,6 +296,103 @@ void FeasibleAllocationPass::updateAsyncExecuteOpPosition(
     }
 }
 
+// This method will update all AsyncExecOp position in the block related to
+// spill ops. The goal is to move them close to their dependency which can
+// be some data or control flow source or an operation that executes on same queue type
+// This is done to get rid of potential long dependencies across IR as scheduler
+// initially places spill ops as late as they are needed but in fact based on their
+// dependencies and executor type they will be executed earlier
+void FeasibleAllocationPass::updateAsyncExecuteOpPositionOfSpillOps(
+        AsyncDepsInfo& depsInfo, FeasibleMemoryScheduler::ScheduledOpInfoVec& scheduledOps) {
+    std::map<std::pair<FeasibleMemoryScheduler::QueueType, size_t>, mlir::async::ExecuteOp>
+            lastExecOpOnGivenQueueInstance;
+    SmallVector<std::pair<size_t, size_t>> pairOfSpillOpAndItsNewPlaceInSchedVec;
+
+    for (auto& schedOp : scheduledOps) {
+        if (schedOp.queueType.execKind != VPU::ExecutorKind::DMA_NN) {
+            continue;
+        }
+
+        mlir::async::ExecuteOp execOp = depsInfo.getExecuteOpAtIndex(schedOp.op_);
+        VPUX_THROW_UNLESS(execOp != nullptr, "Async ExecuteOp not located based on index");
+
+        if (!schedOp.isOriginalSpillWriteOp() && !schedOp.isOriginalSpillReadOp()) {
+            for (auto instIndex : schedOp.executorInstanceMask.set_bits()) {
+                auto queueKey = std::make_pair(schedOp.queueType, instIndex);
+                lastExecOpOnGivenQueueInstance[queueKey] = execOp;
+            }
+
+            continue;
+        }
+
+        SmallVector<mlir::async::ExecuteOp> depExecOps;
+        for (const auto& dep : execOp.getDependencies()) {
+            depExecOps.push_back(dep.getDefiningOp<mlir::async::ExecuteOp>());
+        }
+
+        for (auto instIndex : schedOp.executorInstanceMask.set_bits()) {
+            auto queueKey = std::make_pair(schedOp.queueType, instIndex);
+            if (lastExecOpOnGivenQueueInstance.find(queueKey) != lastExecOpOnGivenQueueInstance.end()) {
+                depExecOps.push_back(lastExecOpOnGivenQueueInstance[queueKey]);
+            }
+        }
+
+        std::sort(depExecOps.begin(), depExecOps.end(),
+                  [](mlir::async::ExecuteOp execOp1, mlir::async::ExecuteOp execOp2) {
+                      return execOp1->isBeforeInBlock(execOp2);
+                  });
+
+        if (!depExecOps.empty()) {
+            auto lastDepExecOp = depExecOps.back();
+            if (lastDepExecOp->getNextNode() != execOp.getOperation()) {
+                execOp->moveAfter(lastDepExecOp);
+
+                // Store information where given spill op is to be placed
+                pairOfSpillOpAndItsNewPlaceInSchedVec.push_back(
+                        std::make_pair(schedOp.op_, depsInfo.getIndex(lastDepExecOp)));
+            }
+        }
+
+        for (auto instIndex : schedOp.executorInstanceMask.set_bits()) {
+            auto queueKey = std::make_pair(schedOp.queueType, instIndex);
+            lastExecOpOnGivenQueueInstance[queueKey] = execOp;
+        }
+    }
+
+    // Update operation placement in scheduledOps vector
+    for (auto& pairOfSpillOpAndItsNewPlaceInSched : pairOfSpillOpAndItsNewPlaceInSchedVec) {
+        auto spillOp = pairOfSpillOpAndItsNewPlaceInSched.first;
+        auto placeAfterOp = pairOfSpillOpAndItsNewPlaceInSched.second;
+
+        // Update scheduledOps
+        auto indexToInsertItr =
+                std::find_if(scheduledOps.begin(), scheduledOps.end(), [&](const ScheduledOpInfo& opInfo) {
+                    return opInfo.op_ == placeAfterOp;
+                });
+
+        auto indexOfSpillOpItr =
+                std::find_if(scheduledOps.begin(), scheduledOps.end(), [&](const ScheduledOpInfo& opInfo) {
+                    return opInfo.op_ == spillOp;
+                });
+
+        VPUX_THROW_WHEN(indexToInsertItr == scheduledOps.end(),
+                        "No iterator located matching opIdx '{0}' in scheduledOps vec", placeAfterOp);
+        VPUX_THROW_WHEN(indexOfSpillOpItr == scheduledOps.end(),
+                        "No iterator located matching opIdx '{0}' in scheduledOps vec", spillOp);
+
+        auto indexToInsert = std::distance(scheduledOps.begin(), indexToInsertItr) + 1;
+
+        auto indexOfSpillOp = std::distance(scheduledOps.begin(), indexOfSpillOpItr);
+
+        // Insert operation to new location that wil be aligned with changes in IR
+        scheduledOps.insert(scheduledOps.begin() + indexToInsert, scheduledOps[indexOfSpillOp]);
+
+        // Remove operation from old location
+        indexOfSpillOp++;
+        scheduledOps.erase(scheduledOps.begin() + indexOfSpillOp);
+    }
+}
+
 // This method will check cycles after spilling and remove stall regions which
 // might have been introduced by spilling optimizations and assign the cycle start
 // and cycle end attribute to the async.execute operation
@@ -289,7 +417,7 @@ void FeasibleAllocationPass::assignCyclesToExecOps(AsyncDepsInfo& depsInfo,
         auto execOp = depsInfo.getExecuteOpAtIndex(schedOp.op_);
         execOp->setAttr(cycleBegin, getIntAttr(execOp->getContext(), schedOp.cycleBegin_));
         execOp->setAttr(cycleEnd, getIntAttr(execOp->getContext(), schedOp.cycleEnd_));
-        if (schedOp.executor == VPU::ExecutorKind::DMA_NN) {
+        if (schedOp.queueType.execKind == VPU::ExecutorKind::DMA_NN) {
             SmallVector<uint64_t> executorInstanceMaskVec;
             for (auto portIdx : schedOp.executorInstanceMask.set_bits()) {
                 executorInstanceMaskVec.push_back(portIdx);
@@ -300,7 +428,33 @@ void FeasibleAllocationPass::assignCyclesToExecOps(AsyncDepsInfo& depsInfo,
     }
 }
 
-void FeasibleAllocationPass::safeRunOnModule() {
+// This method will inject dependencies between operations based on linearization option
+void FeasibleAllocationPass::linearizeComputeOps(bool linearizeSchedule, bool enablePipelining,
+                                                 mlir::func::FuncOp& netFunc, AsyncDepsInfo& depsInfo) {
+    // various linearization options
+    mlir::async::ExecuteOp prevExecOp = nullptr;
+    llvm::DenseMap<VPU::ExecutorKind, mlir::async::ExecuteOp> prevExecOpMap;
+    netFunc->walk([&](mlir::async::ExecuteOp execOp) {
+        const auto currExecutor = VPUIP::VPUIPDialect::getExecutorKind(execOp);
+        if (!linearizeSchedule && !VPUIP::VPUIPDialect::isComputeExecutorKind(currExecutor)) {
+            return;
+        }
+
+        if (linearizeSchedule || !enablePipelining) {
+            if (prevExecOp != nullptr) {
+                depsInfo.addDependency(prevExecOp, execOp);
+            }
+            prevExecOp = execOp;
+        } else {
+            if (prevExecOpMap.find(currExecutor) != prevExecOpMap.end()) {
+                depsInfo.addDependency(prevExecOpMap[currExecutor], execOp);
+            }
+            prevExecOpMap[currExecutor] = execOp;
+        }
+    });
+}
+
+void FeasibleAllocationPass::safeRunOnFunc() {
 #if defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
 
     parseEnv("IE_NPU_ENABLE_SCHEDULE_STATISTICS", _enableScheduleStatistics);
@@ -308,20 +462,18 @@ void FeasibleAllocationPass::safeRunOnModule() {
 #endif  // defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
 
     auto& ctx = getContext();
-    auto module = getOperation();
+    auto func = getOperation();
 
-    IE::CNNNetworkOp netOp;
-    mlir::func::FuncOp netFunc;
-    IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
+    auto module = func->getParentOfType<mlir::ModuleOp>();
 
     // cluster information
-    auto nceCluster = IE::getAvailableExecutor(module, VPU::ExecutorKind::NCE);
-    VPUX_THROW_UNLESS(nceCluster != nullptr, "Failed to get NCE_Cluster information");
-    auto nceClusterCount = nceCluster.count();
+    auto tileOp = IE::getTileExecutor(module);
+    VPUX_THROW_UNLESS(tileOp != nullptr, "Failed to get NCE_Cluster information");
+    auto tileCount = tileOp.getCount();
 
     auto dmaPorts = IE::getAvailableExecutor(module, VPU::ExecutorKind::DMA_NN);
     VPUX_THROW_UNLESS(dmaPorts != nullptr, "Failed to get DMA information");
-    auto dmaCount = dmaPorts.count();
+    auto dmaCount = dmaPorts.getCount();
 
     // linear scan
     auto available = IE::getAvailableMemory(module, _memKindAttr);
@@ -337,43 +489,27 @@ void FeasibleAllocationPass::safeRunOnModule() {
         // Put all reserved resources starting from 0
         int64_t resMemOffset = 0;
         for (auto& resMem : resMemVec) {
-            auto resMemSize = resMem.byteSize();
+            auto resMemSize = resMem.getByteSize();
             VPUX_THROW_UNLESS(resMemOffset + resMemSize <= maxSize.count(), "Reserved memory beyond available memory");
 
             reservedMemVec.push_back(std::make_pair(resMemOffset, resMemSize));
             _log.trace("Reserved memory - offset: '{0}', size: '{1}'", resMemOffset, resMemSize);
 
-            resMem.offsetAttr(getIntAttr(&ctx, resMemOffset));
+            resMem.setOffsetAttr(getIntAttr(&ctx, resMemOffset));
             resMemOffset += resMemSize;
         }
     }
 
     LinearScan<mlir::Value, LinearScanHandler> scan(maxSize.count(), reservedMemVec, alignment);
-    auto& aliasesInfo = getChildAnalysis<AliasesInfo>(netFunc);
-    auto& liveRangeInfo = getChildAnalysis<MemLiveRangeInfo>(netFunc);
-    auto& depsInfo = getChildAnalysis<AsyncDepsInfo>(netFunc);
+    auto& aliasesInfo = getAnalysis<AliasesInfoMemType<VPU::MemoryKind::CMX_NN>>();
+    auto& liveRangeInfo = getAnalysis<MemLiveRangeInfoMemType<VPU::MemoryKind::CMX_NN>>();
+    auto& depsInfo = getAnalysis<AsyncDepsInfo>();
+
+    linearizeComputeOps(_linearizeSchedule, _enablePipelining, func, depsInfo);
 
     // VPUNN cost model
     const auto arch = VPU::getArch(module);
     const auto costModel = VPU::createCostModel(arch);
-
-    // Follow IR order of compute tasks
-    llvm::DenseMap<VPU::ExecutorKind, mlir::async::ExecuteOp> prevExecOp;
-    for (auto execOp : netFunc.getOps<mlir::async::ExecuteOp>()) {
-        const auto currExecutor = VPUIP::VPUIPDialect::getExecutorKind(execOp);
-        if (VPUIP::VPUIPDialect::isComputeExecutorKind(currExecutor)) {
-            if (prevExecOp.find(currExecutor) != prevExecOp.end()) {
-                depsInfo.addDependency(prevExecOp[currExecutor], execOp);
-            }
-            prevExecOp[currExecutor] = execOp;
-        }
-    }
-
-    // Copy classes for iteration with prefetch edges, as for prefetching
-    // scheduler will run twice and first iteration is used to gather information
-    // about the schedule and second one will perform the final allocation
-    auto prefetchScan = scan;
-    auto prefetchLiveRangeInfo = liveRangeInfo;
 
     // If schedule analysis is enabled dynamic spilling stats will be gathered
     vpux::SpillStats dynamicSpillingBeforePrefetching;
@@ -381,8 +517,8 @@ void FeasibleAllocationPass::safeRunOnModule() {
     vpux::SpillStats dynamicSpillingAfterSpillOptimizations;
 
     // feasible memory scheduler - list scheduler
-    FeasibleMemoryScheduler scheduler(_memKind, liveRangeInfo, depsInfo, aliasesInfo, _log, scan, arch, costModel,
-                                      nceClusterCount, dmaCount, _enableScheduleStatistics);
+    FeasibleMemoryScheduler scheduler(_memKind, _secondLvlMemKind, liveRangeInfo, depsInfo, _log, scan, arch, costModel,
+                                      tileCount, dmaCount, _enableScheduleStatistics, _optimizeFragmentation);
 
     // 1. initial schedule
     auto scheduledOps = scheduler.generateSchedule();
@@ -392,16 +528,27 @@ void FeasibleAllocationPass::safeRunOnModule() {
     }
 
     // 2. prefetching
-    FeasibleMemoryScheduler::scheduleWithPrefetch prefetchSchedule;
-    OverlapDMAandDPU optimalOverlap(scheduledOps, depsInfo);
-    optimalOverlap.generatePrefetchEdgesFromOverlap(prefetchSchedule);
-    if (!prefetchSchedule.empty()) {
-        FeasibleMemoryScheduler schedulerWithPrefetch(_memKind, prefetchLiveRangeInfo, depsInfo, aliasesInfo, _log,
-                                                      prefetchScan, arch, costModel, nceClusterCount, dmaCount,
-                                                      _enableScheduleStatistics);
-        scheduledOps = schedulerWithPrefetch.generateSchedule(prefetchSchedule);
+    if (_enablePrefetching && !_linearizeSchedule) {
+        PrefetchDataOps prefetching(scheduledOps, depsInfo);
+        prefetching.enableDataOpPrefetching();
+
+        LinearScan<mlir::Value, LinearScanHandler> prefetchScan(maxSize.count(), reservedMemVec, alignment);
+        auto prefetchLiveRangeInfo = MemLiveRangeInfoMemType<VPU::MemoryKind::CMX_NN>{func, aliasesInfo};
+        // prefetching logic has reordered IR, depsInfo needs to be regenerated since
+        // scheduling depends on incrementing value of async-deps-info along IR
+        depsInfo = AsyncDepsInfo{func};
+        if (!_enablePipelining) {
+            linearizeComputeOps(_linearizeSchedule, _enablePipelining, func, depsInfo);
+        }
+
+        FeasibleMemoryScheduler schedulerWithPrefetch(_memKind, _secondLvlMemKind, prefetchLiveRangeInfo, depsInfo,
+                                                      _log, prefetchScan, arch, costModel, tileCount, dmaCount,
+                                                      _enableScheduleStatistics, _optimizeFragmentation);
+        scheduledOps = schedulerWithPrefetch.generateSchedule();
         scan = std::move(prefetchScan);
     }
+
+    scheduler.cleanUpAndLogSchedule(scheduledOps);
     // TODO: recurse to strategy with useful info
 
     if (_enableScheduleStatistics) {
@@ -409,20 +556,22 @@ void FeasibleAllocationPass::safeRunOnModule() {
     }
 
     // 3. optimize spills
-    FeasibleMemorySchedulerSpilling spilling(_memKind, _secondLvlMemKind, depsInfo, aliasesInfo, _log, scan, arch);
-    spilling.optimizeDataOpsSpills(scheduledOps);
-    spilling.removeComputeOpRelocationSpills(scheduledOps);
-    spilling.removeRedundantSpillWrites(scheduledOps);
+    FeasibleMemorySchedulerSpilling spilling(_memKind, _secondLvlMemKind, depsInfo, aliasesInfo, _log, scan);
+    if (_optimizeDynamicSpilling) {
+        spilling.optimizeDataOpsSpills(scheduledOps);
+        spilling.removeComputeOpRelocationSpills(scheduledOps);
+        spilling.removeRedundantSpillWrites(scheduledOps);
+    }
 
     if (_enableScheduleStatistics) {
         dynamicSpillingAfterSpillOptimizations = vpux::getDynamicSpillingStats(scheduledOps);
     }
 
     // 3. re-order the IR
-    updateAsyncExecuteOpPosition(netFunc, depsInfo, scheduledOps);
+    updateAsyncExecuteOpPosition(func, depsInfo, scheduledOps);
 
     // 4. insert spill dmas
-    spilling.insertSpillCopyOps(scheduledOps);
+    spilling.insertSpillDmaOps(scheduledOps);
 
     // 5. add cycle info to async.execute
     assignCyclesToExecOps(depsInfo, scheduledOps);
@@ -430,30 +579,35 @@ void FeasibleAllocationPass::safeRunOnModule() {
     // 6. update dependencies
     // Recreate aliasesInfo after spill insertion to get updated information about
     // root buffers of affected spill result users.
-    aliasesInfo = AliasesInfo{netFunc};
+    aliasesInfo = AliasesInfoMemType<VPU::MemoryKind::CMX_NN>(func);
     FeasibleMemorySchedulerControlEdges controlEdges(_memKind, depsInfo, aliasesInfo, _log, scan);
     // controlEdges.insertDependenciesBasic(scheduledOps); // Old method, maintained only for debug
     controlEdges.insertMemoryControlEdges(scheduledOps);
     // Linearize DMA tasks before unrolling will introduce additional dependency across different DMA engines.
-    // But it's fine for single DMA engine. So insert depenency to simplify barrier scheduling.
+    // But it's fine for single DMA engine. So insert dependency to simplify barrier scheduling.
     if (dmaCount == 1) {
         controlEdges.insertScheduleOrderDepsForExecutor(scheduledOps, VPU::ExecutorKind::DMA_NN);
     }
+    linearizeComputeOps(_linearizeSchedule, _enablePipelining, func, depsInfo);
     controlEdges.updateDependenciesInIR();
+
+    // After dependencies are determined, location of spill operations should be updated
+    // to be close to their dependencies
+    updateAsyncExecuteOpPositionOfSpillOps(depsInfo, scheduledOps);
 
     if (_enableScheduleStatistics) {
         // verify all dependencies preserved for correct analysis
         verifyDependenciesPreservedInCycles(depsInfo, scheduledOps);
 
         // schedule statistics
-        printScheduleStatistics(netFunc, depsInfo, _log, scheduledOps);
+        printScheduleStatistics(func, depsInfo, _log, scheduledOps);
 
         // dynamic spilling statistics
         printSpillingStatistics(_log, dynamicSpillingBeforePrefetching, dynamicSpillingAfterPrefetching,
                                 dynamicSpillingAfterSpillOptimizations);
 
         // create a tracing JSON
-        createTracingJSON(netFunc);
+        createTracingJSON(func);
     }
 
     // 7. convert to allocated ops
@@ -461,7 +615,7 @@ void FeasibleAllocationPass::safeRunOnModule() {
     target.addLegalDialect<VPUIP::VPUIPDialect>();
     target.addLegalDialect<VPURT::VPURTDialect>();
     target.addDynamicallyLegalOp<mlir::memref::AllocOp>([&](mlir::memref::AllocOp op) {
-        const auto type = op.memref().getType().cast<vpux::NDTypeInterface>();
+        const auto type = op.getMemref().getType().cast<vpux::NDTypeInterface>();
         return type == nullptr || type.getMemoryKind() != _memKind;
     });
     target.addDynamicallyLegalOp<VPURT::Alloc>([&](VPURT::Alloc op) {
@@ -478,13 +632,13 @@ void FeasibleAllocationPass::safeRunOnModule() {
     patterns.add<AllocRewrite>(scan.handler(), &ctx, _log);
     patterns.add<AllocDistributedRewrite>(scan.handler(), &ctx, _log);
 
-    if (mlir::failed(mlir::applyPartialConversion(module, target, std::move(patterns)))) {
+    if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         _log.error("Failed to replace Alloc/Dealloc Operations");
         signalPassFailure();
         return;
     }
 
-    IE::setUsedMemory(module, _memKindAttr, scan.handler().maxAllocatedSize());
+    IE::setUsedMemory(func, _memKindAttr, scan.handler().maxAllocatedSize());
 }
 
 }  // namespace
@@ -493,8 +647,11 @@ void FeasibleAllocationPass::safeRunOnModule() {
 // createFeasibleAllocationPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::VPUIP::createFeasibleAllocationPass(MemKindCreateFunc memKindCb,
-                                                                      MemKindCreateFunc secondLvlmemKindCb,
-                                                                      Logger log) {
-    return std::make_unique<FeasibleAllocationPass>(std::move(memKindCb), std::move(secondLvlmemKindCb), log);
+std::unique_ptr<mlir::Pass> vpux::VPUIP::createFeasibleAllocationPass(
+        MemKindCreateFunc memKindCb, MemKindCreateFunc secondLvlmemKindCb, const bool linearizeSchedule,
+        const bool enablePrefetching, const bool enablePipelining, const bool optimizeFragmentation,
+        const bool optimizeDynamicSpilling, Logger log) {
+    return std::make_unique<FeasibleAllocationPass>(std::move(memKindCb), std::move(secondLvlmemKindCb),
+                                                    linearizeSchedule, enablePipelining, enablePrefetching,
+                                                    optimizeFragmentation, optimizeDynamicSpilling, log);
 }

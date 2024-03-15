@@ -28,7 +28,7 @@ void VPUIP::BufferType::print(mlir::AsmPrinter& printer) const {
     const auto layout = getLayout();
     if (const auto mapAttr = layout.dyn_cast<mlir::AffineMapAttr>()) {
         printer << ", " << mapAttr;
-    } else if (const auto descAttr = layout.dyn_cast<VPUIP::MemRefAttr>()) {
+    } else if (const auto descAttr = layout.dyn_cast<vpux::MemRefAttr>()) {
         printer << ", " << descAttr;
     } else {
         VPUX_THROW("Unsupported MemRefType layout '{0}'", layout);
@@ -50,7 +50,7 @@ mlir::Type VPUIP::BufferType::parse(mlir::AsmParser& parser) {
 
     SmallVector<int64_t> shape;
     int64_t dim = 0;
-    while (parser.parseOptionalInteger(dim).hasValue() && parser.parseXInDimensionList().succeeded()) {
+    while (parser.parseOptionalInteger(dim).has_value() && parser.parseXInDimensionList().succeeded()) {
         shape.push_back(dim);
     }
 
@@ -65,10 +65,10 @@ mlir::Type VPUIP::BufferType::parse(mlir::AsmParser& parser) {
     mlir::MemRefLayoutAttrInterface layout;
 
     mlir::AffineMapAttr mapAttr;
-    VPUIP::MemRefAttr memRefAttr;
-    if (parser.parseOptionalAttribute(mapAttr).hasValue()) {
+    vpux::MemRefAttr memRefAttr;
+    if (parser.parseOptionalAttribute(mapAttr).has_value()) {
         layout = mapAttr;
-    } else if (parser.parseOptionalAttribute(memRefAttr).hasValue()) {
+    } else if (parser.parseOptionalAttribute(memRefAttr).has_value()) {
         layout = memRefAttr;
     } else {
         return Type();
@@ -102,8 +102,7 @@ mlir::Type VPUIP::BufferType::parse(mlir::AsmParser& parser) {
         return Type();
     }
 
-    return static_cast<mlir::Type>(
-            get(parser.getContext(), makeArrayRef(shape), elemType, layout, memSpace, swizzlingKey));
+    return static_cast<mlir::Type>(get(parser.getContext(), ArrayRef(shape), elemType, layout, memSpace, swizzlingKey));
 }
 
 //
@@ -136,7 +135,7 @@ DimsOrder VPUIP::BufferType::getDimsOrder() const {
         return DimsOrder::fromAffineMap(mapAttr.getValue());
     }
 
-    if (const auto descAttr = layout.dyn_cast<VPUIP::MemRefAttr>()) {
+    if (const auto descAttr = layout.dyn_cast<vpux::MemRefAttr>()) {
         return DimsOrder::fromAffineMap(descAttr.order().getValue());
     }
 
@@ -159,10 +158,10 @@ Strides VPUIP::BufferType::getStrides() const {
         VPUX_THROW_UNLESS(mapAttr.getValue().isPermutation(), "Got non permutation layout attribute '{0}'", layout);
     }
 
-    if (const auto descAttr = layout.dyn_cast<VPUIP::MemRefAttr>()) {
+    if (const auto descAttr = layout.dyn_cast<vpux::MemRefAttr>()) {
         if (auto stridesAttr = descAttr.strides()) {
             const auto elemStrides = parseIntArrayAttr<int64_t>(stridesAttr);
-            const auto elemSize = getElemTypeSize();
+            const Bit elemSize = getElemTypeSize();
 
             return Strides(to_small_vector(elemStrides | transformed([&](int64_t stride) {
                                                return stride * elemSize;
@@ -190,7 +189,7 @@ Bit VPUIP::BufferType::getElemTypeSize() const {
 
 Byte VPUIP::BufferType::getTotalAllocSize() const {
     if (getRank() == 0) {
-        return getElemTypeSize();
+        return alignMemSize(getElemTypeSize(), Byte(1));
     }
 
     const auto memShape = getMemShape();
@@ -199,7 +198,7 @@ Byte VPUIP::BufferType::getTotalAllocSize() const {
     VPUX_THROW_UNLESS(memShape.size() == memStrides.size(), "Shape and strides mismatch : {0} vs {1}", memShape,
                       memStrides);
 
-    auto allocSizeByte = Byte(memStrides.front() * memShape.front());
+    auto allocSizeByte = alignMemSize(memStrides.front() * memShape.front(), Byte(1)).to<Byte>();
     auto swizzlingScheme = getSwizzlingSchemeAttr(*this);
     if (!swizzlingScheme || swizzlingScheme.getKey().getInt() == 0) {
         return allocSizeByte;
@@ -212,13 +211,13 @@ Byte VPUIP::BufferType::getTotalAllocSize() const {
 }
 
 Byte VPUIP::BufferType::getCompactAllocSize() const {
-    const auto typeSize = static_cast<Bit>(getElemTypeSize());
+    const Bit typeSize = getElemTypeSize();
     if (getRank() == 0) {
-        return typeSize;
+        return alignMemSize(typeSize, Byte(1));
     }
 
     const auto shape = getShape();
-    return shape.totalSize() * typeSize;
+    return alignMemSize(typeSize * shape.totalSize(), Byte(1));
 }
 
 NDTypeInterface VPUIP::BufferType::changeShape(ShapeRef shape) const {
@@ -268,8 +267,8 @@ NDTypeInterface VPUIP::BufferType::changeStrides(StridesRef strides) const {
                                                 return stride.count() / elemSize;
                                             }));
     const auto newStridesAttr = getIntArrayAttr(ctx, newStrides);
-    const auto newDescAttr = VPUIP::MemRefAttr::get(order, newStridesAttr, /*swizzlingScheme=*/nullptr, nullptr,
-                                                    /*allocSize=*/nullptr, ctx);
+    const auto newDescAttr = vpux::MemRefAttr::get(order, newStridesAttr,
+                                                   /*allocSize=*/nullptr, ctx);
     return VPUIP::BufferType::get(ctx, getShape().raw(), getElementType(), newDescAttr, getMemSpace(),
                                   getSwizzlingKey());
 }
@@ -292,8 +291,8 @@ NDTypeInterface VPUIP::BufferType::changeTypeComponents(const vpux::TypeComponen
                                                 return stride.count() / elemSize;
                                             }));
     const auto newStridesAttr = getIntArrayAttr(ctx, newStrides);
-    const auto newDescAttr = VPUIP::MemRefAttr::get(layout, newStridesAttr, /*swizzlingScheme=*/nullptr, nullptr,
-                                                    /*allocSize=*/nullptr, ctx);
+    const auto newDescAttr = vpux::MemRefAttr::get(layout, newStridesAttr,
+                                                   /*allocSize=*/nullptr, ctx);
 
     return VPUIP::BufferType::get(ctx, shape.raw(), elementType, newDescAttr, memSpace, getSwizzlingKey());
 }
@@ -338,8 +337,8 @@ NDTypeInterface VPUIP::BufferType::extractViewTile(vpux::ShapeRef tileOffsets, v
                                             }));
 
     const auto newStridesAttr = getIntArrayAttr(ctx, newStrides);
-    const auto newDescAttr = VPUIP::MemRefAttr::get(order, newStridesAttr, /*swizzlingScheme=*/nullptr, nullptr,
-                                                    /*allocSize=*/nullptr, ctx);
+    const auto newDescAttr = vpux::MemRefAttr::get(order, newStridesAttr,
+                                                   /*allocSize=*/nullptr, ctx);
 
     return VPUIP::BufferType::get(ctx, tileShape.raw(), tileElemType, newDescAttr, memSpace, getSwizzlingKey());
 }

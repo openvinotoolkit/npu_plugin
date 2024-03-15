@@ -15,7 +15,6 @@
 #include "vcl_query_network.hpp"
 
 #include "vpux/al/config/compiler.hpp"
-#include "vpux/vpux_plugin_config.hpp"
 
 using namespace vpux;
 
@@ -48,30 +47,30 @@ DLLEXPORT vcl_result_t vclCompilerCreate(vcl_compiler_desc_t desc, vcl_compiler_
 
     /// Set all default configs here
     std::map<std::string, std::string> config;
-    config[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
+    config[ov::intel_vpux::compiler_type.name()] = "MLIR";
 
     /// Set default log level based on the compiler description passed by user
     switch (desc.debug_level) {
     case VCL_LOG_NONE:
-        config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_NONE);
+        config[ov::log::level.name()] = "LOG_NONE";
         break;
     case VCL_LOG_ERROR:
-        config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_ERROR);
+        config[ov::log::level.name()] = "LOG_ERROR";
         break;
     case VCL_LOG_WARNING:
-        config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_WARNING);
+        config[ov::log::level.name()] = "LOG_WARNING";
         break;
     case VCL_LOG_INFO:
-        config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_INFO);
+        config[ov::log::level.name()] = "LOG_INFO";
         break;
     case VCL_LOG_DEBUG:
-        config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_DEBUG);
+        config[ov::log::level.name()] = "LOG_DEBUG";
         break;
     case VCL_LOG_TRACE:
-        config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_TRACE);
+        config[ov::log::level.name()] = "LOG_TRACE";
         break;
     default:
-        config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_ERROR);
+        config[ov::log::level.name()] = "LOG_ERROR";
         desc.debug_level = VCL_LOG_ERROR;
     };
 

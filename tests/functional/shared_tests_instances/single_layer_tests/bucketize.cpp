@@ -9,7 +9,7 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXBucketizeLayerTest : public BucketizeLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
+class BucketizeLayerTestCommon : public BucketizeLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void SetUp() override {
         std::tie(std::ignore /*Data shape*/, std::ignore /*Buckets shape*/, std::ignore /*Right edge of interval*/,
                  std::ignore /*Data input precision*/, std::ignore /*Buckets input precision*/, outPrc,
@@ -25,11 +25,19 @@ class VPUXBucketizeLayerTest : public BucketizeLayerTest, virtual public LayerTe
         }
     }
 };
-class VPUXBucketizeLayerTest_VPU3700 : public VPUXBucketizeLayerTest {};
 
-TEST_P(VPUXBucketizeLayerTest_VPU3700, HW) {
+class BucketizeLayerTest_NPU3700 : public BucketizeLayerTestCommon {};
+class BucketizeLayerTest_NPU3720 : public BucketizeLayerTestCommon {};
+
+TEST_P(BucketizeLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
+    Run();
+}
+
+TEST_P(BucketizeLayerTest_NPU3720, SW) {
+    setPlatformVPU3720();
+    setReferenceSoftwareModeMLIR();
     Run();
 }
 
@@ -62,20 +70,31 @@ const std::vector<std::vector<size_t>> bucketsShapes = {{100}};
 
 const std::vector<bool> with_right_bound = {true, false};
 
-const auto testBucketizeParams = ::testing::Combine(
+const auto testBucketizeParams3700 = ::testing::Combine(
         ::testing::ValuesIn(dataShapes), ::testing::ValuesIn(bucketsShapes), ::testing::ValuesIn(with_right_bound),
         ::testing::ValuesIn(dataInputPrecisions), ::testing::ValuesIn(bucketsInputPrecisions),
         ::testing::Values(outputPrecisions[0]), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
-
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_BucketizeTest, VPUXBucketizeLayerTest_VPU3700, testBucketizeParams,
-                        VPUXBucketizeLayerTest_VPU3700::getTestCaseName);
 
 const auto testBucketizeParamsI64 = ::testing::Combine(
         ::testing::Values(dataShapes[0]), ::testing::ValuesIn(bucketsShapes), ::testing::ValuesIn(with_right_bound),
         ::testing::Values(dataInputPrecisions[0]), ::testing::Values(bucketsInputPrecisions[0]),
         ::testing::Values(outputPrecisions[1]), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_BucketizeTestI64, VPUXBucketizeLayerTest_VPU3700, testBucketizeParamsI64,
-                        VPUXBucketizeLayerTest_VPU3700::getTestCaseName);
+const auto testBucketizeParams = ::testing::Combine(
+        ::testing::ValuesIn(dataShapes), ::testing::ValuesIn(bucketsShapes), ::testing::ValuesIn(with_right_bound),
+        ::testing::Values(dataInputPrecisions[0]), ::testing::Values(bucketsInputPrecisions[0]),
+        ::testing::Values(outputPrecisions[0]), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
+
+// 3700
+INSTANTIATE_TEST_CASE_P(smoke_BucketizeTest, BucketizeLayerTest_NPU3700, testBucketizeParams3700,
+                        BucketizeLayerTest_NPU3700::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_BucketizeTestI64, BucketizeLayerTest_NPU3700, testBucketizeParamsI64,
+                        BucketizeLayerTest_NPU3700::getTestCaseName);
+
+// 3720
+INSTANTIATE_TEST_CASE_P(smoke_precomit_BucketizeTest, BucketizeLayerTest_NPU3720, testBucketizeParams,
+                        BucketizeLayerTest_NPU3720::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_BucketizeTestI64, BucketizeLayerTest_NPU3720, testBucketizeParamsI64,
+                        BucketizeLayerTest_NPU3720::getTestCaseName);
 
 }  // namespace

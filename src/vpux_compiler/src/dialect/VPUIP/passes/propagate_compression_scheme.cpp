@@ -9,11 +9,6 @@
 #include "vpux/compiler/utils/swizzling_utils.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
-#include <mlir/IR/BlockAndValueMapping.h>
-#include <mlir/IR/BuiltinAttributes.h>
-#include <mlir/Pass/PassManager.h>
-#include <mlir/Transforms/DialectConversion.h>
-
 using namespace vpux;
 
 namespace {
@@ -58,7 +53,7 @@ void PropagateCompressionScheme::reinferInnerBlockTypes(VPUIP::NCEClusterTilingO
     // Find the compact types for the new arguments and their locations
     SmallVector<mlir::Type> newArgTypes;
     SmallVector<mlir::Location> newArgLocations;
-    auto& block = clusterTilingOp.body().front();
+    auto& block = clusterTilingOp.getBody().front();
     const auto operandTypes = clusterTilingOp.getOperandTypes();
     const auto blockArgs = block.getArguments();
     for (auto p : zip(operandTypes, blockArgs)) {
@@ -96,7 +91,7 @@ void PropagateCompressionScheme::reinferInnerBlockTypes(VPUIP::NCEClusterTilingO
         auto type = std::get<0>(p.value());
         auto loc = std::get<1>(p.value());
         auto newArg = block.addArgument(type, loc);
-        block.getArgument(p.index()).replaceAllUsesWith(newArg);
+        block.getArgument(checked_cast<unsigned int>(p.index())).replaceAllUsesWith(newArg);
     }
 
     // Erase the original arguments
@@ -164,7 +159,6 @@ void PropagateCompressionScheme::propagateDownCompressionScheme(mlir::Operation*
 }
 
 void PropagateCompressionScheme::safeRunOnFunc() {
-    auto& ctx = getContext();
     auto func = getOperation();
 
     func.walk([&](Const::DeclareOp constOp) {
@@ -181,12 +175,12 @@ void PropagateCompressionScheme::safeRunOnFunc() {
         if (sparsifyTransformationIt == transformations.rend()) {
             return;
         }
-        const auto sparsifyTransformation = sparsifyTransformationIt->dyn_cast<Const::SparsifyAttr>();
 
-        const auto numElemsAttr = sparsifyTransformation.getNumActualElements();
-        const auto axisAttr = getIntAttr(&ctx, Dims4D::Filter::OC.ind());
-        const auto alignmentAttr = getIntAttr(&ctx, VPU::NCEInvariant::VPU_WEIGHT_SET_BYTE_ALIGNMENT);
-        auto compressionSchemeAttr = VPUIP::CompressionSchemeAttr::get(&ctx, axisAttr, numElemsAttr, alignmentAttr);
+        auto userOp = *constOp.getOutput().getUsers().begin();
+        auto userGroupOp = mlir::dyn_cast<VPUIP::GroupSparseBufferOp>(userOp);
+        VPUX_THROW_UNLESS(userGroupOp != nullptr, "Expected weights user to be a VPUIP.GroupSparseBuffer op, got {0}",
+                          userOp);
+        auto compressionSchemeAttr = userGroupOp.getCompressionSchemeAttr();
 
         const auto outputType = constOp.getType().cast<vpux::NDTypeInterface>();
         const auto newOutputType = getMemRefType(
@@ -199,9 +193,9 @@ void PropagateCompressionScheme::safeRunOnFunc() {
             auto groupOp = mlir::dyn_cast<VPUIP::GroupSparseBufferOp>(userOp);
             VPUX_THROW_UNLESS(groupOp != nullptr, "Expected weights user to be a VPUIP.GroupSparseBuffer op, got {0}",
                               userOp);
-            VPUX_THROW_UNLESS(compressionSchemeAttr == groupOp.compression_schemeAttr(),
+            VPUX_THROW_UNLESS(compressionSchemeAttr == groupOp.getCompressionSchemeAttr(),
                               "Mismatch between the compression scheme of constant op '{0}' and grouping op '{1}'",
-                              compressionSchemeAttr, groupOp.compression_schemeAttr());
+                              compressionSchemeAttr, groupOp.getCompressionSchemeAttr());
             propagateDownCompressionScheme(userOp, compressionSchemeAttr);
         }
     });

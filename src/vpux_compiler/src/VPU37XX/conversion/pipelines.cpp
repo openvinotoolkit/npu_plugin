@@ -4,9 +4,10 @@
 //
 
 #include "vpux/compiler/VPU37XX/conversion.hpp"
+#include "vpux/compiler/conversion.hpp"
 
 #include "vpux/compiler/core/passes.hpp"
-#include "vpux/compiler/dialect/ELF/passes.hpp"
+#include "vpux/compiler/dialect/ELFNPU37XX/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUMI37XX/passes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
@@ -19,12 +20,12 @@ using namespace vpux;
 // LowerIE2VPU
 //
 
-void vpux::arch37xx::buildLowerIE2VPUPipeline37XX(mlir::OpPassManager& pm,
-                                                  const vpux::arch37xx::PermuteQuantOptions& options, Logger log) {
+void vpux::arch37xx::buildLowerIE2VPUPipeline(mlir::OpPassManager& pm,
+                                              const vpux::arch37xx::PermuteQuantOptions& options, Logger log) {
     const auto grc = getDefaultGreedyRewriteConfig();
 
     pm.addPass(vpux::arch37xx::createConvertIEToVPUNCEPass(options.useNCEPermute, log));
-    pm.addPass(createConvertLayers2VPUPass(log));
+    pm.addPass(vpux::arch37xx::createConvertLayers2VPUPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 }
 
@@ -32,7 +33,7 @@ void vpux::arch37xx::buildLowerIE2VPUPipeline37XX(mlir::OpPassManager& pm,
 // LowerVPU2VPUIPSWKernel
 //
 
-void vpux::arch37xx::buildLowerVPU2VPUIP37XXPipeline(mlir::OpPassManager& pm, Logger log) {
+void vpux::arch37xx::buildLowerVPU2VPUIPPipeline(mlir::OpPassManager& pm, Logger log) {
     const auto grc = getDefaultGreedyRewriteConfig();
 
     pm.addPass(createBufferizeFuncAndReturnPass(log));
@@ -55,26 +56,26 @@ void vpux::arch37xx::buildLowerVPUIP2ELFPipeline(mlir::OpPassManager& pm, Logger
     pm.addPass(VPUMI37XX::createBarrierComputationPass(log));
 
     pm.addPass(createConvertVPUMI37XX2ELFPass(log));
-    pm.addPass(ELF::createRemoveEmptyELFSectionsPass(log));
-    pm.addPass(ELF::createUpdateELFSectionFlagsPass(log));
+    pm.addPass(ELFNPU37XX::createRemoveEmptyELFSectionsPass(log));
+    pm.addPass(ELFNPU37XX::createUpdateELFSectionFlagsPass(log));
 }
 
 //
 // registerConversionPipelines
 //
 
-void vpux::arch37xx::registerConversionPipeline37XX() {
+void vpux::arch37xx::registerConversionPipeline() {
     mlir::PassPipelineRegistration<PermuteQuantOptions>(
             "lower-IE-to-VPU", "Performs full lowering from the IE Dialect to VPU Dialect",
             [](mlir::OpPassManager& pm, const PermuteQuantOptions& options) {
-                vpux::arch37xx::buildLowerIE2VPUPipeline37XX(pm, options);
+                vpux::arch37xx::buildLowerIE2VPUPipeline(pm, options);
             });
 
     mlir::PassPipelineRegistration<>(
             "lower-VPU-to-VPUIP",
             "Performs full lowering from the VPU Dialect to VPUIP Dialect, SW operations are converted to SWKernelOp",
             [](mlir::OpPassManager& pm) {
-                vpux::arch37xx::buildLowerVPU2VPUIP37XXPipeline(pm);
+                vpux::arch37xx::buildLowerVPU2VPUIPPipeline(pm);
             });
 
     mlir::PassPipelineRegistration<>("lower-VPUIP-to-ELF",

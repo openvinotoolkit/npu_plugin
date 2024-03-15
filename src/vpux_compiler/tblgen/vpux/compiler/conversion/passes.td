@@ -9,25 +9,6 @@
 include "mlir/Pass/PassBase.td"
 
 //=================================================================================
-// LowerIE2VPU
-//=================================================================================
-
-//
-// ConvertLayers2VPU
-//
-
-def ConvertLayers2VPU : PassBase<"convert-layers-to-VPU", "vpux::FunctionPass"> {
-    let summary = "Convert Layers Operations to VPU Dialect (SW and View layers)";
-
-    let constructor = "vpux::createConvertLayers2VPUPass()";
-
-    let dependentDialects = [
-        "vpux::VPU::VPUDialect",
-        "vpux::IE::IEDialect"
-    ];
-}
-
-//=================================================================================
 // LowerIE2IERT
 //=================================================================================
 
@@ -97,6 +78,32 @@ def AddBuffersForNetResults : PassBase<"add-buffers-for-net-results", "vpux::Mod
 //=================================================================================
 // Lowering VPU to VPUIP
 //=================================================================================
+
+//
+// OneShotBufferizeVPU2VPUIP
+//
+
+def OneShotBufferizeVPU2VPUIP : PassBase<"one-shot-bufferize-VPU-to-VPUIP", "vpux::ModulePass"> {
+    let summary = "One shot bufferize ops from VPU to VPUIP";
+
+    let description = [{
+        One shot bufferize ops from VPU to VPUIP dialect, include converting:
+        (1) software ops from VPU to VPUIP::SWKernel ops. (37XX+)
+        (2) software ops from VPU to VPUIP::XXXUPAOp ops. (30XX)
+        (3) ops which can be executed on NCE to VPUIP::NCEClusterTask ops. (30XX+)
+        (4) VPU::NCEClusterTiling ops to VPUIP::NCEClusterTiling. (30XX+)
+    }];
+
+    let constructor = "vpux::createOneShotBufferizeVPU2VPUIPPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect",
+        "vpux::VPUIP::VPUIPDialect",
+        "vpux::VPURT::VPURTDialect",
+        "mlir::memref::MemRefDialect",
+        "mlir::bufferization::BufferizationDialect"
+    ];
+}
 
 //
 // ConvertVPUNCEToVPUIP
@@ -173,7 +180,7 @@ def ConvertSWLayers2VPUIPSWKernel : PassBase<"convert-sw-layers-to-VPUIP-sw-kern
 
     let dependentDialects = [
         "vpux::VPUIP::VPUIPDialect",
-        "mlir::arith::ArithmeticDialect",
+        "mlir::arith::ArithDialect",
         "vpux::VPURT::VPURTDialect"
     ];
 }
@@ -211,8 +218,8 @@ def ConvertSWLayers2Affine : PassBase<"convert-sw-layers-to-Affine", "vpux::Modu
     let constructor = "vpux::createConvertSWLayers2AffinePass()";
 
     let dependentDialects = [
-        "mlir::arith::ArithmeticDialect",
-        "mlir::AffineDialect",
+        "mlir::arith::ArithDialect",
+        "mlir::affine::AffineDialect",
         "mlir::memref::MemRefDialect",
         "mlir::func::FuncDialect",
         "mlir::LLVM::LLVMDialect",
@@ -232,7 +239,14 @@ def ConvertAffine2LLVM : PassBase<"convert-Affine-to-LLVM", "vpux::ModulePass"> 
     let constructor = "vpux::createConvertAffine2LLVMPass()";
 
     let dependentDialects = [
-        "mlir::LLVM::LLVMDialect"
+        "mlir::arith::ArithDialect",
+        "mlir::affine::AffineDialect",
+        "mlir::cf::ControlFlowDialect",
+        "mlir::memref::MemRefDialect",
+        "mlir::func::FuncDialect",
+        "mlir::LLVM::LLVMDialect",
+        "mlir::scf::SCFDialect",
+        "mlir::math::MathDialect"
     ];
 }
 
@@ -250,7 +264,7 @@ def ConvertVPUIP2VPUMI37XX : PassBase<"convert-VPUIP-to-VPUMI37XX", "vpux::Modul
         "vpux::VPURT::VPURTDialect",
         "vpux::VPUMI37XX::VPUMI37XXDialect",
         "vpux::VPURegMapped::VPURegMappedDialect",
-        "vpux::ELF::ELFDialect"
+        "vpux::ELFNPU37XX::ELFNPU37XXDialect"
     ];
 }
 
@@ -266,32 +280,7 @@ def ConvertVPUMI37XX2ELF : PassBase<"convert-VPUMI37XX-to-ELF", "vpux::ModulePas
     let dependentDialects = [
         "vpux::VPURT::VPURTDialect", // E#47129
         "vpux::VPUMI37XX::VPUMI37XXDialect",
-        "vpux::ELF::ELFDialect"
-    ];
-}
-
-//=================================================================================
-// LowerVPU2EMU
-//=================================================================================
-
-//
-// ConvertVPUNCEToEMU
-//
-
-def ConvertVPUNCEToEMU : PassBase<"convert-vpu-nce-to-emu", "vpux::FunctionPass"> {
-    let summary = "Convert VPU.NCE ops to EMU.ClusterTaskOp.";
-
-    let description = [{
-        Convert NCE.Convolution, NCE.DepthConvolution, NCE.MaxPool, NCE.AveragePool
-        and NCE.Eltwise ops from VPU dialect to EMU.NCEClusterTaskOp
-
-    }];
-
-    let constructor = "vpux::createConvertVPUNCEToEMUPass()";
-
-    let dependentDialects = [
-        "vpux::VPU::VPUDialect",
-        "vpux::EMU::EMUDialect"
+        "vpux::ELFNPU37XX::ELFNPU37XXDialect"
     ];
 }
 

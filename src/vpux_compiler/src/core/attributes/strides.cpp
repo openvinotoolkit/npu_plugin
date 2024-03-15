@@ -21,7 +21,7 @@ using namespace vpux;
 
 bool vpux::details::isDynamicDimValues(ArrayRef<Bit> strides) {
     return std::any_of(strides.begin(), strides.end(), [](Bit val) {
-        return val.count() <= 0;
+        return val.count() < 0;
     });
 }
 

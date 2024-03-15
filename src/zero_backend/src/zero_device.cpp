@@ -8,15 +8,13 @@
 
 #include "zero_device.h"
 
-#include "zero_allocator.h"
 #include "zero_executor.h"
 #include "zero_infer_request.h"
 
 using namespace vpux;
-static size_t get_cpu_ram_size();
 
 ZeroDevice::ZeroDevice(ze_driver_handle_t driver, ze_device_handle_t device, ze_context_handle_t context,
-                       ze_graph_dditable_ext_t* graph_ddi_table_ext,
+                       ze_graph_dditable_ext_curr_t* graph_ddi_table_ext,
                        ze_graph_profiling_dditable_ext_t* graph_profiling_ddi_table_ext)
         : _driver_handle(driver),
           _device_handle(device),
@@ -30,31 +28,6 @@ ZeroDevice::ZeroDevice(ze_driver_handle_t driver, ze_device_handle_t device, ze_
 
     fullDeviceName = properties.name;
 
-    if (properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED) {
-        // Return host memory size when device is integrated
-        totalMemSize = get_cpu_ram_size();
-    } else {
-        // Query driver when device is discrete
-        try {
-            uint32_t device_memory_properties_count = 0;
-            zeroUtils::throwOnFail(
-                    "zeDeviceGetMemoryProperties",
-                    zeDeviceGetMemoryProperties(_device_handle, &device_memory_properties_count, nullptr));
-            VPUX_THROW_UNLESS(device_memory_properties_count == 1, "Unexpected count of memory properties");
-            std::vector<ze_device_memory_properties_t> device_memory_properties;
-            device_memory_properties.resize(device_memory_properties_count);
-            zeroUtils::throwOnFail("zeDeviceGetMemoryProperties",
-                                   zeDeviceGetMemoryProperties(_device_handle, &device_memory_properties_count,
-                                                               device_memory_properties.data()));
-            VPUX_THROW_UNLESS(strcmp(device_memory_properties[0].name, "DDR") == 0,
-                              "Unexpected name of memory property");
-
-            totalMemSize = device_memory_properties[0].totalSize;
-        } catch (const std::exception& e) {
-            log.debug("Can not obtain device memory properties: {0}",
-                      e.what());  // todo: E#78609, upgrade driver version to 31.0.12+ and then remove try block
-        }
-    }
     std::vector<ze_command_queue_group_properties_t> command_group_properties;
     uint32_t command_queue_group_count = 0;
     // Discover all command queue groups
@@ -65,16 +38,11 @@ ZeroDevice::ZeroDevice(ze_driver_handle_t driver, ze_device_handle_t device, ze_
                            zeDeviceGetCommandQueueGroupProperties(_device_handle, &command_queue_group_count,
                                                                   command_group_properties.data()));
 
-    // Find the corespondinng command queue group.
+    // Find the corresponding command queue group.
     _group_ordinal = zeroUtils::findGroupOrdinal(command_group_properties, properties);
 }
 
-std::shared_ptr<Allocator> ZeroDevice::getAllocator() const {
-    std::shared_ptr<Allocator> result = std::make_shared<ZeroAllocator>(_driver_handle);
-    return result;
-}
-
-std::shared_ptr<Executor> ZeroDevice::createExecutor(const NetworkDescription::Ptr& networkDescription,
+std::shared_ptr<Executor> ZeroDevice::createExecutor(const NetworkDescription::CPtr networkDescription,
                                                      const Config& config) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Device::createExecutor");
     return std::make_shared<ZeroExecutor>(_driver_handle, _device_handle, _context, _graph_ddi_table_ext,
@@ -108,7 +76,7 @@ std::string ZeroDevice::getName() const {
         name = "AUTO_DETECT";
     }
 
-    return name + ".0";
+    return name;
 }
 
 std::string ZeroDevice::getFullDeviceName() const {
@@ -137,38 +105,23 @@ uint32_t ZeroDevice::getDriverVersion() const {
     return properties.driverVersion;
 }
 
+uint64_t ZeroDevice::getAllocMemSize() const {
+    ze_graph_memory_query_t query{};
+    zeroUtils::throwOnFail("pfnQueryContextMemory",
+                           _graph_ddi_table_ext->pfnQueryContextMemory(_context, ZE_GRAPH_QUERY_MEMORY_DDR, &query));
+    return query.allocated;
+}
+
 uint64_t ZeroDevice::getTotalMemSize() const {
-    return totalMemSize;
+    ze_graph_memory_query_t query{};
+    zeroUtils::throwOnFail("pfnQueryContextMemory",
+                           _graph_ddi_table_ext->pfnQueryContextMemory(_context, ZE_GRAPH_QUERY_MEMORY_DDR, &query));
+    return query.total;
 }
 
-IInferRequest::Ptr ZeroDevice::createInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
-                                                  const InferenceEngine::OutputsDataMap& networkOutputs,
-                                                  const Executor::Ptr& executor, const Config& config,
-                                                  const std::string& netName,
-                                                  const std::vector<std::shared_ptr<const ov::Node>>& parameters,
-                                                  const std::vector<std::shared_ptr<const ov::Node>>& results,
-                                                  const vpux::NetworkIOVector& networkStatesInfo,
-                                                  const std::shared_ptr<InferenceEngine::IAllocator>& allocator) {
-    return std::make_shared<ZeroInferRequest>(networkInputs, networkOutputs, executor, config, netName, parameters,
-                                              results, networkStatesInfo, allocator);
+std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(
+        const std::shared_ptr<const ov::ICompiledModel> compiledModel,
+        const std::shared_ptr<const NetworkDescription> networkDescription, const Executor::Ptr executor,
+        const Config& config) {
+    return std::make_shared<ZeroInferRequest>(compiledModel, networkDescription, executor, config);
 }
-
-#if defined(_WIN32) && !defined(__GNUC__)
-#include "windows.h"
-
-static size_t get_cpu_ram_size() {
-    MEMORYSTATUSEX s{};
-    s.dwLength = sizeof(s);
-    GlobalMemoryStatusEx(&s);
-    return s.ullTotalPhys;
-}
-
-#else
-#include <sys/sysinfo.h>
-
-static size_t get_cpu_ram_size() {
-    struct sysinfo s {};
-    sysinfo(&s);
-    return s.totalram;
-}
-#endif

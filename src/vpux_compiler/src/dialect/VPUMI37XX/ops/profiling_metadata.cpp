@@ -3,12 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/dialect/ELF/utils.hpp"
+#include "vpux/compiler/dialect/ELFNPU37XX/utils.hpp"
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPUMI37XX/ops.hpp"
-
-#include <flatbuffers/flatbuffers.h>
 
 #include "vpux/compiler/profiling/generated/schema/profiling_generated.h"
 
@@ -18,15 +16,12 @@ using namespace vpux;
 //  ProfilingMetadataOp
 //
 
-void vpux::VPUMI37XX::ProfilingMetadataOp::serialize(elf::writer::BinaryDataSection<uint8_t>& binDataSection,
-                                                     const flatbuffers::DetachedBuffer& metadata) {
-    VPUX_THROW_UNLESS(metadata.data() != nullptr, "ProfilingMetadata's data is NULL");
-    binDataSection.appendData(metadata.data(), metadata.size());
-}
-
 void vpux::VPUMI37XX::ProfilingMetadataOp::serialize(elf::writer::BinaryDataSection<uint8_t>& binDataSection) {
-    VPUX_UNUSED(binDataSection);
-    VPUX_THROW("ERROR");
+    auto denseMetaAttr = getMetadata().dyn_cast<mlir::DenseElementsAttr>();
+    VPUX_THROW_UNLESS(denseMetaAttr != nullptr, "ProfilingMetadata's data is NULL");
+
+    auto buf = denseMetaAttr.getRawData();
+    binDataSection.appendData(reinterpret_cast<const uint8_t*>(buf.data()), buf.size());
 }
 
 size_t vpux::VPUMI37XX::ProfilingMetadataOp::getBinarySize() {
@@ -37,12 +32,12 @@ size_t vpux::VPUMI37XX::ProfilingMetadataOp::getAlignmentRequirements() {
     return alignof(ProfilingFB::ProfilingMeta);
 }
 
-vpux::ELF::SectionFlagsAttr vpux::VPUMI37XX::ProfilingMetadataOp::getAccessingProcs() {
-    return (ELF::SectionFlagsAttr::SHF_NONE);
+vpux::ELFNPU37XX::SectionFlagsAttr vpux::VPUMI37XX::ProfilingMetadataOp::getAccessingProcs() {
+    return (ELFNPU37XX::SectionFlagsAttr::SHF_NONE);
 }
 
-vpux::ELF::SectionFlagsAttr vpux::VPUMI37XX::ProfilingMetadataOp::getUserProcs() {
-    return (ELF::SectionFlagsAttr::SHF_NONE);
+vpux::ELFNPU37XX::SectionFlagsAttr vpux::VPUMI37XX::ProfilingMetadataOp::getUserProcs() {
+    return (ELFNPU37XX::SectionFlagsAttr::SHF_NONE);
 }
 
 vpux::VPURT::BufferSection vpux::VPUMI37XX::ProfilingMetadataOp::getMemorySpace() {

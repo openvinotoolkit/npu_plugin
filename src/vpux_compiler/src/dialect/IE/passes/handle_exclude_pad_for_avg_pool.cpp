@@ -7,18 +7,8 @@
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/quantization.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
-#include "vpux/utils/IE/loop.hpp"
 
-#include "vpux/utils/core/func_ref.hpp"
-#include "vpux/utils/core/numeric.hpp"
-
-#include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
@@ -29,25 +19,25 @@ mlir::Value createSubAvgPool(IE::AvgPoolOp origOp, mlir::PatternRewriter& rewrit
                              ArrayRef<int64_t> ends, mlir::ArrayAttr avgPoolOpKernelAttr,
                              mlir::ArrayAttr avgPoolOpStridesAttr) {
     mlir::MLIRContext* ctx = origOp->getContext();
-    const auto beginMask = getIntArrayAttr(ctx, makeArrayRef({1, 1, 0, 0}));
-    const auto endMask = getIntArrayAttr(ctx, makeArrayRef({1, 1, 0, 0}));
-    const auto newAxisMask = getIntArrayAttr(ctx, makeArrayRef({0, 0, 0, 0}));
-    const auto shrinkAxisMask = getIntArrayAttr(ctx, makeArrayRef({0, 0, 0, 0}));
-    const auto ellipsisMask = getIntArrayAttr(ctx, makeArrayRef({0, 0, 0, 0}));
-    const auto stridesAttr = getIntArrayAttr(ctx, makeArrayRef({1, 1, 1, 1}));
+    const auto beginMask = getIntArrayAttr(ctx, ArrayRef({1, 1, 0, 0}));
+    const auto endMask = getIntArrayAttr(ctx, ArrayRef({1, 1, 0, 0}));
+    const auto newAxisMask = getIntArrayAttr(ctx, ArrayRef({0, 0, 0, 0}));
+    const auto shrinkAxisMask = getIntArrayAttr(ctx, ArrayRef({0, 0, 0, 0}));
+    const auto ellipsisMask = getIntArrayAttr(ctx, ArrayRef({0, 0, 0, 0}));
+    const auto stridesAttr = getIntArrayAttr(ctx, ArrayRef({1, 1, 1, 1}));
     const auto beginsAttr = getIntArrayAttr(ctx, begins);
     const auto endsAttr = getIntArrayAttr(ctx, ends);
 
-    auto stridedSliceOp = rewriter.create<IE::StridedSliceOp>(origOp.getLoc(), origOp.input(), nullptr, nullptr,
+    auto stridedSliceOp = rewriter.create<IE::StridedSliceOp>(origOp.getLoc(), origOp.getInput(), nullptr, nullptr,
                                                               nullptr, beginsAttr, endsAttr, stridesAttr, beginMask,
                                                               endMask, newAxisMask, shrinkAxisMask, ellipsisMask);
 
-    const auto zeroPadAttr = getIntArrayAttr(ctx, makeArrayRef({0, 0}));
+    const auto zeroPadAttr = getIntArrayAttr(ctx, ArrayRef({0, 0}));
 
-    auto avgPoolOp = rewriter.create<IE::AvgPoolOp>(origOp->getLoc(), stridedSliceOp.output(), avgPoolOpKernelAttr,
-                                                    avgPoolOpStridesAttr, zeroPadAttr, zeroPadAttr,
-                                                    origOp.rounding_typeAttr(), nullptr, origOp.post_opAttr());
-    return avgPoolOp.output();
+    auto avgPoolOp = rewriter.create<IE::AvgPoolOp>(
+            origOp->getLoc(), stridedSliceOp.getOutput(), avgPoolOpKernelAttr, avgPoolOpStridesAttr, zeroPadAttr,
+            zeroPadAttr, origOp.getRoundingTypeAttr(), nullptr, origOp.getPostOpAttr(), origOp.getClampAttr());
+    return avgPoolOp.getOutput();
 }
 
 //
@@ -71,33 +61,33 @@ mlir::LogicalResult AveragePoolRewriter::matchAndRewrite(IE::AvgPoolOp origOp, m
     auto nestLog = _log.nest();
     auto* ctx = origOp->getContext();
 
-    const auto padsBegin = parseIntArrayAttr<int64_t>(origOp.pads_begin());
+    const auto padsBegin = parseIntArrayAttr<int64_t>(origOp.getPadsBegin());
     const auto padValue = padsBegin[Dims4D::PadsBegin::Top.ind()];  // same on all sides
-    const auto shape = getShape(origOp.output());
+    const auto shape = getShape(origOp.getOutput());
     const auto width = shape[Dims4D::Act::W];
     const auto height = shape[Dims4D::Act::H];
-    const auto origStrides = parseIntArrayAttr<int64_t>(origOp.strides());
-    const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
+    const auto origStrides = parseIntArrayAttr<int64_t>(origOp.getStrides());
+    const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.getKernelSize());
     const auto kernelHeight = kernelSize[Dims4D::Kernel::Y.ind()];
     const auto kernelWidth = kernelSize[Dims4D::Kernel::X.ind()];
     SmallVector<mlir::Value> inputs;
 
     nestLog.trace("Create AvgPool center op without any padding");
 
-    const auto zeroPadAttr = getIntArrayAttr(ctx, makeArrayRef({0, 0}));
+    const auto zeroPadAttr = getIntArrayAttr(ctx, ArrayRef({0, 0}));
 
-    auto centerOp = rewriter.create<IE::AvgPoolOp>(origOp->getLoc(), origOp.input(), origOp.kernel_size(),
-                                                   origOp.strides(), zeroPadAttr, zeroPadAttr,
-                                                   origOp.rounding_typeAttr(), nullptr, origOp.post_opAttr());
+    auto centerOp = rewriter.create<IE::AvgPoolOp>(
+            origOp->getLoc(), origOp.getInput(), origOp.getKernelSize(), origOp.getStrides(), zeroPadAttr, zeroPadAttr,
+            origOp.getRoundingTypeAttr(), nullptr, origOp.getPostOpAttr(), origOp.getClampAttr());
 
-    inputs.push_back(centerOp.output());
+    inputs.push_back(centerOp.getOutput());
 
     nestLog.trace("Create SubAvgPool operation for top left corner");
 
     const auto cornerKernelH = kernelHeight - padValue;
     const auto cornerKernelW = kernelWidth - padValue;
-    const auto cornerKernelAttr = getIntArrayAttr(ctx, makeArrayRef({cornerKernelH, cornerKernelW}));
-    const auto cornerStridesAttr = getIntArrayAttr(ctx, makeArrayRef({1, 1}));
+    const auto cornerKernelAttr = getIntArrayAttr(ctx, ArrayRef({cornerKernelH, cornerKernelW}));
+    const auto cornerStridesAttr = getIntArrayAttr(ctx, ArrayRef({1, 1}));
 
     inputs.push_back(createSubAvgPool(origOp, rewriter, /*begins=*/{0, 0, 0, 0},
                                       /*ends=*/{0, 0, cornerKernelH, cornerKernelW}, cornerKernelAttr,
@@ -124,8 +114,8 @@ mlir::LogicalResult AveragePoolRewriter::matchAndRewrite(IE::AvgPoolOp origOp, m
     const auto verticalKernelH = kernelHeight;
     const auto verticalKernelW = kernelWidth - padValue;
     SmallVector<int64_t> verticalStrides({1, origStrides[Dims4D::Strides::Y.ind()]});
-    auto verticalStridesAttr = getIntArrayAttr(ctx, makeArrayRef({verticalStrides[0], verticalStrides[1]}));
-    auto verticalKernelAttr = getIntArrayAttr(ctx, makeArrayRef({verticalKernelH, verticalKernelW}));
+    auto verticalStridesAttr = getIntArrayAttr(ctx, ArrayRef({verticalStrides[0], verticalStrides[1]}));
+    auto verticalKernelAttr = getIntArrayAttr(ctx, ArrayRef({verticalKernelH, verticalKernelW}));
 
     inputs.push_back(createSubAvgPool(origOp, rewriter, /*begins=*/{0, 0, 0, 0},
                                       /*ends=*/{0, 0, height, verticalKernelW}, verticalKernelAttr,
@@ -141,8 +131,8 @@ mlir::LogicalResult AveragePoolRewriter::matchAndRewrite(IE::AvgPoolOp origOp, m
     const auto horizontalKernelH = kernelHeight - padValue;
     const auto horizontalKernelW = kernelWidth;
     SmallVector<int64_t> horizontalStrides({origStrides[Dims4D::Strides::X.ind()], 1});
-    auto horizontalStridesAttr = getIntArrayAttr(ctx, makeArrayRef({horizontalStrides[0], horizontalStrides[1]}));
-    auto horizontalKernelAttr = getIntArrayAttr(ctx, makeArrayRef({horizontalKernelH, horizontalKernelW}));
+    auto horizontalStridesAttr = getIntArrayAttr(ctx, ArrayRef({horizontalStrides[0], horizontalStrides[1]}));
+    auto horizontalKernelAttr = getIntArrayAttr(ctx, ArrayRef({horizontalKernelH, horizontalKernelW}));
 
     inputs.push_back(createSubAvgPool(origOp, rewriter, /*begins=*/{0, 0, 0, 0},
                                       /*ends=*/{0, 0, horizontalKernelH, width}, horizontalKernelAttr,
@@ -188,17 +178,17 @@ void HandleExcludePadForAvgPoolPass::safeRunOnFunc() {
 
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalOp<IE::AvgPoolOp>([&](IE::AvgPoolOp op) {
-        if (!op.exclude_pads()) {
+        if (!op.getExcludePads()) {
             return true;
         }
-        const auto padsBegin = parseIntArrayAttr<int64_t>(op.pads_begin());
-        const auto padsEnd = parseIntArrayAttr<int64_t>(op.pads_end());
+        const auto padsBegin = parseIntArrayAttr<int64_t>(op.getPadsBegin());
+        const auto padsEnd = parseIntArrayAttr<int64_t>(op.getPadsEnd());
         const auto zeros = SmallVector<int64_t>{0, 0};
         if (padsBegin == zeros && padsEnd == zeros) {
             return true;
         }
         const auto ones = SmallVector<int64_t>{1, 1};
-        const auto strides = parseIntArrayAttr<int64_t>(op.strides());
+        const auto strides = parseIntArrayAttr<int64_t>(op.getStrides());
         return !(padsBegin == ones && padsEnd == ones && strides == ones);
     });
 

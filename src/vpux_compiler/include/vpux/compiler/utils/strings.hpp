@@ -14,6 +14,6 @@ namespace vpux {
 // Creating strings support
 //
 
-std::string stringifyLocation(mlir::Location location);
+std::string stringifyPrimaryLocation(mlir::Location location);
 
 }  // namespace vpux

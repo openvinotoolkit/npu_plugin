@@ -7,7 +7,7 @@
 
 #include "vpux/utils/core/hash.hpp"
 
-#include <ngraph/node_output.hpp>
+#include <openvino/core/node_output.hpp>
 
 //
 // Hash
@@ -16,8 +16,8 @@
 namespace std {
 
 template <>
-struct hash<ngraph::Output<ngraph::Node>> final {
-    size_t operator()(const ngraph::Output<ngraph::Node>& out) const {
+struct hash<ov::Output<ov::Node>> final {
+    size_t operator()(const ov::Output<ov::Node>& out) const {
         return vpux::getHash(out.get_node(), out.get_index());
     }
 };

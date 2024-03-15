@@ -17,6 +17,7 @@ struct GraphWriterParams final {
     bool printConst = false;
     bool printDeclarations = false;
     bool printOnlyTaskAndBarrier = false;
+    bool printOnlyAsyncExec = false;
     bool htmlLike = true;
 };
 

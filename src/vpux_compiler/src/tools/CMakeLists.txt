@@ -11,9 +11,10 @@ add_mlir_library(${TARGET_NAME}
     DISABLE_INSTALL
     LINK_LIBS PRIVATE
         npu_compiler_utils
-        npu_utils
-    DEPENDS
-        MLIRVPUXIncGenList)
+        npu_llvm_utils
+        npu_ov_utils)
+add_dependencies(${TARGET_NAME} MLIRVPUXIncGenList)
+
 target_include_directories(${TARGET_NAME}
     SYSTEM PRIVATE
         $<BUILD_INTERFACE:${MLIR_INCLUDE_DIRS}>

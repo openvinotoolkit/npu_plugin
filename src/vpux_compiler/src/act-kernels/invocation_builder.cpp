@@ -21,7 +21,9 @@ void InvocationBuilder::parseBasicAttrTypes(mlir::Attribute attr) {
     } else if (auto val = attr.dyn_cast_or_null<mlir::FloatAttr>()) {
         appendValue(_scalarStorage, static_cast<float>(val.getValue().convertToDouble()));
     } else {
-        VPUX_THROW("Act Shave Invocation: cannot store arg of type {0}", attr.getType());
+        const auto typedAttr = attr.dyn_cast_or_null<mlir::TypedAttr>();
+        const auto type = typedAttr != nullptr ? typedAttr.getType() : nullptr;
+        VPUX_THROW("Act Shave Invocation: arg type is unknown or unsupported {0}", type);
     }
 }
 
@@ -90,7 +92,7 @@ sw_params::DataType mvDTypeToDataType(const MVCNN::DType& mvDType) {
 }
 
 void InvocationBuilder::addTensorArg(mlir::Value value, const MVCNN::TensorReference* tensorRef,
-                                     vpux::VPU::ArchKind /* archKind */) {
+                                     vpux::VPU::ArchKind /*archKind*/) {
     VPUX_THROW_UNLESS(tensorRef != nullptr, "Got NULL tensor reference");
 
     sw_params::MemRefData memrefData{};
@@ -132,20 +134,29 @@ void InvocationBuilder::addTensorArg(mlir::Value value, const MVCNN::TensorRefer
     auto type = value.getType().dyn_cast<vpux::NDTypeInterface>();
     VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non vpux::NDTypeInterface '{1}'", value, value.getType());
 
-    auto memKind = type.getMemoryKind();
-    VPUX_THROW_UNLESS(memKind == VPU::MemoryKind::CMX_NN, "Tensor arg '{0}' should be of CMX_NN memkind, but '{1}'",
-                      value, memKind);
-
-    auto memspace = type.getMemSpace();
-    VPUX_THROW_UNLESS(memspace != nullptr, "Value '{0}' has non memspace attribute'{1}'", value, value.getType());
-
-    auto mayBeIndex = memspace.getIndex();
-    VPUX_THROW_UNLESS(mayBeIndex.has_value(), "Value '{0}' has no memspace index", value);
-
-    memrefData.dataAddr = checked_cast<uint32_t>(mvds::nce2p7::ACT_KERNEL_CMX_WINDOW +
-                                                 mayBeIndex.value() * mvds::nce2p7::CMX_SLICE_SIZE + addr);
     memrefData.dataType = mvDTypeToDataType(tensorRef->data_dtype());
-    memrefData.location = sw_params::NN_CMX;
+    auto memKind = type.getMemoryKind();
+    switch (memKind) {
+    case VPU::MemoryKind::CMX_NN: {
+        auto memspace = type.getMemSpace();
+        VPUX_THROW_UNLESS(memspace != nullptr, "Value '{0}' has no memspace attribute'{1}'", value, value.getType());
+
+        auto mayBeIndex = memspace.getIndex();
+        VPUX_THROW_UNLESS(mayBeIndex.has_value(), "Value '{0}' has no memspace index", value);
+
+        memrefData.dataAddr = checked_cast<uint32_t>(mvds::nce2p7::ACT_KERNEL_CMX_WINDOW +
+                                                     mayBeIndex.value() * mvds::nce2p7::CMX_SLICE_SIZE + addr);
+        memrefData.location = sw_params::NN_CMX;
+        break;
+    }
+    case VPU::MemoryKind::DDR:
+        memrefData.dataAddr = addr;
+        memrefData.location = sw_params::DDR;
+        break;
+    default:
+        VPUX_THROW("Tensor arg '{0}' should be of CMX_NN or DDR memkind, but memkind is '{1}'", value, memKind);
+        break;
+    }
 
     appendValue(_scalarStorage, memrefData);
 }

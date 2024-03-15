@@ -7,6 +7,7 @@
 #define VPUX_COMPILER_DIALECT_VPUIP_ATTRIBUTES
 
 include "vpux/compiler/dialect/VPUIP/attr_interfaces.td"
+include "vpux/compiler/core/attr_interfaces.td"
 include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/dialect/VPUIP/dialect.td"
 
@@ -99,7 +100,7 @@ def VPUIP_NCETaskTypeAttr : VPUIP_EnumAttr<VPUIP_NCETaskType, "nce_task_type">;
 // CompressionSchemeAttr
 //
 
-def VPUIP_CompressionSchemeAttr : VPUIP_Attr<"CompressionScheme"> {
+def VPUIP_CompressionSchemeAttr : VPUIP_Attr<"CompressionScheme", [DeclareAttrInterfaceMethods<HwSpecificMemRefFieldInterface>]> {
     let description = [{
         Represents the compression as the number of elements along a specified axis.
 
@@ -131,7 +132,7 @@ def VPUIP_CompressionSchemeAttr : VPUIP_Attr<"CompressionScheme"> {
     let assemblyFormat = "`<` struct(params) `>`";
 }
 
-def VPUIP_SwizzlingSchemeAttr : VPUIP_Attr<"SwizzlingScheme"> {
+def VPUIP_SwizzlingSchemeAttr : VPUIP_Attr<"SwizzlingScheme", [DeclareAttrInterfaceMethods<HwSpecificMemRefFieldInterface>]> {
     let description = [{
         This contains information about all the swizzling related requirements for the buffer
 
@@ -146,23 +147,6 @@ def VPUIP_SwizzlingSchemeAttr : VPUIP_Attr<"SwizzlingScheme"> {
     );
     let assemblyFormat = "`<` struct(params) `>`";
 }
-
-//
-// MemRefAttr
-//
-
-def VPUIP_MemRefAttr :
-    StructAttr<
-        "MemRefAttr",
-        VPUIP_Dialect,
-        [
-            StructFieldAttr<"order", AffineMapAttr>,
-            StructFieldAttr<"strides", OptionalAttr<I64ArrayAttr>>,
-            StructFieldAttr<"swizzlingScheme", OptionalAttr<VPUIP_SwizzlingSchemeAttr>>,
-            StructFieldAttr<"compressionScheme", OptionalAttr<VPUIP_CompressionSchemeAttr>>,
-            StructFieldAttr<"allocSize", OptionalAttr<IntAttr>>
-        ]
-    >;
 
 //
 // DMADescriptorAttr
@@ -191,7 +175,8 @@ def VPUIP_DmaChannelType :
             "DMA channel type",
             [
                 I64EnumAttrCase<"DDR", 0>,
-                I64EnumAttrCase<"CMX", 1>
+                I64EnumAttrCase<"CMX", 1>,
+                I64EnumAttrCase<"NOT_SPECIFIED", 2>
             ]
         > {
     let cppNamespace = "vpux::VPUIP";
@@ -240,6 +225,48 @@ def VPUIP_DpuProfilingMetadataAttr : VPUIP_Attr<"DpuProfilingMetadata", [
         "mlir::IntegerAttr":$maxVariants,
         OptionalParameter<"mlir::IntegerAttr">:$numVariants,
         OptionalParameter<"mlir::IntegerAttr">:$clusterId
+    );
+
+    let assemblyFormat = "`<` struct(params) `>`";
+}
+
+//
+// DMA Profiling Metadata
+//
+
+def VPUIP_DmaProfilingMetadataAttr : VPUIP_Attr<"DmaProfilingMetadata", [
+        DeclareAttrInterfaceMethods<VPUIP_ProfilingMetadataAttrInterface>
+    ] > {
+    let description = [{
+        Attribute attached to operation to keep DMA profiling information
+    }];
+
+    let parameters = (ins
+        OptionalParameter<"mlir::IntegerAttr">:$dataIndex,  // The position in the profiling output binary
+        OptionalParameter<"mlir::UnitAttr">:$profBegin      // Marker of profBegin task
+    );
+
+    let assemblyFormat = "`<` ( `dataIndex` `=` $dataIndex^ ):(`profBeginFlag` $profBegin)? `>`";
+}
+
+//
+// ActProfilingMetadata
+//
+
+def VPUIP_SwProfilingMetadataAttr : VPUIP_Attr<"SwProfilingMetadata", [
+        DeclareAttrInterfaceMethods<VPUIP_ProfilingMetadataAttrInterface>
+    ] > {
+    let description = [{
+        Attribute attached to opearion to keep Act profiling information
+    }];
+
+    let parameters = (ins
+        "mlir::IntegerAttr":$bufferId,                      // ID of high level buffer
+        "mlir::IntegerAttr":$bufferOffset,                  // Offset from beginning of profiling buffer to current
+        "mlir::IntegerAttr":$clusterSize,                   // Size of one CMX tile corresponding to this buffer
+        "mlir::IntegerAttr":$dataIndex,                     // Index of data in current buffer
+        OptionalParameter<"mlir::IntegerAttr">:$tileId,     // Index of tile(similar to workload_id)
+        OptionalParameter<"mlir::IntegerAttr">:$clusterId   // clusterId
     );
 
     let assemblyFormat = "`<` struct(params) `>`";

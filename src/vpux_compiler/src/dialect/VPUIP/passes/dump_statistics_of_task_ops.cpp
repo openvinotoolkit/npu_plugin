@@ -4,11 +4,9 @@
 //
 
 #include "vpux/compiler/core/feasible_memory_scheduler_spilling.hpp"
-#include "vpux/compiler/core/profiling.hpp"
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/utils/swizzling_utils.hpp"
-#include "vpux/utils/core/dense_map.hpp"
 #include "vpux/utils/core/profiling.hpp"
 
 #include <functional>
@@ -36,7 +34,7 @@ public:
 
     SpecificCategoryCounter(const std::string& category, IsSpecificOpFunc predicate,
                             const CountersVec& nestedCounters = {},
-                            Optional<RemainderHandlerFunc> maybeRemainderHandler = None)
+                            std::optional<RemainderHandlerFunc> maybeRemainderHandler = std::nullopt)
             : _category(category),
               _predicate(std::move(predicate)),
               _nestedCounters(nestedCounters),
@@ -53,7 +51,7 @@ public:
         ++_count;
         if (mlir::isa_and_nonnull<VPUIP::DMATypeOpInterface>(op)) {
             auto opType = op->getResult(0).getType().cast<vpux::NDTypeInterface>();
-            _size += static_cast<uint64_t>(opType.getTotalAllocSize().count());
+            _size += opType.getTotalAllocSize().count();
         }
         bool counted = false;
         for (auto& nestedCounter : _nestedCounters) {
@@ -89,7 +87,7 @@ private:
     CountersVec _nestedCounters;
     size_t _count;
     uint64_t _size;
-    Optional<RemainderHandlerFunc> _maybeRemainderHandler;
+    std::optional<RemainderHandlerFunc> _maybeRemainderHandler;
     std::map<std::string, size_t> _remainderCounter{};
 };
 
@@ -189,10 +187,8 @@ std::string getProfSuffix(const std::string& profCategory) {
 void addProfilingCounters(CountersVec& counters, const std::string& category) {
     if (category == "REG2CMX") {
         counters.push_back(std::make_shared<SpecificCategoryCounter>("Profiling Timestamp DMA", [](auto op) {
-            for (const auto dmaSubstr : {PROFILING_DMA_TASK_BEGIN_PREFIX, PROFILING_DMA_TASK_END_PREFIX}) {
-                if (isLocContainsStr(op->getLoc(), dmaSubstr)) {
-                    return true;
-                }
+            if (auto dmaOp = mlir::dyn_cast<VPUIP::DMATypeOpInterface>(op)) {
+                return dmaOp.getProfilingMetadata().has_value();
             }
             return false;
         }));
@@ -249,7 +245,7 @@ CountersVec getDMANestedCounters() {
         };
 
         if (auto dmaOp = mlir::dyn_cast<DMAType>(op)) {
-            return checkArgMemSpace(dmaOp.input(), inMemKind) && checkArgMemSpace(dmaOp.output_buff(), outMemKind);
+            return checkArgMemSpace(dmaOp.getInput(), inMemKind) && checkArgMemSpace(dmaOp.getOutputBuff(), outMemKind);
         }
 
         VPUX_THROW("Not supported DMA task");
@@ -307,7 +303,7 @@ CountersVec getDMACounters() {
 SpecificCategoryCounter::CounterPtr getSWKernelsCounter() {
     RemainderHandlerFunc swHandler = [](mlir::Operation* op) -> std::string {
         if (auto swKernelOp = mlir::dyn_cast<VPUIP::SwKernelOp>(op)) {
-            return swKernelOp.kernelFunction().getLeafReference().str();
+            return swKernelOp.getKernelFunction().getLeafReference().str();
         }
         return "Not SwKernel";
     };
@@ -330,9 +326,9 @@ SpecificCategoryCounter::CounterPtr getSparsityCounter() {
             [](mlir::Operation* op) {
                 if (auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(op)) {
                     bool hasSparseInput =
-                            nceOp.input_sparsity_map() != nullptr || nceOp.input_storage_element_table() != nullptr;
-                    if (nceOp.task_type() == VPUIP::NCETaskType::ELTWISE) {
-                        hasSparseInput |= nceOp.weights_sparsity_map() != nullptr;
+                            nceOp.getInputSparsityMap() != nullptr || nceOp.getInputStorageElementTable() != nullptr;
+                    if (nceOp.getTaskType() == VPUIP::NCETaskType::ELTWISE) {
+                        hasSparseInput |= nceOp.getWeightsSparsityMap() != nullptr;
                     }
                     return hasSparseInput;
                 }
@@ -344,7 +340,7 @@ SpecificCategoryCounter::CounterPtr getSparsityCounter() {
             "Sparse weights",
             [](mlir::Operation* op) {
                 if (auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(op)) {
-                    return nceOp.weights_sparsity_map() != nullptr;
+                    return nceOp.getWeightsSparsityMap() != nullptr;
                 }
                 return false;
             },
@@ -354,7 +350,7 @@ SpecificCategoryCounter::CounterPtr getSparsityCounter() {
             "Sparse output",
             [](mlir::Operation* op) {
                 if (auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(op)) {
-                    return nceOp.output_sparsity_map() != nullptr;
+                    return nceOp.getOutputSparsityMap() != nullptr;
                 }
                 return false;
             },
@@ -391,81 +387,134 @@ SpecificCategoryCounter populateCounters() {
 class CompressionRateCounter {
 public:
     CompressionRateCounter()
-            : totalConstantsBeforeCompression_(0),
-              totalCompressedConstants_(0),
+            : constantsCounter_(0),
+              compressedConstantsCounter_(0),
+              compressedF16constantsCounter_(0),
+              totalConstantsBeforeCompression_(0),
+              totalCompressedConstantsAfterCompression_(0),
               totalCompressedConstantsBeforeCompression_(0),
+              compressedF16constantsAfterCompression_(0),
+              compressedF16constantsBeforeCompression_(0),
               totalUncompressedConstants_(0) {
     }
 
-    std::pair<uint64_t, uint64_t> handleDMA(mlir::Value dmaInput, mlir::Value dmaOutput) {
-        auto cstOp = dmaInput.getDefiningOp<Const::DeclareOp>();
-        if (!cstOp) {
-            return {0, 0};
-        }
-        if (seenConstants_.find(cstOp) != seenConstants_.end()) {
-            return {0, 0};
-        }
-        if (!dmaOutput.getDefiningOp<VPURT::DeclareBufferOp>()) {
-            return {0, 0};
-        }
-
-        seenConstants_.insert(cstOp);
-
-        const auto inputSize = getTotalSize(dmaInput).count();
-        const auto outputSize = getTotalSize(dmaOutput).count();
-        return std::make_pair(inputSize, outputSize);
+    uint64_t getDataSize(mlir::Value buffer) {
+        const auto type = buffer.getType().cast<vpux::NDTypeInterface>();
+        return type.getShape().totalSize() * type.getElemTypeSize().count() / CHAR_BIT;
     }
 
     void count(mlir::Operation* op) {
-        if (auto dmaOp = mlir::dyn_cast<VPUIP::DecompressDMAOp>(op)) {
-            // act_compression_size_entry() == nullptr will verify that DecompressDMAOp is not the activation
-            // decompression
-            if (dmaOp.act_compression_size_entry() == nullptr) {
-                const auto inputOutputSize = handleDMA(dmaOp.input(), dmaOp.output_buff());
-
-                totalConstantsBeforeCompression_ += inputOutputSize.second;
-                totalCompressedConstantsBeforeCompression_ += inputOutputSize.second;
-                totalCompressedConstants_ += inputOutputSize.first;
-            }
-        } else if (auto dmaOp = mlir::dyn_cast<VPUIP::NNDMAOp>(op)) {
-            const auto inputOutputSize = handleDMA(dmaOp.input(), dmaOp.output_buff());
-
-            totalConstantsBeforeCompression_ += inputOutputSize.second;
-            totalUncompressedConstants_ += inputOutputSize.first;
+        auto cstOp = mlir::dyn_cast<Const::DeclareOp>(op);
+        if (!cstOp) {
+            return;
         }
+        constantsCounter_++;
+
+        // Handle compressed constants
+        for (const auto& user : cstOp.getOutput().getUsers()) {
+            if (auto decompressDMAOp = mlir::dyn_cast<VPUIP::DecompressDMAOp>(user)) {
+                // Make sure this is not activation decompression
+                assert(!decompressDMAOp.getActCompressionSizeEntry());
+
+                compressedConstantsCounter_++;
+
+                const auto inputSize = getDataSize(decompressDMAOp.getInput());
+                const auto outputSize = getDataSize(decompressDMAOp.getOutputBuff());
+                totalConstantsBeforeCompression_ += outputSize;
+                totalCompressedConstantsBeforeCompression_ += outputSize;
+                totalCompressedConstantsAfterCompression_ += inputSize;
+
+                auto compressedConstantType =
+                        decompressDMAOp.getOperand(0).getType().cast<vpux::NDTypeInterface>().getElementType();
+
+                if (compressedConstantType.isF16()) {
+                    compressedF16constantsCounter_++;
+                    compressedF16constantsBeforeCompression_ += outputSize;
+                    compressedF16constantsAfterCompression_ += inputSize;
+                }
+
+                return;
+            }
+        }
+
+        // Handle uncompressed constants
+        auto size = getDataSize(cstOp);
+        totalConstantsBeforeCompression_ += size;
+        totalUncompressedConstants_ += size;
     }
 
     void printStatistics(vpux::Logger log) {
-        uint64_t totalConstantsAfterCompression_ = totalCompressedConstants_ + totalUncompressedConstants_;
-        double compressedPercentage = (double)totalCompressedConstants_ / totalConstantsAfterCompression_ * 100;
-        double uncompressedPercentage = (double)totalUncompressedConstants_ / totalConstantsAfterCompression_ * 100;
+        uint64_t totalConstantsAfterCompression_ =
+                totalCompressedConstantsAfterCompression_ + totalUncompressedConstants_;
 
+        auto uncompressedConstantsCount = constantsCounter_ - compressedConstantsCounter_;
+
+        log.info("Weights statistics:");
         log = log.nest();
-        log.info("Constants size before compression: {0} bytes", totalConstantsBeforeCompression_);
-        log.info("Constants size after compression: {0} bytes", totalConstantsAfterCompression_);
-        log.info("Constants that were compressed: {0} bytes ({1}% of total)", totalCompressedConstants_,
-                 compressedPercentage);
-        log.info("Constants that couldn't be compressed: {0} bytes ({1}% of total)", totalUncompressedConstants_,
-                 uncompressedPercentage);
-
-        if (totalCompressedConstantsBeforeCompression_ > 0) {
-            double qualifiedCompressionRate =
-                    (double)totalCompressedConstants_ / totalCompressedConstantsBeforeCompression_ * 100;
-            double totalCompressionRate =
-                    (double)totalConstantsAfterCompression_ / totalConstantsBeforeCompression_ * 100;
-
-            log.info("Compression rate of compressed constants: {0}%", qualifiedCompressionRate);
-            log.info("Total compression rate: {0}%", totalCompressionRate);
+        if (compressedConstantsCounter_ == 0) {
+            // No compression
+            assert(totalConstantsBeforeCompression_ == totalConstantsAfterCompression_);
+            assert(totalCompressedConstantsBeforeCompression_ == 0);
+            assert(totalCompressedConstantsAfterCompression_ == 0);
+            log.info("Total weights - count: {0}, size: {1} (no compression)", constantsCounter_,
+                     convertBytesToReadableSize(totalConstantsAfterCompression_));
+            return;
         }
-        log = log.unnest();
+
+        // There has been compression...
+
+        assert(totalConstantsBeforeCompression_ > 0);
+        assert(totalCompressedConstantsBeforeCompression_ > 0);
+
+        const double totalCompressionRate =
+                (double)totalConstantsAfterCompression_ / totalConstantsBeforeCompression_ * 100;
+        log.info("Total weights - count: {0}, size: {1}, compressed size: {2}, ({3}%)", constantsCounter_,
+                 convertBytesToReadableSize(totalConstantsBeforeCompression_),
+                 convertBytesToReadableSize(totalConstantsAfterCompression_), totalCompressionRate);
+
+        const double compressedConstantsCompressionRate =
+                (double)totalCompressedConstantsAfterCompression_ / totalCompressedConstantsBeforeCompression_ * 100;
+        log.info("Compressed weights - count: {0}, size: {1}, compressed size: {2}, ({3}%)",
+                 compressedConstantsCounter_, convertBytesToReadableSize(totalCompressedConstantsBeforeCompression_),
+                 convertBytesToReadableSize(totalCompressedConstantsAfterCompression_),
+                 compressedConstantsCompressionRate);
+        if (compressedF16constantsCounter_ > 0) {
+            log.nest().info(
+                    "F16 - count: {0}, size: {1}, compressed size: {2}, ({3}%)", compressedF16constantsCounter_,
+                    convertBytesToReadableSize(compressedF16constantsBeforeCompression_),
+                    convertBytesToReadableSize(compressedF16constantsAfterCompression_),
+                    (double)compressedF16constantsAfterCompression_ / compressedF16constantsBeforeCompression_ * 100);
+        }
+        if (compressedConstantsCounter_ - compressedF16constantsCounter_ > 0) {
+            log.nest().info(
+                    "Int8 - count: {0}, size: {1}, compressed size: {2}, ({3}%)",
+                    compressedConstantsCounter_ - compressedF16constantsCounter_,
+                    convertBytesToReadableSize(totalCompressedConstantsBeforeCompression_ -
+                                               compressedF16constantsBeforeCompression_),
+                    convertBytesToReadableSize(totalCompressedConstantsAfterCompression_ -
+                                               compressedF16constantsAfterCompression_),
+                    (double)(totalCompressedConstantsAfterCompression_ - compressedF16constantsAfterCompression_) /
+                            (totalCompressedConstantsBeforeCompression_ - compressedF16constantsBeforeCompression_) *
+                            100);
+        }
+        if (uncompressedConstantsCount == 0) {
+            return;
+        }
+        auto uncompressedWeigthsSize = totalConstantsBeforeCompression_ - totalCompressedConstantsBeforeCompression_;
+        log.info("Not compressed weights - count: {0}, size: {1}", uncompressedConstantsCount,
+                 convertBytesToReadableSize(uncompressedWeigthsSize));
     }
 
 private:
+    uint64_t constantsCounter_;
+    uint64_t compressedConstantsCounter_;
+    uint64_t compressedF16constantsCounter_;
     uint64_t totalConstantsBeforeCompression_;
-    uint64_t totalCompressedConstants_;
+    uint64_t totalCompressedConstantsAfterCompression_;
     uint64_t totalCompressedConstantsBeforeCompression_;
+    uint64_t compressedF16constantsAfterCompression_;
+    uint64_t compressedF16constantsBeforeCompression_;
     uint64_t totalUncompressedConstants_;
-    std::set<Const::DeclareOp> seenConstants_{};
 };
 
 class ConstSwizzlingCounter {
@@ -498,9 +547,9 @@ public:
 
     void printStatistics(vpux::Logger log) {
         log = log.nest();
-        log.info("Swizzled constants     - number: {0}, size: {1}", numOfSwizzledConsts_,
+        log.info("Swizzled constants     - count: {0}, size: {1}", numOfSwizzledConsts_,
                  convertBytesToReadableSize(totalSizeOfSwizzledConsts_));
-        log.info("Not swizzled constants - number: {0}, size: {1}", numOfNotSwizzledConsts_,
+        log.info("Not swizzled constants - count: {0}, size: {1}", numOfNotSwizzledConsts_,
                  convertBytesToReadableSize(totalSizeOfNotSwizzledConsts_));
         log = log.unnest();
     }
@@ -519,10 +568,10 @@ std::tuple<uint64_t, uint64_t> getInputOutputSize(mlir::func::FuncOp funcOp) {
     auto results = funcOp.getResultTypes();
 
     for (auto& input : inputs) {
-        inputSize += static_cast<uint64_t>(input.cast<vpux::NDTypeInterface>().getTotalAllocSize().count());
+        inputSize += input.cast<vpux::NDTypeInterface>().getTotalAllocSize().count();
     }
     for (auto& result : results) {
-        outputSize = static_cast<uint64_t>(result.cast<vpux::NDTypeInterface>().getTotalAllocSize().count());
+        outputSize += result.cast<vpux::NDTypeInterface>().getTotalAllocSize().count();
     }
     // For every result we have entry in arguments
     inputSize -= outputSize;
@@ -535,14 +584,12 @@ std::tuple<uint64_t, uint64_t> getInputOutputSize(mlir::func::FuncOp funcOp) {
 
 class DumpStatisticsOfTaskOpsPass final : public VPUIP::DumpStatisticsOfTaskOpsPassBase<DumpStatisticsOfTaskOpsPass> {
 public:
-    explicit DumpStatisticsOfTaskOpsPass(bool printWeightsCompressBTC, Logger log) {
+    explicit DumpStatisticsOfTaskOpsPass(Logger log) {
         Base::initLogger(log, Base::getArgumentName());
-        _printWeightsCompressBTC = printWeightsCompressBTC;
     }
 
 private:
     void safeRunOnFunc() final;
-    bool _printWeightsCompressBTC;
 };
 
 void DumpStatisticsOfTaskOpsPass::safeRunOnFunc() {
@@ -579,12 +626,7 @@ void DumpStatisticsOfTaskOpsPass::safeRunOnFunc() {
 
     _log.info("VPUIP tasks statistics:");
     opStatisticsCounter.printStatistics(_log);
-    if (_printWeightsCompressBTC) {
-        _log.info("Weights compression statistics:");
-        compressionCounter.printStatistics(_log);
-    } else {
-        _log.info("Weights compression statistics: BitCompactor is disabled");
-    }
+    compressionCounter.printStatistics(_log);
     _log.info("Const swizzling statistics:");
     constSwizzlingCounter.printStatistics(_log);
 }
@@ -595,6 +637,8 @@ void DumpStatisticsOfTaskOpsPass::safeRunOnFunc() {
 // createDumpStatisticsOfTaskOpsPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::VPUIP::createDumpStatisticsOfTaskOpsPass(bool printWeightsCompressBTC, Logger log) {
-    return std::make_unique<DumpStatisticsOfTaskOpsPass>(printWeightsCompressBTC, log);
+std::unique_ptr<mlir::Pass> vpux::VPUIP::createDumpStatisticsOfTaskOpsPass(Logger log, bool forceLogging) {
+    // Log level is forced to info by default since the log is checked by a LIT test
+    // forceLogging is also used when 'dump-task-stats' is used explicitly
+    return std::make_unique<DumpStatisticsOfTaskOpsPass>(forceLogging ? log.nest(0).setLevel(LogLevel::Info) : log);
 }

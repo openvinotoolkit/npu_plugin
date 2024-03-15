@@ -9,8 +9,8 @@
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::YuvToRgbOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -19,7 +19,7 @@ mlir::LogicalResult vpux::IE::YuvToRgbOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = colorConv.input1().getType().cast<mlir::ShapedType>();
+    const auto inType = colorConv.getInput1().getType().cast<mlir::ShapedType>();
     const auto shape = inType.getShape();
     if (shape[3] != 1) {
         return errorAt(loc, "Incorrect input shape format: '{0}'", shape);
@@ -27,8 +27,8 @@ mlir::LogicalResult vpux::IE::YuvToRgbOp::inferReturnTypeComponents(
 
     SmallVector<int64_t> outShape{shape[0], shape[1], shape[2], 3};
 
-    if (colorConv.input2() == nullptr) {
-        VPUX_THROW_UNLESS(colorConv.input3() == nullptr, "1xPlane config error");
+    if (colorConv.getInput2() == nullptr) {
+        VPUX_THROW_UNLESS(colorConv.getInput3() == nullptr, "1xPlane config error");
         VPUX_THROW_UNLESS(((outShape[1] * 2) % 3) == 0, "Invalid height");
         outShape[1] = outShape[1] * 2 / 3;
     }
@@ -54,30 +54,30 @@ public:
 
 mlir::LogicalResult ConvertToMultiInputs::matchAndRewrite(IE::YuvToRgbOp yuvToRgbOp,
                                                           mlir::PatternRewriter& rewriter) const {
-    if (yuvToRgbOp.input2() == nullptr) {
+    if (yuvToRgbOp.getInput2() == nullptr) {
         const auto cmxAvailableBytes = vpux::VPU::getTotalCMXSize(yuvToRgbOp).to<Byte>().count();
 
         const auto outputByteSize =
-                yuvToRgbOp.output().getType().cast<vpux::NDTypeInterface>().getElemTypeSize().to<Byte>().count();
+                yuvToRgbOp.getOutput().getType().cast<vpux::NDTypeInterface>().getElemTypeSize().to<Byte>().count();
         const auto outputSizeBytes =
-                yuvToRgbOp.output().getType().cast<NDTypeInterface>().getShape().totalSize() * outputByteSize;
+                yuvToRgbOp.getOutput().getType().cast<NDTypeInterface>().getShape().totalSize() * outputByteSize;
 
         const auto inputByteSize =
-                yuvToRgbOp.input1().getType().cast<vpux::NDTypeInterface>().getElemTypeSize().to<Byte>().count();
+                yuvToRgbOp.getInput1().getType().cast<vpux::NDTypeInterface>().getElemTypeSize().to<Byte>().count();
         const auto inputSizeBytes =
-                yuvToRgbOp.input1().getType().cast<NDTypeInterface>().getShape().totalSize() * inputByteSize;
+                yuvToRgbOp.getInput1().getType().cast<NDTypeInterface>().getShape().totalSize() * inputByteSize;
         auto requiredCMX = outputSizeBytes + inputSizeBytes;
         if (requiredCMX < cmxAvailableBytes) {
             return mlir::success();
         }
 
-        auto inputShape = yuvToRgbOp.input1().getType().cast<NDTypeInterface>().getShape();
-        const auto inShapeType = yuvToRgbOp.input1().getType().cast<mlir::ShapedType>().getShape();
+        auto inputShape = yuvToRgbOp.getInput1().getType().cast<NDTypeInterface>().getShape();
+        const auto inShapeType = yuvToRgbOp.getInput1().getType().cast<mlir::ShapedType>().getShape();
         const auto sliceOpLoc = yuvToRgbOp.getLoc();
         auto* ctx = rewriter.getContext();
         enum { N = 0, H = 1, W = 2, C = 3 };
 
-        if (yuvToRgbOp.inFmt() == IE::ColorFmt::NV12) {
+        if (yuvToRgbOp.getInFmt() == IE::ColorFmt::NV12) {
             auto input1_offsets = SmallVector<int64_t>(inputShape.size(), 0);
             auto input2_offsets = SmallVector<int64_t>(inputShape.size(), 0);
 
@@ -89,21 +89,21 @@ mlir::LogicalResult ConvertToMultiInputs::matchAndRewrite(IE::YuvToRgbOp yuvToRg
             input1_sizes[H] = inShapeType[H] / 3 * 2;
             input2_sizes[H] = inShapeType[H] / 3;
 
-            auto input1_slice =
-                    rewriter.create<IE::SliceOp>(sliceOpLoc, yuvToRgbOp.input1(), getIntArrayAttr(ctx, input1_offsets),
-                                                 getIntArrayAttr(ctx, input1_sizes));
-            auto input2_slice =
-                    rewriter.create<IE::SliceOp>(sliceOpLoc, yuvToRgbOp.input1(), getIntArrayAttr(ctx, input2_offsets),
-                                                 getIntArrayAttr(ctx, input2_sizes));
+            auto input1_slice = rewriter.create<IE::SliceOp>(sliceOpLoc, yuvToRgbOp.getInput1(),
+                                                             getIntArrayAttr(ctx, input1_offsets),
+                                                             getIntArrayAttr(ctx, input1_sizes));
+            auto input2_slice = rewriter.create<IE::SliceOp>(sliceOpLoc, yuvToRgbOp.getInput1(),
+                                                             getIntArrayAttr(ctx, input2_offsets),
+                                                             getIntArrayAttr(ctx, input2_sizes));
 
             input2_sizes[W] = input2_sizes[W] / 2;
             input2_sizes[C] = 2;
             auto shapeEndAttr = getIntArrayAttr(ctx, input2_sizes);
             auto input2_slice_reshape =
-                    rewriter.create<IE::ReshapeOp>(sliceOpLoc, input2_slice.result(), nullptr, false, shapeEndAttr);
+                    rewriter.create<IE::ReshapeOp>(sliceOpLoc, input2_slice.getResult(), nullptr, false, shapeEndAttr);
 
-            rewriter.replaceOpWithNewOp<IE::YuvToRgbOp>(yuvToRgbOp, input1_slice.result(), input2_slice_reshape,
-                                                        nullptr, yuvToRgbOp.inFmt(), yuvToRgbOp.outFmt());
+            rewriter.replaceOpWithNewOp<IE::YuvToRgbOp>(yuvToRgbOp, input1_slice.getResult(), input2_slice_reshape,
+                                                        nullptr, yuvToRgbOp.getInFmt(), yuvToRgbOp.getOutFmt());
             return mlir::success();
 
         } else {
@@ -125,18 +125,19 @@ mlir::LogicalResult ConvertToMultiInputs::matchAndRewrite(IE::YuvToRgbOp yuvToRg
             input3_sizes[H] = inShapeType[H] / 3;
             input3_sizes[W] = inShapeType[H] / 2;
 
-            auto input1_slice =
-                    rewriter.create<IE::SliceOp>(sliceOpLoc, yuvToRgbOp.input1(), getIntArrayAttr(ctx, input1_offsets),
-                                                 getIntArrayAttr(ctx, input1_sizes));
-            auto input2_slice =
-                    rewriter.create<IE::SliceOp>(sliceOpLoc, yuvToRgbOp.input1(), getIntArrayAttr(ctx, input2_offsets),
-                                                 getIntArrayAttr(ctx, input2_sizes));
-            auto input3_slice =
-                    rewriter.create<IE::SliceOp>(sliceOpLoc, yuvToRgbOp.input1(), getIntArrayAttr(ctx, input3_offsets),
-                                                 getIntArrayAttr(ctx, input3_sizes));
+            auto input1_slice = rewriter.create<IE::SliceOp>(sliceOpLoc, yuvToRgbOp.getInput1(),
+                                                             getIntArrayAttr(ctx, input1_offsets),
+                                                             getIntArrayAttr(ctx, input1_sizes));
+            auto input2_slice = rewriter.create<IE::SliceOp>(sliceOpLoc, yuvToRgbOp.getInput1(),
+                                                             getIntArrayAttr(ctx, input2_offsets),
+                                                             getIntArrayAttr(ctx, input2_sizes));
+            auto input3_slice = rewriter.create<IE::SliceOp>(sliceOpLoc, yuvToRgbOp.getInput1(),
+                                                             getIntArrayAttr(ctx, input3_offsets),
+                                                             getIntArrayAttr(ctx, input3_sizes));
 
-            rewriter.replaceOpWithNewOp<IE::YuvToRgbOp>(yuvToRgbOp, input1_slice.result(), input2_slice.result(),
-                                                        input3_slice.result(), yuvToRgbOp.inFmt(), yuvToRgbOp.outFmt());
+            rewriter.replaceOpWithNewOp<IE::YuvToRgbOp>(yuvToRgbOp, input1_slice.getResult(), input2_slice.getResult(),
+                                                        input3_slice.getResult(), yuvToRgbOp.getInFmt(),
+                                                        yuvToRgbOp.getOutFmt());
             return mlir::success();
         }
     }

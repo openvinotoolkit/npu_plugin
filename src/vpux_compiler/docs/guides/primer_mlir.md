@@ -21,8 +21,8 @@ func.func @main(%arg0: tensor<10xf16>) -> tensor<1xf16> {
 
 This example contains one main function operation that has one input value, one output value and two inner operations: `dialect.operation` and `return`. Breaking down the first inner operation, we have:
 - `"dialect.operation"` as the operation name
-- `%arg0` as the operand of the operation, whose type is `tensor<1xf16>`
-- `%0` as the result of the operation, whose type is `tensor<10xf16>`; this result value is defined before it is used by the `result` user.
+- `%arg0` as the operand of the operation, whose type is `tensor<10xf16>`
+- `%0` as the result of the operation, whose type is `tensor<1xf16>`; this result value is defined before it is used by the `result` user.
 
 All of these concepts will be explained in the following sections. For now, it is sufficient to understand the general format of the IR and its SSA constraints.
 
@@ -62,7 +62,7 @@ The IE dialect is placed into its own unique namespace called `vpux::IE`. The ge
 
 Dialects are used to separate parts or components of the compilation. In our case, the IE dialect is meant to be a 1-to-1 mapping with the OpenVINO opset and it is the highest level of representation in the compiler. As the compilation progresses, the concepts that are defined in IE dialect will be converted to another dialect, such as VPU, in order to represent more hardware-specific information. However, concepts from different dialects can co-exist into one module (e.g. IE attributes and VPU operations).
 
-Beside the custom dialects that are created by users of MLIR, there are also a series of dialects that come with it. One of these dialects it [Builtin](https://mlir.llvm.org/docs/Dialects/Builtin) one, which offers a multitude of features that are commonly used.
+Beside the custom dialects that are created by users of MLIR, there are also a series of dialects that come with it. One of these dialects is [Builtin](https://mlir.llvm.org/docs/Dialects/Builtin), which offers a multitude of features that are commonly used.
 
 We are going to continue using the IE and Builtin dialect for the majority of the following sections.
 
@@ -542,7 +542,7 @@ def IE_GettingStartedOp : IE_Op<"GettingStarted"> {
 }
 ```
 
-This is how the attributes can are used in the IR:
+This is how the attributes are used in the IR:
 
 ```MLIR
 module {
@@ -607,7 +607,7 @@ Types are used to describe the operation's values. MLIR offers an open type syst
 
 ```C++
 // Inherits from `mlir::TensorType` and implements multiple interfaces, such as `mlir::ShapedType`
-class RankedTensorType : public ::mlir::Type::TypeBase<RankedTensorType, TensorType, detail::RankedTensorTypeStorage, ::mlir::SubElementTypeInterface::Trait, ::mlir::ShapedType::Trait> {
+class RankedTensorType : public ::mlir::Type::TypeBase<RankedTensorType, TensorType, detail::RankedTensorTypeStorage, ::mlir::ShapedType::Trait> {
 public:
   // ...
 
@@ -1510,7 +1510,7 @@ More information on canonicalization can be found [here](https://mlir.llvm.org/d
 
 So far, passes have been described in isolation. But during normal compilation, multiple passes are executed in a generally specific order. In MLIR, passes are grouped into pipelines and compilation can be done by executing pipelines over input IRs.
 
-A pipeline may contain either contain passes or other pipelines. This allows related passes to be grouped by some feature (e.g. optimization pipeline containing only optimizations).
+A pipeline may contain either passes or other pipelines. This allows related passes to be grouped by some feature (e.g. optimization pipeline containing only optimizations).
 
 More information on pipelines can be found [here](https://mlir.llvm.org/docs/PassManagement/#pass-manager).
 

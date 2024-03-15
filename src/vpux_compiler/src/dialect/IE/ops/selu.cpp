@@ -6,15 +6,13 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 
-#include "vpux/utils/core/checked_cast.hpp"
-
 #include <mlir/IR/PatternMatch.h>
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::SeluOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -23,7 +21,7 @@ mlir::LogicalResult vpux::IE::SeluOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = selu.data().getType().cast<mlir::ShapedType>();
+    const auto inType = selu.getData().getType().cast<mlir::ShapedType>();
 
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
 
@@ -64,21 +62,21 @@ mlir::LogicalResult getAttrValue(mlir::Value attr, float& attrValue) {
 }
 
 mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::SeluOp seluOp, mlir::PatternRewriter& rewriter) const {
-    if ((seluOp.alphaValue()) || (seluOp.lambdaValue())) {
+    if ((seluOp.getAlphaValue()) || (seluOp.getLambdaValue())) {
         return mlir::failure();
     }
 
     float alphaValue;
     float lambdaValue;
 
-    if (getAttrValue(seluOp.alpha(), alphaValue).failed()) {
+    if (getAttrValue(seluOp.getAlpha(), alphaValue).failed()) {
         return mlir::failure();
     }
-    if (getAttrValue(seluOp.lambda(), lambdaValue).failed()) {
+    if (getAttrValue(seluOp.getLambda(), lambdaValue).failed()) {
         return mlir::failure();
     }
 
-    rewriter.replaceOpWithNewOp<IE::SeluOp>(seluOp, seluOp.getType(), seluOp.data(), nullptr, nullptr,
+    rewriter.replaceOpWithNewOp<IE::SeluOp>(seluOp, seluOp.getType(), seluOp.getData(), nullptr, nullptr,
                                             rewriter.getF64FloatAttr(alphaValue),
                                             rewriter.getF64FloatAttr(lambdaValue));
 

@@ -6,13 +6,9 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/utils/adjust_layout_utils.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
-#include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
@@ -20,7 +16,7 @@ using namespace vpux;
 namespace {
 
 //
-// MatMulToConvAndPermuteCastPass
+// ConvertReflectPadToSliceAndConcatPass
 //
 
 class ConvertReflectPadToSliceAndConcatPass final :
@@ -31,19 +27,20 @@ public:
     }
 
 public:
-    class PadOpConverter;
+    class ReflectPadConverter;
 
 private:
     void safeRunOnFunc() final;
 };
 
 //
-// ConvertPadOpConverter
+// ReflectPadConverter
 //
 
-class ConvertReflectPadToSliceAndConcatPass ::PadOpConverter final : public mlir::OpRewritePattern<IE::PadOp> {
+class ConvertReflectPadToSliceAndConcatPass::ReflectPadConverter final : public mlir::OpRewritePattern<IE::PadOp> {
 public:
-    PadOpConverter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::PadOp>(ctx), _log(log) {
+    ReflectPadConverter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::PadOp>(ctx), _log(log) {
+        setDebugName("ReflectPadConverter");
     }
 
 public:
@@ -53,57 +50,58 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult ConvertReflectPadToSliceAndConcatPass::PadOpConverter::matchAndRewrite(
-        IE::PadOp padOp, mlir::PatternRewriter& rewriter) const {
-    _log.trace("Find Reflect Pad {0} at {1}", padOp, padOp->getLoc());
+mlir::Value convertPerAxisPad(mlir::Value input, const int64_t padBegin, const int64_t padEnd, const Dim padAxis,
+                              mlir::PatternRewriter& rewriter, mlir::Location loc, mlir::MLIRContext* ctx) {
+    if (padEnd == 0 && padBegin == 0) {
+        return input;
+    }
 
-    const auto loc = padOp.getLoc();
-    const auto ctx = padOp.getContext();
-    auto const padBegin = parseIntArrayAttr<int64_t>(padOp.pads_begin_attr().value());
-    auto const padEnd = parseIntArrayAttr<int64_t>(padOp.pads_end_attr().value());
-
-    SmallVector<mlir::Value> subSlices;
-
-    auto createPad = [&](mlir::Value input, Dim axis, int64_t offset) {
-        auto inputShape = getShape(input);
+    auto inputShape = getShape(input);
+    auto sliceData = [&](int64_t offset) {
         auto offsets = SmallVector<int64_t>(inputShape.size(), 0);
         auto sizes = SmallVector<int64_t>(inputShape.begin(), inputShape.end());
-        offsets[axis.ind()] = offset;
-        sizes[axis.ind()] = 1;
+        offsets[padAxis.ind()] = offset;
+        sizes[padAxis.ind()] = 1;
         return rewriter.create<IE::SliceOp>(loc, input, getIntArrayAttr(ctx, offsets), getIntArrayAttr(ctx, sizes))
-                .result();
+                .getResult();
     };
 
-    auto creatAxisPad = [&](mlir::Value input, int64_t padBefore, int64_t padAfter, Dim padAxis) {
-        if (padAfter == 0 && padBefore == 0) {
-            return input;
-        }
-        subSlices.clear();
-        for (auto i = padBefore; i > 0; --i) {
-            auto upSlice = createPad(input, padAxis, i);
-            subSlices.push_back(upSlice);
-        }
+    SmallVector<mlir::Value> subSlices;
+    for (auto idx = padBegin; idx > 0; --idx) {
+        const auto offset = idx;
+        subSlices.push_back(sliceData(offset));
+    }
 
-        subSlices.push_back(input);
+    subSlices.push_back(input);
 
-        for (auto i = 1; i <= padAfter; ++i) {
-            auto offset = getShape(input)[padAxis] - 1 - i;
-            auto upSlice = createPad(input, padAxis, offset);
-            subSlices.push_back(upSlice);
-        }
+    for (auto idx = 1; idx <= padEnd; ++idx) {
+        const auto offset = inputShape[padAxis] - 1 - idx;
+        subSlices.push_back(sliceData(offset));
+    }
 
-        return rewriter.create<IE::ConcatOp>(loc, subSlices, padAxis).output();
-    };
+    return rewriter.create<IE::ConcatOp>(loc, subSlices, padAxis).getOutput();
+}
 
-    auto input = padOp.input();
+mlir::LogicalResult ConvertReflectPadToSliceAndConcatPass::ReflectPadConverter::matchAndRewrite(
+        IE::PadOp padOp, mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Found '{1}' at '{2}'", getDebugName(), padOp->getName(), padOp->getLoc());
 
-    for (auto i = 0; i < checked_cast<int64_t>(getShape(input).size()); ++i) {
-        input = creatAxisPad(input, padBegin[i], padEnd[i], Dim(i));
+    VPUX_THROW_UNLESS(padOp.getPadsBeginAttr().has_value() && padOp.getPadsEndAttr().has_value(),
+                      "Cannot get pad begin and pad end value");
+    const auto padsBegin = parseIntArrayAttr<int64_t>(padOp.getPadsBeginAttr().value());
+    const auto padsEnd = parseIntArrayAttr<int64_t>(padOp.getPadsEndAttr().value());
+
+    mlir::Value input = padOp.getInput();
+    auto inputRank = input.getType().cast<mlir::RankedTensorType>().getRank();
+    for (auto axis = inputRank - 1; axis >= 0; --axis) {
+        auto newLoc = appendLoc(padOp.getLoc(), "_pad_axis_{0}", Dim(axis));
+        input = convertPerAxisPad(input, padsBegin[axis], padsEnd[axis], Dim(axis), rewriter, newLoc,
+                                  padOp.getContext());
     }
 
     rewriter.replaceOp(padOp, input);
 
-    _log.trace("Replease padOp with {0} ", input);
+    _log.trace("Accomplished conversion of reflect pad to slice and concat");
 
     return mlir::success();
 }
@@ -119,13 +117,13 @@ void ConvertReflectPadToSliceAndConcatPass::safeRunOnFunc() {
     mlir::ConversionTarget target(ctx);
 
     target.addDynamicallyLegalOp<IE::PadOp>([](IE::PadOp op) -> bool {
-        return op.mode() != IE::PadMode::REFLECT;
+        return op.getMode() != IE::PadMode::REFLECT;
     });
     target.addLegalOp<IE::SliceOp>();
     target.addLegalOp<IE::ConcatOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<PadOpConverter>(&ctx, _log);
+    patterns.add<ReflectPadConverter>(&ctx, _log);
 
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();

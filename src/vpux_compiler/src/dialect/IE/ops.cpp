@@ -18,15 +18,7 @@
 using namespace vpux;
 
 bool IE::isActShaveKernel(mlir::Operation* operation) {
-    const auto module = operation->getParentOfType<mlir::ModuleOp>();
-    const auto arch = VPU::getArch(module);
-
-    if (arch != VPU::ArchKind::VPUX37XX) {
-        return false;
-    }
-
-    return VPUIP::NCEInvariant::verifyKernel(operation, Logger::global()).failed() &&
-           operation->hasTrait<IE::EltwiseOp>();
+    return VPU::NCEInvariant::isSupported(operation, Logger::global()).failed();
 }
 
 //

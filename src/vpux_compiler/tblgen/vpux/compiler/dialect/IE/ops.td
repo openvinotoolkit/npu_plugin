@@ -20,6 +20,7 @@ include "mlir/IR/OpAsmInterface.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Dialect/Quant/QuantOpsBase.td"
+include "mlir/Interfaces/ControlFlowInterfaces.td"
 
 //
 // Base classes
@@ -36,7 +37,7 @@ class IE_LayerOp<string mnemonic, list<Trait> traits = []> :
         IE_Op<
             mnemonic,
             [
-                NoSideEffect,
+                Pure,
                 InferTypeOpInterface,
                 DeclareOpInterfaceMethods<InferShapedTypeOpInterface, ["inferReturnTypeComponents"]>,
                 DeclareOpInterfaceMethods<IE_LayerOpInterface>
@@ -88,10 +89,12 @@ def IE_CNNNetworkOp :
           * Precision and layout for user-provided outputs.
           * Layout for output profiling data(optional).
           * Entry point (Function name) for the network inference.
+          * Model inference time by DPU cycle unit.
     }];
 
     let arguments = (ins
-        FlatSymbolRefAttr:$entryPoint
+        FlatSymbolRefAttr:$entryPoint,
+        OptionalAttr<IntAttr>:$inferenceTiming
     );
 
     let regions = (region
@@ -251,10 +254,6 @@ def IE_SparsityInfoOp :
         F64Attr:$ratio
     );
 
-    let extraClassDeclaration = [{
-        double getRatioAsDouble();
-    }];
-
     let assemblyFormat = [{
         $ratio `at` `input` $inputId `of` $name
         attr-dict
@@ -292,7 +291,7 @@ def IE_MemoryResourceOp :
     );
 
     let extraClassDeclaration = [{
-        vpux::Byte size() { return vpux::Byte(byteSize()); }
+        vpux::Byte size() { return vpux::Byte(getByteSize()); }
 
         static mlir::StringRef getDefaultDialect() {
             return "IE";
@@ -314,7 +313,7 @@ def IE_ExecutorResourceOp :
             "ExecutorResource",
             [
                 IERT_ResourceOpInterface,
-                SymbolTable,
+                IERT_ComputeResourceOpInterface,
                 Symbol
             ]
             # GraphRegionNoTerminator.traits
@@ -325,14 +324,59 @@ def IE_ExecutorResourceOp :
         The executor resource is defined by the following attributes:
 
           * sym_name - kind of the executor.
-          * Count - number of executor units.
-          * proc_freq - processor frequency (in MHz).
+          * count - number of executor units.
+          * activity_factor - power activity factor.
     }];
 
     let arguments = (ins
         SymbolNameAttr:$sym_name,
         IntAttr:$count,
-        OptionalAttr<F64Attr>:$proc_freq
+        OptionalAttr<F64Attr>:$activity_factor
+    );
+
+    let extraClassDeclaration = [{
+        static mlir::StringRef getDefaultDialect() {
+            return "IE";
+        }
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        $count `of` $sym_name
+    }];
+}
+
+
+//
+// TileResourceOp
+//
+
+def IE_TileResourceOp :
+        IE_Op<
+            "TileResource",
+            [
+                IERT_ResourceOpInterface,
+                IERT_ComputeResourceOpInterface,
+                SymbolTable,
+                Symbol
+            ]
+            # GraphRegionNoTerminator.traits
+        > {
+    let summary = "Information about tile resource";
+
+    let description = [{
+        The tile resource is defined by the following attributes:
+          * sym_name - kind of the executor.
+          * count - number of executor units.
+          * proc_freq - processor frequency (in MHz).
+          * activity_factor - power activity factor.
+    }];
+
+    let arguments = (ins
+        SymbolNameAttr:$sym_name,
+        IntAttr:$count,
+        OptionalAttr<F64Attr>:$proc_freq,
+        OptionalAttr<F64Attr>:$activity_factor
     );
 
     let regions = (region
@@ -341,26 +385,26 @@ def IE_ExecutorResourceOp :
 
     let extraClassDeclaration = [{
         mlir::FloatAttr getProcessorFrequency() {
-            return proc_freqAttr();
+            return getProcFreqAttr();
         }
 
         void setProcessorFrequency(mlir::FloatAttr procFreqAttr) {
-            proc_freqAttr(procFreqAttr);
+            setProcFreqAttr(procFreqAttr);
         }
 
         bool hasProcessorFrequency() {
-            return proc_freqAttr() != nullptr;
+            return getProcFreqAttr() != nullptr;
         }
 
-        vpux::IE::ExecutorResourceOp addSubExecutor(mlir::StringAttr executor, uint32_t count);
-        bool hasSubExecutor(mlir::StringAttr executor);
-        vpux::IE::ExecutorResourceOp getSubExecutor(mlir::StringAttr executor);
-        vpux::IE::MemoryResourceOp addAvailableMemory(mlir::StringAttr memSpace, Byte size);
-        bool hasAvailableMemory(mlir::StringAttr memSpace);
-        vpux::IE::MemoryResourceOp setUsedMemory(mlir::StringAttr memSpace, Byte size);
-        vpux::IE::MemoryResourceOp getUsedMemory(mlir::StringAttr memSpace);
+        vpux::IE::ExecutorResourceOp addSubExecutor(mlir::SymbolRefAttr executor, size_t count);
+        bool hasSubExecutor(mlir::SymbolRefAttr executor);
+        vpux::IE::ExecutorResourceOp getSubExecutor(mlir::SymbolRefAttr executor);
+        vpux::IE::MemoryResourceOp addAvailableMemory(mlir::SymbolRefAttr memSpace, Byte size);
+        bool hasAvailableMemory(mlir::SymbolRefAttr memSpace);
+        vpux::IE::MemoryResourceOp setUsedMemory(mlir::SymbolRefAttr memSpace, Byte size);
+        vpux::IE::MemoryResourceOp getUsedMemory(mlir::SymbolRefAttr memSpace);
 
-        vpux::IE::MemoryResourceOp getAvailableMemory(mlir::StringAttr memSpace);
+        vpux::IE::MemoryResourceOp getAvailableMemory(mlir::SymbolRefAttr memSpace);
 
         template <typename Enum, typename OutT = vpux::IE::ExecutorResourceOp>
         using exec_resource_if = enable_t<OutT, std::is_enum<Enum>, details::HasStringifyEnum<Enum>>;
@@ -369,8 +413,8 @@ def IE_ExecutorResourceOp :
         using mem_resource_if = enable_t<OutT, std::is_enum<Enum>, details::HasStringifyEnum<Enum>>;
 
         template <typename Enum>
-        exec_resource_if<Enum> addSubExecutor(Enum kind, uint32_t count) {
-            return addSubExecutor(mlir::StringAttr::get(getContext(), stringifyEnum(kind)), count);
+        exec_resource_if<Enum> addSubExecutor(Enum kind, size_t count) {
+            return addSubExecutor(mlir::SymbolRefAttr::get(getContext(), stringifyEnum(kind)), count);
         }
 
         template <typename Enum, typename OutT = bool>
@@ -378,37 +422,37 @@ def IE_ExecutorResourceOp :
 
         template <typename Enum>
         bool_if<Enum> hasSubExecutor(Enum kind) {
-            return hasSubExecutor(mlir::StringAttr::get(getContext(), stringifyEnum(kind)));
+            return hasSubExecutor(mlir::SymbolRefAttr::get(getContext(), stringifyEnum(kind)));
         }
 
         template <typename Enum>
         exec_resource_if<Enum> getSubExecutor(Enum kind) {
-            return getSubExecutor(mlir::StringAttr::get(getContext(), stringifyEnum(kind)));
+            return getSubExecutor(mlir::SymbolRefAttr::get(getContext(), stringifyEnum(kind)));
         }
 
         template <typename Enum>
         mem_resource_if<Enum> addAvailableMemory(Enum kind, Byte size) {
-            return addAvailableMemory(mlir::StringAttr::get(getContext(), stringifyEnum(kind)), size);
+            return addAvailableMemory(mlir::SymbolRefAttr::get(getContext(), stringifyEnum(kind)), size);
         }
 
         template <typename Enum>
         bool_if<Enum> hasAvailableMemory(Enum kind) {
-            return hasAvailableMemory(mlir::StringAttr::get(getContext(), stringifyEnum(kind)));
+            return hasAvailableMemory(mlir::SymbolRefAttr::get(getContext(), stringifyEnum(kind)));
         }
 
         template <typename Enum>
         mem_resource_if<Enum> getAvailableMemory(Enum kind) {
-            return getAvailableMemory(mlir::StringAttr::get(getContext(), stringifyEnum(kind)));
+            return getAvailableMemory(mlir::SymbolRefAttr::get(getContext(), stringifyEnum(kind)));
         }
 
         template <typename Enum>
         mem_resource_if<Enum> setUsedMemory(Enum kind, Byte size) {
-            return setUsedMemory(mlir::StringAttr::get(getContext(), stringifyEnum(kind)), size);
+            return setUsedMemory(mlir::SymbolRefAttr::get(getContext(), stringifyEnum(kind)), size);
         }
 
         template <typename Enum>
         mem_resource_if<Enum> getUsedMemory(Enum kind) {
-            return getUsedMemory(mlir::StringAttr::get(getContext(), stringifyEnum(kind)));
+            return getUsedMemory(mlir::SymbolRefAttr::get(getContext(), stringifyEnum(kind)));
         }
 
         static mlir::StringRef getDefaultDialect() {
@@ -457,10 +501,7 @@ def IE_ConvertOp :
 
 def IE_ReorderOp :
         IE_LayerOp<
-            "Reorder",
-            [
-                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
-            ]
+            "Reorder"
         > {
     let summary = "InferenceEngine Reorder layer";
 
@@ -545,10 +586,7 @@ def IE_LogSoftmaxOp :
 
 def IE_TileOp :
         IE_LayerOp<
-            "Tile",
-            [
-                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
-            ]
+            "Tile"
         > {
     let summary = "InferenceEngine Tile layer";
 
@@ -616,10 +654,7 @@ def IE_ReLUOp :
 
 def IE_SplitOp :
         IE_LayerOp<
-            "Split",
-            [
-                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
-            ]
+            "Split"
         > {
     let summary = "InferenceEngine Split layer";
 
@@ -656,14 +691,14 @@ def IE_PowerOp :
     let summary = "InferenceEngine Power layer";
 
     let arguments = (ins
-        RankedTensorOf<[F16, F32, SI32]>:$input1,
-        RankedTensorOf<[F16, F32, SI32]>:$input2,
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$input1,
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$input2,
 
         IE_AutoBroadcastTypeAttr:$auto_broadcast
     );
 
     let results = (outs
-        RankedTensorOf<[F16, F32, SI32]>:$output
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$output
     );
 }
 
@@ -682,15 +717,16 @@ def IE_AddOp :
     let summary = "InferenceEngine Add layer";
 
     let arguments = (ins
-        RankedTensorOf<[F16, F32, SI32, quant_QuantizedType]>:$input1,
-        RankedTensorOf<[F16, F32, SI32, quant_QuantizedType]>:$input2,
+        RankedTensorOf<[F16, F32, SI32, SI64, quant_QuantizedType]>:$input1,
+        RankedTensorOf<[F16, F32, SI32, SI64, quant_QuantizedType]>:$input2,
 
         IE_AutoBroadcastTypeAttr:$auto_broadcast,
-        OptionalAttr<IE_PostOpAttr>:$post_op
+        OptionalAttr<IE_PostOpAttr>:$post_op,
+        OptionalAttr<DictionaryAttr>:$clamp
     );
 
     let results = (outs
-        RankedTensorOf<[F16, F32, SI32, quant_QuantizedType]>:$output
+        RankedTensorOf<[F16, F32, SI32, SI64, quant_QuantizedType]>:$output
     );
 
     let hasFolder = 1;
@@ -712,14 +748,14 @@ def IE_DivideOp :
     let summary = "InferenceEngine Divide layer";
 
     let arguments = (ins
-        RankedTensorOf<[F16, F32, SI32]>:$input1,
-        RankedTensorOf<[F16, F32, SI32]>:$input2,
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$input1,
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$input2,
 
         IE_AutoBroadcastTypeAttr:$auto_broadcast
     );
 
     let results = (outs
-        RankedTensorOf<[F16, F32, SI32]>:$output
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$output
     );
 }
 
@@ -737,14 +773,14 @@ def IE_SquaredDifferenceOp :
     let summary = "InferenceEngine SquaredDiff layer";
 
     let arguments = (ins
-        RankedTensorOf<[F16, F32, SI32]>:$input1,
-        RankedTensorOf<[F16, F32, SI32]>:$input2,
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$input1,
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$input2,
 
         IE_AutoBroadcastTypeAttr:$auto_broadcast
     );
 
     let results = (outs
-        RankedTensorOf<[F16, F32, SI32]>:$output
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$output
     );
 }
 
@@ -783,6 +819,31 @@ def IE_FloorModOp :
     let summary = "InferenceEngine FloorMod layer";
 
     let arguments = (ins
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$input1,
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$input2,
+
+        IE_AutoBroadcastTypeAttr:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$output
+    );
+}
+
+//
+// ModOp
+//
+
+def IE_ModOp :
+        IE_LayerOp<
+            "Mod",
+            [
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Mod layer";
+
+    let arguments = (ins
         RankedTensorOf<[F16, F32, SI32]>:$input1,
         RankedTensorOf<[F16, F32, SI32]>:$input2,
 
@@ -808,14 +869,14 @@ def IE_LessOp :
     let summary = "InferenceEngine Less layer";
 
     let arguments = (ins
-        RankedTensorOf<[F16, F32, SI32]>:$input1,
-        RankedTensorOf<[F16, F32, SI32]>:$input2,
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$input1,
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$input2,
 
         IE_AutoBroadcastTypeAttr:$auto_broadcast
     );
 
     let results = (outs
-        RankedTensorOf<[F16, F32, SI32]>:$output
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$output
     );
 }
 
@@ -833,14 +894,14 @@ def IE_LessEqualOp :
     let summary = "InferenceEngine LessEqual layer";
 
     let arguments = (ins
-        RankedTensorOf<[F16, F32, SI32]>:$input1,
-        RankedTensorOf<[F16, F32, SI32]>:$input2,
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$input1,
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$input2,
 
         IE_AutoBroadcastTypeAttr:$auto_broadcast
     );
 
     let results = (outs
-        RankedTensorOf<[F16, F32, SI32]>:$output
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$output
     );
 }
 
@@ -858,14 +919,14 @@ def IE_GreaterOp :
     let summary = "InferenceEngine Greater layer";
 
     let arguments = (ins
-        RankedTensorOf<[F16, F32, SI32]>:$input1,
-        RankedTensorOf<[F16, F32, SI32]>:$input2,
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$input1,
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$input2,
 
         IE_AutoBroadcastTypeAttr:$auto_broadcast
     );
 
     let results = (outs
-        RankedTensorOf<[F16, F32, SI32]>:$output
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$output
     );
 }
 
@@ -883,14 +944,14 @@ def IE_GreaterEqualOp :
     let summary = "InferenceEngine GreaterEqual layer";
 
     let arguments = (ins
-        RankedTensorOf<[F16, F32, SI32]>:$input1,
-        RankedTensorOf<[F16, F32, SI32]>:$input2,
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$input1,
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$input2,
 
         IE_AutoBroadcastTypeAttr:$auto_broadcast
     );
 
     let results = (outs
-        RankedTensorOf<[F16, F32, SI32]>:$output
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$output
     );
 }
 
@@ -909,14 +970,14 @@ def IE_LogicalOrOp :
     let summary = "InferenceEngine LogicalOr layer";
 
     let arguments = (ins
-        RankedTensorOf<[I8, F16, F32, SI32]>:$input1,
-        RankedTensorOf<[I8, F16, F32, SI32]>:$input2,
+        RankedTensorOf<[I8, F16, F32, SI32, SI64]>:$input1,
+        RankedTensorOf<[I8, F16, F32, SI32, SI64]>:$input2,
 
         IE_AutoBroadcastTypeAttr:$auto_broadcast
     );
 
     let results = (outs
-        RankedTensorOf<[I8, F16, F32, SI32]>:$output
+        RankedTensorOf<[I8, F16, F32, SI32, SI64]>:$output
     );
 }
 
@@ -934,11 +995,11 @@ def IE_LogicalNotOp :
     let summary = "InferenceEngine Logical Not layer";
 
     let arguments = (ins
-        RankedTensorOf<[I8, F16, F32, SI32]>:$input1
+        RankedTensorOf<[I8, F16, F32, SI32, SI64]>:$input1
     );
 
     let results = (outs
-        RankedTensorOf<[I8, F16, F32, SI32]>:$output
+        RankedTensorOf<[I8, F16, F32, SI32, SI64]>:$output
     );
 }
 
@@ -957,14 +1018,14 @@ def IE_LogicalXorOp :
     let summary = "InferenceEngine LogicalXor layer";
 
     let arguments = (ins
-        RankedTensorOf<[I8, F16, F32, SI32]>:$input1,
-        RankedTensorOf<[I8, F16, F32, SI32]>:$input2,
+        RankedTensorOf<[I8, F16, F32, SI32, SI64]>:$input1,
+        RankedTensorOf<[I8, F16, F32, SI32, SI64]>:$input2,
 
         IE_AutoBroadcastTypeAttr:$auto_broadcast
     );
 
     let results = (outs
-        RankedTensorOf<[I8, F16, F32, SI32]>:$output
+        RankedTensorOf<[I8, F16, F32, SI32, SI64]>:$output
     );
 }
 
@@ -983,15 +1044,16 @@ def IE_MultiplyOp :
     let summary = "InferenceEngine Multiply layer";
 
     let arguments = (ins
-        RankedTensorOf<[F16, F32, SI32, quant_QuantizedType]>:$input1,
-        RankedTensorOf<[F16, F32, SI32, quant_QuantizedType]>:$input2,
+        RankedTensorOf<[F16, F32, SI32, SI64, quant_QuantizedType]>:$input1,
+        RankedTensorOf<[F16, F32, SI32, SI64, quant_QuantizedType]>:$input2,
 
         IE_AutoBroadcastTypeAttr:$auto_broadcast,
-        OptionalAttr<IE_PostOpAttr>:$post_op
+        OptionalAttr<IE_PostOpAttr>:$post_op,
+        OptionalAttr<DictionaryAttr>:$clamp
     );
 
     let results = (outs
-        RankedTensorOf<[F16, F32, SI32, quant_QuantizedType]>:$output
+        RankedTensorOf<[F16, F32, SI32, SI64, quant_QuantizedType]>:$output
     );
 
     let hasFolder = 1;
@@ -1018,7 +1080,8 @@ def IE_AndOp :
         RankedTensorOf<[I8, F16, F32, SI32, SI64, quant_QuantizedType]>:$input2,
 
         IE_AutoBroadcastTypeAttr:$auto_broadcast,
-        OptionalAttr<IE_PostOpAttr>:$post_op
+        OptionalAttr<IE_PostOpAttr>:$post_op,
+        OptionalAttr<DictionaryAttr>:$clamp
     );
 
     let results = (outs
@@ -1048,7 +1111,8 @@ def IE_ConvolutionOp :
         I64ArrayAttr:$pads_end,
         I64ArrayAttr:$dilations,
 
-        OptionalAttr<IE_PostOpAttr>:$post_op
+        OptionalAttr<IE_PostOpAttr>:$post_op,
+        OptionalAttr<DictionaryAttr>:$clamp
     );
 
     let results = (outs
@@ -1081,7 +1145,8 @@ def IE_GroupConvolutionOp :
         I64ArrayAttr:$dilations,
         OptionalAttr<IntAttr>:$groups,
 
-        OptionalAttr<IE_PostOpAttr>:$post_op
+        OptionalAttr<IE_PostOpAttr>:$post_op,
+        OptionalAttr<DictionaryAttr>:$clamp
     );
 
     let results = (outs
@@ -1113,7 +1178,8 @@ def IE_AvgPoolOp :
         IE_RoundingTypeAttr:$rounding_type,
         UnitAttr:$exclude_pads,
 
-        OptionalAttr<IE_PostOpAttr>:$post_op
+        OptionalAttr<IE_PostOpAttr>:$post_op,
+        OptionalAttr<DictionaryAttr>:$clamp
     );
 
     let results = (outs
@@ -1129,10 +1195,7 @@ def IE_AvgPoolOp :
 
 def IE_MaxPoolOp :
         IE_LayerOp<
-            "MaxPool",
-            [
-                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
-            ]
+            "MaxPool"
         > {
     let summary = "InferenceEngine MaxPool layer";
 
@@ -1145,7 +1208,8 @@ def IE_MaxPoolOp :
         I64ArrayAttr:$pads_end,
         IE_RoundingTypeAttr:$rounding_type,
 
-        OptionalAttr<IE_PostOpAttr>:$post_op
+        OptionalAttr<IE_PostOpAttr>:$post_op,
+        OptionalAttr<DictionaryAttr>:$clamp
     );
 
     let results = (outs
@@ -1322,6 +1386,74 @@ def IE_GatherTreeOp :
 }
 
 //
+// YieldOp
+//
+
+def IE_YieldOp :
+        IE_Op<
+            "Yield",
+            [
+                HasParent<"IfOp">,
+                DeclareOpInterfaceMethods<RegionBranchTerminatorOpInterface>,
+                Pure,
+                Terminator
+            ]
+        > {
+    let summary = "Terminator for wrapping operation";
+
+    let arguments = (ins
+        Variadic<AnyRankedTensor>:$operands
+    );
+
+    let builders = [OpBuilder<(ins), [{ /* nothing to do */ }]>];
+
+    let hasVerifier = 1;
+}
+
+//
+// IfOp
+//
+
+def IE_IfOp :
+        IE_LayerOp<
+            "If",
+            [
+                DeclareOpInterfaceMethods<InferShapedTypeOpInterface,
+                                ["inferReturnTypeComponents"]>,
+                SingleBlockImplicitTerminator<"YieldOp">,
+                RecursiveMemoryEffects
+            ]
+        > {
+    let summary = "InferenceEngine Conditional if layer";
+
+    let description = [{
+    Evaluates a Boolean condition and then takes one of two distinct execution
+    paths. This implements the semantic If-then-else structure.
+    }];
+
+    let arguments = (ins
+        1DTensorOf<[F32, F16, I32, I8, SI8, Bool8]>:$cond,
+        Variadic<AnyRankedTensor>:$inputs
+    );
+
+    let results = (outs
+        Variadic<AnyRankedTensor>:$output
+    );
+
+    let regions = (region
+        SizedRegion<1>:$then_branch,
+        SizedRegion<1>:$else_branch
+    );
+
+    let assemblyFormat = [{
+        `then_branch` `:` $then_branch
+        `else_branch` `:` $else_branch
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+
+    let hasVerifier = 1;
+}
+//
 // ScatterNDUpdateOp
 //
 
@@ -1401,8 +1533,7 @@ def IE_ClampOp :
         IE_LayerOp<
             "Clamp",
             [
-                IE_EltwiseOp,
-                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine Clamp layer";
@@ -1454,8 +1585,7 @@ def IE_ReshapeOp :
         IE_LayerOp<
             "Reshape",
             [
-                IE_ViewLikeOpInterface,
-                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
+                IE_ViewLikeOpInterface
             ]
         > {
     let summary = "InferenceEngine Reshape layer";
@@ -1488,8 +1618,7 @@ def IE_SqueezeOp :
         IE_LayerOp<
             "Squeeze",
             [
-                IE_ViewLikeOpInterface,
-                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>,
+                IE_ViewLikeOpInterface
             ]
         > {
     let summary = "InferenceEngine Squeeze layer";
@@ -1521,8 +1650,7 @@ def IE_UnsqueezeOp :
         IE_LayerOp<
             "Unsqueeze",
             [
-                IE_ViewLikeOpInterface,
-                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>,
+                IE_ViewLikeOpInterface
             ]
         > {
 
@@ -1583,7 +1711,7 @@ def IE_GridSampleOp :
         AnyRankedTensor:$input,
         AnyRankedTensor:$grid,
 
-        OptionalAttr<UnitAttr>:$align_corners,
+        UnitAttr:$align_corners,
         OptionalAttr<IE_GridSampleModeAttr>:$mode,
         OptionalAttr<IE_GridSamplePaddingModeAttr>:$padding_mode
     );
@@ -1699,10 +1827,7 @@ def IE_BucketizeOp :
 
 def IE_ReduceMaxOp :
         IE_LayerOp<
-            "ReduceMax",
-            [
-                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
-            ]
+            "ReduceMax"
 
         > {
     let summary = "InferenceEngine ReduceMax layer";
@@ -2800,10 +2925,7 @@ def IE_ErfOp :
 
 def IE_TransposeOp :
         IE_LayerOp<
-            "Transpose",
-            [
-                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
-            ]
+            "Transpose"
         > {
     let summary = "InferenceEngine Transpose layer";
 
@@ -3007,7 +3129,8 @@ def IE_NormalizeL2Op :
 
     let arguments = (ins
         AnyRankedTensor:$data,
-        1DTensorOf<[AnyInteger]>:$axes,
+        Optional<RankedTensorOf<[AnyInteger]>>:$axes,
+        OptionalAttr<ArrayAttr>:$axes_value,
 
         F64Attr:$eps,
         IE_EpsModeAttr:$eps_mode
@@ -3018,6 +3141,7 @@ def IE_NormalizeL2Op :
     );
 
     let hasVerifier = 1;
+    let hasCanonicalizer = 1;
 }
 
 //
@@ -3059,8 +3183,8 @@ def IE_CumSumOp:
         Optional<RankedTensorOf<[AnyInteger]>>:$axis,
 
         OptionalAttr<IntAttr>:$axis_value,
-        OptionalAttr<UnitAttr>:$exclusive,
-        OptionalAttr<UnitAttr>:$reverse
+        UnitAttr:$exclusive,
+        UnitAttr:$reverse
     );
 
     let results = (outs
@@ -3068,6 +3192,39 @@ def IE_CumSumOp:
     );
 
     let hasVerifier = 1;
+    let hasCanonicalizer = 1;
+}
+
+//
+// EyeOp
+//
+
+def IE_EyeOp:
+        IE_LayerOp<
+            "Eye",
+            [
+                AttrSizedOperandSegments
+            ]
+        > {
+    let summary = "InferenceEngine Eye layer";
+
+    let arguments = (ins
+        Optional<1DTensorOf<[SI32, SI64]>>:$num_rows,
+        Optional<1DTensorOf<[SI32, SI64]>>:$num_columns,
+        1DTensorOf<[SI32, SI64]>:$diagonal_index,
+        Optional<1DTensorOf<[SI32, SI64]>>:$batch_shape,
+
+        OptionalAttr<IntAttr>:$num_rows_value,
+        OptionalAttr<IntAttr>:$num_columns_value,
+        OptionalAttr<I64ArrayAttr>:$batch_shape_value,
+
+        TypeAttr:$outputType
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
     let hasCanonicalizer = 1;
 }
 
@@ -3127,10 +3284,7 @@ def IE_MVN6Op :
 
 def IE_ConcatOp :
         IE_LayerOp<
-            "Concat",
-            [
-                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
-            ]
+            "Concat"
         > {
     let summary = "InferenceEngine Concat layer";
 
@@ -3252,7 +3406,8 @@ def IE_ROIAlignOp :
         IntAttr:$pooled_w,
         IntAttr:$sampling_ratio,
         F64Attr:$spatial_scale,
-        IE_ROIAlignMethodAttr:$poolingMode
+        IE_ROIAlignMethodAttr:$poolingMode,
+        IE_ROIAlignAlignedMethodAttr:$alignedMode
     );
 
     let results = (outs
@@ -3268,7 +3423,8 @@ def IE_StridedSliceOp :
         IE_LayerOp<
             "StridedSlice",
             [
-                AttrSizedOperandSegments
+                AttrSizedOperandSegments,
+                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
             ]
         > {
     let summary = "InferenceEngine StridedSlice layer";
@@ -3300,20 +3456,48 @@ def IE_StridedSliceOp :
     let extraClassDeclaration = [{
         bool isSimplified();
     }];
+
+    let hasVerifier = 1;
 }
 
 //
-// DeconvolutionOp (ConvolutionBackprop in ngraph)
+// ConvolutionBackpropDataOp
 //
 
-def IE_DeconvolutionOp:
+def IE_ConvolutionBackpropDataOp:
         IE_LayerOp<
-            "Deconvolution"
+            "ConvolutionBackpropData"
         > {
-    let summary = "InferenceEngine Deconvolution layer";
+    let summary = "InferenceEngine ConvolutionBackpropData layer";
+
+    let description = [{
+        Represents a transposed convolution, which consumes an input and filter tensor
+        and generates an output larger than the input.
+
+        Operands:
+        - `input`: the input tensor of the operation; 4D layout [N, C_IN, Y, X]
+        - `filter`: the convolutional kernel tensor; expected layout [C_IN, C_OUT, KY, KX]
+        - (optional) `output_shape`: specifies the spatial shape of the output;
+          expected values `[Y, X]`
+
+        Attributes:
+        - `strides`: represents the distance in pixels to slide the filter on the output
+          tensor; expected values `[SY, SX]`
+        - `pads_begin`: represents the number of pixels to remove from the beginning of
+          each axis in the output; expected values `[PAD_TOP, PAD_LEFT]`
+        - `pads_end`: represents the number of pixels to remove from the end of each axis
+          in the output; expected values `[PAD_BOTTOM, PAD_RIGHT]`
+        - `dilations`: has the same definition as dilations for a regular Convolution but
+          applied in the backward way, for the output tensor; expected values `[DY, DX]`
+        - `output_padding`: adds additional amount of paddings per each spatial axis in
+          the output tensor; expected values `[PY; PX]`
+
+        Results:
+        - `output`: the output tensor of the operation; 4D layout [N, C_OUT, Y, X]
+    }];
 
     let arguments = (ins
-        AnyRankedTensor:$feature,
+        AnyRankedTensor:$input,
         AnyRankedTensor:$filter,
         Optional<1DTensorOf<[AnyInteger]>>:$output_shape,
 
@@ -3321,9 +3505,7 @@ def IE_DeconvolutionOp:
         I64ArrayAttr:$pads_begin,
         I64ArrayAttr:$pads_end,
         I64ArrayAttr:$dilations,
-        I64ArrayAttr:$output_padding,
-
-        OptionalAttr<IE_PostOpAttr>:$post_op
+        I64ArrayAttr:$output_padding
     );
 
     let results = (outs
@@ -3332,17 +3514,175 @@ def IE_DeconvolutionOp:
 }
 
 //
-// GroupDeconvolutionOp
+// GroupConvolutionBackpropData
 //
 
-def IE_GroupDeconvolutionOp:
+def IE_GroupConvolutionBackpropDataOp:
         IE_LayerOp<
-            "GroupDeconvolutionOp"
+            "GroupConvolutionBackpropData"
         > {
-    let summary = "InferenceEngine GroupDeconvolutionOp layer";
+    let summary = "InferenceEngine GroupConvolutionBackpropData layer";
+
+    let description = [{
+        Represents a grouped transposed convolution, which consumes an input and filter tensor
+        and generates an output larger than the input.
+
+        Compared to the ConvolutionBackpropData operation, the input and filter tensors are
+        split into multiple groups whose results are computed independently and then concatenated.
+        The number of groups can be deduced from the shape of the filter.
+
+        Operands:
+        - `input`: the input tensor of the operation; 4D layout [N, GROUPS * C_IN, Y, X]
+        - `filter`: the convolutional kernel tensor; expected layout [GROUPS, C_IN, C_OUT, KY, KX]
+        - (optional) `output_shape`: specifies the spatial shape of the output;
+          expected values `[Y, X]`
+
+        Attributes:
+        - `strides`: represents the distance in pixels to slide the filter on the output
+          tensor; expected values `[SY, SX]`
+        - `pads_begin`: represents the number of pixels to remove from the beginning of
+          each axis in the output; expected values `[PAD_TOP, PAD_LEFT]`
+        - `pads_end`: represents the number of pixels to remove from the end of each axis
+          in the output; expected values `[PAD_BOTTOM, PAD_RIGHT]`
+        - `dilations`: has the same definition as dilations for a regular Convolution but
+          applied in the backward way, for the output tensor; expected values `[DY, DX]`
+        - `output_padding`: adds additional amount of paddings per each spatial axis in
+          the output tensor; expected values `[PAD_Y; PAD_X]`
+
+        Results:
+        - `output`: the output tensor of the operation; 4D layout [N, GROUPS * C_OUT, Y, X]
+    }];
 
     let arguments = (ins
-        AnyRankedTensor:$feature,
+        AnyRankedTensor:$input,
+        AnyRankedTensor:$filter,
+        Optional<1DTensorOf<[AnyInteger]>>:$output_shape,
+
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$pads_begin,
+        I64ArrayAttr:$pads_end,
+        I64ArrayAttr:$dilations,
+        I64ArrayAttr:$output_padding
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
+// TransposedConvolutionOp
+//
+
+def IE_TransposedConvolutionOp:
+        IE_LayerOp<
+            "TransposedConvolution",
+            [
+                AttrSizedOperandSegments
+            ]
+        > {
+    let summary = "TransposedConvolution layer";
+
+    let description = [{
+        Represents a transposed convolution, which consumes an input and filter tensor
+        and generates an output larger than the input.
+
+        Compared to the ConvolutionBackpropData operation, the filter expects the data
+        in the [C_OUT, C_IN, KY, KX] format, similar to forward convolutions.
+
+        Operands:
+        - `input`: the input tensor of the operation; 4D layout [N, C_IN, Y, X]
+        - `filter`: the convolutional kernel tensor; expected layout [C_OUT, C_IN, KY, KX]
+        - (optional) `output_shape`: specifies the spatial shape of the output;
+          expected values `[Y, X]`
+        - (optional) `bias`: the bias tensor; 4D layout [N, C, H, W]
+
+        Attributes:
+        - `strides`: represents the distance in pixels to slide the filter on the output
+          tensor; expected values `[SY, SX]`
+        - `pads_begin`: represents the number of pixels to remove from the beginning of
+          each axis in the output; expected values `[PAD_TOP, PAD_LEFT]`
+        - `pads_end`: represents the number of pixels to remove from the end of each axis
+          in the output; expected values `[PAD_BOTTOM, PAD_RIGHT]`
+        - `dilations`: has the same definition as dilations for a regular Convolution but
+          applied in the backward way, for the output tensor; expected values `[DY, DX]`
+        - `output_padding`: adds additional amount of paddings per each spatial axis in
+          the output tensor; expected values `[PY; PX]`
+
+        Results:
+        - `output`: the output tensor of the operation; 4D layout [N, C_OUT, Y, X]
+    }];
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        AnyRankedTensor:$filter,
+        Optional<1DTensorOf<[AnyInteger]>>:$output_shape,
+        Optional<RankedTensorOf<[F16, F32]>>:$bias,
+
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$pads_begin,
+        I64ArrayAttr:$pads_end,
+        I64ArrayAttr:$dilations,
+        I64ArrayAttr:$output_padding,
+
+        OptionalAttr<IE_PostOpAttr>:$post_op,
+        OptionalAttr<DictionaryAttr>:$clamp
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let hasCanonicalizer = 1;
+
+    let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION, IE_TypeComparisonMode_ALLOW_DIFFERENT_QUANT];
+}
+
+//
+// GroupTransposedConvolutionOp
+//
+
+def IE_GroupTransposedConvolutionOp:
+        IE_LayerOp<
+            "GroupTransposedConvolution"
+        > {
+    let summary = "GroupTransposedConvolution layer";
+
+    let description = [{
+        Represents a grouped transposed convolution, which consumes an input and filter tensor
+        and generates an output larger than the input.
+
+        Compared to the TransposedConvolution operation, the input and filter tensors are
+        split into multiple groups whose results are computed independently and then concatenated.
+        The number of groups can be deduced from the shape of the filter.
+
+        Additionally, compared to the GroupConvolutionBackpropData operation, the filter expects
+        the data in the [GROUPS, C_OUT, C_IN, KY, KX] format, similar to forward group convolutions.
+
+        Operands:
+        - `input`: the input tensor of the operation; 4D layout [N, GROUPS * C_IN, Y, X]
+        - `filter`: the convolutional kernel tensor; expected layout [GROUPS, C_OUT, C_IN, KY, KX]
+        - (optional) `output_shape`: specifies the spatial shape of the output;
+          expected values `[Y, X]`
+
+        Attributes:
+        - `strides`: represents the distance in pixels to slide the filter on the output
+          tensor; expected values `[SY, SX]`
+        - `pads_begin`: represents the number of pixels to remove from the beginning of
+          each axis in the output; expected values `[PAD_TOP, PAD_LEFT]`
+        - `pads_end`: represents the number of pixels to remove from the end of each axis
+          in the output; expected values `[PAD_BOTTOM, PAD_RIGHT]`
+        - `dilations`: has the same definition as dilations for a regular Convolution but
+          applied in the backward way, for the output tensor; expected values `[DY, DX]`
+        - `output_padding`: adds additional amount of paddings per each spatial axis in
+          the output tensor; expected values `[PAD_Y; PAD_X]`
+
+        Results:
+        - `output`: the output tensor of the operation; 4D layout [N, GROUPS * C_OUT, Y, X]
+    }];
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
         AnyRankedTensor:$filter,
         Optional<1DTensorOf<[AnyInteger]>>:$output_shape,
 
@@ -3352,7 +3692,8 @@ def IE_GroupDeconvolutionOp:
         I64ArrayAttr:$dilations,
         I64ArrayAttr:$output_padding,
 
-        OptionalAttr<IE_PostOpAttr>:$post_op
+        OptionalAttr<IE_PostOpAttr>:$post_op,
+        OptionalAttr<DictionaryAttr>:$clamp
     );
 
     let results = (outs
@@ -3474,13 +3815,13 @@ def IE_UpsamplingOp :
     let summary = "InferenceEngine Upsampling layer";
 
     let arguments = (ins
-        RankedTensorOf<[F16, F32]>:$input,
+        RankedTensorOf<[F16, F32, quant_QuantizedType]>:$input,
         I64ArrayAttr:$upsampling_factor,
         OptionalAttr<IE_UpsamplingPadAttr>:$pad
     );
 
     let results = (outs
-        RankedTensorOf<[F16, F32]>:$output
+        RankedTensorOf<[F16, F32, quant_QuantizedType]>:$output
     );
 }
 
@@ -3520,11 +3861,11 @@ def IE_NegativeOp :
     let summary = "InferenceEngine Negative layer";
 
     let arguments = (ins
-        RankedTensorOf<[F16, F32, SI32]>:$input
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$input
     );
 
     let results = (outs
-        RankedTensorOf<[F16, F32, SI32]>:$output
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$output
     );
 }
 
@@ -3663,10 +4004,7 @@ def IE_PadOp :
 
 def IE_ExpandOp :
         IE_LayerOp<
-            "Expand",
-            [
-                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
-            ]
+            "Expand"
         > {
     let summary = "Expand tensor with uninitialized values";
 
@@ -3685,7 +4023,7 @@ def IE_ExpandOp :
 
     let builders = [
         OpBuilder<
-            (ins "mlir::Value":$input, "vpux::Optional<vpux::ShapeRef>":$pads_begin, "vpux::Optional<vpux::ShapeRef>":$pads_end)
+            (ins "mlir::Value":$input, "std::optional<vpux::ShapeRef>":$pads_begin, "std::optional<vpux::ShapeRef>":$pads_end)
         >
     ];
 
@@ -3763,10 +4101,7 @@ def IE_LSTMGatesOp :
 
 def IE_SliceOp :
         IE_LayerOp<
-            "Slice",
-            [
-                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
-            ]
+            "Slice"
         > {
     let summary = "Extract single slice from tensor";
 
@@ -3817,15 +4152,16 @@ def IE_SubtractOp :
     let summary = "InferenceEngine Subtract layer";
 
     let arguments = (ins
-        RankedTensorOf<[F16, F32, SI32]>:$input1,
-        RankedTensorOf<[F16, F32, SI32]>:$input2,
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$input1,
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$input2,
 
         IE_AutoBroadcastTypeAttr:$auto_broadcast,
-        OptionalAttr<IE_PostOpAttr>:$post_op
+        OptionalAttr<IE_PostOpAttr>:$post_op,
+        OptionalAttr<DictionaryAttr>:$clamp
     );
 
     let results = (outs
-        RankedTensorOf<[F16, F32, SI32]>:$output
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$output
     );
 
     let hasFolder = 1;
@@ -3988,14 +4324,14 @@ def IE_SelectOp :
     let summary = "InferenceEngine Select layer";
 
     let arguments = (ins
-        RankedTensorOf<[Bool8, SI32, F16, F32]>:$input1,
-        RankedTensorOf<[SI32, F16, F32]>:$input2,
-        RankedTensorOf<[SI32, F16, F32]>:$input3,
+        AnyRankedTensor:$input1,
+        RankedTensorOf<[SI32, SI64, F16, F32]>:$input2,
+        RankedTensorOf<[SI32, SI64, F16, F32]>:$input3,
         IE_AutoBroadcastTypeAttr:$auto_broadcast
     );
 
     let results = (outs
-        RankedTensorOf<[SI32, F16, F32]>:$output
+        AnyRankedTensor:$output
     );
 }
 
@@ -4005,10 +4341,7 @@ def IE_SelectOp :
 
 def IE_SpaceToDepthOp :
         IE_LayerOp<
-            "SpaceToDepthOp",
-            [
-                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
-            ]
+            "SpaceToDepthOp"
         > {
     let summary = "InferenceEngine SpaceToDepthOp layer";
 
@@ -4027,6 +4360,37 @@ def IE_SpaceToDepthOp :
 }
 
 //
+// SpaceToBatch
+//
+
+def IE_SpaceToBatch :
+        IE_LayerOp<
+            "SpaceToBatch",
+            [
+                AttrSizedOperandSegments
+            ]
+        > {
+    let summary = "InferenceEngine SpaceToBatch layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        Optional<1DTensorOf<[AnyInteger]>>:$block_shape,
+        Optional<1DTensorOf<[AnyInteger]>>:$pads_begin,
+        Optional<1DTensorOf<[AnyInteger]>>:$pads_end,
+
+        OptionalAttr<I64ArrayAttr>:$block_shape_value,
+        OptionalAttr<I64ArrayAttr>:$pads_begin_value,
+        OptionalAttr<I64ArrayAttr>:$pads_end_value
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let hasCanonicalizer = 1;
+}
+
+//
 // AffineReshapeOp
 //
 
@@ -4034,8 +4398,7 @@ def IE_AffineReshapeOp :
         IE_LayerOp<
             "AffineReshape",
             [
-                IE_ViewLikeOpInterface,
-                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
+                IE_ViewLikeOpInterface
             ]
         > {
     let summary = "AffineReshape layer";
@@ -4076,14 +4439,14 @@ def IE_NotEqualOp :
     let summary = "InferenceEngine NotEqual layer";
 
     let arguments = (ins
-        RankedTensorOf<[F16, F32, SI32]>:$input1,
-        RankedTensorOf<[F16, F32, SI32]>:$input2,
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$input1,
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$input2,
 
         IE_AutoBroadcastTypeAttr:$auto_broadcast
     );
 
     let results = (outs
-        RankedTensorOf<[F16, F32, SI32]>:$output
+        RankedTensorOf<[F16, F32, SI32, SI64]>:$output
     );
 }
 
@@ -4119,10 +4482,7 @@ def IE_ReverseSequenceOp :
 
 def IE_DepthToSpaceOp :
         IE_LayerOp<
-            "DepthToSpace",
-        [
-            DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>,
-        ]
+            "DepthToSpace"
         > {
     let summary = "InferenceEngine DepthToSpace layer";
 
@@ -4272,7 +4632,7 @@ def IE_RandomUniformOp :
         1DTensorOf<[F16, F32, SI32]>:$max,
 
         I64ArrayAttr:$output_shape,
-        TypeAttr:$output_type,
+        TypeAttr:$outputType,
         IntAttr:$global_seed,
         IntAttr:$op_seed
     );
@@ -4306,7 +4666,7 @@ def IE_OneHotOp :
         OptionalAttr<F64Attr>:$off_value_attr,
 
         IntAttr:$axis_attr,
-        TypeAttr:$outElemType
+        TypeAttr:$outputType
     );
 
     let results = (outs
@@ -4359,10 +4719,7 @@ def IE_BatchNormInferenceOp :
 
 def IE_ExpandDilatedOp :
         IE_LayerOp<
-            "ExpandDilated",
-            [
-                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
-            ]
+            "ExpandDilated"
         > {
     let summary = "Expand tensor with uninitialized values according to dilations";
 
@@ -4387,7 +4744,7 @@ def IE_StubOp :
         IE_Op<
             "Stub",
             [
-                NoSideEffect
+                Pure
             ]
         > {
     let summary = "Substitute operation for stubbing.";
@@ -4623,7 +4980,10 @@ def IE_PermuteQuantizeOp :
 
 def IE_ShapeCastOp :
         IE_LayerOp<
-            "ShapeCast"
+            "ShapeCast",
+            [
+                IE_ViewLikeOpInterface
+            ]
         > {
     let summary = "ShapeCast layer";
 
@@ -4652,7 +5012,10 @@ def IE_ShapeCastOp :
 
 def IE_LayoutCastOp :
         IE_LayerOp<
-            "LayoutCast"
+            "LayoutCast",
+            [
+                IE_ViewLikeOpInterface
+            ]
         > {
     let summary = "This layer overrides layout of a given tensor.";
 

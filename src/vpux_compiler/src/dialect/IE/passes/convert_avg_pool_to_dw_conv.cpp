@@ -10,10 +10,7 @@
 #include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
-#include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
@@ -90,13 +87,13 @@ private:
 };
 
 bool ConvertAvgPoolToDWConvPass::AvgPoolOpConverter::isAvgPoolQuantized(IE::AvgPoolOp& origOp) const {
-    const mlir::Operation* inputOp = origOp.input().getDefiningOp();
+    const mlir::Operation* inputOp = origOp.getInput().getDefiningOp();
     if (inputOp == nullptr) {
         _log.trace("AvgPool's input is the region argument. Assuming it is not quantized.");
         return false;
     }
     const bool isInputLayerFQ = mlir::isa<IE::FakeQuantizeOp>(inputOp);
-    const auto outputLayerUsers = origOp.output().getUsers();
+    const auto outputLayerUsers = origOp.getOutput().getUsers();
     bool areAllUsersFQ = !outputLayerUsers.empty() && ::llvm::all_of(outputLayerUsers, [](auto user) {
         return ::mlir::isa<IE::FakeQuantizeOp>(user);
     });
@@ -106,15 +103,15 @@ bool ConvertAvgPoolToDWConvPass::AvgPoolOpConverter::isAvgPoolQuantized(IE::AvgP
 mlir::LogicalResult ConvertAvgPoolToDWConvPass::AvgPoolOpConverter::matchAndRewrite(
         IE::AvgPoolOp origOp, mlir::PatternRewriter& rewriter) const {
     const auto& ctx = origOp.getContext();
-    const auto outputShape = getShape(origOp.output());
+    const auto outputShape = getShape(origOp.getOutput());
     const mlir::Location location = origOp.getLoc();
     const auto OC = outputShape[Dims4D::Act::C];
-    const auto kernel = parseIntArrayAttr<int64_t>(origOp.kernel_size());
+    const auto kernel = parseIntArrayAttr<int64_t>(origOp.getKernelSize());
     const auto kernelY = kernel[0];
     const auto kernelX = kernel[1];
     const float weightsScaleFactor = 1.0f / static_cast<float>(kernelY * kernelX);
 
-    const auto elemType = origOp.input().getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto elemType = origOp.getInput().getType().cast<vpux::NDTypeInterface>().getElementType();
     const SmallVector<int64_t> weightShape = {OC, 1, kernelY, kernelX};
     const auto dataStorageType = mlir::RankedTensorType::get(weightShape, elemType);
 
@@ -133,21 +130,21 @@ mlir::LogicalResult ConvertAvgPoolToDWConvPass::AvgPoolOpConverter::matchAndRewr
         auto fqInHighVal = VPU::declareFloatConst(rewriter, location, 254.0f, fqArgType);
         auto fqOutHighVal = VPU::declareFloatConst(rewriter, location, 254.0f * weightsScaleFactor, fqArgType);
 
-        IE::FakeQuantizeOp inputLayerFQ = origOp.input().getDefiningOp<IE::FakeQuantizeOp>();
+        IE::FakeQuantizeOp inputLayerFQ = origOp.getInput().getDefiningOp<IE::FakeQuantizeOp>();
 
         IE::FakeQuantizeOp quantizationForWeights = rewriter.create<IE::FakeQuantizeOp>(
                 origOp.getLoc(), dataStorageType, dwConvFilter.getOutput(), fqLowVal, fqInHighVal, fqLowVal,
-                fqOutHighVal, fqLevelsVal, inputLayerFQ.auto_broadcastAttr());
-        weights = quantizationForWeights.output();
+                fqOutHighVal, fqLevelsVal, inputLayerFQ.getAutoBroadcastAttr());
+        weights = quantizationForWeights.getOutput();
     }
 
     const SmallVector<int32_t> dilations = {1, 1};
     auto dilationsAttr = getIntArrayAttr(ctx, dilations);
 
-    rewriter.replaceOpWithNewOp<IE::GroupConvolutionOp>(origOp, origOp.input(), weights, /*bias=*/nullptr,
-                                                        origOp.stridesAttr(), origOp.pads_beginAttr(),
-                                                        origOp.pads_endAttr(), dilationsAttr, getIntAttr(ctx, OC),
-                                                        /*post_opAttr=*/nullptr);
+    rewriter.replaceOpWithNewOp<IE::GroupConvolutionOp>(origOp, origOp.getInput(), weights, /*bias=*/nullptr,
+                                                        origOp.getStridesAttr(), origOp.getPadsBeginAttr(),
+                                                        origOp.getPadsEndAttr(), dilationsAttr, getIntAttr(ctx, OC),
+                                                        /*post_opAttr=*/nullptr, /*clampAttr=*/nullptr);
 
     return mlir::success();
 }
@@ -160,23 +157,23 @@ void ConvertAvgPoolToDWConvPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     const auto isLegal = [&](IE::AvgPoolOp origOp) {
-        const auto inputShape = getShape(origOp.input());
+        const auto inputShape = getShape(origOp.getInput());
         const auto inputBatch = inputShape[Dims4D::Act::N];
         // Batch unrolling is actually possible for GroupConv, but leads to a large amount of NCE tasks
         // At this point, uPA task seems more effective.
         if (inputBatch != vpux::VPU::NCEInvariant::SUPPORTED_BATCH_SIZE) {
             return true;
         }
-        const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
+        const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.getKernelSize());
         const auto KY = kernelSize[0];
         const auto KX = kernelSize[1];
 
-        const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
+        const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.getStrides());
         const auto SY = kernelStrides[0];
         const auto SX = kernelStrides[1];
 
-        const auto padsBegin = parseIntArrayAttr<int64_t>(origOp.pads_begin());
-        const auto padsEnd = parseIntArrayAttr<int64_t>(origOp.pads_end());
+        const auto padsBegin = parseIntArrayAttr<int64_t>(origOp.getPadsBegin());
+        const auto padsEnd = parseIntArrayAttr<int64_t>(origOp.getPadsEnd());
         const auto padTop = padsBegin[0];
         const auto padBottom = padsEnd[0];
         const auto padLeft = padsBegin[1];

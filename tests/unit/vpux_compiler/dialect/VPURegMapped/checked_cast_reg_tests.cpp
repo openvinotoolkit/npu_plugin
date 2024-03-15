@@ -53,7 +53,7 @@ TEST(VPURegMapped_CheckedCastReg, ValidCasesUintReg) {
 }
 
 TEST(VPURegMapped_CheckedCastReg, InvalidCasesUintReg) {
-    using Exception = InferenceEngine::Exception;
+    using Exception = vpux::Exception;
     // uint64_t
     EXPECT_THROW((checked_cast_reg<RegFieldPretender<8, VPURegMapped::RegFieldDataType::UINT>>(uint64_t(256))),
                  Exception);
@@ -90,7 +90,7 @@ TEST(VPURegMapped_CheckedCastReg, ValidCasesSintReg) {
 }
 
 TEST(VPURegMapped_CheckedCastReg, InvalidCasesSintReg) {
-    using Exception = InferenceEngine::Exception;
+    using Exception = vpux::Exception;
     // uint64_t
     EXPECT_THROW((checked_cast_reg<RegFieldPretender<2, VPURegMapped::RegFieldDataType::SINT>>(uint64_t(2))),
                  Exception);

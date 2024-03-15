@@ -6,12 +6,8 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
-#include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
@@ -34,10 +30,10 @@ private:
     Logger _log;
 };
 mlir::LogicalResult ConvertGRNToNormalizeL2::matchAndRewrite(IE::GRNOp origOp, mlir::PatternRewriter& rewriter) const {
-    const auto inputShape = to_small_vector(getShape(origOp.input()));
-    const auto outputShape = to_small_vector(getShape(origOp.output()));
+    const auto inputShape = to_small_vector(getShape(origOp.getInput()));
+    const auto outputShape = to_small_vector(getShape(origOp.getOutput()));
     mlir::MLIRContext* ctx = origOp->getContext();
-    auto epsAttr = origOp.biasAttr();
+    auto epsAttr = origOp.getBiasAttr();
 
     VPUX_THROW_UNLESS((inputShape.size() >= 2) && (inputShape.size() <= 4),
                       "GRN input rank {0} need to be >= than 2 and <= than 4", inputShape.size());
@@ -45,15 +41,12 @@ mlir::LogicalResult ConvertGRNToNormalizeL2::matchAndRewrite(IE::GRNOp origOp, m
                       "GRN input rank {0} need to be equal with output rank {1}", inputShape.size(),
                       outputShape.size());
 
-    SmallVector<int64_t> axes = {1};
+    SmallVector<mlir::Attribute> axesAttrVec;
     auto intType = getSInt64Type(ctx);
-    const auto axesDataType = mlir::RankedTensorType::get({static_cast<int64_t>(axes.size())}, intType);
-    const auto axesInput = mlir::DenseElementsAttr::get(axesDataType, makeArrayRef(axes));
-    auto axesConstOp =
-            rewriter.create<Const::DeclareOp>(origOp->getLoc(), axesDataType, Const::ContentAttr::get(axesInput));
+    SmallVector<mlir::Attribute> axes = {mlir::IntegerAttr::get(intType, 1)};
+    const auto axesInput = mlir::ArrayAttr::get(ctx, axes);
     const auto epsModeAttr = IE::EpsModeAttr::get(ctx, IE::EpsMode::ADD);
-    rewriter.replaceOpWithNewOp<IE::NormalizeL2Op>(origOp, origOp.getType(), origOp.input(), axesConstOp, epsAttr,
-                                                   epsModeAttr);
+    rewriter.replaceOpWithNewOp<IE::NormalizeL2Op>(origOp, origOp.getInput(), nullptr, axesInput, epsAttr, epsModeAttr);
     return mlir::success();
 }
 

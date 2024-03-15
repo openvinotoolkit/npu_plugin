@@ -9,18 +9,18 @@
 #include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
-class VPUXShapeOfLayerTest : public ShapeOfLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
-class VPUXShapeOfLayerTest_VPU3700 : public VPUXShapeOfLayerTest {};
 
-class VPUXShapeOfLayerTest_VPU3720 : public VPUXShapeOfLayerTest {};
+class ShapeOfLayerTestCommon : public ShapeOfLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
+class ShapeOfLayerTest_NPU3700 : public ShapeOfLayerTestCommon {};
+class ShapeOfLayerTest_NPU3720 : public ShapeOfLayerTestCommon {};
 
-TEST_P(VPUXShapeOfLayerTest_VPU3700, HW) {
+TEST_P(ShapeOfLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXShapeOfLayerTest_VPU3720, SW) {
+TEST_P(ShapeOfLayerTest_NPU3720, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
@@ -56,18 +56,22 @@ const auto paramsPrecommit = testing::Combine(
         ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::I32),
         ::testing::ValuesIn(inShapes_precommit), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
+// --------- NPU3700 ---------
 // Tracking number [E#85137]
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Check, VPUXShapeOfLayerTest_VPU3700,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Check, ShapeOfLayerTest_NPU3700,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::I64),
                                             ::testing::Values(std::vector<size_t>({10, 10, 10})),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
                          ShapeOfLayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_ShapeOf, VPUXShapeOfLayerTest_VPU3700, paramsConfig1,
-                         ShapeOfLayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_ShapeOf_VPU3720, VPUXShapeOfLayerTest_VPU3720, paramsConfig1,
-                         ShapeOfLayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_ShapeOf_VPU3720, VPUXShapeOfLayerTest_VPU3720, paramsPrecommit,
+
+INSTANTIATE_TEST_SUITE_P(smoke_ShapeOf, ShapeOfLayerTest_NPU3700, paramsConfig1, ShapeOfLayerTest::getTestCaseName);
+
+// --------- NPU3720 ---------
+
+INSTANTIATE_TEST_SUITE_P(smoke_ShapeOf, ShapeOfLayerTest_NPU3720, paramsConfig1, ShapeOfLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_ShapeOf, ShapeOfLayerTest_NPU3720, paramsPrecommit,
                          ShapeOfLayerTest::getTestCaseName);
 
 }  // namespace

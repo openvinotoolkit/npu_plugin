@@ -7,8 +7,6 @@
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
-#include "vpux/utils/core/checked_cast.hpp"
-
 #include <mlir/IR/PatternMatch.h>
 
 using namespace vpux;
@@ -28,11 +26,11 @@ mlir::LogicalResult vpux::IE::HardSigmoidOp::verify() {
         return numElements == 1;
     };
 
-    if (!checkNumElements(alpha())) {
+    if (!checkNumElements(getAlpha())) {
         return errorAt(*this, "Alpha should have only 1 element, while it has {0}", numElements);
     }
 
-    if (!checkNumElements(beta())) {
+    if (!checkNumElements(getBeta())) {
         return errorAt(*this, "Beta should have only 1 element, while it has {0}", numElements);
     }
 
@@ -40,8 +38,8 @@ mlir::LogicalResult vpux::IE::HardSigmoidOp::verify() {
 }
 
 mlir::LogicalResult vpux::IE::HardSigmoidOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -50,7 +48,7 @@ mlir::LogicalResult vpux::IE::HardSigmoidOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = hardSigmoid.input().getType().cast<mlir::ShapedType>();
+    const auto inType = hardSigmoid.getInput().getType().cast<mlir::ShapedType>();
 
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
 
@@ -73,8 +71,8 @@ public:
 
 mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::HardSigmoidOp hardSigmoidOp,
                                                         mlir::PatternRewriter& rewriter) const {
-    auto alpha = hardSigmoidOp.alpha();
-    auto beta = hardSigmoidOp.beta();
+    auto alpha = hardSigmoidOp.getAlpha();
+    auto beta = hardSigmoidOp.getBeta();
 
     if ((alpha == nullptr) || (beta == nullptr)) {
         return mlir::failure();
@@ -97,7 +95,7 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::HardSigmoidOp hardSi
     const auto alphaValue = alphaContent.getSplatValue<float>();
     const auto betaValue = betaContent.getSplatValue<float>();
 
-    rewriter.replaceOpWithNewOp<IE::HardSigmoidOp>(hardSigmoidOp, hardSigmoidOp.getType(), hardSigmoidOp.input(),
+    rewriter.replaceOpWithNewOp<IE::HardSigmoidOp>(hardSigmoidOp, hardSigmoidOp.getType(), hardSigmoidOp.getInput(),
                                                    nullptr, nullptr, rewriter.getF64FloatAttr(alphaValue),
                                                    rewriter.getF64FloatAttr(betaValue));
 

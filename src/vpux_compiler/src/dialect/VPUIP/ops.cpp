@@ -7,10 +7,12 @@
 
 #include "vpux/compiler/core/attributes/indexed_symbol_attr.hpp"
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/cost_model/cost_model.hpp"
 #include "vpux/compiler/dialect/VPU/utils/distributed_tensor_utils.hpp"
 #include "vpux/compiler/dialect/VPU/utils/generate_tiling.hpp"
+#include "vpux/compiler/dialect/VPU/utils/manual_strategy_utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 
 #include "vpux/compiler/utils/asm.hpp"
@@ -29,155 +31,6 @@ using namespace vpux;
 namespace {
 
 //
-// LayerWithPostOpModel
-//
-
-bool isSupportedHWPostOp(mlir::Operation* mainOp, mlir::Operation* postOp) {
-    if (!mlir::isa<IE::ScaleShiftOp, IE::ReLUOp, IE::ClampOp, IE::SigmoidOp, IE::TanhOp, IE::LeakyReluOp, IE::PReluOp>(
-                postOp)) {
-        return false;
-    }
-
-    const auto module = postOp->getParentOfType<mlir::ModuleOp>();
-    const auto arch = VPU::getArch(module);
-
-    const auto isQuantized = [](mlir::Operation* op, mlir::Operation* postOp) -> bool {
-        auto isFakeQuantizeOpInput = mlir::dyn_cast_or_null<IE::FakeQuantizeOp>(op->getOperand(0).getDefiningOp());
-        auto isFakeQuantizeOpOutput = true;
-        for (auto user : postOp->getUsers()) {
-            if (!mlir::isa<IE::FakeQuantizeOp>(user)) {
-                isFakeQuantizeOpOutput = false;
-                break;
-            }
-        }
-
-        // since FusePostOps is called also after LowPrecisionPipeline
-        const auto operandType = postOp->getOperand(0).getType().cast<vpux::NDTypeInterface>();
-        const auto isQuantizedElemType = operandType.getElementType().isa<mlir::quant::QuantizedType>();
-
-        return (isFakeQuantizeOpOutput && isFakeQuantizeOpInput) || isQuantizedElemType;
-    };
-
-    //
-    // Generic HW constrains per VPUX device:
-    //
-
-    // On VPUX30XX there is no HW support for AvgPool
-    if (arch == VPU::ArchKind::VPUX30XX && mlir::isa<IE::AvgPoolOp>(mainOp)) {
-        return false;
-    }
-
-    // On VPUX37XX there is no HW support for eltwise And and Mulitiply
-    if ((arch == VPU::ArchKind::VPUX37XX) && mlir::isa<IE::AndOp, IE::MultiplyOp>(mainOp)) {
-        return false;
-    }
-
-    //
-    // Activation specific constrains:
-    //
-
-    if (mlir::isa<IE::SigmoidOp, IE::TanhOp>(postOp)) {
-        // These ops do not get fused for float cases to avoid dropping accuracy. Because PWL is not accurate for FP16
-        if (arch == VPU::ArchKind::VPUX30XX) {
-            if (!isQuantized(mainOp, postOp)) {
-                return false;
-            }
-        } else if (arch == VPU::ArchKind::VPUX37XX) {
-            // VPUX37XX doesn't support sigmoid and tanh
-            return false;
-        }
-    }
-
-    auto clampOp = mlir::dyn_cast<IE::ClampOp>(postOp);
-    if (clampOp != nullptr) {
-        const auto minVal = clampOp.minAttr().getValueAsDouble();
-        if (!isDoubleEqual(minVal, 0.0) && !isQuantized(mainOp, postOp)) {
-            return false;
-        }
-
-        // TODO: should be check maxVal?
-    }
-
-    // MaxPool on VPUX37XX supports only ReLU and ReLU-X.
-    const bool isSpecialMaxPoolCase = arch == VPU::ArchKind::VPUX37XX;
-    const bool isSupportedByMaxPool = mlir::isa<IE::ReLUOp>(postOp) || mlir::isa<IE::ClampOp>(postOp);
-    if (isSpecialMaxPoolCase && mlir::isa<IE::MaxPoolOp>(mainOp) && !isSupportedByMaxPool) {
-        return false;
-    }
-
-    auto leakyReluOp = mlir::dyn_cast<IE::LeakyReluOp>(postOp);
-    // Check below is for VPUX30XX case
-    if (leakyReluOp != nullptr && arch == VPU::ArchKind::VPUX30XX) {
-        const auto getUniformQuantizedType =
-                [](IE::FakeQuantizeOp fakeQuantizeOp) -> mlir::quant::UniformQuantizedType {
-            if (fakeQuantizeOp == nullptr) {
-                return nullptr;
-            }
-
-            auto outLoConst = fakeQuantizeOp.output_low().getDefiningOp<Const::DeclareOp>();
-            auto outHiConst = fakeQuantizeOp.output_high().getDefiningOp<Const::DeclareOp>();
-            const auto realType = fakeQuantizeOp.input().getType().cast<vpux::NDTypeInterface>();
-            const auto realElemType = realType.getElementType().cast<mlir::FloatType>();
-
-            const auto outElemType =
-                    getQuantizedType(outLoConst.getContentAttr(), outHiConst.getContentAttr(), fakeQuantizeOp.levels(),
-                                     realElemType, false, fakeQuantizeOp.getLoc(), fakeQuantizeOp.auto_broadcast());
-            return outElemType.dyn_cast<mlir::quant::UniformQuantizedType>();
-        };
-
-        // On VPUX30XX if mainOp is Add, Multiply or And then the PPE is already busy and cannot do LeakyRelu
-        if (mlir::isa<IE::AddOp, IE::AndOp, IE::MultiplyOp>(mainOp)) {
-            return false;
-        }
-
-        const auto reluSlope = leakyReluOp.negative_slopeAttr().getValueAsDouble();
-        if (reluSlope < 0) {
-            return false;
-        }
-
-        if (!isQuantized(mainOp, postOp)) {
-            return true;
-        }
-
-        if (!leakyReluOp.output().hasOneUse()) {
-            return false;
-        }
-
-        const auto fqOp = mlir::dyn_cast<IE::FakeQuantizeOp>(*(leakyReluOp.output().getUsers().begin()));
-        const auto uniformElemType = getUniformQuantizedType(fqOp);
-        if (uniformElemType == nullptr) {
-            return false;
-        }
-
-        const auto zeroPoint = uniformElemType.getZeroPoint();
-        if (isSupportedPReLU(static_cast<float>(reluSlope), zeroPoint)) {
-            return true;
-        }
-
-        return false;
-    }
-
-    return true;
-}
-
-template <class MainOpType>
-class LayerWithPostOpModel final :
-        public IE::LayerWithPostOpInterface::ExternalModel<LayerWithPostOpModel<MainOpType>, MainOpType> {
-public:
-    bool isSupportedPostOp(mlir::Operation* mainOp, mlir::Operation* postOp) const {
-        if (VPU::getCompilationMode(postOp) == VPU::CompilationMode::ReferenceSW) {
-            return false;
-        }
-
-        if (!isSupportedHWPostOp(mainOp, postOp)) {
-            return false;
-        }
-
-        return VPUIP::NCEInvariant::verifyKernel(mlir::cast<MainOpType>(mainOp)).succeeded();
-    }
-};
-
-//
 // SEOpInterface
 //
 
@@ -190,8 +43,8 @@ class SEOpModel final : public IE::SEOpInterface::ExternalModel<SEOpModel<MainOp
 
 template <class ConcreteOp>
 bool isSupportedIsolatedTilingConvBased(ConcreteOp origOp, const OutputTiling& tiles, Logger log) {
-    const auto inputType = origOp.input().getType().template cast<NDTypeInterface>();
-    const auto outputType = origOp.output().getType().template cast<NDTypeInterface>();
+    const auto inputType = origOp.getInput().getType().template cast<NDTypeInterface>();
+    const auto outputType = origOp.getOutput().getType().template cast<NDTypeInterface>();
     auto nceOp = mlir::dyn_cast<VPU::NCEOpInterface>(origOp.getOperation());
     VPUX_THROW_WHEN(nceOp == nullptr, "Op {0} is not NCE", origOp->getLoc());
     auto filterType = nceOp.getWeightsOperand().getType().template cast<NDTypeInterface>();
@@ -236,19 +89,30 @@ bool isSupportedIsolatedTiling(VPU::NCECompressConvolutionOp origOp, const Outpu
 }
 
 bool isSupportedIsolatedTiling(VPU::NCEDepthConvolutionOp origOp, const OutputTiling& tiles, Logger log) {
+    TileInfo failedOutputTile = tiles[0];
+    const auto areTileChannelsValid = llvm::all_of(tiles, [&](const TileInfo& outputTile) {
+        log.nest().trace("check outputTile {0} from nceOp {1}", outputTile, origOp.getOperation()->getLoc());
+        failedOutputTile = outputTile;
+        return VPU::doesNCEOpChannelSatisfyWorkload(origOp.getOperation(), outputTile);
+    });
+
+    if (!areTileChannelsValid) {
+        log.trace("[Rejected] Workload channels are not valid for outputTile {0}", failedOutputTile);
+        return false;
+    }
     return isSupportedIsolatedTilingConvBased(origOp, tiles, log);
 }
 
 bool isSupportedIsolatedTiling(VPU::GroupConvolutionOp origOp, const OutputTiling& tiles, Logger /*log*/) {
-    const auto inputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
-    const auto filterType = origOp.filter().getType().cast<vpux::NDTypeInterface>();
-    const auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
-    const auto origGroups = origOp.groups().value_or(1);
+    const auto inputType = origOp.getInput().getType().cast<vpux::NDTypeInterface>();
+    const auto filterType = origOp.getFilter().getType().cast<vpux::NDTypeInterface>();
+    const auto outputType = origOp.getOutput().getType().cast<vpux::NDTypeInterface>();
+    const auto origGroups = origOp.getGroups().value_or(1);
 
-    const auto origInputShape = getShape(origOp.input());
-    const auto origFilterShape = getShape(origOp.filter());
-    const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
-    const auto origPadding = PadInfo(origOp.pads_begin(), origOp.pads_end());
+    const auto origInputShape = getShape(origOp.getInput());
+    const auto origFilterShape = getShape(origOp.getFilter());
+    const auto origBiasShape = origOp.getBias() != nullptr ? getShape(origOp.getBias()) : ShapeRef();
+    const auto origPadding = PadInfo(origOp.getPadsBegin(), origOp.getPadsEnd());
     const auto numOutChannelsPerGroup = origFilterShape[Dims4D::Filter::OC] / origGroups;
 
     return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
@@ -280,7 +144,7 @@ bool isSupportedIsolatedTiling(VPU::GroupConvolutionOp origOp, const OutputTilin
         }
 
         const auto inputTiling = backInferGroupConvTile(outputTile, origInputShape, origFilterShape, origBiasShape,
-                                                        origOp.strides(), origPadding, origGroups);
+                                                        origOp.getStrides(), origPadding, origGroups);
 
         const auto& tileConf = inputTiling.tiles;
         VPUX_THROW_UNLESS(tileConf.size() > 1, "Missed tile information. Got {0} tiles info, must be at least 2",
@@ -297,8 +161,20 @@ bool isSupportedIsolatedTiling(VPU::GroupConvolutionOp origOp, const OutputTilin
 }
 
 bool isSupportedIsolatedTiling(VPU::NCEMaxPoolOp origOp, const OutputTiling& tiles, Logger log) {
-    const auto inputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
-    const auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
+    const auto inputType = origOp.getInput().getType().cast<vpux::NDTypeInterface>();
+    const auto outputType = origOp.getOutput().getType().cast<vpux::NDTypeInterface>();
+
+    TileInfo failedOutputTile = tiles[0];
+    const auto areTileChannelsValid = llvm::all_of(tiles, [&](const TileInfo& outputTile) {
+        log.nest().trace("check outputTile {0} from nceOp {1}", outputTile, origOp.getOperation()->getLoc());
+        failedOutputTile = outputTile;
+        return VPU::doesNCEOpChannelSatisfyWorkload(origOp.getOperation(), outputTile);
+    });
+
+    if (!areTileChannelsValid) {
+        log.trace("[Rejected] Workload channels are not valid for outputTile {0}", failedOutputTile);
+        return false;
+    }
 
     return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
         const auto inputTiles = origOp.backInferTileInfo(outputTile, log).tiles;
@@ -324,8 +200,20 @@ bool isSupportedIsolatedTiling(VPU::NCEMaxPoolOp origOp, const OutputTiling& til
 }
 
 bool isSupportedIsolatedTiling(VPU::NCEAveragePoolOp origOp, const OutputTiling& tiles, Logger log) {
-    const auto inputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
-    const auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
+    const auto inputType = origOp.getInput().getType().cast<vpux::NDTypeInterface>();
+    const auto outputType = origOp.getOutput().getType().cast<vpux::NDTypeInterface>();
+
+    TileInfo failedOutputTile = tiles[0];
+    const auto areTileChannelsValid = llvm::all_of(tiles, [&](const TileInfo& outputTile) {
+        log.nest().trace("check outputTile {0} from nceOp {1}", outputTile, origOp.getOperation()->getLoc());
+        failedOutputTile = outputTile;
+        return VPU::doesNCEOpChannelSatisfyWorkload(origOp.getOperation(), outputTile);
+    });
+
+    if (!areTileChannelsValid) {
+        log.trace("[Rejected] Workload channels are not valid for outputTile {0}", failedOutputTile);
+        return false;
+    }
 
     return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
         const auto inputTiles = origOp.backInferTileInfo(outputTile, log).tiles;
@@ -360,7 +248,7 @@ bool isSupportedIsolatedTilingEltwise(mlir::Operation* origOp, const OutputTilin
 
         auto isInplace = false;
         if (auto nceEltwiseOp = mlir::dyn_cast<VPU::NCEEltwiseOp>(origOp)) {
-            isInplace = nceEltwiseOp.is_inplace().value_or(false);
+            isInplace = nceEltwiseOp.getIsInplace().value_or(false);
         }
 
         if (origOp->hasAttr(VPU::multiClusterStrategy)) {
@@ -374,9 +262,9 @@ bool isSupportedIsolatedTilingEltwise(mlir::Operation* origOp, const OutputTilin
 
             return mlir::succeeded(VPUIP::NCEInvariant::verifyEltwiseCMX(
                     origOp->getLoc(), module, isInplace,
-                    VPU::getDistributedActivationTypeFromOp(clusteredOp, input1TileType, numClusters),
-                    VPU::getDistributedActivationTypeFromOp(clusteredOp, input2TileType, numClusters),
-                    VPU::getDistributedOutputTypeFromOp(clusteredOp, outputTileType, numClusters)));
+                    VPU::getDistributedActivationTypeFromOp(clusteredOp, input1TileType, numClusters, outputTileType),
+                    VPU::getDistributedActivationTypeFromOp(clusteredOp, input2TileType, numClusters, outputTileType),
+                    VPU::getDistributedOutputTypeFromOp(clusteredOp, outputTileType, numClusters, input1TileType)));
         }
         return mlir::succeeded(
                 VPUIP::NCEInvariant::verifyEltwiseCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
@@ -394,7 +282,7 @@ bool isSupportedIsolatedTilingSwInterface(VPU::SWOpInterface origOp, const Outpu
         }
 
         VPUX_THROW_UNLESS(inputTiles.size() == origOp->getOperands().size(),
-                          "Unexpect inputTile size '{0}' and Op operands size '{1}'", inputTiles.size(),
+                          "Unexpected inputTile size '{0}' and Op operands size '{1}'", inputTiles.size(),
                           origOp->getOperands().size());
 
         mlir::SmallVector<vpux::NDTypeInterface> inputTileTypes;
@@ -413,38 +301,39 @@ bool isSupportedIsolatedTilingSwInterface(VPU::SWOpInterface origOp, const Outpu
             valueTypes.push_back(outputTileType);
         }
 
-        if (origOp->hasAttr(VPU::multiClusterStrategy)) {
-            auto clusteredOp = mlir::dyn_cast<VPU::ClusteredOpInterface>(origOp.getOperation());
-            VPUX_THROW_WHEN(clusteredOp == nullptr, "Op {0} has multiClusterStrategy but is not an ClusteredOp",
-                            origOp->getLoc());
-            auto numClusters = VPU::getOptimalNumClusters(clusteredOp, outputTileTypes[0].getShape()[Dims4D::Act::C],
-                                                          clusteredOp.getMultiClusterStrategy().value());
-
-            if (!llvm::all_of(outputTileTypes, [&](const vpux::NDTypeInterface& outputTileType) {
-                    auto numClustersOfPerOutput =
-                            VPU::getOptimalNumClusters(clusteredOp, outputTileType.getShape()[Dims4D::Act::C],
-                                                       clusteredOp.getMultiClusterStrategy().value());
-                    return numClustersOfPerOutput == numClusters;
-                })) {
-                return false;
-            }
-
-            SmallVector<vpux::NDTypeInterface> distributedTensorTypes;
-            for (auto inputTileType : inputTileTypes) {
-                auto inDistributedType =
-                        VPU::getDistributedActivationTypeFromOp(clusteredOp, inputTileType, numClusters);
-                distributedTensorTypes.push_back(inDistributedType.cast<vpux::NDTypeInterface>());
-            }
-
-            for (const auto& outputTileType : outputTileTypes) {
-                auto outDistributedType = VPU::getDistributedOutputTypeFromOp(clusteredOp, outputTileType, numClusters);
-                distributedTensorTypes.push_back(outDistributedType.cast<vpux::NDTypeInterface>());
-            }
-
-            return origOp.fitIntoCMX(distributedTensorTypes, Byte(0));
+        if (!origOp->hasAttr(VPU::multiClusterStrategy)) {
+            return origOp.fitIntoCMX(valueTypes, Byte(0));
         }
 
-        return origOp.fitIntoCMX(valueTypes, Byte(0));
+        auto clusteredOp = mlir::dyn_cast<VPU::ClusteredOpInterface>(origOp.getOperation());
+        VPUX_THROW_WHEN(clusteredOp == nullptr, "Op {0} has multiClusterStrategy but is not an ClusteredOp",
+                        origOp->getLoc());
+        auto numClusters = VPU::getOptimalNumClusters(clusteredOp, outputTileTypes[0].getShape()[Dims4D::Act::C],
+                                                      clusteredOp.getMultiClusterStrategy().value());
+
+        if (!llvm::all_of(outputTileTypes, [&](const vpux::NDTypeInterface& outputTileType) {
+                auto numClustersOfPerOutput =
+                        VPU::getOptimalNumClusters(clusteredOp, outputTileType.getShape()[Dims4D::Act::C],
+                                                   clusteredOp.getMultiClusterStrategy().value());
+                return numClustersOfPerOutput == numClusters;
+            })) {
+            return false;
+        }
+
+        SmallVector<vpux::NDTypeInterface> distributedTensorTypes;
+        for (auto inputTileType : inputTileTypes) {
+            auto inDistributedType = VPU::getDistributedActivationTypeFromOp(clusteredOp, inputTileType, numClusters,
+                                                                             outputTileTypes[0]);
+            distributedTensorTypes.push_back(inDistributedType.cast<vpux::NDTypeInterface>());
+        }
+
+        for (const auto& outputTileType : outputTileTypes) {
+            auto outDistributedType =
+                    VPU::getDistributedOutputTypeFromOp(clusteredOp, outputTileType, numClusters, inputTileTypes[0]);
+            distributedTensorTypes.push_back(outDistributedType.cast<vpux::NDTypeInterface>());
+        }
+
+        return origOp.fitIntoCMX(distributedTensorTypes, Byte(0));
     });
 }
 
@@ -461,7 +350,7 @@ bool isSupportedIsolatedTilingGRUSequence(VPU::GRUSequenceOp op, const OutputTil
     auto outputYType = results[0].getType().cast<vpux::NDTypeInterface>();
     auto outputYByteSize = outputYType.getElemTypeSize().to<Byte>().count();
 
-    auto seqLength = op.seq_lengthAttr().dyn_cast_or_null<mlir::IntegerAttr>().getValue().getSExtValue();
+    auto seqLength = op.getSeqLengthAttr().dyn_cast_or_null<mlir::IntegerAttr>().getValue().getSExtValue();
 
     return llvm::all_of(tiles, [&](const TileInfo& outputYTile) {
         auto inputTiles = tilingOp.backInferTileInfo(outputYTile, log);
@@ -507,7 +396,7 @@ bool isSupportedIsolatedTilingGeneric(mlir::Operation* origOp, const OutputTilin
 
     const auto inputOutputTilesFitCMX = [&](const TileInfo& firstOutputTile) {
         const auto computeRequiredMemory = [&](const auto& values, const SmallVector<TileInfo>& tilingInfo) {
-            auto requiredBytes = 0;
+            int64_t requiredBytes = 0;
             for (const auto& p : zip(values, tilingInfo)) {
                 const auto inputType = std::get<0>(p).getType().template cast<vpux::NDTypeInterface>();
                 const auto elementByteSize = inputType.getElemTypeSize().template to<Byte>().count();
@@ -538,9 +427,22 @@ bool isSupportedIsolatedTilingGeneric(mlir::Operation* origOp, const OutputTilin
     return llvm::all_of(firstOutputTiles, inputOutputTilesFitCMX);
 }
 
+bool isSupportedIsolatedTilingDepthToSpace(VPU::DepthToSpaceOp origOp, const OutputTiling& tiles, Logger log) {
+    auto block_size = origOp.getBlockSize();
+    for (auto& tile : tiles) {
+        auto OW = tile.shape[Dims4D::Act::W];
+        auto OH = tile.shape[Dims4D::Act::H];
+        if (OW % block_size != 0 || OH % block_size != 0) {
+            return false;
+        }
+    }
+
+    return isSupportedIsolatedTilingGeneric(origOp, tiles, log);
+}
+
 bool isSupportedIsolatedTiling(VPU::NCEPermuteQuantizeOp origOp, const OutputTiling& tiles, Logger log) {
-    const auto inputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
-    const auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
+    const auto inputType = origOp.getInput().getType().cast<vpux::NDTypeInterface>();
+    const auto outputType = origOp.getOutput().getType().cast<vpux::NDTypeInterface>();
 
     return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
         const auto inputTiles = origOp.backInferTileInfo(outputTile, log).tiles;
@@ -568,8 +470,8 @@ bool isSupportedIsolatedTiling(VPU::NCEPermuteQuantizeOp origOp, const OutputTil
 }
 
 bool isSupportedIsolatedTiling(VPU::NCEPermuteOp origOp, const OutputTiling& tiles, Logger log) {
-    const auto inputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
-    const auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
+    const auto inputType = origOp.getInput().getType().cast<vpux::NDTypeInterface>();
+    const auto outputType = origOp.getOutput().getType().cast<vpux::NDTypeInterface>();
 
     return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
         const auto inputTiles = origOp.backInferTileInfo(outputTile, log).tiles;
@@ -600,6 +502,9 @@ bool isSupportedIsolatedTilingSwLayer(mlir::Operation* origOp, const OutputTilin
             })
             .Case<VPU::AddOp, VPU::MultiplyOp, VPU::SubtractOp, VPU::AndOp>([&](mlir::Operation* op) {
                 return isSupportedIsolatedTilingEltwise(op, tiles, log);
+            })
+            .Case<VPU::DepthToSpaceOp>([&](VPU::DepthToSpaceOp op) {
+                return isSupportedIsolatedTilingDepthToSpace(op, tiles, log);
             })
             .Case<VPU::SWOpInterface>([&](VPU::SWOpInterface swOp) {
                 return isSupportedIsolatedTilingSwInterface(swOp, tiles, log);
@@ -641,6 +546,10 @@ bool isDivisibleTile(mlir::Operation* op, ShapeRef tileAxis, Dim tileDim, int64_
         return (outputShape[tileDim] / tileAxis[tileDim] >= minChannelSize) &&
                (outputShape[tileDim] % tileAxis[tileDim] == 0) &&
                ((outputShape[tileDim] / tileAxis[tileDim]) % minChannelSize == 0);
+    } else if (tileDim == Dims4D::Act::W && mlir::isa<VPU::NCEPermuteOp>(op)) {
+        return (outputShape[tileDim] / tileAxis[tileDim] >= minChannelSize) &&
+               (outputShape[tileDim] % tileAxis[tileDim] == 0) &&
+               ((outputShape[tileDim] / tileAxis[tileDim]) % minChannelSize == 0);
     } else {
         return outputShape[tileDim] / tileAxis[tileDim] >= kernelSize;
     }
@@ -648,15 +557,26 @@ bool isDivisibleTile(mlir::Operation* op, ShapeRef tileAxis, Dim tileDim, int64_
 
 bool checkPrefetchMem(mlir::Operation* op, const OutputTiling& tiles, Logger log) {
     auto parentOp = VPU::getParentTargetOp(op);
+    if (parentOp == nullptr) {
+        return false;
+    }
     const auto parentShape = getShape(parentOp->getResult(0));
-    return mlir::succeeded(
-            vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(op, tiles, parentOp, {TileInfo(parentShape)}, log));
+    vpux::OutputTiling parentTiling = {TileInfo(parentShape)};
+    if (parentOp->hasAttr(tilingStrategy)) {
+        const auto parentTilingStrategy =
+                Shape(parseIntArrayAttr<int64_t>(parentOp->getAttr(tilingStrategy).cast<mlir::ArrayAttr>()));
+        auto maybeParentTiling = fillDividedTiles(parentOp, parentTilingStrategy, parentShape);
+        if (mlir::succeeded(maybeParentTiling)) {
+            parentTiling = maybeParentTiling.value();
+        }
+    }
+    return mlir::succeeded(vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(op, tiles, parentOp, parentTiling, log));
 }
 
 template <class ConcreteOp>
 bool isSupportedPrefetchTilingConvBased(ConcreteOp origOp, const OutputTiling& tiles, Logger log,
                                         TilingMode tilingMode) {
-    auto outputShape = getShape(origOp.output());
+    auto outputShape = getShape(origOp.getOutput());
     auto tileAxis = tiles.front().axis;
     auto tileDims = getTileDims(tileAxis);
 
@@ -678,7 +598,7 @@ bool isSupportedPrefetchTilingConvBased(ConcreteOp origOp, const OutputTiling& t
         return false;
     }
     auto tileDim = tileDims[0];
-    const auto rawFilterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShape()));
+    const auto rawFilterShape = Shape(parseIntArrayAttr<int64_t>(origOp.getRawFilterShape()));
     return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim, rawFilterShape[tileDim]) && isMemPrefetchable() &&
            !isLastTileBiggest(origOp.getOperation(), tileAxis, outputShape, tileDim);
 }
@@ -725,11 +645,11 @@ bool isSupportedPrefetchTiling(VPU::NCEMaxPoolOp origOp, const OutputTiling& til
         return false;
     }
     auto tileDim = tileDims[0];
-    auto outputShape = getShape(origOp.output());
+    auto outputShape = getShape(origOp.getOutput());
 
     size_t realKernelIndex = tileDim == Dims4D::Act::H ? 0 : 1;
     return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim,
-                           parseIntArrayAttr<int64_t>(origOp.kernel_size())[realKernelIndex]) &&
+                           parseIntArrayAttr<int64_t>(origOp.getKernelSize())[realKernelIndex]) &&
            isMemPrefetchable() && !isLastTileBiggest(origOp.getOperation(), tileAxis, outputShape, tileDim);
 }
 
@@ -756,11 +676,11 @@ bool isSupportedPrefetchTiling(VPU::NCEAveragePoolOp origOp, const OutputTiling&
         return false;
     }
     auto tileDim = tileDims[0];
-    auto outputShape = getShape(origOp.output());
+    auto outputShape = getShape(origOp.getOutput());
 
     size_t realKernelIndex = tileDim == Dims4D::Act::H ? 0 : 1;
     return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim,
-                           parseIntArrayAttr<int64_t>(origOp.kernel_size())[realKernelIndex]) &&
+                           parseIntArrayAttr<int64_t>(origOp.getKernelSize())[realKernelIndex]) &&
            isMemPrefetchable() && !isLastTileBiggest(origOp.getOperation(), tileAxis, outputShape, tileDim);
 }
 
@@ -863,6 +783,30 @@ public:
     }
 };
 
+template <class MainOpType>
+class CycleCostInfoOpModel final :
+        public VPUIP::CycleCostInterface::ExternalModel<CycleCostInfoOpModel<MainOpType>, MainOpType> {
+public:
+    size_t getOperationCycleCost(mlir::Operation* origOp, std::shared_ptr<VPUNN::VPUCostModel>& costModel) const {
+        auto execOp = mlir::dyn_cast<mlir::async::ExecuteOp>(origOp);
+        if (execOp == nullptr) {
+            return VPU::NO_COST;
+        }
+
+        size_t execOpCycleCost = 0;
+        for (auto& innerOp : execOp.getBody()->getOperations()) {
+            auto cycleCostInterface = mlir::dyn_cast<VPUIP::CycleCostInterface>(innerOp);
+            if (cycleCostInterface != nullptr) {
+                size_t cost = cycleCostInterface.getOperationCycleCost(costModel);
+                if (execOpCycleCost < VPU::INVALID_COST_BASE && cost < VPU::INVALID_COST_BASE) {
+                    execOpCycleCost += cost;
+                }
+            }
+        }
+        return execOpCycleCost;
+    }
+};
+
 //
 // AsyncLayerOpModel
 //
@@ -878,6 +822,14 @@ class AsyncLayerOpModelForSW final : public VPUIP::AsyncLayerOpInterface::Fallba
 public:
     IndexedSymbolAttr getExecutor(mlir::Operation* origOp) const {
         return VPUIP::getExecutorAttr(origOp, VPU::ExecutorKind::SHAVE_UPA);
+    }
+};
+
+class AsyncLayerOpModelForCallOp final :
+        public VPUIP::AsyncLayerOpInterface::ExternalModel<AsyncLayerOpModelForCallOp, mlir::func::CallOp> {
+public:
+    IndexedSymbolAttr getExecutor(mlir::Operation* origOp) const {
+        return VPUIP::getExecutorAttr(origOp, VPU::ExecutorKind::NCE);
     }
 };
 
@@ -901,6 +853,34 @@ class DummySoftwareLayerOpModel final :
 public:
     VPUIP::KernelInfo getKernelInfo(mlir::Operation* /*origOp*/) const {
         return VPUIP::SwKernelOp::getDummyKernelInfo();
+    }
+};
+
+//
+// LayerOpModel
+//
+
+class LayerOpModelForCallOp final :
+        public VPUIP::LayerOpInterface::ExternalModel<LayerOpModelForCallOp, mlir::func::CallOp> {
+public:
+    mlir::OperandRange getInputs(mlir::Operation* origOp) const {
+        return vpux::VPUIP::getLayerInputs(origOp);
+    }
+
+    mlir::OperandRange getOutputs(mlir::Operation* origOp) const {
+        return vpux::VPUIP::getLayerOutputs(origOp);
+    }
+
+    auto getOpOperands(mlir::Operation* origOp) const {
+        return llvm::concat<mlir::OpOperand>(getInOpOperands(origOp), getOutOpOperands(origOp));
+    }
+
+    llvm::MutableArrayRef<mlir::OpOperand> getInOpOperands(mlir::Operation* origOp) const {
+        return vpux::VPUIP::getLayerInOpOperands(origOp);
+    }
+
+    llvm::MutableArrayRef<mlir::OpOperand> getOutOpOperands(mlir::Operation* origOp) const {
+        return vpux::VPUIP::getLayerOutOpOperands(origOp);
     }
 };
 
@@ -1013,22 +993,28 @@ void redirectOpInterfacesForVPUIP(mlir::DialectRegistry& registry) {
 }  // namespace
 
 //
+// MultiViewOpInterface
+//
+
+class MultiViewOpModel final : public vpux::MultiViewOpInterface::ExternalModel<MultiViewOpModel, mlir::func::CallOp> {
+public:
+    mlir::Value getViewSource(mlir::Operation* origOp, ptrdiff_t resultInd) const {
+        return VPUIP::getLayerViewSource(origOp, resultInd);
+    }
+};
+
+//
 // setupExtraInterfaces
 //
 
 void vpux::VPUIP::VPUIPDialect::setupExtraInterfaces(mlir::DialectRegistry& registry) {
     registry.addExtension(+[](mlir::MLIRContext* ctx, IE::IEDialect*) {
-        IE::ConvolutionOp::attachInterface<LayerWithPostOpModel<IE::ConvolutionOp>>(*ctx);
-        IE::DeconvolutionOp::attachInterface<LayerWithPostOpModel<IE::DeconvolutionOp>>(*ctx);
-        IE::GroupConvolutionOp::attachInterface<LayerWithPostOpModel<IE::GroupConvolutionOp>>(*ctx);
-        IE::MaxPoolOp::attachInterface<LayerWithPostOpModel<IE::MaxPoolOp>>(*ctx);
-        IE::AvgPoolOp::attachInterface<LayerWithPostOpModel<IE::AvgPoolOp>>(*ctx);
-        IE::AddOp::attachInterface<LayerWithPostOpModel<IE::AddOp>>(*ctx);
-        IE::MultiplyOp::attachInterface<LayerWithPostOpModel<IE::MultiplyOp>>(*ctx);
-        IE::SubtractOp::attachInterface<LayerWithPostOpModel<IE::SubtractOp>>(*ctx);
-        IE::AndOp::attachInterface<LayerWithPostOpModel<IE::AndOp>>(*ctx);
-
         IE::InterpolateOp::attachInterface<SEOpModel<IE::InterpolateOp>>(*ctx);
+        IE::TransposedConvolutionOp::attachInterface<SEOpModel<IE::TransposedConvolutionOp>>(*ctx);
+    });
+
+    registry.addExtension(+[](mlir::MLIRContext* ctx, mlir::async::AsyncDialect*) {
+        mlir::async::ExecuteOp::attachInterface<CycleCostInfoOpModel<mlir::async::ExecuteOp>>(*ctx);
     });
 
     registry.addExtension(+[](mlir::MLIRContext* ctx, VPU::VPUDialect*) {
@@ -1075,6 +1061,7 @@ void vpux::VPUIP::VPUIPDialect::setupExtraInterfaces(mlir::DialectRegistry& regi
         VPU::LogOp::attachInterface<SwLayerTilingInfoOpModel<VPU::LogOp>>(*ctx);
         VPU::PowerOp::attachInterface<SwLayerTilingInfoOpModel<VPU::PowerOp>>(*ctx);
         VPU::FloorModOp::attachInterface<SwLayerTilingInfoOpModel<VPU::FloorModOp>>(*ctx);
+        VPU::ModOp::attachInterface<SwLayerTilingInfoOpModel<VPU::ModOp>>(*ctx);
         VPU::EqualOp::attachInterface<SwLayerTilingInfoOpModel<VPU::EqualOp>>(*ctx);
         VPU::LessOp::attachInterface<SwLayerTilingInfoOpModel<VPU::LessOp>>(*ctx);
         VPU::LessEqualOp::attachInterface<SwLayerTilingInfoOpModel<VPU::LessEqualOp>>(*ctx);
@@ -1118,12 +1105,14 @@ void vpux::VPUIP::VPUIPDialect::setupExtraInterfaces(mlir::DialectRegistry& regi
         VPU::GRUSequenceOp::attachInterface<SwLayerTilingInfoOpModel<VPU::GRUSequenceOp>>(*ctx);
         VPU::SoftPlusOp::attachInterface<SwLayerTilingInfoOpModel<VPU::SoftPlusOp>>(*ctx);
         VPU::MVNOp::attachInterface<SwLayerTilingInfoOpModel<VPU::MVNOp>>(*ctx);
+        VPU::MVN1NormalizeOp::attachInterface<SwLayerTilingInfoOpModel<VPU::MVN1NormalizeOp>>(*ctx);
         VPU::MVN6Op::attachInterface<SwLayerTilingInfoOpModel<VPU::MVN6Op>>(*ctx);
         VPU::DFTOp::attachInterface<SwLayerTilingInfoOpModel<VPU::DFTOp>>(*ctx);
         VPU::RDFTUncutOp::attachInterface<SwLayerTilingInfoOpModel<VPU::RDFTUncutOp>>(*ctx);
         VPU::IDFTOp::attachInterface<SwLayerTilingInfoOpModel<VPU::IDFTOp>>(*ctx);
         VPU::IRDFTLastAxisOp::attachInterface<SwLayerTilingInfoOpModel<VPU::IRDFTLastAxisOp>>(*ctx);
         VPU::HardSigmoidOp::attachInterface<SwLayerTilingInfoOpModel<VPU::HardSigmoidOp>>(*ctx);
+        VPU::MaximumOp::attachInterface<SwLayerTilingInfoOpModel<VPU::MaximumOp>>(*ctx);
         VPU::SigmoidOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::HardSigmoidOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::GridSampleOp::attachInterface<SoftwareLayerOpModel>(*ctx);
@@ -1146,6 +1135,7 @@ void vpux::VPUIP::VPUIPDialect::setupExtraInterfaces(mlir::DialectRegistry& regi
         VPU::CeilingOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::NormalizeL2Op::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::CumSumOp::attachInterface<SoftwareLayerOpModel>(*ctx);
+        VPU::EyeOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::DetectionOutputNormalizeOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::DetectionOutputDecodeBoxesOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::DetectionOutputSortTopKOp::attachInterface<SoftwareLayerOpModel>(*ctx);
@@ -1162,11 +1152,10 @@ void vpux::VPUIP::VPUIPDialect::setupExtraInterfaces(mlir::DialectRegistry& regi
         VPU::ExpOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::RegionYoloOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::GatherOp::attachInterface<SoftwareLayerOpModel>(*ctx);
-        VPU::GatherSliceOp::attachInterface<SoftwareLayerOpModel>(*ctx);
-        VPU::ExtractValueOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::GatherElementsOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::GatherNDOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::GatherTreeOp::attachInterface<SoftwareLayerOpModel>(*ctx);
+        VPU::ConditionalCopyOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::TanOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::TanhOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::SinOp::attachInterface<SoftwareLayerOpModel>(*ctx);
@@ -1187,6 +1176,7 @@ void vpux::VPUIP::VPUIPDialect::setupExtraInterfaces(mlir::DialectRegistry& regi
         VPU::PadOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::DepthToSpaceOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::SpaceToDepthOp::attachInterface<SoftwareLayerOpModel>(*ctx);
+        VPU::SpaceToBatch::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::AvgPoolOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::AdaptiveAvgPoolOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::FakeQuantizeOp::attachInterface<SoftwareLayerOpModel>(*ctx);
@@ -1208,6 +1198,7 @@ void vpux::VPUIP::VPUIPDialect::setupExtraInterfaces(mlir::DialectRegistry& regi
         VPU::ScatterElementsUpdateOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::ReverseSequenceOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::FloorModOp::attachInterface<SoftwareLayerOpModel>(*ctx);
+        VPU::ModOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::EqualOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::GreaterOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::GreaterEqualOp::attachInterface<SoftwareLayerOpModel>(*ctx);
@@ -1231,6 +1222,7 @@ void vpux::VPUIP::VPUIPDialect::setupExtraInterfaces(mlir::DialectRegistry& regi
         VPU::NegativeOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::NonMaxSuppressionOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::ROIPoolingOp::attachInterface<SoftwareLayerOpModel>(*ctx);
+        VPU::ROIAlignOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::PSROIPoolingOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::PermuteQuantizeOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::LogOp::attachInterface<SoftwareLayerOpModel>(*ctx);
@@ -1248,6 +1240,7 @@ void vpux::VPUIP::VPUIPDialect::setupExtraInterfaces(mlir::DialectRegistry& regi
         VPU::LSTMGatesOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::LSTMSequenceOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::ErfOp::attachInterface<SoftwareLayerOpModel>(*ctx);
+        VPU::BucketizeOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::MaxPoolOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::RollOp::attachInterface<SoftwareLayerOpModel>(*ctx);
         VPU::CTCGreedyDecoderSeqLenOp::attachInterface<SoftwareLayerOpModel>(*ctx);
@@ -1271,7 +1264,13 @@ void vpux::VPUIP::VPUIPDialect::setupExtraInterfaces(mlir::DialectRegistry& regi
     redirectOpInterfacesForVPUIP<AsyncLayerOpModelForDMA, AsyncLayerOpModelForSW>(registry);
 
     registry.addExtension(+[](mlir::MLIRContext* ctx, mlir::BuiltinDialect*) {
-        VPUIP::MemRefAttr::attachInterface<VPUIP::MemRefAttrLayout>(*ctx);
+        vpux::MemRefAttr::attachInterface<vpux::MemRefAttrLayout>(*ctx);
+    });
+
+    registry.addExtension(+[](mlir::MLIRContext* ctx, mlir::func::FuncDialect*) {
+        mlir::func::CallOp::attachInterface<MultiViewOpModel>(*ctx);
+        mlir::func::CallOp::attachInterface<AsyncLayerOpModelForCallOp>(*ctx);
+        mlir::func::CallOp::attachInterface<LayerOpModelForCallOp>(*ctx);
     });
 }
 

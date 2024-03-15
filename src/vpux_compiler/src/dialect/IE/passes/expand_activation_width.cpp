@@ -114,8 +114,8 @@ mlir::LogicalResult PermuteQuantizeRewriter::matchAndRewrite(IE::PermuteQuantize
         paddedInput = origOp->getOperand(0);
     } else {
         _log.trace("Expand input tensor");
-        paddedInput =
-                rewriter.createOrFold<IE::ExpandOp>(origOp->getLoc(), origOp->getOperand(0), None, ShapeRef(inPadsEnd));
+        paddedInput = rewriter.createOrFold<IE::ExpandOp>(origOp->getLoc(), origOp->getOperand(0), std::nullopt,
+                                                          ShapeRef(inPadsEnd));
     }
 
     SmallVector<mlir::Value> paddedInputs = {paddedInput};
@@ -158,8 +158,8 @@ void ExpandActivationWidthPass::safeRunOnFunc() {
     auto func = getOperation();
 
     const auto isLegalPermuteQuantize = [&](IE::PermuteQuantizeOp op) {
-        const auto inType = op.input().getType().dyn_cast<vpux::NDTypeInterface>();
-        const auto outType = op.output().getType().dyn_cast<vpux::NDTypeInterface>();
+        const auto inType = op.getInput().getType().dyn_cast<vpux::NDTypeInterface>();
+        const auto outType = op.getOutput().getType().dyn_cast<vpux::NDTypeInterface>();
         const auto inOrder = inType.getDimsOrder();
         const auto outOrder = outType.getDimsOrder();
         // Check that such IE.PermuteQuantize can be executed on DPU.
@@ -183,8 +183,8 @@ void ExpandActivationWidthPass::safeRunOnFunc() {
         // set the alignment to be able to run on NCE. And if we are checking also the alignment the result will
         // always be false.
         const auto logCb = [&](const formatv_object_base&) {};
-        if (!VPU::NCEPermuteQuantizeOp::isSupported(op, logCb, /*checkLayout=*/false,
-                                                    /*checkChannelAlignment=*/false)) {
+        if (!VPU::NCEPermuteOp::isSupported(op, logCb, /*checkLayout=*/false,
+                                            /*checkChannelAlignment=*/false)) {
             return true;
         }
 

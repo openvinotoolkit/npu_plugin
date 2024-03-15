@@ -11,8 +11,6 @@
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/permute_utils.hpp"
 
-#include <mlir/Interfaces/InferTypeOpInterface.h>
-
 namespace vpux {
 namespace VPU {
 
@@ -21,13 +19,6 @@ mlir::LogicalResult inferReduceReturnTypes(mlir::Location loc, mlir::Value input
                                            mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
     const auto inType = input.getType().cast<vpux::NDTypeInterface>();
     const auto inShape = inType.getShape().raw();
-    const auto inRank = inType.getRank();
-
-    for (auto& axis : axes) {
-        if (axis < 0) {
-            axis += inRank;
-        }
-    }
 
     bool isAllUnique = std::unique(axes.begin(), axes.end()) == axes.end();
     if (!isAllUnique) {

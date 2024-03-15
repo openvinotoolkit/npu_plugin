@@ -6,15 +6,13 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/utils/const_attributes.hpp"
 
-#include "vpux/utils/core/checked_cast.hpp"
-
 #include <mlir/IR/PatternMatch.h>
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::FullyConnectedOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -23,8 +21,8 @@ mlir::LogicalResult vpux::IE::FullyConnectedOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = fullyConnected.input().getType().cast<mlir::ShapedType>();
-    const auto weightsType = fullyConnected.weights().getType().cast<mlir::ShapedType>();
+    const auto inType = fullyConnected.getInput().getType().cast<mlir::ShapedType>();
+    const auto weightsType = fullyConnected.getWeights().getType().cast<mlir::ShapedType>();
     const auto inShape = inType.getShape();
     const auto weightsShape = weightsType.getShape();
     const auto inRank = inShape.size();
@@ -61,25 +59,25 @@ mlir::LogicalResult FuseFCAndBias::matchAndRewrite(IE::AddOp biasOp, mlir::Patte
     static const auto N = Dim(0);
     static const auto C = Dim(1);
 
-    if (!biasOp.input1().hasOneUse()) {
+    if (!biasOp.getInput1().hasOneUse()) {
         return mlir::failure();
     }
 
-    if (mlir::failed(IE::getConstParentOp(biasOp.input2()))) {
+    if (mlir::failed(IE::getConstParentOp(biasOp.getInput2()))) {
         return mlir::failure();
     }
 
-    auto fullyConnectedOp = mlir::dyn_cast_or_null<IE::FullyConnectedOp>(biasOp.input1().getDefiningOp());
+    auto fullyConnectedOp = mlir::dyn_cast_or_null<IE::FullyConnectedOp>(biasOp.getInput1().getDefiningOp());
     if (fullyConnectedOp == nullptr) {
         return mlir::failure();
     }
 
-    if (fullyConnectedOp.bias() != nullptr) {
+    if (fullyConnectedOp.getBias() != nullptr) {
         return mlir::failure();
     }
 
-    auto fcOutShape = getShape(fullyConnectedOp.output());
-    auto biasShape = getShape(biasOp.input2());
+    auto fcOutShape = getShape(fullyConnectedOp.getOutput());
+    auto biasShape = getShape(biasOp.getInput2());
 
     if (fcOutShape.size() != 2 || biasShape.size() != 2) {
         return mlir::failure();
@@ -92,7 +90,7 @@ mlir::LogicalResult FuseFCAndBias::matchAndRewrite(IE::AddOp biasOp, mlir::Patte
     }
 
     auto* newFC = rewriter.clone(*fullyConnectedOp);
-    newFC->insertOperands(newFC->getNumOperands(), biasOp.input2());
+    newFC->insertOperands(newFC->getNumOperands(), biasOp.getInput2());
 
     rewriter.replaceOp(biasOp, newFC->getOpResults());
 

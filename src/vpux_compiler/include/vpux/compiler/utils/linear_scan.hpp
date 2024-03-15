@@ -24,6 +24,7 @@
 
 #include "vpux/compiler/utils/partitioner.hpp"
 
+#include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/small_vector.hpp"
@@ -47,7 +48,7 @@ public:
     using LiveRangeVector = SmallVector<LiveRange>;
     using LiveRangeIter = typename LiveRangeVector::iterator;
     using AllocatedAddrs = std::unordered_map<const LiveRange*, std::pair<AddressType, AddressType>>;
-    using ReservedAddressAndSizeVector = SmallVector<std::pair<vpux::AddressType, vpux::AddressType>>;
+    using ReservedAddressAndSizeVector = ArrayRef<std::pair<vpux::AddressType, vpux::AddressType>>;
 
 public:
     explicit LinearScan(AddressType size): _par{size} {
@@ -149,11 +150,6 @@ public:
             }
             auto allocPair = std::make_pair(allocAddr, newRangeSize);
             tempAlloc.push_back(allocPair);
-            // E#30278 case for exceeding NNCMX invariant with CMX-Concat
-            if (_handler.checkInvariantExceedingNNCMX(newRange, allocAddr, _par.totalSize())) {
-                canAllocAll = false;
-                break;
-            }
         }
         // deallocation
         for (auto curIt = tempAlloc.begin(); curIt != tempAlloc.end(); ++curIt) {
@@ -313,14 +309,14 @@ private:
         return it;
     }
 
-    Optional<LiveRange> getSpillCandidate() {
+    std::optional<LiveRange> getSpillCandidate() {
         const auto it = std::min_element(_liveRanges.begin(), _liveRanges.end(),
                                          [this](const LiveRange& r1, const LiveRange& r2) {
                                              return _handler.getSpillWeight(r1) < _handler.getSpillWeight(r2);
                                          });
 
         if (it == _liveRanges.end()) {
-            return None;
+            return std::nullopt;
         }
 
         const auto spillCandidate = *it;

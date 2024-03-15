@@ -5,12 +5,12 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 
 namespace vpux {
 namespace passes {
 
-class ConvertExtractImagePatchesToReorgYoloVPU : public ngraph::pass::MatcherPass {
+class ConvertExtractImagePatchesToReorgYoloVPU : public ov::pass::MatcherPass {
 public:
     ConvertExtractImagePatchesToReorgYoloVPU();
 };

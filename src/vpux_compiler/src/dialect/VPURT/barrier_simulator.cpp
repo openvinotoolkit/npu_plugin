@@ -6,9 +6,11 @@
 #include "vpux/compiler/dialect/VPURT/barrier_simulator.hpp"
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
+
+#include "vpux/compiler/utils/dma.hpp"
 
 #include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/range.hpp"
@@ -29,8 +31,7 @@ void assignVirtualIds(mlir::Operation* parentOp) {
 
     parentOp->walk([&](mlir::Operation* op) {
         if (mlir::isa<VPURT::DeclareVirtualBarrierOp, VPURT::ConfigureBarrierOp>(op)) {
-            VPUX_THROW_WHEN(vid > std::numeric_limits<unsigned short>::max(), "Barrier virtual id '{0}' is too large",
-                            vid);
+            VPUX_THROW_WHEN(vid >= std::numeric_limits<uint32_t>::max(), "Barrier virtual id '{0}' is too large", vid);
 
             op->setAttr(virtualIdAttrName, getIntAttr(op->getContext(), vid++));
         }
@@ -124,6 +125,7 @@ void vpux::VPURT::VirtualDependencyTracker::print(Logger log) const {
 
 vpux::VPURT::BarrierSimulator::BarrierSimulator(mlir::func::FuncOp funcOp) {
     _barrierProducerSlotCount = static_cast<int64_t>(VPUIP::getBarrierMaxVariantCount(funcOp));
+    _barrierTotalSlotCount = static_cast<int64_t>(VPUIP::getBarrierMaxVariantSum(funcOp));
     _availableBarriers = VPUIP::getNumAvailableBarriers(funcOp);
     _dmaTasks.resize(VPUIP::getNumberOfIndependentDmaQueues(funcOp));
     assignVirtualIds(funcOp);
@@ -205,7 +207,7 @@ void vpux::VPURT::BarrierSimulator::parseTasks(mlir::Operation* parentOp) {
                 // If this DMA task corresponds to a FIFO that was not already encountered
                 // then increase the size of tracked DMA FIFOs
                 int64_t dmaTasksQueueIndex;
-                auto dmaQueueId = VPURT::getDMAQueueIdEncoding(port, dmaTask.getChannelType());
+                auto dmaQueueId = getDMAQueueIdEncoding(port, dmaTask.getChannelType());
 
                 auto dmaQueueIt = dmaQueueIdToIndexMap.find(dmaQueueId);
                 if (dmaQueueIt == dmaQueueIdToIndexMap.end()) {
@@ -229,7 +231,7 @@ void vpux::VPURT::BarrierSimulator::parseTasks(mlir::Operation* parentOp) {
             break;
         }
 
-        case VPU::ExecutorKind::NCE: {
+        case VPU::ExecutorKind::DPU: {
             auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(wrappedTaskOp);
             VPUX_THROW_UNLESS(nceOp != nullptr, "Could not cast to NCE task");
 
@@ -291,6 +293,21 @@ mlir::LogicalResult vpux::VPURT::BarrierSimulator::checkProducerCount(Logger log
     return mlir::success();
 }
 
+mlir::LogicalResult vpux::VPURT::BarrierSimulator::checkProducerAndConsumerCount(Logger log) const {
+    for (auto vid : irange(_barriers.size())) {
+        const auto producerCount = _barriers[vid].producerCount;
+        const auto consumerCount = _barriers[vid].consumerCount;
+
+        if (producerCount + consumerCount > _barrierTotalSlotCount) {
+            log.error("Barrier {0} at '{1}' has {2} producers and {3} consumers (max sum {4})", vid, _barriers[vid].loc,
+                      producerCount, consumerCount, _barrierTotalSlotCount);
+            return mlir::failure();
+        }
+    }
+
+    return mlir::success();
+}
+
 SmallVector<mlir::DenseSet<VPURT::DeclareVirtualBarrierOp>>
 vpux::VPURT::BarrierSimulator::getBarrierBatchesToLegalize() {
     // convert id's to barriers
@@ -317,8 +334,8 @@ vpux::VPURT::BarrierSimulator::getBarrierBatchesToLegalize() {
     return batches;
 }
 
-mlir::LogicalResult vpux::VPURT::BarrierSimulator::simulateBarriers(Logger log, Optional<int64_t> numBarriers,
-                                                                    Optional<bool> barrierLegalization) {
+mlir::LogicalResult vpux::VPURT::BarrierSimulator::simulateBarriers(Logger log, std::optional<int64_t> numBarriers,
+                                                                    std::optional<bool> barrierLegalization) {
     if (numBarriers.has_value()) {
         VPUX_THROW_UNLESS(numBarriers.value() <= _availableBarriers,
                           "Provided number of barriers '{0}' is greater than HW limitation '{1}'", numBarriers,
@@ -368,7 +385,8 @@ mlir::LogicalResult vpux::VPURT::BarrierSimulator::simulateBarriers(Logger log, 
     for (; bar < _barriers.size() || isDmaFifoNotComplete() || dpu < _nceTasks.size() || act < _actTasks.size() ||
            upa < _upaTasks.size();
          progressed = false) {
-        log.nest(1).trace("DMA:{0}; DPU: {1} / {2}; ACT: {3} / {4}; UPA: {5} / {6}; BAR: {7} / {8}",
+        log.nest(1).trace("DMA:{0}; DPU: {1} / {2}; ACT: {3} / {4}; UPA: {5} / {6}; "
+                          "BAR: {7} / {8}",
                           getDmaProgressLog(), dpu, _nceTasks.size(), act, _actTasks.size(), upa, _upaTasks.size(), bar,
                           _barriers.size());
 

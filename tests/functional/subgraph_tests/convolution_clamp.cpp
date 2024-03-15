@@ -1,52 +1,44 @@
-//
 // Copyright (C) Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpu_ov1_layer_test.hpp"
+#include <vpu_ov2_layer_test.hpp>
 
-#include <ngraph_functions/builders.hpp>
-#include <ngraph_functions/utils/ngraph_helpers.hpp>
+#include <ov_models/builders.hpp>
+#include <ov_models/utils/ov_helpers.hpp>
 #include <shared_test_classes/base/layer_test_utils.hpp>
 
-namespace {
+namespace ov::test {
 
-class VPUXConvClampSubGraphTest_VPU3700 :
-        public LayerTestsUtils::VpuOv1LayerTestsCommon,
-        public testing::WithParamInterface<LayerTestsUtils::TargetDevice> {
+class ConvClampSubGraphTest_NPU3700 : public VpuOv2LayerTest {
     void SetUp() override {
-        const InferenceEngine::SizeVector inputShape{1, 3, 62, 62};
-        const InferenceEngine::SizeVector weightsShape{48, 3, 3, 3};
+        const ov::Shape inputShape{1, 3, 62, 62};
+        const ov::Shape weightsShape{48, 3, 3, 3};
 
-        const auto weights = ngraph::builder::makeConstant<uint8_t>(ngraph::element::f32, weightsShape, {2}, false);
-        const auto params = ngraph::builder::makeParams(ngraph::element::f32, {inputShape});
-        const auto paramOuts =
-                ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+        const auto weights = ngraph::builder::makeConstant<uint8_t>(ov::element::f32, weightsShape, {2}, false);
 
-        const ngraph::Strides strides = {1, 1};
-        const ngraph::CoordinateDiff pads_begin = {0, 0};
-        const ngraph::CoordinateDiff pads_end = {0, 0};
-        const ngraph::Strides dilations = {1, 1};
-        const auto conv = std::make_shared<ngraph::opset2::Convolution>(paramOuts[0], weights, strides, pads_begin,
-                                                                        pads_end, dilations);
+        init_input_shapes(static_shapes_to_test_representation({inputShape}));
 
-        const auto clamp = std::make_shared<ngraph::op::v0::Clamp>(conv, -1.0f, 1.0f);
+        const ov::ParameterVector params = {
+                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputDynamicShapes.front())};
 
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(clamp)};
-        function = std::make_shared<ngraph::Function>(results, params, "VPUXConvClamp");
+        const ov::Strides strides = {1, 1};
+        const ov::CoordinateDiff pads_begin = {0, 0};
+        const ov::CoordinateDiff pads_end = {0, 0};
+        const ov::Strides dilations = {1, 1};
+        const auto conv =
+                std::make_shared<ov::op::v1::Convolution>(params[0], weights, strides, pads_begin, pads_end, dilations);
 
-        targetDevice = GetParam();
-        threshold = 0.1f;
+        const auto clamp = std::make_shared<ov::op::v0::Clamp>(conv, -1.0f, 1.0f);
+
+        const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(clamp)};
+        function = std::make_shared<ov::Model>(results, params, "ConvClamp");
+        rel_threshold = 0.1f;
     }
 };
 
-TEST_P(VPUXConvClampSubGraphTest_VPU3700, HW) {
-    setPlatformVPU3700();
-    setDefaultHardwareModeMLIR();
-    Run();
+TEST_F(ConvClampSubGraphTest_NPU3700, HW) {
+    setDefaultHardwareMode();
+    run(VPUXPlatform::VPU3700);
 }
-
-INSTANTIATE_TEST_CASE_P(smoke_ConvClamp, VPUXConvClampSubGraphTest_VPU3700,
-                        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
-
-}  // namespace
+}  // namespace ov::test

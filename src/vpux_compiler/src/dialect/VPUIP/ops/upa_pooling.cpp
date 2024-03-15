@@ -10,11 +10,6 @@
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
-#include "vpux/utils/core/checked_cast.hpp"
-#include "vpux/utils/core/range.hpp"
-
-#include <mlir/IR/BuiltinTypes.h>
-
 using namespace vpux;
 
 namespace {
@@ -54,8 +49,8 @@ mlir::LogicalResult vpux::VPUIP::PoolingUPAOp::verify() {
     static const auto H = Dim(2);
     static const auto W = Dim(3);
 
-    const auto inShape = getShape(input());
-    const auto outShape = getShape(output());
+    const auto inShape = getShape(getInput());
+    const auto outShape = getShape(getOutput());
 
     if (inShape[N] != outShape[N]) {
         return errorAt(op, "Input batch '{0}' doesn't match with output '{1}'", inShape[N], outShape[N]);
@@ -64,10 +59,10 @@ mlir::LogicalResult vpux::VPUIP::PoolingUPAOp::verify() {
         return errorAt(op, "Input number of channels '{0}' doesn't match with output '{1}'", inShape[C], outShape[C]);
     }
 
-    const auto kernelVal = parseIntArrayAttr<int64_t>(kernel());
-    const auto stridesVal = parseIntArrayAttr<int64_t>(strides());
-    const auto padsBeginVal = parseIntArrayAttr<int64_t>(padsBegin());
-    const auto padsEndVal = parseIntArrayAttr<int64_t>(padsEnd());
+    const auto kernelVal = parseIntArrayAttr<int64_t>(getKernel());
+    const auto stridesVal = parseIntArrayAttr<int64_t>(getStrides());
+    const auto padsBeginVal = parseIntArrayAttr<int64_t>(getPadsBegin());
+    const auto padsEndVal = parseIntArrayAttr<int64_t>(getPadsEnd());
 
     if (kernelVal.size() != 2) {
         return errorAt(op, "Got unsupported kernel '{0}', only 2D is supported", kernelVal);
@@ -112,13 +107,13 @@ mlir::LogicalResult vpux::VPUIP::PoolingUPAOp::verify() {
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PoolingUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto kernel = VPUIP::createOrder3(this->kernel());
-    const auto strides = VPUIP::createOrder3(this->strides());
-    const auto padsBegin = VPUIP::createOrder3(this->padsBegin());
-    const auto padsEnd = VPUIP::createOrder3(this->padsEnd());
+    const auto kernel = VPUIP::createOrder3(this->getKernel());
+    const auto strides = VPUIP::createOrder3(this->getStrides());
+    const auto padsBegin = VPUIP::createOrder3(this->getPadsBegin());
+    const auto padsEnd = VPUIP::createOrder3(this->getPadsEnd());
 
     VPUIP::BlobWriter::String type;
-    switch (this->task_type()) {
+    switch (this->getTaskType()) {
     case VPUIP::PoolLayerType::MAX:
         type = writer.createString("max");
         break;
@@ -126,10 +121,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PoolingUPAOp::serialize(VPUIP::Blob
         type = writer.createString("avg");
         break;
     default:
-        VPUX_THROW("Unsupported PoolLayerType {0}", this->task_type());
+        VPUX_THROW("Unsupported PoolLayerType {0}", this->getTaskType());
     }
 
-    const auto excludePad = writer.createString(this->excludePad() ? "true" : "false");
+    const auto excludePad = writer.createString(this->getExcludePad() ? "true" : "false");
 
     MVCNN::PoolingParamsBuilder builder(writer);
     builder.add_pool_method(type);

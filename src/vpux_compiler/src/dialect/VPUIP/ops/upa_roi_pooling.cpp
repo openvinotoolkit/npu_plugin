@@ -12,7 +12,6 @@
 #include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
-#include "vpux/utils/core/range.hpp"
 
 #include <mlir/IR/BuiltinTypes.h>
 
@@ -20,8 +19,8 @@ using namespace vpux;
 
 mlir::LogicalResult vpux::VPUIP::ROIPoolingUPAOp::verify() {
     const auto op = getOperation();
-    const auto inShapeFeatureMap = getShape(input());
-    const auto inShapeCoord = getShape(coords());
+    const auto inShapeFeatureMap = getShape(getInput());
+    const auto inShapeCoord = getShape(getCoords());
 
     if (inShapeFeatureMap.size() != 4) {
         return errorAt(op, "Dimension of the feature maps input should be 4. Got {0} D tensor",
@@ -33,7 +32,7 @@ mlir::LogicalResult vpux::VPUIP::ROIPoolingUPAOp::verify() {
                        inShapeCoord.size());
     }
 
-    const auto outputSize = parseIntArrayAttr<int64_t>(output_size());
+    const auto outputSize = parseIntArrayAttr<int64_t>(getOutputSize());
     if (outputSize.size() != 2) {
         return errorAt(op, "Dimension of pooled size is expected to be equal to 2. Got {0}", outputSize.size());
     }
@@ -46,13 +45,13 @@ mlir::LogicalResult vpux::VPUIP::ROIPoolingUPAOp::verify() {
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ROIPoolingUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const float spatial_scale_val = static_cast<float>(spatial_scale().convertToDouble());
-    uint32_t num_rois = checked_cast<uint32_t>(coords().getType().cast<vpux::NDTypeInterface>().getShape().raw()[0]);
-    const auto output_size = parseIntArrayAttr<int64_t>(output_sizeAttr());
+    const float spatial_scale_val = static_cast<float>(getSpatialScale().convertToDouble());
+    uint32_t num_rois = checked_cast<uint32_t>(getCoords().getType().cast<vpux::NDTypeInterface>().getShape().raw()[0]);
+    const auto output_size = parseIntArrayAttr<int64_t>(getOutputSizeAttr());
 
     MVCNN::ROIPoolingParamsBuilder builder(writer);
     builder.add_spatial_scale(spatial_scale_val);
-    builder.add_roi_pooling_method(convertVPUXROIPoolingMethod2Int32(method()));
+    builder.add_roi_pooling_method(convertVPUXROIPoolingMethod2Int32(getMethod()));
     builder.add_num_rois(num_rois);
     builder.add_pooled_h(checked_cast<uint32_t>(output_size[0]));
     builder.add_pooled_w(checked_cast<uint32_t>(output_size[1]));

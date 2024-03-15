@@ -8,8 +8,8 @@
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::ReadValueOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -18,7 +18,7 @@ mlir::LogicalResult vpux::IE::ReadValueOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto rankedInType = readValue.input().getType().cast<mlir::RankedTensorType>();
+    const auto rankedInType = readValue.getInput().getType().cast<mlir::RankedTensorType>();
     const auto outDesc = vpux::getTensorAttr(rankedInType);
     inferredReturnShapes.emplace_back(rankedInType.getShape(), rankedInType.getElementType(), outDesc);
 

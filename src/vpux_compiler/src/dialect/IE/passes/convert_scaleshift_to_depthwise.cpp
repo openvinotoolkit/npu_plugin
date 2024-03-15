@@ -5,21 +5,12 @@
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
-#include "vpux/compiler/dialect/IE/utils/const_attributes.hpp"
 #include "vpux/compiler/dialect/IE/utils/scale_shift_utils.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
-
-#include "vpux/utils/core/checked_cast.hpp"
-
-#include <mlir/Pass/PassManager.h>
-#include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
 
@@ -77,13 +68,13 @@ mlir::LogicalResult ConvertScaleShiftToDWPass::ScaleShiftOpConverter::matchAndRe
     auto padBeginAttr = getIntArrayAttr(origOp.getContext(), padBegin);
     auto padEndAttr = getIntArrayAttr(origOp.getContext(), padEnd);
 
-    auto outShape = getShape(origOp.output()).toValues();
+    auto outShape = getShape(origOp.getOutput()).toValues();
     auto groupAttr = getIntAttr(origOp.getContext(), outShape[Dims4D::Act::C]);
     const SmallVector<int64_t> weightShape = {outShape[Dims4D::Act::C], 1, kernelSize, kernelSize};
     mlir::Value weights;
 
     auto createConstOp = [&](SmallVector<int64_t> shape, float16 value) -> Const::DeclareOp {
-        const auto elemType = origOp.output().getType().cast<vpux::NDTypeInterface>().getElementType();
+        const auto elemType = origOp.getOutput().getType().cast<vpux::NDTypeInterface>().getElementType();
         auto shape1x1x1x1 = SmallVector<int64_t>(shape.size(), 1);
         const auto dataStorageType = mlir::RankedTensorType::get(shape1x1x1x1, elemType);
         const auto dataType = mlir::RankedTensorType::get(shape, elemType);
@@ -99,24 +90,25 @@ mlir::LogicalResult ConvertScaleShiftToDWPass::ScaleShiftOpConverter::matchAndRe
         return rewriter.create<Const::DeclareOp>(origOp.getLoc(), dataType, contentAttr);
     };
 
-    if (origOp.weights() != nullptr) {
-        const auto multiply = origOp.weights();
+    if (origOp.getWeights() != nullptr) {
+        const auto multiply = origOp.getWeights();
         const auto weightShapeAttr = getIntArrayAttr(origOp.getContext(), weightShape);
         auto dwConvFilter = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), multiply, nullptr, false, weightShapeAttr);
-        weights = dwConvFilter.output();
+        weights = dwConvFilter.getOutput();
     } else {
         auto dwConvFilter = createConstOp(weightShape, 1.0f);
         weights = dwConvFilter.getOutput();
-        auto inputFq = origOp.input().getDefiningOp<IE::FakeQuantizeOp>();
+        auto inputFq = origOp.getInput().getDefiningOp<IE::FakeQuantizeOp>();
         if (inputFq != nullptr) {
             auto newFqOp = rewriter.create<IE::FakeQuantizeOp>(origOp->getLoc(), weights, weights, weights, weights,
-                                                               weights, 255, inputFq.auto_broadcast());
-            weights = newFqOp.output();
+                                                               weights, 255, inputFq.getAutoBroadcast());
+            weights = newFqOp.getOutput();
         }
     }
 
-    rewriter.replaceOpWithNewOp<IE::GroupConvolutionOp>(origOp, origOp.input(), weights, origOp.biases(), stridesAttr,
-                                                        padBeginAttr, padEndAttr, dilationsAttr, groupAttr, nullptr);
+    rewriter.replaceOpWithNewOp<IE::GroupConvolutionOp>(origOp, origOp.getInput(), weights, origOp.getBiases(),
+                                                        stridesAttr, padBeginAttr, padEndAttr, dilationsAttr, groupAttr,
+                                                        nullptr, nullptr);
 
     return mlir::success();
 }

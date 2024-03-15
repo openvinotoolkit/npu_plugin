@@ -2,12 +2,11 @@
 // Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
-
 #include "vpux/compiler/utils/prelu_pwl_table.hpp"
 
 namespace vpux {
 
-Optional<vpux::PWLTableEntry> getPWLEntryForAlpha0(const int64_t zeroPoint) {
+std::optional<vpux::PWLTableEntry> getPWLEntryForAlpha0(const int64_t zeroPoint) {
     static std::map<int64_t, PWLTableEntry> reluPwlTableAlpha0 = {
             {0, PWLTableEntry{/*range=*/{0, 255},
                               /*shift=*/{-5},
@@ -20,10 +19,10 @@ Optional<vpux::PWLTableEntry> getPWLEntryForAlpha0(const int64_t zeroPoint) {
         return reluPwlTableAlpha0[zeroPoint];
     }
 
-    return None;
+    return std::nullopt;
 }
 
-Optional<vpux::PWLTableEntry> getPWLEntryForAlpha1(const int64_t zeroPoint) {
+std::optional<vpux::PWLTableEntry> getPWLEntryForAlpha1(const int64_t zeroPoint) {
     static std::map<int64_t, PWLTableEntry> reluPwlTableAlpha1 = {
             {128, PWLTableEntry{/*range=*/{-128, -109, -90, -72, -54, -36, -18, 0, 127},
                                 /*shift=*/{1, -1, 0, 0, 0, -1, -1, -4},
@@ -36,10 +35,10 @@ Optional<vpux::PWLTableEntry> getPWLEntryForAlpha1(const int64_t zeroPoint) {
         return reluPwlTableAlpha1[zeroPoint];
     }
 
-    return None;
+    return std::nullopt;
 }
 
-Optional<vpux::PWLTableEntry> getPWLEntryForAlpha2(const int64_t zeroPoint) {
+std::optional<vpux::PWLTableEntry> getPWLEntryForAlpha2(const int64_t zeroPoint) {
     static std::map<int64_t, PWLTableEntry> reluPwlTableAlpha2 = {
             {0, PWLTableEntry{/*range=*/{0, 255},
                               /*shift=*/{-5},
@@ -277,10 +276,10 @@ Optional<vpux::PWLTableEntry> getPWLEntryForAlpha2(const int64_t zeroPoint) {
         return reluPwlTableAlpha2[zeroPoint];
     }
 
-    return None;
+    return std::nullopt;
 }
 
-Optional<vpux::PWLTableEntry> getPWLEntryForAlpha25(const int64_t zeroPoint) {
+std::optional<vpux::PWLTableEntry> getPWLEntryForAlpha25(const int64_t zeroPoint) {
     // FIX ME: The PWL table requires fixed input and output quantization ranges for i13 data.
     // So the low boundry of PWL input should be -4096. It means the value will be clamped if lower than -4096.
     // Here the clampLow and clampHigh is corresponding to the FQ range of leakyRelu's output.
@@ -290,7 +289,7 @@ Optional<vpux::PWLTableEntry> getPWLEntryForAlpha25(const int64_t zeroPoint) {
     // For example, if FQ range is [-192.0, 63.0] and zeropoint is 192.
     // Then values within [-128.0, 63.0] are accurate but others are clamped to -128.
     if (zeroPoint < 0 || zeroPoint > 128)
-        return None;
+        return std::nullopt;
 
     const auto clampLow = checked_cast<int32_t>(-zeroPoint * 4) * 8 - 0;
     const auto clampHigh = checked_cast<int32_t>(255 - zeroPoint) * 8 + 0;

@@ -5,13 +5,11 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
-#include "vpux/compiler/utils/attributes.hpp"
-
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::GatherElementsOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -20,8 +18,8 @@ mlir::LogicalResult vpux::IE::GatherElementsOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inIndicesType = gatherElements.indices().getType().cast<mlir::ShapedType>();
-    const auto inInputType = gatherElements.input().getType().cast<mlir::ShapedType>();
+    const auto inIndicesType = gatherElements.getIndices().getType().cast<mlir::ShapedType>();
+    const auto inInputType = gatherElements.getInput().getType().cast<mlir::ShapedType>();
 
     inferredReturnShapes.emplace_back(inIndicesType.getShape(), inInputType.getElementType());
     return mlir::success();

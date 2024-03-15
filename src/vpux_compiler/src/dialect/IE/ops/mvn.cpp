@@ -6,12 +6,11 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/utils/error.hpp"
-#include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
 mlir::LogicalResult vpux::IE::MVNOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -20,7 +19,7 @@ mlir::LogicalResult vpux::IE::MVNOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = mvn.input().getType().cast<mlir::ShapedType>();
+    const auto inType = mvn.getInput().getType().cast<mlir::ShapedType>();
     const auto inShape = inType.getShape();
     if (inShape.size() != 4 && inShape.size() != 5) {
         return errorAt(loc, "First input tensor should have 4 or 5 dimensions");

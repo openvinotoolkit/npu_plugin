@@ -6,8 +6,6 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/const/ops.hpp"
-#include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
@@ -24,7 +22,7 @@ bool isReshapeKindOp(mlir::Operation* op) {
 }
 
 mlir::Operation* getTargetParent(IE::FakeQuantizeOp fqOp) {
-    auto parentOp = fqOp.input().getDefiningOp();
+    auto parentOp = fqOp.getInput().getDefiningOp();
     while (parentOp != nullptr && isReshapeKindOp(parentOp)) {
         parentOp = parentOp->getOperand(0).getDefiningOp();
     }
@@ -32,7 +30,7 @@ mlir::Operation* getTargetParent(IE::FakeQuantizeOp fqOp) {
 }
 
 mlir::Operation* getTargetChild(IE::FakeQuantizeOp fqOp) {
-    auto childOp = *fqOp.output().getUsers().begin();
+    auto childOp = *fqOp.getOutput().getUsers().begin();
     while (childOp != nullptr && isReshapeKindOp(childOp)) {
         if (!childOp->getResult(0).hasOneUse()) {
             return nullptr;
@@ -43,7 +41,7 @@ mlir::Operation* getTargetChild(IE::FakeQuantizeOp fqOp) {
 }
 
 mlir::Operation* getLastReshape(IE::FakeQuantizeOp fqOp) {
-    auto lastReshapeOp = *fqOp.output().getUsers().begin();
+    auto lastReshapeOp = *fqOp.getOutput().getUsers().begin();
     while (isReshapeKindOp(lastReshapeOp)) {
         auto nextOp = *lastReshapeOp->getResult(0).getUsers().begin();
         if (!isReshapeKindOp(nextOp)) {
@@ -57,16 +55,16 @@ mlir::Operation* getLastReshape(IE::FakeQuantizeOp fqOp) {
 bool matchFakeQuantReshapePattern(IE::FakeQuantizeOp fqOp) {
     // match [non-channel-aligned op] -> [optional Reshapes] -> [FQ] -> [Reshapes] -> [channel-aligned op]
     // swap to avoid redundant expand and permute ops
-    auto outType = fqOp.output().getType().cast<vpux::NDTypeInterface>();
+    auto outType = fqOp.getOutput().getType().cast<vpux::NDTypeInterface>();
     if (outType.getElementType().isa<mlir::quant::UniformQuantizedPerAxisType>()) {
         return false;
     }
 
-    if (!fqOp.output().hasOneUse()) {
+    if (!fqOp.getOutput().hasOneUse()) {
         return false;
     }
 
-    auto nextOp = *fqOp.output().getUsers().begin();
+    auto nextOp = *fqOp.getOutput().getUsers().begin();
     if (!isReshapeKindOp(nextOp)) {
         return false;
     }
@@ -116,16 +114,44 @@ mlir::LogicalResult FakeQuantReshapeSwapper::matchAndRewrite(IE::FakeQuantizeOp 
         return mlir::failure();
     }
 
-    auto parentOp = origOp.input().getDefiningOp();
+    auto parentOp = origOp.getInput().getDefiningOp();
     auto targetChildOp = getTargetChild(origOp);
     auto lastReshapeOp = getLastReshape(origOp);
 
     VPUX_THROW_WHEN(targetChildOp == nullptr, "Target child op is nullptr!");
     rewriter.setInsertionPoint(targetChildOp);
-    auto newFQ = rewriter.create<IE::FakeQuantizeOp>(origOp->getLoc(), lastReshapeOp->getResult(0), origOp.input_low(),
-                                                     origOp.input_high(), origOp.output_low(), origOp.output_high(),
-                                                     origOp.levels(), origOp.auto_broadcast());
-    lastReshapeOp->getResult(0).replaceAllUsesExcept(newFQ.output(), llvm::SmallPtrSet<mlir::Operation*, 1>{newFQ});
+    vpux::IE::FakeQuantizeOp newFQ;
+
+    const auto notEqualToOne = [](const auto dim) {
+        return dim != 1;
+    };
+
+    const auto inputLowShape = getShape(origOp.getInputLow());
+    const auto bigDim = llvm::find_if(inputLowShape, notEqualToOne);
+    const auto allOnes = (bigDim == inputLowShape.end());
+    const auto bigDimNotLast = (bigDim != std::prev(inputLowShape.end()));
+    if (allOnes || bigDimNotLast) {  // Per-tensor quantization
+        newFQ = rewriter.create<IE::FakeQuantizeOp>(
+                origOp->getLoc(), lastReshapeOp->getResult(0), origOp.getInputLow(), origOp.getInputHigh(),
+                origOp.getOutputLow(), origOp.getOutputHigh(), origOp.getLevels(), origOp.getAutoBroadcast());
+    } else {  // Reshape the quantization arrays accordingly when the quantization is per-channel
+        auto inputLow = origOp.getInputLow();
+        auto inputHigh = origOp.getInputHigh();
+
+        auto fqOperationinputShape = to_small_vector(getShape(lastReshapeOp->getResult(0)));
+
+        const auto newInputShapeAttr = getIntArrayAttr(rewriter.getContext(), fqOperationinputShape);
+
+        auto inputLowReshaped =
+                rewriter.create<IE::ReshapeOp>(origOp->getLoc(), inputLow, nullptr, false, newInputShapeAttr);
+        auto inputHighReshaped =
+                rewriter.create<IE::ReshapeOp>(origOp->getLoc(), inputHigh, nullptr, false, newInputShapeAttr);
+        newFQ = rewriter.create<IE::FakeQuantizeOp>(origOp->getLoc(), lastReshapeOp->getResult(0), inputLowReshaped,
+                                                    inputHighReshaped, origOp.getOutputLow(), origOp.getOutputHigh(),
+                                                    origOp.getLevels(), origOp.getAutoBroadcast());
+    }
+
+    lastReshapeOp->getResult(0).replaceAllUsesExcept(newFQ.getOutput(), llvm::SmallPtrSet<mlir::Operation*, 1>{newFQ});
     origOp->replaceAllUsesWith(parentOp);
     origOp->erase();
 
@@ -154,7 +180,7 @@ mlir::LogicalResult FakeQuantStridedSliceSwapper::matchAndRewrite(IE::FakeQuanti
                                                                   mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got FakeQuantize Operation '{1}'", getDebugName(), origOp->getLoc());
 
-    auto outType = origOp.output().getType().cast<vpux::NDTypeInterface>();
+    auto outType = origOp.getOutput().getType().cast<vpux::NDTypeInterface>();
     if (outType.getElementType().isa<mlir::quant::UniformQuantizedPerAxisType>()) {
         _log.nest().trace("Per-Axis FakeQuantize is not supported '{0}'", origOp->getLoc());
         return mlir::failure();
@@ -165,20 +191,20 @@ mlir::LogicalResult FakeQuantStridedSliceSwapper::matchAndRewrite(IE::FakeQuanti
         return mlir::isa<IE::StridedSliceOp>(user);
     };
 
-    if (!llvm::all_of(origOp.output().getUsers(), isStridedSlice)) {
+    if (!llvm::all_of(origOp.getOutput().getUsers(), isStridedSlice)) {
         return mlir::failure();
     }
 
     // Rewrite the sub-graph.
-    for (auto user : origOp.output().getUsers()) {
+    for (auto user : origOp.getOutput().getUsers()) {
         rewriter.setInsertionPointAfter(user);
-        auto newFQ = rewriter.create<IE::FakeQuantizeOp>(origOp->getLoc(), user->getResult(0), origOp.input_low(),
-                                                         origOp.input_high(), origOp.output_low(), origOp.output_high(),
-                                                         origOp.levels(), origOp.auto_broadcast());
-        user->getResult(0).replaceAllUsesExcept(newFQ.output(), llvm::SmallPtrSet<mlir::Operation*, 1>{newFQ});
+        auto newFQ = rewriter.create<IE::FakeQuantizeOp>(
+                origOp->getLoc(), user->getResult(0), origOp.getInputLow(), origOp.getInputHigh(),
+                origOp.getOutputLow(), origOp.getOutputHigh(), origOp.getLevels(), origOp.getAutoBroadcast());
+        user->getResult(0).replaceAllUsesExcept(newFQ.getOutput(), llvm::SmallPtrSet<mlir::Operation*, 1>{newFQ});
     }
 
-    origOp.replaceAllUsesWith(origOp.input());
+    origOp.replaceAllUsesWith(origOp.getInput());
     _log.trace("[{0}] Rewrite successfuly '{1}'", getDebugName(), origOp->getLoc());
     origOp->erase();
 

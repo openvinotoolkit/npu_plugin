@@ -10,17 +10,17 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXMaxMinLayerTest : public MaxMinLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
-class VPUXMaxMinLayerTest_VPU3700 : public VPUXMaxMinLayerTest {};
-class VPUXMaxMinLayerTest_VPU3720 : public VPUXMaxMinLayerTest {};
+class MaxMinLayerTestCommon : public MaxMinLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
+class MaxMinLayerTest_NPU3700 : public MaxMinLayerTestCommon {};
+class MaxMinLayerTest_NPU3720 : public MaxMinLayerTestCommon {};
 
-TEST_P(VPUXMaxMinLayerTest_VPU3700, HW) {
+TEST_P(MaxMinLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXMaxMinLayerTest_VPU3720, SW) {
+TEST_P(MaxMinLayerTest_NPU3720, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
@@ -31,9 +31,6 @@ TEST_P(VPUXMaxMinLayerTest_VPU3720, SW) {
 using namespace LayerTestsDefinitions;
 
 namespace {
-const std::vector<std::vector<std::vector<size_t>>> inShapes4D = {{{1, 64, 32, 32}, {1, 64, 32, 32}},
-                                                                  {{1, 1, 1, 3}, {1}}};
-
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16,
 };
@@ -49,12 +46,17 @@ const std::vector<ngraph::helpers::InputLayerType> inputType = {ngraph::helpers:
 const std::vector<InferenceEngine::Layout> layout4D = {InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC};
 
 const std::vector<std::vector<std::vector<size_t>>> inShapes3D = {{{1, 2, 4}, {1}}};
+const std::vector<std::vector<std::vector<size_t>>> inShapes4D = {{{1, 64, 32, 32}, {1, 64, 32, 32}},
+                                                                  {{1, 1, 1, 3}, {1}}};
+const std::vector<std::vector<std::vector<size_t>>> inShapesGeneric = {{{1, 1, 16, 32}, {1, 1, 16, 32}}, {{32}, {1}}};
+
 const auto params0 =
         testing::Combine(::testing::ValuesIn(inShapes4D), ::testing::ValuesIn(opType),
                          ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                          ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::ValuesIn(layout4D),
                          ::testing::ValuesIn(layout4D), ::testing::ValuesIn(inputType),
                          ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
+
 const auto params1 = testing::Combine(
         ::testing::ValuesIn(inShapes3D), ::testing::ValuesIn(opType), ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -62,18 +64,8 @@ const auto params1 = testing::Combine(
         ::testing::Values(InferenceEngine::Layout::ANY), ::testing::ValuesIn(inputType),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-//
-// VPU3700 Instantiation
-//
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_maximum_4D, VPUXMaxMinLayerTest_VPU3700, params0,
-                         VPUXMaxMinLayerTest_VPU3700::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_maximum_3D, VPUXMaxMinLayerTest_VPU3700, params1,
-                         VPUXMaxMinLayerTest_VPU3700::getTestCaseName);
-
-const std::vector<std::vector<std::vector<size_t>>> inShapesVPU3720 = {{{1, 1, 16, 32}, {1, 1, 16, 32}}, {{32}, {1}}};
-
 const auto params2 = testing::Combine(
-        ::testing::ValuesIn(inShapesVPU3720), ::testing::ValuesIn(opType), ::testing::ValuesIn(netPrecisions),
+        ::testing::ValuesIn(inShapesGeneric), ::testing::ValuesIn(opType), ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY), ::testing::ValuesIn(inputType),
@@ -87,15 +79,21 @@ const auto params3 = testing::Combine(
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 //
-// VPU3720 Instantiation
+// NPU3700 Instantiation
 //
-INSTANTIATE_TEST_SUITE_P(smoke_Min_Max_VPU3720_test0, VPUXMaxMinLayerTest_VPU3720, params0,
-                         VPUXMaxMinLayerTest_VPU3720::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_Min_Max_VPU3720_test1, VPUXMaxMinLayerTest_VPU3720, params1,
-                         VPUXMaxMinLayerTest_VPU3720::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_Min_Max_VPU3720_test2, VPUXMaxMinLayerTest_VPU3720, params2,
-                         VPUXMaxMinLayerTest_VPU3720::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_Min_Max_VPU3720_test3, VPUXMaxMinLayerTest_VPU3720, params3,
-                         VPUXMaxMinLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_maximum_4D, MaxMinLayerTest_NPU3700, params0, MaxMinLayerTest_NPU3700::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_maximum_3D, MaxMinLayerTest_NPU3700, params1, MaxMinLayerTest_NPU3700::getTestCaseName);
+
+//
+// NPU3720 Instantiation
+//
+INSTANTIATE_TEST_SUITE_P(smoke_Min_Max_test0, MaxMinLayerTest_NPU3720, params0,
+                         MaxMinLayerTest_NPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Min_Max_test1, MaxMinLayerTest_NPU3720, params1,
+                         MaxMinLayerTest_NPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Min_Max_test2, MaxMinLayerTest_NPU3720, params2,
+                         MaxMinLayerTest_NPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Min_Max_test3, MaxMinLayerTest_NPU3720, params3,
+                         MaxMinLayerTest_NPU3720::getTestCaseName);
 
 }  // namespace

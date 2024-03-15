@@ -9,8 +9,8 @@
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/Support/DebugStringHelper.h>
 
-#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
-#include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
@@ -34,12 +34,6 @@ namespace hwtest {
 void buildDMACompressAct(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                          Logger& log, mlir::Type inputType, mlir::Type outputType) {
     auto* ctx = builder.getContext();
-
-    // set runtime resources
-    mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, log));
-
-    VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 
     auto input = testDesc.getInputLayerList().front();
     auto dmaParams = testDesc.getDMAparams();
@@ -74,11 +68,12 @@ void buildDMACompressAct(const nb::TestCaseJsonDescriptor& testDesc, mlir::Modul
             getMemRefType(VPURT::BufferSection::NetworkOutput, DDRspilledCompShape, inputType, DimsOrder::C);
 
     const auto funcType =
-            builder.getFunctionType(makeArrayRef(std::vector<mlir::Type>{inType, DDRspilledCompType, outType}),
-                                    makeArrayRef(std::vector<mlir::Type>{DDRspilledCompType, outType}));
+            builder.getFunctionType(ArrayRef(std::vector<mlir::Type>{inType, outType, DDRspilledCompType}),
+                                    ArrayRef(std::vector<mlir::Type>{outType, DDRspilledCompType}));
 
     auto func = builder.create<mlir::func::FuncOp>(builder.getUnknownLoc(), printToString("dma_compress_activations"),
-                                                   funcType, builder.getStringAttr("private"));
+                                                   funcType, builder.getStringAttr("private"), /*arg_attrs=*/nullptr,
+                                                   /*res_attrs=*/nullptr);
 
     auto funcbuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());
 
@@ -102,37 +97,23 @@ void buildDMACompressAct(const nb::TestCaseJsonDescriptor& testDesc, mlir::Modul
 
     // act_compression_entry
     enum { actCompressionEntrySize = 32 };
-
-    // E#74119
-    // RT parsing stage doesn't know the real address for actCompressionEntry, so RT will hardcode the address
-    // Temporary workaround: actCompressionEntry allocation is done at the end of the CMX
-    auto ops = module.getOps<IE::MemoryResourceOp>();
-
-    auto cmxMemResourceOp = llvm::find_if(ops, [](IE::MemoryResourceOp it) {
-        return it.sym_name().equals("CMX_NN");
-    });
-    VPUX_THROW_UNLESS(cmxMemResourceOp != ops.end(), "buildDMACompressAct: CMX_NN not found as MemoryResource");
-
-    const auto cmxWorkspaceSize = (*cmxMemResourceOp).byteSize();
-    const auto newCmxWorkspaceSize = cmxWorkspaceSize - actCompressionEntrySize;
-    const auto newCmxWorkspaceSizeAttr = getIntAttr(ctx, newCmxWorkspaceSize);
-    (*cmxMemResourceOp).byteSizeAttr(newCmxWorkspaceSizeAttr);
-
     const auto elemType = getUInt8Type(ctx);
+
     auto actCompressionEntryType = getMemRefType(VPURT::BufferSection::CMX_NN, sectionIdx,
                                                  ShapeRef({actCompressionEntrySize}), elemType, DimsOrder::C);
     auto actCompressionEntry = createDeclareTensorOp(funcbuilder, actCompressionEntryType, VPURT::BufferSection::CMX_NN,
-                                                     sectionIdx, newCmxWorkspaceSize);
+                                                     sectionIdx, CMX0_AVAILABLE_OFFSET);
+
+    CMX0_AVAILABLE_OFFSET += actCompressionEntrySize;
 
     // CMXbuf0Uncomp - DDRspilledComp
-    auto DDRspilledComp = func.getArgument(1);
+    auto DDRspilledComp = func.getArgument(2);
 
     auto barrier1 = funcbuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), barrierNumber++);
-    VPURT::wrapIntoTaskOp<VPUIP::CompressDMAOp>(funcbuilder, mlir::ValueRange(barrier0.getBarrier()),
-                                                mlir::ValueRange(barrier1.getBarrier()), builder.getUnknownLoc(),
-                                                CMXbuf0Uncomp.getOperation()->getResult(0),
-                                                actCompressionEntry.getOperation()->getResult(0), DDRspilledComp,
-                                                dmaParams.engine, nullptr, false, false, nullptr);
+    VPURT::wrapIntoTaskOp<VPUIP::CompressDMAOp>(
+            funcbuilder, mlir::ValueRange(barrier0.getBarrier()), mlir::ValueRange(barrier1.getBarrier()),
+            builder.getUnknownLoc(), CMXbuf0Uncomp.getOperation()->getResult(0),
+            actCompressionEntry.getOperation()->getResult(0), DDRspilledComp, dmaParams.engine);
 
     // DDRspilledComp - CMXbuf1Uncomp
     auto CMXbuf1UncompType =
@@ -142,25 +123,30 @@ void buildDMACompressAct(const nb::TestCaseJsonDescriptor& testDesc, mlir::Modul
     CMX0_AVAILABLE_OFFSET += inputTotalSize;
 
     auto barrier2 = funcbuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), barrierNumber++);
-    VPURT::wrapIntoTaskOp<VPUIP::DecompressDMAOp>(
-            funcbuilder, mlir::ValueRange(barrier1.getBarrier()), mlir::ValueRange(barrier2.getBarrier()),
-            builder.getUnknownLoc(), DDRspilledComp, actCompressionEntry.getOperation()->getResult(0),
-            CMXbuf1Uncomp.getOperation()->getResult(0), dmaParams.engine, nullptr, false, false, nullptr);
+    VPURT::wrapIntoTaskOp<VPUIP::DecompressDMAOp>(funcbuilder, mlir::ValueRange(barrier1.getBarrier()),
+                                                  mlir::ValueRange(barrier2.getBarrier()), builder.getUnknownLoc(),
+                                                  DDRspilledComp, actCompressionEntry.getOperation()->getResult(0),
+                                                  CMXbuf1Uncomp.getOperation()->getResult(0), dmaParams.engine);
 
     // CMXbuf1Uncomp - DDRoutput_uncomp
-    auto DDRoutput_uncomp = func.getArgument(2);
+    auto DDRoutput_uncomp = func.getArgument(1);
 
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier2.getBarrier()), mlir::ValueRange(),
                                           builder.getUnknownLoc(), CMXbuf1Uncomp.getOperation()->getResult(0),
                                           DDRoutput_uncomp, dmaParams.engine);
 
     funcbuilder.create<mlir::func::ReturnOp>(builder.getUnknownLoc(),
-                                             mlir::ValueRange{DDRspilledComp, DDRoutput_uncomp});
+                                             mlir::ValueRange{DDRoutput_uncomp, DDRspilledComp});
+    // set runtime resources
+    mlir::PassManager pm(module->getName(), mlir::OpPassManager::Nesting::Implicit);
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, std::nullopt,
+                                           log));
 
+    VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
     // IE.CNNNetwork
     buildCNNOp(builder, func.getName(), {getTensorType(ShapeRef(inShape), inputType, DimsOrder::NHWC, nullptr)},
-               {getTensorType(ShapeRef(DDRspilledCompShape), inputType, DimsOrder::C, nullptr),
-                getTensorType(ShapeRef(outShape), outputType, DimsOrder::NHWC, nullptr)});
+               {getTensorType(ShapeRef(outShape), outputType, DimsOrder::NHWC, nullptr),
+                getTensorType(ShapeRef(DDRspilledCompShape), inputType, DimsOrder::C, nullptr)});
 }
 
 }  // namespace hwtest

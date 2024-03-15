@@ -13,25 +13,6 @@
 using namespace vpux;
 
 //
-// ReorderAttr::walkImmediateSubElements
-//
-
-void vpux::Const::ReorderAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)> walkAttrsFn,
-                                                        llvm::function_ref<void(mlir::Type)>) const {
-    walkAttrsFn(getOrder());
-}
-
-//
-// ReorderAttr::replaceImmediateSubElements
-//
-
-mlir::Attribute vpux::Const::ReorderAttr::replaceImmediateSubElements(ArrayRef<mlir::Attribute> replAttrs,
-                                                                      ArrayRef<mlir::Type>) const {
-    VPUX_THROW_WHEN(replAttrs.size() < 1, "Replace attrs array is too short: '{0}'", replAttrs.size());
-    return get(replAttrs[0].dyn_cast_or_null<mlir::AffineMapAttr>());
-}
-
-//
 // ReorderAttr::verify
 //
 
@@ -84,10 +65,6 @@ mlir::Attribute vpux::Const::ReorderAttr::parse(mlir::AsmParser& parser, mlir::T
 //
 
 vpux::NDTypeInterface vpux::Const::ReorderAttr::inferOutputType(vpux::NDTypeInterface input) const {
-    const Bit typeSizeInBits = input.getElemTypeSize();
-    VPUX_THROW_UNLESS(typeSizeInBits.count() >= CHAR_BIT, "Got sub-byte input '{0}' in ReorderAttr",
-                      input.getElementType());
-
     const auto order = DimsOrder::fromAffineMap(getOrder().getValue());
     VPUX_THROW_UNLESS(order.numDims() == checked_cast<size_t>(input.getRank()),
                       "DimsOrder '{0}' doesn't match type '{1}'", order, input);
@@ -113,8 +90,7 @@ Const::Content vpux::Const::ReorderAttr::transform(vpux::Const::Content& input) 
     const auto outType = inferOutputType(input.getType());
     const auto inOrder = input.getType().getDimsOrder();
     const auto outOrder = outType.getDimsOrder();
-    const auto memPerm =
-            mlir::AffineMap::getPermutationMap(makeArrayRef(computeOrder(inOrder, outOrder)), getContext());
+    const auto memPerm = mlir::AffineMap::getPermutationMap(ArrayRef(computeOrder(inOrder, outOrder)), getContext());
     return Const::details::memPermuteTransformation(input, outType, memPerm);
 }
 
@@ -123,6 +99,7 @@ Const::Content vpux::Const::ReorderAttr::transform(vpux::Const::Content& input) 
 //
 
 Const::ContentAttr vpux::Const::ContentAttr::reorder(DimsOrder newOrder) const {
-    return get(*this, Const::ReorderAttr::get(mlir::AffineMapAttr::get(newOrder.toAffineMap(getContext())))
-                              .cast<Const::TransformAttrInterface>());
+    return ContentAttr::addTransformation(
+            *this, Const::ReorderAttr::get(mlir::AffineMapAttr::get(newOrder.toAffineMap(getContext())))
+                           .cast<Const::TransformAttrInterface>());
 }

@@ -5,15 +5,14 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/utils/reduce_infer.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::ReduceProdOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -21,14 +20,14 @@ mlir::LogicalResult vpux::IE::ReduceProdOp::inferReturnTypeComponents(
     if (mlir::failed(reduceProd.verify(loc))) {
         return mlir::failure();
     }
-    if (reduceProd.axes() != nullptr && reduceProd.axes_value().has_value()) {
+    if (reduceProd.getAxes() != nullptr && reduceProd.getAxesValue().has_value()) {
         return errorAt(loc, "Ambiguous axes representation");
-    } else if (reduceProd.axes() == nullptr && !reduceProd.axes_value().has_value()) {
+    } else if (reduceProd.getAxes() == nullptr && !reduceProd.getAxesValue().has_value()) {
         return errorAt(loc, "Axes was not provided properly");
     }
 
-    const auto input = reduceProd.input();
-    const auto keepDims = reduceProd.keep_dims();
+    const auto input = reduceProd.getInput();
+    const auto keepDims = reduceProd.getKeepDims();
 
     auto axesValue = IE::extractAxes(loc, reduceProd);
 
@@ -39,9 +38,9 @@ mlir::LogicalResult vpux::IE::ReduceProdOp::inferReturnTypeComponents(
 // fold
 //
 
-mlir::OpFoldResult vpux::IE::ReduceProdOp::fold(ArrayRef<mlir::Attribute>) {
-    if (input().getType() == output().getType()) {
-        return input();
+mlir::OpFoldResult vpux::IE::ReduceProdOp::fold(FoldAdaptor) {
+    if (getInput().getType() == getOutput().getType()) {
+        return getInput();
     }
 
     return nullptr;

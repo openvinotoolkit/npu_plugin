@@ -81,12 +81,6 @@ if(NOT DEFINED MV_TOOLS_PATH AND DEFINED ENV{MV_TOOLS_DIR} AND DEFINED ENV{MV_TO
     set(MV_TOOLS_PATH $ENV{MV_TOOLS_DIR}/$ENV{MV_TOOLS_VERSION})
 endif()
 
-# TODO move it out into submodules
-ie_dependent_option(ENABLE_EMULATOR "Enable emulator as a plugin backend" OFF "MV_TOOLS_PATH;CMAKE_VERSION VERSION_GREATER_EQUAL 3.14" OFF)
-if(ENABLE_EMULATOR)
-    add_definitions(-DENABLE_EMULATOR)
-endif()
-
 ie_dependent_option(ENABLE_IMD_BACKEND "Enable InferenceManagerDemo based VPUX AL backend" OFF "NOT WIN32;NOT CMAKE_CROSSCOMPILING" OFF)
 if(ENABLE_IMD_BACKEND)
     add_definitions(-DENABLE_IMD_BACKEND)
@@ -102,15 +96,7 @@ if(ENABLE_HUFFMAN_CODEC)
     add_definitions(-DENABLE_HUFFMAN_CODEC)
 endif()
 
-if(NOT DEFINED ENABLE_SOURCE_PACKAGE)
-    set(ENABLE_SOURCE_PACKAGE ON)
-endif()
-if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/source_package.cmake")
-    set(ENABLE_SOURCE_PACKAGE OFF)
-    message(WARNING "Source code package will not be generated. "
-                    "File \"${CMAKE_CURRENT_SOURCE_DIR}/cmake/source_package.cmake\" does not exist")
-endif()
-ie_dependent_option(ENABLE_SOURCE_PACKAGE "Enable generation of source code package" ON "${ENABLE_SOURCE_PACKAGE}" OFF)
+ie_option(ENABLE_SOURCE_PACKAGE "Enable generation of source code package" OFF)
 
 ie_option(ENABLE_VPUX_DOCS "Documentation for VPUX plugin" OFF)
 

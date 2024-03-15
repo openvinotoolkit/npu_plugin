@@ -90,12 +90,13 @@ def VPUIP_NNDMAOp :
         AnyTypeOf<[AnyMemRef, VPUIP_Buffer, VPUIP_DistributedBuffer]>:$input,
         AnyTypeOf<[AnyMemRef, VPUIP_Buffer, VPUIP_DistributedBuffer]>:$output_buff,
 
-        DefaultValuedAttr<IntAttr, "0">:$port,
-        OptionalAttr<VPUIP_DmaChannelType>:$channelType,
+        OptionalAttr<IntAttr>:$port,
         UnitAttr:$is_out_of_order,
         UnitAttr:$is_critical,
         OptionalAttr<IntAttr>:$spillId,
-        OptionalAttr<IntAttr>:$dma_hwp_id
+        OptionalAttr<UnitAttr>:$compress_candidate,
+        OptionalAttr<IntAttr>:$dma_hwp_id,
+        OptionalAttr<VPUIP_DmaProfilingMetadataAttr>:$profilingMetadata
     );
 
     let results = (outs
@@ -117,6 +118,9 @@ def VPUIP_NNDMAOp :
         >,
         OpBuilder<
             (ins "mlir::Value":$input, "mlir::Value":$output_buff, "int64_t":$port, "bool":$is_out_of_order, "bool":$is_critical, "mlir::IntegerAttr":$spillId)
+        >,
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$output_buff, "int64_t":$port, "bool":$is_out_of_order, "bool":$is_critical, "mlir::IntegerAttr":$spillId, "mlir::UnitAttr":$compress_candidate)
         >,
     ];
 
@@ -159,13 +163,13 @@ def VPUIP_PermuteDMAOp :
         AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$input,
         AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$output_buff,
 
-        DefaultValuedAttr<IntAttr, "0">:$port,
-        OptionalAttr<VPUIP_DmaChannelType>:$channelType,
+        OptionalAttr<IntAttr>:$port,
         UnitAttr:$is_out_of_order,
         UnitAttr:$is_critical,
         OptionalAttr<AffineMapAttr>:$mem_perm,
         OptionalAttr<VPUIP_DMADescriptorAttr>:$dma_descriptor,
-        OptionalAttr<IntAttr>:$dma_hwp_id
+        OptionalAttr<IntAttr>:$dma_hwp_id,
+        OptionalAttr<VPUIP_DmaProfilingMetadataAttr>:$profilingMetadata
     );
 
     let results = (outs
@@ -224,11 +228,11 @@ def VPUIP_ConvertDMAOp :
         AnyTypeOf<[AnyMemRef, VPUIP_Buffer, VPUIP_DistributedBuffer]>:$input,
         AnyTypeOf<[AnyMemRef, VPUIP_Buffer, VPUIP_DistributedBuffer]>:$output_buff,
 
-        DefaultValuedAttr<IntAttr, "0">:$port,
-        OptionalAttr<VPUIP_DmaChannelType>:$channelType,
+        OptionalAttr<IntAttr>:$port,
         UnitAttr:$is_out_of_order,
         UnitAttr:$is_critical,
-        OptionalAttr<IntAttr>:$dma_hwp_id
+        OptionalAttr<IntAttr>:$dma_hwp_id,
+        OptionalAttr<VPUIP_DmaProfilingMetadataAttr>:$profilingMetadata
     );
 
     let results = (outs
@@ -241,7 +245,7 @@ def VPUIP_ConvertDMAOp :
         >,
         OpBuilder<
             (ins "mlir::Value":$input, "mlir::Value":$output_buff, "int64_t":$port)
-        >
+        >,
     ];
 
     let extraClassDeclaration = [{
@@ -288,11 +292,11 @@ def VPUIP_DecompressDMAOp :
         Optional<AnyMemRef>:$act_compression_size_entry,
         AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$output_buff,
 
-        DefaultValuedAttr<IntAttr, "0">:$port,
-        OptionalAttr<VPUIP_DmaChannelType>:$channelType,
+        OptionalAttr<IntAttr>:$port,
         UnitAttr:$is_out_of_order,
         UnitAttr:$is_critical,
-        OptionalAttr<IntAttr>:$dma_hwp_id
+        OptionalAttr<IntAttr>:$dma_hwp_id,
+        OptionalAttr<VPUIP_DmaProfilingMetadataAttr>:$profilingMetadata
     );
 
     let results = (outs
@@ -311,6 +315,9 @@ def VPUIP_DecompressDMAOp :
         >,
         OpBuilder<
             (ins "mlir::Value":$input, "mlir::Value":$output_buff, "int64_t":$port, "bool":$is_out_of_order, "bool":$is_critical)
+        >,
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$actCompressionSizeEntryBuff, "mlir::Value":$output_buff, "int64_t":$port)
         >,
         OpBuilder<
             (ins "mlir::Value":$input, "mlir::Value":$actCompressionSizeEntryBuff, "mlir::Value":$output_buff, "int64_t":$port, "bool":$is_out_of_order, "bool":$is_critical)
@@ -364,11 +371,11 @@ def VPUIP_CompressDMAOp :
         AnyMemRef:$act_compression_size_entry,
         AnyMemRef:$output_buff,
 
-        DefaultValuedAttr<IntAttr, "0">:$port,
-        OptionalAttr<VPUIP_DmaChannelType>:$channelType,
+        OptionalAttr<IntAttr>:$port,
         UnitAttr:$is_out_of_order,
         UnitAttr:$is_critical,
-        OptionalAttr<IntAttr>:$dma_hwp_id
+        OptionalAttr<IntAttr>:$dma_hwp_id,
+        OptionalAttr<VPUIP_DmaProfilingMetadataAttr>:$profilingMetadata
     );
 
     let results = (outs
@@ -376,6 +383,9 @@ def VPUIP_CompressDMAOp :
     );
 
     let builders = [
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$actCompressionSizeEntryBuff, "mlir::Value":$output_buff, "int64_t":$port)
+        >,
         OpBuilder<
             (ins "mlir::Value":$input, "mlir::Value":$actCompressionSizeEntryBuff, "mlir::Value":$output_buff, "int64_t":$port, "bool":$is_out_of_order, "bool":$is_critical)
         >,
@@ -400,6 +410,54 @@ def VPUIP_CompressDMAOp :
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         `act_compression_size_entry` `(` $act_compression_size_entry  `:` type($act_compression_size_entry) `)`
+        `->` type(results)
+    }];
+
+    let hasVerifier = 1;
+}
+
+//
+// SyncDMAOp
+//
+
+def VPUIP_SyncDMAOp :
+        VPUIP_TaskOp<1, "SyncDMA",
+            [
+                ViewLikeOpInterface,
+                VPUIP_DMATypeOpInterface,
+                DotInterface
+            ]
+        > {
+    let summary = "Sync DMA task";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        AnyMemRef:$output_buff,
+        OptionalAttr<IntAttr>:$port,
+        UnitAttr:$is_out_of_order,
+        UnitAttr:$is_critical,
+        OptionalAttr<IntAttr>:$dma_hwp_id,
+        OptionalAttr<VPUIP_DmaProfilingMetadataAttr>:$profilingMetadata
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let extraClassDeclaration = [{
+        static vpux::VPU::ExecutorKind getExecutorKind() {
+            return vpux::VPU::ExecutorKind::DMA_NN;
+        }
+
+        vpux::DotNodeColor getNodeColor() {
+            return vpux::DotNodeColor::GREEN;
+        }
+    }] # commonExtraClassDeclaration;
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];
 
@@ -2235,15 +2293,15 @@ def VPUIP_UpsamplingUPAOp :
     let summary = "Upsampling UPA SHAVE kernel";
 
     let arguments = (ins
-        F16MemRef:$input,
-        F16MemRef:$output_buff,
+        AnyMemRef:$input,
+        AnyMemRef:$output_buff,
 
         I64ArrayAttr:$upsampling_factor,
         OptionalAttr<IE_UpsamplingPadAttr>:$pad
     );
 
     let results = (outs
-        F16MemRef:$output
+        AnyMemRef:$output
     );
 
     let assemblyFormat = [{
@@ -2535,7 +2593,9 @@ def VPUIP_DPUTaskOp :
         VPUIP_Op<
             "DPUTask",
             [
-                HasParent<"vpux::VPUIP::NCEClusterTaskOp">
+                HasParent<"vpux::VPUIP::NCEClusterTaskOp">,
+                DeclareOpInterfaceMethods<VPUIP_CycleCostInterface>
+
             ]
         > {
     let summary = "This object represents workload for a single DPU tile";
@@ -2581,15 +2641,6 @@ def VPUIP_DPUTaskOp :
             "VPU::PaddingAttr":$pad,
             "VPU::MPEMode":$mpeMode,
             "mlir::IntegerAttr":$clusterId
-        )>,
-        OpBuilder<(ins
-            "mlir::ArrayAttr":$outStart,
-            "mlir::ArrayAttr":$outEnd,
-            "mlir::ArrayAttr":$inStart,
-            "mlir::ArrayAttr":$inEnd,
-            "VPU::PaddingAttr":$pad,
-            "VPU::MPEMode":$mpeMode,
-            "mlir::IntegerAttr":$clusterId
         )>
     ];
 
@@ -2616,8 +2667,8 @@ def VPUIP_PPETaskOp :
     let arguments = (ins
         VPU_PPEModeAttr:$ppe_layer_type,
 
-        OptionalAttr<IntAttr>:$clamp_low,
-        OptionalAttr<IntAttr>:$clamp_high,
+        OptionalAttr<AnyAttrOf<[IntAttr, F64Attr]>>:$clamp_low,
+        OptionalAttr<AnyAttrOf<[IntAttr, F64Attr]>>:$clamp_high,
         OptionalAttr<IntAttr>:$lrelu_mult,
         OptionalAttr<IntAttr>:$lrelu_shift,
         OptionalAttr<I64ArrayAttr>:$quant_mult,
@@ -2636,6 +2687,19 @@ def VPUIP_PPETaskOp :
             CArg<"int64_t", "std::numeric_limits<int32_t>::max()">:$clamp_high,
             CArg<"int64_t", "1">:$lrelu_mult,
             CArg<"int64_t", "0">:$lrelu_shift
+        )>,
+        OpBuilder<(ins
+            "vpux::VPU::PPEMode":$ppe_layer_type,
+            "double":$clamp_low,
+            "double":$clamp_high,
+            "double":$quant_scale
+        )>,
+        OpBuilder<(ins
+            "vpux::VPU::PPEMode":$ppe_layer_type,
+            "double":$clamp_low,
+            "double":$clamp_high,
+            "double":$quant_scale,
+            "double":$fp_prelu_alpha
         )>,
         OpBuilder<(ins
             "vpux::VPU::PPEMode":$ppe_layer_type,
@@ -2689,6 +2753,7 @@ def VPUIP_NCEClusterTaskOp :
                 AttrSizedResultSegments,
                 MultiViewOpInterface,
                 NoRegionArguments,
+                DeclareOpInterfaceMethods<VPUIP_CycleCostInterface>,
                 OpAsmOpInterface
             ]
             # GraphRegionNoTerminator.traits
@@ -2740,16 +2805,17 @@ def VPUIP_NCEClusterTaskOp :
         OptionalAttr<I64ArrayAttr>:$kernel_strides,
         OptionalAttr<VPU_PaddingAttr>:$kernel_padding,
         OptionalAttr<IntAttr>:$activation_window_channel_length,
-        OptionalAttr<UnitAttr>:$is_continued,
+        UnitAttr:$is_continued,
         OptionalAttr<IntAttr>:$cm_sp_pattern,
-        OptionalAttr<UnitAttr>:$is_segmented,
+        UnitAttr:$is_segmented,
         OptionalAttr<IntAttr>:$out_channel_offset,
-        OptionalAttr<UnitAttr>:$input_channels_compression,
-        OptionalAttr<UnitAttr>:$is_superdense,
+        UnitAttr:$input_channels_compression,
+        UnitAttr:$is_superdense,
         OptionalAttr<BoolAttr>:$is_inplace,
         OptionalAttr<IntAttr>:$input_se_size,
         OptionalAttr<IntAttr>:$output_se_size,
-        OptionalAttr<UnitAttr>:$is_permute_quantize,
+        UnitAttr:$is_permute_quantize,
+        UnitAttr:$is_small_kernel_optimized,
         OptionalAttr<VPUIP_DpuProfilingMetadataAttr>:$profilingMetadata
     );
 
@@ -2790,7 +2856,8 @@ def VPUIP_NCEClusterTaskOp :
             CArg<"mlir::BoolAttr", "nullptr">:$is_inplace,
             CArg<"mlir::IntegerAttr", "nullptr">:$input_se_size,
             CArg<"mlir::IntegerAttr", "nullptr">:$output_se_size,
-            CArg<"mlir::UnitAttr", "nullptr">:$is_permute_quantize
+            CArg<"mlir::UnitAttr", "nullptr">:$is_permute_quantize,
+            CArg<"mlir::UnitAttr", "nullptr">:$is_small_kernel_optimized
         )>,
 
         OpBuilder<(ins
@@ -2811,7 +2878,8 @@ def VPUIP_NCEClusterTaskOp :
             CArg<"mlir::BoolAttr", "nullptr">:$is_inplace,
             CArg<"mlir::IntegerAttr", "nullptr">:$input_se_size,
             CArg<"mlir::IntegerAttr", "nullptr">:$output_se_size,
-            CArg<"mlir::UnitAttr", "nullptr">:$is_permute_quantize
+            CArg<"mlir::UnitAttr", "nullptr">:$is_permute_quantize,
+            CArg<"mlir::UnitAttr", "nullptr">:$is_small_kernel_optimized
         )>,
 
         OpBuilder<(ins
@@ -2831,7 +2899,8 @@ def VPUIP_NCEClusterTaskOp :
             CArg<"mlir::BoolAttr", "nullptr">:$is_inplace,
             CArg<"mlir::IntegerAttr", "nullptr">:$input_se_size,
             CArg<"mlir::IntegerAttr", "nullptr">:$output_se_size,
-            CArg<"mlir::UnitAttr", "nullptr">:$is_permute_quantize
+            CArg<"mlir::UnitAttr", "nullptr">:$is_permute_quantize,
+            CArg<"mlir::UnitAttr", "nullptr">:$is_small_kernel_optimized
         )>,
 
         OpBuilder<(ins
@@ -2852,7 +2921,8 @@ def VPUIP_NCEClusterTaskOp :
             CArg<"mlir::BoolAttr", "nullptr">:$is_inplace,
             CArg<"mlir::IntegerAttr", "nullptr">:$input_se_size,
             CArg<"mlir::IntegerAttr", "nullptr">:$output_se_size,
-            CArg<"mlir::UnitAttr", "nullptr">:$is_permute_quantize
+            CArg<"mlir::UnitAttr", "nullptr">:$is_permute_quantize,
+            CArg<"mlir::UnitAttr", "nullptr">:$is_small_kernel_optimized
         )>,
 
         OpBuilder<(ins
@@ -2875,31 +2945,8 @@ def VPUIP_NCEClusterTaskOp :
             CArg<"mlir::BoolAttr", "nullptr">:$is_inplace,
             CArg<"mlir::IntegerAttr", "nullptr">:$input_se_size,
             CArg<"mlir::IntegerAttr", "nullptr">:$output_se_size,
-            CArg<"mlir::UnitAttr", "nullptr">:$is_permute_quantize
-        )>,
-
-        OpBuilder<(ins
-            "mlir::Type":$output, "mlir::Type":$output_sparsity_map, "mlir::Type":$profiling_output,
-            "mlir::Value":$input, "mlir::Value":$input_sparsity_map, "mlir::Value":$input_storage_element_table,
-            "mlir::Value":$weights, "mlir::Value":$weights_sparsity_map,
-            "mlir::Value":$weight_table,
-            "mlir::Value":$instruction_list_table, "mlir::Value":$activation_window,
-            "mlir::Value":$parent_input, "mlir::Value":$parent_input_sparsity_map, "mlir::Value":$parent_input_storage_element_table,
-            "mlir::Value":$parent_output, "mlir::Value":$parent_output_sparsity_map,
-            "mlir::Value":$output_buff, "mlir::Value":$output_sparsity_map_buff, "mlir::Value":$profiling_data,
-            "vpux::VPUIP::NCETaskType":$task_type,
-            "mlir::ArrayAttr":$kernel_size, "mlir::ArrayAttr":$kernel_strides, "vpux::VPU::PaddingAttr":$kernel_padding,
-            "mlir::IntegerAttr":$activation_window_channel_length,
-            CArg<"mlir::UnitAttr", "nullptr">:$is_continued,
-            CArg<"mlir::IntegerAttr", "nullptr">:$cm_sp_pattern,
-            CArg<"mlir::UnitAttr", "nullptr">:$is_segmented,
-            CArg<"mlir::IntegerAttr", "nullptr">:$out_channel_offset,
-            CArg<"mlir::UnitAttr", "nullptr">:$input_channels_compression,
-            CArg<"mlir::UnitAttr", "nullptr">:$is_superdense,
-            CArg<"mlir::BoolAttr", "nullptr">:$is_inplace,
-            CArg<"mlir::IntegerAttr", "nullptr">:$input_se_size,
-            CArg<"mlir::IntegerAttr", "nullptr">:$output_se_size,
-            CArg<"mlir::UnitAttr", "nullptr">:$is_permute_quantize
+            CArg<"mlir::UnitAttr", "nullptr">:$is_permute_quantize,
+            CArg<"mlir::UnitAttr", "nullptr">:$is_small_kernel_optimized
         )>,
 
         OpBuilder<(ins
@@ -2923,7 +2970,8 @@ def VPUIP_NCEClusterTaskOp :
             CArg<"mlir::BoolAttr", "nullptr">:$is_inplace,
             CArg<"mlir::IntegerAttr", "nullptr">:$input_se_size,
             CArg<"mlir::IntegerAttr", "nullptr">:$output_se_size,
-            CArg<"mlir::UnitAttr", "nullptr">:$is_permute_quantize
+            CArg<"mlir::UnitAttr", "nullptr">:$is_permute_quantize,
+            CArg<"mlir::UnitAttr", "nullptr">:$is_small_kernel_optimized
         )>
     ];
 
@@ -2967,7 +3015,7 @@ def VPUIP_NCEClusterTaskOp :
         int64_t getNumVariants();
 
         static vpux::VPU::ExecutorKind getExecutorKind() {
-            return vpux::VPU::ExecutorKind::NCE;
+            return vpux::VPU::ExecutorKind::DPU;
         }
 
         static mlir::StringRef getDefaultDialect() {
@@ -2976,9 +3024,10 @@ def VPUIP_NCEClusterTaskOp :
 
         static mlir::LogicalResult inferReturnTypes(
                 mlir::MLIRContext*,
-                llvm::Optional<mlir::Location>,
+                std::optional<mlir::Location>,
                 mlir::ValueRange operands,
                 mlir::DictionaryAttr,
+                mlir::OpaqueProperties,
                 mlir::RegionRange,
                 llvm::SmallVectorImpl<mlir::Type>& inferredReturnTypes);
     }];
@@ -3140,7 +3189,7 @@ def VPUIP_SwKernelRun
 
     let assemblyFormat = [{
         attr-dict
-        `(` operands `)` `:` type(operands)
+        ( `(` $args^ `)` `:` type($args) )?
     }];
 }
 
@@ -3154,7 +3203,8 @@ def VPUIP_SwKernelOp :
                 MultiViewOpInterface,
                 IsolatedFromAbove,
                 AttrSizedOperandSegments,
-                AttrSizedResultSegments
+                AttrSizedResultSegments,
+                DeclareOpInterfaceMethods<VPUIP_CycleCostInterface>
             ]
             # GraphRegionNoTerminator.traits
         > {
@@ -3171,7 +3221,8 @@ def VPUIP_SwKernelOp :
         Variadic<AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>>:$output_buffs,
         Optional<AnyTypeOf<[MemRefOf<[UI32]>, VPUIP_DistributedBuffer]>>:$profiling_data,
         OptionalAttr<IntAttr>:$tileIndex,
-        OptionalAttr<I64ArrayOfArraysAttr>:$strides
+        OptionalAttr<I64ArrayOfArraysAttr>:$strides,
+        OptionalAttr<VPUIP_SwProfilingMetadataAttr>:$profilingMetadata
     );
 
     let results = (outs
@@ -3219,8 +3270,9 @@ def VPUIP_SwKernelOp :
             return vpux::VPU::ExecutorKind::SHAVE_ACT;
         }
 
-        static mlir::LogicalResult inferReturnTypes(mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> loc,
-                                                    mlir::ValueRange operands, mlir::DictionaryAttr attrs, mlir::RegionRange regions,
+        static mlir::LogicalResult inferReturnTypes(mlir::MLIRContext* ctx, std::optional<mlir::Location> loc,
+                                                    mlir::ValueRange operands, mlir::DictionaryAttr attrs, mlir::OpaqueProperties,
+                                                    mlir::RegionRange regions,
                                                     mlir::SmallVectorImpl<mlir::Type>& inferredTypes);
 
         static vpux::VPUIP::KernelInfo getKernelInfo(mlir::Operation* origOp);
@@ -3229,6 +3281,8 @@ def VPUIP_SwKernelOp :
         void print(::mlir::OpAsmPrinter& p);
         static ::mlir::ParseResult parse(::mlir::OpAsmParser& parser, ::mlir::OperationState& result);
     }];
+
+    let hasVerifier = 1;
 }
 
 //
@@ -3597,12 +3651,14 @@ def VPUIP_SpaceToDepthDMAOp :
         AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$input,
         AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$output_buff,
 
-        DefaultValuedAttr<IntAttr, "0">:$port,
-        OptionalAttr<VPUIP_DmaChannelType>:$channelType,
+        OptionalAttr<IntAttr>:$port,
         IntAttr:$block_size,
         IE_SpaceToDepthModeAttr:$mode,
         OptionalAttr<VPUIP_DMADescriptorAttr>:$dma_descriptor,
-        OptionalAttr<IntAttr>:$dma_hwp_id
+        UnitAttr:$is_out_of_order,
+        UnitAttr:$is_critical,
+        OptionalAttr<IntAttr>:$dma_hwp_id,
+        OptionalAttr<VPUIP_DmaProfilingMetadataAttr>:$profilingMetadata
     );
 
     let builders = [
@@ -3654,15 +3710,17 @@ def VPUIP_PerAxisTileDMAOp :
     let summary = "A NNDMA task which performs a functionality equivalent DMA transfer to a UPA PerAxisTileUPAOp task";
 
     let arguments = (ins
-        AnyTypeOf<[MemRefOf<[UI8, F16, quant_QuantizedType]>, VPUIP_DistributedBuffer]>:$input,
-        AnyTypeOf<[MemRefOf<[UI8, F16, quant_QuantizedType]>, VPUIP_DistributedBuffer]>:$output_buff,
+        AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$input,
+        AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$output_buff,
 
-        DefaultValuedAttr<IntAttr, "0">:$port,
-        OptionalAttr<VPUIP_DmaChannelType>:$channelType,
+        OptionalAttr<IntAttr>:$port,
         OptionalAttr<IntAttr>:$axis,
         OptionalAttr<IntAttr>:$tiles,
         OptionalAttr<VPUIP_DMADescriptorAttr>:$dma_descriptor,
-        OptionalAttr<IntAttr>:$dma_hwp_id
+        UnitAttr:$is_out_of_order,
+        UnitAttr:$is_critical,
+        OptionalAttr<IntAttr>:$dma_hwp_id,
+        OptionalAttr<VPUIP_DmaProfilingMetadataAttr>:$profilingMetadata
     );
 
     let builders = [
@@ -3675,7 +3733,7 @@ def VPUIP_PerAxisTileDMAOp :
     ];
 
     let results = (outs
-        AnyTypeOf<[MemRefOf<[UI8, F16, quant_QuantizedType]>, VPUIP_DistributedBuffer]>:$output
+        AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$output
     );
 
     let extraClassDeclaration = [{
@@ -3887,13 +3945,15 @@ def VPUIP_DepthToSpaceDMAOp :
         AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$input,
         AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$output_buff,
 
-        DefaultValuedAttr<IntAttr, "0">:$port,
-        OptionalAttr<VPUIP_DmaChannelType>:$channelType,
+        OptionalAttr<IntAttr>:$port,
         IntAttr:$block_size,
         IE_DepthToSpaceModeAttr:$mode,
         OptionalAttr<VPUIP_DMADescriptorAttr>:$dma_descriptor,
         OptionalAttr<IE_ChannelPaddingAttr>:$padded_channels,
-        OptionalAttr<IntAttr>:$dma_hwp_id
+        UnitAttr:$is_out_of_order,
+        UnitAttr:$is_critical,
+        OptionalAttr<IntAttr>:$dma_hwp_id,
+        OptionalAttr<VPUIP_DmaProfilingMetadataAttr>:$profilingMetadata
     );
 
     let builders = [
@@ -3983,8 +4043,8 @@ def VPUIP_CumSumUPAOp :
         F16MemRef:$output_buff,
 
         OptionalAttr<IntAttr>:$axis_value,
-        OptionalAttr<UnitAttr>:$exclusive,
-        OptionalAttr<UnitAttr>:$reverse
+        UnitAttr:$exclusive,
+        UnitAttr:$reverse
     );
 
     let results = (outs
@@ -4194,7 +4254,8 @@ def VPUIP_NCEClusterTilingOp :
                 AttrSizedOperandSegments,
                 MemoryEffectsOpInterface,
                 DeclareOpInterfaceMethods<VPUIP_LayerOpInterface>,
-                VPUIP_AsyncLayerOpInterface
+                VPUIP_AsyncLayerOpInterface,
+                DeclareOpInterfaceMethods<VPUIP_CycleCostInterface>,
             ] # GraphRegionNoTerminator.traits
         > {
     let summary = "Operation that encapsulates details of tiling operation between clusters";
@@ -4279,7 +4340,7 @@ def VPUIP_DistributedCastOp :
             "DistributedCast",
             [
                 DeclareOpInterfaceMethods<ViewLikeOpInterface>,
-                NoSideEffect
+                Pure
             ]
         > {
     let summary = "Operation that casts one DistributedBuffer type to another.";
@@ -4311,7 +4372,7 @@ def VPUIP_SubViewOp :
         VPUIP_Op<
             "SubView",
             [
-                NoSideEffect,
+                Pure,
                 DeclareOpInterfaceMethods<ViewLikeOpInterface>,
                 DeclareOpInterfaceMethods<InferTypeOpInterface>,
                 DotInterface
@@ -4381,7 +4442,7 @@ def VPUIP_ConcatViewOp :
         VPUIP_Op<
             "ConcatView",
             [
-                NoSideEffect,
+                Pure,
                 InferTypeOpInterface,
                 ViewLikeOpInterface
             ]
@@ -4406,7 +4467,7 @@ def VPUIP_ConcatViewOp :
 
     let extraClassDeclaration = [{
         mlir::Value getViewSource() {
-            return output_buff();
+            return getOutputBuff();
         }
     }] # VPUIP_InferLayerReturnTypes<1>.impl;
 }
@@ -4420,7 +4481,7 @@ def VPUIP_PermuteCastOp :
             "PermuteCast",
             [
                 DeclareOpInterfaceMethods<ViewLikeOpInterface>,
-                NoSideEffect
+                Pure
             ]
         > {
     let summary = "Operation that changes the layout information of a buffer";
@@ -4463,7 +4524,7 @@ def VPUIP_QuantizeCastOp :
             "QuantizeCast",
             [
                 DeclareOpInterfaceMethods<ViewLikeOpInterface>,
-                NoSideEffect
+                Pure
             ]
         > {
     let summary = "Operation that changes the quantization information of a buffer";
@@ -4497,7 +4558,7 @@ def VPUIP_GenericReshapeOp :
             "GenericReshape",
             [
                 DeclareOpInterfaceMethods<ViewLikeOpInterface>,
-                NoSideEffect,
+                Pure,
                 VPUIP_SameOperandsAndResultElementType
             ]
         > {
@@ -4533,7 +4594,7 @@ def VPUIP_StaticAllocOp :
             [
                 DeclarationOp,
                 DotInterface,
-                NoSideEffect
+                Pure
             ]
         > {
     let summary = "Static buffer allocation";
@@ -4569,7 +4630,7 @@ def VPUIP_CopyOp :
                 InferTypeOpInterface,
                 DeclareOpInterfaceMethods<VPUIP_LayerOpInterface>,
                 MemoryEffectsOpInterface,
-                VPUIP_DMATypeOpInterface,
+                DeclareOpInterfaceMethods<VPUIP_CycleCostInterface>,
                 DotInterface
             ]
         > {
@@ -4577,9 +4638,7 @@ def VPUIP_CopyOp :
 
     let arguments = (ins
         AnyTypeOf<[AnyMemRef, VPUIP_Buffer, VPUIP_SparseBuffer]>:$input,
-        AnyTypeOf<[AnyMemRef, VPUIP_Buffer, VPUIP_SparseBuffer]>:$output_buff,
-        OptionalAttr<VPUIP_DmaChannelType>:$channelType,
-        OptionalAttr<IntAttr>:$spillId
+        AnyTypeOf<[AnyMemRef, VPUIP_Buffer, VPUIP_SparseBuffer]>:$output_buff
     );
 
     let results = (outs
@@ -4593,39 +4652,7 @@ def VPUIP_CopyOp :
         `->` type(results)
     }];
 
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output_buff)
-        >,
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output_buff, "int64_t":$spillId)
-        >,
-        OpBuilder<
-            (ins "mlir::Type":$output, "mlir::Value":$input, "mlir::Value":$output_buff)
-        >
-    ];
-
     let extraClassDeclaration = [{
-        mlir::IntegerAttr getPortAttr() {
-            VPUX_THROW("CopyOp has no port attribute");
-        }
-
-        int64_t getPort() {
-            VPUX_THROW("CopyOp has no port attribute");
-        }
-
-        void setPortAttr(mlir::IntegerAttr) {
-            VPUX_THROW("CopyOp has no port attribute");
-        }
-
-        void setDmaHwpIdAttr(mlir::IntegerAttr) {
-            VPUX_THROW("CopyOp has no port attribute");
-        }
-
-        mlir::IntegerAttr getDmaHwpIdAttr() {
-            VPUX_THROW("CopyOp has no port attribute");
-        }
-
         vpux::DotNodeColor getNodeColor() {
             return vpux::DotNodeColor::GREEN;
         }
@@ -4684,7 +4711,7 @@ def VPUIP_ShapeCastOp :
             "ShapeCast",
             [
                 DeclareOpInterfaceMethods<ViewLikeOpInterface>,
-                NoSideEffect,
+                Pure,
                 DeclareOpInterfaceMethods<InferTypeOpInterface>
             ]
         > {
@@ -4717,7 +4744,7 @@ def VPUIP_GroupSparseBufferOp :
         VPUIP_Op<
             "GroupSparseBuffer",
             [
-                NoSideEffect,
+                Pure,
                 DotInterface,
                 AttrSizedOperandSegments,
                 DeclareOpInterfaceMethods<GroupedViewOpInterface>,
@@ -4731,7 +4758,7 @@ def VPUIP_GroupSparseBufferOp :
         Optional<AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>>:$sparsityMap,
         Optional<AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>>:$storageElementTable,
 
-        OptionalAttr<UnitAttr>:$is_weights,
+        UnitAttr:$is_weights,
         OptionalAttr<VPUIP_CompressionSchemeAttr>:$compression_scheme,
 
         OptionalAttr<VPU_SEAttr>:$seAttr
@@ -4787,7 +4814,7 @@ def VPUIP_UngroupSparseBufferOp :
         VPUIP_Op<
             "UngroupSparseBuffer",
             [
-                NoSideEffect,
+                Pure,
                 DotInterface,
                 AttrSizedResultSegments,
                 DeclareOpInterfaceMethods<MultiViewOpInterface>,
@@ -4841,7 +4868,7 @@ def VPUIP_StorageElementTableOp :
         VPUIP_Op<
             "StorageElementTable",
             [
-                NoSideEffect,
+                Pure,
                 DeclareOpInterfaceMethods<InferTypeOpInterface>,
             ]
         > {
@@ -4926,7 +4953,7 @@ def VPUIP_StubOp :
             "Stub",
             [
                 DeclareOpInterfaceMethods<ViewLikeOpInterface>,
-                NoSideEffect
+                Pure
             ]
         > {
     let summary = "Substitute operation for stubbing.";
@@ -4994,7 +5021,7 @@ def VPUIP_ViewOp :
         VPUIP_Op<
             "ViewOp",
             [
-                NoSideEffect,
+                Pure,
                 DeclareOpInterfaceMethods<ViewLikeOpInterface>
             ]
         > {
@@ -5078,11 +5105,11 @@ def VPUIP_ExpandDMAOp :
         I64ArrayAttr:$pads_end,
 
         OptionalAttr<VPUIP_DMADescriptorAttr>:$dma_descriptor,
-        DefaultValuedAttr<IntAttr, "0">:$port,
-        OptionalAttr<VPUIP_DmaChannelType>:$channelType,
+        OptionalAttr<IntAttr>:$port,
         UnitAttr:$is_out_of_order,
         UnitAttr:$is_critical,
-        OptionalAttr<IntAttr>:$dma_hwp_id
+        OptionalAttr<IntAttr>:$dma_hwp_id,
+        OptionalAttr<VPUIP_DmaProfilingMetadataAttr>:$profilingMetadata
     );
 
     let results = (outs
@@ -5141,9 +5168,11 @@ def VPUIP_UpsamplingDMAOp :
 
         OptionalAttr<VPUIP_DMADescriptorAttr>:$dma_descriptor,
         OptionalAttr<I64ArrayAttr>:$expand,
-        DefaultValuedAttr<IntAttr, "0">:$port,
-        OptionalAttr<VPUIP_DmaChannelType>:$channelType,
-        OptionalAttr<IntAttr>:$dma_hwp_id
+        OptionalAttr<IntAttr>:$port,
+        UnitAttr:$is_out_of_order,
+        UnitAttr:$is_critical,
+        OptionalAttr<IntAttr>:$dma_hwp_id,
+        OptionalAttr<VPUIP_DmaProfilingMetadataAttr>:$profilingMetadata
     );
 
     let results = (outs
@@ -5156,6 +5185,9 @@ def VPUIP_UpsamplingDMAOp :
         >,
         OpBuilder<
             (ins "mlir::Value":$input, "mlir::Value":$output_buff, "mlir::ArrayAttr":$upsampling_factor, "vpux::VPUIP::DMADescriptorAttr":$dma_descriptor, "mlir::ArrayAttr":$expand, "int64_t":$port)
+        >,
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$output_buff, "mlir::ArrayAttr":$upsampling_factor, "vpux::VPUIP::DMADescriptorAttr":$dma_descriptor, "mlir::ArrayAttr":$expand, "int64_t":$port, "bool":$is_out_of_order, "bool":$is_critical, "mlir::IntegerAttr":$dma_hwp_id, "vpux::VPUIP::DmaProfilingMetadataAttr":$profilingMetadata)
         >,
     ];
 
@@ -5189,7 +5221,7 @@ def VPUIP_WorkloadCastOp :
             "WorkloadCast",
             [
                 DeclareOpInterfaceMethods<ViewLikeOpInterface>,
-                NoSideEffect
+                Pure
             ]
         > {
     let summary = "Operation that casts one DistributedBuffer type to another.";

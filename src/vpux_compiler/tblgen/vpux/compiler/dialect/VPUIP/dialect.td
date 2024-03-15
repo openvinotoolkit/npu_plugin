@@ -61,8 +61,6 @@ It handles such VPU-specifics as:
         static void setupExtraInterfaces(mlir::DialectRegistry& registry);
         static void setupExtraInterfacesAdditional(mlir::DialectRegistry& registry);
     }];
-
-    let emitAccessorPrefix = kEmitAccessorPrefix_Both;
 }
 
 #endif

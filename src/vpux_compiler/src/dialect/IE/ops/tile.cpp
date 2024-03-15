@@ -5,7 +5,6 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
-#include "vpux/compiler/dialect/IE/utils/propagate_quantize_dequantize_utils.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -45,8 +44,8 @@ mlir::SmallVector<int64_t> calcTileOutputShape(mlir::Value input, ArrayRef<int64
 }  // namespace
 
 mlir::LogicalResult vpux::IE::TileOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -55,21 +54,21 @@ mlir::LogicalResult vpux::IE::TileOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    if (tile.repeats() != nullptr && tile.repeats_values().has_value()) {
+    if (tile.getRepeats() != nullptr && tile.getRepeatsValues().has_value()) {
         return errorAt(loc, "Ambiguous repeats representation");
     }
 
     llvm::SmallVector<int64_t> repeatsVector;
-    const auto inType = tile.input().getType().cast<mlir::ShapedType>();
-    if (tile.repeats() != nullptr) {
-        auto repeatsConst = tile.repeats().getDefiningOp<Const::DeclareOp>().getContent();
+    const auto inType = tile.getInput().getType().cast<mlir::ShapedType>();
+    if (tile.getRepeats() != nullptr) {
+        auto repeatsConst = tile.getRepeats().getDefiningOp<Const::DeclareOp>().getContent();
         repeatsVector = to_small_vector(repeatsConst.getValues<int64_t>());
-    } else if (tile.repeats_values().has_value()) {
-        repeatsVector = parseIntArrayAttr<int64_t>(tile.repeats_values().value());
+    } else if (tile.getRepeatsValues().has_value()) {
+        repeatsVector = parseIntArrayAttr<int64_t>(tile.getRepeatsValues().value());
     } else {
         return errorAt(loc, "Repeats was not provided properly");
     }
-    auto outShape = calcTileOutputShape(tile.input(), repeatsVector);
+    auto outShape = calcTileOutputShape(tile.getInput(), repeatsVector);
 
     inferredReturnShapes.emplace_back(outShape, inType.getElementType());
 
@@ -90,16 +89,16 @@ public:
 
 mlir::LogicalResult ConvertRepeatsToAttr::matchAndRewrite(IE::TileOp tileOp, mlir::PatternRewriter& rewriter) const {
     // check if input was already converted to Attr
-    if (tileOp.repeats_values().has_value()) {
+    if (tileOp.getRepeatsValues().has_value()) {
         return mlir::failure();
     }
     // convert repeats into attribute
-    const auto repeatsContent = tileOp.repeats().getDefiningOp<Const::DeclareOp>().getContent();
+    const auto repeatsContent = tileOp.getRepeats().getDefiningOp<Const::DeclareOp>().getContent();
     auto repeats_values = to_small_vector(repeatsContent.getValues<int64_t>());
     const auto repeatsAttr = getIntArrayAttr(tileOp.getContext(), repeats_values);
 
     // rewrite layer pattern
-    rewriter.replaceOpWithNewOp<IE::TileOp>(tileOp, tileOp.input(), nullptr, repeatsAttr);
+    rewriter.replaceOpWithNewOp<IE::TileOp>(tileOp, tileOp.getInput(), nullptr, repeatsAttr);
 
     return mlir::success();
 }
@@ -114,12 +113,12 @@ public:
 
 mlir::LogicalResult AddUnsqueeze::matchAndRewrite(IE::TileOp origOp, mlir::PatternRewriter& rewriter) const {
     // repeats attribute has no value
-    if (!origOp.repeats_values().has_value()) {
+    if (!origOp.getRepeatsValues().has_value()) {
         return mlir::failure();
     }
 
-    auto newRepeats = parseIntArrayAttr<int64_t>(origOp.repeats_values().value());
-    auto inputRank = origOp.input().getType().cast<mlir::ShapedType>().getRank();
+    auto newRepeats = parseIntArrayAttr<int64_t>(origOp.getRepeatsValues().value());
+    auto inputRank = origOp.getInput().getType().cast<mlir::ShapedType>().getRank();
     auto numRepeats = static_cast<int64_t>(newRepeats.size());
     int64_t nDimsToAdd = 0;
 
@@ -132,7 +131,7 @@ mlir::LogicalResult AddUnsqueeze::matchAndRewrite(IE::TileOp origOp, mlir::Patte
         newRepeats.insert(newRepeats.begin(), inputRank - numRepeats, 1);
 
         auto newRepeatsAttr = getIntArrayAttr(origOp.getContext(), newRepeats);
-        rewriter.replaceOpWithNewOp<IE::TileOp>(origOp, origOp.getType(), origOp.input(), nullptr, newRepeatsAttr);
+        rewriter.replaceOpWithNewOp<IE::TileOp>(origOp, origOp.getType(), origOp.getInput(), nullptr, newRepeatsAttr);
     } else {
         // need to increase input rank
         nDimsToAdd = numRepeats - inputRank;
@@ -144,9 +143,9 @@ mlir::LogicalResult AddUnsqueeze::matchAndRewrite(IE::TileOp origOp, mlir::Patte
 
         const auto unsqueezeParamsAttr = getIntArrayAttr(getContext(), unsqueezeParam);
         auto unsqueezeOp =
-                rewriter.create<IE::UnsqueezeOp>(origOp->getLoc(), origOp.input(), nullptr, unsqueezeParamsAttr);
+                rewriter.create<IE::UnsqueezeOp>(origOp->getLoc(), origOp.getInput(), nullptr, unsqueezeParamsAttr);
         rewriter.replaceOpWithNewOp<IE::TileOp>(origOp, origOp.getType(), unsqueezeOp->getResult(0), nullptr,
-                                                origOp.repeats_valuesAttr());
+                                                origOp.getRepeatsValuesAttr());
     }
 
     return mlir::success();
@@ -159,17 +158,21 @@ void vpux::IE::TileOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patt
     patterns.add<AddUnsqueeze>(ctx);
 }
 
-mlir::OpFoldResult vpux::IE::TileOp::fold(ArrayRef<mlir::Attribute>) {
-    if (input().getType() != output().getType()) {
+//
+// fold
+//
+
+mlir::OpFoldResult vpux::IE::TileOp::fold(FoldAdaptor) {
+    if (getInput().getType() != getOutput().getType()) {
         return nullptr;
     }
     // Tile with current param do nothing and should be optimized
-    return input();
+    return getInput();
 }
 
 mlir::LogicalResult vpux::IE::PerAxisTileOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -178,10 +181,10 @@ mlir::LogicalResult vpux::IE::PerAxisTileOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = perAxisTile.input().getType().cast<mlir::ShapedType>();
+    const auto inType = perAxisTile.getInput().getType().cast<mlir::ShapedType>();
 
-    const auto axis = checked_cast<unsigned int>(perAxisTile.axis());
-    const auto tiles = checked_cast<unsigned int>(perAxisTile.tiles());
+    const auto axis = checked_cast<unsigned int>(perAxisTile.getAxis());
+    const auto tiles = checked_cast<unsigned int>(perAxisTile.getTiles());
 
     auto outShape = to_small_vector(inType.getShape());
 
@@ -195,18 +198,4 @@ mlir::LogicalResult vpux::IE::PerAxisTileOp::inferReturnTypeComponents(
     inferredReturnShapes.emplace_back(outShape, inType.getElementType());
 
     return mlir::success();
-}
-
-//
-// inferElemTypeInfo
-//
-
-void vpux::IE::TileOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
-    propagateElementTypeDown(info);
-}
-
-void vpux::IE::TileOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
-    propagateElementTypeUp(info);
 }

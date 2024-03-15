@@ -15,8 +15,8 @@ using namespace vpux;
 namespace {
 
 template <class MainOpType>
-class AlignedChannelsOpModel37XX final :
-        public IE::AlignedChannelsOpInterface::ExternalModel<AlignedChannelsOpModel37XX<MainOpType>, MainOpType> {
+class AlignedChannelsOpModel final :
+        public IE::AlignedChannelsOpInterface::ExternalModel<AlignedChannelsOpModel<MainOpType>, MainOpType> {
 public:
     mlir::LogicalResult verifyChannels(mlir::Operation* op) const {
         if (!canBeExecutedOnNCE(op)) {
@@ -51,7 +51,11 @@ public:
 
             const auto weightsType = op->getOperand(1).getType().cast<vpux::NDTypeInterface>();
             const bool isFP16 = inputType.getElementType().isF16() || weightsType.getElementType().isF16();
-            if (!isFP16 && inputC < VPU::NCEInvariant::VPU_COMPRESSED_INPUT_CHANNEL_NUM && filterIsConstOp) {
+            // E#106393 future work to enable compress conv for sub byte types
+            const bool isSubByte = vpux::isSubByteType(inputType.getElementType()) ||
+                                   vpux::isSubByteType(weightsType.getElementType());
+            if (!isFP16 && !isSubByte && inputC < VPU::NCEInvariant::VPU_COMPRESSED_INPUT_CHANNEL_NUM &&
+                filterIsConstOp) {
                 return VPU::NCEInvariant::VPU_COMPRESSED_INPUT_CHANNEL_NUM;
             }
         }
@@ -85,15 +89,16 @@ private:
 }  // namespace
 
 void vpux::VPUIP::arch37xx::registerAlignedChannelsOpInterfaces(mlir::DialectRegistry& registry) {
-    registry.addExtension(+[](mlir::MLIRContext* ctx, VPU::VPUDialect*) {
-        IE::ConvolutionOp::attachInterface<AlignedChannelsOpModel37XX<IE::ConvolutionOp>>(*ctx);
-        IE::GroupConvolutionOp::attachInterface<AlignedChannelsOpModel37XX<IE::GroupConvolutionOp>>(*ctx);
-        IE::MaxPoolOp::attachInterface<AlignedChannelsOpModel37XX<IE::MaxPoolOp>>(*ctx);
-        IE::AvgPoolOp::attachInterface<AlignedChannelsOpModel37XX<IE::AvgPoolOp>>(*ctx);
-        IE::AddOp::attachInterface<AlignedChannelsOpModel37XX<IE::AddOp>>(*ctx);
-        IE::MultiplyOp::attachInterface<AlignedChannelsOpModel37XX<IE::MultiplyOp>>(*ctx);
-        IE::SubtractOp::attachInterface<AlignedChannelsOpModel37XX<IE::SubtractOp>>(*ctx);
-        IE::AndOp::attachInterface<AlignedChannelsOpModel37XX<IE::AndOp>>(*ctx);
-        IE::InterpolateOp::attachInterface<AlignedChannelsOpModel37XX<IE::InterpolateOp>>(*ctx);
+    registry.addExtension(+[](mlir::MLIRContext* ctx, IE::IEDialect*) {
+        IE::ConvolutionOp::attachInterface<AlignedChannelsOpModel<IE::ConvolutionOp>>(*ctx);
+        IE::GroupConvolutionOp::attachInterface<AlignedChannelsOpModel<IE::GroupConvolutionOp>>(*ctx);
+        IE::MaxPoolOp::attachInterface<AlignedChannelsOpModel<IE::MaxPoolOp>>(*ctx);
+        IE::AvgPoolOp::attachInterface<AlignedChannelsOpModel<IE::AvgPoolOp>>(*ctx);
+        IE::AddOp::attachInterface<AlignedChannelsOpModel<IE::AddOp>>(*ctx);
+        IE::MultiplyOp::attachInterface<AlignedChannelsOpModel<IE::MultiplyOp>>(*ctx);
+        IE::SubtractOp::attachInterface<AlignedChannelsOpModel<IE::SubtractOp>>(*ctx);
+        IE::AndOp::attachInterface<AlignedChannelsOpModel<IE::AndOp>>(*ctx);
+        IE::InterpolateOp::attachInterface<AlignedChannelsOpModel<IE::InterpolateOp>>(*ctx);
+        IE::TransposedConvolutionOp::attachInterface<AlignedChannelsOpModel<IE::TransposedConvolutionOp>>(*ctx);
     });
 }

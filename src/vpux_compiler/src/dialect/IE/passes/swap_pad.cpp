@@ -11,9 +11,6 @@
 
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
-#include <llvm/ADT/TypeSwitch.h>
-#include <vpux/compiler/conversion.hpp>
-
 using namespace vpux;
 
 namespace {
@@ -38,30 +35,30 @@ private:
 mlir::LogicalResult SwapWithTranspose::matchAndRewrite(IE::TransposeOp originOp,
                                                        mlir::PatternRewriter& rewriter) const {
     _log.trace("Got '{0}' at '{1}'", originOp->getName(), originOp->getLoc());
-    if (!originOp.input().hasOneUse()) {
+    if (!originOp.getInput().hasOneUse()) {
         return matchFailed(rewriter, originOp, "Operation {0} is not the only user of its operand",
                            originOp->getName());
     }
 
-    auto padLayer = originOp.input().getDefiningOp<IE::PadOp>();
+    auto padLayer = originOp.getInput().getDefiningOp<IE::PadOp>();
     if (padLayer == nullptr) {
         return matchFailed(rewriter, originOp, "Producer is not a Pad operation");
     }
 
-    auto newTranspose =
-            rewriter.create<IE::TransposeOp>(originOp.getLoc(), padLayer.input(), nullptr, originOp.order_valueAttr());
+    auto newTranspose = rewriter.create<IE::TransposeOp>(originOp.getLoc(), padLayer.getInput(), nullptr,
+                                                         originOp.getOrderValueAttr());
 
-    const auto orderAttr = originOp.order_valueAttr();
+    const auto orderAttr = originOp.getOrderValueAttr();
     const auto order = DimsOrder::fromAffineMap(orderAttr.getValue());
 
     const auto permutation = order.toPermutation();
 
-    auto padsBegin = vpux::IE::extractPads(padLayer.pads_begin_attrAttr(), _log);
+    auto padsBegin = vpux::IE::extractPads(padLayer.getPadsBeginAttrAttr(), _log);
     if (mlir::failed(padsBegin)) {
         return mlir::failure();
     }
 
-    auto padsEnd = vpux::IE::extractPads(padLayer.pads_end_attrAttr(), _log);
+    auto padsEnd = vpux::IE::extractPads(padLayer.getPadsEndAttrAttr(), _log);
     if (mlir::failed(padsEnd)) {
         return mlir::failure();
     }
@@ -81,9 +78,9 @@ mlir::LogicalResult SwapWithTranspose::matchAndRewrite(IE::TransposeOp originOp,
     }
 
     rewriter.replaceOpWithNewOp<IE::PadOp>(originOp, newTranspose, nullptr, nullptr, nullptr,
-                                           getIntArrayAttr(originOp.getContext(), makeArrayRef(beginTransposed)),
-                                           getIntArrayAttr(originOp.getContext(), makeArrayRef(endTransposed)),
-                                           padLayer.pad_value_attrAttr(), padLayer.mode());
+                                           getIntArrayAttr(originOp.getContext(), ArrayRef(beginTransposed)),
+                                           getIntArrayAttr(originOp.getContext(), ArrayRef(endTransposed)),
+                                           padLayer.getPadValueAttrAttr(), padLayer.getMode());
 
     return mlir::success();
 }

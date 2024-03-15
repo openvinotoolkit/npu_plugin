@@ -5,9 +5,11 @@
 
 #include <gtest/gtest.h>
 
+#include <npu_37xx_nnrt.hpp>
 #include "common/utils.hpp"
-#include "vpux/compiler/dialect/VPU37XX/api/vpu_nnrt_api_37xx.h"
 #include "vpux/compiler/dialect/VPU37XX/types.hpp"
+
+using namespace npu37xx;
 
 struct Vpu37XXBarrierCfg {
     nn_public::VpuBarrierCountConfig barrier;
@@ -30,9 +32,9 @@ TEST_P(VPU37XX_VpuBarrierCountConfigTest, CheckFieldsConsistency) {
 
 std::vector<std::pair<MappedRegValues, Vpu37XXBarrierCfg>> barrierFieldSetVPU37XX = {
         {{
-                 {"next_same_id_", {{"next_same_id_", 0xFFFF}}},
+                 {"next_same_id_", {{"next_same_id_", 0xFFFFFFFF}}},
          },
-         CREATE_HW_BARRIER_DESC(barrier.next_same_id_, 0xFFFF)},
+         CREATE_HW_BARRIER_DESC(barrier.next_same_id_, 0xFFFFFFFF)},
         {{
                  {"producer_count_", {{"producer_count_", 0xFFFF}}},
          },

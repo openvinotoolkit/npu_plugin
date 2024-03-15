@@ -1,7 +1,6 @@
-#
+
 # Copyright (C) 2022-2023 Intel Corporation.
 # SPDX-License-Identifier: Apache 2.0
-#
 
 cmake_minimum_required(VERSION 3.13.4)
 
@@ -11,12 +10,6 @@ if(DEFINED TARGET_BINARY_DIR)
   set(target_binary_dir "${TARGET_BINARY_DIR}")
 else()
   set(target_binary_dir "${CMAKE_CURRENT_BINARY_DIR}/act_shave_bin")
-endif()
-
-if(DEFINED TARGET_JTAG_DIR)
-  set(target_jtag_dir "${TARGET_JTAG_DIR}")
-else()
-  set(target_jtag_dir "${target_binary_dir}/..")
 endif()
 
 set(kernel_src_dir_default "src")
@@ -38,10 +31,6 @@ set(obj_suffix ".o")
 set(elf_suffix ".elf")
 set(blob_text_suffix ".text")
 set(blob_data_suffix ".data")
-set(jtag_text_suffix ".text.xdat")
-set(jtag_data_suffix ".data.xdat")
-
-set(link_script_file_default "${CMAKE_CURRENT_SOURCE_DIR}/prebuild/shave_kernel.ld")
 
 set(kernel_descrip_dir "${CUSTOM_KERNELS_DIR}")
 
@@ -51,7 +40,6 @@ endif()
 
 option(ENABLE_SHAVE_BINARIES_BUILD "Enable shave binaries build, if disabled, prebuilt binaries will be used" OFF)
 option(ENABLE_MANAGEMENT_KERNEL_BUILD "Enable management kernel build" OFF)
-option(ENABLE_PSS_BINARIES_BUILD "Enable pss binaries build" ON)
 option(ENABLE_JTAG_BINARIES_BUILD "Enable jtag binaries build" OFF)
 
 set(use_prebuilt_binaries OFF)
@@ -81,10 +69,9 @@ if(ENABLE_SHAVE_BINARIES_BUILD)
   endif()
 
   set(link_libraries_list_VPU3720
-    "${MV_TOOLS_PATH}/common/moviCompile/lib/37xxxx/mlibc_lgpl.a"
     "${MV_TOOLS_PATH}/common/moviCompile/lib/37xxxx/mlibm.a"
-    "${MV_TOOLS_PATH}/common/moviCompile/lib/37xxxx/mlibcxx.a"
-    "${MV_TOOLS_PATH}/common/moviCompile/lib/37xxxx/mlibc.a"
+    "${MV_TOOLS_PATH}/common/moviCompile/lib/37xxxx/mlibc_lite.a"
+    "${MV_TOOLS_PATH}/common/moviCompile/lib/37xxxx/mlibc_lite_lgpl.a"
     "${MV_TOOLS_PATH}/common/moviCompile/lib/37xxxx/mlibcrt.a"
   )
 else()
@@ -96,25 +83,26 @@ else()
 endif()
 
 if(ENABLE_MANAGEMENT_KERNEL_BUILD)
-  if(NOT DEFINED ENV{FIRMWARE_VPU_DIR})
-    message(FATAL_ERROR "FIRMWARE_VPU_DIR environment variable must be defined when ENABLE_MANAGEMENT_KERNEL_BUILD=ON")
-  endif()
+  if(ENABLE_NPU_MONO)
+    if(DEFINED ENV{FIRMWARE_VPU_DIR})
+        message(AUTHOR_WARNING "FIRMWARE_VPU_DIR environment variable is deprecated when ENABLE_NPU_MONO=ON")
+    endif()
+    if(NOT DEFINED NPU_MONO_FIRMWARE_PROJECT_DIR)
+        message(FATAL_ERROR "Firmware project dir is not set while `npu_mono` was activated")
+    endif()
+    set(FIRMWARE_VPU_DIR "${NPU_MONO_FIRMWARE_PROJECT_DIR}")
+  else()
+    if(NOT DEFINED ENV{FIRMWARE_VPU_DIR})
+        message(FATAL_ERROR "FIRMWARE_VPU_DIR environment variable must be defined when ENABLE_MANAGEMENT_KERNEL_BUILD=ON")
+    endif()
 
-  set(FIRMWARE_VPU_DIR "$ENV{FIRMWARE_VPU_DIR}")
+    set(FIRMWARE_VPU_DIR "$ENV{FIRMWARE_VPU_DIR}")
+  endif()
   list(APPEND include_dirs_list_default "${FIRMWARE_VPU_DIR}/drivers/hardware/utils/inc")
-endif()
-
-if(ENABLE_JTAG_BINARIES_BUILD)
-  set(host_tools_xxd "/usr/bin/xxd")
-
-  if(NOT EXISTS "${host_tools_xxd}")
-    message(FATAL_ERROR "xxd utility is required when ENABLE_JTAG_BINARIES_BUILD=ON")
-  endif()
 endif()
 
 add_custom_target(act_shave_kernels_ready)
 add_custom_target(act_shave_kernels_build)
-add_custom_target(act_shave_jtag_kernels_build)
 
 add_custom_target(act_shave_kernels_copy
   COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/prebuild/act_shave_bin" "${CMAKE_CURRENT_BINARY_DIR}/act_shave_bin"
@@ -124,8 +112,13 @@ add_custom_target(update_shave_prebuilt_binaries
   DEPENDS ${act_shave_kernels}
   COMMAND ${CMAKE_COMMAND} -E copy_directory "${target_binary_dir}/" "${CMAKE_CURRENT_SOURCE_DIR}/prebuild/act_shave_bin/"
 )
+add_dependencies(update_shave_prebuilt_binaries act_shave_kernels_build)
 
-add_dependencies(act_shave_kernels_ready act_shave_kernels_copy)
+if(use_prebuilt_binaries)
+  add_dependencies(act_shave_kernels_ready act_shave_kernels_copy)
+else()
+  add_dependencies(act_shave_kernels_ready act_shave_kernels_build update_shave_prebuilt_binaries)
+endif()
 
 set(kernel_descrip_list "${CUSTOM_KERNELS_LIST}")
 
@@ -137,15 +130,9 @@ else()
 
   file(GLOB kernel_list "${kernel_descrip_dir}*.txt")
   list(APPEND kernel_descrip_list ${kernel_list})
-
-  if(ENABLE_PSS_BINARIES_BUILD)
-    file(GLOB pss_list "${kernel_descrip_dir}pss/*.txt")
-    list(APPEND kernel_descrip_list ${pss_list})
-  endif()
 endif()
 
 set(act_shave_kernels "")
-set(compiled_extra_list "")
 file(MAKE_DIRECTORY ${target_binary_dir})
 
 foreach(kernel_descrip ${kernel_descrip_list})
@@ -160,7 +147,8 @@ foreach(kernel_descrip ${kernel_descrip_list})
   set(always_inline "${always_inline_default}")
   set(rt_kernel "${rt_kernel_default}")
   set(extra_src_list "")
-  set(link_script_file "${link_script_file_default}")
+  set(lsu0_wo "")
+  set(link_script_file "${CMAKE_CURRENT_SOURCE_DIR}/prebuild/shave_kernel.ld")
 
   get_filename_component(kernel_descrip_path ${kernel_descrip} DIRECTORY)
 
@@ -190,15 +178,28 @@ foreach(kernel_descrip ${kernel_descrip_list})
 
   set(kernel_src_file "${kernel_src_dir}/${kernel_src}")
 
-  set(blob_text_data_target "${target_prefix}${kernel_name}${kernel_cpu_suffix}")
-  set(jtag_text_data_target "${target_prefix}${kernel_name}${kernel_cpu_suffix}.jtag")
-  set(blob_text_file "${target_prefix}${kernel_name}${kernel_cpu_suffix}${blob_text_suffix}")
-  set(blob_data_file "${target_prefix}${kernel_name}${kernel_cpu_suffix}${blob_data_suffix}")
-  set(jtag_text_file "${target_prefix}${kernel_name}${kernel_cpu_suffix}${jtag_text_suffix}")
-  set(jtag_data_file "${target_prefix}${kernel_name}${kernel_cpu_suffix}${jtag_data_suffix}")
+  if(lsu0_wo STREQUAL "ON")
+    set(blob_text_data_target "${target_prefix}${kernel_name}${kernel_cpu_suffix}_lsu0_wo")
+    set(blob_text_file "${target_prefix}${kernel_name}${kernel_cpu_suffix}_lsu0_wo${blob_text_suffix}")
+    set(blob_data_file "${target_prefix}${kernel_name}${kernel_cpu_suffix}_lsu0_wo${blob_data_suffix}")
 
-  set(obj_file "${kernel_src}${kernel_cpu_suffix}${obj_suffix}")
-  set(elf_file "${kernel_name}${kernel_cpu_suffix}${elf_suffix}")
+    set(obj_file "${kernel_src}${kernel_cpu_suffix}_lsu0_wo${obj_suffix}")
+    set(elf_file "${kernel_name}${kernel_cpu_suffix}_lsu0_wo${elf_suffix}")
+    list(APPEND cppflags_list
+      "-mllvm"
+      "-shave-lsu-load-policy=use-only-lsu1"
+      "-mllvm"
+      "-shave-lsu-store-policy=prefer-lsu0"
+    )
+  else()
+    set(blob_text_data_target "${target_prefix}${kernel_name}${kernel_cpu_suffix}")
+    set(blob_text_file "${target_prefix}${kernel_name}${kernel_cpu_suffix}${blob_text_suffix}")
+    set(blob_data_file "${target_prefix}${kernel_name}${kernel_cpu_suffix}${blob_data_suffix}")
+
+    set(obj_file "${kernel_src}${kernel_cpu_suffix}${obj_suffix}")
+    set(elf_file "${kernel_name}${kernel_cpu_suffix}${elf_suffix}")
+  endif()
+
   set(elf_path "${target_binary_dir}/${elf_file}")
 
   if(rt_kernel STREQUAL "yes")
@@ -209,23 +210,21 @@ foreach(kernel_descrip ${kernel_descrip_list})
         COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/prebuild/act_shave_bin/${blob_data_file}" "${target_binary_dir}"
         COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/prebuild/act_shave_bin/${elf_file}" "${target_binary_dir}"
       )
-      add_dependencies(act_shave_kernels_build "${kernel_name}${kernel_cpu_suffix}_kernel_copy")
 
-      if(ENABLE_JTAG_BINARIES_BUILD)
-        add_custom_target("${kernel_name}${kernel_cpu_suffix}_jtag_kernel_copy"
-          COMMAND ${CMAKE_COMMAND} -E make_directory "${target_jtag_dir}"
-          COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/prebuild/${jtag_text_file}" "${target_jtag_dir}"
-          COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/prebuild/${jtag_data_file}" "${target_jtag_dir}"
-        )
-        add_dependencies(act_shave_jtag_kernels_build "${kernel_name}${kernel_cpu_suffix}_jtag_kernel_copy")
-      endif()
+      add_dependencies(act_shave_kernels_build "${kernel_name}${kernel_cpu_suffix}_kernel_copy")
 
       continue()
     endif()
 
     set(kernel_src_path "${kernel_src_file}")
+    # ACT management kernel must be built with Shave preemption checks disabled
+    set(shave_preemption_opt "-mshave-preemption-checks=off")
+    set(link_script_file "${CMAKE_CURRENT_SOURCE_DIR}/prebuild/shave_rt_kernel.ld")
   else()
     set(kernel_src_path "${CMAKE_CURRENT_SOURCE_DIR}/${kernel_src_file}")
+    set(shave_preemption_opt "-mshave-preemption-checks=restore")
+    list(APPEND shave_preemption_opt "-mshave-low-impact-preemption" )
+    list(APPEND shave_preemption_opt "-mshave-preemption-max-loop-depth=1")
   endif()
 
   list(APPEND act_shave_kernels ${kernel_src_file})
@@ -233,13 +232,11 @@ foreach(kernel_descrip ${kernel_descrip_list})
   list(TRANSFORM include_dirs_list PREPEND "-I")
   list(TRANSFORM define_symbols_list PREPEND "-D")
 
-  if(kernel_cpunum STREQUAL "3720")
-    add_custom_command(
-      OUTPUT "${obj_file}"
-      DEPENDS "${kernel_src_file}"
-      COMMAND "${mv_tools_compile}" -mcpu=${kernel_cpu} ${optimization_opts} ${cppflags_list} ${include_dirs_list} ${define_symbols_list} -c "${kernel_src_path}" -o "${obj_file}"
-    )
-  endif()
+  add_custom_command(
+    OUTPUT "${obj_file}"
+    DEPENDS "${kernel_src_file}"
+    COMMAND "${mv_tools_compile}" -mcpu=${kernel_cpu} ${optimization_opts} ${cppflags_list} ${include_dirs_list} ${define_symbols_list} ${shave_preemption_opt} -c "${kernel_src_path}" -o "${obj_file}"
+  )
 
   set(obj_file_list "${obj_file}")
 
@@ -256,17 +253,12 @@ foreach(kernel_descrip ${kernel_descrip_list})
       file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/extra_src/${kernel_cpu}/${dir_name})
       set(obj_file "${CMAKE_CURRENT_BINARY_DIR}/extra_src/${kernel_cpu}/${dir_name}/${src_name}.${kernel_cpu}${obj_suffix}")
 
-      # Compile once and check list to avoid double compilation
-      if(NOT "${obj_file}" IN_LIST compiled_extra_list)
-        add_custom_command(
-          OUTPUT "${obj_file}"
-          DEPENDS "${extra_src_file}"
-          COMMAND "${mv_tools_compile}" -mcpu=${kernel_cpu} -O3 ${cppflags_list} ${include_dirs_list} ${define_symbols_list} -c "${extra_src_file}" -o "${obj_file}"
-        )
-        list(APPEND compiled_extra_list "${obj_file}")
-      endif()
+      add_custom_command(
+        OUTPUT "${obj_file}"
+        DEPENDS "${kernel_src_file}"
+        COMMAND "${mv_tools_compile}" -mcpu=${kernel_cpu} ${optimization_opts} ${cppflags_list} ${include_dirs_list} ${define_symbols_list} ${shave_preemption_opt} -c "${extra_src_file}" -o "${obj_file}"
+      )
 
-      # We still want to link the obj file even if it's already compiled
       list(APPEND obj_file_list "${obj_file}")
     endforeach()
   endif()
@@ -276,6 +268,14 @@ foreach(kernel_descrip ${kernel_descrip_list})
     DEPENDS ${obj_file_list}
     COMMAND "${mv_tools_link}" --script "${link_script_file}" -entry "${kernel_entry}" --gc-sections --strip-debug --discard-all -zmax-page-size=16 ${obj_file_list} -EL ${link_libraries_list} --output "${elf_path}"
   )
+
+  # Delete extra sources after compile such that we can apply different optimizations if needed
+  if(NOT extra_src_list STREQUAL "")
+    foreach(extra_src_file ${extra_src_list})
+      get_filename_component(src_name ${extra_src_file} NAME_WE)
+      file(REMOVE_RECURSE "${CMAKE_CURRENT_BINARY_DIR}/extra_src/${kernel_cpu}/${dir_name}/${src_name}.${kernel_cpu}${obj_suffix}")
+    endforeach()
+  endif()
 
   set(blob_text_path "${target_binary_dir}/${blob_text_file}")
   set(blob_data_path "${target_binary_dir}/${blob_data_file}")
@@ -287,20 +287,6 @@ foreach(kernel_descrip ${kernel_descrip_list})
   )
 
   add_dependencies(act_shave_kernels_build "${blob_text_data_target}")
-
-  if(ENABLE_JTAG_BINARIES_BUILD)
-    set(jtag_text_path "${CMAKE_CURRENT_BINARY_DIR}/${jtag_text_file}")
-    set(jtag_data_path "${CMAKE_CURRENT_BINARY_DIR}/${jtag_data_file}")
-
-    add_custom_target("${jtag_text_data_target}"
-      COMMAND ${host_tools_xxd} -i "${blob_text_file}" "${jtag_text_path}"
-      COMMAND ${host_tools_xxd} -i "${blob_data_file}" "${jtag_data_path}"
-      WORKING_DIRECTORY "${target_binary_dir}"
-    )
-
-    add_dependencies("${jtag_text_data_target}" "${blob_text_data_target}")
-    add_dependencies(act_shave_jtag_kernels_build "${jtag_text_data_target}")
-  endif()
 endforeach()
 
 # Add file-level and target-level dependencies

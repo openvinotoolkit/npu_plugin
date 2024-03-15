@@ -1,9 +1,7 @@
-//
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
-//
 
-#include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/sparsity.hpp"
@@ -28,9 +26,9 @@ mlir::LogicalResult vpux::Const::SparsifyAttr::verify(FuncRef<mlir::InFlightDiag
         return printTo(emitError(), "Got NULL 'compressOutputType' in 'SparsifyAttr'");
     }
     if (numActualElements != nullptr) {
-        if (!numActualElements.getType().getElementType().isIntOrIndex()) {
+        if (!numActualElements.getShapedType().getElementType().isIntOrIndex()) {
             return printTo(emitError(), "Got unsupported 'numActualElements' in 'SparsifyAttr' : '{0}'",
-                           numActualElements.getType().getElementType());
+                           numActualElements.getShapedType().getElementType());
         }
         if (!numActualElements.isa<mlir::DenseElementsAttr>()) {
             return printTo(emitError(), "Got unsupported 'numActualElements' in 'SparsifyAttr'");
@@ -93,11 +91,10 @@ mlir::Attribute vpux::Const::SparsifyAttr::parse(mlir::AsmParser& parser, mlir::
 // SparsifyAttr::inferOutputType
 //
 
-vpux::NDTypeInterface compressType(vpux::NDTypeInterface inputType, mlir::ElementsAttr numElemsAttr) {
+vpux::NDTypeInterface compressType(vpux::NDTypeInterface inputType, ArrayRef<int64_t> numElemsPerOC) {
     const auto elemByteSize = getElemTypeSize(inputType).to<Byte>().count();
-    const auto numElems = numElemsAttr.getValues<int64_t>();
     int64_t totalByteSize = 0;
-    for (auto num : numElems) {
+    for (auto num : numElemsPerOC) {
         totalByteSize += alignValUp<int64_t>(num * elemByteSize, VPU::NCEInvariant::VPU_WEIGHT_SET_BYTE_ALIGNMENT);
     }
     const auto newShape = Shape({totalByteSize, 1, 1, 1});
@@ -106,7 +103,9 @@ vpux::NDTypeInterface compressType(vpux::NDTypeInterface inputType, mlir::Elemen
 
 vpux::NDTypeInterface vpux::Const::SparsifyAttr::inferOutputType(vpux::NDTypeInterface inputType) const {
     if (getCompressOutputType().getValue() != false) {
-        return compressType(inputType, getNumActualElements());
+        VPUX_THROW_WHEN(getNumActualElements() == nullptr, "Missing number of actual elements");
+        const auto numElemsPerOC = to_small_vector(getNumActualElements().getValues<int64_t>());
+        return compressType(inputType, numElemsPerOC);
     }
     return inputType;
 }
@@ -164,7 +163,10 @@ Const::Content sparsify(const Const::Content& content, int64_t sparsifyValue, ND
 
 Const::Content Const::SparsifyAttr::transform(Const::Content& input) const {
     auto inputType = input.getType();
-    auto outputType = compressType(inputType, getNumActualElements());
+    const auto numElemsPerOC = (getNumActualElements() != nullptr)
+                                       ? to_small_vector(getNumActualElements().getValues<int64_t>())
+                                       : vpux::countNonSparseElementsPerOC(input, inputType.getElementType());
+    auto outputType = compressType(inputType, numElemsPerOC);
 
     auto inputElementType = inputType.getElementType();
     int64_t sparsifyValue = getSparsifyValue(inputElementType);
@@ -191,47 +193,12 @@ Const::details::PositionRequirement Const::SparsifyAttr::getPositionRequirement(
     return Const::details::PositionRequirement::PREFERRED_LAST;
 }
 
-Const::TransformAttrInterface Const::SparsifyAttr::updateAttributes(mlir::ElementsAttr& baseContent,
-                                                                    ArrayRef<mlir::Attribute> transformations) const {
-    // Apply transformations
-    auto outputType = baseContent.getType().cast<vpux::NDTypeInterface>();
-    for (auto transformationAttr : transformations) {
-        auto transformation = transformationAttr.dyn_cast<Const::TransformAttrInterface>();
-        if (transformation != nullptr) {
-            outputType = transformation.inferOutputType(outputType);
-        }
-    }
-
-    const auto transformationsAttr = mlir::ArrayAttr::get(getContext(), transformations);
-    auto contentAttr = ContentAttr::get(baseContent, transformationsAttr, outputType);
-    auto content = contentAttr.fold();
-    auto elementType = outputType.getElementType();
-
-    auto numActualElements = vpux::getNumActualElements(content, elementType);
-
-    const auto numActualElementsType =
-            mlir::RankedTensorType::get({static_cast<int64_t>(numActualElements.size())}, getInt64Type(getContext()));
-    const auto actualElems = mlir::DenseElementsAttr::get(numActualElementsType, makeArrayRef(numActualElements));
-
-    auto updatedAttr = Const::SparsifyAttr::get(this->getCompressOutputType(), actualElems);
-    return updatedAttr;
-}
-
-//
-// SparsifyAttr::countNumTotalElements
-//
-
-int64_t vpux::Const::SparsifyAttr::countNumTotalElements(vpux::Const::SparsifyAttr transformation) {
-    const auto numActualElementsAttr = transformation.getNumActualElements();
-    VPUX_THROW_UNLESS(numActualElementsAttr != nullptr, "Sparsify transformation missing number of elements");
-    const auto numActualElementsPerOC = numActualElementsAttr.getValues<int64_t>();
-    return std::accumulate(numActualElementsPerOC.begin(), numActualElementsPerOC.end(), static_cast<int64_t>(0));
-}
-
 //
 // ContentAttr::sparsify
 //
 
-Const::ContentAttr vpux::Const::ContentAttr::sparsify(bool compressOutputType) const {
-    return get(*this, Const::SparsifyAttr::get(mlir::BoolAttr::get(getContext(), compressOutputType)));
+Const::ContentAttr vpux::Const::ContentAttr::sparsify(bool compressOutputType,
+                                                      mlir::ElementsAttr numActualElements) const {
+    return ContentAttr::addTransformation(
+            *this, Const::SparsifyAttr::get(mlir::BoolAttr::get(getContext(), compressOutputType), numActualElements));
 }

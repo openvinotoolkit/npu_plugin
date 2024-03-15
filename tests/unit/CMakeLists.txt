@@ -8,22 +8,25 @@ if(ENABLE_LTO)
 endif()
 
 set(TARGET_NAME "npuUnitTests")
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(EXCLUDED_UNIT_TESTS_DIR "")
 set(OPTIONAL_UNIT_TESTS_INCLUDES "")
 set(OPTIONAL_UNIT_TESTS_LIBS "")
 set(MANDATORY_UNIT_TESTS_LIBS
-    "vpux_elf"
-    "IE::commonTestUtils"
-    "IE::ngraph"
-    "IE::ngraphFunctions"
-    "IE::gmock"
+    "npu_37xx_firmware_headers"
+    "npu_elf"
+    "openvino::commonTestUtils"
+    "openvino::gmock"
+    "openvino::ov_models"
+    "openvino::runtime"
     "common_tests_helpers"
     "${VPUX_PLUGIN_STATIC_TARGET}"
-    "kmb_utils"
+    "npu_model_utils"
     "npu_al"
-    "npu_utils"
+    "npu_algo_utils"
+    "npu_llvm_utils"
+    "npu_ov_utils"
+    "npu_profiling_utils"
+    "npu_plugin_utils"
 )
 
 if(ENABLE_DRIVER_COMPILER_ADAPTER)
@@ -64,6 +67,7 @@ addIeTargetTest(
         ${OPTIONAL_UNIT_TESTS_INCLUDES}
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2"
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpux_translate_utils/include"
         ${CMAKE_CURRENT_SOURCE_DIR}/vpux_compiler
     LINK_LIBRARIES
         ${OPTIONAL_UNIT_TESTS_LIBS}
@@ -93,4 +97,3 @@ install(TARGETS ${TARGET_NAME}
         COMPONENT ${VPUX_TESTS_COMPONENT}
         EXCLUDE_FROM_ALL
 )
-

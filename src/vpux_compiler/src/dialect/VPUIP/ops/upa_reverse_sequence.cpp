@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include <mlir/IR/BuiltinTypes.h>
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -11,7 +10,7 @@
 using namespace vpux;
 
 mlir::LogicalResult vpux::VPUIP::ReverseSequenceUPAOp::verify() {
-    const auto seqShape = getShape(seq_length());
+    const auto seqShape = getShape(getSeqLength());
 
     if (seqShape.size() != 1) {
         return errorAt(*this, "ReverseSequence second input should be 1D Tensor");
@@ -22,8 +21,8 @@ mlir::LogicalResult vpux::VPUIP::ReverseSequenceUPAOp::verify() {
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ReverseSequenceUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::ReversesequenceParamsBuilder builder(writer);
-    builder.add_seq_axis(checked_cast<int32_t>(seq_axis()));
-    builder.add_batch_axis(checked_cast<int32_t>(batch_axis()));
+    builder.add_seq_axis(checked_cast<int32_t>(getSeqAxis()));
+    builder.add_batch_axis(checked_cast<int32_t>(getBatchAxis()));
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ReversesequenceParams});

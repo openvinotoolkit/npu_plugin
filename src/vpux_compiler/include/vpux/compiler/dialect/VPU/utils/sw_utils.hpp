@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPU/IR/ops.hpp"
 
 namespace vpux {
 namespace VPU {
@@ -23,7 +23,9 @@ VPU::DistributionMode getSWInputTensorDistributionMode(VPU::MultiClusterStrategy
 VPU::DistributionMode getSWInputTensorDistributionMode(VPU::InterpolateOp interpolateOp,
                                                        VPU::MultiClusterStrategy strategy,
                                                        vpux::NDTypeInterface inputType);
-VPU::DistributionMode getSWInputTensorDistributionMode(VPU::MultiplyOp multiplyOp, VPU::MultiClusterStrategy strategy,
+VPU::DistributionMode getSWInputTensorDistributionMode(mlir::Operation* eltwiseOp, VPU::MultiClusterStrategy strategy,
+                                                       vpux::NDTypeInterface inputType);
+VPU::DistributionMode getSWInputTensorDistributionMode(VPU::PReluOp preluOp, VPU::MultiClusterStrategy strategy,
                                                        vpux::NDTypeInterface inputType);
 
 SmallVector<int64_t> getSWInputTensorNumTiles(VPU::ClusteredOpInterface clusteredOp,
@@ -40,24 +42,7 @@ SmallVector<int64_t> getSWInputTensorNumTiles(VPU::ClusteredOpInterface clustere
 SmallVector<int64_t> getSWInputTensorNumTiles(VPU::InterpolateOp interpolateOp,
                                               int64_t numClustersAvailableForCompilation,
                                               VPU::MultiClusterStrategy strategy, vpux::NDTypeInterface inputType);
-SmallVector<int64_t> getSWInputTensorNumTiles(VPU::MultiplyOp multiplyOp, int64_t numClustersAvailableForCompilation,
+SmallVector<int64_t> getSWInputTensorNumTiles(mlir::Operation* eltwiseOp, int64_t numClustersAvailableForCompilation,
                                               VPU::MultiClusterStrategy strategy, vpux::NDTypeInterface inputType);
-
-//
-// SameInOutDefaultDimsOrder
-//
-
-mlir::LogicalResult verifySameInOutDefaultDimsOrder(mlir::Operation* op);
-void inferLayoutInfoSameInOutDefaultDimsOrder(IE::LayerLayoutInfo& info);
-
-mlir::LogicalResult verifySameAnyDimsOrder(mlir::Operation* op);
-void inferLayoutInfoSameAnyDimsOrder(IE::LayerLayoutInfo& info);
-
-mlir::LogicalResult verifySameInOutSpecificDimsOrder(mlir::Operation* op, ArrayRef<DimsOrder> supportedLayouts);
-void inferLayoutInfoSameInOutSpecificDimsOrder(IE::LayerLayoutInfo& info, ArrayRef<DimsOrder> supportedLayouts);
-
-mlir::LogicalResult verifyReduceLayoutInfo(mlir::Operation* op);
-void inferReduceLayoutInfo(mlir::Operation* op, IE::LayerLayoutInfo& info);
-
 }  // namespace VPU
 }  // namespace vpux

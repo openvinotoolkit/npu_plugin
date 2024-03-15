@@ -5,7 +5,6 @@
 
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
-#include "vpux/compiler/dialect/VPUIP/dialect.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 
 #include "vpux/utils/core/range.hpp"
@@ -35,7 +34,8 @@ void warpIntoAsyncRegion(VPUIP::AsyncLayerOpInterface op, Logger log) {
     OpBuilderLogger builderLog(log.nest());
     mlir::OpBuilder builder(op, &builderLog);
 
-    auto execOp = builder.create<mlir::async::ExecuteOp>(op->getLoc(), op->getResultTypes(), None, None, bodyBuilder);
+    auto execOp = builder.create<mlir::async::ExecuteOp>(op->getLoc(), op->getResultTypes(), std::nullopt, std::nullopt,
+                                                         bodyBuilder);
     if (executor != nullptr) {
         VPUIP::VPUIPDialect::setExecutor(execOp, executor);
     }
@@ -45,8 +45,8 @@ void warpIntoAsyncRegion(VPUIP::AsyncLayerOpInterface op, Logger log) {
     SmallVector<mlir::Value> newResults;
     newResults.resize(op->getNumResults());
     for (auto i : irange(op->getNumResults())) {
-        auto waitOp = builder.create<mlir::async::AwaitOp>(op->getLoc(), execOp.results()[i]);
-        newResults[i] = waitOp.result();
+        auto waitOp = builder.create<mlir::async::AwaitOp>(op->getLoc(), execOp.getBodyResults()[i]);
+        newResults[i] = waitOp.getResult();
     }
 
     log.trace("Replace the operation with new 'async.await' results");

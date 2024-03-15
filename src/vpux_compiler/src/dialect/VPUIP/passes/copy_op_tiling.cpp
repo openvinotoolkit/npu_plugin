@@ -6,34 +6,26 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
-
-#include "vpux/compiler/core/aliases_info.hpp"
-
-#include "vpux/compiler/utils/analysis.hpp"
-#include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
-
 #include "vpux/utils/core/numeric.hpp"
 
 #include <mlir/IR/PatternMatch.h>
-
-#include <mlir/Pass/PassManager.h>
 
 using namespace vpux;
 
 namespace {
 
 Byte getDmaSize(VPUIP::CopyOp copyOp) {
-    const auto inputShape = getShape(copyOp.input());
-    const auto outputShape = getShape(copyOp.output());
+    const auto inputShape = getShape(copyOp.getInput());
+    const auto outputShape = getShape(copyOp.getOutput());
     VPUX_THROW_UNLESS(inputShape == outputShape,
                       "CopyOpTiling: Copy node's input and output have different shapes: {0} vs {1}", inputShape,
                       outputShape);
 
     // Sparse data is composed of multiple buffers which will later get ungrouped into individual Copy operations
     // Therefore, the maximum buffer size is selected for tiling
-    if (auto sparseInput = copyOp.input().getType().dyn_cast<VPUIP::SparseBufferType>()) {
+    if (auto sparseInput = copyOp.getInput().getType().dyn_cast<VPUIP::SparseBufferType>()) {
         auto dataSize = sparseInput.getData().cast<vpux::NDTypeInterface>().getCompactAllocSize();
         auto sparsityMapSize =
                 (sparseInput.getSparsityMap() != nullptr)
@@ -46,8 +38,23 @@ Byte getDmaSize(VPUIP::CopyOp copyOp) {
         return std::max({dataSize, sparsityMapSize, seTableSize});
     }
 
-    return static_cast<Byte>(getCompactSize(copyOp.input()));
+    return static_cast<Byte>(getCompactSize(copyOp.getInput()));
 }
+
+bool isLegalCopyOp(VPUIP::CopyOp copyOp) {
+    // Distributed type is currently not needed as large DMAs to CMX are already handled by previous tiling pass and
+    // size of CMX is nevertheless smaller then DMA limit
+    if (mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(copyOp->getParentOp()) != nullptr) {
+        return true;
+    }
+
+    // If tensor size is greater than DMA_LIMIT its no longer legal operation
+    if (getDmaSize(copyOp) > VPUIP::DMA_LIMIT) {
+        return false;
+    }
+
+    return !VPUIP::isSplitNeededForLargePlanesNum(copyOp);
+};
 
 //
 // CopyOpTilingPass
@@ -70,8 +77,11 @@ private:
 // Splits large CopyOps into a bunch of smaller ones to fit DMA capabilities
 class CopyOpTiling final : public mlir::OpRewritePattern<VPUIP::CopyOp> {
 public:
-    CopyOpTiling(mlir::MLIRContext* ctx, Logger log, VPU::ArchKind arch)
-            : mlir::OpRewritePattern<VPUIP::CopyOp>(ctx), _log(log), _arch(arch) {
+    CopyOpTiling(mlir::MLIRContext* ctx, Logger log, VPU::ArchKind arch, bool allowRecursiveSplit)
+            : mlir::OpRewritePattern<VPUIP::CopyOp>(ctx),
+              _log(log),
+              _arch(arch),
+              _allowRecursiveSplit(allowRecursiveSplit) {
     }
 
 public:
@@ -82,11 +92,11 @@ private:
 
     Logger _log;
     VPU::ArchKind _arch;
+    const bool _allowRecursiveSplit;
 };
 
 SmallVector<mlir::Value> CopyOpTiling::createTiles(VPUIP::CopyOp origOp, mlir::PatternRewriter& rewriter) const {
-    // Currently, tiling is implemented only for 4D shapes.
-    const auto origInputShape = getShape(origOp.input());
+    const auto origInputShape = getShape(origOp.getInput());
 
     const auto fullCopySize = getDmaSize(origOp);
 
@@ -103,9 +113,13 @@ SmallVector<mlir::Value> CopyOpTiling::createTiles(VPUIP::CopyOp origOp, mlir::P
     //  The number of planes DMA could process within one tile. In case of small spatial dimensions of tensor (e.g.
     // 1x2048x8x8) it can exceed CMX_DMA_MAX_NUM_PLANES, so it's necessary to limit this value
     const auto maxNumPlanes = VPUIP::getMaxNumberPlanes(_arch);
-    const auto desiredPlanesPerTileAmount = (VPUIP::DMA_LIMIT.count() / singlePlaneSize.count());
+    int64_t desiredPlanesPerTileAmount = (VPUIP::DMA_LIMIT.count() / singlePlaneSize.count());
+    if (desiredPlanesPerTileAmount == 0 && _allowRecursiveSplit) {
+        desiredPlanesPerTileAmount = 1;
+    }
     VPUX_THROW_UNLESS(desiredPlanesPerTileAmount != 0,
-                      "Couldn't split a CopyOp with single plane size greater than DMA_LIMIT");
+                      "Couldn't split a CopyOp at '{0}' with single plane size greater than DMA_LIMIT",
+                      origOp->getLoc());
 
     const auto numPlanesPerTile = std::min(desiredPlanesPerTileAmount, maxNumPlanes);
 
@@ -120,12 +134,12 @@ SmallVector<mlir::Value> CopyOpTiling::createTiles(VPUIP::CopyOp origOp, mlir::P
 
         // Create the operations for it
         auto inputSubView =
-                rewriter.create<VPUIP::SubViewOp>(tileLoc, origOp.input(), currentOffset, currentTileShapeVector);
-        auto outputSubView =
-                rewriter.create<VPUIP::SubViewOp>(tileLoc, origOp.output_buff(), currentOffset, currentTileShapeVector);
-        auto copyTile = rewriter.create<VPUIP::CopyOp>(tileLoc, inputSubView.result(), outputSubView.result());
+                rewriter.create<VPUIP::SubViewOp>(tileLoc, origOp.getInput(), currentOffset, currentTileShapeVector);
+        auto outputSubView = rewriter.create<VPUIP::SubViewOp>(tileLoc, origOp.getOutputBuff(), currentOffset,
+                                                               currentTileShapeVector);
+        auto copyTile = rewriter.create<VPUIP::CopyOp>(tileLoc, inputSubView.getResult(), outputSubView.getResult());
 
-        concatInputs.push_back(copyTile.output());
+        concatInputs.push_back(copyTile.getOutput());
         _log.nest().trace("Created tile #{0} for {1} planes that requires {2}", tileIdx,
                           currentTileShapeVector[tileDim.ind()], getDmaSize(copyTile));
 
@@ -142,10 +156,20 @@ SmallVector<mlir::Value> CopyOpTiling::createTiles(VPUIP::CopyOp origOp, mlir::P
 
 mlir::LogicalResult CopyOpTiling::matchAndRewrite(VPUIP::CopyOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Found Copy Operation '{0}'", origOp->getLoc());
+    // In case of recursive legalization we want to split only illegal operations with striding level less than max
+    // available and leave max level DMAs to be handled by main rewriter
+    if (_allowRecursiveSplit) {
+        const int64_t maxStridingLevel = VPUIP::getMaxStridingLevel(VPU::getArch(origOp));
+        const bool hasValidStridingLevel = VPUIP::getStridingLevel(origOp->getOperand(0)) < maxStridingLevel &&
+                                           VPUIP::getStridingLevel(origOp->getResult(0)) < maxStridingLevel;
+        if (isLegalCopyOp(origOp) || !hasValidStridingLevel) {
+            return mlir::failure();
+        }
+    }
 
     const auto concatInputs = createTiles(origOp, rewriter);
 
-    rewriter.replaceOpWithNewOp<VPUIP::ConcatViewOp>(origOp, concatInputs, origOp.output_buff());
+    rewriter.replaceOpWithNewOp<VPUIP::ConcatViewOp>(origOp, concatInputs, origOp.getOutputBuff());
 
     return mlir::success();
 }
@@ -174,33 +198,33 @@ void CopyOpTilingPass::safeRunOnFunc() {
     auto func = getOperation();
     auto module = func->getParentOfType<mlir::ModuleOp>();
     const auto arch = VPU::getArch(module);
-
-    auto isLegalOp = [](VPUIP::CopyOp copyOp) {
-        // Distributed CopyOp is not handled
-        if (mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(copyOp->getParentOp()) != nullptr) {
-            return true;
+    // First try to legalize recursively. Some operations may have shapes, which can't be resolved by single axis split,
+    // so try to legalize them recursively, for example: 3x1x4000x4000 to 3 DMAs with shape 1x1x4000x4000 and then split
+    // each of them separatly to satisfy numPlanes and DMA_LIMIT requirements
+    {
+        mlir::RewritePatternSet patterns(&ctx);
+        patterns.add<CopyOpTiling>(&ctx, _log, arch, /*allowRecursiveSplit=*/true);
+        if (mlir::failed(
+                    mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
+            signalPassFailure();
+            return;
         }
+    }
+    // After all, some DMAs may be illegal. This conversion confirms that this isn't possible and stops compilation.
+    {
+        mlir::ConversionTarget target(ctx);
+        target.addDynamicallyLegalOp<VPUIP::CopyOp>(isLegalCopyOp);
 
-        // If tensor size is greater than DMA_LIMIT its no longer legal operation
-        if (getDmaSize(copyOp) > VPUIP::DMA_LIMIT) {
-            return false;
+        mlir::RewritePatternSet patterns(&ctx);
+        patterns.add<CopyOpTiling>(&ctx, _log, arch, /*allowRecursiveSplit=*/false);
+
+        // The new operations added by CopyOpTiling pattern:
+        target.addLegalOp<VPUIP::SubViewOp>();
+        target.addLegalOp<VPUIP::ConcatViewOp>();
+
+        if (mlir::failed(mlir::applyPartialConversion(getOperation(), target, std::move(patterns)))) {
+            signalPassFailure();
         }
-
-        return !VPUIP::isSplitNeededForLargePlanesNum(copyOp);
-    };
-
-    mlir::ConversionTarget target(ctx);
-    target.addDynamicallyLegalOp<VPUIP::CopyOp>(isLegalOp);
-
-    mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<CopyOpTiling>(&ctx, _log, arch);
-
-    // The new operations added by CopyOpTiling pattern:
-    target.addLegalOp<VPUIP::SubViewOp>();
-    target.addLegalOp<VPUIP::ConcatViewOp>();
-
-    if (mlir::failed(mlir::applyPartialConversion(getOperation(), target, std::move(patterns)))) {
-        signalPassFailure();
     }
 }
 

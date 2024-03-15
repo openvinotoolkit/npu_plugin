@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "zero_types.h"
 #include "zero_utils.h"
 
 #include "vpux/utils/core/logger.hpp"
@@ -71,7 +72,7 @@ public:
     friend class CommandQueue;
     CommandList() = delete;
     CommandList(const ze_device_handle_t& device_handle, const ze_context_handle_t& context,
-                ze_graph_dditable_ext_t* graph_ddi_table_ext, const Config& config, const uint32_t& group_ordinal);
+                ze_graph_dditable_ext_curr_t* graph_ddi_table_ext, const Config& config, const uint32_t& group_ordinal);
     CommandList(const CommandList&) = delete;
     CommandList(CommandList&&) = delete;
     CommandList& operator=(const CommandList&) = delete;
@@ -82,6 +83,7 @@ public:
     void appendGraphInitialize(const ze_graph_handle_t& graph_handle) const;
     void appendGraphExecute(const ze_graph_handle_t& graph_handle,
                             const ze_graph_profiling_query_handle_t& profiling_query_handle) const;
+    void appendVpuTimestamp(uint64_t* timestamp_buff) const;
     void appendBarrier() const;
     void close() const;
     ~CommandList();
@@ -93,7 +95,7 @@ public:
 private:
     ze_command_list_handle_t _handle = nullptr;
     const ze_context_handle_t _context = nullptr;
-    ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
+    ze_graph_dditable_ext_curr_t* _graph_ddi_table_ext = nullptr;
 
     Logger _log;
 };

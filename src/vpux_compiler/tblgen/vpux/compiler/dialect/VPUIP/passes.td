@@ -78,21 +78,6 @@ def OptimizeConcatViewCopies : PassBase<"optimize-concat-view-copies", "vpux::Fu
 }
 
 //
-// CopyOpHoisting
-//
-
-def CopyOpHoisting : PassBase<"copy-op-hoisting", "vpux::FunctionPass"> {
-    let summary = "Update location of CopyOps in the block";
-
-    let description = [{
-        This pass checks all CopyOps and updates their position in the parent block to be close to source op
-        that generates the copy op source buffer
-    }];
-
-    let constructor = "vpux::VPUIP::createCopyOpHoistingPass()";
-}
-
-//
 // OptimizeParallelCopies
 //
 
@@ -146,7 +131,8 @@ def ConvertEltwiseToInPlace : PassBase<"convert-eltwise-to-in-place", "vpux::Fun
 // SetMemorySpace
 //
 
-def SetMemorySpace : PassBase<"set-memory-space", "vpux::FunctionPass"> {
+// TODO:#10593: extract SetInternalMemorySpace pass
+def SetMemorySpace : PassBase<"set-memory-space", "vpux::ModulePass"> {
     let summary = "Set specific memory space for all memory buffers";
 
     let description = [{
@@ -168,10 +154,29 @@ def SetMemorySpace : PassBase<"set-memory-space", "vpux::FunctionPass"> {
 }
 
 //
+// QueryArgsAllocationAnalysis
+//
+
+def QueryArgsAllocationAnalysis : PassBase<"query-args-allocation-analysis", "vpux::ModulePass"> {
+    let summary = "Calculate and cache ReservedMemInfo analysis";
+
+    let description = [{
+        StaticAllocation pass should be function pass to achieve the best performance in multithreaded mode(when there are several functions in IR).
+        At the same time, StaticAllocation should be aware whether some memory is reserved by the caller(for example, for arguments).
+        Since caller's function is changing at the same time, 
+        the QueryArgsAllocationAnalysis prepare the necessary information and marks it preserved to be used in StaticAllocation.
+    }];
+
+    let constructor = [{
+        vpux::VPUIP::createQueryArgsAllocationAnalysisPass()
+    }];
+}
+
+//
 // StaticAllocation
 //
 
-def StaticAllocation : PassBase<"static-allocation", "vpux::ModulePass"> {
+def StaticAllocation : PassBase<"static-allocation", "vpux::FunctionPass"> {
     let summary = "Replace dynamic allocations with static";
 
     let description = [{
@@ -292,7 +297,7 @@ def DPUProfiling : PassBase<"dpu-profiling", "vpux::ModulePass"> {
     let constructor = [{
         vpux::VPUIP::createDPUProfilingPass([](vpux::StringRef memSpaceName) {
             if (memSpaceName.empty()) {
-                return Optional<vpux::VPU::MemoryKind>{VPU::MemoryKind::CMX_NN};
+                return std::optional<vpux::VPU::MemoryKind>{VPU::MemoryKind::CMX_NN};
             }
 
             return vpux::VPU::symbolizeEnum<VPU::MemoryKind>(memSpaceName);
@@ -387,11 +392,11 @@ def GroupAsyncExecuteOps : PassBase<"group-async-execute-ops", "vpux::FunctionPa
 // FeasibleAllocation
 //
 
-def FeasibleAllocation : PassBase<"feasible-allocation", "vpux::ModulePass"> {
+def FeasibleAllocation : PassBase<"feasible-allocation", "vpux::FunctionPass"> {
     let summary = "Feasible Memory Scheduling Pass";
 
     let description = [{
-        Schedule async.execute opeations based on their dependecies and CMX memory availability
+        Schedule async.execute operations based on their dependencies and CMX memory availability
     }];
 
     let constructor = [{
@@ -413,6 +418,31 @@ def FeasibleAllocation : PassBase<"feasible-allocation", "vpux::ModulePass"> {
             "secondLvlMemSpaceName", "second-level-memory-space",
             "std::string", [{""}],
             "Second level memory space to perform spilling"
+        >,
+        Option<
+            "linearizeSchedule", "linearize-schedule",
+            "bool", "false",
+            "Linearize all tasks on all engines"
+        >,
+        Option<
+            "enablePipelining", "pipelining",
+            "bool", "true",
+            "Enables pipelining"
+        >,
+        Option<
+            "enablePrefetching", "prefetching",
+            "bool", "true",
+            "Enables prefetching"
+        >,
+        Option<
+            "optimizeFragmentation", "optimize-fragmentation",
+            "bool", "true",
+            "Perform buffer sorting to optimize fragmentation"
+        >,
+        Option<
+            "optimizeDynamicSpilling", "optimize-dynamic-spilling",
+            "bool", "true",
+            "Perform dynamic spill DMA optimization"
         >
     ];
 
@@ -528,7 +558,7 @@ def ActShaveProfiling : PassBase<"act-shave-profiling", "vpux::ModulePass"> {
     let constructor = [{
         vpux::VPUIP::createActShaveProfilingPass([](vpux::StringRef memSpaceName) {
             if (memSpaceName.empty()) {
-                return Optional<vpux::VPU::MemoryKind>{VPU::MemoryKind::CMX_NN};
+                return std::optional<vpux::VPU::MemoryKind>{VPU::MemoryKind::CMX_NN};
             }
 
             return vpux::VPU::symbolizeEnum<VPU::MemoryKind>(memSpaceName);
@@ -1233,6 +1263,30 @@ def NNDMATiling : PassBase<"nn-dma-tiling", "vpux::FunctionPass"> {
     }];
 
     let constructor = "vpux::VPUIP::createNNDMATilingPass()";
+}
+
+//
+// CollectUsedMemory
+//
+
+def CollectUsedMemory : PassBase<"collect-used-memory", "vpux::ModulePass"> {
+    let summary = "Collect info from tempopary modules in functions and erase them";
+
+    let description = [{
+        "Temporary" because the function should contain only IR operations, 
+        the rest of the information should be stored in the parent module. 
+        This WA is introduced for function passes ran in multithreaded mode, 
+        the results of which include some statistics.
+        These passes are required not to modify the parent module for thread safety reasons. 
+        This module pass should collect the information, 
+        transfer it to the main module and delete the temporary ones.
+        More info about operation passes:
+        https://mlir.llvm.org/docs/PassManagement/#operation-pass
+
+        This pass must be called after StaticAllocation and FeasibleAllocation passes
+    }];
+
+    let constructor = "vpux::VPUIP::createCollectUsedMemoryPass()";
 }
 
 #endif

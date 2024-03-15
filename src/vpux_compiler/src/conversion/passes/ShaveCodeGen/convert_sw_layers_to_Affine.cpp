@@ -15,16 +15,16 @@
 #include <mlir/Conversion/LLVMCommon/TypeConverter.h>
 #include <mlir/Dialect/Affine/IR/AffineOps.h>
 #include <mlir/Dialect/Affine/Utils.h>
-#include <mlir/Dialect/Arithmetic/IR/Arithmetic.h>
+#include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/Math/IR/Math.h>
-#include <mlir/IR/BlockAndValueMapping.h>
+#include <mlir/IR/IRMapping.h>
 #include <mlir/Pass/Pass.h>
 #include <mlir/Support/LLVM.h>
 #include <mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h>
 #include <mlir/Target/LLVMIR/Export.h>
 
 #include <mlir/Conversion/AffineToStandard/AffineToStandard.h>
-#include <mlir/Conversion/ArithmeticToLLVM/ArithmeticToLLVM.h>
+#include <mlir/Conversion/ArithToLLVM/ArithToLLVM.h>
 #include <mlir/Conversion/LLVMCommon/ConversionTarget.h>
 #include <mlir/Conversion/LLVMCommon/TypeConverter.h>
 #include <mlir/Conversion/MathToLLVM/MathToLLVM.h>
@@ -71,17 +71,18 @@ static void lowerOpToLoops(mlir::Operation* op, mlir::ValueRange operands, mlir:
     // loop induction variables.
     SmallVector<int64_t, 4> lowerBounds(memRefType.getRank(), /*Value=*/0);
     SmallVector<int64_t, 4> steps(memRefType.getRank(), /*Value=*/1);
-    buildAffineLoopNest(rewriter, loc, lowerBounds, memRefType.getShape(), steps,
-                        [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange ivs) {
-                            // Call the processing function with the rewriter, the memref operands,
-                            // and the loop induction variables. This function will return the value
-                            // to store at the current index.
-                            mlir::Value valueToStore = processIteration(nestedBuilder, operands, ivs);
+    mlir::affine::buildAffineLoopNest(rewriter, loc, lowerBounds, memRefType.getShape(), steps,
+                                      [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange ivs) {
+                                          // Call the processing function with the rewriter, the memref operands,
+                                          // and the loop induction variables. This function will return the value
+                                          // to store at the current index.
+                                          mlir::Value valueToStore = processIteration(nestedBuilder, operands, ivs);
 
-                            VPUX_THROW_UNLESS(operands.size() >= 2, "Need to have 2 operands");
+                                          VPUX_THROW_UNLESS(operands.size() >= 2, "Need to have 2 operands");
 
-                            nestedBuilder.create<mlir::AffineStoreOp>(loc, valueToStore, operands[1], ivs);
-                        });
+                                          nestedBuilder.create<mlir::affine::AffineStoreOp>(loc, valueToStore,
+                                                                                            operands[1], ivs);
+                                      });
 
     // Replace this operation with the generated alloc.
     rewriter.replaceOp(op, operands[1]);  // We return the container in which we stored the computed values.
@@ -102,7 +103,8 @@ struct UnaryOpLoweringCos : public mlir::ConversionPattern {
                            IERT::CosOp::Adaptor unaryAdaptor(memRefOperands);
 
                            // Generate load for the element of 'lhs' at the inner loop.
-                           auto loadedOpnd = builder.create<mlir::AffineLoadOp>(loc, unaryAdaptor.getInput(), loopIvs);
+                           auto loadedOpnd =
+                                   builder.create<mlir::affine::AffineLoadOp>(loc, unaryAdaptor.getInput(), loopIvs);
 
                            auto cosOp = builder.create<mlir::math::CosOp>(loc, loadedOpnd);
 
@@ -129,7 +131,7 @@ struct UnaryOpLoweringHSwish : public mlir::ConversionPattern {
                     IERT::HSwishOp::Adaptor unaryAdaptor(memRefOperands);
 
                     // Generate load for the element.
-                    auto loadedOpnd = builder.create<mlir::AffineLoadOp>(loc, unaryAdaptor.getInput(), loopIvs);
+                    auto loadedOpnd = builder.create<mlir::affine::AffineLoadOp>(loc, unaryAdaptor.getInput(), loopIvs);
 
                     // IMPORTANT: HSwish(x) = x * min(max(x+3, 0), 6) / 6
                     float f;
@@ -212,25 +214,26 @@ struct UnaryOpLoweringSoftMax : public mlir::ConversionPattern {
 
         SmallVector<int64_t, 4> lowerBounds(memRefType.getRank(), /*Value=*/0);
         SmallVector<int64_t, 4> steps(memRefType.getRank(), /*Value=*/1);
-        buildAffineLoopNest(rewriter, loc, lowerBounds, memRefType.getShape(), steps,
-                            [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange ivs) {
-                                // Call the processing function with the rewriter, the memref operands,
-                                // and the loop induction variables. This function will return the value
-                                // to store at the current index.
+        mlir::affine::buildAffineLoopNest(
+                rewriter, loc, lowerBounds, memRefType.getShape(), steps,
+                [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange ivs) {
+                    // Call the processing function with the rewriter, the memref operands,
+                    // and the loop induction variables. This function will return the value
+                    // to store at the current index.
 
-                                VPUX_THROW_UNLESS(operands.size() >= 2, "Need to have 2 operands");
+                    VPUX_THROW_UNLESS(operands.size() >= 2, "Need to have 2 operands");
 
-                                auto loadedVal = nestedBuilder.create<mlir::AffineLoadOp>(loc, operands[0], ivs);
-                                auto expTerm = nestedBuilder.create<mlir::math::ExpOp>(loc, loadedVal);
+                    auto loadedVal = nestedBuilder.create<mlir::affine::AffineLoadOp>(loc, operands[0], ivs);
+                    auto expTerm = nestedBuilder.create<mlir::math::ExpOp>(loc, loadedVal);
 
-                                mlir::Value zeroIndex = nestedBuilder.create<mlir::arith::ConstantIndexOp>(loc, 0);
+                    mlir::Value zeroIndex = nestedBuilder.create<mlir::arith::ConstantIndexOp>(loc, 0);
 
-                                auto loadedVal2 = nestedBuilder.create<mlir::AffineLoadOp>(loc, alloc, zeroIndex);
+                    auto loadedVal2 = nestedBuilder.create<mlir::affine::AffineLoadOp>(loc, alloc, zeroIndex);
 
-                                auto addOp = nestedBuilder.create<mlir::arith::AddFOp>(loc, loadedVal2, expTerm);
+                    auto addOp = nestedBuilder.create<mlir::arith::AddFOp>(loc, loadedVal2, expTerm);
 
-                                nestedBuilder.create<mlir::AffineStoreOp>(loc, addOp, alloc, zeroIndex);
-                            });
+                    nestedBuilder.create<mlir::affine::AffineStoreOp>(loc, addOp, alloc, zeroIndex);
+                });
 
         lowerOpToLoops(
                 op, operands, rewriter,
@@ -240,7 +243,7 @@ struct UnaryOpLoweringSoftMax : public mlir::ConversionPattern {
                     // ODS.
                     IERT::SoftMaxOp::Adaptor unaryAdaptor(memRefOperands);
 
-                    auto loadedOpnd = builder.create<mlir::AffineLoadOp>(loc, unaryAdaptor.getInput(), loopIvs);
+                    auto loadedOpnd = builder.create<mlir::affine::AffineLoadOp>(loc, unaryAdaptor.getInput(), loopIvs);
 
                     // Following
                     // https://slaystudy.com/implementation-of-softmax-activation-function-in-c-c/,
@@ -249,7 +252,7 @@ struct UnaryOpLoweringSoftMax : public mlir::ConversionPattern {
                     auto expOp = builder.create<mlir::math::ExpOp>(loc, loadedOpnd);
 
                     mlir::Value zeroIndex = builder.create<mlir::arith::ConstantIndexOp>(loc, 0);
-                    auto acc = builder.create<mlir::AffineLoadOp>(loc, alloc, zeroIndex);
+                    auto acc = builder.create<mlir::affine::AffineLoadOp>(loc, alloc, zeroIndex);
 
                     auto binOp1 = builder.create<mlir::arith::DivFOp>(loc, expOp, acc->getResult(0));
 
@@ -327,7 +330,7 @@ void ConvertSWLayers2AffinePass::processSofwareLayer(mlir::MLIRContext& ctx, mli
                                                      newFuncOp.getArgument(0), mlir::IntegerAttr::get(type32Attr, i)));
         }
 
-        mlir::BlockAndValueMapping mapper;
+        mlir::IRMapping mapper;
         // We map the old values of crtOp to the results of the newExtractParamOp elements
         for (unsigned int i = 0; i < crtOp.getNumOperands(); i++) {
             mapper.map(crtOp.getOperand(i), newExtractParamOp[i].getResult());
@@ -374,8 +377,8 @@ void ConvertSWLayers2AffinePass::safeRunOnModule() {
 
     // We define the specific operations, or dialects, that are legal targets for
     // this lowering. In our case, we are lowering to a combination of the
-    // `Affine`, `Arithmetic`, `MemRef`, and `Func` dialects.
-    target.addLegalDialect<mlir::AffineDialect, mlir::arith::ArithmeticDialect, mlir::memref::MemRefDialect,
+    // `Affine`, `Arith`, `MemRef`, and `Func` dialects.
+    target.addLegalDialect<mlir::affine::AffineDialect, mlir::arith::ArithDialect, mlir::memref::MemRefDialect,
                            mlir::math::MathDialect, mlir::func::FuncDialect>();
 
     // To avoid getting strange legalization errors with operations such as IERT::CosOp, IERT::AsinOp, etc

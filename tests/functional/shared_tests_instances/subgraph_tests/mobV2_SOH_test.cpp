@@ -8,7 +8,9 @@
 #include "vpu_ov1_layer_test.hpp"
 
 namespace SubgraphTestsDefinitions {
-class VPUXMobilenetV2SlicedTest : public mobilenetV2SlicedTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
+class MobilenetV2SlicedSubgraphTestCommon :
+        public mobilenetV2SlicedTest,
+        virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     /* tests for mobilenet v2 split over H unequal subtensors
             input
               |
@@ -25,8 +27,9 @@ class VPUXMobilenetV2SlicedTest : public mobilenetV2SlicedTest, virtual public L
             output
     */
 };
+class MobilenetV2SlicedSubgraphTest_NPU3700 : public MobilenetV2SlicedSubgraphTestCommon {};
 
-TEST_P(VPUXMobilenetV2SlicedTest, HW) {
+TEST_P(MobilenetV2SlicedSubgraphTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
@@ -43,7 +46,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::
 
 const std::vector<std::map<std::string, std::string>> configs = {{{"LOG_LEVEL", "LOG_INFO"}}};
 
-INSTANTIATE_TEST_CASE_P(smoke_mobilenetV2SlicedTest, VPUXMobilenetV2SlicedTest,
+INSTANTIATE_TEST_CASE_P(smoke_mobilenetV2SlicedTest, MobilenetV2SlicedSubgraphTest_NPU3700,
                         ::testing::Combine(::testing::ValuesIn(netPrecisions),
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                            ::testing::ValuesIn(configs)),

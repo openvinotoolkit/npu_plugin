@@ -40,4 +40,3 @@ void IE::IEDialect::registerAttributes() {
 //
 
 #include <vpux/compiler/dialect/IE/enums.cpp.inc>
-#include <vpux/compiler/dialect/IE/structs.cpp.inc>

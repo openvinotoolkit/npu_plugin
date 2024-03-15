@@ -62,7 +62,7 @@ It deals with the following resource types:
 
 ```MLIR
 IE.ExecutorResource 16 of @SHAVE_UPA
-IE.ExecutorResource 4 of @NCE {
+IE.TileResource 4 of @NCE {
     IE.ExecutorResource 5 of @DPU
     IE.ExecutorResource 5 of @SHAVE_NN
     IE.ExecutorResource 1 of @SHAVE_ACT
@@ -101,8 +101,6 @@ The `IE.ExecutorResource` and `IE.MemoryResource` are added by underlying low-le
 
     let hasConstantMaterializer = 1;
     let useDefaultAttributePrinterParser = 1;
-
-    let emitAccessorPrefix = kEmitAccessorPrefix_Both;
 }
 
 #endif

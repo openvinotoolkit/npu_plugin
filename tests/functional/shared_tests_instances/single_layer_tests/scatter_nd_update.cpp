@@ -1,4 +1,3 @@
-//
 // Copyright (C) Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
@@ -9,20 +8,20 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXScatterNDUpdateLayerTest :
+class ScatterNDUpdateLayerTestCommon :
         public ScatterNDUpdateLayerTest,
         virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
-class VPUXScatterNDUpdateLayerTest_VPU3700 : public VPUXScatterNDUpdateLayerTest {};
-class VPUXScatterNDUpdateLayerTest_VPU3720 : public VPUXScatterNDUpdateLayerTest {};
+class ScatterNDUpdateLayerTest_NPU3700 : public ScatterNDUpdateLayerTestCommon {};
+class ScatterNDUpdateLayerTest_NPU3720 : public ScatterNDUpdateLayerTestCommon {};
 
-TEST_P(VPUXScatterNDUpdateLayerTest_VPU3700, HW) {
+TEST_P(ScatterNDUpdateLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXScatterNDUpdateLayerTest_VPU3720, HW) {
+TEST_P(ScatterNDUpdateLayerTest_NPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -51,17 +50,6 @@ std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<size_t>>
           {{2, 2}, {0, 0, 2, 2}},
           {{2, 3}, {0, 0, 0, 2, 2, 2}}}}};
 
-const auto params = testing::Combine(testing::ValuesIn(ScatterNDUpdateLayerTest::combineShapes(sliceSelectInShape)),
-                                     testing::Values(InferenceEngine::Precision::FP16),  // network
-                                     testing::Values(InferenceEngine::Precision::I32),   // indices
-                                     testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
-
-INSTANTIATE_TEST_SUITE_P(smoke_ScatterNDUpdate, VPUXScatterNDUpdateLayerTest_VPU3700, params,
-                         VPUXScatterNDUpdateLayerTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_ScatterNDUpdate_VPU3720, VPUXScatterNDUpdateLayerTest_VPU3720, params,
-                         VPUXScatterNDUpdateLayerTest::getTestCaseName);
-
 // map<inputShape map<indicesShape, indicesValue>>
 // updateShape is gotten from inputShape and indicesShape
 std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<size_t>>> precommit_sliceSelectInShape{
@@ -69,13 +57,28 @@ std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<size_t>>
         {{2, 3}, {{{1, 2}, {1, 2}}}},
 };
 
+const auto params = testing::Combine(testing::ValuesIn(ScatterNDUpdateLayerTest::combineShapes(sliceSelectInShape)),
+                                     testing::Values(InferenceEngine::Precision::FP16),  // network
+                                     testing::Values(InferenceEngine::Precision::I32),   // indices
+                                     testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
+
 const auto precommit_params =
         testing::Combine(testing::ValuesIn(ScatterNDUpdateLayerTest::combineShapes(precommit_sliceSelectInShape)),
                          testing::Values(InferenceEngine::Precision::FP16),  // network
                          testing::Values(InferenceEngine::Precision::I32),   // indices
                          testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_ScatterNDUpdate_VPU3720, VPUXScatterNDUpdateLayerTest_VPU3720,
-                         precommit_params, VPUXScatterNDUpdateLayerTest::getTestCaseName);
+// --------- NPU3700 ---------
+
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterNDUpdate, ScatterNDUpdateLayerTest_NPU3700, params,
+                         ScatterNDUpdateLayerTest::getTestCaseName);
+
+// --------- NPU3720 ---------
+
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterNDUpdate, ScatterNDUpdateLayerTest_NPU3720, params,
+                         ScatterNDUpdateLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_ScatterNDUpdate, ScatterNDUpdateLayerTest_NPU3720, precommit_params,
+                         ScatterNDUpdateLayerTest::getTestCaseName);
 
 }  // namespace

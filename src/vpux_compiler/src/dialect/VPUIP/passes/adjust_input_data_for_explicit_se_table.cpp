@@ -5,8 +5,6 @@
 
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
-#include <mlir/Pass/PassManager.h>
-
 using namespace vpux;
 
 namespace {
@@ -26,23 +24,70 @@ private:
     void safeRunOnFunc() final;
 };
 
+VPU::DistributedTensorAttr updateExplicitDistributedAttrWithSpecificDim(VPU::DistributedTensorAttr dataDistributedAttr,
+                                                                        VPU::DistributedTensorAttr seDistributedAttr,
+                                                                        Dim dim, mlir::MLIRContext* ctx) {
+    auto updateShapes = [&](mlir::ArrayAttr origShapesAttr, mlir::ArrayAttr targetShapesAttr) {
+        auto origShapes = parseIntArrayOfArrayAttr<int64_t>(origShapesAttr);
+        auto targetShapes = parseIntArrayOfArrayAttr<int64_t>(targetShapesAttr);
+        SmallVector<SmallVector<int64_t>> newShapes;
+        newShapes.reserve(origShapes.size());
+        for (auto clusterId : irange(origShapes.size())) {
+            auto newShape = targetShapes[clusterId];
+            newShape[dim.ind()] = origShapes[clusterId][dim.ind()];
+            newShapes.push_back(newShape);
+        }
+        return newShapes;
+    };
+
+    const auto newComputeShapes =
+            updateShapes(dataDistributedAttr.getComputeShapes(), seDistributedAttr.getComputeShapes());
+    const auto newComputeOffsets =
+            updateShapes(dataDistributedAttr.getComputeOffsets(), seDistributedAttr.getComputeOffsets());
+    const auto newMemoryShapes =
+            updateShapes(dataDistributedAttr.getMemoryShapes(), seDistributedAttr.getMemoryShapes());
+    const auto newMemoryOffsets =
+            updateShapes(dataDistributedAttr.getMemoryOffsets(), seDistributedAttr.getMemoryOffsets());
+
+    return VPU::DistributedTensorAttr::get(
+            ctx, dataDistributedAttr.getMode(), dataDistributedAttr.getNumTiles(), nullptr, nullptr, nullptr,
+            dataDistributedAttr.getNumClusters(), dataDistributedAttr.getAlignment(),
+            dataDistributedAttr.getUniformDistributedSegments(), getIntArrayOfArray(ctx, newComputeShapes),
+            getIntArrayOfArray(ctx, newComputeOffsets), getIntArrayOfArray(ctx, newMemoryShapes),
+            getIntArrayOfArray(ctx, newMemoryOffsets), dataDistributedAttr.getEqualMemoryAndComputeView());
+}
+
 void AdjustInputDataForExplicitSETablePass::safeRunOnFunc() {
     auto func = getOperation();
 
     func.walk([&](VPUIP::NCEClusterTaskOp nceOp) {
-        if (nceOp.input_storage_element_table() == nullptr) {
+        if (nceOp.getInputStorageElementTable() == nullptr) {
             return;
         }
 
         _log.trace("Got '{0}' at '{1}'", nceOp->getName(), nceOp->getLoc());
-        VPUX_THROW_UNLESS(nceOp.input_se_size().has_value(), "Missing input storage element size");
+        VPUX_THROW_UNLESS(nceOp.getInputSeSize().has_value(), "Missing input storage element size");
 
         auto getNewType = [&](VPURT::DeclareBufferOp declareOp, mlir::Value seOperand) {
-            auto type = seOperand.getType().cast<vpux::NDTypeInterface>();
-            auto newShape = Shape(type.getShape().raw());
-            newShape[Dims4D::Act::C] *= nceOp.input_se_size().value();
-            auto newType = declareOp.getType().cast<vpux::NDTypeInterface>().changeShape(newShape);
-            return newType;
+            auto seOperandType = seOperand.getType().cast<vpux::NDTypeInterface>();
+            auto dataType = declareOp.getType().cast<vpux::NDTypeInterface>();
+            auto newShape = Shape(seOperandType.getShape().raw());
+            newShape[Dims4D::Act::C] *= nceOp.getInputSeSize().value();
+
+            auto dataDistributedType = mlir::dyn_cast<VPUIP::DistributedBufferType>(dataType);
+            auto seDistributedType = mlir::dyn_cast<VPUIP::DistributedBufferType>(seOperandType);
+            if (dataDistributedType != nullptr && seDistributedType != nullptr) {
+                auto dataDistributedAttr = dataDistributedType.getDistribution();
+                auto seDistributedAttr = seDistributedType.getDistribution();
+                if (dataDistributedAttr.getMemoryShapes() != nullptr &&
+                    seDistributedAttr.getMemoryShapes() != nullptr) {
+                    auto newDistributedAttr = updateExplicitDistributedAttrWithSpecificDim(
+                            dataDistributedAttr, seDistributedAttr, Dims4D::Act::C, nceOp.getContext());
+                    return dataDistributedType.changeShapeForExplicitDistribution(newShape, newDistributedAttr);
+                }
+            }
+
+            return dataType.changeShape(newShape);
         };
 
         auto adaptTypeFor = [&](mlir::Value operand, mlir::Value seOperand) {
@@ -62,8 +107,8 @@ void AdjustInputDataForExplicitSETablePass::safeRunOnFunc() {
             }
         };
 
-        adaptTypeFor(nceOp.input(), nceOp.input_storage_element_table());
-        adaptTypeFor(nceOp.parent_input(), nceOp.parent_input_storage_element_table());
+        adaptTypeFor(nceOp.getInput(), nceOp.getInputStorageElementTable());
+        adaptTypeFor(nceOp.getParentInput(), nceOp.getParentInputStorageElementTable());
     });
 }
 

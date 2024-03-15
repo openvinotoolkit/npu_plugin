@@ -5,21 +5,23 @@
 
 #include "single_layer_tests/eltwise.hpp"
 #include <vector>
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "vpu_ov2_layer_test.hpp"
 
 namespace ov::test::subgraph {
 
-class VPUXEltwiseLayerTest : public EltwiseLayerTest, virtual public VpuOv2LayerTest {};
+class EltwiseLayerTestCommon : public EltwiseLayerTest, virtual public VpuOv2LayerTest {};
 
-class VPUXEltwiseLayerF32Test : public EltwiseLayerTest, virtual public VpuOv2LayerTest {};
+class EltwiseLayerF32TestCommon : public EltwiseLayerTest, virtual public VpuOv2LayerTest {};
+
+class EltwiseEmptyShapeInputTest : public EltwiseLayerTest, virtual public VpuOv2LayerTest {};
 
 using namespace ngraph::helpers;
 
-TEST_P(VPUXEltwiseLayerTest, VPU3700_SW) {
+TEST_P(EltwiseLayerTestCommon, NPU3700_SW) {
     setSkipCompilationCallback([](std::stringstream& skip) {
         const auto eltwiseType = std::get<1>(GetParam());
-        if (eltwiseType == EltwiseTypes::MOD || eltwiseType == EltwiseTypes::ERF) {
+        if (eltwiseType == EltwiseTypes::MOD) {
             skip << "Type is not supported";
         }
         if (eltwiseType == EltwiseTypes::SQUARED_DIFF || eltwiseType == EltwiseTypes::SUBTRACT) {
@@ -31,10 +33,10 @@ TEST_P(VPUXEltwiseLayerTest, VPU3700_SW) {
     run(VPUXPlatform::VPU3700);
 }
 
-TEST_P(VPUXEltwiseLayerTest, VPU3700_HW) {
+TEST_P(EltwiseLayerTestCommon, NPU3700_HW) {
     setSkipCompilationCallback([](std::stringstream& skip) {
         const auto eltwiseType = std::get<1>(GetParam());
-        if (eltwiseType == EltwiseTypes::MOD || eltwiseType == EltwiseTypes::ERF) {
+        if (eltwiseType == EltwiseTypes::MOD) {
             skip << "Type is not supported";
         }
         if (eltwiseType == EltwiseTypes::SQUARED_DIFF) {
@@ -46,51 +48,17 @@ TEST_P(VPUXEltwiseLayerTest, VPU3700_HW) {
     run(VPUXPlatform::VPU3700);
 }
 
-TEST_P(VPUXEltwiseLayerTest, VPU3720_SW) {
-    setSkipCompilationCallback([](std::stringstream& skip) {
-        const auto eltwiseType = std::get<1>(GetParam());
-        const auto netPrecisions = std::get<4>(GetParam());
-        // [Tracking number: E#73421]
-        if (eltwiseType == EltwiseTypes::ERF) {
-            skip << "Not compiling";
-        }
-        if (eltwiseType == EltwiseTypes::MOD && netPrecisions == ov::element::i32) {
-            skip << "Not implemented";
-        }
-    });
-
-    setSkipInferenceCallback([](std::stringstream& skip) {
-        const auto eltwiseType = std::get<1>(GetParam());
-        // [Tracking number: E#73421]
-        if (eltwiseType == EltwiseTypes::MOD) {
-            skip << "Type is not supported";
-        }
-    });
-
+TEST_P(EltwiseLayerTestCommon, NPU3720_SW) {
     setReferenceSoftwareMode();
     run(VPUXPlatform::VPU3720);
 }
 
-TEST_P(VPUXEltwiseLayerTest, VPU3720_HW) {
+TEST_P(EltwiseLayerTestCommon, NPU3720_HW) {
     setSkipCompilationCallback([](std::stringstream& skip) {
         const auto eltwiseType = std::get<1>(GetParam());
         const auto netPrecisions = std::get<4>(GetParam());
-        // [Tracking number: E#73421]
-        if (eltwiseType == EltwiseTypes::SQUARED_DIFF || eltwiseType == EltwiseTypes::ERF) {
-            skip << "Not compiling";
-        }
         // [Tracking number: E#82236]
         if (netPrecisions == ov::element::i32) {
-            skip << "Type is not supported";
-        }
-    });
-
-    setSkipInferenceCallback([](std::stringstream& skip) {
-        const auto eltwiseType = std::get<1>(GetParam());
-        const auto secondInputType = std::get<2>(GetParam());
-
-        // [Tracking number: E#73421]
-        if (eltwiseType == EltwiseTypes::MOD) {
             skip << "Type is not supported";
         }
     });
@@ -99,45 +67,30 @@ TEST_P(VPUXEltwiseLayerTest, VPU3720_HW) {
     run(VPUXPlatform::VPU3720);
 }
 
-TEST_P(VPUXEltwiseLayerF32Test, VPU3720_SW) {
+TEST_P(EltwiseLayerF32TestCommon, NPU3720_SW) {
     setReferenceSoftwareMode();
     run(VPUXPlatform::VPU3720);
 }
 
-TEST_P(VPUXEltwiseLayerF32Test, VPU3720_HW) {
+TEST_P(EltwiseLayerF32TestCommon, NPU3720_HW) {
     setSkipCompilationCallback([](std::stringstream& skip) {
         const auto eltwiseType = std::get<1>(GetParam());
         const auto netPrecisions = std::get<4>(GetParam());
-        // [Tracking number: E#73421]
-        if (eltwiseType == EltwiseTypes::SQUARED_DIFF || eltwiseType == EltwiseTypes::ERF) {
-            skip << "Not compiling";
-        }
-        // [Tracking number: E#82236]
-        if (netPrecisions == ov::element::i32) {
-            skip << "Type is not supported";
-        }
-
-        if (netPrecisions == ov::element::f32 &
-            (eltwiseType == EltwiseTypes::ADD || eltwiseType == EltwiseTypes::MULTIPLY ||
-             eltwiseType == EltwiseTypes::POWER)) {
-            skip << "ADD will be converted to IE.scaleshift in AdjustScaleShiftForDWConv in HW Mode. "
+        if (netPrecisions == ov::element::f32) {
+            skip << "FP32 operations will be converted to IE.scaleshift in AdjustScaleShiftForDWConv in HW Mode. "
                     "IE.scaleshift is a NCE task which do not support FP32";
         }
     });
 
-    setSkipInferenceCallback([](std::stringstream& skip) {
-        const auto eltwiseType = std::get<1>(GetParam());
-        const auto secondInputType = std::get<2>(GetParam());
-
-        // [Tracking number: E#73421]
-        if (eltwiseType == EltwiseTypes::MOD) {
-            skip << "Type is not supported";
-        }
-    });
-
     setDefaultHardwareMode();
     run(VPUXPlatform::VPU3720);
 }
+
+TEST_P(EltwiseEmptyShapeInputTest, NPU3720_HW) {
+    setDefaultHardwareMode();
+    run(VPUXPlatform::VPU3720);
+}
+
 }  // namespace ov::test::subgraph
 
 namespace {
@@ -158,9 +111,9 @@ std::vector<InputLayerType> secondaryInputTypes = {
         InputLayerType::CONSTANT,
 };
 
-std::vector<CommonTestUtils::OpType> opTypes = {
-        CommonTestUtils::OpType::VECTOR,
-        CommonTestUtils::OpType::SCALAR,
+std::vector<ov::test::utils::OpType> opTypes = {
+        ov::test::utils::OpType::VECTOR,
+        ov::test::utils::OpType::SCALAR,
 };
 
 //
@@ -169,9 +122,10 @@ std::vector<CommonTestUtils::OpType> opTypes = {
 
 std::set<EltwiseTypes> eltwiseTypes = {EltwiseTypes::ADD,       EltwiseTypes::MULTIPLY,     EltwiseTypes::SUBTRACT,
                                        EltwiseTypes::DIVIDE,    EltwiseTypes::SQUARED_DIFF, EltwiseTypes::POWER,
-                                       EltwiseTypes::FLOOR_MOD, EltwiseTypes::MOD,          EltwiseTypes::ERF};
+                                       EltwiseTypes::FLOOR_MOD, EltwiseTypes::MOD};
 
-std::set<EltwiseTypes> eltwiseTypesF32 = {EltwiseTypes::ADD, EltwiseTypes::MULTIPLY, EltwiseTypes::POWER};
+std::set<EltwiseTypes> eltwiseTypesF32 = {EltwiseTypes::ADD, EltwiseTypes::MULTIPLY, EltwiseTypes::POWER,
+                                          EltwiseTypes::DIVIDE};
 
 std::vector<std::vector<ov::Shape>> bigShape = {{{1, 10, 256, 256}, {1, 10, 256, 256}}};
 
@@ -180,19 +134,19 @@ const auto typesParams =
                            ::testing::ValuesIn(eltwiseTypes), ::testing::ValuesIn(secondaryInputTypes),
                            ::testing::ValuesIn(opTypes), ::testing::ValuesIn(netPrecisions),
                            ::testing::Values(ov::element::undefined), ::testing::Values(ov::element::undefined),
-                           ::testing::Values(targetDevice), ::testing::Values(ov::test::Config{}));
+                           ::testing::Values(ov::test::utils::DEVICE_NPU), ::testing::Values(ov::test::Config{}));
 
-INSTANTIATE_TEST_SUITE_P(precommit_EltwiseTypes, VPUXEltwiseLayerTest, typesParams,
-                         VPUXEltwiseLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(precommit_EltwiseTypes, EltwiseLayerTestCommon, typesParams,
+                         EltwiseLayerTestCommon::getTestCaseName);
 
 const auto typesParamsF32 = ::testing::Combine(
         ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(bigShape)),
         ::testing::ValuesIn(eltwiseTypesF32), ::testing::ValuesIn(secondaryInputTypes), ::testing::ValuesIn(opTypes),
         ::testing::ValuesIn(netPrecisionsF32), ::testing::Values(ov::element::f32), ::testing::Values(ov::element::f32),
-        ::testing::Values(targetDevice), ::testing::Values(ov::test::Config{}));
+        ::testing::Values(ov::test::utils::DEVICE_NPU), ::testing::Values(ov::test::Config{}));
 
-INSTANTIATE_TEST_SUITE_P(precommit_EltwiseTypesF32, VPUXEltwiseLayerF32Test, typesParamsF32,
-                         VPUXEltwiseLayerF32Test::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(precommit_EltwiseTypesF32, EltwiseLayerF32TestCommon, typesParamsF32,
+                         EltwiseLayerF32TestCommon::getTestCaseName);
 
 //
 // Scalar mode
@@ -208,22 +162,22 @@ std::vector<std::vector<ov::Shape>> inShapesScalar = {
 const auto scalarParams =
         ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapesScalar)),
                            ::testing::ValuesIn(eltwiseTypes), ::testing::ValuesIn(secondaryInputTypes),
-                           ::testing::Values(CommonTestUtils::OpType::SCALAR), ::testing::ValuesIn(netPrecisions),
+                           ::testing::Values(ov::test::utils::OpType::SCALAR), ::testing::ValuesIn(netPrecisions),
                            ::testing::Values(ov::element::undefined), ::testing::Values(ov::element::undefined),
-                           ::testing::Values(targetDevice), ::testing::Values(ov::test::Config{}));
+                           ::testing::Values(ov::test::utils::DEVICE_NPU), ::testing::Values(ov::test::Config{}));
 
-INSTANTIATE_TEST_SUITE_P(smoke_ScalarShapesND, VPUXEltwiseLayerTest, scalarParams,
-                         VPUXEltwiseLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ScalarShapesND, EltwiseLayerTestCommon, scalarParams,
+                         EltwiseLayerTestCommon::getTestCaseName);
 
 const auto scalarParamsF32 =
         ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapesScalar)),
                            ::testing::ValuesIn(eltwiseTypesF32), ::testing::ValuesIn(secondaryInputTypes),
-                           ::testing::Values(CommonTestUtils::OpType::SCALAR), ::testing::ValuesIn(netPrecisionsF32),
+                           ::testing::Values(ov::test::utils::OpType::SCALAR), ::testing::ValuesIn(netPrecisionsF32),
                            ::testing::Values(ov::element::f32), ::testing::Values(ov::element::f32),
-                           ::testing::Values(targetDevice), ::testing::Values(ov::test::Config{}));
+                           ::testing::Values(ov::test::utils::DEVICE_NPU), ::testing::Values(ov::test::Config{}));
 
-INSTANTIATE_TEST_SUITE_P(smoke_ScalarShapesNDF32, VPUXEltwiseLayerF32Test, scalarParamsF32,
-                         VPUXEltwiseLayerF32Test::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ScalarShapesNDF32, EltwiseLayerF32TestCommon, scalarParamsF32,
+                         EltwiseLayerF32TestCommon::getTestCaseName);
 
 //
 // Vector mode
@@ -245,21 +199,40 @@ std::vector<std::vector<ov::Shape>> inShapesVector = {
 const auto vectorParams =
         ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapesVector)),
                            ::testing::ValuesIn(eltwiseTypes), ::testing::ValuesIn(secondaryInputTypes),
-                           ::testing::Values(CommonTestUtils::OpType::VECTOR), ::testing::ValuesIn(netPrecisions),
+                           ::testing::Values(ov::test::utils::OpType::VECTOR), ::testing::ValuesIn(netPrecisions),
                            ::testing::Values(ov::element::undefined), ::testing::Values(ov::element::undefined),
-                           ::testing::Values(targetDevice), ::testing::Values(ov::test::Config{}));
+                           ::testing::Values(ov::test::utils::DEVICE_NPU), ::testing::Values(ov::test::Config{}));
 
-INSTANTIATE_TEST_SUITE_P(smoke_VectorShapesND, VPUXEltwiseLayerTest, vectorParams,
-                         VPUXEltwiseLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_VectorShapesND, EltwiseLayerTestCommon, vectorParams,
+                         EltwiseLayerTestCommon::getTestCaseName);
 
 const auto vectorParamsF32 =
         ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapesVector)),
                            ::testing::ValuesIn(eltwiseTypesF32), ::testing::ValuesIn(secondaryInputTypes),
-                           ::testing::Values(CommonTestUtils::OpType::VECTOR), ::testing::ValuesIn(netPrecisionsF32),
+                           ::testing::Values(ov::test::utils::OpType::VECTOR), ::testing::ValuesIn(netPrecisionsF32),
                            ::testing::Values(ov::element::f32), ::testing::Values(ov::element::f32),
-                           ::testing::Values(targetDevice), ::testing::Values(ov::test::Config{}));
+                           ::testing::Values(ov::test::utils::DEVICE_NPU), ::testing::Values(ov::test::Config{}));
 
-INSTANTIATE_TEST_SUITE_P(smoke_VectorShapesNDF32, VPUXEltwiseLayerF32Test, vectorParamsF32,
-                         VPUXEltwiseLayerF32Test::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_VectorShapesNDF32, EltwiseLayerF32TestCommon, vectorParamsF32,
+                         EltwiseLayerF32TestCommon::getTestCaseName);
+
+//
+//  This case to test the support for empty shape input for Add and Multiply ops
+//
+std::set<EltwiseTypes> eltwise0DInputOps = {EltwiseTypes::ADD, EltwiseTypes::MULTIPLY};
+
+std::vector<std::vector<ov::Shape>> eltwise0DInputShape = {
+        {{}},  // 0D
+};
+
+const auto vectorParamsEmptyShapeInput =
+        ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(eltwise0DInputShape)),
+                           ::testing::ValuesIn(eltwise0DInputOps), ::testing::ValuesIn(secondaryInputTypes),
+                           ::testing::Values(ov::test::utils::OpType::SCALAR), ::testing::ValuesIn(netPrecisionsF32),
+                           ::testing::Values(ov::element::f32), ::testing::Values(ov::element::f32),
+                           ::testing::Values(ov::test::utils::DEVICE_NPU), ::testing::Values(ov::test::Config{}));
+
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_0DInputTest, EltwiseEmptyShapeInputTest, vectorParamsEmptyShapeInput,
+                         EltwiseEmptyShapeInputTest::getTestCaseName);
 
 }  // namespace

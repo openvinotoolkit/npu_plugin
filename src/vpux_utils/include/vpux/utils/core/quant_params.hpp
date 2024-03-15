@@ -4,6 +4,8 @@
 //
 
 //
+
+//
 // Quantization parameters
 //
 
@@ -29,6 +31,6 @@ struct QuantizationParam {
 /**
  * @brief Quantization parameters map
  */
-using QuantizationParamMap = std::unordered_map<std::string, Optional<QuantizationParam>>;
+using QuantizationParamMap = std::unordered_map<std::string, std::optional<QuantizationParam>>;
 
 }  // namespace vpux

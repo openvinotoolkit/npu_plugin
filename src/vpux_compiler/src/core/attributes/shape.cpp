@@ -24,13 +24,13 @@ using namespace vpux;
 
 bool vpux::details::isDynamicDimValues(ArrayRef<int64_t> shape) {
     return std::any_of(shape.begin(), shape.end(), [](int64_t val) {
-        return val <= 0;
+        return val < 0;
     });
 }
 
 int64_t vpux::details::calcTotalShapeSize(ArrayRef<int64_t> shape) {
     return std::accumulate(shape.begin(), shape.end(), int64_t{1}, [](int64_t acc, int64_t d) {
-        VPUX_THROW_UNLESS(d > 0, "Can't compute total shape size on dynamic shape");
+        VPUX_THROW_UNLESS(d >= 0, "Can't compute total shape size on dynamic shape");
         const auto mult = acc * d;
         VPUX_THROW_UNLESS(mult >= 0, "integer overflow in element count computation");
         return mult;

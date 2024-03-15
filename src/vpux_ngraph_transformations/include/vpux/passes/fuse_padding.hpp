@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 
 //
 // Merge [Pad] -> [Conv] into [Conv].
@@ -16,7 +16,7 @@
 namespace vpux {
 namespace pass {
 
-class FusePadding : public ngraph::pass::MatcherPass {
+class FusePadding : public ov::pass::MatcherPass {
 public:
     FusePadding();
 

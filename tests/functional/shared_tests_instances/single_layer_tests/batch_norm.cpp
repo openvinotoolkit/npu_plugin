@@ -8,11 +8,11 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXBatchNormLayerTest : public BatchNormLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
+class BatchNormLayerTestCommon : public BatchNormLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
-class VPUXBatchNormLayerTest_VPU3720 : public VPUXBatchNormLayerTest {};
+class BatchNormLayerTest_NPU3720 : public BatchNormLayerTestCommon {};
 
-TEST_P(VPUXBatchNormLayerTest_VPU3720, SW) {
+TEST_P(BatchNormLayerTest_NPU3720, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
@@ -52,7 +52,12 @@ const auto paramsPrecommit = testing::Combine(testing::Values(0.001),           
                                               testing::ValuesIn(inShapes_precommit),
                                               testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_BatchNorm, VPUXBatchNormLayerTest_VPU3720, paramsPrecommit,
-                         VPUXBatchNormLayerTest_VPU3720::getTestCaseName);
+// ------ NPU3720 ------
+
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_BatchNorm, BatchNormLayerTest_NPU3720, paramsPrecommit,
+                         BatchNormLayerTest_NPU3720::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_BatchNorm, BatchNormLayerTest_NPU3720, paramsConfig,
+                         BatchNormLayerTest_NPU3720::getTestCaseName);
 
 }  // namespace

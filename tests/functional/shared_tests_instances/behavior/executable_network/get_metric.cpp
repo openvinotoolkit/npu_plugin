@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2018-2020 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
@@ -6,9 +5,10 @@
 #include "behavior/executable_network/get_metric.hpp"
 #include <functional_test_utils/skip_tests_config.hpp>
 #include "common/functions.h"
+#include "common/utils.hpp"
 #include "common_test_utils/file_utils.hpp"
-#include "vpux/vpux_metrics.hpp"
-#include "vpux_private_config.hpp"
+#include "vpux/properties.hpp"
+#include "vpux_private_properties.hpp"
 
 using namespace BehaviorTestsDefinitions;
 using IEClassExecutableNetworkGetMetricTest_nightly = IEClassExecutableNetworkGetMetricTest;
@@ -16,7 +16,7 @@ using IEClassExecutableNetworkGetConfigTest_nightly = IEClassExecutableNetworkGe
 
 namespace {
 std::vector<std::string> devices = {
-        std::string(CommonTestUtils::DEVICE_KEEMBAY),
+        std::string(ov::test::utils::DEVICE_NPU),
 };
 
 //

@@ -8,7 +8,6 @@
 #include <mlir/Dialect/Bufferization/Transforms/Bufferize.h>
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/AffineMap.h>
-#include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/BuiltinOps.h>
@@ -16,6 +15,7 @@
 #include <mlir/IR/Diagnostics.h>
 #include <mlir/IR/Dialect.h>
 #include <mlir/IR/DialectImplementation.h>
+#include <mlir/IR/IRMapping.h>
 #include <mlir/IR/Location.h>
 #include <mlir/IR/MLIRContext.h>
 #include <mlir/IR/OpDefinition.h>

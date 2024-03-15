@@ -19,9 +19,6 @@ namespace vpux {
 using llvm::ArrayRef;
 using llvm::MutableArrayRef;
 
-using llvm::makeArrayRef;
-using llvm::makeMutableArrayRef;
-
 }  // namespace vpux
 
 //

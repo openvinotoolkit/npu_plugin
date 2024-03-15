@@ -5,7 +5,6 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
-#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
 #include <mlir/IR/PatternMatch.h>
@@ -17,8 +16,8 @@ using namespace vpux;
 //
 
 mlir::LogicalResult vpux::IE::CopyOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -27,14 +26,14 @@ mlir::LogicalResult vpux::IE::CopyOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto ndInType = copyOp.input().getType().dyn_cast<vpux::NDTypeInterface>();
+    const auto ndInType = copyOp.getInput().getType().dyn_cast<vpux::NDTypeInterface>();
     if (ndInType == nullptr) {
         return errorAt(loc, "IE::CopyOp operand must have vpux::NDTypeInterface type");
     }
 
     IndexedSymbolAttr outMemSpace = nullptr;
-    if (copyOp.out_mem_space().has_value()) {
-        outMemSpace = copyOp.out_mem_space().value();
+    if (copyOp.getOutMemSpace().has_value()) {
+        outMemSpace = copyOp.getOutMemSpace().value();
     }
     const auto outType = ndInType.changeMemSpace(outMemSpace).cast<mlir::RankedTensorType>();
 
@@ -46,9 +45,9 @@ mlir::LogicalResult vpux::IE::CopyOp::inferReturnTypeComponents(
 // fold
 //
 
-mlir::OpFoldResult vpux::IE::CopyOp::fold(ArrayRef<mlir::Attribute>) {
-    if (input().getType() == output().getType()) {
-        return input();
+mlir::OpFoldResult vpux::IE::CopyOp::fold(FoldAdaptor) {
+    if (getInput().getType() == getOutput().getType()) {
+        return getInput();
     }
 
     return nullptr;
@@ -68,12 +67,12 @@ public:
 };
 
 mlir::LogicalResult FuseCopies::matchAndRewrite(IE::CopyOp origOp, mlir::PatternRewriter& rewriter) const {
-    auto producerCopyOp = origOp.input().getDefiningOp<IE::CopyOp>();
+    auto producerCopyOp = origOp.getInput().getDefiningOp<IE::CopyOp>();
     if (producerCopyOp == nullptr) {
         return mlir::failure();
     }
 
-    rewriter.replaceOpWithNewOp<IE::CopyOp>(origOp, producerCopyOp.input(), origOp.out_mem_spaceAttr());
+    rewriter.replaceOpWithNewOp<IE::CopyOp>(origOp, producerCopyOp.getInput(), origOp.getOutMemSpaceAttr());
     return mlir::success();
 }
 

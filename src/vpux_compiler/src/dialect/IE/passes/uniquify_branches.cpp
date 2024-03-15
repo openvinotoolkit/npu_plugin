@@ -6,15 +6,11 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/utils/permute_infer.hpp"
-#include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
-#include <mlir/IR/BlockAndValueMapping.h>
+#include <mlir/IR/IRMapping.h>
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
-
-#include <llvm/ADT/TypeSwitch.h>
-#include <vpux/compiler/conversion.hpp>
 
 using namespace vpux;
 
@@ -47,6 +43,20 @@ bool doesSliceAndPermutationModifySameAxis(DimsOrder perm, ArrayRef<uint64_t> sl
     return false;
 }
 
+SmallVector<uint64_t> getSliceAxes(IE::SliceOp sliceOp) {
+    auto sliceInShape = getShape(sliceOp.getSource());
+    auto sizes = parseIntArrayAttr<int64_t>(sliceOp.getStaticSizes());
+
+    SmallVector<uint64_t> sliceAxes;
+    for (size_t dimIdx = 0; dimIdx < sizes.size(); dimIdx++) {
+        if (sliceInShape[Dim(dimIdx)] != sizes[dimIdx]) {
+            sliceAxes.push_back(static_cast<uint64_t>(dimIdx));
+        }
+    }
+
+    return sliceAxes;
+}
+
 template <typename ConcreteOp>
 class MoveLayerBeforeSlice : public mlir::OpRewritePattern<ConcreteOp> {
 public:
@@ -57,6 +67,10 @@ public:
     mlir::LogicalResult matchAndRewrite(ConcreteOp layerOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
+    virtual bool isLegalTransformation(IE::SliceOp sliceOp, ConcreteOp layerOp,
+                                       ArrayRef<ConcreteOp> siblingLayerOps) const;
+    virtual bool isBeneficialTransformation(IE::SliceOp sliceOp, ConcreteOp layerOp,
+                                            ArrayRef<ConcreteOp> siblingLayerOps) const;
     virtual bool doesSliceAndLayerOpModifySameAxis(IE::SliceOp sliceOp, ArrayRef<uint64_t> sliceAxes,
                                                    ConcreteOp layerOp) const = 0;
     virtual bool sameAttributes(ConcreteOp layerOp, ConcreteOp currLayerOp) const = 0;
@@ -71,14 +85,34 @@ protected:
 };
 
 template <typename ConcreteOp>
+bool MoveLayerBeforeSlice<ConcreteOp>::isLegalTransformation(IE::SliceOp sliceOp, ConcreteOp layerOp,
+                                                             ArrayRef<ConcreteOp> siblingLayerOps) const {
+    const auto sliceAxes = getSliceAxes(sliceOp);
+    if (doesSliceAndLayerOpModifySameAxis(sliceOp, sliceAxes, layerOp)) {
+        return false;
+    }
+
+    if (!isBeneficialTransformation(sliceOp, layerOp, siblingLayerOps)) {
+        return false;
+    }
+
+    return true;
+}
+
+template <typename ConcreteOp>
+bool MoveLayerBeforeSlice<ConcreteOp>::isBeneficialTransformation(IE::SliceOp, ConcreteOp, ArrayRef<ConcreteOp>) const {
+    return true;
+}
+
+template <typename ConcreteOp>
 mlir::LogicalResult MoveLayerBeforeSlice<ConcreteOp>::matchAndRewrite(ConcreteOp layerOp,
                                                                       mlir::PatternRewriter& rewriter) const {
-    auto maybeSliceOp = layerOp.input().template getDefiningOp<IE::SliceOp>();
+    auto maybeSliceOp = layerOp.getInput().template getDefiningOp<IE::SliceOp>();
     if (maybeSliceOp == nullptr) {
         return mlir::failure();
     }
 
-    auto sliceSrcUsers = maybeSliceOp.source().getUsers();
+    auto sliceSrcUsers = maybeSliceOp.getSource().getUsers();
 
     auto hasAnotherSlice = llvm::any_of(sliceSrcUsers, [&](mlir::Operation* user) {
         auto anotherSlice = mlir::dyn_cast<IE::SliceOp>(user);
@@ -92,59 +126,55 @@ mlir::LogicalResult MoveLayerBeforeSlice<ConcreteOp>::matchAndRewrite(ConcreteOp
     _log.trace("Got layer op: {0}", layerOp);
     _log.trace("Parent slice: {0}", maybeSliceOp);
 
-    auto sliceInShape = getShape(maybeSliceOp.source());
-    auto sizes = parseIntArrayAttr<int64_t>(maybeSliceOp.static_sizes());
-
-    SmallVector<uint64_t> sliceAxes;
-    for (size_t dimIdx = 0; dimIdx < sizes.size(); dimIdx++) {
-        if (sliceInShape[Dim(dimIdx)] != sizes[dimIdx]) {
-            sliceAxes.push_back(static_cast<uint64_t>(dimIdx));
-        }
-    }
-
-    if (doesSliceAndLayerOpModifySameAxis(maybeSliceOp, sliceAxes, layerOp)) {
-        return mlir::failure();
-    }
-
+    SmallVector<ConcreteOp> siblingLayerOps;
     const auto isSameSliceLayerBranch = [&](mlir::Operation* user) {
         auto currSliceOp = mlir::dyn_cast<IE::SliceOp>(user);
         if (currSliceOp == nullptr) {
             return true;
         }
 
-        if (!currSliceOp.result().hasOneUse()) {
+        if (!currSliceOp.getResult().hasOneUse()) {
             return false;
         }
 
-        if (currSliceOp.static_sizesAttr() != maybeSliceOp.static_sizesAttr()) {
+        if (currSliceOp.getStaticSizesAttr() != maybeSliceOp.getStaticSizesAttr()) {
             return false;
         }
 
-        auto currLayerOp = mlir::dyn_cast<ConcreteOp>(*currSliceOp.result().getUsers().begin());
+        auto currLayerOp = mlir::dyn_cast<ConcreteOp>(*currSliceOp.getResult().getUsers().begin());
         if (currLayerOp == nullptr) {
             return false;
         }
 
+        siblingLayerOps.push_back(currLayerOp);
+
         return sameAttributes(layerOp, currLayerOp);
     };
 
-    for (auto user : maybeSliceOp.source().getUsers()) {
+    const auto root = maybeSliceOp.getSource();
+    for (auto user : root.getUsers()) {
         if (!isSameSliceLayerBranch(user)) {
             return mlir::failure();
         }
+    }
+
+    if (!isLegalTransformation(maybeSliceOp, layerOp, siblingLayerOps)) {
+        return mlir::failure();
     }
 
     auto newLayerOp = createNewLayerOp(layerOp, maybeSliceOp, rewriter);
     _log.trace("Create new layer op: {0}", newLayerOp);
 
     auto newSizes = getNewSizes(maybeSliceOp, layerOp);
-    for (auto user : maybeSliceOp.source().getUsers()) {
+
+    const auto sliceAxes = getSliceAxes(maybeSliceOp);
+    for (auto user : root.getUsers()) {
         auto sliceOp = mlir::dyn_cast<IE::SliceOp>(user);
         if (sliceOp == nullptr) {
             continue;
         }
 
-        auto currLayerOp = mlir::dyn_cast<ConcreteOp>(*sliceOp.result().getUsers().begin());
+        auto currLayerOp = mlir::dyn_cast<ConcreteOp>(*sliceOp.getResult().getUsers().begin());
         auto newOffsets = getNewOffsets(sliceOp, sliceAxes, currLayerOp);
 
         auto newSlice = rewriter.create<IE::SliceOp>(currLayerOp->getLoc(), newLayerOp->getResult(0),
@@ -152,7 +182,7 @@ mlir::LogicalResult MoveLayerBeforeSlice<ConcreteOp>::matchAndRewrite(ConcreteOp
                                                      getIntArrayAttr(newLayerOp->getContext(), newSizes));
         _log.trace("Create new Slice: {0}", newSlice);
 
-        rewriter.replaceOp(currLayerOp, newSlice.result());
+        rewriter.replaceOp(currLayerOp, newSlice.getResult());
     }
 
     return mlir::success();
@@ -161,10 +191,10 @@ mlir::LogicalResult MoveLayerBeforeSlice<ConcreteOp>::matchAndRewrite(ConcreteOp
 template <typename ConcreteOp>
 mlir::Operation* MoveLayerBeforeSlice<ConcreteOp>::createNewLayerOp(ConcreteOp layerOp, IE::SliceOp sliceOp,
                                                                     mlir::PatternRewriter& rewriter) const {
-    mlir::BlockAndValueMapping mapper;
-    mapper.map(layerOp->getOperands(), makeArrayRef({sliceOp.source()}));
+    mlir::IRMapping mapper;
+    mapper.map(layerOp->getOperands(), ArrayRef({sliceOp.getSource()}));
 
-    rewriter.setInsertionPointAfterValue(sliceOp.source());
+    rewriter.setInsertionPointAfterValue(sliceOp.getSource());
     auto* newLayerOp = rewriter.clone(*layerOp.getOperation(), mapper);
     vpux::inferReturnTypes(newLayerOp, vpux::InferShapedTypeMode::ALL);
     return newLayerOp;
@@ -173,7 +203,7 @@ mlir::Operation* MoveLayerBeforeSlice<ConcreteOp>::createNewLayerOp(ConcreteOp l
 template <typename ConcreteOp>
 SmallVector<int64_t> MoveLayerBeforeSlice<ConcreteOp>::getNewOffsets(IE::SliceOp sliceOp, ArrayRef<uint64_t>,
                                                                      ConcreteOp) const {
-    return parseIntArrayAttr<int64_t>(sliceOp.static_offsets());
+    return parseIntArrayAttr<int64_t>(sliceOp.getStaticOffsets());
 }
 
 //
@@ -194,8 +224,8 @@ private:
 
 bool MoveExpandBeforeSlice::doesSliceAndLayerOpModifySameAxis(IE::SliceOp sliceOp, ArrayRef<uint64_t> sliceAxes,
                                                               IE::ExpandOp layerOp) const {
-    auto sizes = parseIntArrayAttr<int64_t>(sliceOp.static_sizes());
-    auto expandedShape = getShape(layerOp.output());
+    auto sizes = parseIntArrayAttr<int64_t>(sliceOp.getStaticSizes());
+    auto expandedShape = getShape(layerOp.getOutput());
 
     for (auto axis : sliceAxes) {
         if (sizes[axis] != expandedShape[Dim(axis)]) {
@@ -208,16 +238,16 @@ bool MoveExpandBeforeSlice::doesSliceAndLayerOpModifySameAxis(IE::SliceOp sliceO
 }
 
 bool MoveExpandBeforeSlice::sameAttributes(IE::ExpandOp layerOp, IE::ExpandOp currLayerOp) const {
-    return layerOp.pads_beginAttr() == currLayerOp.pads_beginAttr() &&
-           layerOp.pads_endAttr() == currLayerOp.pads_endAttr();
+    return layerOp.getPadsBeginAttr() == currLayerOp.getPadsBeginAttr() &&
+           layerOp.getPadsEndAttr() == currLayerOp.getPadsEndAttr();
 }
 
 SmallVector<int64_t> MoveExpandBeforeSlice::getNewSizes(IE::SliceOp sliceOp, IE::ExpandOp layerOp) const {
-    auto begin = parseIntArrayAttr<int64_t>(layerOp.pads_begin());
-    auto end = parseIntArrayAttr<int64_t>(layerOp.pads_end());
-    auto expandedShape = getShape(layerOp.output());
+    auto begin = parseIntArrayAttr<int64_t>(layerOp.getPadsBegin());
+    auto end = parseIntArrayAttr<int64_t>(layerOp.getPadsEnd());
+    auto expandedShape = getShape(layerOp.getOutput());
 
-    auto sizes = parseIntArrayAttr<int64_t>(sliceOp.static_sizes());
+    auto sizes = parseIntArrayAttr<int64_t>(sliceOp.getStaticSizes());
 
     SmallVector<int64_t> newSizes(expandedShape.size(), 0);
     for (size_t i = 0; i < expandedShape.size(); i++) {
@@ -237,23 +267,84 @@ public:
     }
 
 public:
+    bool isBeneficialTransformation(IE::SliceOp sliceOp, IE::ReorderOp layerOp,
+                                    ArrayRef<IE::ReorderOp> siblingLayerOps) const override;
+
     bool doesSliceAndLayerOpModifySameAxis(IE::SliceOp sliceOp, ArrayRef<uint64_t> sliceAxes,
                                            IE::ReorderOp layerOp) const override;
     bool sameAttributes(IE::ReorderOp layerOp, IE::ReorderOp currLayerOp) const override;
     SmallVector<int64_t> getNewSizes(IE::SliceOp sliceOp, IE::ReorderOp layerOp) const override;
 };
 
-bool MoveReorderBeforeSlice::doesSliceAndLayerOpModifySameAxis(IE::SliceOp, ArrayRef<uint64_t> sliceAxes,
-                                                               IE::ReorderOp layerOp) const {
-    const auto perm = DimsOrder::fromAffineMap(layerOp.dstOrder());
-    return doesSliceAndPermutationModifySameAxis(perm, sliceAxes, _log);
+bool MoveReorderBeforeSlice::doesSliceAndLayerOpModifySameAxis(IE::SliceOp, ArrayRef<uint64_t>, IE::ReorderOp) const {
+    /*
+        IE.Reorder changes tensor layout but does not change tensor logical shape.
+        IE.Slice operates with logic shape, not with physical layouts.
+        We don't need to check for axes when we try to swap IE.Slice and IE.Reorder.
+
+        For example, if we have a 3x4 tensor (N = 3, C = 4) in NC layout:
+            [11, 12, 13, 14]
+            [21, 22, 23, 24]
+            [31, 32, 33, 34]
+
+        The 1st Case - Reorder after Slice
+        step 1: IE.Slice static_offset = [0, 1] and static_shape = [2, 2], we get tensor in below:
+            [12, 13]
+            [22, 23]
+
+        step 2: IE.Reorder changes layout from NC to CN, we get data in memory as below:
+            [12, 22] [13, 23]
+
+        The 2nd Case - Slice after Reorder
+        step 1: IE.Reorder changes layout from NC to CN, we get data in memory as below:
+            [11, 21, 31] [12, 22, 32] [13, 23, 33] [14, 24, 34]
+
+        step 2: IE.Slice static_offset = [0, 1] and static_shape = [2, 2], we get tensor in below:
+            [12, 22] [13, 23]
+
+        The results of the two cases are completely identical.
+        This is applicable to higher ranks as well.
+    */
+
+    return false;
 }
+
+bool MoveReorderBeforeSlice::isBeneficialTransformation(IE::SliceOp sliceOp, IE::ReorderOp layerOp,
+                                                        ArrayRef<IE::ReorderOp> siblingLayerOps) const {
+    // transformation is beneficial when reorder tensor total size can be decreased
+    int64_t parallelReordersTotalSize = 0;
+    for (auto reorder : siblingLayerOps) {
+        // no need to calculate reoder data size when Reorder is a PermuteCast
+        parallelReordersTotalSize +=
+                isTrivialReorder(reorder)
+                        ? 0
+                        : reorder.getOutput().getType().cast<NDTypeInterface>().getTotalAllocSize().count();
+    }
+
+    auto root = sliceOp.getSource();
+    const auto srcOrder = DimsOrder::fromValue(root);
+    const auto dstOrder = DimsOrder::fromValue(layerOp.getOutput());
+    const auto rootShape = getShape(root);
+
+    const auto newReorderSize = isTrivialReorder(srcOrder, dstOrder, rootShape)
+                                        ? 0
+                                        : root.getType().cast<NDTypeInterface>().getTotalAllocSize().count();
+
+    if (newReorderSize > parallelReordersTotalSize) {
+        _log.trace("Root tensor size '{0}' is larger than total size of parallel Reorder(s): '{1}'. ", newReorderSize,
+                   parallelReordersTotalSize);
+        return false;
+    }
+
+    return true;
+}
+
 bool MoveReorderBeforeSlice::sameAttributes(IE::ReorderOp layerOp, IE::ReorderOp currLayerOp) const {
-    return layerOp.dstOrder() == currLayerOp.dstOrder();
+    return layerOp.getDstOrder() == currLayerOp.getDstOrder();
 }
 
 SmallVector<int64_t> MoveReorderBeforeSlice::getNewSizes(IE::SliceOp sliceOp, IE::ReorderOp) const {
-    return parseIntArrayAttr<int64_t>(sliceOp.static_sizes());
+    return parseIntArrayAttr<int64_t>(sliceOp.getStaticSizes());
 }
 
 //
@@ -274,21 +365,21 @@ public:
 
 bool MoveTransposeBeforeSlice::doesSliceAndLayerOpModifySameAxis(IE::SliceOp, ArrayRef<uint64_t> sliceAxes,
                                                                  IE::TransposeOp layerOp) const {
-    const auto perm = DimsOrder::fromAffineMap(layerOp.order_value().value());
+    const auto perm = DimsOrder::fromAffineMap(layerOp.getOrderValue().value());
     return doesSliceAndPermutationModifySameAxis(perm, sliceAxes, _log);
 }
 
 bool MoveTransposeBeforeSlice::sameAttributes(IE::TransposeOp layerOp, IE::TransposeOp currLayerOp) const {
-    return layerOp.order_value() == currLayerOp.order_value();
+    return layerOp.getOrderValue() == currLayerOp.getOrderValue();
 }
 
 SmallVector<int64_t> MoveTransposeBeforeSlice::getNewSizes(IE::SliceOp sliceOp, IE::TransposeOp layerOp) const {
-    const auto perm = DimsOrder::fromAffineMap(layerOp.order_value().value());
+    const auto perm = DimsOrder::fromAffineMap(layerOp.getOrderValue().value());
     auto originOrder = to_small_vector(irange(perm.numDims()) | transformed([&](uint64_t idx) {
                                            return checked_cast<uint64_t>(perm.dimAt(idx).ind());
                                        }));
 
-    auto sizes = parseIntArrayAttr<int64_t>(sliceOp.static_sizes());
+    auto sizes = parseIntArrayAttr<int64_t>(sliceOp.getStaticSizes());
     SmallVector<int64_t> newSizes(originOrder.size(), 0);
     for (size_t i = 0; i < originOrder.size(); i++) {
         newSizes[i] = sizes[originOrder[i]];
@@ -315,22 +406,22 @@ public:
 
 bool MovePermuteCastBeforeSlice::doesSliceAndLayerOpModifySameAxis(IE::SliceOp, ArrayRef<uint64_t> sliceAxes,
                                                                    IE::PermuteCastOp layerOp) const {
-    const auto orderPerm = DimsOrder::fromAffineMap(layerOp.dst_order());
-    const auto memPerm = DimsOrder::fromAffineMap(layerOp.mem_perm());
+    const auto orderPerm = DimsOrder::fromAffineMap(layerOp.getDstOrder());
+    const auto memPerm = DimsOrder::fromAffineMap(layerOp.getMemPerm());
 
     return doesSliceAndPermutationModifySameAxis(orderPerm, sliceAxes, _log) ||
            doesSliceAndPermutationModifySameAxis(memPerm, sliceAxes, _log);
 }
 
 bool MovePermuteCastBeforeSlice::sameAttributes(IE::PermuteCastOp layerOp, IE::PermuteCastOp currLayerOp) const {
-    return layerOp.dst_order() == currLayerOp.dst_order() && layerOp.mem_perm() == currLayerOp.mem_perm();
+    return layerOp.getDstOrder() == currLayerOp.getDstOrder() && layerOp.getMemPerm() == currLayerOp.getMemPerm();
 }
 
 SmallVector<int64_t> MovePermuteCastBeforeSlice::getNewSizes(IE::SliceOp, IE::PermuteCastOp layerOp) const {
     mlir::SmallVector<mlir::ShapedTypeComponents> inferredReturnShapes;
 
-    inferPermuteReturnTypeComponents(layerOp.input(), layerOp.mem_perm(), layerOp.dst_order(), inferredReturnShapes,
-                                     false);
+    inferPermuteReturnTypeComponents(layerOp.getInput(), layerOp.getMemPerm(), layerOp.getDstOrder(),
+                                     inferredReturnShapes, false);
 
     VPUX_THROW_WHEN(inferredReturnShapes.size() != 1, "Should should be 1 but got {0}", inferredReturnShapes.size());
 
@@ -369,7 +460,7 @@ bool MoveAffineReshapeBeforeSlice::doesSliceAndLayerOpModifySameAxis(IE::SliceOp
     }
 
     auto sliceAxis = sliceAxes[0];
-    auto inType = sliceOp.source().getType().dyn_cast<vpux::NDTypeInterface>();
+    auto inType = sliceOp.getSource().getType().dyn_cast<vpux::NDTypeInterface>();
     auto dimOrder = inType.getDimsOrder();
     auto shape = inType.getShape();
     auto highestDim = getHighestDim(shape, dimOrder);
@@ -377,17 +468,18 @@ bool MoveAffineReshapeBeforeSlice::doesSliceAndLayerOpModifySameAxis(IE::SliceOp
 }
 
 bool MoveAffineReshapeBeforeSlice::sameAttributes(IE::AffineReshapeOp layerOp, IE::AffineReshapeOp currLayerOp) const {
-    return layerOp.dim_mapping() == currLayerOp.dim_mapping() && layerOp.shape_value() == currLayerOp.shape_value();
+    return layerOp.getDimMapping() == currLayerOp.getDimMapping() &&
+           layerOp.getShapeValue() == currLayerOp.getShapeValue();
 }
 
 SmallVector<int64_t> MoveAffineReshapeBeforeSlice::getNewSizes(IE::SliceOp, IE::AffineReshapeOp layerOp) const {
-    return vpux::parseIntArrayAttr<int64_t>(layerOp.shape_value());
+    return vpux::parseIntArrayAttr<int64_t>(layerOp.getShapeValue());
 }
 
 SmallVector<int64_t> MoveAffineReshapeBeforeSlice::getNewOffsets(IE::SliceOp sliceOp, ArrayRef<uint64_t> sliceAxes,
                                                                  IE::AffineReshapeOp layerOp) const {
-    auto sliceOffset = parseIntArrayAttr<int64_t>(sliceOp.static_offsets());
-    auto sliceSize = parseIntArrayAttr<int64_t>(sliceOp.static_sizes());
+    auto sliceOffset = parseIntArrayAttr<int64_t>(sliceOp.getStaticOffsets());
+    auto sliceSize = parseIntArrayAttr<int64_t>(sliceOp.getStaticSizes());
     VPUX_THROW_UNLESS(sliceAxes.size() == 1, "Unexpected slice axes for {0}", sliceOp);
     auto sliceOffsetVal = sliceOffset[sliceAxes[0]];
     auto sliceSizeVal = sliceSize[sliceAxes[0]];
@@ -395,7 +487,7 @@ SmallVector<int64_t> MoveAffineReshapeBeforeSlice::getNewOffsets(IE::SliceOp sli
     auto newSizes = getNewSizes(sliceOp, layerOp);
     SmallVector<int64_t> newOffsets(newSizes.size(), 0);
 
-    auto outType = layerOp.output().getType().dyn_cast<vpux::NDTypeInterface>();
+    auto outType = layerOp.getOutput().getType().dyn_cast<vpux::NDTypeInterface>();
     auto dimOrder = outType.getDimsOrder();
     auto sliceDim = dimOrder.dimAt(0);
     newOffsets[sliceDim.ind()] = sliceIdx * newSizes[sliceDim.ind()];
@@ -404,16 +496,16 @@ SmallVector<int64_t> MoveAffineReshapeBeforeSlice::getNewOffsets(IE::SliceOp sli
 
 mlir::Operation* MoveAffineReshapeBeforeSlice::createNewLayerOp(IE::AffineReshapeOp layerOp, IE::SliceOp sliceOp,
                                                                 mlir::PatternRewriter& rewriter) const {
-    auto outType = layerOp.output().getType().dyn_cast<vpux::NDTypeInterface>();
+    auto outType = layerOp.getOutput().getType().dyn_cast<vpux::NDTypeInterface>();
     auto outShape = outType.getShape();
     auto outDim = outType.getDimsOrder();
     auto sliceDim = outDim.dimAt(0);
-    auto inShape = getShape(sliceOp.source());
+    auto inShape = getShape(sliceOp.getSource());
     auto restSize = outShape.totalSize() / outShape[sliceDim];
     Shape newOutShape(outShape.raw());
     newOutShape[sliceDim] = inShape.totalSize() / restSize;
-    rewriter.setInsertionPointAfterValue(sliceOp.source());
-    return rewriter.create<IE::AffineReshapeOp>(layerOp.getLoc(), sliceOp.source(), layerOp.dim_mapping(),
+    rewriter.setInsertionPointAfterValue(sliceOp.getSource());
+    return rewriter.create<IE::AffineReshapeOp>(layerOp.getLoc(), sliceOp.getSource(), layerOp.getDimMapping(),
                                                 vpux::getIntArrayAttr(rewriter, to_small_vector(newOutShape)));
 }
 
@@ -435,28 +527,88 @@ public:
 
 bool MoveMemPermuteBeforeSlice::doesSliceAndLayerOpModifySameAxis(IE::SliceOp, ArrayRef<uint64_t> sliceAxes,
                                                                   IE::MemPermuteOp layerOp) const {
-    const auto orderPerm = DimsOrder::fromAffineMap(layerOp.dst_order());
-    const auto memPerm = DimsOrder::fromAffineMap(layerOp.mem_perm());
+    const auto orderPerm = DimsOrder::fromAffineMap(layerOp.getDstOrder());
+    const auto memPerm = DimsOrder::fromAffineMap(layerOp.getMemPerm());
 
     return doesSliceAndPermutationModifySameAxis(orderPerm, sliceAxes, _log) ||
            doesSliceAndPermutationModifySameAxis(memPerm, sliceAxes, _log);
 }
 
 bool MoveMemPermuteBeforeSlice::sameAttributes(IE::MemPermuteOp layerOp, IE::MemPermuteOp currLayerOp) const {
-    return layerOp.dst_order() == currLayerOp.dst_order() && layerOp.mem_perm() == currLayerOp.mem_perm();
+    return layerOp.getDstOrder() == currLayerOp.getDstOrder() && layerOp.getMemPerm() == currLayerOp.getMemPerm();
 }
 
 SmallVector<int64_t> MoveMemPermuteBeforeSlice::getNewSizes(IE::SliceOp, IE::MemPermuteOp layerOp) const {
     mlir::SmallVector<mlir::ShapedTypeComponents> inferredReturnShapes;
 
-    inferPermuteReturnTypeComponents(layerOp.input(), layerOp.mem_perm(), layerOp.dst_order(), inferredReturnShapes,
-                                     false);
+    inferPermuteReturnTypeComponents(layerOp.getInput(), layerOp.getMemPerm(), layerOp.getDstOrder(),
+                                     inferredReturnShapes, false);
 
     VPUX_THROW_WHEN(inferredReturnShapes.size() != 1, "Should should be 1 but got {0}", inferredReturnShapes.size());
 
     auto dims = inferredReturnShapes.front().getDims();
 
     return mlir::SmallVector<int64_t>{dims.begin(), dims.end()};
+}
+
+//
+// MoveReorderBeforeSplit
+//
+class MoveReorderBeforeSplit final : public mlir::OpRewritePattern<IE::ReorderOp> {
+public:
+    MoveReorderBeforeSplit(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::ReorderOp>(ctx), _log(log) {
+        setDebugName("MoveReorderBeforeSplit");
+    }
+
+    mlir::LogicalResult matchAndRewrite(IE::ReorderOp layerOp, mlir::PatternRewriter& rewriter) const final;
+
+protected:
+    Logger _log;
+};
+
+mlir::LogicalResult MoveReorderBeforeSplit::matchAndRewrite(IE::ReorderOp layerOp,
+                                                            mlir::PatternRewriter& rewriter) const {
+    auto maybeSplitOp = layerOp.getInput().template getDefiningOp<IE::SplitOp>();
+    if (maybeSplitOp == nullptr) {
+        return mlir::failure();
+    }
+
+    for (const auto& res : maybeSplitOp.getOutputs()) {
+        auto currReorderOp = mlir::dyn_cast_or_null<IE::ReorderOp>(*res.getUsers().begin());
+        if (currReorderOp == nullptr || !currReorderOp.getResult().hasOneUse() ||
+            layerOp.getDstOrder() != currReorderOp.getDstOrder()) {
+            return mlir::failure();
+        }
+    }
+
+    // From performance perspective, the matching case is the split axis for SplitOp will be in lower memory dim after
+    // ReorderOp. For example, SplitOp: split axis = C, ReorderOp: NDHWC -> NCDHW, then split memory dim from d4 to d1
+    // will benefit the performance.
+    const auto axisInd = maybeSplitOp.getAxisValue().value();
+    const auto reorderInOrder = DimsOrder::fromValue(layerOp.getInput());
+    const auto reorderOutOrder = DimsOrder::fromValue(layerOp.getOutput());
+    const auto memPosInOrder = reorderInOrder.toMemDim(Dim(axisInd));
+    const auto memPosOutOrder = reorderOutOrder.toMemDim(Dim(axisInd));
+    if (memPosInOrder.ind() < memPosOutOrder.ind()) {
+        return mlir::failure();
+    }
+
+    // Create new ReorderOp
+    const auto dstOrderAttr = layerOp.getDstOrderAttr();
+    auto newReorder = rewriter.create<IE::ReorderOp>(maybeSplitOp->getLoc(), maybeSplitOp.getInput(), dstOrderAttr);
+
+    // Create new SplitOp
+    auto newSplit = rewriter.create<IE::SplitOp>(maybeSplitOp->getLoc(), newReorder.getOutput(), maybeSplitOp.getAxis(),
+                                                 maybeSplitOp.getNumSplitsAttr(), maybeSplitOp.getAxisValueAttr());
+
+    for (const auto& res : maybeSplitOp.getOutputs()) {
+        for (auto use : llvm::make_early_inc_range(res.getUsers())) {
+            auto reorder = mlir::dyn_cast<IE::ReorderOp>(use);
+            rewriter.replaceOp(reorder, newSplit.getResult(res.getResultNumber()));
+        }
+    }
+
+    return mlir::success();
 }
 
 //
@@ -487,6 +639,7 @@ void UniquifyBranches::safeRunOnFunc() {
     patterns.add<MovePermuteCastBeforeSlice>(&ctx, _log);
     patterns.add<MoveAffineReshapeBeforeSlice>(&ctx, _log);
     patterns.add<MoveMemPermuteBeforeSlice>(&ctx, _log);
+    patterns.add<MoveReorderBeforeSplit>(&ctx, _log);
 
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();

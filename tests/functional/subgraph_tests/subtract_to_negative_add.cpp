@@ -3,19 +3,17 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpu_ov1_layer_test.hpp"
-#include "vpu_ov2_layer_test.hpp"
+#include <vpu_ov2_layer_test.hpp>
 
-#include <ngraph_functions/builders.hpp>
-#include <ngraph_functions/utils/ngraph_helpers.hpp>
+#include <ov_models/builders.hpp>
+#include <ov_models/utils/ov_helpers.hpp>
 #include <shared_test_classes/base/layer_test_utils.hpp>
 
-namespace {
+namespace ov::test {
 
 struct SubtractTestParams {
-    LayerTestsUtils::TargetDevice device;
-    InferenceEngine::SizeVector input1_shape;
-    InferenceEngine::SizeVector input2_shape;
+    ov::Shape input1_shape;
+    ov::Shape input2_shape;
 };
 
 //
@@ -26,49 +24,45 @@ struct SubtractTestParams {
 //          [output]
 //
 
-class VPUXSubtractSubGraphTest_VPU3720 :
-        public LayerTestsUtils::VpuOv1LayerTestsCommon,
-        public testing::WithParamInterface<SubtractTestParams> {
+class SubtractSubGraphTest_NPU3720 : public VpuOv2LayerTest, public testing::WithParamInterface<SubtractTestParams> {
 public:
     void SetUp() override {
         const auto test_params = GetParam();
-        targetDevice = test_params.device;
 
-        const InferenceEngine::SizeVector input1Shape = test_params.input1_shape;
-        const InferenceEngine::SizeVector input2Shape = test_params.input2_shape;
+        const ov::Shape input1Shape = test_params.input1_shape;
+        const ov::Shape input2Shape = test_params.input2_shape;
 
-        const auto params = ngraph::builder::makeParams(ngraph::element::f16, {input1Shape, input2Shape});
-        const auto paramOuts =
-                ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+        init_input_shapes(static_shapes_to_test_representation({input1Shape, input2Shape}));
 
-        const auto subtract = std::make_shared<ngraph::op::v1::Subtract>(paramOuts[0], paramOuts[1]);
+        ov::ParameterVector params;
+        for (const auto& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f16, shape));
+        }
 
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(subtract)};
+        const auto subtract = std::make_shared<ov::op::v1::Subtract>(params[0], params[1]);
 
-        function = std::make_shared<ngraph::Function>(results, params, "SubtractTest");
+        const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(subtract)};
 
-        threshold = 0.5f;
+        function = std::make_shared<ov::Model>(results, params, "SubtractTest");
+        rel_threshold = 0.5f;
     }
 };
 
-TEST_P(VPUXSubtractSubGraphTest_VPU3720, HW) {
-    setPlatformVPU3720();
-    setDefaultHardwareModeMLIR();
-    Run();
+TEST_P(SubtractSubGraphTest_NPU3720, HW) {
+    setDefaultHardwareMode();
+    run(VPUXPlatform::VPU3720);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_subtract_same_shape_const_inputs, VPUXSubtractSubGraphTest_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_subtract_same_shape_const_inputs, SubtractSubGraphTest_NPU3720,
                          ::testing::Values(SubtractTestParams{
-                                 LayerTestsUtils::testPlatformTargetDevice(),  // _device
-                                 {1, 1, 2, 2},                                 // input1 shape
-                                 {1, 1, 2, 2},                                 // input2 shape
+                                 {1, 1, 2, 2},  // input1 shape
+                                 {1, 1, 2, 2},  // input2 shape
                          }));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_subtract_diff_shape_const_inputs, VPUXSubtractSubGraphTest_VPU3720,
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_subtract_diff_shape_const_inputs, SubtractSubGraphTest_NPU3720,
                          ::testing::Values(SubtractTestParams{
-                                 LayerTestsUtils::testPlatformTargetDevice(),  // _device
-                                 {1, 1, 2, 1},                                 // input1 shape
-                                 {1, 1, 2, 4},                                 // input2 shape
+                                 {1, 1, 2, 1},  // input1 shape
+                                 {1, 1, 2, 4},  // input2 shape
                          }));
 
 //
@@ -83,60 +77,54 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_subtract_diff_shape_const_inputs, VP
 //          [output]
 //
 
-class VPUXSubtractFqSubGraphTest_VPU3720 :
-        public LayerTestsUtils::VpuOv1LayerTestsCommon,
-        public testing::WithParamInterface<SubtractTestParams> {
+class SubtractFqSubGraphTest_NPU3720 : public VpuOv2LayerTest, public testing::WithParamInterface<SubtractTestParams> {
 public:
     void SetUp() override {
         const auto test_params = GetParam();
-        targetDevice = test_params.device;
 
-        const InferenceEngine::SizeVector input1Shape = test_params.input1_shape;
-        const InferenceEngine::SizeVector input2Shape = test_params.input2_shape;
+        const ov::Shape input1Shape = test_params.input1_shape;
+        const ov::Shape input2Shape = test_params.input2_shape;
 
-        const auto params = ngraph::builder::makeParams(ngraph::element::f16, {input1Shape, input2Shape});
-        const auto paramOuts =
-                ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+        init_input_shapes(static_shapes_to_test_representation({input1Shape, input2Shape}));
+
+        ov::ParameterVector params{
+                std::make_shared<ov::op::v0::Parameter>(ov::element::f16, inputDynamicShapes.front())};
 
         const size_t dataLevels = 255;
         const std::vector<float> dataLow = {0.0f};
         const std::vector<float> dataHigh = {255.0f};
 
-        const auto input1 = ngraph::builder::makeFakeQuantize(paramOuts[0], ngraph::element::f16, dataLevels, {},
-                                                              dataLow, dataHigh, dataLow, dataHigh);
-        const auto input2 = ngraph::builder::makeFakeQuantize(paramOuts[0], ngraph::element::f16, dataLevels, {},
-                                                              dataLow, dataHigh, dataLow, dataHigh);
+        const auto input1 = ngraph::builder::makeFakeQuantize(params[0], ov::element::f16, dataLevels, {}, dataLow,
+                                                              dataHigh, dataLow, dataHigh);
+        const auto input2 = ngraph::builder::makeFakeQuantize(params[0], ov::element::f16, dataLevels, {}, dataLow,
+                                                              dataHigh, dataLow, dataHigh);
 
-        const auto subtract = std::make_shared<ngraph::op::v1::Subtract>(input2, input2);
-        const auto subtractFq = ngraph::builder::makeFakeQuantize(subtract, ngraph::element::f16, dataLevels, {},
-                                                                  dataLow, dataHigh, dataLow, dataHigh);
+        const auto subtract = std::make_shared<ov::op::v1::Subtract>(input2, input2);
+        const auto subtractFq = ngraph::builder::makeFakeQuantize(subtract, ov::element::f16, dataLevels, {}, dataLow,
+                                                                  dataHigh, dataLow, dataHigh);
 
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(subtractFq)};
+        const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(subtractFq)};
 
-        function = std::make_shared<ngraph::Function>(results, params, "SubtractTest");
-
-        threshold = 0.5f;
+        function = std::make_shared<ov::Model>(results, params, "SubtractTest");
+        rel_threshold = 0.5f;
     }
 };
 
-TEST_P(VPUXSubtractFqSubGraphTest_VPU3720, HW) {
-    setPlatformVPU3720();
-    setDefaultHardwareModeMLIR();
-    Run();
+TEST_P(SubtractFqSubGraphTest_NPU3720, HW) {
+    setDefaultHardwareMode();
+    run(VPUXPlatform::VPU3720);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_subtract_same_shape_const_fq_inputs, VPUXSubtractFqSubGraphTest_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_subtract_same_shape_const_fq_inputs, SubtractFqSubGraphTest_NPU3720,
                          ::testing::Values(SubtractTestParams{
-                                 LayerTestsUtils::testPlatformTargetDevice(),  // _device
-                                 {1, 1, 2, 2},                                 // input1 shape
-                                 {1, 1, 2, 2},                                 // input2 shape
+                                 {1, 1, 2, 2},  // input1 shape
+                                 {1, 1, 2, 2},  // input2 shape
                          }));
 
-INSTANTIATE_TEST_SUITE_P(smoke_subtract_diff_shape_const_fq_inputs, VPUXSubtractFqSubGraphTest_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_subtract_diff_shape_const_fq_inputs, SubtractFqSubGraphTest_NPU3720,
                          ::testing::Values(SubtractTestParams{
-                                 LayerTestsUtils::testPlatformTargetDevice(),  // _device
-                                 {1, 1, 2, 4},                                 // input1 shape
-                                 {1, 1, 2, 1},                                 // input2 shape
+                                 {1, 1, 2, 4},  // input1 shape
+                                 {1, 1, 2, 1},  // input2 shape
                          }));
 
 //
@@ -149,52 +137,50 @@ INSTANTIATE_TEST_SUITE_P(smoke_subtract_diff_shape_const_fq_inputs, VPUXSubtract
 //          [output]
 //
 
-class VPUXSubtractActInputsSubGraphTest_VPU3720 :
-        public LayerTestsUtils::VpuOv1LayerTestsCommon,
+class SubtractActInputsSubGraphTest_NPU3720 :
+        public VpuOv2LayerTest,
         public testing::WithParamInterface<SubtractTestParams> {
 public:
     void SetUp() override {
         const auto test_params = GetParam();
-        targetDevice = test_params.device;
 
-        const InferenceEngine::SizeVector input1Shape = test_params.input1_shape;
-        const InferenceEngine::SizeVector input2Shape = test_params.input2_shape;
+        const ov::Shape input1Shape = test_params.input1_shape;
+        const ov::Shape input2Shape = test_params.input2_shape;
 
-        const auto params = ngraph::builder::makeParams(ngraph::element::f16, {input1Shape, input2Shape});
-        const auto paramOuts =
-                ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+        init_input_shapes(static_shapes_to_test_representation({input1Shape, input2Shape}));
 
-        const auto relu1 = std::make_shared<ngraph::op::v0::Relu>(paramOuts[0]);
-        const auto relu2 = std::make_shared<ngraph::op::v0::Relu>(paramOuts[1]);
+        ov::ParameterVector params;
+        for (const auto& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f16, shape));
+        }
 
-        const auto subtract = std::make_shared<ngraph::op::v1::Subtract>(relu1, relu2);
+        const auto relu1 = std::make_shared<ov::op::v0::Relu>(params[0]);
+        const auto relu2 = std::make_shared<ov::op::v0::Relu>(params[1]);
 
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(subtract)};
+        const auto subtract = std::make_shared<ov::op::v1::Subtract>(relu1, relu2);
 
-        function = std::make_shared<ngraph::Function>(results, params, "SubtractTest");
+        const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(subtract)};
 
-        threshold = 0.5f;
+        function = std::make_shared<ov::Model>(results, params, "SubtractTest");
+        rel_threshold = 0.5f;
     }
 };
 
-TEST_P(VPUXSubtractActInputsSubGraphTest_VPU3720, HW) {
-    setPlatformVPU3720();
-    setDefaultHardwareModeMLIR();
-    Run();
+TEST_P(SubtractActInputsSubGraphTest_NPU3720, HW) {
+    setDefaultHardwareMode();
+    run(VPUXPlatform::VPU3720);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_subtract_same_shapes_act_inputs, VPUXSubtractActInputsSubGraphTest_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_subtract_same_shapes_act_inputs, SubtractActInputsSubGraphTest_NPU3720,
                          ::testing::Values(SubtractTestParams{
-                                 LayerTestsUtils::testPlatformTargetDevice(),  // _device
-                                 {1, 1, 2, 2},                                 // input1 shape
-                                 {1, 1, 2, 2},                                 // input2 shape
+                                 {1, 1, 2, 2},  // input1 shape
+                                 {1, 1, 2, 2},  // input2 shape
                          }));
 
-INSTANTIATE_TEST_SUITE_P(smoke_subtract_diff_shapes_act_inputs, VPUXSubtractActInputsSubGraphTest_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_subtract_diff_shapes_act_inputs, SubtractActInputsSubGraphTest_NPU3720,
                          ::testing::Values(SubtractTestParams{
-                                 LayerTestsUtils::testPlatformTargetDevice(),  // _device
-                                 {1, 1, 2, 4},                                 // input1 shape
-                                 {1, 1, 2, 1},                                 // input2 shape
+                                 {1, 1, 2, 4},  // input1 shape
+                                 {1, 1, 2, 1},  // input2 shape
                          }));
 
 //
@@ -211,63 +197,60 @@ INSTANTIATE_TEST_SUITE_P(smoke_subtract_diff_shapes_act_inputs, VPUXSubtractActI
 //          [output]
 //
 
-class VPUXSubtractFqActInputsSubGraphTest_VPU3720 :
-        public LayerTestsUtils::VpuOv1LayerTestsCommon,
+class SubtractFqActInputsSubGraphTest_NPU3720 :
+        public VpuOv2LayerTest,
         public testing::WithParamInterface<SubtractTestParams> {
 public:
     void SetUp() override {
         const auto test_params = GetParam();
-        targetDevice = test_params.device;
 
-        const InferenceEngine::SizeVector input1Shape = test_params.input1_shape;
-        const InferenceEngine::SizeVector input2Shape = test_params.input2_shape;
+        const ov::Shape input1Shape = test_params.input1_shape;
+        const ov::Shape input2Shape = test_params.input2_shape;
 
-        const auto params = ngraph::builder::makeParams(ngraph::element::f16, {input1Shape, input2Shape});
-        const auto paramOuts =
-                ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+        init_input_shapes(static_shapes_to_test_representation({input1Shape, input2Shape}));
+
+        ov::ParameterVector params;
+        for (const auto& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f16, shape));
+        }
 
         const size_t dataLevels = 255;
         const std::vector<float> dataLow = {0.0f};
         const std::vector<float> dataHigh = {255.0f};
 
-        const auto relu1 = std::make_shared<ngraph::op::v0::Relu>(paramOuts[0]);
-        const auto relu1Fq = ngraph::builder::makeFakeQuantize(relu1, ngraph::element::f16, dataLevels, {}, dataLow,
+        const auto relu1 = std::make_shared<ov::op::v0::Relu>(params[0]);
+        const auto relu1Fq = ngraph::builder::makeFakeQuantize(relu1, ov::element::f16, dataLevels, {}, dataLow,
                                                                dataHigh, dataLow, dataHigh);
 
-        const auto relu2 = std::make_shared<ngraph::op::v0::Relu>(paramOuts[1]);
-        const auto relu2Fq = ngraph::builder::makeFakeQuantize(relu2, ngraph::element::f16, dataLevels, {}, dataLow,
+        const auto relu2 = std::make_shared<ov::op::v0::Relu>(params[1]);
+        const auto relu2Fq = ngraph::builder::makeFakeQuantize(relu2, ov::element::f16, dataLevels, {}, dataLow,
                                                                dataHigh, dataLow, dataHigh);
 
-        const auto subtract = std::make_shared<ngraph::op::v1::Subtract>(relu1Fq->output(0), relu2Fq->output(0));
-        const auto outFq = ngraph::builder::makeFakeQuantize(subtract, ngraph::element::f16, dataLevels, {}, dataLow,
+        const auto subtract = std::make_shared<ov::op::v1::Subtract>(relu1Fq->output(0), relu2Fq->output(0));
+        const auto outFq = ngraph::builder::makeFakeQuantize(subtract, ov::element::f16, dataLevels, {}, dataLow,
                                                              dataHigh, dataLow, dataHigh);
 
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(outFq)};
-        function = std::make_shared<ngraph::Function>(results, params, "SubtractTest");
-
-        threshold = 0.5f;
+        const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(outFq)};
+        function = std::make_shared<ov::Model>(results, params, "SubtractTest");
+        rel_threshold = 0.5f;
     }
 };
 
-TEST_P(VPUXSubtractFqActInputsSubGraphTest_VPU3720, HW) {
-    setPlatformVPU3720();
-    setDefaultHardwareModeMLIR();
-    Run();
+TEST_P(SubtractFqActInputsSubGraphTest_NPU3720, HW) {
+    setDefaultHardwareMode();
+    run(VPUXPlatform::VPU3720);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_subtract_same_shapes_fq_act_inputs, VPUXSubtractFqActInputsSubGraphTest_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_subtract_same_shapes_fq_act_inputs, SubtractFqActInputsSubGraphTest_NPU3720,
                          ::testing::Values(SubtractTestParams{
-                                 LayerTestsUtils::testPlatformTargetDevice(),  // _device
-                                 {1, 1, 2, 2},                                 // input1 shape
-                                 {1, 1, 2, 2},                                 // input2 shape
+                                 {1, 1, 2, 2},  // input1 shape
+                                 {1, 1, 2, 2},  // input2 shape
                          }));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_subtract_diff_shapes_fq_act_inputs,
-                         VPUXSubtractFqActInputsSubGraphTest_VPU3720,
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_subtract_diff_shapes_fq_act_inputs, SubtractFqActInputsSubGraphTest_NPU3720,
                          ::testing::Values(SubtractTestParams{
-                                 LayerTestsUtils::testPlatformTargetDevice(),  // _device
-                                 {1, 1, 2, 1},                                 // input1 shape
-                                 {1, 1, 2, 4},                                 // input2 shape
+                                 {1, 1, 2, 1},  // input1 shape
+                                 {1, 1, 2, 4},  // input2 shape
                          }));
 
-}  // namespace
+}  // namespace ov::test

@@ -17,7 +17,7 @@ void inferPermuteReturnTypeComponents(mlir::Value input, mlir::AffineMap mem_per
 
 template <typename PermOpPrev, typename PermOp>
 mlir::LogicalResult fusePermutations(PermOp permuteOp, mlir::PatternRewriter& rewriter) {
-    auto prevPermuteOp = mlir::dyn_cast_or_null<PermOpPrev>(permuteOp.input().getDefiningOp());
+    auto prevPermuteOp = mlir::dyn_cast_or_null<PermOpPrev>(permuteOp.getInput().getDefiningOp());
     if (prevPermuteOp == nullptr) {
         return mlir::failure();
     }
@@ -33,18 +33,20 @@ mlir::LogicalResult fusePermutations(PermOp permuteOp, mlir::PatternRewriter& re
         return mlir::failure();
     }
 
-    auto prevMemPerm = prevPermuteOp.mem_perm();
-    auto memPerm = permuteOp.mem_perm();
+    auto prevMemPerm = prevPermuteOp.getMemPerm();
+    auto memPerm = permuteOp.getMemPerm();
     auto newMemPerm = memPerm.compose(prevMemPerm);
 
     const auto canFuseIntoPermuteCastOp =
             mlir::isa<IE::PermuteCastOp>(prevPermuteOp) && mlir::isa<IE::PermuteCastOp>(permuteOp);
     if (canFuseIntoPermuteCastOp) {
-        rewriter.replaceOpWithNewOp<IE::PermuteCastOp>(permuteOp, permuteOp.getType(), prevPermuteOp.input(),
-                                                       permuteOp.dst_orderAttr(), mlir::AffineMapAttr::get(newMemPerm));
+        rewriter.replaceOpWithNewOp<IE::PermuteCastOp>(permuteOp, permuteOp.getType(), prevPermuteOp.getInput(),
+                                                       permuteOp.getDstOrderAttr(),
+                                                       mlir::AffineMapAttr::get(newMemPerm));
     } else {
-        rewriter.replaceOpWithNewOp<IE::MemPermuteOp>(permuteOp, permuteOp.getType(), prevPermuteOp.input(),
-                                                      permuteOp.dst_orderAttr(), mlir::AffineMapAttr::get(newMemPerm));
+        rewriter.replaceOpWithNewOp<IE::MemPermuteOp>(permuteOp, permuteOp.getType(), prevPermuteOp.getInput(),
+                                                      permuteOp.getDstOrderAttr(),
+                                                      mlir::AffineMapAttr::get(newMemPerm));
     }
 
     return mlir::success();

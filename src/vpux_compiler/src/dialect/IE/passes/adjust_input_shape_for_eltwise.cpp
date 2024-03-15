@@ -7,15 +7,29 @@
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IE/utils/const_attributes.hpp"
-#include "vpux/compiler/dialect/IE/utils/groupconvolution_utils.hpp"
+#include "vpux/compiler/dialect/IE/utils/convolution_utils.hpp"
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-
-#include <numeric>
+#include "vpux/utils/core/numeric.hpp"
 
 using namespace vpux;
 using namespace IE;
 namespace {
+
+bool checkValidPermuteQuantizePads(IE::PermuteQuantizeOp op) {
+    const auto padStart = parseIntArrayAttr<int64_t>(op.getPadsBegin());
+    const auto padEnd = parseIntArrayAttr<int64_t>(op.getPadsEnd());
+
+    const auto nonZeroPadStart = llvm::any_of(padStart, [](auto pad) {
+        return pad > 0;
+    });
+
+    const auto nonZeroPadEnd = llvm::any_of(padEnd, [](auto pad) {
+        return pad > 0;
+    });
+
+    return !(nonZeroPadStart || nonZeroPadEnd);
+}
 
 //
 // AdjustInputShapeForEltwisePass
@@ -100,23 +114,12 @@ public:
     mlir::LogicalResult rewrite();
 };
 
-bool isDimExpansionReshape(ShapeRef origShape, ShapeRef reshapeShape) {
-    auto getNonOneDims = [](ShapeRef shape) {
-        Shape resultShape;
-        llvm::copy_if(shape, std::back_inserter(resultShape), [](int64_t elem) {
-            return elem != 1;
-        });
-        return resultShape;
-    };
-    return getNonOneDims(origShape) == getNonOneDims(reshapeShape);
-}
-
 void ExpandEltwisePattern::checkAndCorrectGroupConv() {
     auto groupConvOp = mlir::dyn_cast<IE::GroupConvolutionOp>(_eltwiseOp);
     if (groupConvOp == nullptr) {
         return;
     }
-    auto groupSize = groupConvOp.groupsAttr().getInt();
+    auto groupSize = groupConvOp.getGroupsAttr().getInt();
     if (groupSize == _newExpandedShape[Dims4D::Act::C]) {
         return;
     }
@@ -124,12 +127,13 @@ void ExpandEltwisePattern::checkAndCorrectGroupConv() {
     auto ctx = builder.getContext();
     auto newGroupAttr = getIntAttr(ctx, _newExpandedShape[Dims4D::Act::C]);
     auto newGroupConvOp = builder.create<IE::GroupConvolutionOp>(
-            groupConvOp->getLoc(), groupConvOp.input(), groupConvOp.filter(), groupConvOp.bias(),
-            groupConvOp.stridesAttr(), groupConvOp.pads_beginAttr(), groupConvOp.pads_end(),
-            groupConvOp.dilationsAttr(), newGroupAttr, groupConvOp.post_opAttr());
+            groupConvOp->getLoc(), groupConvOp.getInput(), groupConvOp.getFilter(), groupConvOp.getBias(),
+            groupConvOp.getStridesAttr(), groupConvOp.getPadsBeginAttr(), groupConvOp.getPadsEnd(),
+            groupConvOp.getDilationsAttr(), newGroupAttr, groupConvOp.getPostOpAttr(), groupConvOp.getClampAttr());
     groupConvOp->replaceAllUsesWith(newGroupConvOp);
     auto origOutputType = groupConvOp.getType().cast<vpux::NDTypeInterface>();
-    newGroupConvOp.output().setType(origOutputType.changeShape(_newExpandedShape));
+    newGroupConvOp.getOutput().setType(
+            mlir::cast<mlir::RankedTensorType>(origOutputType.changeShape(_newExpandedShape)));
     _eltwiseOp = newGroupConvOp.getOperation();
     return;
 }
@@ -172,7 +176,7 @@ bool ExpandEltwisePattern::init() {
         if (auto expand = operand.getDefiningOp<IE::ExpandOp>()) {
             _expandInputs.insert(expand);
         } else if (auto quantCast = operand.getDefiningOp<IE::QuantizeCastOp>()) {
-            auto prevExpand = quantCast.input().getDefiningOp<IE::ExpandOp>();
+            auto prevExpand = quantCast.getInput().getDefiningOp<IE::ExpandOp>();
             if (prevExpand) {
                 _expandInputs.insert(prevExpand);
             } else {
@@ -184,7 +188,7 @@ bool ExpandEltwisePattern::init() {
             _nonExpandInputs.insert(operand.getDefiningOp());
         }
     }
-    log.trace("{0} Expand input(s) and {1} Const with Expand input(s) found", _expandInputs.size(),
+    log.trace("{0} Expand setInput(s) and {1} Const with Expand input(s) found", _expandInputs.size(),
               _constInputs.size());
     if (_expandInputs.empty()) {
         log.trace("Cannot find any input ExpandOp");
@@ -199,13 +203,13 @@ bool ExpandEltwisePattern::init() {
             _nonSliceOutputs.insert(user);
         }
     }
-    log.trace("{0} Slice output(s) found", _sliceOutputs.size());
+    log.trace("{0} Slice setOutput(s) found", _sliceOutputs.size());
 
     // save the original shape and generate new shape
     auto expandInputOp = *_expandInputs.begin();
-    _unExpandedShape = expandInputOp.input().getType().cast<vpux::NDTypeInterface>().getShape().toValues();
+    _unExpandedShape = expandInputOp.getInput().getType().cast<vpux::NDTypeInterface>().getShape().toValues();
     for (auto expandInput : llvm::drop_begin(_expandInputs)) {
-        auto otherExpandInput = expandInput.input().getType().cast<vpux::NDTypeInterface>().getShape().toValues();
+        auto otherExpandInput = expandInput.getInput().getType().cast<vpux::NDTypeInterface>().getShape().toValues();
         if (otherExpandInput != _unExpandedShape) {
             log.trace("The ExpandOp's input shapes are not equal, {0} and {1} separately, not supported",
                       otherExpandInput, _unExpandedShape);
@@ -213,13 +217,50 @@ bool ExpandEltwisePattern::init() {
         }
     }
 
-    auto activationDataSize =
-            std::accumulate(_unExpandedShape.begin(), _unExpandedShape.end(), int64_t(1), std::multiplies<int64_t>());
+    // Only IE::MultiplyOp, IE::SubtractOp, IE::AddOp and IE::GroupConvolutionOp has constant input
     for (auto constDeclare : _constInputs) {
-        auto realDataSizeResult = getBaseContentNumElements(constDeclare);
-        if (mlir::failed(realDataSizeResult) ||
-            (realDataSizeResult.value() != 1 && realDataSizeResult.value() != activationDataSize)) {
-            log.trace("Unsupported const input {0} at {1}", constDeclare->getName(), constDeclare->getLoc());
+        auto baseContentNum = IE::getBaseContentNumElements(constDeclare);
+        if (mlir::failed(baseContentNum)) {
+            log.trace("Unsupported const of {0} at {1}", _eltwiseOp->getName(), _eltwiseOp->getLoc());
+            return false;
+        }
+
+        // Only support two kinds of constant input for IE::MultiplyOp, IE::SubtractOp, IE::AddOp
+        // 1. Constant input baseContentNum == 1
+        //  - It can be `broadcast` or `reshape` to any shape size
+        //  For example: input 1: "tensor<1x3x32x32xf16>", input 2: "dense<1.0> : tensor<1x1x1x1xf16>"
+        // 2. Constant input without last padWithZero == unExpand activation
+        if (mlir::isa<IE::MultiplyOp, IE::SubtractOp, IE::AddOp>(_eltwiseOp) && baseContentNum.value() != 1) {
+            auto contentAttr = constDeclare.getContentAttr();
+            if (contentAttr.getTransformations().empty()) {
+                return false;
+            }
+            auto lastAttr = contentAttr.getTransformations().back();
+            auto padWithZeroAttr = lastAttr.dyn_cast_or_null<vpux::Const::PadWithZeroAttr>();
+            if (padWithZeroAttr == nullptr) {
+                return false;
+            }
+            auto expand = *_expandInputs.begin();
+            const auto expandPadsBegin = parseIntArrayAttr<int64_t>(expand.getPadsBegin());
+            const auto expandPadsEnd = parseIntArrayAttr<int64_t>(expand.getPadsEnd());
+            const auto padZeroAttrPadsBegin = parseIntArrayAttr<int64_t>(padWithZeroAttr.getPadBefore());
+            const auto padZeroAttrPadsEnd = parseIntArrayAttr<int64_t>(padWithZeroAttr.getPadAfter());
+            if (expandPadsBegin != padZeroAttrPadsBegin || expandPadsEnd != padZeroAttrPadsEnd) {
+                return false;
+            }
+        }
+
+        // Only support two kinds of constant input for IE::GroupConvolutionOp
+        // 1. Constant Weights/Bias baseContentNum == 1
+        //  - It can be `broadcast` or `reshape` to any shape size
+        //  For example: Activation: "tensor<1x3x32x32xf16>", Weights: "dense<1.0> : tensor<1x1x1x1xf16>"
+        // 2. Constant Weights/Bias baseContentNum > 1, but all the element has the same value
+        //  - It can be considered as the first case.
+        //    After slice with single baseContentNum it can be `broadcast` or `reshape` to any shape size
+        //  For example: Activation: "tensor<1x3x32x32xf16>", Weights: "dense<1.0> : tensor<3x1x1x1xf16>"
+        if (mlir::isa<IE::GroupConvolutionOp>(_eltwiseOp) && !IE::isBaseContentSplat(constDeclare)) {
+            log.trace("Unsupported {0} at {1} with input constant isn't single value", _eltwiseOp->getName(),
+                      _eltwiseOp->getLoc());
             return false;
         }
     }
@@ -235,14 +276,17 @@ bool ExpandEltwisePattern::init() {
 
 bool ExpandEltwisePattern::opCostReduced() {
     // check 1: all inputs are ExpandOp
-    if (_nonExpandInputs.size() > 0) {
+    const auto isTwoInputsOp = mlir::isa<IE::MultiplyOp, IE::SubtractOp, IE::AddOp>(_eltwiseOp);
+    int64_t numNonExpandInputs = isTwoInputsOp ? 1 : 0;
+
+    if (_nonExpandInputs.size() > numNonExpandInputs) {
         _log.trace("{0} input op(s) are not ExpandOp", _nonExpandInputs.size());
         return false;
     }
 
     // check 2: when any of the expands to reduce is u8, the newly added expand cannot be fp16
     auto quantInputExpandExist = llvm::any_of(_expandInputs, [&](IE::ExpandOp expand) {
-        auto outputType = expand.output().getType().cast<vpux::NDTypeInterface>();
+        auto outputType = expand.getOutput().getType().cast<vpux::NDTypeInterface>();
         return outputType.getElementType().isUnsignedInteger(8);
     });
     auto floatOutputExpandToAdd = llvm::any_of(_nonSliceOutputs, [&](mlir::Operation* op) {
@@ -257,56 +301,80 @@ bool ExpandEltwisePattern::opCostReduced() {
 }
 
 /* Rewrite the pattern from:
-                                        Const filter (Const bias)
-   Expand      Expand          Expand    (1 elem)    (1 elem)
-      |          |                  |       |         |
-       \        /                    \      |       /
-         Eltwise        or               GroupConv
-            |                               |
-      Slice (optional)               Slice (optional)
+                                            Const filter (Const bias)
+   Expand      Expand (optional)    Expand    (1 elem)    (1 elem)
+      |          |                      |       |         |
+       \        /                        \      |        /
+         Eltwise                 or         GroupConv
+            |                                   |
+      Slice (optional)                  Slice (optional)
 
-    to:                                  Const filter (Const bias)
-  ShapeCast    ShapeCast        ShapeCast (broadcast) (broadcast)
-      |          |                   |        |        |
-       \        /                     \       |       /
-         Eltwise                          GroupConv
-            |                                 |
-        ShapeCast                         ShapeCast
-            |                                 |
-          Expand                           Expand
-            |                                 |
-      Slice (optional)                 Slice (optional)
+    to:
+               Slice (optional)
+                 |                          Const filter (Const bias)
+  ShapeCast    ShapeCast            ShapeCast (broadcast) (broadcast)
+      |          |                      |        |        |
+       \        /                        \       |       /
+         Eltwise                             GroupConv
+            |                                    |
+        ShapeCast                            ShapeCast
+            |                                    |
+          Expand                               Expand
+            |                                     |
+      Slice (optional)                      Slice (optional)
  */
 mlir::LogicalResult ExpandEltwisePattern::rewrite() {
     mlir::OpBuilder builder(_eltwiseOp);
     auto ctx = builder.getContext();
 
     _log.trace("Converting unexpanded shape {0} to new aligned shape {1}", _unExpandedShape, _newExpandedShape);
+
+    auto getOwnerIgnoreQuantizeCast = [&](mlir::OpOperand& opOperand) -> mlir::Operation* {
+        auto ownerOp = opOperand.getOwner();
+        while (auto quantizeCastOp = mlir::dyn_cast<IE::QuantizeCastOp>(ownerOp)) {
+            auto quantizeUsers = quantizeCastOp.getOutput().getUsers();
+            if (quantizeUsers.empty()) {
+                return ownerOp;
+            }
+            ownerOp = *quantizeUsers.begin();
+        }
+        return ownerOp;
+    };
+
+    // Insert slice for non Expand input
+    const auto expandInputType = (*_expandInputs.begin()).getInput().getType().cast<vpux::NDTypeInterface>();
+    const auto sliceOffset = parseIntArrayAttr<int64_t>((*_expandInputs.begin()).getPadsBeginAttr());
+    for (auto nonExpand : _nonExpandInputs) {
+        if (nonExpand == nullptr) {
+            return mlir::failure();
+        }
+
+        builder.setInsertionPointAfter(nonExpand);
+        auto inputSliceOp = builder.create<IE::SliceOp>(_eltwiseOp->getLoc(), nonExpand->getResult(0),
+                                                        getIntArrayAttr(ctx, sliceOffset),
+                                                        getIntArrayAttr(ctx, expandInputType.getShape().raw()));
+        auto inputShapeCastOp = builder.create<IE::ShapeCastOp>(_eltwiseOp->getLoc(), inputSliceOp.getResult(),
+                                                                getIntArrayAttr(ctx, _newExpandedShape.raw()));
+        nonExpand->getResult(0).replaceUsesWithIf(inputShapeCastOp.getResult(), [&](mlir::OpOperand& opOperand) {
+            return getOwnerIgnoreQuantizeCast(opOperand) == _eltwiseOp;
+        });
+    }
+
     // Replace input Expands with ShapeCasts
     for (auto expand : _expandInputs) {
-        auto inputValue = expand.input();
+        auto inputValue = expand.getInput();
         auto inputType = inputValue.getType().cast<vpux::NDTypeInterface>();
         builder.setInsertionPointAfter(expand);
         auto inputShapeCastOp =
                 builder.create<IE::ShapeCastOp>(_eltwiseOp->getLoc(), inputType.changeShape(_newExpandedShape),
                                                 inputValue, getIntArrayAttr(ctx, _newExpandedShape.raw()));
-        auto getOwnerIgnoreQuantizeCast = [&](mlir::OpOperand& opOperand) -> mlir::Operation* {
-            auto ownerOp = opOperand.getOwner();
-            while (auto quantizeCastOp = mlir::dyn_cast<IE::QuantizeCastOp>(ownerOp)) {
-                auto quantizeUsers = quantizeCastOp.output().getUsers();
-                if (quantizeUsers.empty()) {
-                    return ownerOp;
-                }
-                ownerOp = *quantizeUsers.begin();
-            }
-            return ownerOp;
-        };
-        expand.output().replaceUsesWithIf(inputShapeCastOp.result(), [&](mlir::OpOperand& opOperand) {
+
+        expand.getOutput().replaceUsesWithIf(inputShapeCastOp.getResult(), [&](mlir::OpOperand& opOperand) {
             // replace only current user uses
             return getOwnerIgnoreQuantizeCast(opOperand) == _eltwiseOp;
         });
         // propagate the shape if QuantCasts exit
-        auto innerOp = *inputShapeCastOp.result().getUsers().begin();
+        auto innerOp = *inputShapeCastOp.getResult().getUsers().begin();
         while (innerOp != _eltwiseOp) {
             auto innerOpResult = innerOp->getResult(0);
             auto innerOutputType = innerOpResult.getType().cast<vpux::NDTypeInterface>();
@@ -318,80 +386,75 @@ mlir::LogicalResult ExpandEltwisePattern::rewrite() {
         }
     }
 
+    // Only support IE::MultiplyOp, IE::SubtractOp, IE::AddOp and IE::GroupConvolutionOp has constant input
+    const auto opsCanHaveConstInput =
+            mlir::isa<IE::MultiplyOp, IE::SubtractOp, IE::AddOp, IE::GroupConvolutionOp>(_eltwiseOp);
+    VPUX_THROW_WHEN(!_constInputs.empty() && !opsCanHaveConstInput,
+                    "Unexpect Op {0} at {1} has constant input. Cannot ensure it has right reshape logic.",
+                    _eltwiseOp->getName(), _eltwiseOp->getLoc());
     for (auto constDeclare : _constInputs) {
         auto contentAttr = constDeclare.getContentAttr();
-        auto baseContent = contentAttr.getBaseContent();
-        auto dataShape = getShape(constDeclare.getOutput()).toValues();
-
         Const::ContentAttr newContentAttr;
-        Shape realDataShape;
-        if (auto denseBaseAttr = baseContent.dyn_cast<mlir::DenseElementsAttr>()) {
-            newContentAttr = Const::ContentAttr::get(denseBaseAttr);
-            realDataShape = denseBaseAttr.getType().getShape();
-        } else if (auto opaqueBaseAttr = baseContent.dyn_cast<Const::OpaqueElementsAttr>()) {
-            newContentAttr = Const::ContentAttr::get(opaqueBaseAttr);
-            realDataShape = opaqueBaseAttr.getType().getShape();
-        } else {
-            VPUX_THROW("Got unsupported 'baseContent' in 'ContentAttr'");
-        }
-
         auto newConstOutputType = constDeclare.getOutput().getType().cast<vpux::NDTypeInterface>();
-        const auto realDataSizeResult = getBaseContentNumElements(constDeclare);
-        if (mlir::failed(realDataSizeResult)) {
-            return mlir::failure();
-        }
-        const auto singleValueData = realDataSizeResult.value() == 1;
-        if (singleValueData) {
-            if (mlir::dyn_cast<IE::GroupConvolutionOp>(_eltwiseOp)) {
-                for (const auto& dim : enumerate(dataShape)) {
-                    if (dim.value() > 1) {
-                        newContentAttr = newContentAttr.broadcast(Dim(dim.index()), _newExpandedShape[Dims4D::Act::C]);
-                        auto newConstantShape = Shape(newConstOutputType.getShape().size(), int64_t(1));
-                        newConstantShape[Dim(dim.index())] = _newExpandedShape[Dims4D::Act::C];
-                        newConstOutputType = newConstOutputType.changeShape(newConstantShape);
-                        newContentAttr = newContentAttr.reshape(newConstantShape);
-                    }
-                }
-            } else {
-                // original data shape may be [1], need to reshape new shape size like [1, 1, 1, 1], then broadcast to
-                // new shape
-                auto newConstantShape = Shape(_newExpandedShape.size(), int64_t(1));
-                if (realDataShape.size() != _newExpandedShape.size()) {
-                    newContentAttr = newContentAttr.reshape(newConstantShape);
-                }
-                for (const auto& dim : enumerate(_newExpandedShape)) {
-                    if (dim.value() > 1) {
-                        newContentAttr =
-                                newContentAttr.broadcast(Dim(dim.index()), _newExpandedShape[Dim(dim.index())]);
-                        newConstantShape[Dim(dim.index())] = _newExpandedShape[Dim(dim.index())];
-                    }
-                }
-                // change newConstOutputType accordingly, which will be used to create a new const.
-                if (newConstOutputType.getShape() != newConstantShape) {
-                    newConstOutputType = newConstOutputType.changeShape(newConstantShape);
-                }
-            }
-        }
-        for (auto attr : contentAttr.getTransformations()) {
-            if (attr.isa<Const::PadWithZeroAttr>() || attr.isa<Const::BroadcastAttr>()) {
-                // Ignore
-                continue;
-            }
-            if (attr.isa<Const::ReshapeAttr>()) {
-                // Only remain the reshape attribute when it's used for dimension expansion to 4D
-                // e.g., from [1x512] to [1x1x1x512]
-                auto reshapeAttr = attr.cast<Const::ReshapeAttr>();
-                auto reshapeShape = Shape(parseIntArrayAttr<int64_t>(reshapeAttr.getShape()));
-                if (singleValueData || !isDimExpansionReshape(realDataShape, reshapeShape)) {
-                    continue;
-                }
-            }
-            newContentAttr = Const::ContentAttr::addTransformation(newContentAttr, attr);
-        }
-        if (!singleValueData) {
+
+        // For IE::MultiplyOp, IE::SubtractOp, IE::AddOp, we just undo expand by adding subview and then reshape
+        if (mlir::isa<IE::MultiplyOp, IE::SubtractOp, IE::AddOp>(_eltwiseOp)) {
+            newContentAttr = contentAttr;
+            const auto subOffset = Shape(_unExpandedShape.size(), int64_t(0));
+            newContentAttr = newContentAttr.subview(subOffset, _unExpandedShape);
             newContentAttr = newContentAttr.reshape(_newExpandedShape);
             newConstOutputType = newConstOutputType.changeShape(_newExpandedShape);
         }
+
+        // Only support two kinds of constant input for IE::GroupConvolutionOp
+        // 1. Constant Weights/Bias baseContentNum == 1
+        //  - First broadcast, then reshape to target shape size
+        //  For example: Activation: "tensor<1x3x32x32xf16>", Weights: "dense<1.0> : tensor<1x1x1x1xf16>"
+        //  New Weights Attr: [#const.Broadcast<1 : i64, 16 : i64>, #const.Reshape<[1, 16, 1, 1]>]
+        // 2. Constant Weights/Bias baseContentNum > 1, but all the element has the same value
+        //  - First slice with single baseContentNum, then it can be `broadcast` or `reshape` as first case
+        //  For example: Activation: "tensor<1x3x32x32xf16>", Weights: "dense<1.0> : tensor<3x1x1x1xf16>"
+        //  New Weights Attr: [#const.SubView<[0, 0, 0, 0], [1, 1, 1, 1]>, #const.Broadcast<0 : i64, 16 : i64>,
+        //                     #const.Reshape<[16, 1, 1, 1]>]
+        if (mlir::isa<IE::GroupConvolutionOp>(_eltwiseOp)) {
+            // "const.pad" and "const.broadcast" should be removed. It will update with the new rule.
+            // The remaining attribution, such as "const.Reshape" and "const.Reorder", should keep the same
+            auto baseContent = contentAttr.getBaseContent();
+            newContentAttr = Const::ContentAttr::get(baseContent);
+            for (auto attr : contentAttr.getTransformations()) {
+                if (!attr.isa<Const::PadWithZeroAttr, Const::BroadcastAttr>()) {
+                    newContentAttr = Const::ContentAttr::addTransformation(newContentAttr, attr);
+                }
+            }
+
+            auto newConstantShape = Shape(newConstOutputType.getShape().size(), int64_t(1));
+            const Shape baseContentShape = baseContent.getShapedType().getShape();
+            auto baseContentNum = IE::getBaseContentNumElements(constDeclare);
+            VPUX_THROW_WHEN(mlir::failed(baseContentNum), "Cannot get baseContentNum");
+
+            if (baseContentNum.value() > 1) {
+                const auto subOffset = Shape(newConstOutputType.getShape().size(), int64_t(0));
+                const auto subShape = Shape(newConstOutputType.getShape().size(), int64_t(1));
+                newContentAttr = newContentAttr.subview(subOffset, subShape);
+            }
+
+            auto constOutShape = getShape(constDeclare.getOutput()).toValues();
+            const auto isLargerThanOne = [](const int64_t dimSize) -> bool {
+                return dimSize > 1;
+            };
+            VPUX_THROW_UNLESS(std::count_if(constOutShape.begin(), constOutShape.end(), isLargerThanOne) == 1 &&
+                                      (constOutShape[Dims4D::Act::N] > 1 || constOutShape[Dims4D::Act::C] > 1),
+                              "Unexpect constant for GroupConvOp");
+
+            // Weights should only output channel (Dims4D::Act::N) larger than one. e.g. 16x1x1x1xfp16
+            // Bias should only channel (Dims4D::Act::C) larger than one. e.g. 1x16x1x1xfp16
+            const auto broadcastDim = constOutShape[Dims4D::Act::N] > 1 ? Dims4D::Act::N : Dims4D::Act::C;
+            newContentAttr = newContentAttr.broadcast(broadcastDim, _newExpandedShape[Dims4D::Act::C]);
+            newConstantShape[broadcastDim] = _newExpandedShape[Dims4D::Act::C];
+            newConstOutputType = newConstOutputType.changeShape(newConstantShape);
+            newContentAttr = newContentAttr.reshape(newConstantShape);
+        }
+
         builder.setInsertionPoint(_eltwiseOp);
         auto newConstDeclare =
                 builder.create<Const::DeclareOp>(constDeclare.getLoc(), newConstOutputType, newContentAttr);
@@ -411,9 +474,10 @@ mlir::LogicalResult ExpandEltwisePattern::rewrite() {
             builder.create<IE::ShapeCastOp>(_eltwiseOp->getLoc(), outputType.changeShape(_unExpandedShape),
                                             _eltwiseOp->getResult(0), getIntArrayAttr(ctx, _unExpandedShape.raw()));
     auto inputExpandOp = *_expandInputs.begin();
-    auto newOutputExpandOp = builder.create<IE::ExpandOp>(_eltwiseOp->getLoc(), outputShapeCastOp.result(),
-                                                          inputExpandOp.pads_beginAttr(), inputExpandOp.pads_endAttr());
-    _eltwiseOp->getResult(0).replaceAllUsesExcept(newOutputExpandOp.output(), outputShapeCastOp);
+    auto newOutputExpandOp =
+            builder.create<IE::ExpandOp>(_eltwiseOp->getLoc(), outputShapeCastOp.getResult(),
+                                         inputExpandOp.getPadsBeginAttr(), inputExpandOp.getPadsEndAttr());
+    _eltwiseOp->getResult(0).replaceAllUsesExcept(newOutputExpandOp.getOutput(), outputShapeCastOp);
     return mlir::success();
 }
 
@@ -473,8 +537,9 @@ mlir::LogicalResult ExpandGroupConvRewriter::matchAndRewrite(IE::GroupConvolutio
 
     // Only support GroupConvolution with constant filter
     // if the GroupConvolution has bias, the bias has to be constant as well
-    // the total size of filter constant is 1, as well as the bias, i.e., denseElem.getType().getNumElements() = 1
-    // Kernel size must be 1x1, and must be a depthwise convolution.
+    // the filter constant must be with single same value, as well as the bias.
+    // even if the BaseContent total size larger than 1.
+    // Kernel size and Stride size must be 1x1, and must be a depthwise convolution.
     // in that case, the GroupConvolution can be considered as an Eltwise
     if (!groupConvIsEltwise(layerOp)) {
         return mlir::failure();
@@ -519,7 +584,7 @@ bool ExpandPoolingPattern::init() {
     auto operand = op->getOperand(0);
     if (auto expand = operand.getDefiningOp<IE::ExpandOp>()) {
         addExpandInput(expand);
-        log.trace("{0} Expand input(s) found", getExpandInputsNum());
+        log.trace("{0} Expand setInput(s) found", getExpandInputsNum());
     } else {
         log.trace("Cannot find any input ExpandOp");
         return false;
@@ -533,11 +598,11 @@ bool ExpandPoolingPattern::init() {
             addNonSliceOutput(user);
         }
     }
-    log.trace("{0} Slice output(s) found", getSliceOutputsNum());
+    log.trace("{0} Slice setOutput(s) found", getSliceOutputsNum());
 
     // save the original shape and generate new shape
     auto expandInputOp = *getExpandInputs().begin();
-    auto unExpandedShape = expandInputOp.input().getType().cast<vpux::NDTypeInterface>().getShape().toValues();
+    auto unExpandedShape = expandInputOp.getInput().getType().cast<vpux::NDTypeInterface>().getShape().toValues();
     setUnExpandedShape(unExpandedShape);
 
     mlir::FailureOr<Shape> newExpandedShapeResult =
@@ -573,13 +638,13 @@ template <class PoolingOp>
 mlir::LogicalResult ExpandPoolingRewriter<PoolingOp>::matchAndRewrite(PoolingOp layerOp, mlir::PatternRewriter&) const {
     _log.trace("[{0}] Got '{1}' at '{2}'", this->getDebugName(), layerOp->getName(), layerOp->getLoc());
     const auto supportedPooling = [](PoolingOp layerOp) {
-        const auto kernels = parseIntArrayAttr<int64_t>(layerOp.kernel_size());
-        const auto padStart = parseIntArrayAttr<int64_t>(layerOp.pads_begin());
-        const auto padEnd = parseIntArrayAttr<int64_t>(layerOp.pads_end());
-        const auto strides = parseIntArrayAttr<int64_t>(layerOp.strides());
+        const auto kernels = parseIntArrayAttr<int64_t>(layerOp.getKernelSize());
+        const auto padStart = parseIntArrayAttr<int64_t>(layerOp.getPadsBegin());
+        const auto padEnd = parseIntArrayAttr<int64_t>(layerOp.getPadsEnd());
+        const auto strides = parseIntArrayAttr<int64_t>(layerOp.getStrides());
 
-        mlir::Value input = layerOp.input();
-        mlir::Value output = layerOp.output();
+        mlir::Value input = layerOp.getInput();
+        mlir::Value output = layerOp.getOutput();
         auto inputLayout = input.getType().cast<vpux::NDTypeInterface>().getDimsOrder();
         auto outputLayout = output.getType().cast<vpux::NDTypeInterface>().getDimsOrder();
         // input and output layer need to be same
@@ -632,7 +697,6 @@ public:
 
 private:
     bool checkValidPermuteQuantizeOrders(IE::PermuteQuantizeOp op);
-    bool checkValidPermuteQuantizePads(IE::PermuteQuantizeOp op);
     mlir::FailureOr<Shape> getWidthAlignedExpandedShape(mlir::Operation* operation, ShapeRef unExpandedShape,
                                                         Logger log);
 };
@@ -655,29 +719,14 @@ private:
 // Layout in memory NHWC: a11 b11 a12 b12 a13 b13 a14 b14 a21 b21 a22 b22 a23 b23 a24 b24
 //
 bool ExpandPermuteQuantizePattern::checkValidPermuteQuantizeOrders(IE::PermuteQuantizeOp op) {
-    auto inType = op.input().getType().cast<vpux::NDTypeInterface>();
+    auto inType = op.getInput().getType().cast<vpux::NDTypeInterface>();
     auto inputLayout = inType.getDimsOrder();
-    auto outType = op.output().getType().cast<vpux::NDTypeInterface>();
+    auto outType = op.getOutput().getType().cast<vpux::NDTypeInterface>();
     auto outputLayout = outType.getDimsOrder();
 
     const auto supportedPerm = vpux::DimsOrder::NHWC.toAffineMap(op->getContext());
 
-    return inputLayout == DimsOrder::NCHW && outputLayout == DimsOrder::NHWC && op.mem_perm() == supportedPerm;
-}
-
-bool ExpandPermuteQuantizePattern::checkValidPermuteQuantizePads(IE::PermuteQuantizeOp op) {
-    const auto padStart = parseIntArrayAttr<int64_t>(op.pads_begin());
-    const auto padEnd = parseIntArrayAttr<int64_t>(op.pads_end());
-
-    const auto nonZeroPadStart = llvm::any_of(padStart, [](auto pad) {
-        return pad > 0;
-    });
-
-    const auto nonZeroPadEnd = llvm::any_of(padEnd, [](auto pad) {
-        return pad > 0;
-    });
-
-    return !(nonZeroPadStart || nonZeroPadEnd);
+    return inputLayout == DimsOrder::NCHW && outputLayout == DimsOrder::NHWC && op.getMemPerm() == supportedPerm;
 }
 
 mlir::FailureOr<Shape> ExpandPermuteQuantizePattern::getWidthAlignedExpandedShape(mlir::Operation* operation,
@@ -738,14 +787,14 @@ bool ExpandPermuteQuantizePattern::init() {
     // match input expand
     auto operand = op->getOperand(0);
     if (auto expand = operand.getDefiningOp<IE::ExpandOp>()) {
-        const auto padsEnd = Shape(parseIntArrayAttr<int64_t>(expand.pads_end()));
+        const auto padsEnd = Shape(parseIntArrayAttr<int64_t>(expand.getPadsEnd()));
         if (padsEnd[Dims4D::Act::N] == 0 && padsEnd[Dims4D::Act::C] == 0 && padsEnd[Dims4D::Act::H] == 0) {
             // only width expanding should be handled
             addExpandInput(expand);
         }
     }
 
-    log.trace("{0} Expand input(s) found", getExpandInputsNum());
+    log.trace("{0} Expand setInput(s) found", getExpandInputsNum());
     if (getExpandInputsNum() == 0) {
         log.trace("Cannot find any input ExpandOp");
         return false;
@@ -759,11 +808,11 @@ bool ExpandPermuteQuantizePattern::init() {
             addNonSliceOutput(user);
         }
     }
-    log.trace("{0} Slice output(s) found", getSliceOutputsNum());
+    log.trace("{0} Slice setOutput(s) found", getSliceOutputsNum());
 
     // save the original shape and generate new shape
     auto expandInputOp = *getExpandInputs().begin();
-    auto unExpandedShape = expandInputOp.input().getType().cast<vpux::NDTypeInterface>().getShape().toValues();
+    auto unExpandedShape = expandInputOp.getInput().getType().cast<vpux::NDTypeInterface>().getShape().toValues();
     setUnExpandedShape(unExpandedShape);
 
     mlir::FailureOr<Shape> newExpandedShapeResult = getWidthAlignedExpandedShape(op, unExpandedShape, log);
@@ -808,6 +857,115 @@ mlir::LogicalResult ExpandPermuteQuantizeRewriter::matchAndRewrite(IE::PermuteQu
     return mlir::failure();
 }
 
+//
+// AdjustPermuteQuantizeRewriter
+//
+
+class AdjustPermuteQuantizeRewriter final : public mlir::OpRewritePattern<IE::PermuteQuantizeOp> {
+public:
+    AdjustPermuteQuantizeRewriter(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IE::PermuteQuantizeOp>(ctx), _log(log) {
+        setDebugName("AdjustPermuteQuantizeRewriter");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::PermuteQuantizeOp layerOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult AdjustPermuteQuantizeRewriter::matchAndRewrite(IE::PermuteQuantizeOp layerOp,
+                                                                   mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got '{1}' at '{2}'", this->getDebugName(), layerOp->getName(), layerOp->getLoc());
+
+    const auto logCb = [&](const formatv_object_base&) {};
+    if (!VPU::NCEPermuteOp::isSupported(layerOp, logCb, /*checkLayout=*/true,
+                                        /*checkChannelAlignment=*/true)) {
+        return mlir::failure();
+    }
+
+    if (!checkValidPermuteQuantizePads(layerOp)) {
+        return mlir::failure();
+    }
+
+    const auto inputType = layerOp.getInput().getType().cast<vpux::NDTypeInterface>();
+    const auto inputShape = inputType.getShape();
+    auto H = inputShape[Dims4D::Act::H];
+    auto W = inputShape[Dims4D::Act::W];
+    if ((VPU::NCEInvariant::VPU_DIMENSION_LIMIT >= W && VPU::NCEInvariant::VPU_DIMENSION_LIMIT >= H) ||
+        (W > VPU::NCEInvariant::VPU_DIMENSION_LIMIT && H > VPU::NCEInvariant::VPU_DIMENSION_LIMIT)) {
+        return mlir::failure();
+    }
+
+    const auto getHW = [](int64_t lengthOfAlignment, int64_t inputToDivide,
+                          int64_t inputToMultiply) -> SmallVector<int64_t> {
+        const auto maxFactor = std::max(checked_cast<int64_t>(2), divUp(lengthOfAlignment, checked_cast<int64_t>(2)));
+        for (const auto i : irange<int64_t>(2, maxFactor)) {
+            if (lengthOfAlignment % i == 0) {
+                const auto newShrink = inputToDivide / i;
+                if (newShrink > VPU::NCEInvariant::VPU_DIMENSION_LIMIT) {
+                    continue;
+                }
+                const auto newExpand = inputToMultiply * i;
+                if (newExpand > VPU::NCEInvariant::VPU_DIMENSION_LIMIT) {
+                    return {};
+                }
+
+                return {newShrink, newExpand};
+            }
+        }
+        return {};
+    };
+
+    if (W > VPU::NCEInvariant::VPU_DIMENSION_LIMIT) {
+        // For exmaple:
+        //     tensor<1x1x1x245760> => tensor<1x1x30x8192>
+        //
+        const auto alignment = VPU::NCEInvariant::getAlignment(inputType.getElementType());
+        const auto numberOfAlignment = W / alignment;
+        const auto newHW = getHW(numberOfAlignment, W, H);
+        if (newHW.empty()) {
+            return mlir::failure();
+        }
+
+        W = newHW[0];
+        H = newHW[1];
+    } else {
+        // For exmaple:
+        //     tensor<1x1x245760x16> => tensor<1x1x8192x480>
+        //
+        const auto newHW = getHW(H, H, W);
+        if (newHW.empty()) {
+            return mlir::failure();
+        }
+
+        H = newHW[0];
+        W = newHW[1];
+    }
+
+    const auto outputType = layerOp.getOutput().getType().cast<vpux::NDTypeInterface>();
+    const auto newShape = Shape({inputShape[Dims4D::Act::N], inputShape[Dims4D::Act::C], H, W});
+    const auto newOutputType = outputType.changeShape(newShape);
+    auto inputShapeCastOp =
+            rewriter.create<IE::ShapeCastOp>(layerOp.getLoc(), inputType.changeShape(newShape), layerOp.getInput(),
+                                             getIntArrayAttr(layerOp.getContext(), newShape));
+
+    auto newOp = rewriter.create<IE::PermuteQuantizeOp>(layerOp.getLoc(), newOutputType, inputShapeCastOp.getResult(),
+                                                        layerOp.getDstOrderAttr(), layerOp.getMemPermAttr(),
+                                                        layerOp.getDstElemTypeAttr(), layerOp.getPadsBeginAttr(),
+                                                        layerOp.getPadsEndAttr());
+
+    auto outputShapeCastOp =
+            rewriter.create<IE::ShapeCastOp>(layerOp.getLoc(), outputType, newOp.getOutput(),
+                                             getIntArrayAttr(layerOp.getContext(), outputType.getShape()));
+
+    rewriter.replaceOp(layerOp, outputShapeCastOp.getResult());
+    return mlir::success();
+}
+
+// AdjustInputShapeForEltwisePass
+
 void AdjustInputShapeForEltwisePass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getOperation();
@@ -817,6 +975,7 @@ void AdjustInputShapeForEltwisePass::safeRunOnFunc() {
     patterns.add<ExpandEltwiseRewriter<IE::AddOp>>(&ctx, _log);
     patterns.add<ExpandGroupConvRewriter>(&ctx, _log);
     patterns.add<ExpandPermuteQuantizeRewriter>(&ctx, _log);
+    patterns.add<AdjustPermuteQuantizeRewriter>(&ctx, _log);
     patterns.add<ExpandPoolingRewriter<IE::AvgPoolOp>>(&ctx, _log);
     patterns.add<ExpandPoolingRewriter<IE::MaxPoolOp>>(&ctx, _log);
 

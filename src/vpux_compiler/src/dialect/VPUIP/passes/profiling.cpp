@@ -5,10 +5,10 @@
 
 #include "vpux/compiler/core/profiling.hpp"
 #include "vpux/compiler/core/act_profiling.hpp"
-#include "vpux/compiler/core/async_deps_info.hpp"
 
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
@@ -19,23 +19,7 @@
 #include "vpux/compiler/utils/types.hpp"
 #include "vpux/utils/core/numeric.hpp"
 
-#include "vpux/compiler/dialect/VPU/dialect.hpp"
-#include "vpux/compiler/dialect/VPU/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/dialect.hpp"
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/passes.hpp"
-#include "vpux/compiler/dialect/VPUIP/utils.hpp"
-#include "vpux/compiler/dialect/VPURT/ops.hpp"
-
-#include <mlir/IR/Attributes.h>
-#include <mlir/IR/BlockAndValueMapping.h>
-#include <mlir/Transforms/DialectConversion.h>
-
 #include <algorithm>
-#include <deque>
-#include <iterator>
-#include <numeric>
-#include <sstream>
 
 using namespace vpux;
 
@@ -100,16 +84,16 @@ void ActShaveProfilingPass::safeRunOnModule() {
         return;
     }
 
-    std::shared_ptr<BaseActShaveProfiler> profiler;
-    const auto numNceEngines = static_cast<unsigned>(IE::getAvailableExecutor(module, VPU::ExecutorKind::NCE).count());
+    std::unique_ptr<BaseActShaveProfiler> profiler;
+    const auto tileCount = static_cast<unsigned>(IE::getTileExecutor(module).getCount());
     auto nameUniqifier = std::make_shared<NameUniqifier>(_log);
     if (isClusterTilingAppliedToActShaves) {
         // If at least 1 ActShave task is tiled use approach where profiling buffer is distributed between clusters
-        profiler = std::make_shared<NCETiledActShaveProfiler>(numNceEngines, builder, ctx, memKindAttr, netFunc, _log,
+        profiler = std::make_unique<NCETiledActShaveProfiler>(tileCount, builder, ctx, memKindAttr, netFunc, _log,
                                                               nameUniqifier);
     } else {
         // In case no ActShave task is tiled use simpler profiling handling which uses just single cluster
-        profiler = std::make_shared<UniformNonTiledActShaveProfiler>(1, builder, ctx, memKindAttr, netFunc, _log,
+        profiler = std::make_unique<UniformNonTiledActShaveProfiler>(1, builder, ctx, memKindAttr, netFunc, _log,
                                                                      nameUniqifier);
     }
 
@@ -133,7 +117,7 @@ void ActShaveProfilingPass::safeRunOnModule() {
 
     auto concatview = builder.create<VPUIP::ConcatViewOp>(
             mlir::NameLoc::get(mlir::StringAttr::get(ctx, "actshaveDDRProfiling")), concatResults, profilingResult);
-    returnOp.operandsMutable().append(concatview.output());
+    returnOp.getOperandsMutable().append(concatview.getOutput());
 
     // After profiling was added and ActShave tasks were recreated with profiling outputs added
     // remove old operations
@@ -144,6 +128,7 @@ void ActShaveProfilingPass::safeRunOnModule() {
             nceClusterTilingOp.erase();
         }
     }
+    BaseActShaveProfiler::resetBufferIdCounter();
 }
 
 //
@@ -211,9 +196,16 @@ void UPAProfilingPass::safeRunOnModule() {
                 mlir::NameLoc::get(mlir::StringAttr::get(ctx, "declareProfilingBuffer")), timestampType,
                 VPURT::BufferSection::ProfilingOutput, profilingId, offset);
 
-        const auto loc = appendLoc(upaTask->getLoc(), "{0}_{1}", PROFILING_PREFIX, upaId);
+        // UPA profiling use single DDR buffer and UPA doesn't support tiling/clustering, so fill metadata only by
+        // inClusterOffset
+        auto profilingMetadata =
+                vpux::getSwProfilingMetaAttr(ctx, /*bufferId=*/0, /*bufferOffset=*/0, /*clusterSize=*/upaTasks.size(),
+                                             /*inClusterOffset=*/upaId,
+                                             /*tileId=*/0, /*clusterId=*/0);
+        const auto loc = upaTask->getLoc();
         upaTask->setLoc(loc);
         upaTask.getInnerTaskOp()->setLoc(loc);
+        vpux::attachSwProfilingMetadataToUpa(upaTask.getInnerTaskOp(), profilingMetadata);
         upaTask.getProfilingDataMutable().assign(declareOp);
         upaId++;
     }
@@ -225,7 +217,7 @@ void UPAProfilingPass::safeRunOnModule() {
     mlir::func::ReturnOp returnOp =
             mlir::dyn_cast_or_null<mlir::func::ReturnOp>(netFunc.getBody().front().getTerminator());
     VPUX_THROW_UNLESS(returnOp != nullptr, "No ReturnOp was found");
-    returnOp.operandsMutable().append(profilngResult);
+    returnOp.getOperandsMutable().append(profilngResult);
 }
 
 void GroupProfilingBuffersPass::safeRunOnModule() {
@@ -258,21 +250,20 @@ void GroupProfilingBuffersPass::safeRunOnModule() {
     std::vector<Section> sections;
     size_t offset = 0;
     profilingOutputs.walk([&](IE::DataInfoOp op) {
-        const auto type = op.userType().cast<mlir::ShapedType>();
-        const auto sectionName = op.name();
+        const auto type = mlir::cast<vpux::NDTypeInterface>(op.getUserType());
+        const auto sectionName = op.getName();
 
-        const size_t alignment = PROFILING_SECTION_ALIGNMENT;
-        offset = alignValUp(offset, alignment);
-        const auto size = static_cast<size_t>(type.getSizeInBits() / CHAR_BIT);
+        offset = alignValUp(offset, PROFILING_SECTION_ALIGNMENT);
+        const auto size = static_cast<size_t>(type.getCompactAllocSize().count());
 
-        const auto execType = convertDataInfoNameToExecType(sectionName);
+        const auto execType = profiling::convertDataInfoNameToExecType(sectionName);
         const auto execCode = static_cast<int>(execType);
         sections.push_back({execCode, offset, size});
-        outputBases.push_back(offset);
+        outputBases.push_back(checked_cast<unsigned int>(offset));
         offset += size;
         op.erase();
     });
-    const size_t totalSize = offset;
+    const size_t totalSize = alignValUp(offset, PROFILING_SECTION_ALIGNMENT);
 
     //
     // Create and add new combined profiling output to the user info
@@ -287,9 +278,10 @@ void GroupProfilingBuffersPass::safeRunOnModule() {
     auto dataInfo = userInfoBuilder.create<IE::DataInfoOp>(
             mlir::UnknownLoc::get(ctx), mlir::StringAttr::get(ctx, vpux::PROFILING_OUTPUT_NAME),
             mlir::TypeAttr::get(outputUserResult), /*profilingSectionsCount=*/1);
-    dataInfo.sections().front().emplaceBlock();
+    dataInfo.getSections().front().emplaceBlock();
 
-    auto sectionsBuilder = mlir::OpBuilder::atBlockBegin(&dataInfo.sections().front().front(), builder.getListener());
+    auto sectionsBuilder =
+            mlir::OpBuilder::atBlockBegin(&dataInfo.getSections().front().front(), builder.getListener());
     for (const auto& section : sections) {
         sectionsBuilder.create<VPUIP::ProfilingSectionOp>(mlir::UnknownLoc::get(ctx), getIntAttr(ctx, section.execType),
                                                           getIntAttr(ctx, section.offset),
@@ -373,7 +365,7 @@ void GroupProfilingBuffersPass::safeRunOnModule() {
     //
     auto funcType = netFunc.getFunctionType();
     auto newResultTypes = to_small_vector(llvm::concat<const mlir::Type>(
-            funcType.getResults().drop_back(outputBases.size()), makeArrayRef(newOutputResult)));
+            funcType.getResults().drop_back(outputBases.size()), ArrayRef(newOutputResult)));
     auto newFunctionType = mlir::FunctionType::get(ctx, funcType.getInputs(), newResultTypes);
     netFunc.setType(newFunctionType);
 
@@ -381,9 +373,9 @@ void GroupProfilingBuffersPass::safeRunOnModule() {
     // Replace function return operands
     //
     netFunc.walk([&](mlir::func::ReturnOp op) {
-        auto start = static_cast<unsigned>(op.operandsMutable().size() - outputBases.size());
-        op.operandsMutable().erase(start, static_cast<unsigned>(outputBases.size()));
-        op.operandsMutable().append(newProfilngResult);
+        auto start = static_cast<unsigned>(op.getOperandsMutable().size() - outputBases.size());
+        op.getOperandsMutable().erase(start, static_cast<unsigned>(outputBases.size()));
+        op.getOperandsMutable().append(newProfilngResult);
     });
 }
 

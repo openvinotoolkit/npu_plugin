@@ -8,7 +8,6 @@
 
 #include "vpux/compiler/utils/rewriter.hpp"
 
-#include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
 using namespace vpux;
@@ -26,9 +25,10 @@ mlir::Value IE::arch30xx::MapBilinearInterpolateOnDPURewriter::createIdentityPoo
 
     auto maxPoolOp = rewriter.create<IE::MaxPoolOp>(
             loc, input, getIntArrayAttr(rewriter, poolKernels), getIntArrayAttr(rewriter, poolStrides), padsAttr,
-            padsAttr, vpux::IE::RoundingTypeAttr::get(rewriter.getContext(), vpux::IE::RoundingType::FLOOR), nullptr);
+            padsAttr, vpux::IE::RoundingTypeAttr::get(rewriter.getContext(), vpux::IE::RoundingType::FLOOR), nullptr,
+            nullptr);
 
-    return maxPoolOp.output();
+    return maxPoolOp.getOutput();
 }
 
 namespace {

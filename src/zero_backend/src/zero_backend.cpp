@@ -10,6 +10,7 @@
 
 #include "ze_intel_vpu_uuid.h"
 #include "zero_device.h"
+#include "zero_types.h"
 #include "zero_utils.h"
 
 #include "vpux/al/config/common.hpp"
@@ -36,9 +37,57 @@ private:
     std::map<std::string, std::shared_ptr<IDevice>> devices{};
 
     ze_context_handle_t context = nullptr;
+    std::unique_ptr<ze_graph_dditable_ext_decorator> graph_dditable_ext_decorator;
 };
 
 const ze_driver_uuid_t ZeroStructsInitializer::uuid = ze_intel_vpu_driver_uuid;
+
+static std::tuple<uint32_t, std::string> queryDriverExtensionVersion(ze_driver_handle_t _driverHandle) {
+    // query the extension properties
+    uint32_t count = 0;
+    zeroUtils::throwOnFail("zeDriverGetExtensionProperties",
+                           zeDriverGetExtensionProperties(_driverHandle, &count, nullptr));
+
+    std::vector<ze_driver_extension_properties_t> extProps;
+    extProps.resize(count);
+    zeroUtils::throwOnFail("zeDriverGetExtensionProperties",
+                           zeDriverGetExtensionProperties(_driverHandle, &count, extProps.data()));
+
+    const char* graphExtName = nullptr;
+    uint32_t targetVersion = 0;
+    for (uint32_t i = 0; i < count; ++i) {
+        auto& property = extProps[i];
+
+        if (strncmp(property.name, ZE_GRAPH_EXT_NAME, strlen(ZE_GRAPH_EXT_NAME)) != 0)
+            continue;
+
+        // If the driver version is latest, will just use its name.
+        if (property.version == ZE_GRAPH_EXT_VERSION_CURRENT) {
+            graphExtName = property.name;
+            targetVersion = property.version;
+            break;
+        }
+
+        // Use the latest version supported by the driver.
+        if (property.version > targetVersion) {
+            graphExtName = property.name;
+            targetVersion = property.version;
+        }
+    }
+
+    if (graphExtName == nullptr) {
+        OPENVINO_THROW("queryDriverExtensionVersion: Failed to find Graph extension in VPU Driver");
+    }
+
+    const uint16_t supportedDriverExtMajorVersion = 1;
+    const uint16_t driverExtMajorVersion = ZE_MAJOR_VERSION(targetVersion);
+    if (supportedDriverExtMajorVersion != driverExtMajorVersion) {
+        OPENVINO_THROW("Plugin supports only driver with extension major version ", supportedDriverExtMajorVersion,
+                       "; discovered driver extension has major version ", driverExtMajorVersion);
+    }
+
+    return std::make_tuple(targetVersion, graphExtName);
+}
 
 ZeroStructsInitializer::ZeroStructsInitializer(): log(Logger::global().nest("NPUZeroStructsInitializer", 0)) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "ZeroStructsInitializer::ZeroStructsInitializer");
@@ -47,7 +96,6 @@ ZeroStructsInitializer::ZeroStructsInitializer(): log(Logger::global().nest("NPU
     ze_driver_handle_t driver_handle = nullptr;
     ze_device_handle_t device_handle = nullptr;
 
-    ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
     ze_graph_profiling_dditable_ext_t* _graph_profiling_ddi_table_ext = nullptr;
 
     uint32_t drivers = 0;
@@ -68,7 +116,7 @@ ZeroStructsInitializer::ZeroStructsInitializer(): log(Logger::global().nest("NPU
         }
     }
     if (driver_handle == nullptr) {
-        IE_THROW() << "zeDriverGet failed to return VPU driver";
+        OPENVINO_THROW("zeDriverGet failed to return VPU driver");
     }
 
     // Check L0 API version
@@ -76,9 +124,9 @@ ZeroStructsInitializer::ZeroStructsInitializer(): log(Logger::global().nest("NPU
     zeroUtils::throwOnFail("zeDriverGetApiVersion", zeDriverGetApiVersion(driver_handle, &ze_drv_api_version));
 
     if (ZE_MAJOR_VERSION(ZE_API_VERSION_CURRENT) != ZE_MAJOR_VERSION(ze_drv_api_version)) {
-        IE_THROW() << "Incompatibility between VPU plugin and driver! "
-                   << "Plugin L0 API major version = " << ZE_MAJOR_VERSION(ZE_API_VERSION_CURRENT) << ", "
-                   << "Driver L0 API major version = " << ZE_MAJOR_VERSION(ze_drv_api_version);
+        OPENVINO_THROW("Incompatibility between VPU plugin and driver! ",
+                       "Plugin L0 API major version = ", ZE_MAJOR_VERSION(ZE_API_VERSION_CURRENT), ", ",
+                       "Driver L0 API major version = ", ZE_MAJOR_VERSION(ze_drv_api_version));
     }
     if (ZE_MINOR_VERSION(ZE_API_VERSION_CURRENT) != ZE_MINOR_VERSION(ze_drv_api_version)) {
         log.debug("Some features might not be available! "
@@ -86,11 +134,24 @@ ZeroStructsInitializer::ZeroStructsInitializer(): log(Logger::global().nest("NPU
                   ZE_MINOR_VERSION(ZE_API_VERSION_CURRENT), ZE_MINOR_VERSION(ze_drv_api_version));
     }
 
-    // Load our graph extension
-    zeroUtils::throwOnFail("zeDriverGetExtensionFunctionAddress",
-                           zeDriverGetExtensionFunctionAddress(driver_handle, "ZE_extension_graph",
-                                                               reinterpret_cast<void**>(&_graph_ddi_table_ext)));
+    // Query our graph extension version
+    uint32_t driverExtVersion = 0;
+    std::string graphExtName;
+    std::tie(driverExtVersion, graphExtName) = queryDriverExtensionVersion(driver_handle);
 
+    log.debug("Found Driver Version {0}.{1}, Driver Extension Version {2}.{3} ({4})",
+              ZE_MAJOR_VERSION(ze_drv_api_version), ZE_MINOR_VERSION(ze_drv_api_version),
+              ZE_MAJOR_VERSION(driverExtVersion), ZE_MINOR_VERSION(driverExtVersion), graphExtName);
+
+    // Load our graph extension
+    ze_graph_dditable_ext_last_t* graph_ddi_table_ext = nullptr;
+    zeroUtils::throwOnFail("zeDriverGetExtensionFunctionAddress",
+                           zeDriverGetExtensionFunctionAddress(driver_handle, graphExtName.c_str(),
+                                                               reinterpret_cast<void**>(&graph_ddi_table_ext)));
+    graph_dditable_ext_decorator =
+            std::make_unique<ze_graph_dditable_ext_decorator>(graph_ddi_table_ext, driverExtVersion);
+
+    // Load our profiling extension
     zeroUtils::throwOnFail(
             "zeDriverGetExtensionFunctionAddress",
             zeDriverGetExtensionFunctionAddress(driver_handle, "ZE_extension_profiling_data",
@@ -103,8 +164,8 @@ ZeroStructsInitializer::ZeroStructsInitializer(): log(Logger::global().nest("NPU
     ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, 0, 0};
     zeroUtils::throwOnFail("zeContextCreate", zeContextCreate(driver_handle, &context_desc, &context));
 
-    auto device = std::make_shared<ZeroDevice>(driver_handle, device_handle, context, _graph_ddi_table_ext,
-                                               _graph_profiling_ddi_table_ext);
+    auto device = std::make_shared<ZeroDevice>(driver_handle, device_handle, context,
+                                               graph_dditable_ext_decorator.get(), _graph_profiling_ddi_table_ext);
     devices.emplace(std::make_pair(device->getName(), device));
 }
 
@@ -149,7 +210,7 @@ const std::vector<std::string> ZeroEngineBackend::getDeviceNames() const {
 
 }  // namespace vpux
 
-INFERENCE_PLUGIN_API(void)
-CreateVPUXEngineBackend(std::shared_ptr<vpux::IEngineBackend>& obj, const vpux::Config& config) {
+OPENVINO_PLUGIN_API void CreateVPUXEngineBackend(std::shared_ptr<vpux::IEngineBackend>& obj,
+                                                 const vpux::Config& config) {
     obj = std::make_shared<vpux::ZeroEngineBackend>(config);
 }

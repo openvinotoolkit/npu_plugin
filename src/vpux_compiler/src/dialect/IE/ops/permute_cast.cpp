@@ -16,8 +16,8 @@ using namespace vpux;
 //
 
 mlir::LogicalResult vpux::IE::PermuteCastOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -26,14 +26,14 @@ mlir::LogicalResult vpux::IE::PermuteCastOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inOrder = DimsOrder::fromValue(permuteCast.input());
-    const auto inShape = getShape(permuteCast.input());
+    const auto inOrder = DimsOrder::fromValue(permuteCast.getInput());
+    const auto inShape = getShape(permuteCast.getInput());
     const auto inMemShape = inOrder.toMemoryOrder(inShape);
-    if (!isTrivialPermute(inMemShape, permuteCast.mem_perm())) {
+    if (!isTrivialPermute(inMemShape, permuteCast.getMemPerm())) {
         return errorAt(loc, "Operation represents non trivial permutation");
     }
 
-    inferPermuteReturnTypeComponents(permuteCast.input(), permuteCast.mem_perm(), permuteCast.dst_order(),
+    inferPermuteReturnTypeComponents(permuteCast.getInput(), permuteCast.getMemPerm(), permuteCast.getDstOrder(),
                                      inferredReturnShapes, true);
 
     return mlir::success();
@@ -85,9 +85,9 @@ void vpux::IE::PermuteCastOp::getCanonicalizationPatterns(mlir::RewritePatternSe
     patterns.add<FuseMemPermAndPermCast>(context);
 }
 
-mlir::OpFoldResult vpux::IE::PermuteCastOp::fold(ArrayRef<mlir::Attribute>) {
-    if (input().getType() == output().getType() && mem_perm().isIdentity()) {
-        return input();
+mlir::OpFoldResult vpux::IE::PermuteCastOp::fold(FoldAdaptor) {
+    if (getInput().getType() == getOutput().getType() && getMemPerm().isIdentity()) {
+        return getInput();
     }
 
     return nullptr;
