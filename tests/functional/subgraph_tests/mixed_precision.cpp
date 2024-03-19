@@ -1,14 +1,16 @@
-//
 // Copyright (C) Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
+#include <common_test_utils/ov_tensor_utils.hpp>
+#include <vpu_ov2_layer_test.hpp>
 #include "subgraph_tests/nce_tasks.hpp"
 #include "vpu_ov1_layer_test.hpp"
 
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 
-namespace {
+using namespace ov::test::utils;
+namespace ov::test {
 
 ov::Output<ov::Node> quantizeOutput(const ov::Output<ov::Node>& producer, const bool needQuant, const bool isMaxPool) {
     if (!needQuant) {
@@ -30,53 +32,44 @@ enum MixedMode {
     U8toFP16,
 };
 
-typedef std::tuple<MixedMode, NCETasksHelpers::NCEOpType> MixedPrecisionParams;
+typedef std::tuple<MixedMode, NCETasksHelpers::NCEOpType, ov::element::Type, ov::Layout> MixedPrecisionParams;
 
-class VPUXNCEMixedPrecisionTest_VPU3720 :
-        public LayerTestsUtils::VpuOv1LayerTestsCommon,
-        public testing::WithParamInterface<MixedPrecisionParams> {
-    void GenerateInputs() override {
+class NCEMixedPrecisionTest_NPU3720 : public VpuOv2LayerTest, public testing::WithParamInterface<MixedPrecisionParams> {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
-        const auto& inputsInfo = executableNetwork.GetInputsInfo();
-        const auto& functionParams = function->get_parameters();
-        for (size_t i = 0; i < functionParams.size(); ++i) {
-            const auto& param = functionParams[i];
-            const auto infoIt = inputsInfo.find(param->get_friendly_name());
-            GTEST_ASSERT_NE(infoIt, inputsInfo.cend());
-            InferenceEngine::InputInfo::CPtr info = infoIt->second;
-            const uint32_t range = 10;
-            const int32_t start_from = 0;
-            InferenceEngine::Blob::Ptr blob =
-                    FuncTestUtils::createAndFillBlob(info->getTensorDesc(), range, start_from);
-            inputs.push_back(blob);
-        }
+        const auto& funcInputs = function->inputs();
+
+        auto data_size = shape_size(targetInputStaticShapes[0]);
+        ov::Tensor tensorData =
+                create_and_fill_tensor(funcInputs[0].get_element_type(), targetInputStaticShapes[0], 50, 0, 1, 1);
+        inputs.insert({funcInputs[0].get_node_shared_ptr(), tensorData});
     }
-    void ConfigureNetwork() override {
-        cnnNetwork.getInputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
-        cnnNetwork.getOutputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
-        cnnNetwork.getInputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NHWC);
-        cnnNetwork.getOutputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NHWC);
-    }
+
     void SetUp() override {
-        targetDevice = LayerTestsUtils::testPlatformTargetDevice();
         const auto mixedMode = std::get<0>(GetParam());
         const bool isOutputQuantized = (mixedMode == FP16toU8);
         const auto nceOpType = std::get<1>(GetParam());
-        const InferenceEngine::SizeVector inputShape = {1, 16, 32, 64};
+        const ov::Shape inputShape = {1, 16, 32, 64};
+        inType = outType = std::get<ov::element::Type>(GetParam());
+        ov::Layout order = std::get<ov::Layout>(GetParam());
 
-        const auto params = ngraph::builder::makeParams(ngraph::element::f16, {inputShape});
-        const auto paramOuts =
-                ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+        init_input_shapes(static_shapes_to_test_representation({inputShape}));
 
-        auto nce_task = NCETasksHelpers::buildNCETask(paramOuts.at(0), nceOpType);
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes.front())};
+        auto nce_task = NCETasksHelpers::buildNCETask(params.at(0), nceOpType);
 
         const bool isMaxPool = (NCETasksHelpers::NCEOpType::MaxPooling == nceOpType);
         const auto maybeQuantOutput = quantizeOutput(nce_task->output(0), isOutputQuantized, isMaxPool);
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(maybeQuantOutput)};
+        const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(maybeQuantOutput)};
 
-        function = std::make_shared<ngraph::Function>(results, params, "VPUXNCEMixedPrecisionTest");
-
-        threshold = 0.5f;
+        function = std::make_shared<ov::Model>(results, params, "NCEMixedPrecisionTest");
+        auto preProc = ov::preprocess::PrePostProcessor(function);
+        preProc.input().tensor().set_layout(order);
+        preProc.input().model().set_layout(order);
+        preProc.output().tensor().set_layout(order);
+        preProc.output().model().set_layout(order);
+        function = preProc.build();
+        rel_threshold = 0.5f;
     }
 
 public:
@@ -94,10 +87,9 @@ public:
     }
 };
 
-TEST_P(VPUXNCEMixedPrecisionTest_VPU3720, HW) {
-    setPlatformVPU3720();
-    setDefaultHardwareModeMLIR();
-    Run();
+TEST_P(NCEMixedPrecisionTest_NPU3720, HW) {
+    setDefaultHardwareMode();
+    run(VPUXPlatform::VPU3720);
 }
 
 const std::vector<MixedMode> mixedMode = {FP16toU8, U8toFP16};
@@ -106,8 +98,9 @@ const std::vector<NCETasksHelpers::NCEOpType> nceOpType = {
         NCETasksHelpers::NCEOpType::EltwiseAdd, NCETasksHelpers::NCEOpType::GroupConv2d,
         NCETasksHelpers::NCEOpType::MaxPooling};
 
-INSTANTIATE_TEST_SUITE_P(smoke_conv2d_with_act, VPUXNCEMixedPrecisionTest_VPU3720,
-                         ::testing::Combine(::testing::ValuesIn(mixedMode), ::testing::ValuesIn(nceOpType)),
-                         VPUXNCEMixedPrecisionTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_conv2d_with_act, NCEMixedPrecisionTest_NPU3720,
+                         ::testing::Combine(::testing::ValuesIn(mixedMode), ::testing::ValuesIn(nceOpType),
+                                            ::testing::Values(ov::element::f16), ::testing::Values(ov::Layout("NHWC"))),
+                         NCEMixedPrecisionTest_NPU3720::getTestCaseName);
 
-}  // namespace
+}  // namespace ov::test

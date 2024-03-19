@@ -10,11 +10,16 @@ add_mlir_library(${TARGET_NAME}
     EXCLUDE_FROM_LIBMLIR
     DISABLE_INSTALL
     LINK_LIBS PRIVATE
-        npu_utils
+        npu_algo_utils
+        npu_ov_utils
+        npu_llvm_utils
+        npu_profiling_utils
         MLIRIR
-    DEPENDS
-        MLIRVPUXIncGenList
-        intrinsics_gen)
+        npu_compiler_dialect_vpu
+        flatbuffers
+        npu_elf)
+add_dependencies(${TARGET_NAME} MLIRVPUXIncGenList)
+add_dependencies(${TARGET_NAME} intrinsics_gen)
 target_include_directories(${TARGET_NAME}
     SYSTEM PRIVATE
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/thirdparty>

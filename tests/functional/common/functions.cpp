@@ -1,34 +1,32 @@
 //
-// Copyright (C) 2018-2021 Intel Corporation.
+// Copyright (C) 2018-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
 #include "functions.h"
 #include <functional_test_utils/precision_utils.hpp>
-#include <ngraph_functions/builders.hpp>
-#include <ngraph_functions/utils/ngraph_helpers.hpp>
-#include "vpux/vpux_metrics.hpp"
+#include <ov_models/builders.hpp>
+#include <ov_models/utils/ov_helpers.hpp>
+#include "base/ov_behavior_test_utils.hpp"
+#include "vpux/properties.hpp"
 
-InferenceEngine::CNNNetwork buildSingleLayerSoftMaxNetwork() {
-    InferenceEngine::SizeVector inputShape = {1, 3, 4, 3};
-    InferenceEngine::Precision netPrecision = InferenceEngine::Precision::FP32;
+std::shared_ptr<ov::Model> buildSingleLayerSoftMaxNetwork() {
+    ov::Shape inputShape = {1, 3, 4, 3};
+    ov::element::Type model_type = ov::element::f32;
     size_t axis = 1;
 
-    const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    const ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape({inputShape}))};
+    params.at(0)->set_friendly_name("Parameter");
 
-    const auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    const auto softMax = std::make_shared<ov::op::v1::Softmax>(params.at(0), axis);
+    softMax->set_friendly_name("softMax");
 
-    const auto paramOuts =
-            ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(softMax)};
+    results.at(0)->set_friendly_name("Result");
 
-    const auto softMax = std::make_shared<ngraph::opset1::Softmax>(paramOuts.at(0), axis);
+    auto ov_model = std::make_shared<ov::Model>(results, params, "softMax");
 
-    const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(softMax)};
-
-    auto function = std::make_shared<ngraph::Function>(results, params, "softMax");
-    // Create CNNNetwork from ngraph::Function
-
-    return InferenceEngine::CNNNetwork(function);
+    return ov_model;
 }
 
 const std::string PlatformEnvironment::PLATFORM = []() -> std::string {
@@ -40,7 +38,7 @@ const std::string PlatformEnvironment::PLATFORM = []() -> std::string {
 }();
 
 std::string getBackendName(const InferenceEngine::Core& core) {
-    return core.GetMetric("NPU", VPUX_METRIC_KEY(BACKEND_NAME)).as<std::string>();
+    return core.GetMetric("NPU", ov::intel_vpux::backend_name.name()).as<std::string>();
 }
 
 std::vector<std::string> getAvailableDevices(const InferenceEngine::Core& core) {

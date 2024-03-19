@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache 2.0
 #
 
+#
+
 set(TARGET_NAME "npu_translate_utils_static")
 
 file(GLOB_RECURSE SOURCES "*.cpp" "*.hpp")
@@ -20,6 +22,6 @@ target_include_directories(${TARGET_NAME}
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE
-        npu_utils
+        npu_llvm_utils
         npu_mlir_compiler_static
 )

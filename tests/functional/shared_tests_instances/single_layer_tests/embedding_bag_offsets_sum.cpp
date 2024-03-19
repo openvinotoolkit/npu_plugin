@@ -1,5 +1,6 @@
+
+// Copyright (C) Intel Corporation
 //
-// Copyright (C) Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -10,20 +11,20 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXEmbeddingBagOffsetsSumLayerTest :
+class EmbeddingBagOffsetsSumLayerTestCommon :
         public EmbeddingBagOffsetsSumLayerTest,
         virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
-class VPUXEmbeddingBagOffsetsSumLayerTest_VPU3700 : public VPUXEmbeddingBagOffsetsSumLayerTest {};
-class VPUXEmbeddingBagOffsetsSumLayerTest_VPU3720 : public VPUXEmbeddingBagOffsetsSumLayerTest {};
+class EmbeddingBagOffsetsSumLayerTest_NPU3700 : public EmbeddingBagOffsetsSumLayerTestCommon {};
+class EmbeddingBagOffsetsSumLayerTest_NPU3720 : public EmbeddingBagOffsetsSumLayerTestCommon {};
 
-TEST_P(VPUXEmbeddingBagOffsetsSumLayerTest_VPU3700, HW) {
+TEST_P(EmbeddingBagOffsetsSumLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXEmbeddingBagOffsetsSumLayerTest_VPU3720, HW) {
+TEST_P(EmbeddingBagOffsetsSumLayerTest_NPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -57,16 +58,16 @@ const auto EmbeddingBagOffsetsSumParams1 = ::testing::Combine(
         ::testing::ValuesIn(emb_table_shape), ::testing::ValuesIn(indices), ::testing::ValuesIn(offsets),
         ::testing::ValuesIn(default_index), ::testing::ValuesIn(with_weights), ::testing::ValuesIn(with_default_index));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_EmbeddingBagOffsetsSum1, VPUXEmbeddingBagOffsetsSumLayerTest_VPU3700,
+INSTANTIATE_TEST_CASE_P(smoke_EmbeddingBagOffsetsSum1, EmbeddingBagOffsetsSumLayerTest_NPU3700,
                         ::testing::Combine(EmbeddingBagOffsetsSumParams1, ::testing::ValuesIn(netPrecisions),
                                            ::testing::ValuesIn(indPrecisions),
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-                        VPUXEmbeddingBagOffsetsSumLayerTest_VPU3700::getTestCaseName);
+                        EmbeddingBagOffsetsSumLayerTest_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_EmbeddingBagOffsetsSum, VPUXEmbeddingBagOffsetsSumLayerTest_VPU3720,
+INSTANTIATE_TEST_CASE_P(smoke_EmbeddingBagOffsetsSum, EmbeddingBagOffsetsSumLayerTest_NPU3720,
                         ::testing::Combine(EmbeddingBagOffsetsSumParams1, ::testing::ValuesIn(netPrecisions),
                                            ::testing::ValuesIn(indPrecisions),
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-                        VPUXEmbeddingBagOffsetsSumLayerTest_VPU3720::getTestCaseName);
+                        EmbeddingBagOffsetsSumLayerTest_NPU3720::getTestCaseName);
 
 }  // namespace

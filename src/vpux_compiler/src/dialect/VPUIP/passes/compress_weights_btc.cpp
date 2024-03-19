@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
+#include "vpux/compiler/dialect/VPU/utils/explicit_distribution_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
@@ -10,7 +11,6 @@
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/swizzling_utils.hpp"
 #include "vpux/compiler/utils/types.hpp"
-#include "vpux/utils/core/numeric.hpp"
 
 using namespace vpux;
 
@@ -44,24 +44,37 @@ public:
     mlir::LogicalResult matchAndRewrite(VPUIP::NNDMAOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
+    ICodec::CompressionMode getCompressionMode(Const::DeclareOp constOp) const;
+
     Logger _log;
     const std::unique_ptr<ICodec> _codec;
-    std::vector<uint8_t> compressDataFromDeclareOp(Const::DeclareOp constOp) const;
+    mlir::FailureOr<std::vector<uint8_t>> compressDataFromDeclareOp(Const::DeclareOp constOp,
+                                                                    ICodec::CompressionMode compressionMode) const;
 };
 
-std::vector<uint8_t> NNDMAOpConverter::compressDataFromDeclareOp(Const::DeclareOp constOp) const {
+ICodec::CompressionMode NNDMAOpConverter::getCompressionMode(Const::DeclareOp constOp) const {
+    if (!_codec->supportsFP16compression()) {
+        return ICodec::CompressionMode::UINT8;
+    }
+
+    const auto inputElementType = constOp.getType().cast<vpux::NDTypeInterface>().getElementType();
+    return inputElementType.isF16() ? ICodec::CompressionMode::FP16 : ICodec::CompressionMode::UINT8;
+}
+
+mlir::FailureOr<std::vector<uint8_t>> NNDMAOpConverter::compressDataFromDeclareOp(
+        Const::DeclareOp constOp, ICodec::CompressionMode compressionMode) const {
     const auto content = constOp.getContent();
     const Byte totalInputSize = getTotalSize(constOp);
     std::vector<uint8_t> origData(checked_cast<size_t>(totalInputSize.count()));
-    content.copyTo(makeMutableArrayRef(reinterpret_cast<char*>(origData.data()), origData.size()));
+    content.copyTo(MutableArrayRef(reinterpret_cast<char*>(origData.data()), origData.size()));
 
-    return _codec->compress(origData);
+    return _codec->compress(origData, compressionMode, _log);
 }
 
 mlir::LogicalResult NNDMAOpConverter::matchAndRewrite(VPUIP::NNDMAOp origOp, mlir::PatternRewriter& rewriter) const {
     const auto loc = origOp->getLoc();
-    auto input = origOp.input();
-    auto output = origOp.output_buff();
+    auto input = origOp.getInput();
+    auto output = origOp.getOutputBuff();
     const auto inputType = input.getType().cast<vpux::NDTypeInterface>();
     const auto outputType = output.getType().cast<vpux::NDTypeInterface>();
 
@@ -104,25 +117,61 @@ mlir::LogicalResult NNDMAOpConverter::matchAndRewrite(VPUIP::NNDMAOp origOp, mli
         }
     }
 
-    const Byte totalInputSize = getTotalSize(origOp.input());
+    const Byte totalInputSize = getTotalSize(origOp.getInput());
     constexpr Byte MIN_INPUT_SIZE = 4_KB;
     if (totalInputSize < MIN_INPUT_SIZE) {
         _log.nest().trace("Size smaller than minimal '{0}' < '{1}'", totalInputSize.count(), MIN_INPUT_SIZE.count());
         return mlir::failure();
     }
 
-    _log.trace("Compress constant '{0}', type - '{1}'", inConstOp->getLoc(), inputType);
+    auto compressionMode = getCompressionMode(inConstOp);
+    _log.trace("Compress constant '{0}', type - '{1}', compression mode: {2}", inConstOp->getLoc(), inputType,
+               ICodec::compressionModeToStr(compressionMode));
 
-    const auto compressedData = compressDataFromDeclareOp(inConstOp);
-    if (compressedData.empty()) {
-        _log.nest().trace("Compression failed");
+    const auto compressedDataOrFailure = compressDataFromDeclareOp(inConstOp, compressionMode);
+
+    if (mlir::failed(compressedDataOrFailure)) {
         return mlir::failure();
     }
+    const auto compressedData = compressedDataOrFailure.value();
 
     const auto ctx = rewriter.getContext();
-    const auto u8Type = getUInt8Type(ctx);
-    const Shape flatDstShape{checked_cast<int64_t>(totalInputSize.count()), 1, 1, 1};
-    auto newDstType = outputType.changeShapeElemType(flatDstShape, u8Type);
+    auto u8Type = getUInt8Type(ctx);
+    auto f16Type = mlir::FloatType::getF16(ctx);
+    auto newDstType = outputType;
+    mlir::MemRefType newSrcType;
+    mlir::DenseElementsAttr newSrcContentAttr;
+
+    if (compressionMode == ICodec::CompressionMode::UINT8) {
+        const Shape newDstShape{totalInputSize.count(), 1, 1, 1};
+        newDstType = mlir::isa<VPUIP::DistributedBufferType>(newDstType)
+                             ? VPU::changeShapeElemTypeForDuplicatedDistributedBuffers(newDstType, newDstShape, u8Type)
+                             : newDstType.changeShapeElemType(newDstShape, u8Type);
+
+        const Shape compressedDataShape{checked_cast<int64_t>(compressedData.size()), 1, 1, 1};
+        newSrcType = getMemRefType(compressedDataShape, u8Type, DimsOrder::NCHW, inputType.getMemSpace(),
+                                   /*strides=*/StridesRef(), getSwizzlingSchemeAttr(inputType));
+        const auto newSrcStorageType = mlir::RankedTensorType::get(compressedDataShape.raw(), u8Type);
+        newSrcContentAttr = mlir::DenseElementsAttr::get(newSrcStorageType, ArrayRef(compressedData));
+    } else if (compressionMode == ICodec::CompressionMode::FP16) {
+        unsigned f16TypeSizeBytes = f16Type.getWidth() / CHAR_BIT;
+        const Shape newDstShape{totalInputSize.count() / f16TypeSizeBytes, 1, 1, 1};
+        newDstType = mlir::isa<VPUIP::DistributedBufferType>(newDstType)
+                             ? VPU::changeShapeElemTypeForDuplicatedDistributedBuffers(newDstType, newDstShape, f16Type)
+                             : newDstType.changeShapeElemType(newDstShape, f16Type);
+
+        const Shape compressedDataShape{checked_cast<int64_t>(compressedData.size() / f16TypeSizeBytes), 1, 1, 1};
+        newSrcType = getMemRefType(compressedDataShape, f16Type, DimsOrder::NCHW, inputType.getMemSpace(),
+                                   /*strides=*/StridesRef(), getSwizzlingSchemeAttr(inputType));
+        const auto newSrcStorageType = mlir::RankedTensorType::get(compressedDataShape.raw(), f16Type);
+        newSrcContentAttr = mlir::DenseElementsAttr::get(
+                newSrcStorageType,
+                ArrayRef<float16>(const_cast<float16*>(reinterpret_cast<const float16*>(compressedData.data())),
+                                  compressedData.size() / f16TypeSizeBytes));
+    } else {
+        VPUX_THROW("Unsupported compression mode");
+    }
+
     newDstType = newDstType.changeDimsOrder(DimsOrder::NCHW);
 
     rewriter.setInsertionPointAfter(outBufferOp);
@@ -130,20 +179,15 @@ mlir::LogicalResult NNDMAOpConverter::matchAndRewrite(VPUIP::NNDMAOp origOp, mli
             outBufferOp->getLoc(), newDstType, outBufferOp.getSectionAttr(), outBufferOp.getSectionIndexAttr(),
             outBufferOp.getByteOffsetAttr(), outBufferOp.getSwizzlingKeyAttr());
 
-    const Shape flatSrcShape{checked_cast<int64_t>(compressedData.size()), 1, 1, 1};
-    const auto newSrcStorageType = mlir::RankedTensorType::get(flatSrcShape.raw(), u8Type);
-    const auto newSrcContentAttr = mlir::DenseElementsAttr::get(newSrcStorageType, makeArrayRef(compressedData));
-    const auto newSrcType = getMemRefType(flatSrcShape, u8Type, DimsOrder::NCHW, inputType.getMemSpace(),
-                                          /*strides=*/StridesRef(), getSwizzlingSchemeAttr(inputType));
-
     rewriter.setInsertionPointAfter(inConstOp);
     auto newSrcConstOp = rewriter.create<Const::DeclareOp>(inConstOp->getLoc(), newSrcType,
                                                            Const::ContentAttr::get(newSrcContentAttr));
 
     rewriter.setInsertionPoint(origOp);
     rewriter.create<VPUIP::DecompressDMAOp>(loc, newSrcConstOp.getOutput(), nullptr, newDstBufferOp.getBuffer(),
-                                            origOp.portAttr(), origOp.channelTypeAttr(), origOp.is_out_of_orderAttr(),
-                                            origOp.is_criticalAttr(), nullptr);
+                                            origOp.getPortAttr(), origOp.getIsOutOfOrderAttr(),
+                                            origOp.getIsCriticalAttr(), /*dmaHwpId=*/nullptr,
+                                            /*profilingMetadata=*/nullptr);
     rewriter.replaceOp(origOp, {outBufferOp.getBuffer()});
 
     const auto uncompressed = totalInputSize.count();

@@ -55,7 +55,7 @@ Event::~Event() {
 }
 
 CommandList::CommandList(const ze_device_handle_t& device_handle, const ze_context_handle_t& context,
-                         ze_graph_dditable_ext_t* graph_ddi_table_ext, const Config& config,
+                         ze_graph_dditable_ext_curr_t* graph_ddi_table_ext, const Config& config,
                          const uint32_t& group_ordinal)
         : _context(context), _graph_ddi_table_ext(graph_ddi_table_ext), _log("CommandList", config.get<LOG_LEVEL>()) {
     ze_command_list_desc_t desc = {ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, nullptr, group_ordinal, 0};
@@ -77,6 +77,10 @@ void CommandList::appendGraphExecute(const ze_graph_handle_t& graph_handle,
     zeroUtils::throwOnFail("pfnAppendGraphExecute",
                            _graph_ddi_table_ext->pfnAppendGraphExecute(_handle, graph_handle, profiling_query_handle,
                                                                        nullptr, 0, nullptr));
+}
+void CommandList::appendVpuTimestamp(uint64_t* timestamp_buff) const {
+    zeroUtils::throwOnFail("zeCommandListAppendWriteGlobalTimestamp",
+                           zeCommandListAppendWriteGlobalTimestamp(_handle, timestamp_buff, nullptr, 0, nullptr));
 }
 void CommandList::appendBarrier() const {
     zeroUtils::throwOnFail("zeCommandListAppendBarrier", zeCommandListAppendBarrier(_handle, nullptr, 0, nullptr));

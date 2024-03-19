@@ -58,8 +58,28 @@ def Const_TransformAttrInterface : AttrInterface<"TransformAttrInterface"> {
                 std::ignore = baseContent;
                 return nullptr;
             }]
+        >,
+
+        InterfaceMethod<
+            "Supports sub byte storage type",
+            "bool", "supportsSubByteStorageType",
+            (ins), [{}], [{
+                return false;
+            }]
         >
     ];
+}
+
+//
+// RequestQueueAttrInterface
+//
+
+def Const_RequestQueueAttrInterface : AttrInterface<"RequestQueueAttrInterface"> {
+    let description = [{
+        The interface for Attributes which are used as elements in the request queue for folding in background.
+    }];
+
+    let cppNamespace = "vpux::Const";
 }
 
 #endif

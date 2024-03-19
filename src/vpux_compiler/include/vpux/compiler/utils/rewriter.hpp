@@ -13,6 +13,9 @@
 #include "vpux/utils/core/logger.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 
+#include <mlir/Dialect/Bufferization/IR/BufferizableOpInterface.h>
+#include <mlir/Dialect/Bufferization/IR/Bufferization.h>
+#include <mlir/Dialect/Bufferization/Transforms/OneShotAnalysis.h>
 #include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinOps.h>
@@ -77,6 +80,36 @@ public:
 };
 
 //
+// getOneShotBufferizationOptions
+//
+
+mlir::bufferization::OneShotBufferizationOptions getOneShotBufferizationOptions();
+
+//
+// getBufferType
+//
+
+vpux::NDTypeInterface getBufferType(mlir::Type type, const mlir::bufferization::BufferizationOptions& options);
+
+// convenience overload that forwards value.getType()
+vpux::NDTypeInterface getBufferType(mlir::Value value, const mlir::bufferization::BufferizationOptions& options);
+
+//
+// getBuffer
+//
+
+mlir::Value getBuffer(mlir::RewriterBase& rewriter, mlir::Value value,
+                      const mlir::bufferization::BufferizationOptions& options);
+
+//
+// bufferizeOperands
+//
+
+// Converts tensor operands to memrefs (One-Shot Bufferization).
+SmallVector<mlir::Value> bufferizeOperands(mlir::RewriterBase& rewriter, mlir::OperandRange operands,
+                                           const mlir::bufferization::BufferizationOptions& options);
+
+//
 // populateBufferizeMaterializationLegality
 //
 
@@ -106,7 +139,5 @@ inline bool bitEnumContains(InferShapedTypeMode bits, InferShapedTypeMode bit) {
 }
 
 void inferReturnTypes(mlir::Operation* op, InferShapedTypeMode mode);
-
-mlir::Operation* createIdentityMaxPool(mlir::Value operand, const mlir::Type outType, mlir::PatternRewriter& rewriter);
 
 }  // namespace vpux

@@ -6,15 +6,13 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 
-#include "vpux/utils/core/checked_cast.hpp"
-
 #include <mlir/IR/PatternMatch.h>
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::SwishOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -23,7 +21,7 @@ mlir::LogicalResult vpux::IE::SwishOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = swish.input().getType().cast<mlir::ShapedType>();
+    const auto inType = swish.getInput().getType().cast<mlir::ShapedType>();
 
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
 
@@ -45,13 +43,13 @@ public:
 };
 
 mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::SwishOp swishOp, mlir::PatternRewriter& rewriter) const {
-    if (swishOp.beta_value()) {
+    if (swishOp.getBetaValue()) {
         return mlir::failure();
     }
 
     float betaValue = 1.0;
 
-    if (auto beta = swishOp.beta()) {
+    if (auto beta = swishOp.getBeta()) {
         auto betaOp = beta.getDefiningOp<Const::DeclareOp>();
         if (betaOp == nullptr) {
             return mlir::failure();
@@ -65,7 +63,7 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::SwishOp swishOp, mli
         betaValue = betaContent.getSplatValue<float>();
     }
 
-    rewriter.replaceOpWithNewOp<IE::SwishOp>(swishOp, swishOp.getType(), swishOp.input(), nullptr,
+    rewriter.replaceOpWithNewOp<IE::SwishOp>(swishOp, swishOp.getType(), swishOp.getInput(), nullptr,
                                              rewriter.getF64FloatAttr(betaValue));
 
     return mlir::success();

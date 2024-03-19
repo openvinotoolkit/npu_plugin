@@ -10,7 +10,7 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXProposalLayerTest : public ProposalLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
+class ProposalLayerTestCommon : public ProposalLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
 protected:
     void Validate() override {
         LayerTestsUtils::VpuOv1LayerTestsCommon::Validate();
@@ -115,7 +115,7 @@ protected:
     // be to mutch. So I extend verification in this way: 90% of roy from output should be fund inside reference with an
     // overlap of 90%. This quarantee (I suppose) the the reference is corect, but can be imaginary situation when can
     // fail, even the reference is correct (base of significant number of threashold and computation made in floar for
-    // reverence and in fp16 from vpu).
+    // reverence and in fp16 from npu).
     void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
                  const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) override {
         // box check
@@ -176,16 +176,16 @@ protected:
     }
 };
 
-class VPUXProposalLayerTest_VPU3700 : public VPUXProposalLayerTest {};
-class VPUXProposalLayerTest_VPU3720 : public VPUXProposalLayerTest {};
+class ProposalLayerTest_NPU3700 : public ProposalLayerTestCommon {};
+class ProposalLayerTest_NPU3720 : public ProposalLayerTestCommon {};
 
-TEST_P(VPUXProposalLayerTest_VPU3700, HW) {
+TEST_P(ProposalLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXProposalLayerTest_VPU3720, HW) {
+TEST_P(ProposalLayerTest_NPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -218,13 +218,13 @@ const auto proposalParams = ::testing::Combine(::testing::ValuesIn(base_size_), 
                                                ::testing::ValuesIn(scale_), ::testing::ValuesIn(clip_before_nms_),
                                                ::testing::ValuesIn(clip_after_nms_), ::testing::ValuesIn(framework_));
 
-INSTANTIATE_TEST_SUITE_P(smoke_Proposal_tests, VPUXProposalLayerTest_VPU3700,
+INSTANTIATE_TEST_SUITE_P(smoke_Proposal_tests, ProposalLayerTest_NPU3700,
                          ::testing::Combine(proposalParams,
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-                         VPUXProposalLayerTest_VPU3700::getTestCaseName);
+                         ProposalLayerTest_NPU3700::getTestCaseName);
 // conformance "Proposal_108377"
 INSTANTIATE_TEST_SUITE_P(
-        smoke_Proposal_tests_108377, VPUXProposalLayerTest_VPU3700,
+        smoke_Proposal_tests_108377, ProposalLayerTest_NPU3700,
         ::testing::Combine(::testing::Combine(::testing::ValuesIn(std::vector<base_size_type>{32}),
                                               ::testing::ValuesIn(std::vector<pre_nms_topn_type>{2147483647}),
                                               ::testing::ValuesIn(std::vector<post_nms_topn_type>{100}),
@@ -236,11 +236,11 @@ INSTANTIATE_TEST_SUITE_P(
                                               ::testing::ValuesIn(std::vector<clip_after_nms_type>{false}),
                                               ::testing::ValuesIn(std::vector<framework_type>{"tensorflow"})),
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-        VPUXProposalLayerTest_VPU3700::getTestCaseName);
+        ProposalLayerTest_NPU3700::getTestCaseName);
 
 // conformance "Proposal_129693"
 INSTANTIATE_TEST_SUITE_P(
-        smoke_Proposal_tests_129693, VPUXProposalLayerTest_VPU3700,
+        smoke_Proposal_tests_129693, ProposalLayerTest_NPU3700,
         ::testing::Combine(::testing::Combine(::testing::ValuesIn(std::vector<base_size_type>{16}),
                                               ::testing::ValuesIn(std::vector<pre_nms_topn_type>{6000}),
                                               ::testing::ValuesIn(std::vector<post_nms_topn_type>{300}),
@@ -252,10 +252,10 @@ INSTANTIATE_TEST_SUITE_P(
                                               ::testing::ValuesIn(std::vector<clip_after_nms_type>{false}),
                                               ::testing::ValuesIn(std::vector<framework_type>{""})),
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-        VPUXProposalLayerTest_VPU3700::getTestCaseName);
+        ProposalLayerTest_NPU3700::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_Proposal_test, VPUXProposalLayerTest_VPU3720,
+        smoke_Proposal_test, ProposalLayerTest_NPU3720,
         ::testing::Combine(::testing::Combine(::testing::ValuesIn(std::vector<base_size_type>{4}),
                                               ::testing::ValuesIn(std::vector<pre_nms_topn_type>{6000}),
                                               ::testing::ValuesIn(std::vector<post_nms_topn_type>{300}),
@@ -267,6 +267,6 @@ INSTANTIATE_TEST_SUITE_P(
                                               ::testing::ValuesIn(std::vector<clip_after_nms_type>{false}),
                                               ::testing::ValuesIn(std::vector<framework_type>{""})),
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-        VPUXProposalLayerTest_VPU3720::getTestCaseName);
+        ProposalLayerTest_NPU3720::getTestCaseName);
 
 }  // namespace

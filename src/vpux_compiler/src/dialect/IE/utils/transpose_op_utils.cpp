@@ -19,11 +19,11 @@ namespace IE {
 // aN, aC, aH, aW   ->  aN, aH, aW, aC
 // Thus, target order of dimensions is actually NHWC.
 DimsOrder deduceInverseOrder(IE::TransposeOp op) {
-    const auto orderAttr = op.order_valueAttr();
+    const auto orderAttr = op.getOrderValueAttr();
     const auto order = DimsOrder::fromAffineMap(orderAttr.getValue());
 
     // Given the example above, inputOrder is NCHW.
-    const auto inputOrder = vpux::DimsOrder::fromValue(op.input());
+    const auto inputOrder = vpux::DimsOrder::fromValue(op.getInput());
     // The order is (d0, d1, d2, d3) -> (d0, d3, d1, d2), NWCH
     auto targetPermutation = order.toPermutation();
     // The following loop in case of NCHW just goes over d0(N), d1(C), d2(H), d3(W).
@@ -41,9 +41,9 @@ DimsOrder deduceInverseOrder(IE::TransposeOp op) {
 }
 
 bool isWHSwappingTranspose(IE::TransposeOp op) {
-    const auto orderAttr = op.order_valueAttr();
+    const auto orderAttr = op.getOrderValueAttr();
     const auto order = DimsOrder::fromAffineMap(orderAttr.getValue());
-    const auto inputOrder = vpux::DimsOrder::fromValue(op.input());
+    const auto inputOrder = vpux::DimsOrder::fromValue(op.getInput());
     size_t dimW, dimH;
 
     if (inputOrder.numDims() == 4) {

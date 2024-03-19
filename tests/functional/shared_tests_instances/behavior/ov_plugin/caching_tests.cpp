@@ -1,10 +1,10 @@
-//
 // Copyright (C) 2018-2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
 #include "behavior/ov_plugin/caching_tests.hpp"
-#include "vpu_test_env_cfg.hpp"
+#include "common/utils.hpp"
+#include "common/vpu_test_env_cfg.hpp"
 #include "vpux/al/config/common.hpp"
 
 using namespace ov::test::behavior;
@@ -49,7 +49,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_KeemBay, CompileModelCacheTest
                          ::testing::Combine(::testing::ValuesIn(smoke_functions()),
                                             ::testing::ValuesIn(smoke_precisionsKeemBay),
                                             ::testing::ValuesIn(batchSizesKeemBay),
-                                            ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
+                                            ::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::Values(ov::AnyMap{})),
                          CompileModelCacheTestBase::getTestCaseName);
 
@@ -57,26 +57,28 @@ INSTANTIATE_TEST_SUITE_P(nightly_CachingSupportCase_KeemBay, CompileModelCacheTe
                          ::testing::Combine(::testing::ValuesIn(keembay_functions()),
                                             ::testing::ValuesIn(nightly_precisionsKeemBay),
                                             ::testing::ValuesIn(batchSizesKeemBay),
-                                            ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
+                                            ::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::Values(ov::AnyMap{})),
                          CompileModelCacheTestBase::getTestCaseName);
 
 static std::string getTestCaseName(testing::TestParamInfo<compileModelLoadFromFileParams> obj) {
-    return CompileModelLoadFromFileTestBase::getTestCaseName(obj) +
-           "_targetPlatform=" + LayerTestsUtils::getTestsPlatformFromEnvironmentOr(CommonTestUtils::DEVICE_KEEMBAY);
+    std::string testCaseName = CompileModelLoadFromFileTestBase::getTestCaseName(obj);
+    std::replace(testCaseName.begin(), testCaseName.end(), ':', '.');
+    return testCaseName +
+           "_targetPlatform=" + LayerTestsUtils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
 }
 
 const std::vector<ov::AnyMap> LoadFromFileConfigs = {
-        {ov::device::priorities(CommonTestUtils::DEVICE_KEEMBAY),
-         ov::intel_vpux::compiler_type(ov::intel_vpux::CompilerType::DRIVER),
+        {ov::device::properties(ov::test::utils::DEVICE_NPU,
+                                ov::intel_vpux::compiler_type(ov::intel_vpux::CompilerType::DRIVER)),
          ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
-        {ov::device::priorities(CommonTestUtils::DEVICE_KEEMBAY),
-         ov::intel_vpux::compiler_type(ov::intel_vpux::CompilerType::DRIVER),
+        {ov::device::properties(ov::test::utils::DEVICE_NPU,
+                                ov::intel_vpux::compiler_type(ov::intel_vpux::CompilerType::DRIVER)),
          ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}};
 const std::vector<std::string> TestTargets = {
-        CommonTestUtils::DEVICE_AUTO,
-        CommonTestUtils::DEVICE_MULTI,
-        CommonTestUtils::DEVICE_BATCH,
+        ov::test::utils::DEVICE_AUTO,
+        ov::test::utils::DEVICE_MULTI,
+        ov::test::utils::DEVICE_BATCH,
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_CachingSupportCase_KeemBay, CompileModelLoadFromFileTestBase,
@@ -91,7 +93,7 @@ const std::vector<ov::AnyMap> KEEMBAYLoadFromFileConfigs = {
         {ov::intel_vpux::compiler_type(ov::intel_vpux::CompilerType::DRIVER)},
 };
 INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_KeemBay, CompileModelLoadFromFileTestBase,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(KEEMBAYLoadFromFileConfigs)),
                          getTestCaseName);
 

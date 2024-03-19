@@ -143,7 +143,7 @@ public:
 
 public:
     bool hasReqFor(MemDim memDim) const;
-    Optional<DimStrideReq> operator[](MemDim memDim) const;
+    std::optional<DimStrideReq> operator[](MemDim memDim) const;
 
 public:
     void calcStrides(MemStrides& memStrides, Bit elemSize, MemShapeRef memShape) const;
@@ -246,7 +246,7 @@ public:
 
 public:
     bool hasReqFor(MemDim memDim) const;
-    Optional<DimStrideReq> operator[](MemDim memDim) const;
+    std::optional<DimStrideReq> operator[](MemDim memDim) const;
 
 public:
     void calcStrides(MemStrides& memStrides, Bit elemSize, MemShapeRef memShape) const;

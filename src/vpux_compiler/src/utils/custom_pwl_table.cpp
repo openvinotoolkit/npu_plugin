@@ -9,9 +9,9 @@
 
 namespace vpux {
 
-Optional<vpux::PWLTableEntry> findLeakyReluPWLEntry(const float reluSlope, const int64_t zeroPoint) {
+std::optional<vpux::PWLTableEntry> findLeakyReluPWLEntry(const float reluSlope, const int64_t zeroPoint) {
     if (!isSupportedNegativeSlope(reluSlope)) {
-        return None;
+        return std::nullopt;
     }
 
     if (isFloatEqual(reluSlope, 0.0f)) {
@@ -24,29 +24,29 @@ Optional<vpux::PWLTableEntry> findLeakyReluPWLEntry(const float reluSlope, const
         return getPWLEntryForAlpha25(zeroPoint);
     }
 
-    return None;
+    return std::nullopt;
 }
 
-Optional<vpux::PWLTableEntry> getLeakyReluPWLEntry(IE::PostOpAttr postOp, mlir::Type outElemType) {
-    IE::LeakyReluOp::Adaptor leakyRelu(None, postOp.getAttrs());
+std::optional<vpux::PWLTableEntry> getLeakyReluPWLEntry(IE::PostOpAttr postOp, mlir::Type outElemType) {
+    IE::LeakyReluOp::Adaptor leakyRelu(std::nullopt, postOp.getAttrs());
     VPUX_THROW_UNLESS(leakyRelu.verify(mlir::UnknownLoc::get(postOp.getContext())).succeeded(),
                       "Wrong attributes '{0}' for '{1}' PostOp", postOp.getAttrs(), postOp.getName());
 
-    const auto alpha = leakyRelu.negative_slope().convertToDouble();
+    const auto alpha = leakyRelu.getNegativeSlope().convertToDouble();
     const auto zeroPoint = outElemType.cast<mlir::quant::UniformQuantizedType>().getZeroPoint();
     return findLeakyReluPWLEntry(static_cast<float>(alpha), zeroPoint);
 }
 
-Optional<vpux::PWLTableEntry> findCustomPWLTable(IE::PostOpAttr postOp, mlir::Type outElemType) {
+std::optional<vpux::PWLTableEntry> findCustomPWLTable(IE::PostOpAttr postOp, mlir::Type outElemType) {
     // create map
     // this create map is a temporary solution, it will be change in a future MR when we will decide if we will add
     // custom tables and compilation train tables to MLIR or an analysis.
 
     if (!outElemType.isa<mlir::quant::UniformQuantizedType>()) {
-        return None;
+        return std::nullopt;
     }
 
-    using PWLEntryFunc = Optional<vpux::PWLTableEntry> (*)(IE::PostOpAttr, mlir::Type);
+    using PWLEntryFunc = std::optional<vpux::PWLTableEntry> (*)(IE::PostOpAttr, mlir::Type);
     std::map<std::string, PWLEntryFunc> pwlTableMap = {
             {"IE.LeakyRelu", getLeakyReluPWLEntry},
     };
@@ -54,7 +54,7 @@ Optional<vpux::PWLTableEntry> findCustomPWLTable(IE::PostOpAttr postOp, mlir::Ty
     const StringRef activationName = postOp.getName().getValue();
     auto pwlTableIt = pwlTableMap.find(activationName.str());
     if (pwlTableIt == pwlTableMap.end()) {
-        return None;
+        return std::nullopt;
     }
     return pwlTableMap[activationName.str()](postOp, outElemType);
 }

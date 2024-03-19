@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 #include <malloc.h>
 #include <random>
+#include <vector>
 #include <vpux_elf/accessor.hpp>
 #include <vpux_elf/writer.hpp>
 #include <vpux_loader/vpux_loader.hpp>
@@ -51,8 +52,8 @@ public:
         symTab_[VPU_NNRD_SYM_BARRIERS_START].st_size = 0;
     }
 
-    const ArrayRef<SymbolEntry> symTab() const {
-        return ArrayRef<SymbolEntry>(symTab_, SPECIAL_SYMTAB_SIZE);
+    const std::vector<SymbolEntry> symTab() const {
+        return std::vector<SymbolEntry>(symTab_, symTab_ + SPECIAL_SYMTAB_SIZE);
     }
 };
 
@@ -173,6 +174,14 @@ std::vector<uint8_t> generateBadUserIOElf() {
 std::vector<uint8_t> generateBadSectionTypeElf() {
     Writer writer;
 
+    (void)generateDataSection<DummyBinObject>(writer, ".binData", SHT_LOUSER - 2);
+
+    return writer.generateELF();
+}
+
+std::vector<uint8_t> generateUnrecognizedUserSectionTypeElf() {
+    Writer writer;
+
     (void)generateDataSection<DummyBinObject>(writer, ".binData", SHT_HIUSER - 1);
 
     return writer.generateELF();
@@ -198,7 +207,7 @@ const HardCodedSymtabToCluster0 gSymTab;
 TEST(ELFLoader, ThrowWhenAccessorPointerIsNull) {
     DummyBufferManager bufMgr;
 
-    ASSERT_THROW(VPUXLoader(nullptr, &bufMgr, gSymTab.symTab()), ArgsError);
+    ASSERT_THROW(VPUXLoader(nullptr, &bufMgr), ArgsError);
 }
 
 TEST(ELFLoader, ThrowWhenElfHeaderIsInvalid) {
@@ -211,7 +220,7 @@ TEST(ELFLoader, ThrowWhenElfHeaderIsInvalid) {
 
     ElfDDRAccessManager accessor(reinterpret_cast<const uint8_t*>(&elf), sizeof(ELFHeader));
 
-    ASSERT_THROW(VPUXLoader(&accessor, &bufMgr, gSymTab.symTab()), HeaderError);
+    ASSERT_THROW(VPUXLoader(&accessor, &bufMgr), HeaderError);
 }
 
 TEST(ELFLoader, ThrowWhenBufferManagerIsNull) {
@@ -220,7 +229,7 @@ TEST(ELFLoader, ThrowWhenBufferManagerIsNull) {
     ASSERT_NO_THROW(elf = generateValidTestElf());
 
     ElfDDRAccessManager accessor(reinterpret_cast<const uint8_t*>(elf.data()), elf.size());
-    ASSERT_THROW(VPUXLoader(&accessor, nullptr, gSymTab.symTab()), ArgsError);
+    ASSERT_THROW(VPUXLoader(&accessor, nullptr), ArgsError);
 }
 
 TEST(ELFLoader, ThrowWhenAllocFails) {
@@ -230,7 +239,8 @@ TEST(ELFLoader, ThrowWhenAllocFails) {
     ASSERT_NO_THROW(elf = generateValidTestElf());
 
     ElfDDRAccessManager accessor(reinterpret_cast<const uint8_t*>(elf.data()), elf.size());
-    ASSERT_THROW(VPUXLoader(&accessor, &bufMgr, gSymTab.symTab()), AllocError);
+    VPUXLoader loader(&accessor, &bufMgr);
+    ASSERT_THROW(loader.load(gSymTab.symTab(), false, {}), AllocError);
 }
 
 TEST(ELFLoader, ThrowWhenBadUserIO) {
@@ -240,7 +250,8 @@ TEST(ELFLoader, ThrowWhenBadUserIO) {
     ASSERT_NO_THROW(elf = generateBadUserIOElf());
 
     ElfDDRAccessManager accessor(reinterpret_cast<const uint8_t*>(elf.data()), elf.size());
-    ASSERT_THROW(VPUXLoader(&accessor, &bufMgr, gSymTab.symTab()), SequenceError);
+    VPUXLoader loader(&accessor, &bufMgr);
+    ASSERT_THROW(loader.load(gSymTab.symTab(), false, {}), SequenceError);
 }
 
 TEST(ELFLoader, ThrowWhenBadSectionType) {
@@ -250,7 +261,19 @@ TEST(ELFLoader, ThrowWhenBadSectionType) {
     ASSERT_NO_THROW(elf = generateBadSectionTypeElf());
 
     ElfDDRAccessManager accessor(reinterpret_cast<const uint8_t*>(elf.data()), elf.size());
-    ASSERT_THROW(VPUXLoader(&accessor, &bufMgr, gSymTab.symTab()), SectionError);
+    VPUXLoader loader(&accessor, &bufMgr);
+    ASSERT_THROW(loader.load(gSymTab.symTab(), false, {}), ImplausibleState);
+}
+
+TEST(ELFLoader, NoThrowWhenUnrecognizedUserSectionType) {
+    DummyBufferManager bufMgr;
+    std::vector<uint8_t> elf;
+
+    ASSERT_NO_THROW(elf = generateUnrecognizedUserSectionTypeElf());
+
+    ElfDDRAccessManager accessor(reinterpret_cast<const uint8_t*>(elf.data()), elf.size());
+    VPUXLoader loader(&accessor, &bufMgr);
+    ASSERT_NO_THROW(loader.load(gSymTab.symTab()));
 }
 
 TEST(ELFLoader, NoThrowWhenValidElf) {
@@ -260,7 +283,9 @@ TEST(ELFLoader, NoThrowWhenValidElf) {
     ASSERT_NO_THROW(elf = generateValidTestElf());
 
     ElfDDRAccessManager accessor(reinterpret_cast<const uint8_t*>(elf.data()), elf.size());
-    ASSERT_NO_THROW(VPUXLoader(&accessor, &bufMgr, gSymTab.symTab()));
+    ASSERT_NO_THROW(VPUXLoader(&accessor, &bufMgr));
+    VPUXLoader loader(&accessor, &bufMgr);
+    ASSERT_NO_THROW(loader.load(gSymTab.symTab(), false, {}));
 }
 
 }  // namespace

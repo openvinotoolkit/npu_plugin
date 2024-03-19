@@ -28,9 +28,10 @@ public:
     void optimizeDepsMap();
     void updateTokenDependencies();
     size_t insertNewExecOpToDepsMap(mlir::async::ExecuteOp execOp);
+    void preAllocateForNewOps(size_t numOfNewOps);
     mlir::async::ExecuteOp getExecuteOpAtIndex(size_t opIdx) const;
-    SmallVector<size_t> getOpDeps(size_t opIdx) const;
-    SmallVector<size_t> getConsumerOps(size_t opIdx) const;
+    const llvm::BitVector& getOpDeps(size_t opIdx) const;
+    const llvm::BitVector& getConsumerOps(size_t opIdx) const;
     std::unordered_map<size_t, size_t> calculateOpInDegreeTable() const;
     std::unordered_map<size_t, size_t> calculateOpOutDegreeTable() const;
     uint32_t getIndex(mlir::async::ExecuteOp execOp) const;
@@ -52,6 +53,7 @@ private:
     // indexOf(mlir::async::ExecuteOp) 'depends on' [ indexOf(mlir::async::ExecuteOp)... ].
     SmallVector<llvm::BitVector> _depsMap;
     SmallVector<llvm::BitVector> _consumerMap;
+    size_t _execOpCount = 0;
 };
 
 }  // namespace vpux

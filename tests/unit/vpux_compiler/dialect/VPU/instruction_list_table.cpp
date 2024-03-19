@@ -3,9 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
+//
 #include <gtest/gtest.h>
 #include <climits>
-#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_sparsity.hpp"
 #include "vpux/utils/core/numeric.hpp"
 
 using namespace vpux;

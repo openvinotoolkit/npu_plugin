@@ -5,11 +5,8 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
-#include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes_utils.hpp"
 #include "vpux/compiler/utils/error.hpp"
-
-#include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
 
@@ -18,11 +15,11 @@ using namespace vpux;
 //
 
 mlir::LogicalResult vpux::IE::TopKOp::verify() {
-    if (!k()) {
+    if (!getK()) {
         return mlir::success();
     }
 
-    auto kNumElements = k().getType().cast<vpux::NDTypeInterface>().getNumElements();
+    auto kNumElements = getK().getType().cast<vpux::NDTypeInterface>().getNumElements();
     if (kNumElements != 1) {
         return errorAt(*this, "K should have only 1 element, while it has {0}", kNumElements);
     }
@@ -31,8 +28,8 @@ mlir::LogicalResult vpux::IE::TopKOp::verify() {
 }
 
 mlir::LogicalResult vpux::IE::TopKOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -41,10 +38,10 @@ mlir::LogicalResult vpux::IE::TopKOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = topK.input().getType().cast<mlir::ShapedType>();
+    const auto inType = topK.getInput().getType().cast<mlir::ShapedType>();
     const auto inputShape = inType.getShape();
 
-    const auto kValue = getConstOrAttrValue(topK.k(), topK.k_valueAttr());
+    const auto kValue = getConstOrAttrValue(topK.getK(), topK.getKValueAttr());
 
     if (mlir::failed(kValue)) {
         return mlir::failure();
@@ -54,7 +51,7 @@ mlir::LogicalResult vpux::IE::TopKOp::inferReturnTypeComponents(
     for (size_t i = 0; i < inputShape.size(); ++i) {
         outShape.push_back(inputShape[i]);
     }
-    int64_t axis = topK.axis();
+    int64_t axis = topK.getAxis();
     const auto inRank = inType.getRank();
     if (axis < 0) {
         axis += inRank;
@@ -63,7 +60,7 @@ mlir::LogicalResult vpux::IE::TopKOp::inferReturnTypeComponents(
     outShape[axis] = kValue.value();
 
     inferredReturnShapes.emplace_back(outShape, inType.getElementType());
-    inferredReturnShapes.emplace_back(outShape, topK.element_type());
+    inferredReturnShapes.emplace_back(outShape, topK.getElementType());
 
     return mlir::success();
 }
@@ -84,15 +81,18 @@ public:
 
 mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::TopKOp topKOp, mlir::PatternRewriter& rewriter) const {
     auto arch = VPU::getArch(topKOp->getParentOfType<mlir::ModuleOp>());
-    if (!(arch == VPU::ArchKind::VPUX37XX)) {
+    const std::set<VPU::ArchKind> compatibleTargets = {
+            VPU::ArchKind::VPUX37XX,
+    };
+    if (compatibleTargets.count(arch) <= 0) {
         return mlir::failure();
     }
 
-    if (topKOp.k_value()) {
+    if (topKOp.getKValue()) {
         return mlir::failure();
     }
 
-    const auto kValue = getConstOrAttrValue(topKOp.k(), topKOp.k_valueAttr());
+    const auto kValue = getConstOrAttrValue(topKOp.getK(), topKOp.getKValueAttr());
 
     if (mlir::failed(kValue)) {
         return mlir::failure();
@@ -100,8 +100,8 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::TopKOp topKOp, mlir:
 
     const auto kValueAttr = getIntAttr(rewriter.getContext(), kValue.value());
 
-    rewriter.replaceOpWithNewOp<IE::TopKOp>(topKOp, topKOp.input(), nullptr, kValueAttr, topKOp.axis(), topKOp.mode(),
-                                            topKOp.sort(), topKOp.element_type());
+    rewriter.replaceOpWithNewOp<IE::TopKOp>(topKOp, topKOp.getInput(), nullptr, kValueAttr, topKOp.getAxis(),
+                                            topKOp.getMode(), topKOp.getSort(), topKOp.getElementType());
 
     return mlir::success();
 }

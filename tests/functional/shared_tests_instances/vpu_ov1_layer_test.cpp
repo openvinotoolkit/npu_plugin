@@ -1,14 +1,13 @@
-//
 // Copyright (C) Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
 #include "vpu_ov1_layer_test.hpp"
 #include "vpu_test_report.hpp"
-#include "vpux_private_config.hpp"
+#include "vpux_private_properties.hpp"
 
+#include "common/utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-#include "vpu_test_tool.hpp"
 
 #include <common/functions.h>
 #include "vpux/utils/core/format.hpp"
@@ -19,7 +18,7 @@ const VpuTestEnvConfig& VpuOv1LayerTestsCommon::envConfig = VpuTestEnvConfig::ge
 
 TargetDevice testPlatformTargetDevice() {
     static TargetDevice res = VpuTestEnvConfig::getInstance().IE_NPU_TESTS_DEVICE_NAME.empty()
-                                      ? CommonTestUtils::DEVICE_KEEMBAY
+                                      ? ov::test::utils::DEVICE_NPU
                                       : VpuTestEnvConfig::getInstance().IE_NPU_TESTS_DEVICE_NAME;
     return res;
 }
@@ -37,11 +36,12 @@ VpuOv1LayerTestsCommon::VpuOv1LayerTestsCommon(): testTool(envConfig) {
 void VpuOv1LayerTestsCommon::BuildNetworkWithoutCompile() {
     cnnNetwork = InferenceEngine::CNNNetwork{function};
 
-    if (configuration.count(VPUX_CONFIG_KEY(PLATFORM)) == 0) {
-        configuration[VPUX_CONFIG_KEY(PLATFORM)] = envConfig.IE_NPU_TESTS_PLATFORM;
+    if (configuration.count(ov::intel_vpux::platform.name()) == 0) {
+        configuration[ov::intel_vpux::platform.name()] = envConfig.IE_NPU_TESTS_PLATFORM;
     }
-    if (configuration.find(VPUX_CONFIG_KEY(COMPILER_TYPE)) == configuration.end())
-        configuration[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
+    if (configuration.find(ov::intel_vpux::compiler_type.name()) == configuration.end())
+        configuration[ov::intel_vpux::compiler_type.name()] = "MLIR";
+    ;
     ConfigureNetwork();
 }
 
@@ -196,6 +196,13 @@ void VpuOv1LayerTestsCommon::Validate() {
     Compare(expectedOutputs, actualOutputs);
 }
 
+void VpuOv1LayerTestsCommon::Compare(
+        const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
+        const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) {
+    // Passing abs_threshold explicitly
+    LayerTestsCommon::Compare(expectedOutputs, actualOutputs, threshold, abs_threshold);
+}
+
 void VpuOv1LayerTestsCommon::Run() {
     ov::test::utils::PassRate::Statuses status = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()
                                                          ? ov::test::utils::PassRate::Statuses::SKIPPED
@@ -304,24 +311,24 @@ void VpuOv1LayerTestsCommon::Run() {
 }
 
 void VpuOv1LayerTestsCommon::setReferenceSoftwareModeMLIR() {
-    configuration[VPUX_CONFIG_KEY(COMPILATION_MODE)] = "ReferenceSW";
+    configuration[ov::intel_vpux::compilation_mode.name()] = "ReferenceSW";
 }
 
 void VpuOv1LayerTestsCommon::setDefaultHardwareModeMLIR() {
-    configuration[VPUX_CONFIG_KEY(COMPILATION_MODE)] = "DefaultHW";
+    configuration[ov::intel_vpux::compilation_mode.name()] = "DefaultHW";
 }
 
 void VpuOv1LayerTestsCommon::setPlatformVPU3700() {
-    configuration[VPUX_CONFIG_KEY(PLATFORM)] = "VPU3700";
+    configuration[ov::intel_vpux::platform.name()] = "VPU3700";
 }
 
 void VpuOv1LayerTestsCommon::setPlatformVPU3720() {
-    configuration[VPUX_CONFIG_KEY(PLATFORM)] = "VPU3720";
+    configuration[ov::intel_vpux::platform.name()] = "VPU3720";
 }
 
 void VpuOv1LayerTestsCommon::setSingleClusterMode() {
-    configuration[VPUX_CONFIG_KEY(DPU_GROUPS)] = std::to_string(1);
-    configuration[VPUX_CONFIG_KEY(DMA_ENGINES)] = std::to_string(1);
+    configuration[ov::intel_vpux::dpu_groups.name()] = std::to_string(1);
+    configuration[ov::intel_vpux::dma_engines.name()] = std::to_string(1);
 }
 
 void VpuOv1LayerTestsCommon::setPerformanceHintLatency() {
@@ -329,7 +336,7 @@ void VpuOv1LayerTestsCommon::setPerformanceHintLatency() {
 }
 
 void VpuOv1LayerTestsCommon::useELFCompilerBackend() {
-    configuration[VPUX_CONFIG_KEY(USE_ELF_COMPILER_BACKEND)] = CONFIG_VALUE(YES);
+    configuration[ov::intel_vpux::use_elf_compiler_backend.name()] = CONFIG_VALUE(YES);
 }
 
 void VpuOv1LayerTestsCommon::TearDown() {

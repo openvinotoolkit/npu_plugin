@@ -10,12 +10,13 @@
 #include <common/functions.h>
 #include "common_test_utils/test_constants.hpp"
 #include "vpu_ov1_layer_test.hpp"
+#include "vpux_private_properties.hpp"
 
 namespace LayerTestsDefinitions {
-class VPUXReduceLayerTest : public ReduceOpsLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
+class ReduceLayerTestCommon : public ReduceOpsLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void SetUp() override {
         InferenceEngine::Precision netPrecision;
-        CommonTestUtils::OpType opType;
+        ov::test::utils::OpType opType;
         ngraph::helpers::ReductionType reductionType;
         ngraph::NodeVector convertedInputs;
         ngraph::OutputVector paramOuts;
@@ -30,32 +31,32 @@ class VPUXReduceLayerTest : public ReduceOpsLayerTest, virtual public LayerTests
         if ((reductionType == ngraph::helpers::ReductionType::LogicalOr) ||
             (reductionType == ngraph::helpers::ReductionType::LogicalAnd)) {
             auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-            auto inputs = ngraph::builder::makeParams(ngPrc, {inputShape});
+            ov::ParameterVector inputs{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
             switch (opType) {
-            case CommonTestUtils::OpType::SCALAR: {
+            case ov::test::utils::OpType::SCALAR: {
                 if (axes.size() > 1)
                     FAIL() << "In reduce op if op type is scalar, 'axis' input's must contain 1 element";
                 break;
             }
-            case CommonTestUtils::OpType::VECTOR: {
+            case ov::test::utils::OpType::VECTOR: {
                 shapeAxes.push_back(axes.size());
                 break;
             }
             default:
                 FAIL() << "Reduce op doesn't support operation type: " << opType;
             }
-            auto reductionAxesNode = std::dynamic_pointer_cast<ngraph::Node>(std::make_shared<ngraph::opset3::Constant>(
+            auto reductionAxesNode = std::dynamic_pointer_cast<ngraph::Node>(std::make_shared<ov::op::v0::Constant>(
                     ngraph::element::Type_t::i64, ngraph::Shape(shapeAxes), axes));
 
-            // Boolean type is unsupported in vpux-plugin, this is why the Convert layers are used to convert the input
+            // Boolean type is unsupported in npu-plugin, this is why the Convert layers are used to convert the input
             // type into ngraph::element::boolean.
             for (const auto& input : inputs) {
-                convertedInputs.push_back(std::make_shared<ngraph::opset5::Convert>(input, ngraph::element::boolean));
+                convertedInputs.push_back(std::make_shared<ov::op::v0::Convert>(input, ngraph::element::boolean));
             }
             paramOuts = ngraph::helpers::convert2OutputVector(convertedInputs);
             reduceNode = ngraph::builder::makeReduce(paramOuts[0], reductionAxesNode, keepDims, reductionType);
-            const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(reduceNode)};
+            const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(reduceNode)};
             function = std::make_shared<ngraph::Function>(results, inputs, "Reduce");
         } else {
             ReduceOpsLayerTest::SetUp();
@@ -63,41 +64,60 @@ class VPUXReduceLayerTest : public ReduceOpsLayerTest, virtual public LayerTests
     }
 };
 
-class VPUXReduceOpsLayerTest_VPU3700 : public VPUXReduceLayerTest {};
+// FP16 for 3700 platform
+class ReduceOpsLayerTest_NPU3700 : public ReduceLayerTestCommon {};
 
-TEST_P(VPUXReduceOpsLayerTest_VPU3700, SW) {
+// FP16/FP32 for 3720 platforms
+class ReduceLayerTest_HW_FP16 : public ReduceLayerTestCommon {};
+class ReduceLayerTest_SW_FP16 : public ReduceLayerTestCommon {};
+class ReduceLayerTest_SW_FP32 : public ReduceLayerTestCommon {
+    void ConfigureNetwork() override {
+        cnnNetwork.getOutputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP32);
+        configuration[ov::intel_vpux::compilation_mode_params.name()] = "convert-precision-to-fp16=false";
+    }
+};
+
+// NPU3700 SW/HW
+TEST_P(ReduceOpsLayerTest_NPU3700, SW) {
     setPlatformVPU3700();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXReduceOpsLayerTest_VPU3700, HW) {
+TEST_P(ReduceOpsLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-class VPUXReduceOpsLayerWithSpecificInputTest :
+/// FP16 SW/HW
+// NPU3720
+TEST_P(ReduceLayerTest_HW_FP16, NPU3720) {
+    setPlatformVPU3720();
+    setDefaultHardwareModeMLIR();
+    Run();
+}
+
+TEST_P(ReduceLayerTest_SW_FP16, NPU3720) {
+    setPlatformVPU3720();
+    setReferenceSoftwareModeMLIR();
+    Run();
+}
+
+/// FP32 SW
+// NPU3720
+TEST_P(ReduceLayerTest_SW_FP32, NPU3720) {
+    setPlatformVPU3720();
+    setReferenceSoftwareModeMLIR();
+    Run();
+}
+
+class ReduceOpsLayerWithSpecificInputTestCommon :
         public ReduceOpsLayerWithSpecificInputTest,
         virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
-TEST_P(VPUXReduceOpsLayerWithSpecificInputTest, HW) {
+TEST_P(ReduceOpsLayerWithSpecificInputTestCommon, HW) {
     setPlatformVPU3700();
-    setDefaultHardwareModeMLIR();
-    Run();
-}
-
-class VPUXReduceSWLayerTest_VPU3720 : public VPUXReduceLayerTest {};
-class VPUXReduceHWLayerTest_VPU3720 : public VPUXReduceLayerTest {};
-
-TEST_P(VPUXReduceSWLayerTest_VPU3720, SW) {
-    setPlatformVPU3720();
-    setReferenceSoftwareModeMLIR();
-    Run();
-}
-
-TEST_P(VPUXReduceHWLayerTest_VPU3720, HW) {
-    setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
 }
@@ -125,12 +145,11 @@ const std::vector<std::vector<size_t>> inputShapesOneAxis = {
         std::vector<size_t>{10},
 };
 
-const std::vector<std::vector<int>> axes = {{0},    {1},    {2},       {3},       {0, 1},    {0, 2},    {0, 3}, {1, 2},
-                                            {1, 3}, {2, 3}, {0, 1, 2}, {0, 1, 3}, {0, 2, 3}, {1, 2, 3}, {1, -1}};
+const std::vector<std::vector<int>> axes = {{1}, {2}, {1, 3}, {2, 3}, {1, -1}};
 
-std::vector<CommonTestUtils::OpType> opTypes = {
-        CommonTestUtils::OpType::SCALAR,
-        CommonTestUtils::OpType::VECTOR,
+std::vector<ov::test::utils::OpType> opTypes = {
+        ov::test::utils::OpType::SCALAR,
+        ov::test::utils::OpType::VECTOR,
 };
 
 const std::vector<ngraph::helpers::ReductionType> reductionTypes = {
@@ -150,8 +169,12 @@ const std::vector<InferenceEngine::Layout> layouts4D = {
         InferenceEngine::Layout::NHWC,
 };
 
+//
+// NPU3700 Instantiation
+//
+
 // Tracking number [E#85137]
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ReduceOneAxis, VPUXReduceOpsLayerTest_VPU3700,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ReduceOneAxis, ReduceOpsLayerTest_NPU3700,
                          testing::Combine(testing::ValuesIn(decltype(axes){{0}}), testing::ValuesIn(opTypes),
                                           testing::Values(true, false), testing::ValuesIn(reductionTypes),
                                           testing::ValuesIn(netPrecisions),
@@ -160,12 +183,12 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ReduceOneAxis, VPUXReduceOpsLayerTest_VP
                                           testing::Values(InferenceEngine::Layout::ANY),
                                           testing::ValuesIn(inputShapesOneAxis),
                                           testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-                         VPUXReduceOpsLayerTest_VPU3700::getTestCaseName);
+                         ReduceOpsLayerTest_NPU3700::getTestCaseName);
 
 // Tracking number [E#85137]
 INSTANTIATE_TEST_SUITE_P(
-        DISABLED_TMP_smoke_smoke_Reduce, VPUXReduceOpsLayerWithSpecificInputTest,
-        testing::Combine(testing::ValuesIn(decltype(axes){{0}}), testing::Values(CommonTestUtils::OpType::VECTOR),
+        DISABLED_TMP_smoke_Reduce, ReduceOpsLayerWithSpecificInputTestCommon,
+        testing::Combine(testing::ValuesIn(decltype(axes){{0}}), testing::Values(ov::test::utils::OpType::VECTOR),
                          testing::Values(true, false),
                          testing::Values(ngraph::helpers::ReductionType::Max, ngraph::helpers::ReductionType::Sum,
                                          ngraph::helpers::ReductionType::Min, ngraph::helpers::ReductionType::L1,
@@ -177,11 +200,11 @@ INSTANTIATE_TEST_SUITE_P(
                          testing::Values(InferenceEngine::Layout::ANY),
                          testing::Values(std::vector<size_t>{1, 512, 7, 7}),
                          testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-        VPUXReduceOpsLayerWithSpecificInputTest::getTestCaseName);
+        ReduceOpsLayerWithSpecificInputTestCommon::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-        DISABLED_smoke_Reduce3D, VPUXReduceOpsLayerWithSpecificInputTest,
-        testing::Combine(testing::ValuesIn(decltype(axes){{0}}), testing::Values(CommonTestUtils::OpType::VECTOR),
+        DISABLED_TMP_smoke_Reduce3D, ReduceOpsLayerWithSpecificInputTestCommon,
+        testing::Combine(testing::ValuesIn(decltype(axes){{0}}), testing::Values(ov::test::utils::OpType::VECTOR),
                          testing::Values(true),
                          testing::Values(ngraph::helpers::ReductionType::Mean, ngraph::helpers::ReductionType::Min,
                                          ngraph::helpers::ReductionType::L1, ngraph::helpers::ReductionType::LogicalOr,
@@ -191,11 +214,11 @@ INSTANTIATE_TEST_SUITE_P(
                          testing::Values(InferenceEngine::Precision::UNSPECIFIED), testing::ValuesIn(layouts3D),
                          testing::Values(std::vector<size_t>{512, 7, 7}),
                          testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-        VPUXReduceOpsLayerWithSpecificInputTest::getTestCaseName);
+        ReduceOpsLayerWithSpecificInputTestCommon::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-        DISABLED_TMP_smoke_smoke_Reduce4D, VPUXReduceOpsLayerWithSpecificInputTest,
-        testing::Combine(testing::ValuesIn(decltype(axes){{0}}), testing::Values(CommonTestUtils::OpType::VECTOR),
+        DISABLED_TMP_smoke_Reduce4D, ReduceOpsLayerWithSpecificInputTestCommon,
+        testing::Combine(testing::ValuesIn(decltype(axes){{0}}), testing::Values(ov::test::utils::OpType::VECTOR),
                          testing::Values(true),
                          testing::Values(ngraph::helpers::ReductionType::Mean, ngraph::helpers::ReductionType::Min,
                                          ngraph::helpers::ReductionType::L1, ngraph::helpers::ReductionType::LogicalOr,
@@ -205,11 +228,11 @@ INSTANTIATE_TEST_SUITE_P(
                          testing::Values(InferenceEngine::Precision::UNSPECIFIED), testing::ValuesIn(layouts4D),
                          testing::Values(std::vector<size_t>{1, 512, 7, 7}),
                          testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-        VPUXReduceOpsLayerWithSpecificInputTest::getTestCaseName);
+        ReduceOpsLayerWithSpecificInputTestCommon::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-        DISABLED_TMP_smoke_Reduce_from_networks, VPUXReduceOpsLayerTest_VPU3700,
-        testing::Combine(testing::ValuesIn(decltype(axes){{2, 3}}), testing::Values(CommonTestUtils::OpType::VECTOR),
+        DISABLED_TMP_smoke_Reduce_from_networks, ReduceOpsLayerTest_NPU3700,
+        testing::Combine(testing::ValuesIn(decltype(axes){{2, 3}}), testing::Values(ov::test::utils::OpType::VECTOR),
                          testing::Values(true, false),
                          testing::Values(ngraph::helpers::ReductionType::Mean, ngraph::helpers::ReductionType::Max),
                          testing::ValuesIn(netPrecisions), testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -221,139 +244,113 @@ INSTANTIATE_TEST_SUITE_P(
                                          std::vector<size_t>{1, 1664, 7, 7}   // densenet
                                          ),
                          testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-        VPUXReduceOpsLayerTest_VPU3700::getTestCaseName);
+        ReduceOpsLayerTest_NPU3700::getTestCaseName);
 
 //
-// VPU3720 Instantiation
+// NPU3720 Instantiation
 //
 
-const std::vector<InferenceEngine::Precision> netPrecisionsVPUX = {InferenceEngine::Precision::FP16};
-
-const std::vector<ngraph::helpers::ReductionType> reduceOperationsVPUX = {
+const std::vector<ngraph::helpers::ReductionType> reduceOperations = {
         ngraph::helpers::ReductionType::Mean,      ngraph::helpers::ReductionType::Max,
         ngraph::helpers::ReductionType::Min,       ngraph::helpers::ReductionType::Sum,
         ngraph::helpers::ReductionType::LogicalOr, ngraph::helpers::ReductionType::LogicalAnd,
-        ngraph::helpers::ReductionType::L1,
-};
-
-const std::vector<bool> keepDimsVPUX = {
-        true,
-        false,
-};
-
-const std::vector<std::vector<int>> axesVPUX = {{2}, {0, 1}, {0, 1, 3}};
-
-const auto paramsNegativeAxisConfig = testing::Combine(
-        testing::ValuesIn(decltype(axes){{1, -1}}), testing::Values(CommonTestUtils::OpType::VECTOR),
-        testing::ValuesIn(keepDimsVPUX),
-        testing::Values(ngraph::helpers::ReductionType::Mean, ngraph::helpers::ReductionType::Max,
-                        ngraph::helpers::ReductionType::Min, ngraph::helpers::ReductionType::LogicalOr,
-                        ngraph::helpers::ReductionType::LogicalAnd, ngraph::helpers::ReductionType::L1),
-        testing::ValuesIn(netPrecisionsVPUX), testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED), testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(std::vector<size_t>{1, 512, 7, 7}),
-        testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
-
-const auto paramsPositiveAxis = testing::Combine(
-        testing::ValuesIn(axesVPUX), testing::Values(CommonTestUtils::OpType::VECTOR), testing::ValuesIn(keepDimsVPUX),
-        testing::Values(ngraph::helpers::ReductionType::Mean, ngraph::helpers::ReductionType::Max,
-                        ngraph::helpers::ReductionType::Min, ngraph::helpers::ReductionType::LogicalOr,
-                        ngraph::helpers::ReductionType::LogicalAnd, ngraph::helpers::ReductionType::L1),
-        testing::ValuesIn(netPrecisionsVPUX), testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED), testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(std::vector<size_t>{1, 512, 7, 7}),
-        testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
-
-const auto paramsfailingSumCase = testing::Combine(
-        testing::ValuesIn(decltype(axes){{1, -1}, {0, 1, 3}}), testing::Values(CommonTestUtils::OpType::VECTOR),
-        testing::ValuesIn(keepDimsVPUX), testing::Values(ngraph::helpers::ReductionType::Sum),
-        testing::ValuesIn(netPrecisionsVPUX), testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED), testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(std::vector<size_t>{1, 512, 7, 7}),
-        testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
-
-const auto paramsL2ProdConfig = testing::Combine(
-        testing::ValuesIn(decltype(axes){{0}}), testing::Values(CommonTestUtils::OpType::VECTOR),
-        testing::ValuesIn(keepDimsVPUX),
-        testing::Values(ngraph::helpers::ReductionType::Prod, ngraph::helpers::ReductionType::L2),
-        testing::ValuesIn(netPrecisionsVPUX), testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED), testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(std::vector<size_t>{1, 512, 7, 7}),
-        testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
-
-const std::vector<std::vector<int>> axesVPUXHW = {{1}, {2}};
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_precommit_Reduce, VPUXReduceHWLayerTest_VPU3720,
-        testing::Combine(testing::ValuesIn(axesVPUXHW), testing::Values(CommonTestUtils::OpType::VECTOR),
-                         testing::ValuesIn(keepDimsVPUX),
-                         testing::Values(ngraph::helpers::ReductionType::Sum, ngraph::helpers::ReductionType::Mean,
-                                         ngraph::helpers::ReductionType::Min, ngraph::helpers::ReductionType::Max),
-                         testing::ValuesIn(netPrecisionsVPUX), testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                         testing::Values(InferenceEngine::Layout::ANY),
-                         testing::Values(std::vector<size_t>{1, 9, 32, 32}, std::vector<size_t>{1, 1, 2},
-                                         std::vector<size_t>{1, 4, 32, 32}, std::vector<size_t>{1, 16, 32, 32}),
-                         testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-        VPUXReduceHWLayerTest_VPU3720::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Reduce, VPUXReduceSWLayerTest_VPU3720, paramsPositiveAxis,
-                         VPUXReduceSWLayerTest_VPU3720::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Reduce_NegativeAxis, VPUXReduceSWLayerTest_VPU3720, paramsNegativeAxisConfig,
-                         VPUXReduceSWLayerTest_VPU3720::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Reduce_Prod_L2_OneAxis, VPUXReduceSWLayerTest_VPU3720, paramsL2ProdConfig,
-                         VPUXReduceSWLayerTest_VPU3720::getTestCaseName);
+        ngraph::helpers::ReductionType::L1,        ngraph::helpers::ReductionType::L2,
+        ngraph::helpers::ReductionType::Prod};
 
 //
-// VPU3720 functional tiling test is currently deactivated
-// The ConvertReduceToPoolingPass must be disabled for the tiling strategy to be applied on the ReduceSum operator
-// Another motive would be the execution time with MoviSim, which takes ~30 mins
-//
+// FP16 SW
+const auto paramsSWFP16 = testing::Combine(
+        testing::ValuesIn(axes), testing::Values(ov::test::utils::OpType::VECTOR), testing::ValuesIn(keepDims),
+        testing::ValuesIn(reduceOperations), testing::ValuesIn(netPrecisions),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED), testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(std::vector<size_t>{1, 512, 7, 7}),
+        testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-const std::vector<std::vector<int>> axesVPU3720Tiling = {{1}};
+const auto paramsTiling = testing::Combine(
+        testing::ValuesIn(decltype(axes){{2}, {1, -1}}), testing::Values(ov::test::utils::OpType::VECTOR),
+        testing::ValuesIn(keepDims), testing::Values(ngraph::helpers::ReductionType::Sum),
+        testing::ValuesIn(netPrecisions), testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED), testing::Values(InferenceEngine::Layout::NCHW),
+        testing::Values(std::vector<size_t>{1, 20, 175, 512}),
+        testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Reduce_tiling, VPUXReduceHWLayerTest_VPU3720,
-                         testing::Combine(testing::ValuesIn(axesVPU3720Tiling),
-                                          testing::Values(CommonTestUtils::OpType::VECTOR), testing::Values(true),
-                                          testing::Values(ngraph::helpers::ReductionType::Sum),
-                                          testing::ValuesIn(netPrecisionsVPUX),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Layout::NCHW),
-                                          testing::Values(std::vector<size_t>{1, 9, 80, 1280}),
-                                          testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-                         VPUXReduceHWLayerTest_VPU3720::getTestCaseName);
+// ReduceMax config for U8 data type resnet-50-pytorch
+const auto paramsResnet = testing::Combine(
+        testing::ValuesIn(decltype(axes){{2, 3}}), testing::Values(ov::test::utils::OpType::VECTOR),
+        testing::Values(true), testing::Values(ngraph::helpers::ReductionType::Max),
+        testing::Values(InferenceEngine::Precision::U8), testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED), testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(std::vector<size_t>{1, 2048, 7, 7}),
+        testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-// TODO: E#83383 to check the failure of the cases.
-// Track number [E#69805]
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Reduce_Sum, VPUXReduceSWLayerTest_VPU3720, paramsfailingSumCase,
-                         VPUXReduceSWLayerTest_VPU3720::getTestCaseName);
+auto paramsReduceAllAxisKpDimsTrue = testing::Combine(
+        testing::ValuesIn(decltype(axes){{0, 1, 2, 3}}), testing::Values(ov::test::utils::OpType::VECTOR),
+        testing::Values(true), testing::ValuesIn(reduceOperations), testing::Values(InferenceEngine::Precision::FP16),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED), testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(std::vector<size_t>{1, 4, 2, 38}),
+        testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-//                 ReduceMax tests for U8 data type resnet-50-pytorch                      //
-
-INSTANTIATE_TEST_SUITE_P(smoke_Reduce_Resnet, VPUXReduceSWLayerTest_VPU3720,
-                         testing::Combine(testing::ValuesIn(decltype(axes){{2, 3}}),
-                                          testing::Values(CommonTestUtils::OpType::VECTOR), testing::Values(true),
-                                          testing::Values(ngraph::helpers::ReductionType::Max),
-                                          testing::Values(InferenceEngine::Precision::U8),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          testing::Values(InferenceEngine::Layout::ANY),
-                                          testing::Values(std::vector<size_t>{1, 2048, 7, 7}),
-                                          testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-                         VPUXReduceSWLayerTest_VPU3720::getTestCaseName);
-
-auto reduceAllAxisParams = testing::Combine(
-        testing::ValuesIn(decltype(axes){{0, 1, 2, 3}}), testing::Values(CommonTestUtils::OpType::VECTOR),
-        testing::Values(true), testing::Values(ngraph::helpers::ReductionType::Min),
+auto paramsReduceAllAxisKpDimsFalse = testing::Combine(
+        testing::ValuesIn(decltype(axes){{0, 1, 2, 3}}), testing::Values(ov::test::utils::OpType::VECTOR),
+        testing::Values(false),
+        testing::Values(ngraph::helpers::ReductionType::Sum, ngraph::helpers::ReductionType::Min),
         testing::Values(InferenceEngine::Precision::FP16), testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Precision::UNSPECIFIED), testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(std::vector<size_t>{1, 8, 4, 76}),
         testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReduceAllAxis, VPUXReduceSWLayerTest_VPU3720, reduceAllAxisParams,
-                         VPUXReduceSWLayerTest_VPU3720::getTestCaseName);
+//
+// FP16 HW
+const auto paramsHWFP16 = testing::Combine(
+        testing::ValuesIn(decltype(axes){{1}, {2}}), testing::Values(ov::test::utils::OpType::VECTOR),
+        testing::ValuesIn(keepDims),
+        testing::Values(ngraph::helpers::ReductionType::Sum, ngraph::helpers::ReductionType::Mean,
+                        ngraph::helpers::ReductionType::Min, ngraph::helpers::ReductionType::Max),
+        testing::ValuesIn(netPrecisions), testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED), testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(std::vector<size_t>{1, 9, 32, 32}, std::vector<size_t>{1, 1, 2},
+                        std::vector<size_t>{1, 4, 32, 32}, std::vector<size_t>{1, 16, 32, 32}),
+        testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
+
+//
+// FP32 SW
+const auto paramsSWFP32 = testing::Combine(
+        testing::ValuesIn(decltype(axes){{2, 3}}), testing::Values(ov::test::utils::OpType::VECTOR),
+        testing::ValuesIn(keepDims),
+        testing::Values(ngraph::helpers::ReductionType::Mean, ngraph::helpers::ReductionType::Sum),
+        testing::Values(InferenceEngine::Precision::FP32), testing::Values(InferenceEngine::Precision::FP32),
+        testing::Values(InferenceEngine::Precision::FP32), testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(std::vector<size_t>{1, 1024, 7, 7}),
+        testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
+
+//
+// NPU3720 Instantiation
+// FP16 HW
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_Reduce, ReduceLayerTest_HW_FP16, paramsHWFP16,
+                         ReduceLayerTest_HW_FP16::getTestCaseName);
+
+//
+// NPU3720 Instantiation
+// FP16 SW
+INSTANTIATE_TEST_SUITE_P(smoke_Reduce, ReduceLayerTest_SW_FP16, paramsSWFP16, ReduceLayerTest_SW_FP16::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Reduce_tiling, ReduceLayerTest_SW_FP16, paramsTiling,
+                         ReduceLayerTest_SW_FP16::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Reduce_Resnet, ReduceLayerTest_SW_FP16, paramsResnet,
+                         ReduceLayerTest_SW_FP16::getTestCaseName);
+
+// All axes reduced tests
+INSTANTIATE_TEST_SUITE_P(smoke_ReduceAllAxis_true, ReduceLayerTest_SW_FP16, paramsReduceAllAxisKpDimsTrue,
+                         ReduceLayerTest_SW_FP16::getTestCaseName);
+// [Track number E#90461]
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_ReduceAllAxis_false, ReduceLayerTest_SW_FP16,
+                         paramsReduceAllAxisKpDimsFalse, ReduceLayerTest_SW_FP16::getTestCaseName);
+
+// FP32 SW
+INSTANTIATE_TEST_SUITE_P(smoke_Reduce_FP32, ReduceLayerTest_SW_FP32, paramsSWFP32,
+                         ReduceLayerTest_SW_FP32::getTestCaseName);
 
 }  // namespace

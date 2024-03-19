@@ -5,43 +5,15 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
-#include "vpux/compiler/dialect/IE/utils/propagate_quantize_dequantize_utils.hpp"
-#include "vpux/compiler/dialect/const/ops.hpp"
-#include "vpux/compiler/utils/permute_utils.hpp"
-
 using namespace vpux;
-
-namespace {
-
-mlir::Type inferElemType(IE::ReorderOpAdaptor reorder, mlir::Type inputElemType, mlir::MLIRContext* ctx) {
-    const auto perAxisQType = inputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>();
-    if (perAxisQType == nullptr) {
-        return inputElemType;
-    }
-
-    const auto inputAxis = perAxisQType.getQuantizedDimension();
-
-    const auto inOrder = DimsOrder::fromValue(reorder.input());
-    const auto outOrder = DimsOrder::fromAffineMap(reorder.dstOrder());
-    const auto memPerm = vpux::getPermutationFromOrders(inOrder, outOrder, ctx);
-
-    const auto outAxis = DimsOrder::fromAffineMap(memPerm).toPermutation()[inputAxis];
-
-    return mlir::quant::UniformQuantizedPerAxisType::get(
-            perAxisQType.getFlags(), perAxisQType.getStorageType(), perAxisQType.getExpressedType(),
-            perAxisQType.getScales(), perAxisQType.getZeroPoints(), outAxis.ind(), perAxisQType.getStorageTypeMin(),
-            perAxisQType.getStorageTypeMax());
-}
-
-}  // namespace
 
 //
 // inferReturnTypeComponents
 //
 
 mlir::LogicalResult vpux::IE::ReorderOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -50,30 +22,13 @@ mlir::LogicalResult vpux::IE::ReorderOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = reorder.input().getType().cast<mlir::RankedTensorType>();
+    const auto inType = reorder.getInput().getType().cast<mlir::RankedTensorType>();
 
-    const auto outDesc = vpux::getTensorAttr(reorder.dstOrder(), nullptr);
+    const auto outDesc = vpux::getTensorAttr(reorder.getDstOrder(), nullptr);
 
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType(), outDesc);
 
     return mlir::success();
-}
-
-//
-// inferElemTypeInfo
-//
-
-void vpux::IE::ReorderOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    auto outputElemType = inferElemType(*this, info.getInput(0), (*this)->getContext());
-
-    for (size_t outputInd = 0; outputInd < info.getNumOutputs(); ++outputInd) {
-        info.setOutput(outputInd, outputElemType);
-    }
-}
-
-void vpux::IE::ReorderOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
-    propagateElementTypeUp(info);
 }
 
 //
@@ -94,13 +49,14 @@ void vpux::IE::ReorderOp::getCanonicalizationPatterns(mlir::RewritePatternSet& p
 // fold
 //
 
-mlir::OpFoldResult vpux::IE::ReorderOp::fold(ArrayRef<mlir::Attribute> operands) {
-    if (input().getType() == output().getType()) {
-        return input();
+mlir::OpFoldResult vpux::IE::ReorderOp::fold(FoldAdaptor adaptor) {
+    auto operands = adaptor.getOperands();
+    if (getInput().getType() == getOutput().getType()) {
+        return getInput();
     }
 
     if (const auto cst = operands[0].dyn_cast_or_null<Const::ContentAttr>()) {
-        return cst.reorder(DimsOrder::fromValue(output()));
+        return cst.reorder(DimsOrder::fromValue(getOutput()));
     }
 
     return nullptr;

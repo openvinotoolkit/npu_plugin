@@ -11,12 +11,6 @@
 
 #include <llvm/ADT/TypeSwitch.h>
 
-#include "vpux/compiler/utils/rewriter.hpp"
-
-#include <mlir/Transforms/GreedyPatternRewriteDriver.h>
-
-#include <array>
-
 using namespace vpux;
 
 namespace {
@@ -42,6 +36,8 @@ private:
     template <class ConcreteOp>
     void updatePoolOperation(ConcreteOp op);
 
+    void updateAvgPoolOperation(IE::AvgPoolOp op);
+
     template <class ConcreteOp>
     void updateConvOperation(ConcreteOp op);
 };
@@ -59,7 +55,7 @@ void ConvertPaddingsToFloorModePass::safeRunOnFunc() {
                     updatePoolOperation<IE::MaxPoolOp>(op);
                 })
                 .Case<IE::AvgPoolOp>([this](IE::AvgPoolOp op) {
-                    updatePoolOperation<IE::AvgPoolOp>(op);
+                    updateAvgPoolOperation(op);
                 })
                 .Case<IE::ConvolutionOp>([this](IE::ConvolutionOp op) {
                     updateConvOperation<IE::ConvolutionOp>(op);
@@ -116,14 +112,14 @@ void cvtPaddingsToFloorMode(ShapeRef inShape, ShapeRef outShape, ArrayRef<int64_
 
 template <class ConcreteOp>
 void ConvertPaddingsToFloorModePass::updatePoolOperation(ConcreteOp op) {
-    const auto inShape = getShape(op.input());
-    const auto outShape = getShape(op.output());
+    const auto inShape = getShape(op.getInput());
+    const auto outShape = getShape(op.getOutput());
 
-    const auto kernel = parseIntArrayAttr<int64_t>(op.kernel_size());
-    const auto strides = parseIntArrayAttr<int64_t>(op.strides());
+    const auto kernel = parseIntArrayAttr<int64_t>(op.getKernelSize());
+    const auto strides = parseIntArrayAttr<int64_t>(op.getStrides());
     const SmallVector<int64_t> dilatation(kernel.size(), 1);
-    auto padsBegin = parseIntArrayAttr<int64_t>(op.pads_begin());
-    auto padsEnd = parseIntArrayAttr<int64_t>(op.pads_end());
+    auto padsBegin = parseIntArrayAttr<int64_t>(op.getPadsBegin());
+    auto padsEnd = parseIntArrayAttr<int64_t>(op.getPadsEnd());
 
     cvtPaddingsToFloorMode(inShape, outShape, kernel, strides, dilatation, padsBegin, padsEnd);
     for (size_t idx = 0; idx < padsEnd.size(); idx++) {
@@ -133,16 +129,33 @@ void ConvertPaddingsToFloorModePass::updatePoolOperation(ConcreteOp op) {
     const auto newPadsBeginAttr = getIntArrayAttr(op.getContext(), padsBegin);
     const auto newPadsEndAttr = getIntArrayAttr(op.getContext(), padsEnd);
 
-    op.pads_beginAttr(newPadsBeginAttr);
-    op.pads_endAttr(newPadsEndAttr);
-    op.rounding_typeAttr(IE::RoundingTypeAttr::get(op.getContext(), IE::RoundingType::FLOOR));
+    op.setPadsBeginAttr(newPadsBeginAttr);
+    op.setPadsEndAttr(newPadsEndAttr);
+    op.setRoundingTypeAttr(IE::RoundingTypeAttr::get(op.getContext(), IE::RoundingType::FLOOR));
+}
+
+void ConvertPaddingsToFloorModePass::updateAvgPoolOperation(IE::AvgPoolOp op) {
+    auto padsEndOriginal = parseIntArrayAttr<int64_t>(op.getPadsEnd());
+    updatePoolOperation<IE::AvgPoolOp>(op);
+    auto padsBegin = parseIntArrayAttr<int64_t>(op.getPadsBegin());
+    auto padsEnd = parseIntArrayAttr<int64_t>(op.getPadsEnd());
+    auto isZero = [](auto val) {
+        return val == 0;
+    };
+    bool noPads = llvm::all_of(padsBegin, isZero) && llvm::all_of(padsEndOriginal, isZero);
+    // Inside reference implementation the padded area produced by ceil is consider or not to the division,
+    // base on original all 0 padded values, both for begin and end padding.
+    if (noPads && (padsEnd != padsEndOriginal)) {
+        auto excludePad = mlir::UnitAttr::get(op.getContext());
+        op.setExcludePadsAttr(excludePad);
+    }
 }
 
 template <class ConcreteOp>
 void ConvertPaddingsToFloorModePass::updateConvOperation(ConcreteOp op) {
-    const auto inShape = getShape(op.input());
-    const auto filterShape = getShape(op.filter());
-    const auto outShape = getShape(op.output());
+    const auto inShape = getShape(op.getInput());
+    const auto filterShape = getShape(op.getFilter());
+    const auto outShape = getShape(op.getOutput());
 
     SmallVector<int64_t> kernel;
 
@@ -151,10 +164,10 @@ void ConvertPaddingsToFloorModePass::updateConvOperation(ConcreteOp op) {
         kernel.push_back(filterShape[kernelAxis]);
     }
 
-    const auto strides = parseIntArrayAttr<int64_t>(op.strides());
-    const auto dilations = parseIntArrayAttr<int64_t>(op.dilations());
-    auto padsBegin = parseIntArrayAttr<int64_t>(op.pads_begin());
-    auto padsEnd = parseIntArrayAttr<int64_t>(op.pads_end());
+    const auto strides = parseIntArrayAttr<int64_t>(op.getStrides());
+    const auto dilations = parseIntArrayAttr<int64_t>(op.getDilations());
+    auto padsBegin = parseIntArrayAttr<int64_t>(op.getPadsBegin());
+    auto padsEnd = parseIntArrayAttr<int64_t>(op.getPadsEnd());
 
     cvtPaddingsToFloorMode(inShape, outShape, kernel, strides, dilations, padsBegin, padsEnd);
     for (size_t i = 0; i < padsEnd.size(); ++i) {
@@ -164,8 +177,8 @@ void ConvertPaddingsToFloorModePass::updateConvOperation(ConcreteOp op) {
     const auto newPadsBeginAttr = getIntArrayAttr(op.getContext(), padsBegin);
     const auto newPadsEndAttr = getIntArrayAttr(op.getContext(), padsEnd);
 
-    op.pads_beginAttr(newPadsBeginAttr);
-    op.pads_endAttr(newPadsEndAttr);
+    op.setPadsBeginAttr(newPadsBeginAttr);
+    op.setPadsEndAttr(newPadsEndAttr);
 }
 
 }  // namespace

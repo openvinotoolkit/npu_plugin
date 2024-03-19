@@ -4,6 +4,8 @@
 //
 
 //
+
+//
 // Error handling - helper macros to throw exceptions.
 //
 
@@ -11,7 +13,6 @@
 
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/helper_macros.hpp"
-#include "vpux/utils/core/string_ref.hpp"
 
 #include <llvm/Support/Compiler.h>
 
@@ -21,9 +22,13 @@ namespace vpux {
 // Exceptions
 //
 
+class Exception : public std::runtime_error {
+    using std::runtime_error::runtime_error;
+};
+
 namespace details {
 
-[[noreturn]] void throwFormat(StringRef file, int line, const std::string& message);
+[[noreturn]] void throwFormat(const char* file, int line, const std::string& message);
 
 }  // namespace details
 

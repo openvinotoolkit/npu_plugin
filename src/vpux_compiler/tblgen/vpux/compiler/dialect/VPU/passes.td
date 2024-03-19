@@ -65,6 +65,14 @@ def MultiClusterStrategyAssignment : PassBase<"multi-cluster-strategy-assignment
 
     let constructor = "vpux::VPU::createMultiClusterStrategyAssignmentPass()";
 
+    let options = [
+        Option<
+            "tilingMode", "tiling-mode",
+            "std::string", [{"PREFETCH"}],
+            "[Optional] Set tiling mode as `ISOLATED` or `PREFETCH`. `PREFETCH` is set by default"
+        >
+    ];
+
     let dependentDialects = [
         "vpux::VPU::VPUDialect"
     ];
@@ -148,6 +156,25 @@ def WrapVerticalFusionRegion : PassBase<"wrap-in-vertical-fusion", "vpux::Functi
 }
 
 //
+// Move view like operations to VF
+//
+
+def MoveViewOpsToVF : PassBase<"move-view-ops-to-vf", "vpux::FunctionPass"> {
+    let summary = "Move view like operations to VF subgraphs";
+
+    let description = [{
+        Move view like operations to nearest VF subgraphs,
+        which allows to build larger ones on the next step.
+    }];
+
+    let constructor = "vpux::VPU::createMoveViewOpsToVerticalFusionPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}
+
+//
 // Build VF Subgraph
 //
 
@@ -155,7 +182,8 @@ def MergeVfSubgraphs : PassBase<"merge-vertical-fusion-subgraphs", "vpux::Functi
     let summary = "Build subgraph from VF single regions";
 
     let description = [{
-        Merge VF blocks and add operations to them recalculating tiling information in following cases:
+        Merge VF blocks and add operations to them recalculating tiling information
+        in following cases:
         1. Number of operations which might increase computational cost does not exceed limit
         2. All operations have same multicluster strategy or don't have them at all
         3. Region which is supposed to be added doesn't have any other users except current region or
@@ -169,6 +197,14 @@ def MergeVfSubgraphs : PassBase<"merge-vertical-fusion-subgraphs", "vpux::Functi
 
     let dependentDialects = [
         "vpux::VPU::VPUDialect"
+    ];
+
+    let options = [
+        Option<
+            "enableVerticalFusionPipelining", "enable-vertical-fusion-pipelining",
+            "bool", "false",
+            "Flag to enable vertical fusion pipelining"
+        >
     ];
 }
 
@@ -187,6 +223,14 @@ def VfTiling : PassBase<"vertical-fusion-tiling", "vpux::FunctionPass"> {
 
     let dependentDialects = [
         "vpux::VPU::VPUDialect"
+    ];
+
+    let options = [
+        Option<
+            "enableVerticalFusionPipelining", "enable-vertical-fusion-pipelining",
+            "bool", "false",
+            "Flag to enable vertical fusion pipelining"
+        >
     ];
 }
 
@@ -256,6 +300,14 @@ def AdjustVFTilingStrategy : PassBase<"adjust-vf-tiling-strategy", "vpux::Functi
     let dependentDialects = [
         "vpux::VPU::VPUDialect"
     ];
+
+    let options = [
+        Option<
+            "enableVerticalFusionPipelining", "enable-vertical-fusion-pipelining",
+            "bool", "false",
+            "Flag to enable vertical fusion pipelining"
+        >
+    ];
 }
 
 //
@@ -309,35 +361,6 @@ def SplitNCEOpsOntoWorkloads : PassBase<"split-NCE-ops-onto-workloads", "vpux::F
     let summary = "Split VPU NCE operation onto workloads";
 
     let constructor = "vpux::VPU::createSplitNCEOpsOntoWorkloadsPass()";
-
-    let dependentDialects = [
-        "vpux::VPU::VPUDialect"
-    ];
-}
-
-//
-// CorrectNCEWorkloads
-//
-
-def CorrectNCEWorkloads : PassBase<"correct-NCE-workloads", "vpux::FunctionPass"> {
-    let summary = "Correct NCE workloads if they do not fit requirements";
-
-    let description = [{
-        The pass adjusts workload size for NCEDepthConvolution, NCEMaxPool, NCEAveragePool and NCEPermuteQuantize,
-        as well as for NCE operations that produce sparse activations.
-
-        NCEDepthConvolutionOp, NCEMaxPoolOp and NCEAveragePoolOp require the number of channels to be 16, 32 or 64.
-        If the number of channels does not match, workload is split.
-
-        NCEPermuteQuantizeOp rotates output dimensions and padding may be used to indicate the expansion over height.
-        It is necessary to subtract pads from respective workload dimensions and then set zero padding.
-
-        NCE operations with sparse outputs must have all variants with the same number of channels and the number
-        of channels has to be a power of two. Additionally, if the NCE op shares a consumer with another NCE op
-        (directly or indirectly), the number of channels of their variants must be aligned.
-    }];
-
-    let constructor = "vpux::VPU::createCorrectNCEWorkloadsPass()";
 
     let dependentDialects = [
         "vpux::VPU::VPUDialect"
@@ -700,6 +723,30 @@ def AddSparsityMapToSparseActivations : PassBase<"add-sparsity-map-to-sparse-act
 }
 
 //
+// SplitSEOps
+//
+
+def SplitSEOps : PassBase<"split-se-ops", "vpux::FunctionPass"> {
+    let summary = "Split compatible SE operations for better performance";
+
+    let description = [{
+        Finds operations that can be executed on hardware using the Storage Element pointers
+        feature and splits them if they have benefits for performance.
+
+        The list of supported operations:
+        Interpolate Op that satisfied the following limitations:
+        - The NCEInterpolate size is larger than the CMX size;
+        - Both factors on H and W are larger than 4
+    }];
+
+    let constructor = "vpux::VPU::createSplitSEOpsPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}
+
+//
 // LowerOpsToSENCE
 //
 
@@ -720,8 +767,11 @@ def LowerOpsToSENCE : PassBase<"lower-ops-to-se-nce", "vpux::FunctionPass"> {
 
                       - mode: LINEAR, LINEAR_ONNX
                         axes: H, W
-                        coordinate_transformation_mode: ASYMMETRIC
-                        scale: [1-11] (integer only)
+                        coordinate_transformation_mode: ASYMMETRIC, PYTORCH_HALF_PIXEL, HALF_PIXEL
+                        scale: integer only
+                          - values between [1-5] for PYTORCH_HALF_PIXEL and HALF_PIXEL
+                            when the scale is an even number
+                          - values between [1-11] for all other cases
                         padding: none
     }];
 
@@ -790,6 +840,11 @@ def TilingStrategyAssignment : PassBase<"tiling-strategy-assignment", "vpux::Fun
             "tilingMode", "tiling-mode",
             "std::string", [{"PREFETCH"}],
             "[Optional] Set tiling mode as `ISOLATED` or `PREFETCH`"
+        >,
+        Option<
+            "vpunnCost", "vpunn-cost",
+            "bool", "false",
+            "Use VPUNN cost model to get the best tiling strategy"
         >
     ];
 }
@@ -962,3 +1017,38 @@ def OptimizeConcat : PassBase<"optimize-concat", "vpux::FunctionPass"> {
 }
 
 #endif
+
+//
+// RemoveOutputSparseToAvoidSuboptimalDPUWorkloadsPass
+//
+
+def RemoveOutputSparseToAvoidSuboptimalDPUWorkloadsPass : PassBase<"remove-output-sparse-to-avoid-suboptimal-dpu-workloads", "vpux::FunctionPass"> {
+    let summary = "Remove output sparsity for SOK layer to avoid suboptimal dpu workloads";
+
+    let description = [{
+        This pass removes SOK layer's output sparsity if
+        1. SOK layer has different split sizes on clusters excluding the last one. For example, we need to split OC = 128 on 6 tiles, 
+        the tiled size will be {32, 32, 16, 16, 16, 16}. If there's output sparsity, we need to split 32 into two pieces of 16 because 
+        we must have the same workload channel excluding the last one. However, two workloads with 16 channels have much worse
+        performance than a workload with 32 channels. If there's no sparsity, we can keep the workload with 32 channels. 
+        This is only relevant to the senario with more than 2 tiles so it doesn't exist for VPU37XX.
+        2. SOK layer's output is used by `VPU.Concat`
+        
+        Conv1_1 (OC = 256, SOK)  Conv1_2 (OC = 256, SOK)
+             \                               /
+                         Concat on C
+                              |
+                            Conv2
+      
+       Take above graph as an example, we need to split OC = 256 on 6 tiles, the tiled size will be {48, 48, 48, 48, 48, 16}. 
+       After concatenation, the combined workloads will be {48, 48, 48, 48, 48, 16, 48, 48, 48, 48, 48, 16}. If there's output sparsity for Conv1_1 and Conv1_2, 
+       we need to split 48 into three pieces of 16 because we must have the same workload channel excluding the last one. If there's no sparsity, we can
+       keep the workload with 48 channels.
+    }];
+
+    let constructor = "vpux::VPU::createRemoveOutputSparseToAvoidSuboptimalDPUWorkloadsPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}

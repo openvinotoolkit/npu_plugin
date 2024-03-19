@@ -7,11 +7,6 @@
 
 #include "vpux/compiler/dialect/IE/utils/broadcast_utils.hpp"
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
-#include "vpux/compiler/dialect/const/ops.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/error.hpp"
-
-#include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
 
@@ -40,8 +35,8 @@ SmallVector<int64_t> getResultShapeBidirectional(SmallVector<int64_t>& inShape, 
 }
 
 mlir::LogicalResult vpux::IE::BroadcastOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -50,11 +45,11 @@ mlir::LogicalResult vpux::IE::BroadcastOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    auto inShape = to_small_vector(broadcast.input().getType().cast<mlir::ShapedType>().getShape());
-    const auto inType = broadcast.input().getType().cast<mlir::ShapedType>().getElementType();
-    const auto broadcastMode = broadcast.mode().has_value() ? broadcast.mode().value() : IE::BroadcastType::NUMPY;
+    auto inShape = to_small_vector(broadcast.getInput().getType().cast<mlir::ShapedType>().getShape());
+    const auto inType = broadcast.getInput().getType().cast<mlir::ShapedType>().getElementType();
+    const auto broadcastMode = broadcast.getMode().has_value() ? broadcast.getMode().value() : IE::BroadcastType::NUMPY;
 
-    auto outShape = IE::constInputToData(loc, broadcast.target_shape()).value();
+    auto outShape = IE::constInputToData(loc, broadcast.getTargetShape()).value();
     if (broadcastMode == IE::BroadcastType::BIDIRECTIONAL) {
         outShape = getResultShapeBidirectional(inShape, outShape);
     }
@@ -68,19 +63,17 @@ mlir::LogicalResult vpux::IE::BroadcastOp::inferReturnTypeComponents(
 // fold
 //
 
-mlir::OpFoldResult vpux::IE::BroadcastOp::fold(ArrayRef<mlir::Attribute> operands) {
-    if (input().getType() == output().getType()) {
-        return input();
+mlir::OpFoldResult vpux::IE::BroadcastOp::fold(FoldAdaptor adaptor) {
+    auto operands = adaptor.getOperands();
+    if (getInput().getType() == getOutput().getType()) {
+        return getInput();
     }
 
     // move broadcast to const attribute.
     if (auto contentAttr = operands[0].dyn_cast_or_null<Const::ContentAttr>()) {
-        if (!contentAttr.getBaseContent().isSplat()) {
-            return nullptr;
-        }
-        const auto inputShape = to_small_vector(getShape(input()));
-        const auto outputShape = to_small_vector(getShape(output()));
-        const auto broadcastType = mode().value_or(IE::BroadcastType::NUMPY);
+        const auto inputShape = to_small_vector(getShape(getInput()));
+        const auto outputShape = to_small_vector(getShape(getOutput()));
+        const auto broadcastType = getMode().value_or(IE::BroadcastType::NUMPY);
         SmallVector<int64_t> broadcastAxes;
 
         VPUX_THROW_WHEN(inputShape.size() > outputShape.size(),
@@ -93,7 +86,7 @@ mlir::OpFoldResult vpux::IE::BroadcastOp::fold(ArrayRef<mlir::Attribute> operand
         if (broadcastType == IE::BroadcastType::BIDIRECTIONAL || broadcastType == IE::BroadcastType::NUMPY) {
             broadcastAxes = vpux::IE::getBroadcastAxesNumpyBidirectional(inputShape, outputShape);
         } else if (broadcastType == IE::BroadcastType::EXPLICIT) {
-            auto axesMapping = IE::constInputToData(getLoc(), axes_mapping()).value();
+            auto axesMapping = IE::constInputToData(getLoc(), getAxesMapping()).value();
             broadcastAxes = vpux::IE::getBroadcastAxesExplicit(axesMapping, outputShape);
         } else {
             VPUX_THROW("Invalid broadcast type..{0}", broadcastType);
@@ -106,7 +99,10 @@ mlir::OpFoldResult vpux::IE::BroadcastOp::fold(ArrayRef<mlir::Attribute> operand
             }
         }
 
-        contentAttr = contentAttr.reshape(Shape(adjustedInputShape));
+        if (adjustedInputShape != inputShape) {
+            contentAttr = contentAttr.reshape(Shape(adjustedInputShape));
+        }
+
         for (const auto& dim : enumerate(outputShape)) {
             if (dim.value() > 1 && dim.value() != adjustedInputShape[dim.index()]) {
                 contentAttr = contentAttr.broadcast(Dim(dim.index()), outputShape[dim.index()]);

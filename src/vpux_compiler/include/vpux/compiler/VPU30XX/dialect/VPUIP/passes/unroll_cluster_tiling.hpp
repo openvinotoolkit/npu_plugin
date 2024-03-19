@@ -18,22 +18,21 @@ namespace arch30xx {
 class ClusterNCERewriter final : public ClusterNCEBaseRewriter {
 public:
     ClusterNCERewriter(mlir::MLIRContext* ctx, Logger log): ClusterNCEBaseRewriter(ctx, log) {
-        setDebugName("ClusterNCERewriterVPUX3XXX");
     }
 
 private:
     void getOutputBuffers(SmallVector<mlir::Value>& parentOutputBuffs, SmallVector<mlir::Value>& outputBuffs,
                           SmallVector<mlir::Value>& parentOutputSparsityMap,
                           SmallVector<mlir::Value>& outputSparsityMapBuffs, mlir::Location loc,
-                          VPUIP::NCEClusterTilingOp clusterOp, VPUIP::NCEClusterTaskOp nceTask,
-                          const int64_t numClusters, mlir::PatternRewriter& rewriter) const override;
+                          VPUIP::NCEClusterTaskOp nceTask, const int64_t numClusters,
+                          mlir::OpBuilder& builder) const override;
 
     void getInputBuffers(SmallVector<mlir::Value>& parentInputBuffs, SmallVector<mlir::Value>& inputBuffs,
                          SmallVector<mlir::Value>& parentInputSparsityMap,
                          SmallVector<mlir::Value>& inputSparsityMapBuffs, SmallVector<mlir::Value>& parentInputSETable,
                          SmallVector<mlir::Value>& inputSETableBuffs, mlir::Location loc,
-                         VPUIP::NCEClusterTilingOp clusterOp, VPUIP::NCEClusterTaskOp nceTask,
-                         const int64_t numClusters, mlir::PatternRewriter& rewriter) const override;
+                         VPUIP::NCEClusterTaskOp nceTask, const int64_t numClusters,
+                         mlir::OpBuilder& builder) const override;
 
     mlir::UnitAttr isSegmentedNCETask(VPUIP::DistributedBufferType inputType) const override;
 };

@@ -3,22 +3,25 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/dialect/VPU/json.hpp"
-#include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/ops.hpp"
 #include "vpux/compiler/dialect/VPU/utils/manual_strategy_utils.hpp"
+
+#include <llvm/Support/JSON.h>
 
 namespace vpux {
 namespace VPU {
 
-Json readManualStrategyJSON(StringRef fileName);
-void writeManualStrategyJSON(StringRef fileName, const Json& json);
+llvm::Expected<llvm::json::Value> readManualStrategyJSON(StringRef fileName);
+void writeManualStrategyJSON(StringRef fileName, const llvm::json::Value& json);
 
-Json convertAttrToJSON(mlir::Attribute attr);
-void createStrategyJSONFromOperations(Json& json, llvm::MapVector<mlir::Location, mlir::Operation*>& operations,
-                                      ArrayRef<StringRef> strategyAttributes);
-mlir::Attribute convertJSONToAttr(mlir::Attribute oldAttr, const Json& newAttrVal);
-void overwriteManualStrategy(Json& manualStrategy, llvm::MapVector<mlir::Location, mlir::Operation*>& operations);
+llvm::json::Value convertAttrToJSON(mlir::Attribute attr);
+void createStrategyJSONFromOperations(llvm::json::Value& json,
+                                      llvm::MapVector<mlir::Location, mlir::Operation*>& operations,
+                                      DenseMap<StringRef, StringRef>& strategyAttributes);
+mlir::Attribute convertJSONToAttr(mlir::Attribute oldAttr, const llvm::json::Value& newAttrVal);
+void overwriteManualStrategy(llvm::json::Value& manualStrategy,
+                             llvm::MapVector<mlir::Location, mlir::Operation*>& operations);
 
 }  // namespace VPU
 }  // namespace vpux

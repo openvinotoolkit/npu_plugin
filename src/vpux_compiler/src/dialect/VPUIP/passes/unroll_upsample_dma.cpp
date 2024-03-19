@@ -6,21 +6,13 @@
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
-#include "vpux/compiler/core/aliases_info.hpp"
-#include "vpux/compiler/core/cost_model_utils.hpp"
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/convert_to_dma_utils.hpp"
-#include "vpux/compiler/dialect/VPUIP/dma_descriptor_generator.hpp"
-#include "vpux/compiler/dialect/VPURT/attributes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
-#include <llvm/ADT/DenseMap.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
-
-#include <numeric>
 
 using namespace vpux;
 
@@ -71,55 +63,88 @@ static VPUIP::DMADescriptorAttr generateUpsamplingDmaDescriptor(mlir::MLIRContex
                                          dstPlaneStride);
 }
 
+void shapeReorder(VPUIP::UpsamplingDMAOp upsamplingDMAOp, mlir::PatternRewriter& rewriter,
+                  vpux::NDTypeInterface inType) {
+    auto finalShape = Shape(inType.getShape().raw());
+    finalShape[Dims4D::Act::H] = finalShape[Dims4D::Act::H] * finalShape[Dims4D::Act::C];
+    finalShape[Dims4D::Act::C] = 1;
+
+    auto cst = upsamplingDMAOp.getInput().getDefiningOp<Const::DeclareOp>();
+    const auto origConstType = cst.getType().cast<vpux::NDTypeInterface>();
+    const auto newConstType = origConstType.changeShape(finalShape);
+    const auto newConstAttr = cst.getContentAttr().reshape(finalShape);
+    auto newCst = rewriter.create<Const::DeclareOp>(upsamplingDMAOp.getLoc(), newConstType, newConstAttr);
+    rewriter.replaceOp(upsamplingDMAOp.getInput().getDefiningOp(), newCst.getOutput());
+}
+
+mlir::Value getNewSrcBuffer(VPUIP::UpsamplingDMAOp upsamplingDMAOp, mlir::PatternRewriter& rewriter,
+                            vpux::Shape inputShape, int64_t& currentOffset) {
+    auto cst = upsamplingDMAOp.getInput().getDefiningOp<Const::DeclareOp>();
+    SmallVector<int64_t> offsetVec(inputShape.size(), 0);
+    offsetVec[Dims4D::Act::H.ind()] = currentOffset;
+    currentOffset += inputShape[Dims4D::Act::H];
+    return rewriter.create<VPUIP::SubViewOp>(upsamplingDMAOp->getLoc(), cst, offsetVec, inputShape.raw());
+}
+
 mlir::LogicalResult UpsamplingDMARewriter::matchAndRewrite(VPUIP::UpsamplingDMAOp upsamplingDMAOp,
                                                            mlir::PatternRewriter& rewriter) const {
     _log.trace("Process UpsamplingDMA op: {0}", upsamplingDMAOp);
-    if (upsamplingDMAOp.dma_descriptor().has_value()) {
+    if (upsamplingDMAOp.getDmaDescriptor().has_value()) {
         return mlir::failure();
     }
-
+    auto parentOp = upsamplingDMAOp.getInput().getDefiningOp();
     auto vpurtTask = upsamplingDMAOp->getParentOfType<VPURT::TaskOp>();
     VPUX_THROW_UNLESS(vpurtTask != nullptr, "Can't get VPURT task operation");
-    auto cycleBeginAttr = vpurtTask->getAttr(cycleBegin);
-    auto cycleEndAttr = vpurtTask->getAttr(cycleEnd);
     rewriter.setInsertionPointAfter(vpurtTask);
 
-    auto inType = upsamplingDMAOp.input().getType().cast<vpux::NDTypeInterface>();
+    auto inType = upsamplingDMAOp.getInput().getType().cast<vpux::NDTypeInterface>();
     Byte elemTypeSize = inType.getElemTypeSize();
 
-    auto srcDeclBuff = upsamplingDMAOp.input().getDefiningOp<VPURT::DeclareBufferOp>();
-    VPUX_THROW_UNLESS(srcDeclBuff != nullptr, "Can't get buffer for operand: {0}", upsamplingDMAOp.input());
-    auto dstDeclBuff = upsamplingDMAOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>();
-    VPUX_THROW_UNLESS(dstDeclBuff != nullptr, "Can't get buffer for operand: {0}", upsamplingDMAOp.output_buff());
-    auto srcType = srcDeclBuff.getType().cast<vpux::NDTypeInterface>();
-    auto dstType = dstDeclBuff.getType().cast<vpux::NDTypeInterface>();
+    bool inputIsCst = false;
+    auto srcDeclBuff = upsamplingDMAOp.getInput().getDefiningOp<VPURT::DeclareBufferOp>();
+    VPUX_THROW_UNLESS((mlir::isa<VPURT::DeclareBufferOp, Const::DeclareOp>(parentOp)),
+                      "Can't get buffer for operand: {0}", upsamplingDMAOp.getInput());
+    auto dstDeclBuff = upsamplingDMAOp.getOutputBuff().getDefiningOp<VPURT::DeclareBufferOp>();
+    VPUX_THROW_UNLESS(dstDeclBuff != nullptr, "Can't get buffer for operand: {0}", upsamplingDMAOp.getOutputBuff());
 
-    const auto inOrder = DimsOrder::fromValue(upsamplingDMAOp.input());
+    inputIsCst = mlir::isa<Const::DeclareOp>(parentOp);
+    auto srcType = upsamplingDMAOp.getInput().getType().cast<vpux::NDTypeInterface>();
+    auto dstType = dstDeclBuff.getType().cast<vpux::NDTypeInterface>();
+    const auto inOrder = DimsOrder::fromValue(upsamplingDMAOp.getInput());
     auto subShape = Shape(inType.getShape().raw());
     int64_t totalNumPlane = inType.getShape()[Dims4D::Act::N] * inType.getShape()[Dims4D::Act::H];
-    subShape[Dims4D::Act::N] = 1;
-    subShape[Dims4D::Act::H] = VPUIP::DMA_MAX_NUMBER_PLANES;
-    // Convert dim C to 1 when NCHW
-    // That can make NCHW's generation logic same as NHWC layout
+
     if (inOrder == DimsOrder::NCHW) {
         totalNumPlane *= inType.getShape()[Dims4D::Act::C];
         subShape[Dims4D::Act::C] = 1;
+        if (inputIsCst) {
+            // Strides matching with shape and order
+            shapeReorder(upsamplingDMAOp, rewriter, inType);
+        }
     }
 
-    auto numberDMAs = divUp(totalNumPlane, VPUIP::DMA_MAX_NUMBER_PLANES);
+    auto fullCopySize = static_cast<Byte>(getCompactSize(upsamplingDMAOp.getInput()));
+    auto numberDMAsPlanesRestriction = divUp(totalNumPlane, VPUIP::DMA_MAX_NUMBER_PLANES);
+    auto numberDMAsSizeRestriction = divUp(fullCopySize.count(), VPUIP::DMA_LIMIT.count());
+    auto numberDMAs = std::max(numberDMAsPlanesRestriction, numberDMAsSizeRestriction);
+    auto singlePlaneSize = fullCopySize.count() / totalNumPlane;
+    auto maxNumberOfPlanesPerDMA = std::min(VPUIP::DMA_LIMIT.count() / singlePlaneSize, totalNumPlane);
+    auto numberPlanesPerDMA = std::min(VPUIP::DMA_MAX_NUMBER_PLANES, maxNumberOfPlanesPerDMA);
+    subShape[Dims4D::Act::N] = 1;
+    subShape[Dims4D::Act::H] = numberPlanesPerDMA;
+
     SmallVector<Shape> subInputShapes(numberDMAs - 1, subShape);
-    subShape[Dims4D::Act::H] = totalNumPlane - (VPUIP::DMA_MAX_NUMBER_PLANES * (numberDMAs - 1));
+    subShape[Dims4D::Act::H] = totalNumPlane - (numberPlanesPerDMA * (numberDMAs - 1));
     subInputShapes.push_back(subShape);
-    auto srcOffset = srcDeclBuff.getByteOffset();
     auto dstOffset = dstDeclBuff.getByteOffset();
+
     auto context = upsamplingDMAOp.getContext();
-    auto upsamplingFactor = parseIntArrayAttr<int64_t>(upsamplingDMAOp.upsampling_factor());
-    auto hasExpandAttr = upsamplingDMAOp.expand().has_value();
+    auto upsamplingFactor = parseIntArrayAttr<int64_t>(upsamplingDMAOp.getUpsamplingFactor());
+    auto hasExpandAttr = upsamplingDMAOp.getExpand().has_value();
     SmallVector<int64_t, 4> expand;
     if (hasExpandAttr) {
-        expand = extractFromI64ArrayAttr(upsamplingDMAOp.expandAttr());
+        expand = mlir::extractFromIntegerArrayAttr<int64_t>(upsamplingDMAOp.getExpandAttr());
     }
-
     auto getOutShape = [&upsamplingFactor, &hasExpandAttr, &expand](ShapeRef inShape) {
         auto outShape = Shape(inShape.raw());
         for (size_t i = 0; i < outShape.size(); i++) {
@@ -130,37 +155,40 @@ mlir::LogicalResult UpsamplingDMARewriter::matchAndRewrite(VPUIP::UpsamplingDMAO
         }
         return outShape;
     };
-
     int64_t dmaPort = 0;
+    int64_t srcOffset = 0, currentOffset = 0;
+    if (!inputIsCst) {
+        srcOffset = srcDeclBuff.getByteOffset();
+    }
+
     for (auto& inputShape : subInputShapes) {
-        auto newSrcMemRef = vpux::getMemRefType(inputShape, srcType.getElementType(), inOrder, srcType.getMemSpace());
-        auto newSrcBuff = VPUIP::createNewDeclareBuffer(rewriter, srcDeclBuff, srcDeclBuff, newSrcMemRef, srcOffset);
+        mlir::Value newSrcBuff;
+        if (!inputIsCst) {
+            auto newSrcMemRef =
+                    vpux::getMemRefType(inputShape, srcType.getElementType(), inOrder, srcType.getMemSpace());
+            newSrcBuff = VPUIP::createNewDeclareBuffer(rewriter, srcDeclBuff, srcDeclBuff, newSrcMemRef, srcOffset);
+        } else {
+            newSrcBuff = getNewSrcBuffer(upsamplingDMAOp, rewriter, inputShape, currentOffset);
+        }
 
         auto outShape = getOutShape(inputShape);
         auto newDstMemRef = vpux::getMemRefType(outShape, dstType.getElementType(), inOrder, dstType.getMemSpace());
         auto newDstBuff = VPUIP::createNewDeclareBuffer(rewriter, dstDeclBuff, dstDeclBuff, newDstMemRef, dstOffset);
         auto descriptorAttr =
                 hasExpandAttr
-                        ? generateUpsamplingDmaDescriptor(context, inputShape, upsamplingDMAOp.upsampling_factor(),
+                        ? generateUpsamplingDmaDescriptor(context, inputShape, upsamplingDMAOp.getUpsamplingFactor(),
                                                           inType.getElemTypeSize(), expand[1])
-                        : generateUpsamplingDmaDescriptor(context, inputShape, upsamplingDMAOp.upsampling_factor(),
+                        : generateUpsamplingDmaDescriptor(context, inputShape, upsamplingDMAOp.getUpsamplingFactor(),
                                                           inType.getElemTypeSize(), 0);
 
         auto nextOffset = srcOffset + inputShape.totalSize() * elemTypeSize.count();
         const auto newLoc =
                 appendLoc(upsamplingDMAOp->getLoc(), "_unroll_upsamplingDMA[{0},{1}]", srcOffset, nextOffset);
-        const auto newUpsamplingDMA = VPURT::wrapIntoTaskOp<VPUIP::UpsamplingDMAOp>(
+        VPURT::wrapIntoTaskOp<VPUIP::UpsamplingDMAOp>(
                 rewriter, vpurtTask.getWaitBarriers(), vpurtTask.getUpdateBarriers(), newLoc, newSrcBuff, newDstBuff,
-                upsamplingDMAOp.upsampling_factorAttr(), descriptorAttr, upsamplingDMAOp.expandAttr(), dmaPort,
-                upsamplingDMAOp.channelTypeAttr(), upsamplingDMAOp.dma_hwp_idAttr());
-
-        auto newVpurtTask = newUpsamplingDMA->getParentOfType<VPURT::TaskOp>();
-        if (cycleBeginAttr) {
-            newVpurtTask->setAttr(cycleBegin, cycleBeginAttr);
-        }
-        if (cycleEndAttr) {
-            newVpurtTask->setAttr(cycleEnd, cycleEndAttr);
-        }
+                upsamplingDMAOp.getUpsamplingFactorAttr(), descriptorAttr, upsamplingDMAOp.getExpandAttr(), dmaPort,
+                upsamplingDMAOp.getIsOutOfOrder(), upsamplingDMAOp.getIsCritical(), upsamplingDMAOp.getDmaHwpIdAttr(),
+                upsamplingDMAOp.getProfilingMetadataAttr());
         dmaPort = (dmaPort + 1) % _dmaPortCount;
         srcOffset = nextOffset;
         dstOffset += outShape.totalSize() * elemTypeSize.count();
@@ -188,7 +216,7 @@ void UnrollUpsamplingDMAPass::safeRunOnFunc() {
     auto func = getOperation();
     auto module = func->getParentOfType<mlir::ModuleOp>();
     auto dmaOp = IE::getAvailableExecutor(module, VPU::ExecutorKind::DMA_NN);
-    auto dmaPortCount = dmaOp.count();
+    auto dmaPortCount = dmaOp.getCount();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<UpsamplingDMARewriter>(&ctx, dmaPortCount, _log);

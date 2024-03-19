@@ -3,15 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/dialect/IE/passes.hpp"
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/utils/permute_utils.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
-
-#include <mlir/Pass/PassManager.h>
-#include <mlir/Transforms/DialectConversion.h>
 
 #include <map>
 
@@ -19,165 +14,226 @@ using namespace vpux;
 
 namespace {
 
+const int64_t LEGAL_RANK = 4;
+
+/*
+Decompose complex permutation (more than one dimension is moved) into several simple permutations.
+
+Take the complex permutation [0, 1, 2, 3, 4, 5, 6, 7, 8] -> [0, 3, 2, 6, 4, 1, 5, 7, 8] as an example, it will be
+decomposed as below:
+
+Step 1 - move dim [1] after dim [4]
+    : [0, 1, 2, 3, 4, 5, 6, 7, 8] -> [0, 2, 3, 4, 1, 5, 6, 7, 8]
+Step 2 - move dim [2] after dim [3]
+    : [0, 2, 3, 4, 1, 5, 6, 7, 8] -> [0, 3, 2, 4, 1, 5, 6, 7, 8]
+Step 3 - move dim [4, 1, 5] after dim [6]
+    : [0, 3, 2, 4, 1, 5, 6, 7, 8] -> [0, 3, 2, 6, 4, 1, 5, 7, 8]
+
+With the 3 steps, we can finally get the original [0, 1, 2, 3, 4, 5, 6, 7, 8] -> [0, 3, 2, 6, 4, 1, 5, 7, 8]
+permutation.
+*/
+SmallVector<mlir::AffineMap> decomposeNDPermutation(ArrayRef<uint32_t> targetPerm, mlir::MLIRContext* ctx, Logger log) {
+    const auto initialMap = mlir::AffineMap::getMultiDimIdentityMap(targetPerm.size(), ctx);
+    const auto initialOrder =
+            to_small_vector(DimsOrder::fromAffineMap(initialMap).toPermutation() | transformed([](Dim dim) {
+                                return checked_cast<uint32_t>(dim.ind());
+                            }));
+
+    SmallVector<uint32_t> currentOrder = initialOrder;
+    SmallVector<SmallVector<uint32_t>> decomposedOrders;
+
+    while (currentOrder != targetPerm) {
+        SmallVector<uint32_t> tempOrder = currentOrder;
+        SmallVector<uint32_t> dimsTobeMoved;
+
+        size_t moveFromPos = 0;
+        uint32_t prevDim = 0;
+
+        // 1.find the dim(s) to be moved
+        for (size_t i = 0; i < currentOrder.size(); i++) {
+            if (currentOrder[i] == targetPerm[i]) {
+                continue;
+            }
+
+            // find the first dim to be moved
+            moveFromPos = i;
+
+            auto targetIt = std::find(targetPerm.begin(), targetPerm.end(), currentOrder[i]);
+            VPUX_THROW_WHEN(targetIt == targetPerm.end(), "'{0}' is not found in targetPerm '{1}'", currentOrder[i],
+                            targetPerm);
+            auto pos = targetIt - targetPerm.begin();
+            prevDim = *(targetIt - 1);
+
+            // try to find more dims that can be moved together
+            for (size_t j = moveFromPos; j < currentOrder.size(); j++) {
+                if (pos == checked_cast<int32_t>(targetPerm.size()) || currentOrder[j] != targetPerm[pos]) {
+                    break;
+                }
+
+                dimsTobeMoved.push_back(currentOrder[j]);
+                pos++;
+            }
+            break;
+        }
+
+        // 2.erase dims index from src position
+        if (dimsTobeMoved.size() > 1) {
+            tempOrder.erase(tempOrder.begin() + moveFromPos, tempOrder.begin() + moveFromPos + dimsTobeMoved.size());
+        } else {
+            tempOrder.erase(tempOrder.begin() + moveFromPos);
+        }
+
+        // 3.find the dst position and append or insert dims index
+        auto moveAfterIter = std::find(tempOrder.begin(), tempOrder.end(), prevDim);
+        VPUX_THROW_WHEN(moveAfterIter == tempOrder.end(), "'{0}' is not found in tempOrder '{1}'", prevDim, tempOrder);
+        if (moveAfterIter == tempOrder.end() - 1) {
+            tempOrder.append(dimsTobeMoved.begin(), dimsTobeMoved.end());
+        } else {
+            tempOrder.insert(moveAfterIter + 1, dimsTobeMoved.begin(), dimsTobeMoved.end());
+        }
+
+        decomposedOrders.push_back(tempOrder);
+        currentOrder.assign(tempOrder);
+    }
+
+    log.trace("Decomposed permutation {0} to orders {1}", targetPerm, decomposedOrders);
+
+    SmallVector<mlir::AffineMap> decomposedPermMaps;
+    for (size_t i = 0; i < decomposedOrders.size(); i++) {
+        DimsOrder inOrder =
+                (i == 0) ? DimsOrder::fromAffineMap(initialMap)
+                         : DimsOrder::fromAffineMap(mlir::AffineMap::getPermutationMap(decomposedOrders[i - 1], ctx));
+        DimsOrder outOrder = DimsOrder::fromAffineMap(mlir::AffineMap::getPermutationMap(decomposedOrders[i], ctx));
+        auto perm = getPermutationFromOrders(inOrder, outOrder, ctx);
+        decomposedPermMaps.push_back(perm);
+    }
+
+    log.trace("Decomposed permutation {0} to {1}", targetPerm, decomposedPermMaps);
+
+    return decomposedPermMaps;
+}
+
+class LegalizeNDMemPermute final : public mlir::OpRewritePattern<IE::MemPermuteOp> {
+public:
+    LegalizeNDMemPermute(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::MemPermuteOp>(ctx), _log(log) {
+        this->setDebugName("LegalizeNDMemPermute");
+    }
+
+private:
+    mlir::LogicalResult matchAndRewrite(IE::MemPermuteOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult LegalizeNDMemPermute::matchAndRewrite(IE::MemPermuteOp origOp,
+                                                          mlir::PatternRewriter& rewriter) const {
+    // Only enabled for VPUX37XX where Tiling for SW kernels is limited to 4D ops.
+    // ToDo: Remove pass after limitation.
+
+    auto inputType = origOp.getInput().getType().cast<NDTypeInterface>();
+
+    if (inputType.getRank() == LEGAL_RANK) {
+        return mlir::failure();
+    }
+
+    auto outputType = origOp.getOutput().getType().cast<NDTypeInterface>();
+    auto permutation = origOp.getMemPerm();
+
+    _log.trace("Got MemPermute op at '{0}' with shape '{1}' and permutation map '{2}'", origOp->getLoc(),
+               inputType.getShape(), permutation);
+
+    auto ctx = rewriter.getContext();
+
+    auto mergedPermAndShape = vpux::getMergedPermutationAndShape(inputType, permutation, LEGAL_RANK);
+    auto mergedPermutation = mergedPermAndShape.first;
+    auto mergedShape = mergedPermAndShape.second;
+
+    SmallVector<mlir::AffineMap> decomposedPermMaps;
+    if (mergedPermutation.size() > LEGAL_RANK) {
+        _log.trace("Decompose rank '{0}' MemPermute: perm {1}", mergedPermutation.size(), mergedPermutation);
+        decomposedPermMaps = decomposeNDPermutation(mergedPermutation, ctx, _log);
+    }
+
+    extendPermutationAndShape(mergedPermutation, mergedShape, LEGAL_RANK);
+    auto reducedPermutation = mlir::AffineMap::getPermutationMap(ArrayRef(mergedPermutation), ctx);
+
+    // Cast to canonical order for convenience
+    auto identityMap = mlir::AffineMap::getMultiDimIdentityMap(checked_cast<uint32_t>(inputType.getRank()), ctx);
+    auto inputCast = rewriter.create<IE::PermuteCastOp>(origOp.getLoc(), origOp.getInput(), identityMap, identityMap);
+
+    // Build input reshape operation
+    auto reducedShapeAttr = getIntArrayAttr(ctx, mergedShape);
+    auto inputReshape = rewriter.create<IE::ReshapeOp>(origOp.getLoc(), inputCast.getOutput(), /*shape=*/nullptr,
+                                                       /*special_zero=*/nullptr, reducedShapeAttr);
+
+    // Build reduced permutation operation
+    mlir::Value permuteInput = inputReshape.getOutput();
+    mlir::Value permuteOutput;
+    if (decomposedPermMaps.empty()) {
+        permuteOutput = rewriter.create<IE::MemPermuteOp>(origOp.getLoc(), permuteInput,
+                                                          mlir::AffineMap::getMultiDimIdentityMap(
+                                                                  checked_cast<uint32_t>(mergedShape.size()), ctx),
+                                                          reducedPermutation)
+                                .getOutput();
+    } else {
+        // decompose permutation
+        for (auto perm : decomposedPermMaps) {
+            permuteOutput = rewriter.create<IE::MemPermuteOp>(origOp.getLoc(), permuteInput,
+                                                              mlir::AffineMap::getMultiDimIdentityMap(
+                                                                      checked_cast<uint32_t>(mergedShape.size()), ctx),
+                                                              perm)
+                                    .getOutput();
+
+            permuteInput = permuteOutput;
+        }
+    }
+
+    // Reshape to original output shape
+    auto outputShape = outputType.getMemShape();
+    auto outputShapeAttr = getIntArrayAttr(ctx, outputShape);
+    auto outputReshape = rewriter.create<IE::ReshapeOp>(origOp.getLoc(), permuteOutput, /*shape=*/nullptr,
+                                                        /*special_zero=*/nullptr, outputShapeAttr);
+
+    // Set destination order
+    auto dstOrder = origOp.getDstOrder();
+    auto newSequence = rewriter.create<IE::PermuteCastOp>(
+            origOp.getLoc(), outputReshape.getOutput(), dstOrder,
+            mlir::AffineMap::getMultiDimIdentityMap(checked_cast<uint32_t>(outputShape.size()), ctx));
+
+    rewriter.replaceOp(origOp, newSequence.getOutput());
+
+    _log.nest().trace("Replaced with shape '{0}' and permutation map '{1}'", mergedShape, reducedPermutation);
+    return mlir::success();
+}
+
 //
 // LegalizeNDMemPermutePass
 //
 
 class LegalizeNDMemPermutePass final : public IE::LegalizeNDMemPermuteBase<LegalizeNDMemPermutePass> {
 public:
-    explicit LegalizeNDMemPermutePass(Logger log) {
-        Base::initLogger(log, Base::getArgumentName());
+    explicit LegalizeNDMemPermutePass(Logger log): _log(log) {
+        _log.setName(Base::getArgumentName());
     }
 
 private:
     void safeRunOnFunc() final;
+
+private:
+    Logger _log;
 };
 
-// Normalize permutation vector
-// Example: [1, 3, 7, 6] -> [0, 1, 3, 2]
-
-void normalizePermutation(SmallVector<uint32_t>& vec) {
-    SmallVector<uint32_t> sorted(vec);
-    llvm::DenseMap<uint32_t, uint32_t> helper;
-    std::sort(sorted.begin(), sorted.end());
-
-    for (size_t i = 0; i < sorted.size(); ++i) {
-        helper.insert(std::make_pair(sorted[i], static_cast<uint32_t>(i)));
-    }
-
-    for (size_t i = 0; i < vec.size(); ++i) {
-        vec[i] = helper[vec[i]];
-    }
-}
-
-//
-// safeRunOnFunc
-//
 void LegalizeNDMemPermutePass::safeRunOnFunc() {
-    // Only enabled for VPUX37XX where Tiling for SW kernels is limited to 4D ops. Not all ops can be
-    // reduced to 4D! As a future task these ops they could be decomposed into multiple MemPermutes that are 4D.
-    // ToDo: Remove pass after limitation.
     auto func = getOperation();
+    auto& ctx = getContext();
 
-    func.walk([this](IE::MemPermuteOp origOp) {
-        auto _log = this->_log;
-        auto ctx = &this->getContext();
+    mlir::RewritePatternSet patterns(&ctx);
+    patterns.add<LegalizeNDMemPermute>(&ctx, _log);
 
-        auto inputType = origOp.input().getType().cast<NDTypeInterface>();
-
-        if (inputType.getRank() == 4) {
-            return;
-        }
-
-        auto outputType = origOp.output().getType().cast<NDTypeInterface>();
-        auto permutation = origOp.mem_perm();
-
-        _log.trace("Got MemPermute op at '{0}' with shape '{1}' and permutation map '{2}'", origOp->getLoc(),
-                   inputType.getShape(), permutation);
-
-        auto memShape = to_small_vector(inputType.getMemShape());
-        auto dstOrder = origOp.dst_order();
-        auto origPermVec = DimsOrder::fromAffineMap(permutation).toPermutation();
-
-        // Example of origPermVec
-        // origPermVec = [d0, d1, d2, d3] -> [d1, d2, d3, d0];
-        // origPermVec[0] = 1, origPermVec[1] = 2, origPermVec[2] = 3, origPermVec[3] = 0
-        SmallVector<uint32_t> permVec;
-        SmallVector<int64_t> shapeVec;
-
-        for (auto d : origPermVec) {
-            // Dims with size 1 are dropped
-            if (memShape[d.ind()] != 1) {
-                permVec.push_back(static_cast<uint32_t>(d.ind()));
-            }
-        }
-
-        for (auto dimSize : memShape) {
-            // Dims with size 1 are dropped
-            if (dimSize != 1) {
-                shapeVec.push_back(dimSize);
-            }
-        }
-
-        normalizePermutation(permVec);
-
-        // Merge dims that are adjacent before and after permutation
-        // Example:
-        // memShape =[2, 4, 25, 255, 255]
-        // permVec = [d0, d1, d2, d3, d4] -> [d0, d4, d1, d2, d3]
-        //
-        // mergedShape = [2, 25500, 255]
-        // mergedPermutation = [d0, d1, d2] -> [d0, d2, d1]
-        SmallVector<uint32_t> mergedPermutation;
-        SmallVector<int64_t> mergedShape;
-
-        std::map<uint32_t, int64_t> mergedShapeMap;
-        size_t j = 0;
-        for (size_t i = 0; i < static_cast<size_t>(permVec.size()); i = j) {
-            int64_t dimSize = shapeVec[permVec[i]];
-            for (j = i + 1; j < static_cast<size_t>(permVec.size()) && (permVec[j - 1] + 1 == permVec[j]); ++j) {
-                dimSize *= shapeVec[permVec[j]];
-            }
-
-            mergedShapeMap.insert(std::make_pair(permVec[i], dimSize));
-
-            mergedPermutation.push_back(permVec[i]);
-        }
-
-        if (mergedPermutation.size() > 4) {
-            _log.trace("Could only reduce to rank '{0}'. Pattern is not applied", mergedPermutation.size());
-            return;
-        }
-
-        // Keys iterated in ascending order
-        for (auto p : mergedShapeMap) {
-            mergedShape.push_back(p.second);
-        }
-
-        // Normalize vectors
-        normalizePermutation(mergedPermutation);
-
-        // Pad to 4D if needed (Tiling hardcoded to 4D)
-        for (size_t i = mergedPermutation.size(); i < 4; i++) {
-            mergedPermutation.push_back(static_cast<uint32_t>(i));
-            mergedShape.push_back(1);
-        }
-
-        auto reducedPermutation = mlir::AffineMap::getPermutationMap(makeArrayRef(mergedPermutation), ctx);
-
-        mlir::OpBuilder builder(origOp.getOperation());
-
-        // Cast to canonical order for convenience
-        auto identityMap = mlir::AffineMap::getMultiDimIdentityMap(static_cast<uint32_t>(inputType.getRank()), ctx);
-        auto inputCast = builder.create<IE::PermuteCastOp>(origOp.getLoc(), origOp.input(), identityMap, identityMap);
-
-        // Build input reshape operation
-        auto reducedShapeAttr = getIntArrayAttr(ctx, mergedShape);
-        auto inputReshape = builder.create<IE::ReshapeOp>(origOp.getLoc(), inputCast.output(), /*shape=*/nullptr,
-                                                          /*special_zero=*/nullptr, reducedShapeAttr);
-
-        // Build reduced permutation operation
-        auto newPermute = builder.create<IE::MemPermuteOp>(
-                origOp.getLoc(), inputReshape.output(),
-                mlir::AffineMap::getMultiDimIdentityMap(static_cast<uint32_t>(mergedShape.size()), ctx),
-                reducedPermutation);
-
-        // Reshape to original output shape
-        auto outputShape = outputType.getMemShape();
-        auto outputShapeAttr = getIntArrayAttr(ctx, outputShape);
-        auto outputReshape = builder.create<IE::ReshapeOp>(origOp.getLoc(), newPermute.output(), /*shape=*/nullptr,
-                                                           /*special_zero=*/nullptr, outputShapeAttr);
-
-        // Set destination order
-        auto newSequence = builder.create<IE::PermuteCastOp>(
-                origOp.getLoc(), outputReshape.output(), dstOrder,
-                mlir::AffineMap::getMultiDimIdentityMap(static_cast<uint32_t>(outputShape.size()), ctx));
-
-        origOp.replaceAllUsesWith(newSequence.output());
-        origOp.erase();
-
-        _log.nest().trace("Replaced with shape '{0}' and permutation map '{1}'", mergedShape, reducedPermutation);
-    });
+    if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
+        signalPassFailure();
+    }
 }
 
 }  // namespace

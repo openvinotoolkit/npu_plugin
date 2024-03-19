@@ -87,6 +87,8 @@ public:
 public:
     SpecificTask createUPALayerTask(mlir::Operation* op, const SoftwareLayerParams& params);
 
+    SpecificTask createComputeSWKernelTask(mlir::Operation* op);
+    SpecificTask createCacheOpSWKernelTask(mlir::Operation* op);
     SpecificTask createSW_KernelTask(mlir::Operation* op);
     ActKernel createRuntimeKernelTask(mlir::ModuleOp module, mlir::Operation* op);
 
@@ -95,7 +97,7 @@ public:
     ActKernelDesc compileManagementKernelData(const vpux::VPU::ArchKind& archKind);
 
     KernelDataRef createKernelDataRef(StringRef name, uint64_t dataOffset, uint64_t dataSize,
-                                      ArrayRef<uint8_t> content = None);
+                                      ArrayRef<uint8_t> content = std::nullopt);
     KernelDataRef createActKernelPerfDataRef(StringRef name, mlir::ShapedType type, VPURT::BufferSection section,
                                              int64_t sectionIndex, int64_t byteOffset);
     KernelDataRef createKernelDataRef(const KernelDataDesc& desc);
@@ -106,28 +108,33 @@ public:
     TensorReference createTensorRef(StringRef name, vpux::NDTypeInterface type, VPURT::BufferSection section,
                                     ArrayRef<int64_t> sectionIndex, int64_t byteOffset, ArrayRef<int64_t> mult,
                                     ArrayRef<int64_t> shift, int64_t postShift, ArrayRef<uint8_t> zeroPoints,
-                                    Optional<int64_t> sparsityMapOffset = None,
-                                    Optional<int64_t> storageElementOffset = None,
-                                    Optional<int64_t> storageElementSize = None, Optional<int64_t> swizzlingKey = None);
+                                    std::optional<int64_t> sparsityMapOffset = std::nullopt,
+                                    std::optional<int64_t> storageElementOffset = std::nullopt,
+                                    std::optional<int64_t> storageElementSize = std::nullopt,
+                                    std::optional<int64_t> swizzlingKey = std::nullopt);
     TensorReference createTensorRef(StringRef name, vpux::NDTypeInterface type, VPURT::BufferSection section,
                                     ArrayRef<int64_t> sectionIndex, int64_t byteOffset,
-                                    Optional<int64_t> sparsityMapOffset = None,
-                                    Optional<int64_t> storageElementOffset = None,
-                                    Optional<int64_t> storageElementSize = None, Optional<int64_t> swizzlingKey = None);
+                                    std::optional<int64_t> sparsityMapOffset = std::nullopt,
+                                    std::optional<int64_t> storageElementOffset = std::nullopt,
+                                    std::optional<int64_t> storageElementSize = std::nullopt,
+                                    std::optional<int64_t> swizzlingKey = std::nullopt);
     TensorReference createTensorRef(StringRef name, vpux::NDTypeInterface type, VPURT::BufferSection section,
                                     int64_t sectionIndex, int64_t byteOffset,
-                                    Optional<int64_t> sparsityMapOffset = None,
-                                    Optional<int64_t> storageElementOffset = None,
-                                    Optional<int64_t> storageElementSize = None, Optional<int64_t> swizzlingKey = None);
+                                    std::optional<int64_t> sparsityMapOffset = std::nullopt,
+                                    std::optional<int64_t> storageElementOffset = std::nullopt,
+                                    std::optional<int64_t> storageElementSize = std::nullopt,
+                                    std::optional<int64_t> swizzlingKey = std::nullopt);
     TensorReference createTensorRef(mlir::Value val, StringRef name, VPURT::BufferSection section,
                                     ArrayRef<int64_t> sectionIndex, int64_t byteOffset,
-                                    Optional<int64_t> sparsityMapOffset = None,
-                                    Optional<int64_t> storageElementOffset = None,
-                                    Optional<int64_t> storageElementSize = None, Optional<int64_t> swizzlingKey = None);
+                                    std::optional<int64_t> sparsityMapOffset = std::nullopt,
+                                    std::optional<int64_t> storageElementOffset = std::nullopt,
+                                    std::optional<int64_t> storageElementSize = std::nullopt,
+                                    std::optional<int64_t> swizzlingKey = std::nullopt);
     TensorReference createTensorRef(mlir::Value val, StringRef name, VPURT::BufferSection section, int64_t sectionIndex,
-                                    int64_t byteOffset, Optional<int64_t> sparsityMapOffset = None,
-                                    Optional<int64_t> storageElementOffset = None,
-                                    Optional<int64_t> storageElementSize = None, Optional<int64_t> swizzlingKey = None);
+                                    int64_t byteOffset, std::optional<int64_t> sparsityMapOffset = std::nullopt,
+                                    std::optional<int64_t> storageElementOffset = std::nullopt,
+                                    std::optional<int64_t> storageElementSize = std::nullopt,
+                                    std::optional<int64_t> swizzlingKey = std::nullopt);
     TensorReference getTensorRef(mlir::Value val) const;
     const DMADescriptorReference getDepthToSpaceNNDMADescriptorReference(mlir::Operation* op) const;
     const DMADescriptorReference getSpaceToDepthNNDMADescriptorReference(mlir::Operation* op) const;
@@ -135,27 +142,31 @@ public:
     const DMADescriptorReference getPermuteNNDMADescriptorReference(mlir::Operation* op) const;
     const DMADescriptorReference getPerAxisTileNNDMADescriptorReference(mlir::Operation* op) const;
     const DMADescriptorReference getUpsamplingNNDMADescriptorReference(mlir::Operation* op) const;
+    const DMADescriptorReference getSyncNNDMADescriptorReference(mlir::Operation* op) const;
 
 public:
     BinaryData createBinaryData(ArrayRef<uint64_t> content, vpux::NDTypeInterface type, bool csram_cacheable = false);
     BinaryData createBinaryData(ArrayRef<uint64_t> content, size_t totalBytes, bool csram_cacheable = false);
 
 public:
-    Barrier createBarrier(mlir::Value val, Optional<int64_t> physicalID = None);
+    Barrier createBarrier(mlir::Value val, std::optional<int64_t> physicalID = std::nullopt);
 
     uint32_t getBarrierVirtualID(mlir::Value val) const;
-    Optional<uint32_t> getBarrierPhysicalID(mlir::Value val) const;
+    std::optional<uint32_t> getBarrierPhysicalID(mlir::Value val) const;
 
     BarrierReference createBarrierReference(mlir::Operation* op);
 
 public:
     Vector<uint32_t> createDims(ShapeRef shape);
     Vector<uint32_t> createDims(vpux::NDTypeInterface type);
-    Vector<float> createStrides(StridesRef strides, Bit elemSize);
-    Vector<float> createStrides(vpux::NDTypeInterface type);
-    IndirectDataReference createIndirectDataReference(int64_t dataIndex, Optional<int64_t> sparsityIndex = None,
-                                                      Optional<int64_t> storageElementIndex = None,
-                                                      Optional<int64_t> storageElementSize = None);
+    template <typename T>
+    Vector<T> createStrides(StridesRef strides, Bit elemSize);
+    template <typename T>
+    Vector<T> createStrides(vpux::NDTypeInterface type);
+    IndirectDataReference createIndirectDataReference(int64_t dataIndex,
+                                                      std::optional<int64_t> sparsityIndex = std::nullopt,
+                                                      std::optional<int64_t> storageElementIndex = std::nullopt,
+                                                      std::optional<int64_t> storageElementSize = std::nullopt);
 
 public:
     auto createString(StringRef str) {

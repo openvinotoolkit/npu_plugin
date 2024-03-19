@@ -9,9 +9,10 @@
 #include "vpux/compiler/dialect/VPUMI37XX/passes.hpp"
 #include "vpux/compiler/dialect/VPUMI37XX/utils.hpp"
 
-#include <vpu_nnrt_api_37xx.h>
+#include <npu_37xx_nnrt.hpp>
 
 using namespace vpux;
+using namespace npu37xx;
 
 namespace {
 
@@ -41,9 +42,8 @@ struct VirtualDependencyTracker {
 
                 auto v = vv.getType().getValue();
 
-                VPUX_THROW_UNLESS(v <= checked_cast<uint32_t>(std::numeric_limits<short>::max()),
-                                  "Too big virtual id {0}", v);
-                ids_.push_back(static_cast<unsigned short>(v));
+                VPUX_THROW_UNLESS(v < std::numeric_limits<uint32_t>::max(), "Barrier virtual id '{0}' is too large", v);
+                ids_.push_back(v);
                 ++range.second;
             }
 
@@ -67,7 +67,7 @@ struct VirtualDependencyTracker {
         return 0;
     }
 
-    unsigned short& id(unsigned int i) {
+    uint32_t& id(unsigned int i) {
         return ids_[i];
     }
     Dependency& dep(unsigned int i) {
@@ -75,7 +75,7 @@ struct VirtualDependencyTracker {
     }
 
 private:
-    std::vector<unsigned short> ids_;
+    std::vector<uint32_t> ids_;
     std::vector<Dependency> deps_;
 };
 
@@ -84,7 +84,7 @@ using TaskVector = std::vector<std::tuple<mlir::Operation*, nn_public::VpuTaskSc
 bool processSim(VirtualDependencyTracker& vdt_, const std::vector<nn_public::VpuBarrierCountConfig>& barriersConfig,
                 std::vector<nn_public::VpuBarrierCountConfig>& counts, const VirtualDependencyTracker::Dependency& dep,
                 nn_public::VpuTaskSchedulingBarrierConfig& bar_sched, unsigned short count,
-                std::vector<short>& to_virtual) {
+                std::vector<int64_t>& to_virtual) {
     auto barrierCheck = [&](bool dynamicCond) {
         return dynamicCond;
     };
@@ -106,7 +106,7 @@ bool processSim(VirtualDependencyTracker& vdt_, const std::vector<nn_public::Vpu
         unsigned v = vdt_.id(dep.producer_.first + i);
         auto r = barriersConfig[v].real_id_;
 
-        if (to_virtual.size() <= r || (to_virtual[r] != static_cast<short>(v))) {
+        if (to_virtual.size() <= r || (to_virtual[r] != static_cast<int64_t>(v))) {
             if (r < to_virtual.size()) {
             } else {
             }
@@ -128,8 +128,7 @@ bool processSim(VirtualDependencyTracker& vdt_, const std::vector<nn_public::Vpu
             }
 
             counts[v].consumer_count_ -= count;
-            bar_sched.start_after_ =
-                    std::max<unsigned short>(bar_sched.start_after_, static_cast<unsigned short>(v + 1));
+            bar_sched.start_after_ = std::max<uint32_t>(bar_sched.start_after_, v + 1);
 
             if (counts[v].consumer_count_ == 0) {
                 to_virtual[r] = -1;
@@ -139,7 +138,7 @@ bool processSim(VirtualDependencyTracker& vdt_, const std::vector<nn_public::Vpu
         }
     }
 
-    bar_sched.clean_after_ = static_cast<unsigned short>(counts.size());
+    bar_sched.clean_after_ = static_cast<uint32_t>(counts.size());
 
     for (unsigned int i = 0; i < dep.producer_.second; ++i) {
         unsigned v = vdt_.id(dep.producer_.first + i);
@@ -150,9 +149,8 @@ bool processSim(VirtualDependencyTracker& vdt_, const std::vector<nn_public::Vpu
                 VPUX_THROW("v = {0} counts[v].producer_count_ = {1}", v, counts[v].producer_count_);
             }
             counts[v].producer_count_ -= count;
-            bar_sched.start_after_ =
-                    std::max<unsigned short>(bar_sched.start_after_, static_cast<unsigned short>(v + 1));
-            bar_sched.clean_after_ = std::min<unsigned short>(bar_sched.clean_after_, static_cast<unsigned short>(v));
+            bar_sched.start_after_ = std::max<uint32_t>(bar_sched.start_after_, v + 1);
+            bar_sched.clean_after_ = std::min<uint32_t>(bar_sched.clean_after_, v);
         } else {
             VPUX_THROW("r = {0} to_virtual.size() = {1}", static_cast<int>(r), to_virtual.size());
         }
@@ -165,7 +163,7 @@ void simulateBarriers(const std::vector<nn_public::VpuBarrierCountConfig>& barri
                       TaskVector& dmas0, TaskVector& dmas1, TaskVector& dpus, TaskVector& acts,
                       VirtualDependencyTracker& vdt_) {
     auto counts = barriersConfigs;
-    std::vector<short> to_virtual(nn_barriers_, -1);
+    std::vector<int64_t> to_virtual(nn_barriers_, -1);
 
     auto dmaCurr0 = dmas0.begin();
     auto dmaCurr1 = dmas1.begin();
@@ -201,7 +199,7 @@ void simulateBarriers(const std::vector<nn_public::VpuBarrierCountConfig>& barri
 
         // map new barriers
         for (; bar < counts.size() && cond(); ++bar, progressed = true) {
-            to_virtual[barriersConfigs[bar].real_id_] = static_cast<short>(bar);
+            to_virtual[barriersConfigs[bar].real_id_] = static_cast<int64_t>(bar);
         }
 
         processTasks(dmaCurr0, dmas0.end());
@@ -236,17 +234,16 @@ private:
             }
         }
 
-        auto copyOfNextSameID = nextSameID;
         for (auto op : funcOp.getOps<VPUMI37XX::ConfigureBarrierOp>()) {
             auto newNextSameID = -1;
 
-            if (!copyOfNextSameID[op.getId()].empty()) {
-                newNextSameID = copyOfNextSameID[op.getId()].front();
-                copyOfNextSameID[op.getId()].pop_front();
+            if (!nextSameID[op.getId()].empty()) {
+                newNextSameID = nextSameID[op.getId()].front();
+                nextSameID[op.getId()].pop_front();
             }
 
             auto newNextSameIDAttr =
-                    mlir::IntegerAttr::get(mlir::IntegerType::get(ctx, 32, mlir::IntegerType::Signed), newNextSameID);
+                    mlir::IntegerAttr::get(mlir::IntegerType::get(ctx, 64, mlir::IntegerType::Signed), newNextSameID);
 
             op.setNextSameIdAttr(newNextSameIDAttr);
         }
@@ -290,21 +287,37 @@ private:
         setNextSameID(ctx, funcOp);
 
         VirtualDependencyTracker vdt_;
-        auto dmas0 = buildTaskVector<VPUMI37XX::NNDMAOp>(funcOp, vdt_, [](VPUMI37XX::NNDMAOp dma) {
-            return dma.getPort() == 0;
-        });
-        auto dmas1 = buildTaskVector<VPUMI37XX::NNDMAOp>(funcOp, vdt_, [](VPUMI37XX::NNDMAOp dma) {
-            return dma.getPort() == 1;
-        });
+
+        auto mappedInferenceOps = funcOp.getOps<VPUMI37XX::MappedInferenceOp>();
+        VPUX_THROW_UNLESS(!mappedInferenceOps.empty(), "MappedInferenceOp could not be located.");
+        auto mappedInferenceOp = *(mappedInferenceOps.begin());
+        auto dmaTasks = mappedInferenceOp.getDmaTasks();
+        auto dmaCount = parseIntArrayAttr<int64_t>(mappedInferenceOp.getDmaCount());
+
+        TaskVector dmas0(dmaCount[0]), dmas1(dmaCount.size() < 2 ? 0 : dmaCount[1]);
+        for (auto head : dmaTasks) {
+            auto headDMA = mlir::cast<VPUMI37XX::NNDMAOp>(head.getDefiningOp());
+            auto& list = headDMA.getPort() == 0 ? dmas0 : dmas1;
+            while (head) {
+                auto dma = mlir::cast<VPUMI37XX::NNDMAOp>(head.getDefiningOp());
+                auto value = std::make_tuple(dma, nn_public::VpuTaskSchedulingBarrierConfig{0, 0}, vdt_.add(dma));
+                auto index = mlir::cast<VPURegMapped::IndexType>(dma.getIndex().getType()).getValue();
+                list[index] = value;
+                head = dma.getNextDMAIdx();
+            }
+        }
+
         auto dpus = buildTaskVector<VPUMI37XX::DPUInvariantOp>(funcOp, vdt_);
         auto acts = buildTaskVector<VPUMI37XX::ActKernelInvocationOp>(funcOp, vdt_);
 
         std::vector<nn_public::VpuBarrierCountConfig> barriersConfigs;
         unsigned char nn_barriers_ = 0;
         for (auto op : funcOp.getOps<VPUMI37XX::ConfigureBarrierOp>()) {
-            barriersConfigs.push_back(nn_public::VpuBarrierCountConfig{std::numeric_limits<uint16_t>::max(),
+            barriersConfigs.push_back(nn_public::VpuBarrierCountConfig{std::numeric_limits<uint32_t>::max(),
                                                                        op.getProducerCount().value(),
-                                                                       op.getConsumerCount().value(), op.getId(), 0});
+                                                                       op.getConsumerCount().value(),
+                                                                       op.getId(),
+                                                                       {0}});
             nn_barriers_ = std::max<unsigned char>(nn_barriers_, op.getId() + 1);
         }
 

@@ -7,23 +7,12 @@
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
-#include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
-#include "vpux/utils/IE/loop.hpp"
 
 #include "vpux/utils/core/func_ref.hpp"
-#include "vpux/utils/core/numeric.hpp"
 
-#include <mlir/IR/BlockAndValueMapping.h>
-#include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
-
-#include <tuple>
 
 using namespace vpux;
 
@@ -36,11 +25,11 @@ struct OperationPart {
 };
 
 mlir::Operation* createFQ(mlir::PatternRewriter& rewriter, mlir::Operation* inputOp, IE::FakeQuantizeOp fq) {
-    const auto outputType = fq.output().getType().cast<vpux::NDTypeInterface>();
+    const auto outputType = fq.getOutput().getType().cast<vpux::NDTypeInterface>();
     const auto newOutputType = outputType.changeShape(getShape(inputOp->getResult(0)));
-    return rewriter.create<IE::FakeQuantizeOp>(fq.getLoc(), newOutputType, inputOp->getResult(0), fq.input_low(),
-                                               fq.input_high(), fq.output_low(), fq.output_high(), fq.levels(),
-                                               fq.auto_broadcast());
+    return rewriter.create<IE::FakeQuantizeOp>(fq.getLoc(), newOutputType, inputOp->getResult(0), fq.getInputLow(),
+                                               fq.getInputHigh(), fq.getOutputLow(), fq.getOutputHigh(), fq.getLevels(),
+                                               fq.getAutoBroadcast());
 }
 
 mlir::LogicalResult generalSplitter(mlir::Operation* origOp, mlir::PatternRewriter& rewriter,
@@ -62,7 +51,7 @@ mlir::LogicalResult generalSplitter(mlir::Operation* origOp, mlir::PatternRewrit
     const auto minStride = std::min(strides[0], strides[1]);
     const auto maxStride = std::max(strides[0], strides[1]);
 
-    const auto newStrides = getIntArrayAttr(ctx, makeArrayRef({maxStride, maxStride}));
+    const auto newStrides = getIntArrayAttr(ctx, ArrayRef({maxStride, maxStride}));
 
     log.trace("New strides for {0} are {1}", origOp->getLoc(), newStrides);
 
@@ -164,15 +153,15 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
                                                          mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got Convolution layer at '{1}'", getDebugName(), origOp->getLoc());
 
-    const auto filterShape = getShape(origOp.filter());
+    const auto filterShape = getShape(origOp.getFilter());
 
     return generalSplitter(
-            origOp, rewriter, origOp.strides(), {filterShape[Dims4D::Act::W], filterShape[Dims4D::Act::H]},
-            origOp.pads_begin(), origOp.pads_end(),
+            origOp, rewriter, origOp.getStrides(), {filterShape[Dims4D::Act::W], filterShape[Dims4D::Act::H]},
+            origOp.getPadsBegin(), origOp.getPadsEnd(),
             [&](mlir::Location loc, mlir::Value input, OperationPart part) -> mlir::Operation* {
-                return rewriter.create<IE::ConvolutionOp>(loc, input, origOp.filter(), origOp.bias(), part.strides,
-                                                          part.padBegin, part.padEnd, origOp.dilations(),
-                                                          origOp.post_opAttr());
+                return rewriter.create<IE::ConvolutionOp>(
+                        loc, input, origOp.getFilter(), origOp.getBias(), part.strides, part.padBegin, part.padEnd,
+                        origOp.getDilations(), origOp.getPostOpAttr(), origOp.getClampAttr());
             },
             _log.nest());
 }
@@ -202,11 +191,11 @@ void HandleAsymmetricStridesPass::safeRunOnFunc() {
 
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalOp<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
-        const auto kernelStrides = parseIntArrayAttr<int64_t>(op.strides());
+        const auto kernelStrides = parseIntArrayAttr<int64_t>(op.getStrides());
         const auto SY = kernelStrides[0];
         const auto SX = kernelStrides[1];
 
-        const auto inputShape = getShape(op.input());
+        const auto inputShape = getShape(op.getInput());
         const auto H = inputShape[Dims4D::Act::H];
         const auto W = inputShape[Dims4D::Act::W];
 

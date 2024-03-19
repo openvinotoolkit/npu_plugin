@@ -50,6 +50,11 @@ std::string printToString(StringLiteral format, Args&&... args) {
     return formatv(format.data(), std::forward<Args>(args)...);
 }
 
+template <typename... Args>
+std::string printToString(const char* format, Args&&... args) {
+    return formatv(format, std::forward<Args>(args)...);
+}
+
 //
 // printTo
 //
@@ -195,13 +200,13 @@ struct format_provider<std::tuple<Args...>> final {
 private:
     template <size_t Index = 0>
     static auto printItems(const std::tuple<Args...>& val, llvm::raw_ostream& stream, StringRef style)
-            -> vpux::enable_if_t<Index + 1 == sizeof...(Args)> {
+            -> std::enable_if_t<Index + 1 == sizeof...(Args)> {
         llvm::detail::build_format_adapter(std::get<Index>(val)).format(stream, style);
     }
 
     template <size_t Index = 0>
     static auto printItems(const std::tuple<Args...>& val, llvm::raw_ostream& stream, StringRef style)
-            -> vpux::enable_if_t<Index + 1 < sizeof...(Args)> {
+            -> std::enable_if_t<Index + 1 < sizeof...(Args)> {
         llvm::detail::build_format_adapter(std::get<Index>(val)).format(stream, style);
         stream << ", ";
 

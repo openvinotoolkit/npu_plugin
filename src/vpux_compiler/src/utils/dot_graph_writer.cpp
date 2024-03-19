@@ -107,7 +107,7 @@ void GraphWriter::writeNodes() {
     };
 
     for (auto& op : _block) {
-        const auto opName = vpux::stringifyLocation(op.getLoc());
+        const auto opName = vpux::stringifyPrimaryLocation(op.getLoc());
 
         if (generating) {
             if (op.getNumRegions() == 0) {
@@ -169,6 +169,11 @@ EdgeDir GraphWriter::getEdgeDirection(mlir::Operation* source, mlir::Operation* 
 }
 
 bool GraphWriter::isNodeHidden(mlir::Operation* op) const {
+    if (_params.printOnlyAsyncExec) {
+        // print only async.exec ops
+        return !mlir::isa<mlir::async::ExecuteOp>(op);
+    }
+
     if (_params.printOnlyTaskAndBarrier) {
         // print only barriers and tasks
         return !mlir::isa<VPURT::TaskOp, VPURT::DeclareVirtualBarrierOp>(op);
@@ -296,10 +301,10 @@ std::string GraphWriter::getNodeLabel(mlir::Operation* op) {
 
     if (!mlir::isa<mlir::async::ExecuteOp>(op)) {
         if (_params.htmlLike) {
-            os << htmlBegin << "Name:" << htmlMiddle << htmlEncode(stringifyLocation(op->getLoc())) << htmlEnd;
+            os << htmlBegin << "Name:" << htmlMiddle << htmlEncode(stringifyPrimaryLocation(op->getLoc())) << htmlEnd;
             os << htmlBegin << "Type:" << htmlMiddle;
         } else {
-            os << stringifyLocation(op->getLoc()) << "\n";
+            os << stringifyPrimaryLocation(op->getLoc()) << "\n";
         }
 
         // Print resultant types

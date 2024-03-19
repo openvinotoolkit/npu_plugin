@@ -4,13 +4,9 @@
 //
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
+#include "vpux/compiler/dialect/IE/utils/concat_utils.hpp"
 
-#include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
-
-#include <mlir/Pass/PassManager.h>
-#include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
 
@@ -35,26 +31,59 @@ private:
 mlir::LogicalResult ConcatSliceRewriter::matchAndRewrite(IE::SliceOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Rewrite Slice operation '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
 
-    auto concatOp = origOp.source().getDefiningOp<IE::ConcatOp>();
+    auto reshapeOp = origOp.getSource().getDefiningOp<IE::AffineReshapeOp>();
+
+    auto concatOp = reshapeOp ? reshapeOp.getInput().getDefiningOp<IE::ConcatOp>()
+                              : origOp.getSource().getDefiningOp<IE::ConcatOp>();
+    bool hasReshape = reshapeOp != nullptr;
+
     if (concatOp == nullptr) {
         return mlir::failure();
     }
 
-    if (!concatOp.static_offsetsAttr()) {
+    if (!concatOp.getStaticOffsetsAttr()) {
         return mlir::failure();
     }
 
-    auto sliceOffset = parseIntArrayAttr<int64_t>(origOp.static_offsets());
+    auto sliceOffset = parseIntArrayAttr<int64_t>(origOp.getStaticOffsets());
     const auto sliceOffsetShape = Shape(sliceOffset);
-    const auto sliceOutShape = getShape(origOp.result());
-    const auto concatOffsets = parseIntArrayOfArrayAttr<int64_t>(concatOp.static_offsetsAttr());
+    const auto sliceOutShape = getShape(origOp.getResult());
+    auto concatOffsets = parseIntArrayOfArrayAttr<int64_t>(concatOp.getStaticOffsetsAttr());
+    const auto inputs = concatOp.getInputs();
+    SmallVector<vpux::ShapeRef> newInputShapes;
+    SmallVector<SmallVector<int64_t>> newInputShapesVec;
 
-    for (const auto& p : zip(concatOp.inputs(), concatOffsets)) {
-        const auto curVal = std::get<0>(p);
-        const auto curShape = getShape(curVal);
+    if (hasReshape) {
+        const auto affineOutShape = getShape(reshapeOp.getOutput());
+
+        const auto modifiedAxes = IE::getConcatModifiedAxis(concatOp);
+
+        for (const auto& input : inputs) {
+            const SmallVector<int64_t> newShapeVec =
+                    IE::calculateInputShapeAfterSwitchConcatAndAffineReshape(input, concatOp, reshapeOp);
+            newInputShapesVec.emplace_back(newShapeVec);
+        }
+
+        for (const auto& vector : newInputShapesVec) {
+            newInputShapes.emplace_back(ShapeRef(vector));
+        }
+
+        auto newOffsetsAttr =
+                IE::getNewConcatOffsetsParameters(concatOp.getStaticOffsetsAttr(), reshapeOp.getDimMapping(), inputs,
+                                                  newInputShapes, affineOutShape, modifiedAxes);
+
+        concatOffsets = parseIntArrayOfArrayAttr<int64_t>(newOffsetsAttr);
+    } else {
+        for (const auto& input : inputs) {
+            newInputShapes.push_back(getShape(input));
+        }
+    }
+
+    for (const auto& p : zip(inputs, concatOffsets, newInputShapes)) {
+        auto curVal = std::get<0>(p);
         const auto curOffset = std::get<1>(p);
-        const auto curOffsetShape = Shape(curOffset);
-
+        const auto curShape = std::get<2>(p);
+        const auto curOffsetShape = ShapeRef(curOffset);
         auto isSubTensor = [&]() -> bool {
             for (const auto ind : irange(sliceOutShape.size())) {
                 const auto d = Dim(ind);
@@ -75,12 +104,17 @@ mlir::LogicalResult ConcatSliceRewriter::matchAndRewrite(IE::SliceOp origOp, mli
         _log.trace("ConcatSliceRewriter '{0}' at '{1}', {2}->{3}, {4}->{5}", origOp->getName(), origOp->getLoc(),
                    sliceOffsetShape, curOffsetShape, sliceOutShape, curShape);
 
+        if (hasReshape) {
+            curVal = rewriter.create<IE::AffineReshapeOp>(reshapeOp.getLoc(), curVal, reshapeOp.getDimMapping(),
+                                                          getIntArrayAttr(rewriter.getContext(), curShape));
+        }
+
         for (auto i : irange(sliceOffset.size())) {
             sliceOffset[i] -= curOffset[i];
         }
 
         rewriter.replaceOpWithNewOp<IE::SliceOp>(origOp, curVal, getIntArrayAttr(getContext(), sliceOffset),
-                                                 origOp.static_sizes());
+                                                 origOp.getStaticSizes());
 
         return mlir::success();
     }

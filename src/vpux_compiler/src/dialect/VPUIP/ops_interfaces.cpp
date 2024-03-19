@@ -5,6 +5,8 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/sw_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/types.hpp"
 #include "vpux/compiler/dialect/VPURT/types.hpp"
 
@@ -50,18 +52,21 @@ mlir::Type getElementType(mlir::Type type) {
 }  // namespace
 
 mlir::LogicalResult vpux::VPUIP::verifyLayer(mlir::Operation* op) {
+    auto swKernel = mlir::dyn_cast<VPUIP::SwKernelOp>(op);
+    if (swKernel && isCacheHandlingOp(swKernel)) {
+        return mlir::success();
+    }
+
     if (op->getOperands().empty()) {
         return errorAt(op, "RunTime Layer Operation has no operands");
     }
     if (op->getResults().empty()) {
         return errorAt(op, "RunTime Layer Operation has no results");
     }
-
     const auto verifyType = [&](mlir::Type type, StringRef name, unsigned ind) {
         if (type.isa<mlir::RankedTensorType>()) {
             return errorAt(op, "RunTime Layer Operation has Tensor {0} #{1}", name, ind);
         }
-
         if (auto mainType = type.dyn_cast<mlir::ShapedType>()) {
             if (validateQuantElemType(op->getLoc(), mainType).failed()) {
                 return mlir::failure();
@@ -70,7 +75,6 @@ mlir::LogicalResult vpux::VPUIP::verifyLayer(mlir::Operation* op) {
 
         return mlir::success();
     };
-
     for (auto& arg : op->getOpOperands()) {
         if (verifyType(arg.get().getType(), "operand", arg.getOperandNumber()).failed()) {
             return mlir::failure();
@@ -151,12 +155,18 @@ void vpux::VPUIP::getLayerEffects(mlir::Operation* op, SmallVectorImpl<MemoryEff
     VPUX_THROW_WHEN(layer == nullptr, "Got non layer operation '{0}' at '{1}' in getLayerEffects", op->getName(),
                     op->getLoc());
 
-    for (const auto input : layer.getInputs()) {
-        effects.emplace_back(mlir::MemoryEffects::Read::get(), input);
-    }
+    auto swKernel = mlir::dyn_cast<VPUIP::SwKernelOp>(op);
+    if (swKernel != nullptr && isCacheHandlingOp(swKernel)) {
+        effects.emplace_back(mlir::MemoryEffects::Read::get());
+        effects.emplace_back(mlir::MemoryEffects::Write::get());
+    } else {
+        for (const auto input : layer.getInputs()) {
+            effects.emplace_back(mlir::MemoryEffects::Read::get(), input);
+        }
 
-    for (const auto output : layer.getOutputs()) {
-        effects.emplace_back(mlir::MemoryEffects::Write::get(), output);
+        for (const auto output : layer.getOutputs()) {
+            effects.emplace_back(mlir::MemoryEffects::Write::get(), output);
+        }
     }
 }
 
@@ -407,6 +417,14 @@ mlir::LogicalResult vpux::VPUIP::verifySameOperandsAndResultElementType(mlir::Op
         }
     }
     return mlir::success();
+}
+
+//
+// DMATypeOpInterface
+//
+
+std::optional<VPUIP::DmaChannelType> vpux::VPUIP::getChannelType(mlir::Operation* /*op*/) {
+    return std::nullopt;
 }
 
 //

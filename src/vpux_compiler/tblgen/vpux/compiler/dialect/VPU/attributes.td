@@ -47,7 +47,7 @@ def VPU_ArchKind :
             [
                 I64EnumAttrCase<"UNKNOWN",  0>,
                 I64EnumAttrCase<"VPUX30XX", 1>,
-                I64EnumAttrCase<"VPUX37XX", 3>,
+                I64EnumAttrCase<"VPUX37XX", 3>
             ]
         > {
 }
@@ -75,6 +75,25 @@ def VPU_MemoryKind :
 def VPU_MemoryKindAttr : VPU_EnumAttr<VPU_MemoryKind, "memory_kind">;
 
 //
+// ActShaveTaskType
+//
+
+def VPU_ActShaveTaskType:
+        VPU_I64EnumAttr<
+            "ActShaveTaskType",
+            "Activation SHAVE Task Type",
+            [
+                I64EnumAttrCase<"COMPUTE",                0>,
+                I64EnumAttrCase<"CACHE_FLUSH",            1>,
+                I64EnumAttrCase<"CACHE_INVALIDATE",       2>,
+                I64EnumAttrCase<"CACHE_FLUSH_INVALIDATE", 3>
+            ]
+        > {
+}
+
+def VPU_ActShaveTaskTypeAttr : VPU_EnumAttr<VPU_ActShaveTaskType, "task_type">;
+
+//
 // ExecutorKind
 //
 
@@ -88,7 +107,7 @@ def VPU_ExecutorKind :
                 I64EnumAttrCase<"DPU",       2>,
                 I64EnumAttrCase<"SHAVE_UPA", 3>,
                 I64EnumAttrCase<"SHAVE_NN",  4>,
-                I64EnumAttrCase<"SHAVE_ACT", 5>,
+                I64EnumAttrCase<"SHAVE_ACT", 5>
             ]
         > {
 }
@@ -183,18 +202,19 @@ def VPU_EltwiseType :
                 I64EnumAttrCase<"SQUARED_DIFF",  4>,
                 I64EnumAttrCase<"POWER",         5>,
                 I64EnumAttrCase<"FLOOR_MOD",     6>,
-                I64EnumAttrCase<"MIN",           7>,
-                I64EnumAttrCase<"MAX",           8>,
-                I64EnumAttrCase<"AND",           9>,
-                I64EnumAttrCase<"EQUAL",         10>,
-                I64EnumAttrCase<"LESS",          11>,
-                I64EnumAttrCase<"LESS_EQUAL",    12>,
-                I64EnumAttrCase<"NOT_EQUAL",     13>,
-                I64EnumAttrCase<"GREATER",       14>,
-                I64EnumAttrCase<"GREATER_EQUAL", 15>,
-                I64EnumAttrCase<"LOGICAL_NOT",   16>,
-                I64EnumAttrCase<"LOGICAL_OR",    17>,
-                I64EnumAttrCase<"LOGICAL_XOR",   18>
+                I64EnumAttrCase<"MOD",           7>,
+                I64EnumAttrCase<"MIN",           8>,
+                I64EnumAttrCase<"MAX",           9>,
+                I64EnumAttrCase<"AND",           10>,
+                I64EnumAttrCase<"EQUAL",         11>,
+                I64EnumAttrCase<"LESS",          12>,
+                I64EnumAttrCase<"LESS_EQUAL",    13>,
+                I64EnumAttrCase<"NOT_EQUAL",     14>,
+                I64EnumAttrCase<"GREATER",       15>,
+                I64EnumAttrCase<"GREATER_EQUAL", 16>,
+                I64EnumAttrCase<"LOGICAL_NOT",   17>,
+                I64EnumAttrCase<"LOGICAL_OR",    18>,
+                I64EnumAttrCase<"LOGICAL_XOR",   19>
             ]
         > {
 }
@@ -516,13 +536,11 @@ def VPU_SEInterpolateAttr : VPU_Attr<"SEInterpolate", [
         The attribute contains the following parameters:
         - `mode`: describes the type of data duplication that will be applied over
           the input data in order to generate the effective data that will be read
-          by the IDU. It can take the following values:
-            - `NEAREST`: each element in the input data is duplicated `scale` times
-            - `BILINEAR`: each element is duplicated `scale + (scale-1)` times
+          by the IDU. It can take the following values: `NEAREST` and `BILINEAR`
         - `coordinate_transformation_mode`: describes how the coordinate of the
           interpolated output can be transformed into a coordinate of the input data
         - `scale`: an array with the same rank as the input data. It describes how
-          many times each element of the input data is duplicated per axis
+          many times is the output greater than the input
         - `nearest_mode`: applicable only for `NEAREST` mode above; it will decide
           how back-inferred float coordinates of the input data will be rounded to
           actual coordinates
@@ -534,6 +552,39 @@ def VPU_SEInterpolateAttr : VPU_Attr<"SEInterpolate", [
         - `initial_input_shape` / `initial_output_shape`: maintains the information
           about the input and output data of the original Interpolate operation (e.g.
           before tiling), which is necessary for some modes, such as ALIGN_CORNERS.
+          It is also help to infer input coordinate for bilinear interpolate when tiling.
+
+        An example:
+        ```
+        Bilinear Interpolate with PYTORCH_HALF_PIXEL coordMode
+        Starting from the following input data:
+            1 2 3
+            4 5 6
+            7 8 9
+        With the following configuration:
+          - scale: [1, 1, 2, 2]
+        Following parameters can be infered:
+          - factors: [4, 4]
+            The `factors` represents the number of times each element is copied on H and W separately
+          - pads: [1, 1, 1, 1]
+            The `pads` represents the number of times boundary data is expanded in
+            the [left, top, right, bottom] respectively
+        The data is duplicated using the Storage Element pointers into:
+            1 1 1 1 1 2 2 2 2 3 3 3 3 3
+            1 1 1 1 1 2 2 2 2 3 3 3 3 3
+            1 1 1 1 1 2 2 2 2 3 3 3 3 3
+            1 1 1 1 1 2 2 2 2 3 3 3 3 3
+            1 1 1 1 1 2 2 2 2 3 3 3 3 3
+            4 4 4 4 4 5 5 5 5 6 6 6 6 6
+            4 4 4 4 4 5 5 5 5 6 6 6 6 6
+            4 4 4 4 4 5 5 5 5 6 6 6 6 6
+            4 4 4 4 4 5 5 5 5 6 6 6 6 6
+            7 7 7 7 7 8 8 8 8 9 9 9 9 9
+            7 7 7 7 7 8 8 8 8 9 9 9 9 9
+            7 7 7 7 7 8 8 8 8 9 9 9 9 9
+            7 7 7 7 7 8 8 8 8 9 9 9 9 9
+            7 7 7 7 7 8 8 8 8 9 9 9 9 9
+        ```
     }];
     let parameters = (ins
         "vpux::VPU::NCEInterpolateModeAttr":$mode,
@@ -548,6 +599,173 @@ def VPU_SEInterpolateAttr : VPU_Attr<"SEInterpolate", [
 
     let assemblyFormat = "`<` struct(params) `>`";
     let genVerifyDecl = 1;
+}
+
+//
+// SEUpsamplingAttr
+//
+
+def VPU_SEUpsamplingAttr : VPU_Attr<"SEUpsampling", [
+        DeclareAttrInterfaceMethods<VPU_SEAttrInterface>
+    ] > {
+    let description = [{
+        Describes how the input data can be upsampled on the spatial dimensions
+        by a Storage Element Table. The attribute is intended to be used with
+        the sparse input type for NCE operations, as well as in the Storage Element
+        Table operation itself.
+
+        The attribute contains the following parameters:
+        - `factors`: [H, W] - describes how many zero-valued elements should be
+          introduced between two consecutive elements on each spatial dimension
+        - `padding`: [left, top, right, bottom] - describes how many zero-valued
+          pad values should be introduced on each margin
+        - `offsets` / `sizes`: [N, C, H, W] - describes what slice of the effective
+          output data represents the final output. The parameters above define how
+          the input data will be expanded. However, not all of the resulting data
+          might be required for the instance of sparse data (e.g. after tiling).
+          These two parameters allow extracting only a slice of the duplicated data.
+
+        An example:
+        ```
+        Starting from the following input data:
+            1 2 3
+            4 5 6
+            7 8 9
+        With the following configuration:
+          - factors: [1, 2]
+          - padding: [1, 1, 1, 1]
+        The data is duplicated using the Storage Element pointers into:
+            1 1 1 1 2 2 2 3 3
+            1 1 1 1 2 2 2 3 3
+            1 1 1 1 2 2 2 3 3
+            4 4 4 4 5 5 5 6 6
+            4 4 4 4 5 5 5 6 6
+            7 7 7 7 8 8 8 9 9
+            7 7 7 7 8 8 8 9 9
+        The following sparsity map is utilized:
+            0 0 0 0 0 0 0 0 0
+            0 1 0 0 1 0 0 1 0
+            0 0 0 0 0 0 0 0 0
+            0 1 0 0 1 0 0 1 0
+            0 0 0 0 0 0 0 0 0
+            0 1 0 0 1 0 0 1 0
+            0 0 0 0 0 0 0 0 0
+        In order to generate the final upsampled data:
+            0 0 0 0 0 0 0 0 0
+            0 1 0 0 2 0 0 3 0
+            0 0 0 0 0 0 0 0 0
+            0 4 0 0 5 0 0 6 0
+            0 0 0 0 0 0 0 0 0
+            0 7 0 0 8 0 0 9 0
+            0 0 0 0 0 0 0 0 0
+        This data can be further sliced by using:
+          - offsets: [0, 0, 2, 1]
+          - sizes:   [N, C, 3, 5]
+        Resulting in:
+            0 0 0 0 0
+            4 0 0 5 0
+            0 0 0 0 0
+        ```
+    }];
+    let parameters = (ins
+        "mlir::ArrayAttr":$factors,
+        OptionalParameter<"mlir::ArrayAttr">:$padding,
+        OptionalParameter<"mlir::ArrayAttr">:$offsets,
+        OptionalParameter<"mlir::ArrayAttr">:$sizes
+    );
+
+    let assemblyFormat = "`<` struct(params) `>`";
+    let genVerifyDecl = 1;
+}
+
+//
+// SEPaddingAttr
+//
+
+def VPU_SEPaddingAttr : VPU_Attr<"SEPadding", [
+        DeclareAttrInterfaceMethods<VPU_SEAttrInterface>
+    ] > {
+    let description = [{
+        Describes how the input data can be padded on the spatial dimensions
+        by a Storage Element Table. The attribute is intended to be used with
+        the sparse input type for NCE operations, as well as in the Storage Element
+        Table operation itself.
+
+        The attribute contains the following parameters:
+        - `mode`: describes how to generate new element padding values. It can take
+          the following values: `CONSTANT`, `EDGE`, `REFLECT`, and `SYMMETRIC`
+        - `padding`: [left, top, right, bottom] - describes how many pad values
+          should be introduced on each margin
+        - `offsets` / `sizes`: [N, C, H, W] - describes what slice of the effective
+          output data represents the final output. The parameters above define how
+          the input data will be expanded. However, not all of the resulting data
+          might be required for the instance of sparse data (e.g. after tiling).
+          These two parameters allow extracting only a slice of the duplicated data.
+
+        An example:
+        ```
+        Starting from the following input data:
+            1 2 3
+            4 5 6
+            7 8 9
+        With the following configuration:
+          - mode: `REFLECT`
+          - padding: [1, 2, 2, 1]
+        The data is duplicated using the Storage Element pointers into:
+            8 7 8 9 8 7
+            5 4 5 6 5 4
+            2 1 2 3 2 1
+            5 4 5 6 5 4
+            8 7 8 9 8 7
+            5 4 5 6 5 4
+        This data can be further sliced by using last three lines:
+            5 4 5 6 5 4
+            8 7 8 9 8 7
+            5 4 5 6 5 4
+        The input data are used:
+            4 5 6
+            7 8 9
+        The data is duplicated using the Storage Element pointers into:
+            8 7 8 9 8 7
+            8 7 8 9 8 7
+            5 4 5 6 5 4
+            8 7 8 9 8 7
+            5 4 5 6 5 4
+        This data can be further sliced by using:
+          - offsets: [0, 0, 2, 0]
+          - sizes:   [N, C, 3, 6]
+        ```
+    }];
+    let parameters = (ins
+        "vpux::IE::PadModeAttr":$mode,
+        "mlir::ArrayAttr":$padding,
+        OptionalParameter<"mlir::ArrayAttr">:$offsets,
+        OptionalParameter<"mlir::ArrayAttr">:$sizes
+    );
+
+    let assemblyFormat = "`<` struct(params) `>`";
+    let genVerifyDecl = 1;
+}
+
+//
+// ODUPermuteDataMode
+//
+
+def VPU_ODUPermuteDataMode :
+        I32EnumAttr<
+            "ODUPermuteDataMode",
+            "ODU data permutation mode",
+            [
+                I32EnumAttrCase<"PERMUTE_ZXY",  0>,
+                I32EnumAttrCase<"PERMUTE_ZYX",  1>,
+                I32EnumAttrCase<"PERMUTE_YZX",  2>,
+                I32EnumAttrCase<"PERMUTE_YXZ",  3>,
+                I32EnumAttrCase<"PERMUTE_XZY",  4>,
+                I32EnumAttrCase<"PERMUTE_XYZ",  5>
+            ]
+        > {
+    let cppNamespace = "vpux::VPU";
+    let genSpecializedAttr = 1;
 }
 
 #endif

@@ -9,6 +9,6 @@ mlir::Value vpux::IERT::QuantizeCastOp::getViewSource() {
     return getInput();
 }
 
-mlir::OpFoldResult vpux::IERT::QuantizeCastOp::fold(ArrayRef<mlir::Attribute>) {
-    return getInput().getType() == getOutput().getType() ? getInput() : nullptr;
+mlir::OpFoldResult vpux::IERT::QuantizeCastOp::fold(FoldAdaptor) {
+    return getInput().getType() == getOutput().getType() ? getInput() : mlir::TypedValue<mlir::MemRefType>{nullptr};
 }

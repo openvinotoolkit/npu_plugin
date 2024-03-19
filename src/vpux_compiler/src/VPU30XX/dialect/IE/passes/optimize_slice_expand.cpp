@@ -31,14 +31,19 @@ void OptimizeSliceExpandPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<IE::OptimizeSliceExpand>(&ctx, _log);
     patterns.add<IE::OptimizeExpandSlice>(&ctx, _log);
-    patterns.add<IE::OptimizeSliceImplicitExpand<IE::QuantizeCastOp>>(&ctx, _log);
-    patterns.add<IE::OptimizeSliceImplicitExpand<IE::ConcatOp>>(&ctx, _log);
-    patterns.add<IE::OptimizeSliceImplicitExpand<IE::HSwishOp>>(&ctx, _log);
-    patterns.add<IE::OptimizeSliceImplicitExpand<IE::SwishOp>>(&ctx, _log);
-    patterns.add<IE::OptimizeSingleSliceConcatExpand>(&ctx, _log);
+    patterns.add<IE::OptimizeSliceImplicitExpand<IE::QuantizeCastOp>>(&ctx, _log, /*hasCalculationCost=*/false);
+    patterns.add<IE::OptimizeSliceImplicitExpand<IE::HSwishOp>>(&ctx, _log, /*hasCalculationCost=*/true);
+    patterns.add<IE::OptimizeSliceImplicitExpand<IE::SwishOp>>(&ctx, _log, /*hasCalculationCost=*/true);
+    patterns.add<IE::OptimizeSliceImplicitExpand<IE::GeluOp>>(&ctx, _log, /*hasCalculationCost=*/true);
+    patterns.add<IE::OptimizeSliceConcatExpand>(&ctx, _log);
+    patterns.add<IE::OptimizeSliceTwoConcatsExpand>(&ctx, _log);
 
     auto func = getOperation();
-    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
+    // There is case for `OptimizeExpandSlice` that the iteration time larger than 10
+    // Increase the default maxIterations value from 10 to 20
+    auto greedyRewriteConfig = getDefaultGreedyRewriteConfig();
+    greedyRewriteConfig.maxIterations = 20;
+    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), greedyRewriteConfig))) {
         signalPassFailure();
         return;
     }

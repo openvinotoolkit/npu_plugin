@@ -5,19 +5,20 @@
 
 #include <mlir/IR/BuiltinTypes.h>
 #include "vpux/compiler/act_kernels/shave_binary_resources.h"
-#include "vpux/compiler/dialect/ELF/utils.hpp"
+#include "vpux/compiler/dialect/ELFNPU37XX/utils.hpp"
 #include "vpux/compiler/dialect/VPUMI37XX/ops.hpp"
 #include "vpux/utils/core/mem_size.hpp"
 
-#include <vpu_nnrt_api_37xx.h>
+#include <npu_37xx_nnrt.hpp>
 
 using namespace vpux;
+using namespace npu37xx;
 
 namespace vpux {
 namespace VPUMI37XX {
 
-constexpr uint32_t defaultTotalStackSize = (16_KB).to<vpux::Byte>().count();
-constexpr uint32_t defaultActRtCodeSectionSize = (1_MB).to<vpux::Byte>().count();
+constexpr uint32_t defaultTotalStackSize = static_cast<uint32_t>((16_KB).to<vpux::Byte>().count());
+constexpr uint32_t defaultActRtCodeSectionSize = static_cast<uint32_t>((1_MB).to<vpux::Byte>().count());
 constexpr uint32_t defaultActRtEntry = 0x1C000000;
 
 // ActShave profiling metric mask
@@ -87,17 +88,23 @@ void vpux::VPUMI37XX::MappedInferenceOp::serialize(elf::writer::BinaryDataSectio
         auto actShvRtOp = mlir::dyn_cast<VPUMI37XX::ActShaveRtOp>(getActShaveRt().getDefiningOp());
         if (actShvRtOp) {
             mi.shv_rt_configs.use_schedule_embedded_rt = true;
-            mi.shv_rt_configs.code_window_buffer_size = actShvRtOp.getBinarySize();
+            mi.shv_rt_configs.code_window_buffer_size = checked_cast<uint32_t>(actShvRtOp.getBinarySize());
             mi.shv_rt_configs.runtime_version = actShvRtOp.getVersion();
             mi.shv_rt_configs.runtime_entry = actShvRtOp.getKernelEntry();
         }
 
         mi.shv_rt_configs.stack_size = 0;
         for (auto actShaveStack : getActShaveStacks()) {
-            mi.shv_rt_configs.stack_size +=
-                    actShaveStack.getType().cast<vpux::NDTypeInterface>().getTotalAllocSize().count();
+            mi.shv_rt_configs.stack_size += checked_cast<uint32_t>(
+                    actShaveStack.getType().cast<vpux::NDTypeInterface>().getTotalAllocSize().count());
         }
     }
+
+    mi.task_storage_counts_.dma_count = nn_public::VPU_DMA_TASK_COUNT;
+    mi.task_storage_counts_.dpu_invariant_count = nn_public::VPU_INVARIANT_COUNT;
+    mi.task_storage_counts_.dpu_variant_count = nn_public::VPU_VARIANT_COUNT;
+    mi.task_storage_counts_.act_range_count = nn_public::VPU_KERNEL_RANGE_COUNT;
+    mi.task_storage_counts_.act_invo_count = nn_public::VPU_KERNEL_INVO_COUNT;
 
     uint8_t* ptrCharTmp = reinterpret_cast<uint8_t*>(&mi);
     binDataSection.appendData(ptrCharTmp, getBinarySize());
@@ -111,12 +118,12 @@ size_t vpux::VPUMI37XX::MappedInferenceOp::getAlignmentRequirements() {
     return alignof(nn_public::VpuMappedInference);
 }
 
-vpux::ELF::SectionFlagsAttr vpux::VPUMI37XX::MappedInferenceOp::getAccessingProcs() {
-    return (ELF::SectionFlagsAttr::SHF_EXECINSTR);
+vpux::ELFNPU37XX::SectionFlagsAttr vpux::VPUMI37XX::MappedInferenceOp::getAccessingProcs() {
+    return (ELFNPU37XX::SectionFlagsAttr::SHF_EXECINSTR);
 }
 
-vpux::ELF::SectionFlagsAttr vpux::VPUMI37XX::MappedInferenceOp::getUserProcs() {
-    return (ELF::SectionFlagsAttr::SHF_NONE);
+vpux::ELFNPU37XX::SectionFlagsAttr vpux::VPUMI37XX::MappedInferenceOp::getUserProcs() {
+    return (ELFNPU37XX::SectionFlagsAttr::SHF_NONE);
 }
 
 vpux::VPURT::BufferSection vpux::VPUMI37XX::MappedInferenceOp::getMemorySpace() {

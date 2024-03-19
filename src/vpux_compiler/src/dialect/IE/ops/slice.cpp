@@ -5,10 +5,8 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
-#include "vpux/compiler/dialect/IE/utils/propagate_quantize_dequantize_utils.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/quantization.hpp"
 
 #include <mlir/IR/PatternMatch.h>
 
@@ -34,8 +32,8 @@ void vpux::IE::SliceOp::build(mlir::OpBuilder& builder, mlir::OperationState& st
 //
 
 mlir::LogicalResult vpux::IE::SliceOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -44,13 +42,13 @@ mlir::LogicalResult vpux::IE::SliceOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto origType = sliceOp.source().getType().dyn_cast<vpux::NDTypeInterface>();
+    const auto origType = sliceOp.getSource().getType().dyn_cast<vpux::NDTypeInterface>();
     if (origType == nullptr) {
         return errorAt(loc, "IE::SliceOp operand must have vpux::NDTypeInterface type");
     }
 
-    const auto sliceShape = parseIntArrayAttr<int64_t>(sliceOp.static_sizes());
-    const auto sliceOffsets = parseIntArrayAttr<int64_t>(sliceOp.static_offsets());
+    const auto sliceShape = parseIntArrayAttr<int64_t>(sliceOp.getStaticSizes());
+    const auto sliceOffsets = parseIntArrayAttr<int64_t>(sliceOp.getStaticOffsets());
 
     if (sliceShape.size() != checked_cast<size_t>(origType.getRank())) {
         return errorAt(loc, "Slice shape '{0}' doesn't match RankedTensor rank '{1}'", sliceShape, origType.getRank());
@@ -72,39 +70,26 @@ mlir::LogicalResult vpux::IE::SliceOp::inferReturnTypeComponents(
 // fold
 //
 
-mlir::OpFoldResult vpux::IE::SliceOp::fold(ArrayRef<mlir::Attribute> operands) {
-    if (source().getType() == result().getType()) {
-        return source();
+mlir::OpFoldResult vpux::IE::SliceOp::fold(FoldAdaptor adaptor) {
+    auto operands = adaptor.getOperands();
+    if (getSource().getType() == getResult().getType()) {
+        return getSource();
     }
 
     if (const auto origContent = operands[0].dyn_cast_or_null<Const::ContentAttr>()) {
-        const auto offset = Shape(parseIntArrayAttr<int64_t>(static_offsets()));
-        const auto shape = Shape(parseIntArrayAttr<int64_t>(static_sizes()));
+        const auto offset = Shape(parseIntArrayAttr<int64_t>(getStaticOffsets()));
+        const auto shape = Shape(parseIntArrayAttr<int64_t>(getStaticSizes()));
         return origContent.subview(offset, shape);
     }
 
     return nullptr;
 }
 
-//
-// inferElemTypeInfo
-//
-
-void vpux::IE::SliceOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
-    propagateElementTypeDown(info);
-}
-
-void vpux::IE::SliceOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
-    propagateElementTypeUp(info);
-}
+namespace {
 
 //
 // ComposeSlice
 //
-
-namespace {
 
 class ComposeSlice final : public mlir::OpRewritePattern<IE::SliceOp> {
 public:
@@ -114,20 +99,52 @@ public:
 };
 
 mlir::LogicalResult ComposeSlice::matchAndRewrite(IE::SliceOp origOp, mlir::PatternRewriter& rewriter) const {
-    auto producerSliceOp = origOp.source().getDefiningOp<IE::SliceOp>();
+    auto producerSliceOp = origOp.getSource().getDefiningOp<IE::SliceOp>();
     if (producerSliceOp == nullptr) {
         return mlir::failure();
     }
 
-    auto finalOffsets = parseIntArrayAttr<int64_t>(producerSliceOp.static_offsets());
-    const auto secondOffsets = parseIntArrayAttr<int64_t>(origOp.static_offsets());
+    auto finalOffsets = parseIntArrayAttr<int64_t>(producerSliceOp.getStaticOffsets());
+    const auto secondOffsets = parseIntArrayAttr<int64_t>(origOp.getStaticOffsets());
     for (auto i : irange(finalOffsets.size())) {
         finalOffsets[i] += secondOffsets[i];
     }
 
     const auto finalOffsetsAttr = getIntArrayAttr(getContext(), finalOffsets);
-    const auto finalShapeAttr = origOp.static_sizes();
-    rewriter.replaceOpWithNewOp<IE::SliceOp>(origOp, producerSliceOp.source(), finalOffsetsAttr, finalShapeAttr);
+    const auto finalShapeAttr = origOp.getStaticSizes();
+    rewriter.replaceOpWithNewOp<IE::SliceOp>(origOp, producerSliceOp.getSource(), finalOffsetsAttr, finalShapeAttr);
+
+    return mlir::success();
+}
+
+//
+// ProcessNegativeOffset
+//
+
+class ProcessNegativeOffset final : public mlir::OpRewritePattern<IE::SliceOp> {
+public:
+    using OpRewritePattern::OpRewritePattern;
+
+    mlir::LogicalResult matchAndRewrite(IE::SliceOp op, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult ProcessNegativeOffset::matchAndRewrite(IE::SliceOp origOp,
+                                                           mlir::PatternRewriter& /*rewriter*/) const {
+    bool negFlag = false;
+    auto offsets = parseIntArrayAttr<int64_t>(origOp.getStaticOffsets());
+    for (size_t i = 0; i < offsets.size(); ++i) {
+        if (offsets[i] < 0) {
+            negFlag = true;
+            offsets[i] += getShape(origOp.getSource())[Dim(i)];
+        }
+    }
+
+    if (!negFlag) {
+        return mlir::failure();
+    }
+
+    const auto newOffsetAttr = getIntArrayAttr(getContext(), offsets);
+    origOp.setStaticOffsetsAttr(newOffsetAttr);
 
     return mlir::success();
 }
@@ -139,5 +156,6 @@ mlir::LogicalResult ComposeSlice::matchAndRewrite(IE::SliceOp origOp, mlir::Patt
 //
 
 void vpux::IE::SliceOp::getCanonicalizationPatterns(mlir::RewritePatternSet& results, mlir::MLIRContext* ctx) {
+    results.add<ProcessNegativeOffset>(ctx);
     results.add<ComposeSlice>(ctx);
 }

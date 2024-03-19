@@ -9,8 +9,8 @@
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::LayoutCastOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -19,8 +19,8 @@ mlir::LogicalResult vpux::IE::LayoutCastOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto outAffineMap = overrideLayout.dst_order();
-    const auto inType = overrideLayout.input().getType().cast<mlir::RankedTensorType>();
+    const auto outAffineMap = overrideLayout.getDstOrder();
+    const auto inType = overrideLayout.getInput().getType().cast<mlir::RankedTensorType>();
     const auto outDesc = vpux::getTensorAttr(outAffineMap, nullptr);
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType(), outDesc);
 
@@ -32,8 +32,8 @@ mlir::LogicalResult vpux::IE::LayoutCastOp::inferReturnTypeComponents(
 //
 
 mlir::LogicalResult vpux::IE::LayoutCastOp::verify() {
-    const auto outAffineMap = dst_order();
-    const auto inType = input().getType().cast<vpux::NDTypeInterface>();
+    const auto outAffineMap = getDstOrder();
+    const auto inType = getInput().getType().cast<vpux::NDTypeInterface>();
     if (inType.getRank() != outAffineMap.getNumDims()) {
         return errorAt(*this, "Cannot apply {0} map to {1}.", outAffineMap, inType.getShape());
     }
@@ -41,9 +41,9 @@ mlir::LogicalResult vpux::IE::LayoutCastOp::verify() {
     return mlir::success();
 }
 
-mlir::OpFoldResult vpux::IE::LayoutCastOp::fold(ArrayRef<mlir::Attribute>) {
-    if (input().getType() == output().getType()) {
-        return input();
+mlir::OpFoldResult vpux::IE::LayoutCastOp::fold(FoldAdaptor) {
+    if (getInput().getType() == getOutput().getType()) {
+        return getInput();
     }
 
     return nullptr;
@@ -67,13 +67,13 @@ mlir::LogicalResult FuseLayoutCasts::matchAndRewrite(IE::LayoutCastOp origOp, ml
     // Input type1 -> IE.LayoutCast type2 -> IE.LayoutCast type3 -> Output type3
     // into
     // Input type1 -> IE.LayoutCast type3 -> Output type3
-    auto producerOp = origOp.input().getDefiningOp<IE::LayoutCastOp>();
-    if (producerOp == nullptr || !producerOp.output().hasOneUse()) {
+    auto producerOp = origOp.getInput().getDefiningOp<IE::LayoutCastOp>();
+    if (producerOp == nullptr || !producerOp.getOutput().hasOneUse()) {
         return mlir::failure();
     }
 
-    rewriter.replaceOpWithNewOp<IE::LayoutCastOp>(origOp, origOp.output().getType(), producerOp.input(),
-                                                  origOp.dst_orderAttr());
+    rewriter.replaceOpWithNewOp<IE::LayoutCastOp>(origOp, origOp.getOutput().getType(), producerOp.getInput(),
+                                                  origOp.getDstOrderAttr());
 
     return mlir::success();
 }

@@ -24,24 +24,33 @@ public:
 
 public:
     mlir::LogicalResult matchAndRewrite(IE::ExpandOp origOp, mlir::PatternRewriter& rewriter) const final {
-        auto implicitOp = origOp.input().getDefiningOp<IE::SoftMaxOp>();
+        _log.trace("[{0}] Got '{1}' at '{2}'", getDebugName(), origOp->getName(), origOp->getLoc());
+        const auto innerLog = _log.nest();
+
+        auto implicitOp = origOp.getInput().getDefiningOp<IE::SoftMaxOp>();
         if (implicitOp == nullptr) {
-            return mlir::failure();
-        }
-        auto dimIdx = implicitOp.axisInd();
-        if (dimIdx != Dims4D::Act::C.ind()) {
+            innerLog.trace("Expand '{0}' input is not 'SoftMaxOp'", origOp->getLoc());
             return mlir::failure();
         }
 
-        auto expandedShape = to_small_vector(getShape(origOp.output()));
+        auto dimIdx = implicitOp.getAxisInd();
+        if (dimIdx != Dims4D::Act::C.ind()) {
+            innerLog.trace("'SoftMaxOp' process axis should be 'Channel(1)' but got '{0}'", dimIdx);
+            return mlir::failure();
+        }
+
+        auto expandedShape = to_small_vector(getShape(origOp.getOutput()));
         auto implicitShape = to_small_vector(getShape(implicitOp->getResult(0)));
         int64_t expandedCAxisSize = expandedShape[Dims4D::Act::C.ind()] - implicitShape[Dims4D::Act::C.ind()];
-        auto optimizeSuccess = genericOptimizeSliceImplicitExpand(origOp, implicitOp.getOperation(), rewriter);
+        const auto loc = origOp->getLoc();
+        auto optimizeSuccess = genericOptimizeSliceImplicitExpand(origOp, implicitOp.getOperation(),
+                                                                  /*hasCalculationCost=*/true, rewriter, innerLog);
         if (optimizeSuccess.failed()) {
             return mlir::failure();
         }
         // update necessary attribute
-        implicitOp.padSizeAttr(getIntAttr(rewriter.getContext(), expandedCAxisSize));
+        implicitOp.setPadSizeAttr(getIntAttr(rewriter.getContext(), expandedCAxisSize));
+        innerLog.trace("Optimization completed successfully at '{0}'", loc);
         return mlir::success();
     }
 
@@ -69,15 +78,20 @@ void OptimizeSliceExpandPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<IE::OptimizeSliceExpand>(&ctx, _log);
     patterns.add<IE::OptimizeExpandSlice>(&ctx, _log);
-    patterns.add<IE::OptimizeSliceImplicitExpand<IE::QuantizeCastOp>>(&ctx, _log);
-    patterns.add<IE::OptimizeSliceImplicitExpand<IE::ConcatOp>>(&ctx, _log);
-    patterns.add<IE::OptimizeSliceImplicitExpand<IE::HSwishOp>>(&ctx, _log);
-    patterns.add<IE::OptimizeSliceImplicitExpand<IE::SwishOp>>(&ctx, _log);
-    patterns.add<IE::OptimizeSingleSliceConcatExpand>(&ctx, _log);
+    patterns.add<IE::OptimizeSliceImplicitExpand<IE::QuantizeCastOp>>(&ctx, _log, /*hasCalculationCost=*/false);
+    patterns.add<IE::OptimizeSliceImplicitExpand<IE::HSwishOp>>(&ctx, _log, /*hasCalculationCost=*/true);
+    patterns.add<IE::OptimizeSliceImplicitExpand<IE::SwishOp>>(&ctx, _log, /*hasCalculationCost=*/true);
+    patterns.add<IE::OptimizeSliceImplicitExpand<IE::GeluOp>>(&ctx, _log, /*hasCalculationCost=*/true);
+    patterns.add<IE::OptimizeSliceConcatExpand>(&ctx, _log);
     patterns.add<OptimizeSliceSoftmaxExpand>(&ctx, _log);
+    patterns.add<IE::OptimizeSliceTwoConcatsExpand>(&ctx, _log);
 
     auto func = getOperation();
-    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
+    // There is case for `OptimizeExpandSlice` that the iteration time larger than 10
+    // Increase the default maxIterations value from 10 to 20
+    auto greedyRewriteConfig = getDefaultGreedyRewriteConfig();
+    greedyRewriteConfig.maxIterations = 20;
+    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), greedyRewriteConfig))) {
         signalPassFailure();
         return;
     }

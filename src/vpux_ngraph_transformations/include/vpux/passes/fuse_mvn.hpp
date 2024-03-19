@@ -5,19 +5,19 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
-#include <ngraph/pass/pass.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
+#include <openvino/pass/pass.hpp>
 
 namespace vpux {
 
 namespace passes {
 
-class ConvertLayerNormToMVN : public ngraph::pass::MatcherPass {
+class ConvertLayerNormToMVN : public ov::pass::MatcherPass {
 public:
     ConvertLayerNormToMVN();
 };
 
-class ConvertInstanceNormToMVN : public ngraph::pass::MatcherPass {
+class ConvertInstanceNormToMVN : public ov::pass::MatcherPass {
 public:
     ConvertInstanceNormToMVN();
 };

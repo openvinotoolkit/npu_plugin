@@ -10,7 +10,7 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXPowerLayerTest_VPU3700 : public PowerLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
+class PowerLayerTest_NPU3700 : public PowerLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void SkipBeforeLoad() override {
         if (envConfig.IE_NPU_TESTS_RUN_INFER) {
             throw LayerTestsUtils::VpuSkipTestException("layer test networks hang the board");
@@ -21,7 +21,7 @@ class VPUXPowerLayerTest_VPU3700 : public PowerLayerTest, virtual public LayerTe
     }
 };
 
-TEST_P(VPUXPowerLayerTest_VPU3700, HW) {
+TEST_P(PowerLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
@@ -42,7 +42,7 @@ std::vector<std::vector<float>> Power = {
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP16};
 
 // Tracking number [E#85137]
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_power, VPUXPowerLayerTest_VPU3700,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_power, PowerLayerTest_NPU3700,
                          ::testing::Combine(::testing::ValuesIn(inShapes), ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -50,6 +50,6 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_power, VPUXPowerLayerTest_VPU3700,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::ValuesIn(Power)),
-                         VPUXPowerLayerTest_VPU3700::getTestCaseName);
+                         PowerLayerTest_NPU3700::getTestCaseName);
 
 }  // namespace

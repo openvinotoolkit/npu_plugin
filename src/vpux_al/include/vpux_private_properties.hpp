@@ -6,11 +6,7 @@
 #pragma once
 
 #include <openvino/runtime/properties.hpp>
-#include <string>
 #include <vpux/utils/core/error.hpp>
-#include <vpux/vpux_plugin_config.hpp>
-
-#include "vpux_private_config.hpp"
 
 namespace ov {
 namespace intel_vpux {
@@ -27,29 +23,6 @@ enum ColorFormat : uint32_t {
     RGBX,      ///< RGBX color format with X ignored during inference
     BGRX,      ///< BGRX color format with X ignored during inference
 };
-
-/**
- * @brief Converts ov::intel_vpux::ColorFormat to InferenceEngine::ColorFormat
- * @param fmt ov::intel_vpux::ColorFormat value to convert
- * @return the corresponding analogue of fmt in InferenceEngine::ColorFormat
- * @note Configuration API v 2.0
- */
-inline InferenceEngine::ColorFormat cvtColorFormat(ColorFormat fmt) {
-    switch (fmt) {
-    case ColorFormat::RAW:
-        return InferenceEngine::ColorFormat::RAW;
-    case ColorFormat::RGB:
-        return InferenceEngine::ColorFormat::RGB;
-    case ColorFormat::BGR:
-        return InferenceEngine::ColorFormat::BGR;
-    case ColorFormat::RGBX:
-        return InferenceEngine::ColorFormat::RGBX;
-    case ColorFormat::BGRX:
-        return InferenceEngine::ColorFormat::BGRX;
-    default:
-        VPUX_THROW("Unknown ColorFormat {0} to onvert to InferenceEngine::ColorFormat", static_cast<uint32_t>(fmt));
-    }
-}
 
 /**
  * @brief Prints a string representation of ov::intel_vpux::ColorFormat to a stream
@@ -89,32 +62,9 @@ inline std::ostream& operator<<(std::ostream& out, const ColorFormat& fmt) {
  */
 enum class VPUXPlatform : int {
     AUTO_DETECT = 0,  // Auto detection
-    EMULATOR = 1,     // Emulator
     VPU3700 = 2,      // VPU30XX
     VPU3720 = 3,      // VPU37XX
 };
-
-/**
- * @brief Converts ov::intel_vpux::VPUXPlatform to InferenceEngine::VPUXConfigParams::VPUXPlatform
- * @param fmt ov::intel_vpux::VPUXPlatform value to convert
- * @return the corresponding analogue of fmt in InferenceEngine::VPUXConfigParams::VPUXPlatform
- * @note Configuration API v 2.0
- */
-inline InferenceEngine::VPUXConfigParams::VPUXPlatform cvtVPUXPlatform(VPUXPlatform fmt) {
-    switch (fmt) {
-    case VPUXPlatform::AUTO_DETECT:
-        return InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO_DETECT;
-    case VPUXPlatform::EMULATOR:
-        return InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR;
-    case VPUXPlatform::VPU3700:
-        return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700;
-    case VPUXPlatform::VPU3720:
-        return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720;
-    default:
-        VPUX_THROW("Unknown VPUXPlatform {0} to convert to InferenceEngine::VPUXConfigParams::VPUXPlatform",
-                   static_cast<uint32_t>(fmt));
-    }
-}
 
 /**
  * @brief Prints a string representation of ov::intel_vpux::VPUXPlatform to a stream
@@ -127,9 +77,6 @@ inline std::ostream& operator<<(std::ostream& out, const VPUXPlatform& fmt) {
     switch (fmt) {
     case VPUXPlatform::AUTO_DETECT: {
         out << "AUTO_DETECT";
-    } break;
-    case VPUXPlatform::EMULATOR: {
-        out << "EMULATOR";
     } break;
     case VPUXPlatform::VPU3700: {
         out << "VPU3700";
@@ -152,27 +99,6 @@ inline std::ostream& operator<<(std::ostream& out, const VPUXPlatform& fmt) {
  * @note Configuration API v 2.0
  */
 enum class ProfilingOutputTypeArg { NONE, TEXT, JSON };
-
-/**
- * @brief Converts ov::intel_vpux::ProfilingOutputTypeArg to InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg
- * @param fmt ov::intel_vpux::ProfilingOutputTypeArg value to convert
- * @return the corresponding analogue of fmt in InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg
- * @note Configuration API v 2.0
- */
-inline InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg cvtProfilingOutputType(ProfilingOutputTypeArg fmt) {
-    switch (fmt) {
-    case ProfilingOutputTypeArg::NONE:
-        return InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg::NONE;
-    case ProfilingOutputTypeArg::TEXT:
-        return InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg::TEXT;
-    case ProfilingOutputTypeArg::JSON:
-        return InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg::JSON;
-    default:
-        VPUX_THROW("Unknown ProfilingOutputType {0} to convert to "
-                   "InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg",
-                   static_cast<uint32_t>(fmt));
-    }
-}
 
 /**
  * @brief Prints a string representation of ov::intel_vpux::ProfilingOutputTypeArg to a stream
@@ -206,25 +132,6 @@ inline std::ostream& operator<<(std::ostream& out, const ProfilingOutputTypeArg&
  * @note Configuration API v 2.0
  */
 enum class CompilerType { MLIR, DRIVER };
-
-/**
- * @brief Converts ov::intel_vpux::CompilerType to InferenceEngine::VPUXConfigParams::CompilerType
- * @param fmt ov::intel_vpux::CompilerType value to convert
- * @return the corresponding analogue of fmt in InferenceEngine::VPUXConfigParams::CompilerType
- * @note Configuration API v 2.0
- */
-inline InferenceEngine::VPUXConfigParams::CompilerType cvtCompilerType(CompilerType fmt) {
-    switch (fmt) {
-    case CompilerType::MLIR:
-        return InferenceEngine::VPUXConfigParams::CompilerType::MLIR;
-    case CompilerType::DRIVER:
-        return InferenceEngine::VPUXConfigParams::CompilerType::DRIVER;
-    default:
-        VPUX_THROW("Unknown CompilerType {0} to convert to "
-                   "InferenceEngine::VPUXConfigParams::CompilerType",
-                   static_cast<uint32_t>(fmt));
-    }
-}
 
 /**
  * @brief Prints a string representation of ov::intel_vpux::CompilerType to a stream
@@ -262,27 +169,6 @@ enum class ElfCompilerBackend {
 };
 
 /**
- * @brief Converts ov::intel_vpux::CompilerType to InferenceEngine::VPUXConfigParams::ElfCompilerBackend
- * @param fmt ov::intel_vpux::CompilerType value to convert
- * @return the corresponding analogue of fmt in InferenceEngine::VPUXConfigParams::ElfCompilerBackend
- * @note Configuration API v 2.0
- */
-inline InferenceEngine::VPUXConfigParams::ElfCompilerBackend cvtCompilerType(ElfCompilerBackend fmt) {
-    switch (fmt) {
-    case ElfCompilerBackend::AUTO:
-        return InferenceEngine::VPUXConfigParams::ElfCompilerBackend::AUTO;
-    case ElfCompilerBackend::NO:
-        return InferenceEngine::VPUXConfigParams::ElfCompilerBackend::NO;
-    case ElfCompilerBackend::YES:
-        return InferenceEngine::VPUXConfigParams::ElfCompilerBackend::YES;
-    default:
-        VPUX_THROW("Unknown ElfCompilerBackend {0} to convert to "
-                   "InferenceEngine::VPUXConfigParams::ElfCompilerBackend",
-                   static_cast<uint32_t>(fmt));
-    }
-}
-
-/**
  * @brief Prints a string representation of ov::intel_vpux::ElfCompilerBackend to a stream
  * @param out An output stream to send to
  * @param fmt A elf compiler backend value to print to a stream
@@ -309,11 +195,41 @@ inline std::ostream& operator<<(std::ostream& out, const ElfCompilerBackend& fmt
 
 /**
  * @brief [Only for VPUX Plugin]
+ * Type: string, default is MODEL.
+ * Type of profiling to execute. Can be Model (default) or INFER (based on npu timestamps)
+ * @note Configuration API v 2.0
+ */
+enum class ProfilingType { MODEL, INFER };
+
+/**
+ * @brief Prints a string representation of ov::intel_vpux::ProfilingType to a stream
+ * @param out An output stream to send to
+ * @param fmt A profiling type value to print to a stream
+ * @return A reference to the `out` stream
+ * @note Configuration API v 2.0
+ */
+inline std::ostream& operator<<(std::ostream& out, const ProfilingType& fmt) {
+    switch (fmt) {
+    case ProfilingType::MODEL: {
+        out << "MODEL";
+    } break;
+    case ProfilingType::INFER: {
+        out << "INFER";
+    } break;
+    default:
+        out << static_cast<uint32_t>(fmt);
+        break;
+    }
+    return out;
+}
+
+/**
+ * @brief [Only for VPUX Plugin]
  * Type: Arbitrary string.
  * This option allows to specify device.
  * If specified device is not available then creating infer request will throw an exception.
  */
-static constexpr ov::Property<VPUXPlatform> vpux_platform{"NPU_PLATFORM"};
+static constexpr ov::Property<VPUXPlatform> platform{"NPU_PLATFORM"};
 
 /**
  * @brief [Only for VPUX Plugin]
@@ -363,6 +279,15 @@ static constexpr ov::Property<ProfilingOutputTypeArg> print_profiling{"NPU_PRINT
 static constexpr ov::Property<std::string> profiling_output_file{"NPU_PROFILING_OUTPUT_FILE"};
 
 /**
+ * @brief [Only for VPUX Plugin]
+ * Type: string, default is empty.
+ * MODEL - model layer profiling is done
+ * INFER - vpu inference performance numbers are measured
+ * Model layers profiling are used if this string is empty
+ */
+static constexpr ov::Property<ProfilingType> profiling_type{"NPU_PROFILING_TYPE"};
+
+/**
  * @brief
  * Type: String. Default is "AUTO".
  * This option is added for enabling ELF backend.
@@ -379,3 +304,9 @@ static constexpr ov::Property<int64_t> create_executor{"NPU_CREATE_EXECUTOR"};
 
 }  // namespace intel_vpux
 }  // namespace ov
+
+namespace InferenceEngine {
+
+namespace VPUXConfigParams = ::ov::intel_vpux;
+
+}

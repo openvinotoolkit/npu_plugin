@@ -5,10 +5,8 @@
 
 #include "vpux/compiler/dialect/VPU/utils/eltwise_utils.hpp"
 
-#include "vpux/compiler/core/attributes/shape.hpp"
-#include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
-#include "vpux/compiler/dialect/VPU/ops.hpp"
-#include "vpux/compiler/utils/error.hpp"
+#include "vpux/compiler/dialect/VPU/IR/ops.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_invariant.hpp"
 #include "vpux/utils/core/numeric.hpp"
 
 using namespace vpux;

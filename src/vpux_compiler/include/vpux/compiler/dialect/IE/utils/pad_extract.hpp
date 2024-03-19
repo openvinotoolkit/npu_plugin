@@ -13,7 +13,8 @@ namespace IE {
 
 mlir::FailureOr<SmallVector<int64_t>> extractPads(mlir::ArrayAttr padValue, Logger log);
 mlir::FailureOr<SmallVector<int64_t>> extractPads(mlir::Location loc, const mlir::Value& padValue,
-                                                  const Optional<mlir::ArrayAttr>& padAttr, vpux::ShapeRef inputShape);
+                                                  const std::optional<mlir::ArrayAttr>& padAttr,
+                                                  vpux::ShapeRef inputShape);
 
 }  // namespace IE
 }  // namespace vpux

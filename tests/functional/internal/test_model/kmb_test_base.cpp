@@ -13,9 +13,9 @@
 #include <iostream>
 #include "common/functions.h"
 #include "functional_test_utils/plugin_cache.hpp"
+#include "vpux/properties.hpp"
 #include "vpux/utils/IE/config.hpp"
-#include "vpux/vpux_metrics.hpp"
-#include "vpux_private_config.hpp"
+#include "vpux_private_properties.hpp"
 
 //
 // KmbTestBase
@@ -60,11 +60,7 @@ const bool KmbTestBase::RUN_COMPILER = []() -> bool {
         return true;
     }
 
-#if defined(__aarch64__)
-    return false;
-#else
     return true;
-#endif
 }();
 
 const bool KmbTestBase::RUN_REF_CODE = []() -> bool {
@@ -72,15 +68,13 @@ const bool KmbTestBase::RUN_REF_CODE = []() -> bool {
         return vpux::envVarStrToBool("IE_KMB_TESTS_RUN_REF_CODE", var);
     }
 
-#ifdef __aarch64__
-    return false;
-#else
     return true;
-#endif
 }();
 
 const std::string KmbTestBase::DUMP_PATH = []() -> std::string {
     if (const auto var = std::getenv("IE_KMB_TESTS_DUMP_PATH")) {
+        return var;
+    } else if (const auto var = std::getenv("IE_NPU_TESTS_DUMP_PATH")) {
         return var;
     }
 
@@ -144,7 +138,7 @@ const bool KmbTestBase::PRINT_PERF_COUNTERS = []() -> bool {
 }();
 
 void KmbTestBase::SetUp() {
-    ASSERT_NO_FATAL_FAILURE(CommonTestUtils::TestsCommon::SetUp());
+    ASSERT_NO_FATAL_FAILURE(ov::test::TestsCommon::SetUp());
 
     const auto testInfo = testing::UnitTest::GetInstance()->current_test_info();
     IE_ASSERT(testInfo != nullptr);
@@ -167,7 +161,7 @@ void KmbTestBase::SetUp() {
     }();
 
     BACKEND_NAME = [this]() -> std::string {
-        const auto backendName = core->GetMetric("NPU", VPUX_METRIC_KEY(BACKEND_NAME)).as<std::string>();
+        const auto backendName = core->GetMetric("NPU", ov::intel_vpux::backend_name.name()).as<std::string>();
         return backendName;
     }();
 
@@ -201,16 +195,6 @@ void KmbTestBase::SetUp() {
 }
 
 void KmbTestBase::TearDown() {
-#ifdef __aarch64__
-    if (RUN_INFER) {
-        core.reset();
-        // FIXME: reset cache every time to destroy VpualDispatcherResource
-        // this workaround is required to free VPU device properly
-        // Track number: H#18013110883
-        PluginCache::get().reset();
-    }
-#endif
-
     ASSERT_NO_FATAL_FAILURE(TestsCommon::TearDown());
 }
 
@@ -255,9 +239,10 @@ ExecutableNetwork KmbTestBase::getExecNetwork(const std::function<CNNNetwork()>&
         std::cout << "=== COMPILE NETWORK" << std::endl;
 
         auto config = configCreator();
-        config[VPUX_CONFIG_KEY(PLATFORM)] = PlatformEnvironment::PLATFORM;
-        if (config.find(VPUX_CONFIG_KEY(COMPILER_TYPE)) == config.end())
-            config[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
+        config[ov::intel_vpux::platform.name()] = PlatformEnvironment::PLATFORM;
+        if (config.find(ov::intel_vpux::compiler_type.name()) == config.end())
+            config[ov::intel_vpux::compiler_type.name()] = "MLIR";
+        ;
 
         std::ostringstream ostr;
         ostr << "LoadNetwork Config: ";
@@ -277,7 +262,8 @@ ExecutableNetwork KmbTestBase::getExecNetwork(const std::function<CNNNetwork()>&
         std::cout << "=== IMPORT NETWORK" << std::endl;
 
         std::map<std::string, std::string> importConfig;
-        importConfig[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
+        importConfig[ov::intel_vpux::compiler_type.name()] = "MLIR";
+        ;
         exeNet = importNetwork(importConfig);
     }
 
@@ -547,21 +533,6 @@ void KmbLayerTestBase::runTest(const NetworkBuilder& builder, const float tolera
         const auto inputs = getInputs(exeNet);
 
         const auto refOutputs = getRefOutputs(testNet, inputs);
-
-        // TODO: layer inference for by-pass mode
-        // [Track number: S#48139]
-#ifdef __aarch64__
-        if (RUN_INFER) {
-            std::cout << "=== INFER" << std::endl;
-
-            const auto actualOutputs = runInfer(exeNet, inputs, true);
-
-            std::cout << "=== COMPARE WITH REFERENCE" << std::endl;
-
-            checkWithOutputsInfo(actualOutputs, testNet.getOutputsInfo());
-            compareWithReference(actualOutputs, refOutputs, tolerance, method);
-        }
-#endif
     } catch (const import_error& ex) {
         std::cerr << ex.what() << std::endl;
         GTEST_SKIP() << ex.what();

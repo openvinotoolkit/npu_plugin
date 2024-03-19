@@ -3,10 +3,9 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/dialect/ELF/export.hpp"
-#include "vpux/compiler/dialect/ELF/import.hpp"
-#include "vpux/compiler/dialect/EMU/graph-schema/export.hpp"
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/ELFNPU37XX/export.hpp"
+#include "vpux/compiler/dialect/ELFNPU37XX/import.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/export.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/import.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
@@ -91,10 +90,17 @@ mlir::OwningOpRef<mlir::ModuleOp> importIE(llvm::SourceMgr& sourceMgr, mlir::MLI
     try {
         mlir::DefaultTimingManager tm;
         auto rootTiming = tm.getRootScope();
-        // For VPUX37XX the ngraph transformations are different compared to the rest of the platforms
+
+        // Do NOT share OV constants with MLIR here: the OV model is created
+        // locally and deleted at the end of the function scope, while MLIR
+        // module would still be used in the outer scope. deep-copying the
+        // constants in MLIR protects the code from use-after-free errors.
+        constexpr bool useSharedConstants = false;
+
+        // For VPUX37XX the graph transformations are different compared to the rest of the platforms
         // because scales do not need to be aligned. Running with VPU::ArchKind::UNKNOWN will align scales, which can
         // result in an accuracy drop for VPUX37XX.
-        module = IE::importNetwork(ctx, model, false, rootTiming, vpuxProfiling, enableDummyOpReplacement,
+        module = IE::importNetwork(ctx, model, useSharedConstants, rootTiming, vpuxProfiling, enableDummyOpReplacement,
                                    VPU::ArchKind::UNKNOWN);
     } catch (const std::exception& ex) {
         printTo(llvm::errs(), "Failed to translate IE IR {0} to MLIR : {1}", netFileName, ex.what());
@@ -159,7 +165,7 @@ mlir::OwningOpRef<mlir::ModuleOp> importELF(llvm::SourceMgr& sourceMgr, mlir::ML
     mlir::OwningOpRef<mlir::ModuleOp> module;
 
     try {
-        module = ELF::importELF(ctx, elfFileName.str());
+        module = ELFNPU37XX::importELF(ctx, elfFileName.str());
     } catch (const std::exception& ex) {
         printTo(llvm::errs(), "Failed to translate elf {0} to MLIR : {1}", elfFileName, ex.what());
         return nullptr;
@@ -172,7 +178,7 @@ mlir::OwningOpRef<mlir::ModuleOp> importELF(llvm::SourceMgr& sourceMgr, mlir::ML
 // export-VPUIP
 //
 
-mlir::LogicalResult exportVPUIP(mlir::ModuleOp module, llvm::raw_ostream& output, StringRef /*outputFileName*/) {
+mlir::LogicalResult exportVPUIP(mlir::ModuleOp module, llvm::raw_ostream& output) {
     mlir::DefaultTimingManager tm;
     auto rootTiming = tm.getRootScope();
     const std::vector<std::shared_ptr<const ov::Node>> params;
@@ -182,13 +188,13 @@ mlir::LogicalResult exportVPUIP(mlir::ModuleOp module, llvm::raw_ostream& output
     return mlir::success();
 }
 
-mlir::LogicalResult exportELF(mlir::ModuleOp module, llvm::raw_ostream& output, StringRef /*outputFileName*/) {
+mlir::LogicalResult exportELF(mlir::ModuleOp module, llvm::raw_ostream& output) {
     mlir::DefaultTimingManager tm;
 
     auto arch = VPU::getArch(module.getOperation());
 
     if (arch == VPU::ArchKind::VPUX37XX) {
-        const auto buf = ELF::exportToELF(module);
+        const auto buf = ELFNPU37XX::exportToELF(module);
         output.write(reinterpret_cast<const char*>(buf.data()), buf.size());
     } else {
         VPUX_THROW("ELF Flow not supported for ARCH {0}", VPU::stringifyArchKind(arch));
@@ -218,7 +224,7 @@ int dumpLLVMIR(mlir::ModuleOp module, llvm::raw_ostream& output) {
     // Initialize LLVM targets.
     llvm::InitializeNativeTarget();
     llvm::InitializeNativeTargetAsmPrinter();
-    mlir::ExecutionEngine::setupTargetTriple(llvmModule.get());
+    mlir::ExecutionEngine::setupTargetTripleAndDataLayout(llvmModule.get(), nullptr);
 
     /// Optionally run an optimization pipeline over the llvm module.
     auto optPipeline = mlir::makeOptimizingTransformer(
@@ -235,23 +241,9 @@ int dumpLLVMIR(mlir::ModuleOp module, llvm::raw_ostream& output) {
     return 0;
 }
 
-mlir::LogicalResult exportLLVMIR(mlir::ModuleOp module, llvm::raw_ostream& output, StringRef /*outputFileName*/) {
+mlir::LogicalResult exportLLVMIR(mlir::ModuleOp module, llvm::raw_ostream& output) {
     dumpLLVMIR(module, output);
 
-    return mlir::success();
-}
-
-//
-// export-EMU
-//
-
-mlir::LogicalResult exportEMU(mlir::ModuleOp module, llvm::raw_ostream& output, StringRef /*outputFileName*/) {
-    mlir::DefaultTimingManager tm;
-    auto rootTiming = tm.getRootScope();
-    const std::vector<std::shared_ptr<const ov::Node>> params;
-    const std::vector<std::shared_ptr<const ov::Node>> results;
-    const auto buf = EMU::exportToBlob(module, rootTiming, params, results);
-    output.write(reinterpret_cast<const char*>(buf.data()), buf.size());
     return mlir::success();
 }
 
@@ -270,15 +262,20 @@ int main(int argc, char* argv[]) {
             auto interfacesRegistry = vpux::createInterfacesRegistry(arch);
             interfacesRegistry->registerInterfaces(registry);
         };
-        mlir::TranslateToMLIRRegistration("import-IE", importIE, dialectRegistration);
-        mlir::TranslateToMLIRRegistration("import-HWTEST", importHWTEST, dialectRegistration);
-        mlir::TranslateToMLIRRegistration("import-VPUIP", importVPUIP, dialectRegistration);
-        mlir::TranslateToMLIRRegistration("import-ELF", importELF, dialectRegistration);
+        mlir::TranslateToMLIRRegistration("import-IE", "Translate OV IR to IE dialect", importIE, dialectRegistration);
+        mlir::TranslateToMLIRRegistration("import-HWTEST", "Translate PSS test case described by config.json to blob",
+                                          importHWTEST, dialectRegistration);
+        mlir::TranslateToMLIRRegistration("import-VPUIP", "Translate blob to VPUIP dialect", importVPUIP,
+                                          dialectRegistration);
+        mlir::TranslateToMLIRRegistration("import-ELF", "Translate blob to ELF dialect", importELF,
+                                          dialectRegistration);
 
-        mlir::TranslateFromMLIRRegistration("export-VPUIP", exportVPUIP, dialectRegistration);
-        mlir::TranslateFromMLIRRegistration("export-ELF", exportELF, dialectRegistration);
-        mlir::TranslateFromMLIRRegistration("export-EMU", exportEMU, dialectRegistration);
-        mlir::TranslateFromMLIRRegistration("export-LLVMIR", exportLLVMIR, dialectRegistration);
+        mlir::TranslateFromMLIRRegistration("export-VPUIP", "Translate VPUIP dialect to blob", exportVPUIP,
+                                            dialectRegistration);
+        mlir::TranslateFromMLIRRegistration("export-ELF", "Translate ELF dialect to blob", exportELF,
+                                            dialectRegistration);
+        mlir::TranslateFromMLIRRegistration("export-LLVMIR", "Translate LLVMIR dialect to blob", exportLLVMIR,
+                                            dialectRegistration);
 
         return mlir::asMainReturnCode(mlir::mlirTranslateMain(argc, argv, "NPU Translation Testing Tool"));
     } catch (const std::exception& e) {

@@ -10,10 +10,12 @@ add_mlir_dialect_library(${TARGET_NAME}
     EXCLUDE_FROM_LIBMLIR
     DISABLE_INSTALL
     LINK_LIBS PRIVATE
-        npu_utils
-        MLIRIR
-    DEPENDS
-        MLIRVPUXIncGenList)
+        npu_llvm_utils
+        npu_ov_utils
+        flatbuffers
+        npu_elf
+        MLIRIR)
+add_dependencies(${TARGET_NAME} MLIRVPUXIncGenList)
 target_include_directories(${TARGET_NAME}
     SYSTEM PRIVATE
         $<BUILD_INTERFACE:${MLIR_INCLUDE_DIRS}>

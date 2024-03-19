@@ -7,12 +7,12 @@
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
-#include "vpux/compiler/dialect/VPU/passes.hpp"
-#include "vpux/compiler/dialect/VPU/utils/ppe_utils.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
+#include "vpux/compiler/utils/VPU/ppe_utils.hpp"
 #include "vpux/hwtest/hwtest_utils.hpp"
 #include "vpux/utils/core/error.hpp"
 
@@ -32,6 +32,7 @@ void buildEltwiseSparse(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
 
     auto output = testDesc.getOutputLayers().front();
     auto seSize = testDesc.getEltwiseLayer().seSize;
+    auto eltwiseMode = testDesc.getEltwiseLayer().mode;
     VPUX_THROW_UNLESS(seSize != 0, "buildEltwiseSparse: Storage Element size is 0");
 
     SmallVector<int64_t> inShape(input.shape.begin(), input.shape.end());
@@ -73,12 +74,12 @@ void buildEltwiseSparse(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     auto outputParamType = getMemRefType(VPURT::BufferSection::NetworkOutput, outShape, outputType, DimsOrder::NHWC);
     inputTypes.push_back(outputParamType);
 
-    const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
+    const auto funcType = builder.getFunctionType(ArrayRef(inputTypes), outputParamType);
 
     auto func = builder.create<mlir::func::FuncOp>(
             builder.getUnknownLoc(),
             printToString("eltwise_{0}_{1}_{2}_{3}_{4}", inputType, smElemType, weightsType, smElemType, outputType),
-            funcType, builder.getStringAttr("private"));
+            funcType, builder.getStringAttr("private"), /*arg_attrs=*/nullptr, /*res_attrs=*/nullptr);
     auto funcBuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());
 
     // Build VPUIP ops
@@ -119,17 +120,17 @@ void buildEltwiseSparse(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
 
     // DMAs
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
-                                          builder.getUnknownLoc(), funcInputSM,
-                                          inputSMCmx.getOperation()->getResult(0));
+                                          builder.getUnknownLoc(), funcInputSM, inputSMCmx.getOperation()->getResult(0),
+                                          0);
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
-                                          builder.getUnknownLoc(), funcInput, inputcmx.getOperation()->getResult(0));
+                                          builder.getUnknownLoc(), funcInput, inputcmx.getOperation()->getResult(0), 0);
 
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
                                           builder.getUnknownLoc(), funcWeightsSm,
-                                          weightsSMCmx.getOperation()->getResult(0));
+                                          weightsSMCmx.getOperation()->getResult(0), 0);
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
-                                          builder.getUnknownLoc(), funcWeights,
-                                          weightscmx.getOperation()->getResult(0));
+                                          builder.getUnknownLoc(), funcWeights, weightscmx.getOperation()->getResult(0),
+                                          0);
 
     // NCE Task
     mlir::IntegerAttr actChannelLength = builder.getI32IntegerAttr(0);
@@ -184,16 +185,16 @@ void buildEltwiseSparse(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     if (inputCmxType.getElementType().isa<mlir::FloatType>()) {
         // It is intentional to apply int32 limits for floating point clamping.
         // See E#50875 for details.
-        nceTask.addPPETask(funcBuilder, VPU::PPEMode::ADD, clampLow, clampHigh, bypassMult, bypassShift, bypassMult,
+        nceTask.addPPETask(funcBuilder, eltwiseMode, clampLow, clampHigh, bypassMult, bypassShift, bypassMult,
                            bypassShift, bypassShift, eltwiseQuantScale);
     } else {
         const auto scaleApproximation = QuantizationApproximation(arch, eltwiseQuantScale);
-        nceTask.addPPETask(funcBuilder, VPU::PPEMode::ADD, clampLow, clampHigh, bypassMult, bypassShift,
+        nceTask.addPPETask(funcBuilder, eltwiseMode, clampLow, clampHigh, bypassMult, bypassShift,
                            scaleApproximation.mult(), scaleApproximation.shift());
     }
 
     // Create DPU task for NCE task
-    auto variantbuilder = mlir::OpBuilder::atBlockBegin(&nceTask.variants().front(), builder.getListener());
+    auto variantbuilder = mlir::OpBuilder::atBlockBegin(&nceTask.getVariants().front(), builder.getListener());
 
     std::vector<int32_t> start_vec{0, 0, 0};
     auto start = getIntArrayAttr(builder, start_vec);
@@ -207,13 +208,14 @@ void buildEltwiseSparse(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     nceTask.addDPUTask(variantbuilder, start, outEnd, start, inEnd, pad, VPU::MPEMode::CUBOID_8x16);
 
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(barrier1.getBarrier()), mlir::ValueRange(),
-                                          builder.getUnknownLoc(), outputCmx.getOperation()->getResult(0), funcOutput);
+                                          builder.getUnknownLoc(), outputCmx.getOperation()->getResult(0), funcOutput,
+                                          0);
 
     funcBuilder.create<mlir::func::ReturnOp>(builder.getUnknownLoc(), funcOutput);
 
     // set runtime resources
-    mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(arch, VPU::CompilationMode::DefaultHW, 1, None, log));
+    mlir::PassManager pm(module->getName(), mlir::OpPassManager::Nesting::Implicit);
+    pm.addPass(VPU::createInitCompilerPass(arch, VPU::CompilationMode::DefaultHW, 1, std::nullopt, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 

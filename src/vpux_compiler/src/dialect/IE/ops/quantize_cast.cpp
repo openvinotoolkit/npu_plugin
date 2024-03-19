@@ -9,8 +9,8 @@
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::QuantizeCastOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -19,8 +19,8 @@ mlir::LogicalResult vpux::IE::QuantizeCastOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = quantizeCast.input().getType().cast<mlir::RankedTensorType>();
-    const auto dstElemType = quantizeCast.dstElemType();
+    const auto inType = quantizeCast.getInput().getType().cast<mlir::RankedTensorType>();
+    const auto dstElemType = quantizeCast.getDstElemType();
     const auto outDesc = vpux::getTensorAttr(inType);
     unsigned int outputWidth;
     if (auto quantizedOutput = dstElemType.dyn_cast<mlir::quant::QuantizedType>()) {
@@ -50,8 +50,9 @@ mlir::LogicalResult vpux::IE::QuantizeCastOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-mlir::OpFoldResult vpux::IE::QuantizeCastOp::fold(vpux::ArrayRef<mlir::Attribute>) {
-    return input().getType() == output().getType() ? input() : nullptr;
+mlir::OpFoldResult vpux::IE::QuantizeCastOp::fold(FoldAdaptor) {
+    return getInput().getType() == getOutput().getType() ? getInput()
+                                                         : mlir::TypedValue<mlir::RankedTensorType>(nullptr);
 }
 
 //
@@ -73,13 +74,13 @@ mlir::LogicalResult FuseQuantizeCasts::matchAndRewrite(IE::QuantizeCastOp origOp
     // Input type1 -> IE.QuantizeCast type2 -> IE.QuantizeCast type3 -> Output type3
     // into
     // Input type1 -> IE.QuantizeCast type3 -> Output type3
-    auto producerOp = origOp.input().getDefiningOp<IE::QuantizeCastOp>();
+    auto producerOp = origOp.getInput().getDefiningOp<IE::QuantizeCastOp>();
     if (producerOp == nullptr) {
         return mlir::failure();
     }
 
-    rewriter.replaceOpWithNewOp<IE::QuantizeCastOp>(origOp, origOp.output().getType(), producerOp.input(),
-                                                    origOp.dstElemType());
+    rewriter.replaceOpWithNewOp<IE::QuantizeCastOp>(origOp, origOp.getOutput().getType(), producerOp.getInput(),
+                                                    origOp.getDstElemType());
 
     return mlir::success();
 }

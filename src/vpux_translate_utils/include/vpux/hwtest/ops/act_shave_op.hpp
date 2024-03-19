@@ -14,8 +14,8 @@ namespace hwtest {
 void buildActShaveTask(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                        Logger& log, ArrayRef<mlir::Type> inputTypes,
                        SmallVector<vpux::VPURT::DeclareBufferOp>& inputcmx, vpux::VPURT::DeclareBufferOp outputcmx,
-                       mlir::ValueRange waitBarrier, mlir::ValueRange updateBarrier, size_t cluster = 0,
-                       size_t unit = 0);
+                       vpux::VPURT::DeclareBufferOp profilingDataCMX, mlir::ValueRange waitBarrier,
+                       mlir::ValueRange updateBarrier, size_t cluster = 0, size_t unit = 0);
 
 }  // namespace hwtest
 }  // namespace vpux

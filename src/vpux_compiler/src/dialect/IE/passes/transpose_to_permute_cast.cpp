@@ -5,15 +5,7 @@
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
-#include "vpux/compiler/dialect/IE/utils/quantization.hpp"
 #include "vpux/compiler/dialect/IE/utils/transpose_op_utils.hpp"
-#include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
-
-#include <mlir/Transforms/GreedyPatternRewriteDriver.h>
-
-#include <llvm/ADT/TypeSwitch.h>
-#include <vpux/compiler/conversion.hpp>
 
 using namespace vpux;
 
@@ -57,16 +49,16 @@ private:
 
 mlir::LogicalResult TransposeToPermuteCast::TransposeOpConverter::matchAndRewrite(
         IE::TransposeOp origOp, mlir::PatternRewriter& rewriter) const {
-    const auto transposeIn = origOp.input();
+    const auto transposeIn = origOp.getInput();
     const auto targetDimsOrder = IE::deduceInverseOrder(origOp);
     const auto dstOrder = mlir::AffineMapAttr::get(targetDimsOrder.toAffineMap(rewriter.getContext()));
-    const auto origOutOrder = DimsOrder::fromValue(origOp.output());
+    const auto origOutOrder = DimsOrder::fromValue(origOp.getOutput());
     const auto numDims = checked_cast<unsigned>(origOutOrder.numDims());
     const auto memPerm =
             mlir::AffineMapAttr::get(mlir::AffineMap::getMinorIdentityMap(numDims, numDims, rewriter.getContext()));
     auto permuteCast = rewriter.create<IE::PermuteCastOp>(origOp->getLoc(), transposeIn, dstOrder, memPerm);
     rewriter.replaceOpWithNewOp<IE::ReorderOp>(
-            origOp, permuteCast.output(), mlir::AffineMapAttr::get(origOutOrder.toAffineMap(rewriter.getContext())));
+            origOp, permuteCast.getOutput(), mlir::AffineMapAttr::get(origOutOrder.toAffineMap(rewriter.getContext())));
 
     return mlir::success();
 }

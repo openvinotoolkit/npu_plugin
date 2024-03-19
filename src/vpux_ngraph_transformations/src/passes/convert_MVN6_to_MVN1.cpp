@@ -5,14 +5,13 @@
 
 #include "vpux/passes/convert_MVN6_to_MVN1.hpp"
 
-#include <details/ie_exception.hpp>
 #include <memory>
-#include <ngraph/op/constant.hpp>
-#include <ngraph/op/mvn.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include "ngraph/log.hpp"
-#include "ngraph/node.hpp"
+#include <openvino/op/constant.hpp>
+#include <openvino/op/mvn.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
+#include "openvino/core/node.hpp"
+#include "openvino/util/log.hpp"
 #include "vpux/utils/core/error.hpp"
 
 namespace vpux {
@@ -20,20 +19,20 @@ namespace vpux {
 namespace passes {
 
 ConvertMVN6toMVN1::ConvertMVN6toMVN1() {
-    auto mvn6 = ngraph::pattern::wrap_type<ngraph::op::v6::MVN>();
+    auto mvn6 = ov::pass::pattern::wrap_type<ov::op::v6::MVN>();
 
-    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
-        auto mvn6 = std::dynamic_pointer_cast<ngraph::op::v6::MVN>(m.get_match_root());
+    ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
+        auto mvn6 = std::dynamic_pointer_cast<ov::op::v6::MVN>(m.get_match_root());
         if (!mvn6) {
             return false;
         }
         const auto eps_mode = mvn6->get_eps_mode();
 
         const float eps = mvn6->get_eps();
-        if (eps_mode != ngraph::op::MVNEpsMode::INSIDE_SQRT) {
+        if (eps_mode != ov::op::MVNEpsMode::INSIDE_SQRT) {
             // MVN-1 does not support outside_sqrt eps mode, in this case we should do MVN6Decomposition pass
             // Disable temporarily to enable the BDK3 ModNet.
-            NGRAPH_WARN << "MVN-1 does not support outside_sqrt eps mode.";
+            OPENVINO_WARN << "MVN-1 does not support outside_sqrt eps mode.";
 
             // For small enough 'eps' values, can treat OUTSIDE_SQRT mode as INSIDE_SQRT
             const double EPS_THRESHOLD = 1e-3;
@@ -46,14 +45,14 @@ ConvertMVN6toMVN1::ConvertMVN6toMVN1() {
 
         const bool normalize_variance = mvn6->get_normalize_variance();
 
-        auto const_axes = std::dynamic_pointer_cast<ngraph::op::Constant>(
+        auto const_axes = std::dynamic_pointer_cast<ov::op::v0::Constant>(
                 mvn6->input(1).get_source_output().get_node_shared_ptr());
-        IE_ASSERT(nullptr != const_axes);
+        OPENVINO_ASSERT(nullptr != const_axes);
         auto axes = const_axes->cast_vector<int32_t>();
 
         const auto dims_count = input.get_partial_shape().get_shape().size();
         if (!(static_cast<int32_t>(dims_count) >= 2 && static_cast<int32_t>(dims_count) <= 4)) {
-            NGRAPH_WARN << "MVN6->MVN1 conversion supports only 2D, 3D or 4D cases";
+            OPENVINO_WARN << "MVN6->MVN1 conversion supports only 2D, 3D or 4D cases";
             return false;
         }
 
@@ -92,23 +91,23 @@ ConvertMVN6toMVN1::ConvertMVN6toMVN1() {
             } else {
                 VPUX_THROW("Unexpected input shape");
             }
-            auto constNode = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64,
-                                                                        ngraph::Shape{newInShape.size()}, newInShape);
-            auto reshapeInput = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(
-                    std::make_shared<ngraph::opset1::Reshape>(input, constNode, false));
+            auto constNode = std::make_shared<ov::opset1::Constant>(ov::element::Type_t::i64,
+                                                                    ov::Shape{newInShape.size()}, newInShape);
+            auto reshapeInput = std::dynamic_pointer_cast<ov::opset1::Reshape>(
+                    std::make_shared<ov::opset1::Reshape>(input, constNode, false));
 
-            const auto Mvn1 = std::make_shared<ngraph::op::v0::MVN>(reshapeInput, across_channels, normalize_variance,
-                                                                    (double)(eps));
+            const auto Mvn1 =
+                    std::make_shared<ov::op::v0::MVN>(reshapeInput, across_channels, normalize_variance, (double)(eps));
             Mvn1->set_friendly_name(mvn6->get_friendly_name());
 
             // Output shape is equal with input shape
-            auto constNode2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64,
-                                                                         ngraph::Shape{inputShape.size()}, inputShape);
-            auto reshapeOutput = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(
-                    std::make_shared<ngraph::opset1::Reshape>(Mvn1, constNode2, false));
+            auto constNode2 = std::make_shared<ov::opset1::Constant>(ov::element::Type_t::i64,
+                                                                     ov::Shape{inputShape.size()}, inputShape);
+            auto reshapeOutput = std::dynamic_pointer_cast<ov::opset1::Reshape>(
+                    std::make_shared<ov::opset1::Reshape>(Mvn1, constNode2, false));
             reshapeOutput->set_friendly_name(mvn6->get_friendly_name());
 
-            ngraph::replace_node(mvn6, reshapeOutput);
+            ov::replace_node(mvn6, reshapeOutput);
             return true;
         } else if (dims_count == 4) {
             if (axes.size() == 3 && axes[0] == 1 && axes[1] == 2 && axes[2] == 3)
@@ -116,16 +115,16 @@ ConvertMVN6toMVN1::ConvertMVN6toMVN1() {
             else if (axes.size() == 2 && axes[0] == 2 && axes[1] == 3)
                 across_channels = false;
             else {
-                // MVN-1 layer supports only normalization across channel or spatial dimension, in this case we should
-                // do MVN6Decomposition pass
+                // MVN-1 layer supports only normalization across channel or spatial dimension, in this case we
+                // should do MVN6Decomposition pass
                 return false;
             }
 
             const auto Mvn1 =
-                    std::make_shared<ngraph::op::v0::MVN>(input, across_channels, normalize_variance, (double)(eps));
+                    std::make_shared<ov::op::v0::MVN>(input, across_channels, normalize_variance, (double)(eps));
             Mvn1->set_friendly_name(mvn6->get_friendly_name());
 
-            ngraph::replace_node(mvn6, Mvn1);
+            ov::replace_node(mvn6, Mvn1);
             return true;
         } else {
             // MVN6->MVN1 conversion failed, rely on MVN6 op
@@ -133,7 +132,7 @@ ConvertMVN6toMVN1::ConvertMVN6toMVN1() {
         }
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mvn6, "ConvertMVN6toMVN1");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(mvn6, "ConvertMVN6toMVN1");
     register_matcher(m, callback);
 }
 

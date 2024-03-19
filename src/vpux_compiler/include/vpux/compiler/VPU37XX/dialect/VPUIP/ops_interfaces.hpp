@@ -8,5 +8,6 @@
 namespace vpux::VPUIP::arch37xx {
 
 void registerAlignedChannelsOpInterfaces(mlir::DialectRegistry& registry);
+void registerAlignedWorkloadChannelsOpInterfaces(mlir::DialectRegistry& registry);
 
 }  // namespace vpux::VPUIP::arch37xx

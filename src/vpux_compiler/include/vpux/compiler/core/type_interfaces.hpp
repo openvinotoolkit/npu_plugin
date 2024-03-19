@@ -10,7 +10,7 @@
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
 
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/array_ref.hpp"
@@ -27,11 +27,11 @@ namespace vpux {
 //
 
 struct TypeComponents {
-    Optional<Shape> shape = None;
-    Optional<mlir::Type> elementType = None;
-    Optional<DimsOrder> dimsOrder = None;
-    Optional<IndexedSymbolAttr> memSpace = None;
-    Optional<Strides> strides = None;
+    std::optional<Shape> shape = std::nullopt;
+    std::optional<mlir::Type> elementType = std::nullopt;
+    std::optional<DimsOrder> dimsOrder = std::nullopt;
+    std::optional<IndexedSymbolAttr> memSpace = std::nullopt;
+    std::optional<Strides> strides = std::nullopt;
 
     TypeComponents& setShape(ShapeRef newShape);
     TypeComponents& setElementType(mlir::Type newElementType);

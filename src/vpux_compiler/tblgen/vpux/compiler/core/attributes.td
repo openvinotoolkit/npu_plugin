@@ -23,6 +23,9 @@ def SymbolRefArrayOfArraysAttr : TypedArrayAttrBase<SymbolRefArrayAttr, "array o
 
 def UI32ArrayAttr : TypedArrayAttrBase<UI32Attr,
                                       "Unsigned 32-bit integer array attribute">;
+
+def UI8ArrayAttr : TypedArrayAttrBase<UI8Attr,
+                                      "Unsigned 8-bit integer array attribute">;
 def IndexedSymbolAttr :
         Attr<
             CPred<"$_self.isa<vpux::IndexedSymbolAttr>()">,
@@ -44,14 +47,5 @@ def TensorAttr :
     let convertFromStorage = "$_self";
     let constBuilderCall = "$0";
 }
-
-def UI6 : UI<6>;
-
-def UI6Attr  : TypedUnsignedIntegerAttrBase<
-    UI6,  "uint8_t",  "6-bit unsigned integer attribute">;
-
-def UI6ArrayAttr : TypedArrayAttrBase<UI6Attr,
-                                      "Unsigned 6-bit integer array attribute">;
-
 
 #endif

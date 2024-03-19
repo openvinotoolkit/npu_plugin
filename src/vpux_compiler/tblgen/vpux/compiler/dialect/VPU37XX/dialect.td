@@ -12,7 +12,7 @@ def VPU37XX_Dialect : Dialect {
     let summary = "VPU 37XX HW specifics";
 
     let description = [{
-        The **37XX** encapsulates 37XX specific information.
+        The **37XX** encapsulates VPU37XX specific information.
 
     }];
 
@@ -27,8 +27,6 @@ def VPU37XX_Dialect : Dialect {
     let extraClassDeclaration = [{
         void registerTypes();
     }];
-
-    let emitAccessorPrefix = kEmitAccessorPrefix_Both;
 }
 
 #endif

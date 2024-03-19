@@ -1,11 +1,12 @@
-//
+
 // Copyright (C) 2018-2021 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
 #include "shared_test_classes/subgraph/preprocess.hpp"
 #include <vpu_ov2_layer_test.hpp>
-#include "ngraph_functions/preprocess/preprocess_builders.hpp"
+#include "common/utils.hpp"
+#include "ov_models/preprocess/preprocess_builders.hpp"
 
 using namespace ov::preprocess;
 
@@ -406,7 +407,7 @@ inline std::vector<ov::builder::preprocess::preprocess_func> preprocess_function
 
 using namespace SubgraphTestsDefinitions;
 
-class VPUXPreProcessTestCommon : virtual public PrePostProcessTest, virtual public VpuOv2LayerTest {
+class PreProcessTestCommon : virtual public PrePostProcessTest, virtual public VpuOv2LayerTest {
 public:
     void SetUp() override {
         PrePostProcessTest::SetUp();
@@ -416,7 +417,7 @@ protected:
     std::map<std::string, std::string> config;
 };
 
-TEST_P(VPUXPreProcessTestCommon, VPU3720_HW) {
+TEST_P(PreProcessTestCommon, NPU3720_HW) {
     setSkipCompilationCallback([](std::stringstream& skip) {
         const auto test_type = std::get<0>(GetParam());
         if (test_type.m_name == "resize_nearest_nchw" || test_type.m_name == "resize_nearest_nhwc") {
@@ -427,7 +428,7 @@ TEST_P(VPUXPreProcessTestCommon, VPU3720_HW) {
     run(VPUXPlatform::VPU3720);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_PrePostProcess, VPUXPreProcessTestCommon,
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_PrePostProcess, PreProcessTestCommon,
                          ::testing::Combine(::testing::ValuesIn(preprocess_functions()),
-                                            ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
-                         VPUXPreProcessTestCommon::getTestCaseName);
+                                            ::testing::Values(ov::test::utils::DEVICE_NPU)),
+                         PreProcessTestCommon::getTestCaseName);

@@ -12,17 +12,17 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXGRNLayerTest : public GrnLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
-class VPUXGRNLayerTest_VPU3700 : public VPUXGRNLayerTest {};
-class VPUXGRNLayerTest_VPU3720 : public VPUXGRNLayerTest {};
+class GRNLayerTestCommon : public GrnLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
+class GRNLayerTest_NPU3700 : public GRNLayerTestCommon {};
+class GRNLayerTest_NPU3720 : public GRNLayerTestCommon {};
 
-TEST_P(VPUXGRNLayerTest_VPU3700, HW) {
+TEST_P(GRNLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXGRNLayerTest_VPU3720, HW) {
+TEST_P(GRNLayerTest_NPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -37,10 +37,10 @@ namespace {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,  // Testing FP32/FP16 netPrecision functionality only for small scope of
-        InferenceEngine::Precision::FP16   // tests: VPUXGRNLayerTest, VPUXSplitLayerTest, VPUXCTCGreedyDecoderLayerTest
+        InferenceEngine::Precision::FP16   // tests: GRNLayerTest, SplitLayerTest, CTCGreedyDecoderLayerTest
 };
 
-const std::vector<InferenceEngine::SizeVector> inShapes = {
+const std::vector<InferenceEngine::SizeVector> inShapesNPU3700 = {
         InferenceEngine::SizeVector{1, 3, 30, 30},
         InferenceEngine::SizeVector{1, 24, 128, 224},
 };
@@ -53,26 +53,26 @@ const std::vector<float> biases = {
 const auto params = testing::Combine(
         testing::ValuesIn(netPrecisions), testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Precision::UNSPECIFIED), testing::Values(InferenceEngine::Layout::NCHW),
-        testing::Values(InferenceEngine::Layout::ANY), testing::ValuesIn(inShapes), testing::ValuesIn(biases),
+        testing::Values(InferenceEngine::Layout::ANY), testing::ValuesIn(inShapesNPU3700), testing::ValuesIn(biases),
         testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_SUITE_P(smoke_GRN_test, VPUXGRNLayerTest_VPU3700, params, GrnLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GRN_test, GRNLayerTest_NPU3700, params, GrnLayerTest::getTestCaseName);
 
-/* ============= VPU 3720 ============= */
+/* ============= NPU 3720 ============= */
 
 // OV cases
-const std::vector<InferenceEngine::SizeVector> inShapesVPUX = {InferenceEngine::SizeVector{1, 8, 24, 64},
-                                                               InferenceEngine::SizeVector{3, 16, 1, 24},
-                                                               InferenceEngine::SizeVector{2, 16, 15, 20}};
+const std::vector<InferenceEngine::SizeVector> inShapes = {InferenceEngine::SizeVector{1, 8, 24, 64},
+                                                           InferenceEngine::SizeVector{3, 16, 1, 24},
+                                                           InferenceEngine::SizeVector{2, 16, 15, 20}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_GRN, VPUXGRNLayerTest_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_GRN, GRNLayerTest_NPU3720,
                          testing::Combine(testing::ValuesIn(netPrecisions),
                                           testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                           testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                           testing::Values(InferenceEngine::Layout::NCHW),
-                                          testing::Values(InferenceEngine::Layout::ANY),
-                                          testing::ValuesIn(inShapesVPUX), testing::ValuesIn(biases),
+                                          testing::Values(InferenceEngine::Layout::ANY), testing::ValuesIn(inShapes),
+                                          testing::ValuesIn(biases),
                                           testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-                         VPUXGRNLayerTest_VPU3720::getTestCaseName);
+                         GRNLayerTest_NPU3720::getTestCaseName);
 
 }  // namespace

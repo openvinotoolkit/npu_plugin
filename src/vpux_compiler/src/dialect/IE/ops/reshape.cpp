@@ -5,16 +5,10 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
-#include "vpux/compiler/dialect/IE/utils/propagate_quantize_dequantize_utils.hpp"
 #include "vpux/compiler/dialect/IE/utils/reshape_utils.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/quantization.hpp"
-#include "vpux/compiler/utils/types.hpp"
-
-#include "vpux/utils/core/checked_cast.hpp"
-#include "vpux/utils/core/small_vector.hpp"
 
 #include <mlir/IR/PatternMatch.h>
 
@@ -29,18 +23,18 @@ using namespace vpux;
 namespace {
 
 mlir::FailureOr<SmallVector<int64_t>> getOutShape(IE::ReshapeOpAdaptor reshape, mlir::Location loc) {
-    if (reshape.shape() != nullptr && reshape.shape_value().has_value()) {
+    if (reshape.getShape() != nullptr && reshape.getShapeValue().has_value()) {
         return errorAt(loc, "Ambiguous shape representation");
     }
-    if (reshape.shape() == nullptr && !reshape.shape_value().has_value()) {
+    if (reshape.getShape() == nullptr && !reshape.getShapeValue().has_value()) {
         return errorAt(loc, "Missed shape representation");
     }
 
-    if (reshape.shape_value().has_value()) {
-        return parseIntArrayAttr<int64_t>(reshape.shape_value().value());
+    if (reshape.getShapeValue().has_value()) {
+        return parseIntArrayAttr<int64_t>(reshape.getShapeValue().value());
     }
 
-    auto shapeConst = reshape.shape().getDefiningOp<Const::DeclareOp>();
+    auto shapeConst = reshape.getShape().getDefiningOp<Const::DeclareOp>();
     if (shapeConst == nullptr) {
         return errorAt(loc, "Only constant input is supported for shape");
     }
@@ -48,7 +42,7 @@ mlir::FailureOr<SmallVector<int64_t>> getOutShape(IE::ReshapeOpAdaptor reshape, 
     const auto shapeContent = shapeConst.getContent();
     auto shapeVec = to_small_vector(shapeContent.getValues<int64_t>());
 
-    const auto specialZero = reshape.special_zero();
+    const auto specialZero = reshape.getSpecialZero();
 
     const auto zeroDims = std::count_if(shapeVec.begin(), shapeVec.end(), [](int64_t v) {
         return v == 0;
@@ -64,7 +58,7 @@ mlir::FailureOr<SmallVector<int64_t>> getOutShape(IE::ReshapeOpAdaptor reshape, 
     if (!(zeroDims != 0 && specialZero) && negativeDims == 0) {
         return shapeVec;
     } else {
-        const auto inShape = to_small_vector(reshape.input().getType().cast<mlir::ShapedType>().getShape());
+        const auto inShape = to_small_vector(reshape.getInput().getType().cast<mlir::ShapedType>().getShape());
 
         auto dividend = std::accumulate(inShape.begin(), inShape.end(), int64_t(1), std::multiplies<int64_t>());
 
@@ -106,8 +100,8 @@ mlir::FailureOr<SmallVector<int64_t>> getOutShape(IE::ReshapeOpAdaptor reshape, 
 //
 
 mlir::LogicalResult vpux::IE::ReshapeOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -121,7 +115,7 @@ mlir::LogicalResult vpux::IE::ReshapeOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = reshape.input().getType().cast<mlir::RankedTensorType>();
+    const auto inType = reshape.getInput().getType().cast<mlir::RankedTensorType>();
 
     const auto outDesc =
             vpux::getTensorAttr(ctx, DimsOrder::fromNumDims(outShape->size()), vpux::getMemorySpace(inType));
@@ -131,32 +125,19 @@ mlir::LogicalResult vpux::IE::ReshapeOp::inferReturnTypeComponents(
 }
 
 //
-// inferElemTypeInfo
-//
-
-void vpux::IE::ReshapeOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
-    propagateElementTypeDown(info);
-}
-
-void vpux::IE::ReshapeOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
-    propagateElementTypeUp(info);
-}
-
-//
 // fold
 //
 
-mlir::OpFoldResult vpux::IE::ReshapeOp::fold(ArrayRef<mlir::Attribute> operands) {
-    if (input().getType() == output().getType()) {
-        return input();
+mlir::OpFoldResult vpux::IE::ReshapeOp::fold(FoldAdaptor adaptor) {
+    auto operands = adaptor.getOperands();
+    if (getInput().getType() == getOutput().getType()) {
+        return getInput();
     }
 
     VPUX_THROW_UNLESS(!operands.empty(), "Wrong number of operands : {0}", operands.size());
 
     if (const auto attr = operands[0].dyn_cast_or_null<Const::ContentAttr>()) {
-        return attr.reshape(vpux::getShape(output()));
+        return attr.reshape(vpux::getShape(getOutput()));
     }
 
     return nullptr;
@@ -177,7 +158,7 @@ public:
 };
 
 mlir::LogicalResult FuseReshapes::matchAndRewrite(IE::ReshapeOp origOp, mlir::PatternRewriter& rewriter) const {
-    auto prevOp = origOp.input().getDefiningOp();
+    auto prevOp = origOp.getInput().getDefiningOp();
     if (prevOp == nullptr) {
         return mlir::failure();
     }
@@ -209,7 +190,7 @@ public:
 };
 
 mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::ReshapeOp origOp, mlir::PatternRewriter& rewriter) const {
-    if (origOp.shape_value().has_value()) {
+    if (origOp.getShapeValue().has_value()) {
         return mlir::failure();
     }
 
@@ -220,7 +201,7 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::ReshapeOp origOp, ml
 
     const auto outShapeAttr = getIntArrayAttr(getContext(), outShape.value());
 
-    rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, origOp.input(), nullptr, false, outShapeAttr);
+    rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, origOp.getInput(), nullptr, false, outShapeAttr);
     return mlir::success();
 }
 
@@ -240,6 +221,7 @@ namespace {
 //      n x c x h x w -> n x (c * w) x h (not AffineReshape - c, w not adjacent)
 //      c x h x w -> (c / k) x (h * k) x w (not AffineReshape - not an exact decomposition into dims of the
 //      other shape)
+//      c x h x w -> c x (h x w) x 1 x 1 (AffineReshape, for the last dims equals to 1 exception)
 class ConvertToAffineReshape final : public mlir::OpRewritePattern<IE::ReshapeOp> {
 public:
     using mlir::OpRewritePattern<IE::ReshapeOp>::OpRewritePattern;
@@ -253,14 +235,14 @@ mlir::LogicalResult ConvertToAffineReshape::matchAndRewrite(IE::ReshapeOp origOp
     const auto outputShape = origOp.getType().getShape();
     const auto outShapeAttr = getIntArrayAttr(getContext(), outputShape);
 
-    const auto inShape = origOp.input().getType().cast<mlir::ShapedType>().getShape();
+    const auto inShape = origOp.getInput().getType().cast<mlir::ShapedType>().getShape();
     const auto reassociationMap = vpux::IE::getReassociationMap(inShape, outputShape);
     if (mlir::failed(reassociationMap)) {
         return mlir::failure();
     }
 
     rewriter.replaceOpWithNewOp<IE::AffineReshapeOp>(
-            origOp, origOp.input(), getIntArrayOfArray(getContext(), reassociationMap.value()), outShapeAttr);
+            origOp, origOp.getInput(), getIntArrayOfArray(getContext(), reassociationMap.value()), outShapeAttr);
     return mlir::success();
 }
 

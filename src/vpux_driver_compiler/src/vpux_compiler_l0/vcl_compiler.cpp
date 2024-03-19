@@ -7,20 +7,101 @@
 #include "vcl_executable.hpp"
 #include "vcl_query_network.hpp"
 
-#include <cpp/ie_cnn_network.h>
-#include <ie_core.hpp>
 #include <openvino/openvino.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include "vpux/al/config/common.hpp"
 #include "vpux/al/config/compiler.hpp"
 #include "vpux/al/config/runtime.hpp"
 #include "vpux/al/opset/opset_version.hpp"
-#include "vpux/vpux_plugin_config.hpp"
 #include "vpux_compiler.hpp"
-#include "vpux_private_config.hpp"
+#include "vpux_private_properties.hpp"
 
 #define xstr(s) str(s)
 #define str(s) #s
+
+namespace {
+
+constexpr int64_t OLDEST_IR_VERSION_SUPPORTED = 10;
+
+std::string rankToLegacyLayoutString(const size_t rank) {
+    switch (rank) {
+    case 0:
+        return "SCALAR";
+    case 1:
+        return "C";
+    case 2:
+        return "NC";
+    case 3:
+        return "CHW";
+    case 4:
+        return "NCHW";
+    case 5:
+        return "NCDHW";
+    default:
+        return "BLOCKED";
+    }
+}
+
+/**
+ * @brief Adds precision conversion and transposition layers to the model in order to comply with the given precision
+ * and layout values.
+ * @details In the legacy scenarios when either the older API or the IR version 10 is being used, the "ov::Model"
+ * object may not hold the correct I/O metadata values (either a wrong precision or a transposed shape may be used). The
+ * objective of the current function is to correct this misalignment by introducing additional precision conversion or
+ * transposition layers.
+ *
+ * Note that the correct precision/layout values are given by the driver. Depending on the plugin version, the origin of
+ * these values may be either the metadata stored by the user application in a legacy "InferenceEngine::CNNNetwork"
+ * object, or the values found within the "ov::Model" one, which could have been altered as a result of the
+ * serialization process.
+ * @param model The model representation corresponding to the 2.0 API, this is the target object.
+ * @param inputPrecisions The reference input precision values.
+ * @param outputPrecisions The reference output precision values.
+ * @param inputLayouts The reference input layout values.
+ * @param outputLayouts The reference output layout values.
+ */
+std::shared_ptr<ov::Model> preprocessModel(std::shared_ptr<ov::Model>& model,
+                                           const std::unordered_map<std::string, ov::element::Type_t>& inputPrecisions,
+                                           const std::unordered_map<std::string, ov::element::Type_t>& outputPrecisions,
+                                           const std::unordered_map<std::string, std::string>& inputLayouts,
+                                           const std::unordered_map<std::string, std::string>& outputLayouts) {
+    auto preprocessor = ov::preprocess::PrePostProcessor(model);
+    const ov::ParameterVector& parameters = model->get_parameters();
+    const ov::ResultVector& results = model->get_results();
+
+    for (size_t parameterIndex = 0; parameterIndex < parameters.size(); ++parameterIndex) {
+        const std::shared_ptr<ov::op::v0::Parameter>& parameter = parameters[parameterIndex];
+        const std::string& inputName = parameter->get_friendly_name();
+
+        const ov::Layout tensorLayout(inputLayouts.at(inputName));
+        const size_t rank = parameter->get_shape().size();
+        const ov::Layout modelLayout(rankToLegacyLayoutString(rank));
+
+        ov::preprocess::InputInfo& inputInfo = preprocessor.input(parameterIndex);
+        inputInfo.tensor().set_layout(tensorLayout);
+        inputInfo.model().set_layout(modelLayout);
+        inputInfo.tensor().set_element_type(inputPrecisions.at(inputName));
+    }
+
+    for (size_t resultIndex = 0; resultIndex < results.size(); ++resultIndex) {
+        const std::shared_ptr<ov::op::v0::Result>& result = results[resultIndex];
+        const std::string& outputName = ov::op::util::get_ie_output_name(result->input_value(0));
+
+        const ov::Layout tensorLayout(outputLayouts.at(outputName));
+        const size_t rank = result->get_shape().size();
+        const ov::Layout modelLayout(rankToLegacyLayoutString(rank));
+
+        ov::preprocess::OutputInfo& outputInfo = preprocessor.output(resultIndex);
+        outputInfo.tensor().set_layout(tensorLayout);
+        outputInfo.model().set_layout(modelLayout);
+        outputInfo.tensor().set_element_type(outputPrecisions.at(outputName));
+    }
+
+    return preprocessor.build();
+}
+
+}  // namespace
 
 using namespace vpux;
 
@@ -56,8 +137,7 @@ VPUXCompilerL0::VPUXCompilerL0(vcl_compiler_desc_t desc, const std::map<std::str
 }
 
 std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetwork(BuildInfo& buildInfo) {
-    InferenceEngine::CNNNetwork& cnnNet = buildInfo.cnnNet;
-    std::shared_ptr<ov::Model> model = cnnNet.getFunction();
+    std::shared_ptr<ov::Model> model = buildInfo.model;
     VPUXExecutableL0* exe = nullptr;
     StopWatch stopWatch;
     if (buildInfo.enableProfiling) {
@@ -66,7 +146,7 @@ std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetwork(BuildIn
     }
     try {
         bool isNewAPI = false;
-        bool isIRVersion11 = false;
+        int64_t irVersion = OLDEST_IR_VERSION_SUPPORTED;
 
         ov::RTMap& runtimeInfoMap = model->get_rt_info();
         const auto& isNewAPIMatch = runtimeInfoMap.find("is_new_api");
@@ -76,66 +156,17 @@ std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetwork(BuildIn
 
         const auto& irVersionMatch = runtimeInfoMap.find("version");
         if (irVersionMatch != runtimeInfoMap.end()) {
-            const int64_t& irVersion = irVersionMatch->second.as<int64_t>();
-            isIRVersion11 = (irVersion == 11);
+            irVersion = irVersionMatch->second.as<int64_t>();
         }
 
-        if (!isNewAPI || !isIRVersion11) {
-            /// Update input and output info
-            auto inputs = cnnNet.getInputsInfo();
-            auto outputs = cnnNet.getOutputsInfo();
-
-            /// Update input precision with new value that parsed from user description
-            for (const auto& item : buildInfo.inPrcsIE) {
-                const auto& name = item.first;
-                const auto input = inputs.find(name);
-                if (input != inputs.end()) {
-                    input->second->setPrecision(item.second);
-                } else {
-                    throw std::logic_error(name + " is not found in inputs to set precision!");
-                }
-            }
-
-            /// Update input layout with new value that parsed from user description
-            for (const auto& item : buildInfo.inLayoutsIE) {
-                const auto& name = item.first;
-                const auto input = inputs.find(name);
-                if (input != inputs.end()) {
-                    input->second->setLayout(item.second);
-                } else {
-                    throw std::logic_error(name + " is not found in inputs to set layout!");
-                }
-            }
-
-            /// Update output precision with new value that parsed from user description
-            for (const auto& item : buildInfo.outPrcsIE) {
-                const auto& name = item.first;
-                const auto output = outputs.find(name);
-                if (output != outputs.end()) {
-                    output->second->setPrecision(item.second);
-                } else {
-                    throw std::logic_error(name + " is not found in outputs to set precision!");
-                }
-            }
-
-            /// Update output layout with new value that parsed from user description
-            for (const auto& item : buildInfo.outLayoutsIE) {
-                const auto& name = item.first;
-                const auto output = outputs.find(name);
-                if (output != outputs.end()) {
-                    output->second->setLayout(item.second);
-                } else {
-                    throw std::logic_error(name + " is not found in outputs to set layout!");
-                }
-            }
-
-            model->set_rt_info(inputs, "input_metadata");
-            model->set_rt_info(outputs, "output_metadata");
+        if (!isNewAPI || irVersion < 11) {
+            model = preprocessModel(model, buildInfo.inputPrecisions, buildInfo.outputPrecisions,
+                                    buildInfo.inputLayouts, buildInfo.outputLayouts);
         }
 
         /// Call compiler to compile the model and create blob
         /// Create executable with the result NetworkDescription, profiling option and logger
-        exe = new VPUXExecutableL0(_compiler->compile(model, cnnNet.getName(), buildInfo.parsedConfig),
+        exe = new VPUXExecutableL0(_compiler->compile(model, model->get_friendly_name(), buildInfo.parsedConfig),
                                    buildInfo.enableProfiling, _logger);
     } catch (const std::exception& error) {
         _logger->outputError(formatv("{0}", error.what()));
@@ -157,7 +188,7 @@ vcl_result_t VPUXCompilerL0::queryNetwork(const BuildInfo& buildInfo, VPUXQueryN
     _logger->info("Start to call query function from compiler to get supported layers!");
     ov::SupportedOpsMap queryNetworkResult;
     try {
-        queryNetworkResult = _compiler->query(buildInfo.cnnNet.getFunction(), buildInfo.parsedConfig);
+        queryNetworkResult = _compiler->query(buildInfo.model, buildInfo.parsedConfig);
     } catch (const std::exception& error) {
         _logger->outputError(error.what());
         return VCL_RESULT_ERROR_UNKNOWN;

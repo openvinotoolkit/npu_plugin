@@ -5,6 +5,7 @@
 
 #include "vpux/compiler/core/barrier_info.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
+#include "vpux/compiler/dialect/VPURT/barrier_simulator.hpp"
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/utils/barrier_legalization_utils.hpp"
 
@@ -29,11 +30,38 @@ BarrierInfo::TaskSet getBarriersProducerTasks(const BarrierInfo::TaskSet& waitBa
     BarrierInfo::TaskSet newBarrierProducers;
     for (auto& waitBarrierInd : waitBarriers) {
         // merge all producers
-        const auto barrierProducers = barrierInfo.getBarrierProducers(waitBarrierInd);
+        const auto& barrierProducers = barrierInfo.getBarrierProducers(waitBarrierInd);
         llvm::set_union(newBarrierProducers, barrierProducers);
     }
 
     return newBarrierProducers;
+}
+
+BarrierInfo::TaskSet getBarriersConsumerTasks(const BarrierInfo::TaskSet& waitBarriers, size_t availableSlots,
+                                              BarrierInfo& barrierInfo) {
+    // find all parallel consumers
+    BarrierInfo::TaskSet parallelConsumers;
+    for (auto& waitBarrier : waitBarriers) {
+        llvm::set_union(parallelConsumers, barrierInfo.getBarrierConsumers(waitBarrier));
+    }
+
+    // find consumers with same wait barriers
+    BarrierInfo::TaskSet parallelConsumersSameWaitBarriers;
+    size_t parallelConsumerSlotCount = 0;
+    for (auto& consumer : parallelConsumers) {
+        if (waitBarriers != barrierInfo.getWaitBarriers(consumer)) {
+            continue;
+        }
+
+        parallelConsumerSlotCount += barrierInfo.getNumOfSlotsUsed(barrierInfo.getTaskOpAtIndex(consumer));
+        if (parallelConsumerSlotCount > availableSlots) {
+            break;
+        }
+
+        parallelConsumersSameWaitBarriers.insert(consumer);
+    }
+
+    return parallelConsumersSameWaitBarriers;
 }
 
 bool canMergeBarriersForTasks(const BarrierInfo::TaskSet& producers, size_t availableSlots, BarrierInfo& barrierInfo) {
@@ -50,7 +78,7 @@ bool canMergeBarriersForTasks(const BarrierInfo::TaskSet& producers, size_t avai
     return true;
 }
 
-void unlinkTaskFromParallelBarriers(size_t taskInd, const BarrierInfo::TaskSet& waitBarriers,
+void unlinkTaskFromParallelBarriers(const BarrierInfo::TaskSet& tasks, const BarrierInfo::TaskSet& waitBarriers,
                                     BarrierInfo& barrierInfo) {
     // remove consumer task from parallel barriers
     for (auto& waitBarrierInd : waitBarriers) {
@@ -58,11 +86,13 @@ void unlinkTaskFromParallelBarriers(size_t taskInd, const BarrierInfo::TaskSet& 
         const auto waitBarrier = barrierInfo.getBarrierOpAtIndex(waitBarrierInd);
 
         // remove link from parallel barriers
-        if (barrierConsumers.size() == 1) {
+        if (barrierConsumers.size() == tasks.size()) {
             // if only consumer, barrier can be reset
             barrierInfo.resetBarrier(waitBarrier);
         } else {
-            barrierInfo.removeConsumer(taskInd, waitBarrier);
+            for (auto& taskInd : tasks) {
+                barrierInfo.removeConsumer(taskInd, waitBarrier);
+            }
         }
     }
 }
@@ -76,8 +106,8 @@ void unlinkTaskFromParallelBarriers(size_t taskInd, const BarrierInfo::TaskSet& 
        /    \   /    \           |       |       |
     u..ui   o..oj   a..ak      u..ui   o..oj   a..ak
 */
-void mergeLegalParallelProducers(size_t taskInd, VPURT::TaskOp taskOp, const BarrierInfo::TaskSet& parallelProducers,
-                                 BarrierInfo& barrierInfo) {
+void mergeLegalParallelProducers(VPURT::TaskOp taskOp, const BarrierInfo::TaskSet& parallelProducers,
+                                 const BarrierInfo::TaskSet& parallelConsumers, BarrierInfo& barrierInfo) {
     // create a new barrier for all parallel producers
     mlir::OpBuilder builder(taskOp);
     auto newBarrier = builder.create<VPURT::DeclareVirtualBarrierOp>(taskOp.getLoc());
@@ -88,27 +118,33 @@ void mergeLegalParallelProducers(size_t taskInd, VPURT::TaskOp taskOp, const Bar
         barrierInfo.addProducer(newBarrier, barrierProducer);
     }
 
-    // add only current consumer
-    barrierInfo.addConsumer(newBarrier, taskInd);
+    // add all parallel consumers with same wait barriers
+    for (auto& consumer : parallelConsumers) {
+        barrierInfo.addConsumer(newBarrier, consumer);
+    }
 }
 
 // try to create batches of producers using existing barriers if producers satisfy order constraint
 SmallVector<BarrierInfo::TaskSet> createProducerBatches(const BarrierInfo::TaskSet& waitBarriers, size_t availableSlots,
                                                         BarrierInfo& barrierInfo) {
-    SmallVector<BarrierInfo::TaskSet> legalBatches(1);
+    SmallVector<BarrierInfo::TaskSet> legalBatches;
 
-    auto prevLastUserInd = std::numeric_limits<size_t>::min();
+    auto prevLastUserInd = std::numeric_limits<size_t>::max();
     for (auto& waitBarrierInd : waitBarriers) {
-        const auto barrierProducers = barrierInfo.getBarrierProducers(waitBarrierInd);
+        const auto& barrierProducers = barrierInfo.getBarrierProducers(waitBarrierInd);
+        if (legalBatches.empty()) {
+            prevLastUserInd = VPURT::getMaxEntry(barrierProducers);
+            legalBatches.push_back(barrierProducers);
+            continue;
+        }
 
-        auto firstUserInd = *std::min_element(barrierProducers.begin(), barrierProducers.end());
-        if (firstUserInd > 0 && prevLastUserInd >= firstUserInd) {
+        const auto firstUserInd = VPURT::getMinEntry(barrierProducers);
+        if (prevLastUserInd >= firstUserInd) {
             // producers do not satisfy order constraint
             return {};
         }
 
-        prevLastUserInd = *std::max_element(barrierProducers.begin(), barrierProducers.end());
-
+        prevLastUserInd = VPURT::getMaxEntry(barrierProducers);
         auto currentBatchPlusBarrierProducers = legalBatches.back();
         llvm::set_union(currentBatchPlusBarrierProducers, barrierProducers);
 
@@ -137,8 +173,9 @@ SmallVector<BarrierInfo::TaskSet> createProducerBatches(const BarrierInfo::TaskS
                                       |      |
                                     o..oj   a..ak
 */
-void linearizeLegalParallelProducers(size_t taskInd, VPURT::TaskOp taskOp, const BarrierInfo::TaskSet& waitBarriers,
-                                     const BarrierInfo::TaskSet& parallelProducers, size_t availableSlots,
+void linearizeLegalParallelProducers(VPURT::TaskOp taskOp, const BarrierInfo::TaskSet& waitBarriers,
+                                     const BarrierInfo::TaskSet& parallelProducers,
+                                     const BarrierInfo::TaskSet& parallelConsumers, size_t availableSlots,
                                      BarrierInfo& barrierInfo) {
     // create legal batches of barrier producers
     auto legalBatches = createProducerBatches(waitBarriers, availableSlots, barrierInfo);
@@ -148,9 +185,7 @@ void linearizeLegalParallelProducers(size_t taskInd, VPURT::TaskOp taskOp, const
     }
 
     // last batch is the current task
-    BarrierInfo::TaskSet nextBatch;
-    nextBatch.insert(taskInd);
-
+    BarrierInfo::TaskSet nextBatch = parallelConsumers;
     mlir::OpBuilder builder(taskOp);
 
     // create a new barrier between batches
@@ -177,17 +212,20 @@ bool ensureTaskDrivenBySingleBarrier(size_t taskInd, VPURT::TaskOp taskOp, const
     log.trace("Got '{0}' parallel wait barriers for '{1}'", waitBarriers.size(), taskInd);
 
     auto parallelProducers = getBarriersProducerTasks(waitBarriers, barrierInfo);
+    auto parallelConsumers = getBarriersConsumerTasks(waitBarriers, availableSlots, barrierInfo);
     if (canMergeBarriersForTasks(parallelProducers, availableSlots, barrierInfo)) {
         log.nest().trace("Can merge '{0}' parallel producers for '{1}'", parallelProducers.size(), taskInd);
-        mergeLegalParallelProducers(taskInd, taskOp, parallelProducers, barrierInfo);
+        mergeLegalParallelProducers(taskOp, parallelProducers, parallelConsumers, barrierInfo);
     } else {
         log.nest().trace("Have to linearize '{0}' parallel producers for '{1}'", parallelProducers.size(), taskInd);
-        linearizeLegalParallelProducers(taskInd, taskOp, waitBarriers, parallelProducers, availableSlots, barrierInfo);
+        linearizeLegalParallelProducers(taskOp, waitBarriers, parallelProducers, parallelConsumers, availableSlots,
+                                        barrierInfo);
     }
 
-    log.trace("Unlink parallel barriers from '{0}'", taskInd);
-    unlinkTaskFromParallelBarriers(taskInd, waitBarriers, barrierInfo);
-
+    for (auto& id : parallelConsumers) {
+        log.trace("Unlink parallel barriers from '{0}'", id);
+    }
+    unlinkTaskFromParallelBarriers(parallelConsumers, waitBarriers, barrierInfo);
     log.trace("Task '{0}', now has one parallel wait barrier", taskInd);
     return true;
 }
@@ -198,11 +236,13 @@ void SatisfyOneWaitBarrierPerTaskPass::safeRunOnFunc() {
 
     const auto maxAvailableSlots = maxVariantCount.hasValue() ? checked_cast<size_t>(maxVariantCount.getValue())
                                                               : VPUIP::getBarrierMaxVariantCount(func);
-    _log.trace("There are {0} slots for each barrier", maxAvailableSlots);
+    const auto maxSlotsSum = VPUIP::getBarrierMaxVariantSum(func);
+    _log.trace("There are {0} slots for each barrier",
+               maxSlotsSum < maxAvailableSlots ? maxSlotsSum : maxAvailableSlots);
 
     // divide max available slots equally for producers and consumers to a barrier
     // for a unified solution for all architectures
-    auto availableSlots = maxAvailableSlots / 2;
+    auto availableSlots = std::min(maxAvailableSlots, maxSlotsSum) / 2;
     bool modifiedIR = false;
 
     // merge parallel wait barriers
@@ -224,10 +264,10 @@ void SatisfyOneWaitBarrierPerTaskPass::safeRunOnFunc() {
         return;
     }
 
-    barrierInfo.orderBarriers();
-    barrierInfo.updateIR();
+    VPURT::orderExecutionTasksAndBarriers(func, barrierInfo);
     barrierInfo.clearAttributes();
     VPURT::postProcessBarrierOps(func);
+    VPURT::verifyBarrierSlots(func, _log);
 }
 
 }  // namespace

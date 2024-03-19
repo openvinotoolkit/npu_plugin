@@ -5,14 +5,13 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
+#include "vpux/compiler/dialect/IE/utils/elem_type_info_utils.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
-
-#include <functional>
 
 using namespace vpux;
 
@@ -24,8 +23,10 @@ namespace {
 
 class PropagateQuantize final : public mlir::OpInterfaceRewritePattern<IE::ElemTypeInfoOpInterface> {
 public:
-    PropagateQuantize(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpInterfaceRewritePattern<IE::ElemTypeInfoOpInterface>(ctx), _log(log) {
+    PropagateQuantize(mlir::MLIRContext* ctx, Logger log, bool seOpsEnabled)
+            : mlir::OpInterfaceRewritePattern<IE::ElemTypeInfoOpInterface>(ctx),
+              _log(log),
+              _seOpsEnabled(seOpsEnabled) {
     }
 
 public:
@@ -34,6 +35,7 @@ public:
 
 private:
     Logger _log;
+    bool _seOpsEnabled;
 };
 
 /* This rewriter searches for pattern:
@@ -53,7 +55,7 @@ mlir::LogicalResult PropagateQuantize::matchAndRewrite(IE::ElemTypeInfoOpInterfa
     // 2. Check that every user is Quantize op ant they are the same.
     const auto isSameQuantize = [&](mlir::Operation* user) {
         if (auto currentQuantize = mlir::dyn_cast<IE::QuantizeOp>(user)) {
-            return currentQuantize.dstElemType() == quantizeOp.dstElemType();
+            return currentQuantize.getDstElemType() == quantizeOp.getDstElemType();
         }
 
         return false;
@@ -64,10 +66,19 @@ mlir::LogicalResult PropagateQuantize::matchAndRewrite(IE::ElemTypeInfoOpInterfa
     }
 
     // 3. Check that operation supports quantization params propagation.
-    const auto quantizedElemType = quantizeOp.output().getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto quantizedElemType = quantizeOp.getOutput().getType().cast<vpux::NDTypeInterface>().getElementType();
     auto elemTypeInfo = origOp.getElemTypeInfo();
     for (size_t outputInd = 0; outputInd < layer->getNumResults(); outputInd++) {
         elemTypeInfo.setOutput(outputInd, quantizedElemType);
+    }
+
+    const auto logCb = [&](const formatv_object_base& msg) {
+        _log.trace("{0}", msg.str());
+    };
+
+    // 4. Particular check for SE pointers
+    if (!vpux::IE::isSupportedElemTypeInfoCase(origOp.getOperation(), _seOpsEnabled, logCb)) {
+        return mlir::failure();
     }
 
     origOp.inferElemTypeInfoUp(elemTypeInfo);
@@ -91,7 +102,7 @@ mlir::LogicalResult PropagateQuantize::matchAndRewrite(IE::ElemTypeInfoOpInterfa
         auto newQuantize =
                 rewriter.create<IE::QuantizeOp>(quantizeOp->getLoc(), operand.get(), elemTypeInfo.getInput(0));
         // Update input of Operation. NewQuant -> current Op.
-        operand.set(newQuantize.output());
+        operand.set(newQuantize.getOutput());
     }
 
     // 2. Infer return types, set output type of operation to inferred quantized type.
@@ -99,7 +110,7 @@ mlir::LogicalResult PropagateQuantize::matchAndRewrite(IE::ElemTypeInfoOpInterfa
     auto op = mlir::cast<mlir::InferTypeOpInterface>(origOp.getOperation());
     VPUX_THROW_UNLESS(
             op.inferReturnTypes(getContext(), op->getLoc(), origOp->getOperands(), op->getAttrDictionary(),  // operands
-                                op->getRegions(), inferredTypes)
+                                op->getPropertiesStorage(), op->getRegions(), inferredTypes)
                     .succeeded(),
             "New type inference failed for '{0}'", op);
     for (auto result : origOp->getResults()) {
@@ -125,8 +136,10 @@ mlir::LogicalResult PropagateQuantize::matchAndRewrite(IE::ElemTypeInfoOpInterfa
 
 class PropagateDequantize final : public mlir::OpInterfaceRewritePattern<IE::ElemTypeInfoOpInterface> {
 public:
-    PropagateDequantize(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpInterfaceRewritePattern<IE::ElemTypeInfoOpInterface>(ctx), _log(log) {
+    PropagateDequantize(mlir::MLIRContext* ctx, Logger log, bool seOpsEnabled)
+            : mlir::OpInterfaceRewritePattern<IE::ElemTypeInfoOpInterface>(ctx),
+              _log(log),
+              _seOpsEnabled(seOpsEnabled) {
     }
 
 public:
@@ -135,6 +148,7 @@ public:
 
 private:
     Logger _log;
+    bool _seOpsEnabled;
 };
 
 /* This rewriter searches for pattern:
@@ -173,7 +187,7 @@ mlir::LogicalResult PropagateDequantize::matchAndRewrite(IE::ElemTypeInfoOpInter
 
     auto firstDequantizeOp = dequantizeOps[0];
     auto differentDstElemType = llvm::any_of(drop_begin(dequantizeOps), [&](IE::DequantizeOp dequantizeOp) {
-        return dequantizeOp.dstElemType() != firstDequantizeOp.dstElemType();
+        return dequantizeOp.getDstElemType() != firstDequantizeOp.getDstElemType();
     });
 
     if (differentDstElemType) {
@@ -187,9 +201,18 @@ mlir::LogicalResult PropagateDequantize::matchAndRewrite(IE::ElemTypeInfoOpInter
     for (auto idx : irange(dequantizeOps.size())) {
         auto dequantizeOp = dequantizeOps[idx];
 
-        const auto quantizedElemType = dequantizeOp.input().getType().cast<vpux::NDTypeInterface>().getElementType();
+        const auto quantizedElemType = dequantizeOp.getInput().getType().cast<vpux::NDTypeInterface>().getElementType();
         elemTypeInfo.setInput(idx, quantizedElemType);
         originalTypes.push_back(quantizedElemType);
+    }
+
+    const auto logCb = [&](const formatv_object_base& msg) {
+        _log.trace("{0}", msg.str());
+    };
+
+    // 4. Particular check for SE pointers
+    if (!vpux::IE::isSupportedElemTypeInfoCase(origOp.getOperation(), _seOpsEnabled, logCb)) {
+        return mlir::failure();
     }
 
     origOp.inferElemTypeInfo(elemTypeInfo);
@@ -209,21 +232,21 @@ mlir::LogicalResult PropagateDequantize::matchAndRewrite(IE::ElemTypeInfoOpInter
         }
     }
 
-    // 4. Rewrite the sub-graph.
+    // 5. Rewrite the sub-graph.
     rewriter.startRootUpdate(origOp);
 
     const auto inputs = origOp->getOpOperands();
     for (auto idx : irange(inputs.size())) {
         auto& input = inputs[idx];
 
-        input.set(dequantizeOps[idx].input());
+        input.set(dequantizeOps[idx].getInput());
     }
 
     // infer return type
     mlir::SmallVector<mlir::Type> inferredTypes;
     auto op = mlir::cast<mlir::InferTypeOpInterface>(origOp.getOperation());
     VPUX_THROW_UNLESS(op.inferReturnTypes(getContext(), op->getLoc(), op->getOperands(), op->getAttrDictionary(),
-                                          op->getRegions(), inferredTypes)
+                                          op->getPropertiesStorage(), op->getRegions(), inferredTypes)
                               .succeeded(),
                       "New type inference failed for '{0}'", op);
 
@@ -233,9 +256,9 @@ mlir::LogicalResult PropagateDequantize::matchAndRewrite(IE::ElemTypeInfoOpInter
         const auto output = origOp->getOpResult(outputInd);
         rewriter.setInsertionPointAfter(origOp);
         auto newLoc = appendLoc(origOp->getLoc(), "_propagated_Dequantize '{0}'", outputInd);
-        auto newDequant = rewriter.create<IE::DequantizeOp>(newLoc, output, firstDequantizeOp.dstElemType());
+        auto newDequant = rewriter.create<IE::DequantizeOp>(newLoc, output, firstDequantizeOp.getDstElemType());
         _log.trace("Added new Dequantize op: '{0}' at index '{1}'", newDequant, outputInd);
-        output.replaceAllUsesExcept(newDequant.output(), llvm::SmallPtrSet<mlir::Operation*, 1>{newDequant});
+        output.replaceAllUsesExcept(newDequant.getOutput(), llvm::SmallPtrSet<mlir::Operation*, 1>{newDequant});
         _log.trace("All uses of current layer have been replaced with new Dequantize op at index '{0}'", outputInd);
     }
 
@@ -246,20 +269,39 @@ mlir::LogicalResult PropagateDequantize::matchAndRewrite(IE::ElemTypeInfoOpInter
 class PropagateQuantizeDequantizePass final :
         public IE::PropagateQuantizeDequantizeBase<PropagateQuantizeDequantizePass> {
 public:
-    explicit PropagateQuantizeDequantizePass(Logger log) {
+    explicit PropagateQuantizeDequantizePass(const bool seOpsEnabled, Logger log): _seOpsEnabled(seOpsEnabled) {
         Base::initLogger(log, Base::getArgumentName());
     }
 
+    mlir::LogicalResult initialize(mlir::MLIRContext* ctx) final;
+
 private:
     void safeRunOnFunc() final;
+
+private:
+    bool _seOpsEnabled;
 };
+
+mlir::LogicalResult PropagateQuantizeDequantizePass::initialize(mlir::MLIRContext* ctx) {
+    if (mlir::failed(Base::initialize(ctx))) {
+        return mlir::failure();
+    }
+
+    // When this parameter has a value, it probably comes from LIT test.
+    // Override the default
+    if (seOpsEnabled.hasValue()) {
+        _seOpsEnabled = seOpsEnabled.getValue();
+    }
+
+    return mlir::success();
+}
 
 void PropagateQuantizeDequantizePass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<PropagateQuantize>(&ctx, _log.nest());
-    patterns.add<PropagateDequantize>(&ctx, _log.nest());
+    patterns.add<PropagateQuantize>(&ctx, _log.nest(), _seOpsEnabled);
+    patterns.add<PropagateDequantize>(&ctx, _log.nest(), _seOpsEnabled);
 
     auto func = getOperation();
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
@@ -273,6 +315,6 @@ void PropagateQuantizeDequantizePass::safeRunOnFunc() {
 // createPropagateQuantizeDequantizePass
 //
 
-std::unique_ptr<mlir::Pass> vpux::IE::createPropagateQuantizeDequantizePass(Logger log) {
-    return std::make_unique<PropagateQuantizeDequantizePass>(log);
+std::unique_ptr<mlir::Pass> vpux::IE::createPropagateQuantizeDequantizePass(const bool seOpsEnabled, Logger log) {
+    return std::make_unique<PropagateQuantizeDequantizePass>(seOpsEnabled, log);
 }

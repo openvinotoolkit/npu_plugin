@@ -8,15 +8,11 @@
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/utils/pad_extract.hpp"
-#include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
-#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
 #include "vpux/utils/core/numeric.hpp"
 
-#include <mlir/Pass/PassManager.h>
+#include <openvino/core/coordinate_diff.hpp>
 
 using namespace vpux;
 
@@ -34,23 +30,23 @@ mlir::LogicalResult generalFusion(mlir::Operation* origOp, mlir::ArrayAttr kerne
         return mlir::failure();
     }
 
-    if (origPadOp.mode() != IE::PadMode::CONSTANT) {
+    if (origPadOp.getMode() != IE::PadMode::CONSTANT) {
         return mlir::failure();
     }
 
-    auto padsBegin = vpux::IE::extractPads(origPadOp.pads_begin_attrAttr(), log);
+    auto padsBegin = vpux::IE::extractPads(origPadOp.getPadsBeginAttrAttr(), log);
     if (mlir::failed(padsBegin) || padsBegin.value().size() != 4) {
         return mlir::failure();
     }
 
-    auto padsEnd = vpux::IE::extractPads(origPadOp.pads_end_attrAttr(), log);
+    auto padsEnd = vpux::IE::extractPads(origPadOp.getPadsEndAttrAttr(), log);
     if (mlir::failed(padsEnd) || padsEnd.value().size() != 4) {
         return mlir::failure();
     }
 
-    VPUX_THROW_UNLESS(origPadOp.pad_value_attr().has_value(), "IE::PadOp has pad_value_attr() == nullptr {0}",
+    VPUX_THROW_UNLESS(origPadOp.getPadValueAttr().has_value(), "IE::PadOp has getPadValueAttr() == nullptr {0}",
                       origPadOp->getLoc());
-    const double padsValue = origPadOp.pad_value_attr().value().convertToDouble();
+    const double padsValue = origPadOp.getPadValueAttr().value().convertToDouble();
     if (!isDoubleEqual(padsValue, 0.f)) {
         return mlir::failure();
     }
@@ -60,13 +56,12 @@ mlir::LogicalResult generalFusion(mlir::Operation* origOp, mlir::ArrayAttr kerne
 
     auto newPadsBegin = getIntArrayAttr(
             origOp->getContext(),
-            ngraph::CoordinateDiff{
-                    origPadBegin[Dims4D::PadsBegin::Top.ind()] + padsBegin.value()[Dims4D::Act::H.ind()],
-                    origPadBegin[Dims4D::PadsBegin::Left.ind()] + padsBegin.value()[Dims4D::Act::W.ind()]});
+            ov::CoordinateDiff{origPadBegin[Dims4D::PadsBegin::Top.ind()] + padsBegin.value()[Dims4D::Act::H.ind()],
+                               origPadBegin[Dims4D::PadsBegin::Left.ind()] + padsBegin.value()[Dims4D::Act::W.ind()]});
     auto newPadsEnd = getIntArrayAttr(
             origOp->getContext(),
-            ngraph::CoordinateDiff{origPadEnd[Dims4D::PadsEnd::Bottom.ind()] + padsEnd.value()[Dims4D::Act::H.ind()],
-                                   origPadEnd[Dims4D::PadsEnd::Right.ind()] + padsEnd.value()[Dims4D::Act::W.ind()]});
+            ov::CoordinateDiff{origPadEnd[Dims4D::PadsEnd::Bottom.ind()] + padsEnd.value()[Dims4D::Act::H.ind()],
+                               origPadEnd[Dims4D::PadsEnd::Right.ind()] + padsEnd.value()[Dims4D::Act::W.ind()]});
 
     if (!VPU::NCEInvariant::verifyPads(kernelSizeAttr, newPadsBegin, newPadsEnd)) {
         return mlir::failure();
@@ -74,7 +69,7 @@ mlir::LogicalResult generalFusion(mlir::Operation* origOp, mlir::ArrayAttr kerne
 
     log.trace("Fuse PadOp {0} into {1}", origPadOp.getLoc(), origOp->getLoc());
 
-    opRewriter(origPadOp.input(), newPadsBegin, newPadsEnd);
+    opRewriter(origPadOp.getInput(), newPadsBegin, newPadsEnd);
 
     return mlir::success();
 }
@@ -102,16 +97,16 @@ mlir::LogicalResult FuseConstantPadWithConv::matchAndRewrite(IE::ConvolutionOp o
                                                              mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got Convolution layer at '{1}'", getDebugName(), origConvolutionOp->getLoc());
 
-    const auto kernelSize = origConvolutionOp.filter().getType().cast<vpux::NDTypeInterface>().getShape();
+    const auto kernelSize = origConvolutionOp.getFilter().getType().cast<vpux::NDTypeInterface>().getShape();
     const auto kernelSizeAttr = getIntArrayAttr(getContext(), kernelSize);
 
     return generalFusion(
-            origConvolutionOp, kernelSizeAttr, origConvolutionOp.pads_beginAttr(), origConvolutionOp.pads_endAttr(),
+            origConvolutionOp, kernelSizeAttr, origConvolutionOp.getPadsBeginAttr(), origConvolutionOp.getPadsEndAttr(),
             [&](mlir::Value origPadInput, mlir::ArrayAttr newPadsBegin, mlir::ArrayAttr newPadsEnd) {
-                rewriter.replaceOpWithNewOp<IE::ConvolutionOp>(origConvolutionOp, origPadInput,
-                                                               origConvolutionOp.filter(), origConvolutionOp.bias(),
-                                                               origConvolutionOp.stridesAttr(), newPadsBegin,
-                                                               newPadsEnd, origConvolutionOp.dilationsAttr(), nullptr);
+                rewriter.replaceOpWithNewOp<IE::ConvolutionOp>(
+                        origConvolutionOp, origPadInput, origConvolutionOp.getFilter(), origConvolutionOp.getBias(),
+                        origConvolutionOp.getStridesAttr(), newPadsBegin, newPadsEnd,
+                        origConvolutionOp.getDilationsAttr(), nullptr, nullptr);
             },
             _log.nest());
 }
@@ -139,18 +134,18 @@ mlir::LogicalResult FuseConstantPadWithGroupConv::matchAndRewrite(IE::GroupConvo
                                                                   mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got GroupConvolution layer at '{1}'", getDebugName(), origGroupConvolutionOp->getLoc());
 
-    const auto kernelSize = origGroupConvolutionOp.filter().getType().cast<vpux::NDTypeInterface>().getShape();
+    const auto kernelSize = origGroupConvolutionOp.getFilter().getType().cast<vpux::NDTypeInterface>().getShape();
     const auto kernelSizeAttr = getIntArrayAttr(getContext(), kernelSize);
 
     return generalFusion(
-            origGroupConvolutionOp, kernelSizeAttr, origGroupConvolutionOp.pads_beginAttr(),
-            origGroupConvolutionOp.pads_endAttr(),
+            origGroupConvolutionOp, kernelSizeAttr, origGroupConvolutionOp.getPadsBeginAttr(),
+            origGroupConvolutionOp.getPadsEndAttr(),
             [&](mlir::Value origPadInput, mlir::ArrayAttr newPadsBegin, mlir::ArrayAttr newPadsEnd) {
                 rewriter.replaceOpWithNewOp<IE::GroupConvolutionOp>(
-                        origGroupConvolutionOp, origPadInput, origGroupConvolutionOp.filter(),
-                        origGroupConvolutionOp.bias(), origGroupConvolutionOp.stridesAttr(), newPadsBegin, newPadsEnd,
-                        origGroupConvolutionOp.dilationsAttr(), origGroupConvolutionOp.groupsAttr(),
-                        origGroupConvolutionOp.post_opAttr());
+                        origGroupConvolutionOp, origPadInput, origGroupConvolutionOp.getFilter(),
+                        origGroupConvolutionOp.getBias(), origGroupConvolutionOp.getStridesAttr(), newPadsBegin,
+                        newPadsEnd, origGroupConvolutionOp.getDilationsAttr(), origGroupConvolutionOp.getGroupsAttr(),
+                        origGroupConvolutionOp.getPostOpAttr(), origGroupConvolutionOp.getClampAttr());
             },
             _log.nest());
 }
@@ -177,14 +172,15 @@ mlir::LogicalResult FuseConstantPadWithMaxpool::matchAndRewrite(IE::MaxPoolOp or
                                                                 mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got MaxPool layer at '{1}'", getDebugName(), origMaxPoolOp->getLoc());
 
-    const auto kernelSizeAttr = origMaxPoolOp.kernel_size();
+    const auto kernelSizeAttr = origMaxPoolOp.getKernelSize();
 
     return generalFusion(
-            origMaxPoolOp, kernelSizeAttr, origMaxPoolOp.pads_beginAttr(), origMaxPoolOp.pads_endAttr(),
+            origMaxPoolOp, kernelSizeAttr, origMaxPoolOp.getPadsBeginAttr(), origMaxPoolOp.getPadsEndAttr(),
             [&](mlir::Value origPadInput, mlir::ArrayAttr newPadsBegin, mlir::ArrayAttr newPadsEnd) {
-                rewriter.replaceOpWithNewOp<IE::MaxPoolOp>(origMaxPoolOp, origPadInput, origMaxPoolOp.kernel_sizeAttr(),
-                                                           origMaxPoolOp.stridesAttr(), newPadsBegin, newPadsEnd,
-                                                           origMaxPoolOp.rounding_type(), origMaxPoolOp.post_opAttr());
+                rewriter.replaceOpWithNewOp<IE::MaxPoolOp>(
+                        origMaxPoolOp, origPadInput, origMaxPoolOp.getKernelSizeAttr(), origMaxPoolOp.getStridesAttr(),
+                        newPadsBegin, newPadsEnd, origMaxPoolOp.getRoundingType(), origMaxPoolOp.getPostOpAttr(),
+                        origMaxPoolOp.getClampAttr());
             },
             _log.nest());
 }

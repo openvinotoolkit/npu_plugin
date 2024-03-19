@@ -5,17 +5,13 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
-#include "vpux/compiler/dialect/IE/utils/propagate_quantize_dequantize_utils.hpp"
-
-#include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
-
 #include "vpux/compiler/utils/error.hpp"
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::SpaceToDepthOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -24,7 +20,7 @@ mlir::LogicalResult vpux::IE::SpaceToDepthOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inputType = spd.input().getType().cast<vpux::NDTypeInterface>();
+    const auto inputType = spd.getInput().getType().cast<vpux::NDTypeInterface>();
 
     const auto elementType = inputType.getElementType();
     if (!(elementType.isF16() || elementType.isF32() || elementType.isUnsignedInteger(8) ||
@@ -33,7 +29,7 @@ mlir::LogicalResult vpux::IE::SpaceToDepthOp::inferReturnTypeComponents(
     }
 
     const auto inputShape = inputType.getShape().raw();
-    const auto block_size = spd.block_size();
+    const auto block_size = spd.getBlockSize();
 
     if (inputShape.size() < 3) {
         return errorAt(loc, "Input tensor rank must be greater than 2. Got {0}D tensor", inputShape.size());
@@ -66,36 +62,15 @@ mlir::LogicalResult vpux::IE::SpaceToDepthOp::inferReturnTypeComponents(
 }
 
 //
-// inferElemTypeInfo
+// fold
 //
 
-void vpux::IE::SpaceToDepthOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    auto arch = VPU::getArch(*this);
-
-    if (arch == VPU::ArchKind::VPUX30XX) {
-        // Workaround : Do not propagate for VPU30XX.
-        return;
-    }
-    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
-    propagateElementTypeDown(info);
-}
-
-void vpux::IE::SpaceToDepthOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    auto arch = VPU::getArch(*this);
-
-    if (arch == VPU::ArchKind::VPUX30XX) {
-        // Workaround : Do not propagate for VPU30XX.
-        return;
-    }
-    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
-    propagateElementTypeUp(info);
-}
-
-mlir::OpFoldResult vpux::IE::SpaceToDepthOp::fold(ArrayRef<mlir::Attribute> operands) {
+mlir::OpFoldResult vpux::IE::SpaceToDepthOp::fold(FoldAdaptor adaptor) {
+    auto operands = adaptor.getOperands();
     VPUX_THROW_UNLESS(operands.size() == 1, "Wrong number of operands : {0}", operands.size());
 
-    if (block_size() == 1) {
-        return input();
+    if (getBlockSize() == 1) {
+        return getInput();
     }
 
     return nullptr;

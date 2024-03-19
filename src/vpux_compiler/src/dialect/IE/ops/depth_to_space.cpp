@@ -5,12 +5,8 @@
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/IE/utils/propagate_quantize_dequantize_utils.hpp"
-#include "vpux/compiler/dialect/const/ops.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
-#include "vpux/utils/core/small_vector.hpp"
 
 using namespace vpux;
 
@@ -30,8 +26,8 @@ void vpux::IE::DepthToSpaceOp::build(mlir::OpBuilder& builder, mlir::OperationSt
 }
 
 mlir::LogicalResult vpux::IE::DepthToSpaceOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -40,10 +36,10 @@ mlir::LogicalResult vpux::IE::DepthToSpaceOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inShape = getShape(depthToSpace.input());
-    const auto inType = depthToSpace.input().getType().cast<mlir::ShapedType>().getElementType();
-    const auto block_size = depthToSpace.block_size();
-    auto paddedChannels = depthToSpace.padded_channels();
+    const auto inShape = getShape(depthToSpace.getInput());
+    const auto inType = depthToSpace.getInput().getType().cast<mlir::ShapedType>().getElementType();
+    const auto block_size = depthToSpace.getBlockSize();
+    auto paddedChannels = depthToSpace.getPaddedChannels();
 
     if (!(inType.isF16() || inType.isF32() || inType.isUnsignedInteger(8) ||
           inType.isa<mlir::quant::QuantizedType>())) {
@@ -91,45 +87,22 @@ mlir::LogicalResult vpux::IE::DepthToSpaceOp::inferReturnTypeComponents(
     SmallVector<int64_t> outShape{checked_cast<int64_t>(N_out), checked_cast<int64_t>(C_out),
                                   checked_cast<int64_t>(H_out), checked_cast<int64_t>(W_out)};
 
-    const auto inputType = depthToSpace.input().getType().cast<vpux::NDTypeInterface>();
+    const auto inputType = depthToSpace.getInput().getType().cast<vpux::NDTypeInterface>();
     const auto outDesc = vpux::getTensorAttr(ctx, inputType.getDimsOrder(), inputType.getMemSpace());
     inferredReturnShapes.emplace_back(outShape, inType, outDesc);
     return mlir::success();
 }
 
 //
-// inferElemTypeInfo
+// fold
 //
 
-void vpux::IE::DepthToSpaceOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    auto arch = VPU::getArch(*this);
-
-    if (arch == VPU::ArchKind::VPUX30XX) {
-        // Workaround : Do not propagate for VPU30XX.
-        return;
-    }
-
-    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
-    propagateElementTypeDown(info);
-}
-
-void vpux::IE::DepthToSpaceOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    auto arch = VPU::getArch(*this);
-
-    if (arch == VPU::ArchKind::VPUX30XX) {
-        // Workaround : Do not propagate for VPU30XX.
-        return;
-    }
-
-    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
-    propagateElementTypeUp(info);
-}
-
-mlir::OpFoldResult vpux::IE::DepthToSpaceOp::fold(ArrayRef<mlir::Attribute> operands) {
+mlir::OpFoldResult vpux::IE::DepthToSpaceOp::fold(FoldAdaptor adaptor) {
+    auto operands = adaptor.getOperands();
     VPUX_THROW_UNLESS(operands.size() == 1, "Wrong number of operands : {0}", operands.size());
     // when block_size == 1, fold to input itself
-    if (block_size() == 1) {
-        return input();
+    if (getBlockSize() == 1) {
+        return getInput();
     }
 
     return nullptr;

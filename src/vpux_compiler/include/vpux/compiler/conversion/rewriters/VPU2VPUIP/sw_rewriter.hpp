@@ -4,11 +4,13 @@
 //
 
 #pragma once
+
+#include <vpux/utils/core/logger.hpp>
+#include "vpux/compiler/utils/allocate_buffers.hpp"
+#include "vpux/compiler/utils/passes.hpp"
+
 #include <llvm/ADT/TypeSwitch.h>
 #include <mlir/Transforms/DialectConversion.h>
-#include <vpux/utils/core/logger.hpp>
-#include "vpux/compiler/conversion.hpp"
-#include "vpux/compiler/utils/allocate_buffers.hpp"
 
 namespace vpux {
 

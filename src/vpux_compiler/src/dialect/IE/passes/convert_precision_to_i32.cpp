@@ -6,7 +6,6 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IE/utils/convert_op_types.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
 using namespace vpux;
 using namespace IE;
@@ -60,6 +59,22 @@ void ConvertPrecisionToI32Pass::safeRunOnModule() {
     target.addDynamicallyLegalOp<IE::AdaptiveAvgPoolOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::AdaptiveMaxPoolOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::EqualOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::NotEqualOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::PowerOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::DivideOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::FloorModOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::AddOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::SubtractOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::MultiplyOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::SelectOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::LessOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::LessEqualOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::NegativeOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::GreaterOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::GreaterEqualOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::LogicalNotOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::LogicalOrOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::LogicalXorOp>(isLegalOp);
     target.addDynamicallyLegalOp<mlir::func::ReturnOp>(isLegalOp);
     target.addLegalOp<mlir::ModuleOp>();
     target.addDynamicallyLegalOp<mlir::func::FuncOp>([&](mlir::func::FuncOp funcOp) {

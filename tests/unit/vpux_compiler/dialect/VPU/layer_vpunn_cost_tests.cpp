@@ -3,12 +3,13 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/dialect/VPU/layer_vpunn_cost.hpp"
-#include "vpux/compiler/dialect/VPU/ops.hpp"
-#include "vpux/compiler/dialect/VPU/passes.hpp"
-#include "vpux/compiler/dialect/VPU/types.hpp"
+#include "vpux/compiler/dialect/VPU/IR/ops.hpp"
+#include "vpux/compiler/dialect/VPU/IR/types.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/cost_model/layer_vpunn_cost.hpp"
 
 #include "common/utils.hpp"
+#include "vpux/compiler/core/cost_model_utils.hpp"
 
 #include <mlir/IR/MLIRContext.h>
 #include <mlir/Parser/Parser.h>
@@ -27,14 +28,14 @@ VPU::StrategyCost getSWVPUNNCost(std::shared_ptr<VPUNN::SWOperation> vpunnLayer,
     const auto archKind = VPU::getArch(module);
     const auto vpunnCostFunction = VPU::createLayerCostModel(archKind);
 
-    auto nceEngine = IE::getAvailableExecutor(module, VPU::ExecutorKind::NCE);
-    auto dpuExec = nceEngine.getSubExecutor(VPU::ExecutorKind::DPU);
+    auto tileOp = IE::getTileExecutor(module);
+    auto dpuExec = tileOp.getSubExecutor(VPU::ExecutorKind::DPU);
 
-    auto shaveActExec = nceEngine.getSubExecutor(VPU::ExecutorKind::SHAVE_ACT);
+    auto shaveActExec = tileOp.getSubExecutor(VPU::ExecutorKind::SHAVE_ACT);
     VPUX_THROW_WHEN(shaveActExec == nullptr, "Act shave kernels are not supported for the platform {0}", archKind);
 
     auto vpunnStrategy =
-            VPU::getVPULayerStrategy(mcStrategy, dpuExec.count(), nceEngine.count(), shaveActExec.count(), false);
+            VPU::getVPULayerStrategy(mcStrategy, dpuExec.getCount(), tileOp.getCount(), shaveActExec.getCount(), false);
     return vpunnCostFunction->Layer(*vpunnLayer, vpunnStrategy);
 }
 
@@ -43,24 +44,37 @@ VPUNN::CyclesInterfaceType getHWVPUNNCost(VPUNN::DPULayer& vpunnLayer, mlir::Mod
     const auto archKind = VPU::getArch(module);
     const auto vpunnCostFunction = VPU::createLayerCostModel(archKind);
 
-    auto nceEngine = IE::getAvailableExecutor(module, VPU::ExecutorKind::NCE);
-    auto dpuExec = nceEngine.getSubExecutor(VPU::ExecutorKind::DPU);
+    auto tileOp = IE::getTileExecutor(module);
+    auto dpuExec = tileOp.getSubExecutor(VPU::ExecutorKind::DPU);
 
-    auto shaveActExec = nceEngine.getSubExecutor(VPU::ExecutorKind::SHAVE_ACT);
+    auto shaveActExec = tileOp.getSubExecutor(VPU::ExecutorKind::SHAVE_ACT);
     VPUX_THROW_WHEN(shaveActExec == nullptr, "Act shave kernels are not supported for the platform {0}", archKind);
 
     auto vpunnStrategy =
-            VPU::getVPULayerStrategy(mcStrategy, dpuExec.count(), nceEngine.count(), shaveActExec.count(), false);
+            VPU::getVPULayerStrategy(mcStrategy, dpuExec.getCount(), tileOp.getCount(), shaveActExec.getCount(), true);
     return vpunnCostFunction->Layer(vpunnLayer, vpunnStrategy);
 }
 
 VPUNN::CyclesInterfaceType getSimpleCost(mlir::Operation* op, mlir::ModuleOp module,
                                          VPU::MultiClusterStrategy strategy) {
     auto outputType = op->getResult(0).getType().cast<vpux::NDTypeInterface>();
-    auto nceEngine = IE::getAvailableExecutor(module, VPU::ExecutorKind::NCE);
+    auto tileOp = IE::getTileExecutor(module);
 
     return outputType.getTotalAllocSize().count() /
-           (strategy == VPU::MultiClusterStrategy::Clustering ? 1 : nceEngine.count());
+           (strategy == VPU::MultiClusterStrategy::Clustering ? 1 : tileOp.getCount());
+}
+
+VPUNN::CyclesInterfaceType getWeightsDMACost(VPU::NCEOpInterface nceOp, mlir::ModuleOp module) {
+    auto weightsVal = nceOp.getWeightsOperand();
+    if (weightsVal == nullptr) {
+        return 0;
+    }
+    const auto weightsType = weightsVal.getType().cast<NDTypeInterface>();
+    const auto archKind = VPU::getArch(module);
+    const auto vpunnCostModel = VPU::createCostModel(archKind);
+    const auto vpunnDevice = VPU::getVPUDeviceType(archKind);
+    const auto numDMAPorts = IE::getAvailableExecutor(module, VPU::ExecutorKind::DMA_NN).getCount();
+    return checked_cast<VPUNN::CyclesInterfaceType>(getDMACost(weightsType, vpunnDevice, vpunnCostModel, numDMAPorts));
 }
 
 TEST_F(MLIR_VPU_LayerVPUNNCost, DPU_LayerCost) {
@@ -89,27 +103,41 @@ TEST_F(MLIR_VPU_LayerVPUNNCost, DPU_LayerCost) {
 
     const auto archKind = ArchKind::VPUX37XX;
 
-    mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(vpux::VPU::createInitCompilerPass(archKind, vpux::VPU::CompilationMode::DefaultHW, vpux::None,
-                                                 vpux::None, vpux::Logger::global()));
+    mlir::PassManager pm(module.get()->getName(), mlir::OpPassManager::Nesting::Implicit);
+    pm.addPass(vpux::VPU::createInitCompilerPass(archKind, vpux::VPU::CompilationMode::DefaultHW, std::nullopt,
+                                                 std::nullopt, vpux::Logger::global()));
 
     ASSERT_TRUE(mlir::succeeded(pm.run(module.get())));
 
     VPU::LayerVPUNNCost layerCost(func);
 
-    auto nceEngine = IE::getAvailableExecutor(module.get(), VPU::ExecutorKind::NCE);
-    auto dpuExec = nceEngine.getSubExecutor(VPU::ExecutorKind::DPU);
+    auto tileOp = IE::getTileExecutor(module.get());
+    auto dpuExec = tileOp.getSubExecutor(VPU::ExecutorKind::DPU);
 
     func->walk([&](VPU::NCEConvolutionOp convOp) {
-        const auto costParam = VPU::getWorkloadCostParam(convOp, archKind, dpuExec.count());
+        const auto costParam = VPU::getWorkloadCostParam(convOp, archKind, dpuExec.getCount());
         auto dpuLayer = VPU::getDPULayer(costParam);
 
-        EXPECT_EQ(layerCost.getStrategyCost(convOp, VPU::MultiClusterStrategy::Clustering),
-                  getHWVPUNNCost(dpuLayer, module.get(), VPU::MultiClusterStrategy::Clustering));
-        EXPECT_EQ(layerCost.getStrategyCost(convOp, VPU::MultiClusterStrategy::SplitOverHeight),
-                  getHWVPUNNCost(dpuLayer, module.get(), VPU::MultiClusterStrategy::SplitOverHeight));
-        EXPECT_EQ(layerCost.getStrategyCost(convOp, VPU::MultiClusterStrategy::HKSwitch),
-                  getHWVPUNNCost(dpuLayer, module.get(), VPU::MultiClusterStrategy::HKSwitch));
+        auto clusteredOp = mlir::dyn_cast<VPU::ClusteredOpInterface>(convOp.getOperation());
+        const auto getStrategyCost = [&](VPU::MultiClusterStrategy strategy) {
+            if (clusteredOp != nullptr) {
+                clusteredOp.setMultiClusterStrategy(strategy);
+            }
+            const auto cost = layerCost.getStrategyCost(convOp, strategy);
+            if (clusteredOp != nullptr) {
+                clusteredOp->removeAttr(VPU::multiClusterStrategy);
+            }
+            return cost;
+        };
+
+        auto weightsDMACost = getWeightsDMACost(convOp, module.get());
+
+        EXPECT_EQ(getStrategyCost(VPU::MultiClusterStrategy::Clustering),
+                  getHWVPUNNCost(dpuLayer, module.get(), VPU::MultiClusterStrategy::Clustering) + weightsDMACost);
+        EXPECT_EQ(getStrategyCost(VPU::MultiClusterStrategy::SplitOverHeight),
+                  getHWVPUNNCost(dpuLayer, module.get(), VPU::MultiClusterStrategy::SplitOverHeight) + weightsDMACost);
+        EXPECT_EQ(getStrategyCost(VPU::MultiClusterStrategy::HKSwitch),
+                  getHWVPUNNCost(dpuLayer, module.get(), VPU::MultiClusterStrategy::HKSwitch) + weightsDMACost);
     });
 }
 
@@ -135,9 +163,9 @@ TEST_F(MLIR_VPU_LayerVPUNNCost, SWKernel_LayerCost) {
 
     const auto archKind = ArchKind::VPUX37XX;
 
-    mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(vpux::VPU::createInitCompilerPass(archKind, vpux::VPU::CompilationMode::DefaultHW, vpux::None,
-                                                 vpux::None, vpux::Logger::global()));
+    mlir::PassManager pm(module.get()->getName(), mlir::OpPassManager::Nesting::Implicit);
+    pm.addPass(vpux::VPU::createInitCompilerPass(archKind, vpux::VPU::CompilationMode::DefaultHW, std::nullopt,
+                                                 std::nullopt, vpux::Logger::global()));
 
     ASSERT_TRUE(mlir::succeeded(pm.run(module.get())));
 
@@ -146,8 +174,8 @@ TEST_F(MLIR_VPU_LayerVPUNNCost, SWKernel_LayerCost) {
     auto vpuDevice = VPU::getVPUDeviceType(archKind);
 
     func->walk([&](VPU::SoftMaxOp kernelOp) {
-        const auto inputType = kernelOp.input().getType().cast<vpux::NDTypeInterface>();
-        const auto outputType = kernelOp.output().getType().cast<vpux::NDTypeInterface>();
+        const auto inputType = kernelOp.getInput().getType().cast<vpux::NDTypeInterface>();
+        const auto outputType = kernelOp.getOutput().getType().cast<vpux::NDTypeInterface>();
 
         const auto inputTensor = VPU::getVPUTensor(inputType.getShape(), inputType.getElementType());
         ;
@@ -182,9 +210,9 @@ TEST_F(MLIR_VPU_LayerVPUNNCost, SWKernel_SimpleCost) {
     auto func = module.get().lookupSymbol<mlir::func::FuncOp>("main");
     ASSERT_TRUE(func != nullptr);
 
-    mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(vpux::VPU::createInitCompilerPass(ArchKind::VPUX37XX, vpux::VPU::CompilationMode::DefaultHW, vpux::None,
-                                                 vpux::None, vpux::Logger::global()));
+    mlir::PassManager pm(module.get()->getName(), mlir::OpPassManager::Nesting::Implicit);
+    pm.addPass(vpux::VPU::createInitCompilerPass(ArchKind::VPUX37XX, vpux::VPU::CompilationMode::DefaultHW,
+                                                 std::nullopt, std::nullopt, vpux::Logger::global()));
 
     ASSERT_TRUE(mlir::succeeded(pm.run(module.get())));
 

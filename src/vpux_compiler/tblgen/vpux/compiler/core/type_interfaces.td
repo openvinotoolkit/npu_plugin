@@ -155,6 +155,11 @@ def NDTypeInterface : TypeInterface<"NDTypeInterface"> {
         nd_type_if<Enum> changeMemSpace(Enum kind) const {
             return changeMemSpace(vpux::IndexedSymbolAttr::get(getContext(), stringifyEnum(kind)));
         }
+
+        // LLVM forces Type -> Interface conversion to be explicit yet our code
+        // relies on the conversion Type -> NDTypeInterface to be implicit too
+        // heavily. This ctor solves the problem for the usages of NDTypeInterface.
+        NDTypeInterface(mlir::Type type) : TypeInterface(type) {}
     }];
 }
 

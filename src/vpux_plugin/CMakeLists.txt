@@ -13,11 +13,11 @@ file(GLOB SOURCES
         "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
-list(FILTER SOURCES EXCLUDE REGEX "vpux_plugin.cpp")
+list(FILTER SOURCES EXCLUDE REGEX "plugin.cpp")
 
 set(VPUX_PLUGIN_TARGET "openvino_intel_npu_plugin" CACHE INTERNAL "")
 set(VPUX_PLUGIN_STATIC_TARGET "${VPUX_PLUGIN_TARGET}_static" CACHE INTERNAL "")
-set(VPUX_PLUGIN_ENGINE_SOURCE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/src/vpux_plugin.cpp CACHE INTERNAL "")
+set(VPUX_PLUGIN_ENGINE_SOURCE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.cpp CACHE INTERNAL "")
 
 addVersionDefines(${VPUX_PLUGIN_ENGINE_SOURCE_FILE} CI_BUILD_NUMBER)
 #
@@ -70,15 +70,18 @@ link_system_libraries(${TARGET_NAME}
     PUBLIC
         openvino::runtime
         openvino::runtime::dev
-        npu_utils
+        npu_ov_utils
+        npu_llvm_utils
+        npu_plugin_utils
 )
 
 target_link_libraries(${TARGET_NAME}
     PUBLIC
-        kmb_utils
         npu_al
     PRIVATE
-        npu_utils
+        npu_ov_utils
+        npu_llvm_utils
+        npu_plugin_utils
 )
 
 #
@@ -101,7 +104,20 @@ set(ALL_PLUGINS)
 
 list(APPEND ALL_PLUGINS ${VPUX_PLUGIN_TARGET})
 
+#
+# Register NPU plugin in plugins.xml and install plugins.xml to NPU cpack target.
+# In single-tree build with OPENVINO_EXTRA_MODULES including static builds,
+# ie_register_plugins has no effect and plugins.xml is not created.
+# In these cases NPU plugin is recognized by OpenVINO Core.
+#
+
 ie_register_plugins(MAIN_TARGET ${VPUX_PLUGIN_TARGET} POSSIBLE_PLUGINS ${ALL_PLUGINS})
+if(BUILD_SHARED_LIBS AND ENABLE_PLUGINS_XML)
+    install(FILES $<TARGET_FILE_DIR:openvino::runtime>/plugins.xml
+            DESTINATION ${OV_CPACK_PLUGINSDIR}
+            COMPONENT ${VPUX_PLUGIN_COMPONENT})
+endif()
+
 if(WIN32)
     ie_add_api_validator_post_build_step(TARGET ${VPUX_PLUGIN_TARGET})
 endif()

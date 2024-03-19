@@ -5,20 +5,18 @@
 
 #pragma once
 
-#include <ngraph/function.hpp>
-#include <ngraph/node_output.hpp>
-#include <ngraph/ops.hpp>
-#include <ngraph/partial_shape.hpp>
-#include <ngraph/shape.hpp>
-#include <ngraph/type/bfloat16.hpp>
-#include <ngraph/type/element_type.hpp>
-#include <ngraph/type/float16.hpp>
+#include <openvino/core/model.hpp>
+#include <openvino/core/node_output.hpp>
+#include <openvino/core/partial_shape.hpp>
+#include <openvino/core/shape.hpp>
+#include <openvino/core/type/bfloat16.hpp>
+#include <openvino/core/type/element_type.hpp>
+#include <openvino/core/type/float16.hpp>
+#include <openvino/op/ops.hpp>
 
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/DenseMapInfo.h>
 #include <llvm/ADT/Hashing.h>
-#include <llvm/ADT/None.h>
-#include <llvm/ADT/Optional.h>
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/ScopeExit.h>
 #include <llvm/ADT/SmallPtrSet.h>

@@ -3,12 +3,13 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
+#include "vpux/compiler/dialect/VPU/utils/explicit_distribution_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
-#include "vpux/compiler/utils/swizzling_utils.hpp"
 
 #include <mlir/IR/BuiltinAttributes.h>
-#include <mlir/Pass/PassManager.h>
+
+#include <llvm/ADT/STLExtras.h>
 
 using namespace vpux;
 
@@ -17,18 +18,18 @@ namespace {
 // Create an explicit DeclareBuffer operand for the NCE weights operand to maintain the dense type
 void setDenseWeightsOperandType(mlir::func::FuncOp func) {
     func.walk([&](VPUIP::NCEClusterTaskOp nceOp) {
-        if (nceOp.weights() == nullptr) {
+        if (nceOp.getWeights() == nullptr) {
             return;
         }
 
-        auto weightsType = nceOp.weights().getType();
+        auto weightsType = nceOp.getWeights().getType();
         if (VPUIP::getCompressionSchemeAttr(weightsType) == nullptr) {
             return;
         }
 
-        auto declareOp = nceOp.weights().getDefiningOp<VPURT::DeclareBufferOp>();
+        auto declareOp = nceOp.getWeights().getDefiningOp<VPURT::DeclareBufferOp>();
         VPUX_THROW_UNLESS(declareOp != nullptr, "Expected buffer declaration for weights, got {0}",
-                          nceOp.weights().getDefiningOp());
+                          nceOp.getWeights().getDefiningOp());
         mlir::OpBuilder builder(declareOp);
         auto newDeclareOp = builder.clone(*declareOp.getOperation());
         declareOp.getBuffer().replaceUsesWithIf(newDeclareOp->getResult(0), [](mlir::OpOperand& operand) -> bool {
@@ -51,11 +52,12 @@ void compressConstWeightsType(mlir::func::FuncOp func) {
         if (sparsifyTransformationIt == transformations.rend()) {
             return;
         }
-        const auto sparsifyTransformation = sparsifyTransformationIt->dyn_cast<Const::SparsifyAttr>();
 
+        auto compressionSchemeAttr = VPUIP::getCompressionSchemeAttr(constOp.getType());
+        VPUX_THROW_WHEN(compressionSchemeAttr == nullptr, "Missing compression scheme from constant type");
         const auto compressOutputType = mlir::BoolAttr::get(ctx, true);
         const auto newSparsifyTransformation =
-                Const::SparsifyAttr::get(compressOutputType, sparsifyTransformation.getNumActualElements());
+                Const::SparsifyAttr::get(compressOutputType, compressionSchemeAttr.getNumElems());
 
         SmallVector<Const::TransformAttrInterface> newTransformations;
         for (auto tr : transformations) {
@@ -66,19 +68,7 @@ void compressConstWeightsType(mlir::func::FuncOp func) {
             newTransformations.push_back(tr);
         }
 
-        auto newOutputType = contentAttr.getBaseContent().getType().cast<vpux::NDTypeInterface>();
-        for (auto tr : newTransformations) {
-            newOutputType = tr.inferOutputType(newOutputType);
-        }
-
-        const auto newTransformationsRaw = to_small_vector(
-                newTransformations | transformed([](vpux::Const::TransformAttrInterface attr) -> mlir::Attribute {
-                    return attr;
-                }));
-        const auto newTransformationsAttr = mlir::ArrayAttr::get(ctx, newTransformationsRaw);
-
-        auto newContentAttr =
-                Const::ContentAttr::get(contentAttr.getBaseContent(), newTransformationsAttr, newOutputType);
+        auto newContentAttr = Const::ContentAttr::get(contentAttr.getBaseContent(), newTransformations);
         constOp.setContentAttr(newContentAttr);
     });
 }
@@ -88,10 +78,14 @@ void flattenShapes(mlir::func::FuncOp func) {
     const auto eraseCompressionScheme = [](vpux::NDTypeInterface type) -> mlir::Type {
         if (auto memrefType = type.dyn_cast<mlir::MemRefType>()) {
             auto layout = memrefType.getLayout();
-            if (auto memrefAttr = layout.dyn_cast<VPUIP::MemRefAttr>()) {
-                layout = VPUIP::MemRefAttr::get(memrefAttr.order(), memrefAttr.strides(), memrefAttr.swizzlingScheme(),
-                                                /*compressionScheme=*/nullptr, /*allocSize=*/nullptr,
-                                                memrefAttr.getContext());
+            if (auto memrefAttr = layout.dyn_cast<vpux::MemRefAttr>()) {
+                auto ctx = memrefAttr.getContext();
+                auto hwFieldsWithoutCompression = memrefAttr.hwSpecificFields();
+                llvm::erase_if(hwFieldsWithoutCompression, [](const vpux::HwSpecificMemRefField& field) {
+                    return mlir::isa<VPUIP::CompressionSchemeAttr>(field);
+                });
+                layout = vpux::MemRefAttr::get(memrefAttr.order(), memrefAttr.strides(),
+                                               /*allocSize=*/nullptr, hwFieldsWithoutCompression, ctx);
             }
             return mlir::MemRefType::get(memrefType.getShape(), memrefType.getElementType(), layout,
                                          memrefType.getMemorySpace());
@@ -113,7 +107,11 @@ void flattenShapes(mlir::func::FuncOp func) {
         const auto ndType = value.getType().cast<vpux::NDTypeInterface>();
         const auto totalByteSize = compressionScheme.getAllocSize(ndType.getElementType()).count();
         const Shape newShape({totalByteSize, 1, 1, 1});
-        const auto flattenedType = ndType.changeShapeElemType(newShape, getUInt8Type(value.getContext()));
+        const auto u8Type = getUInt8Type(value.getContext());
+        const auto flattenedType =
+                mlir::isa<VPUIP::DistributedBufferType>(ndType)
+                        ? VPU::changeShapeElemTypeForDuplicatedDistributedBuffers(ndType, newShape, u8Type)
+                        : ndType.changeShapeElemType(newShape, u8Type);
         const auto newType = eraseCompressionScheme(flattenedType);
         value.setType(newType);
     };
@@ -121,7 +119,7 @@ void flattenShapes(mlir::func::FuncOp func) {
     const auto isNceWeightsOperand = [](mlir::Value value) {
         for (auto userOp : value.getUsers()) {
             auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(userOp);
-            if (nceOp != nullptr && nceOp.weights() == value) {
+            if (nceOp != nullptr && nceOp.getWeights() == value) {
                 return true;
             }
         }

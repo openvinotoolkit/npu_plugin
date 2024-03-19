@@ -10,8 +10,8 @@
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::CTCGreedyDecoderOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -20,7 +20,7 @@ mlir::LogicalResult vpux::IE::CTCGreedyDecoderOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = ctc.input().getType().cast<mlir::ShapedType>();
+    const auto inType = ctc.getInput().getType().cast<mlir::ShapedType>();
     const auto inShape = inType.getShape();
 
     if (inShape.size() != 3) {

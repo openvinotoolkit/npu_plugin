@@ -6,16 +6,13 @@
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/subspaces.hpp"
-
-#include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::VPUIP::GatherUPAOp::verify() {
     // Axis should not exceed input rank
-    const auto axisNo = axis();
-    const auto inShape = getShape(input());
+    const auto axisNo = getAxis();
+    const auto inShape = getShape(getInput());
     if (checked_cast<size_t>(axisNo) >= inShape.size()) {
         return errorAt(*this, "Gather axis '{0}' is out of range [0,{1}]", axisNo, inShape.size() - 1);
     }
@@ -25,8 +22,8 @@ mlir::LogicalResult vpux::VPUIP::GatherUPAOp::verify() {
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::GatherUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::GatherParamsBuilder builder(writer);
-    builder.add_axis(checked_cast<uint32_t>(axis()));
-    builder.add_batch_dims(checked_cast<uint32_t>(batch_dims()));
+    builder.add_axis(checked_cast<uint32_t>(getAxis()));
+    builder.add_batch_dims(checked_cast<uint32_t>(getBatchDims()));
     const auto paramsOff = builder.Finish();
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_GatherParams});
 }

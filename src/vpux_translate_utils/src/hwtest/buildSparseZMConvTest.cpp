@@ -1,20 +1,19 @@
-//
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
-//
 
 #include <numeric>
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
-#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
-#include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/utils/sparsity.hpp"
 #include "vpux/hwtest/hwtest_utils.hpp"
 #include "vpux/hwtest/test_case_json_parser.hpp"
 #include "vpux/utils/core/error.hpp"
@@ -132,13 +131,13 @@ void buildSparseZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     auto outputParamType = getMemRefType(VPURT::BufferSection::NetworkOutput, outputShape, outputType, DimsOrder::NHWC);
     inputTypes.push_back(outputParamType);
 
-    const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
+    const auto funcType = builder.getFunctionType(ArrayRef(inputTypes), outputParamType);
 
     auto function = builder.create<mlir::func::FuncOp>(
             loc,
             llvm::formatv("sparse_zm_conv_{0}_{1}_{2}_{3}", inputType, sparsityElementType, weightsType, outputType)
                     .str(),
-            funcType, builder.getStringAttr("private"));
+            funcType, builder.getStringAttr("private"), /*arg_attrs=*/nullptr, /*res_attrs=*/nullptr);
 
     auto functionBuilder = mlir::OpBuilder::atBlockBegin(function.addEntryBlock(), builder.getListener());
 
@@ -170,7 +169,11 @@ void buildSparseZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
 
     auto weightsSparsityMap = weightsAttribute.getSparsityMap();
 
-    weightsAttribute = weightsAttribute.sparsify(true);
+    auto numNonSparseElements = vpux::countNonSparseElementsPerOC(weightsAttribute.fold(), weightsType);
+    const auto numNonSparseElementsType =
+            mlir::RankedTensorType::get({static_cast<int64_t>(numNonSparseElements.size())}, getInt64Type(ctx));
+    const auto numElemsAttr = mlir::DenseElementsAttr::get(numNonSparseElementsType, ArrayRef(numNonSparseElements));
+    weightsAttribute = weightsAttribute.sparsify(true, numElemsAttr);
     const auto compressedWeightsTensorType = weightsAttribute.getType();
     const auto compressedWeightsDDRType =
             getMemRefType(VPURT::BufferSection::DDR, compressedWeightsTensorType.getShape().raw(),
@@ -223,12 +226,6 @@ void buildSparseZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     const auto workloadSize = IC * KY * KX;
     const auto weightsElemByteSize = checked_cast<int32_t>(getElemTypeSize(weightsType).to<Byte>().count());
 
-    const auto sparsifyTransformation = weightsAttribute.getTransformations().back().dyn_cast<Const::SparsifyAttr>();
-    VPUX_THROW_UNLESS(sparsifyTransformation != nullptr, "Missing Sparsify transformation");
-    const auto numElems = sparsifyTransformation.getNumActualElements().getValues<int64_t>();
-    VPUX_THROW_UNLESS(numElems.size() == static_cast<size_t>(OC),
-                      "Invalid weights compression with {0} elements for {1} channels", numElems.size(), OC);
-
     int32_t weightsPtrOffset = static_cast<std::int32_t>(WEIGHTS_CMX_OFFSET);
     int32_t sparsityPtrOffset = static_cast<std::int32_t>(WEIGHTS_SM_CMX_OFFSET);
     const auto sparsityPtrStep = Bit(workloadSize).to<Byte>().count();
@@ -237,7 +234,7 @@ void buildSparseZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     SmallVector<int32_t> sparsityPtrs(OC, 0);
     for (auto oc : irange(OC)) {
         weightsPtrs[oc] = weightsPtrOffset;
-        const auto weightSetSize = (numElems[oc] * weightsElemByteSize);
+        const auto weightSetSize = (numNonSparseElements[oc] * weightsElemByteSize);
         weightsPtrOffset += alignValUp<int32_t>(weightSetSize, alignmentRequirement);
 
         sparsityPtrs[oc] = sparsityPtrOffset;
@@ -245,13 +242,13 @@ void buildSparseZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     }
 
     const auto weightsTable = VPU::NCESparsity::getWeightsTable(
-            inputType, outputType, llvm::makeArrayRef(weightsPtrs), llvm::makeArrayRef(sparsityPtrs),
+            inputType, outputType, llvm::ArrayRef(weightsPtrs), llvm::ArrayRef(sparsityPtrs),
             testDesc.getArchitecture(), weights.shape[vpux::Dims4D::Filter::OC.ind()], weightsType);
 
     const auto weightsTableDDRMemRef =
             getMemRefType(VPURT::BufferSection::Constant, weightsTableShape, int32, DimsOrder::NHWC);
     const auto weightsTableValues =
-            mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::makeArrayRef<std::int32_t>(weightsTable));
+            mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::ArrayRef<std::int32_t>(weightsTable));
     auto weightsTableDDR = functionBuilder.create<vpux::Const::DeclareOp>(
             loc, weightsTableDDRMemRef,
             vpux::Const::ContentAttr::get(weightsTableValues).reorder(vpux::DimsOrder::NHWC));
@@ -264,21 +261,21 @@ void buildSparseZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
 
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(),
                                           mlir::ValueRange(updateBarrier.getBarrier()), loc, functionInput,
-                                          inputCMX.getOperation()->getResult(0));
+                                          inputCMX.getOperation()->getResult(0), 0);
     if (conv.act_sparsity) {
         VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(),
                                               mlir::ValueRange(updateBarrier.getBarrier()), builder.getUnknownLoc(),
-                                              functionInputSM, inputSMCmxBuffer);
+                                              functionInputSM, inputSMCmxBuffer, 0);
     }
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
             functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.getBarrier()), loc,
-            weightsDDR.getOperation()->getResult(0), weightsCMX.getOperation()->getResult(0));
+            weightsDDR.getOperation()->getResult(0), weightsCMX.getOperation()->getResult(0), 0);
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
             functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.getBarrier()), loc,
-            weightsTableDDR.getOperation()->getResult(0), weightsTableCMX_0.getOperation()->getResult(0));
+            weightsTableDDR.getOperation()->getResult(0), weightsTableCMX_0.getOperation()->getResult(0), 0);
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
             functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.getBarrier()), builder.getUnknownLoc(),
-            weightsSMDDR.getOperation()->getResult(0), weightsSMCMX.getOperation()->getResult(0));
+            weightsSMDDR.getOperation()->getResult(0), weightsSMCMX.getOperation()->getResult(0), 0);
     waitBarrier = updateBarrier;
 
     const auto strides = getIntArrayAttr(ctx, conv.stride);
@@ -313,14 +310,15 @@ void buildSparseZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
 
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.getBarrier()),
                                           mlir::ValueRange(), loc, outputCMX.getOperation()->getResult(0),
-                                          functionOutput);
+                                          functionOutput, 0);
 
     functionBuilder.create<mlir::func::ReturnOp>(loc, mlir::ValueRange{functionOutput});
 
     module.dump();
 
-    mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, log));
+    mlir::PassManager pm(module->getName(), mlir::OpPassManager::Nesting::Implicit);
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, std::nullopt,
+                                           log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsBTCPass(log));
     }

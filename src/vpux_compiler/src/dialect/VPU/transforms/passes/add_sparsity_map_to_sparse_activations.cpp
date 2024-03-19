@@ -1,0 +1,95 @@
+//
+// Copyright (C) 2022 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
+//
+
+#include "vpux/compiler/dialect/VPU/IR/ops.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
+
+#include "vpux/compiler/utils/rewriter.hpp"
+
+using namespace vpux;
+
+namespace {
+
+void updateUsers(mlir::OpResult& result) {
+    for (auto user : result.getUsers()) {
+        // If sparsity consumer then do not go further
+        if (mlir::isa<VPU::NCEOpInterface, VPU::DesparsifyOp, mlir::func::ReturnOp>(user)) {
+            continue;
+        }
+        // Can propagate type, do it recursively
+        vpux::inferReturnTypes(user, vpux::InferShapedTypeMode::ALL);
+        for (auto result : user->getResults()) {
+            updateUsers(result);
+        }
+    }
+    return;
+}
+
+//
+// AddSparsityMapToSparseActivations
+//
+
+class AddSparsityMapToSparseActivationsPass final :
+        public VPU::AddSparsityMapToSparseActivationsBase<AddSparsityMapToSparseActivationsPass> {
+public:
+    explicit AddSparsityMapToSparseActivationsPass(Logger log) {
+        Base::initLogger(log, Base::getArgumentName());
+    }
+
+private:
+    void safeRunOnFunc() final;
+};
+
+//
+// safeRunOnFunc
+//
+
+void AddSparsityMapToSparseActivationsPass::safeRunOnFunc() {
+    auto func = getOperation();
+    auto& ctx = getContext();
+
+    func->walk([&](mlir::Operation* op) {
+        if (!mlir::isa<VPU::SparseOpInterface, VPU::SparsifyOp, VPU::GroupSparseTensorOp>(op)) {
+            return;
+        }
+
+        for (auto result : op->getOpResults()) {
+            const auto sparseType = result.getType().dyn_cast_or_null<VPU::SparseTensorType>();
+
+            if (sparseType == nullptr) {
+                return;
+            }
+
+            if (sparseType.getSparsityMap() != nullptr) {
+                return;
+            }
+
+            _log.trace("Adding sparsity map to sparse type '{0}' produced by '{1}' at '{2}'", sparseType, op->getName(),
+                       op->getLoc());
+
+            const auto sparsityMapElementType = mlir::IntegerType::get(&ctx, 1, mlir::IntegerType::Signless);
+
+            auto dataType = sparseType.getData().cast<vpux::NDTypeInterface>();
+            auto sparsityMapType = dataType.changeElemType(sparsityMapElementType);
+
+            const auto updatedSparseType = VPU::SparseTensorType::get(dataType, sparsityMapType);
+
+            result.setType(updatedSparseType);
+
+            // Propagare type through all users until the first consumer of sparse type
+            updateUsers(result);
+        }
+    });
+}
+
+}  // namespace
+
+//
+// createAddSparsityMapToSparseActivationsPass
+//
+
+std::unique_ptr<mlir::Pass> vpux::VPU::createAddSparsityMapToSparseActivationsPass(Logger log) {
+    return std::make_unique<AddSparsityMapToSparseActivationsPass>(log);
+}

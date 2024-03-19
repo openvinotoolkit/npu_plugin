@@ -47,7 +47,7 @@ TEST_F(MLIR_NDTypeInterface, SparseBufferType_Weights) {
     SmallVector<int64_t> numElems(64);
     std::iota(numElems.begin(), numElems.end(), 0);
     const auto numElemsType = mlir::RankedTensorType::get({64}, getInt64Type(&ctx));
-    const auto numElemsAttr = mlir::DenseElementsAttr::get(numElemsType, makeArrayRef(numElems));
+    const auto numElemsAttr = mlir::DenseElementsAttr::get(numElemsType, ArrayRef(numElems));
     const int64_t compressionAxis = 0;
     const int64_t alignment = 16;
     const auto compressionScheme = VPUIP::CompressionSchemeAttr::get(&ctx, getIntAttr(&ctx, compressionAxis),

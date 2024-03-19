@@ -8,8 +8,8 @@
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::DequantizeOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -18,8 +18,8 @@ mlir::LogicalResult vpux::IE::DequantizeOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = dequantize.input().getType().cast<mlir::ShapedType>();
-    const auto dstElemType = dequantize.dstElemType();
+    const auto inType = dequantize.getInput().getType().cast<mlir::ShapedType>();
+    const auto dstElemType = dequantize.getDstElemType();
 
     inferredReturnShapes.emplace_back(inType.getShape(), dstElemType);
     return mlir::success();

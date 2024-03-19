@@ -13,25 +13,6 @@
 using namespace vpux;
 
 //
-// TransposeAttr::walkImmediateSubElements
-//
-
-void vpux::Const::TransposeAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)> walkAttrsFn,
-                                                          llvm::function_ref<void(mlir::Type)>) const {
-    walkAttrsFn(getOrder());
-}
-
-//
-// TransposeAttr::replaceImmediateSubElements
-//
-
-mlir::Attribute vpux::Const::TransposeAttr::replaceImmediateSubElements(ArrayRef<mlir::Attribute> replAttrs,
-                                                                        ArrayRef<mlir::Type>) const {
-    VPUX_THROW_WHEN(replAttrs.size() < 1, "Replace attrs array is too short: '{0}'", replAttrs.size());
-    return get(replAttrs[0].dyn_cast_or_null<mlir::AffineMapAttr>());
-}
-
-//
 // TransposeAttr::verify
 //
 
@@ -84,10 +65,6 @@ mlir::Attribute vpux::Const::TransposeAttr::parse(mlir::AsmParser& parser, mlir:
 //
 
 vpux::NDTypeInterface vpux::Const::TransposeAttr::inferOutputType(vpux::NDTypeInterface input) const {
-    const Bit typeSizeInBits = input.getElemTypeSize();
-    VPUX_THROW_UNLESS(typeSizeInBits.count() >= CHAR_BIT, "Got sub-byte input '{0}' in TransposeAttr",
-                      input.getElementType());
-
     const auto order = DimsOrder::fromAffineMap(getOrder().getValue());
     VPUX_THROW_UNLESS(order.numDims() == checked_cast<size_t>(input.getRank()),
                       "DimsOrder '{0}' doesn't match type '{1}'", order, input);
@@ -98,7 +75,14 @@ vpux::NDTypeInterface vpux::Const::TransposeAttr::inferOutputType(vpux::NDTypeIn
         newShape[Dim(idx)] = inputShape[order.dimAt(idx)];
     }
 
-    return input.changeShape(newShape);
+    auto elemType = input.getElementType();
+    if (auto perAxisType = elemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+        auto inQuantizeDim = perAxisType.getQuantizedDimension();
+        auto outQuantizeDim = order.dimAt(inQuantizeDim).ind();
+        elemType = changeAxis(perAxisType, outQuantizeDim);
+    }
+
+    return input.changeShapeElemType(newShape, elemType);
 }
 
 //
@@ -120,6 +104,7 @@ Const::Content vpux::Const::TransposeAttr::transform(vpux::Const::Content& input
 //
 
 Const::ContentAttr vpux::Const::ContentAttr::transpose(DimsOrder newOrder) const {
-    return get(*this, Const::TransposeAttr::get(mlir::AffineMapAttr::get(newOrder.toAffineMap(getContext())))
-                              .cast<Const::TransformAttrInterface>());
+    return ContentAttr::addTransformation(
+            *this, Const::TransposeAttr::get(mlir::AffineMapAttr::get(newOrder.toAffineMap(getContext())))
+                           .cast<Const::TransformAttrInterface>());
 }

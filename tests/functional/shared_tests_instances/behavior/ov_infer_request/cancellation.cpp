@@ -4,6 +4,10 @@
 //
 
 #include "behavior/ov_infer_request/cancellation.hpp"
+#include "common/utils.hpp"
+#include "common/vpu_test_env_cfg.hpp"
+#include "overload/ov_infer_request/cancellation.hpp"
+#include "vpu_test_tool.hpp"
 
 using namespace ov::test::behavior;
 
@@ -13,8 +17,14 @@ const std::vector<ov::AnyMap> configs = {
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestCancellationTests,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configs)),
-                         OVInferRequestCancellationTests::getTestCaseName);
+                         InferRequestParamsAnyMapTestName::getTestCaseName);
+
+// Ticket: E-80555
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestCancellationTestsVpux,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(configs)),
+                         InferRequestParamsAnyMapTestName::getTestCaseName);
 
 }  // namespace

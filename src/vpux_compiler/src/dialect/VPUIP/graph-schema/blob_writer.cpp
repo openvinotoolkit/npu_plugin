@@ -45,13 +45,13 @@ SmallVector<uint8_t> createInvocationArgs(VPUIP::BlobWriter& blobWriter, VPUIP::
                                           size_t dataOffset, VPU::ArchKind archKind, Logger log) {
     vpux::InvocationBuilder invocationBuilder(dataOffset, log);
 
-    const auto insSize = swKernelOp.inputs().size();
-    const auto outsSize = swKernelOp.results().size();
+    const auto insSize = swKernelOp.getInputs().size();
+    const auto outsSize = swKernelOp.getResults().size();
 
     const auto kernelOpArgsCount = insSize + outsSize;
 
-    for (auto&& kernelRun : swKernelOp.body().getOps<VPUIP::SwKernelRun>()) {
-        for (auto&& operand : kernelRun.args()) {
+    for (auto&& kernelRun : swKernelOp.getBody().getOps<VPUIP::SwKernelRun>()) {
+        for (auto&& operand : kernelRun.getArgs()) {
             auto blockArg = operand.dyn_cast_or_null<mlir::BlockArgument>();
             if (blockArg) {
                 // TODO: check input type and shape - should correspond to ins (id)
@@ -71,8 +71,8 @@ SmallVector<uint8_t> createInvocationArgs(VPUIP::BlobWriter& blobWriter, VPUIP::
                 VPUX_THROW("Only block arguments are supported");
             }
         }
-        if (kernelRun.attrs().has_value()) {
-            const mlir::ArrayAttr arrayAttrs = kernelRun.attrs().value();
+        if (kernelRun.getAttrs().has_value()) {
+            const mlir::ArrayAttr arrayAttrs = kernelRun.getAttrs().value();
             const auto& attrs = arrayAttrs.getValue();
             for (const auto& attr : attrs) {
                 invocationBuilder.addArg(attr);
@@ -90,7 +90,7 @@ VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op)
 
     VPUX_THROW_UNLESS(_tasks.count(op) == 0, "Operation {0} was already serialized", *op);
 
-    String name = createString(StringRef(stringifyLocation(op->getLoc())));
+    String name = createString(StringRef(stringifyPrimaryLocation(op->getLoc())));
 
     auto serializeInterface = mlir::dyn_cast<VPURT::SerializeInterface>(op);
     VPUX_THROW_UNLESS(serializeInterface != nullptr, "Got non serialized operation {0}", op->getName());
@@ -175,7 +175,8 @@ VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createActKernelPerfDat
     MVCNN::KernelDataReferenceBuilder builder(_impl);
     builder.add_name(serializedName);
     builder.add_data_offset(checked_cast<uint32_t>(byteOffset));
-    builder.add_referenced_data_size(checked_cast<uint32_t>(type.getSizeInBits() / CHAR_BIT));
+    builder.add_referenced_data_size(
+            checked_cast<uint32_t>(mlir::cast<vpux::NDTypeInterface>(type).getCompactAllocSize().count()));
     builder.add_locale(serializedLocale);
     builder.add_locale_offset(checked_cast<uint32_t>(sectionIndex));
     return builder.Finish();
@@ -212,27 +213,33 @@ vpux::VPUIP::BlobWriter::ActKernel vpux::VPUIP::BlobWriter::createRuntimeKernelT
     return kernelbuilder.Finish();
 }
 
-VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mlir::Operation* op) {
-    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createSW_KernelTask");
+std::pair<VPUIP::SwKernelOp, mlir::func::FuncOp> getSwKernelAndFunc(mlir::Operation* op) {
+    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in getSwKernelAndFunc");
 
     auto swKernelTask = mlir::dyn_cast<VPUIP::SwKernelOp>(op);
     VPUX_THROW_UNLESS(swKernelTask != nullptr, "Operation '{0}' is not a SwKernelOp Task", op->getName());
 
-    // extracting kernel source code or compiled code
     auto module = op->getParentOfType<mlir::ModuleOp>();
-    auto kernelFunc = module.lookupSymbol<mlir::func::FuncOp>(swKernelTask.kernelFunctionAttr());
+    auto kernelFunc = module.lookupSymbol<mlir::func::FuncOp>(swKernelTask.getKernelFunctionAttr());
     VPUX_THROW_UNLESS(kernelFunc, "Invalid function call : '{0}', undefined kernel name",
-                      swKernelTask.kernelFunctionAttr());
+                      swKernelTask.getKernelFunctionAttr());
+
+    return {swKernelTask, kernelFunc};
+}
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createComputeSWKernelTask(mlir::Operation* op) {
+    auto [swKernelTask, kernelFunc] = getSwKernelAndFunc(op);
 
     const auto kernelCode = kernelFunc->getAttrOfType<mlir::StringAttr>("VPU.kernel_code");
     const auto kernelEntryPoint = kernelFunc->getAttrOfType<mlir::StringAttr>("VPU.kernel_entry");
 
-    VPUX_THROW_UNLESS(kernelCode, "Operation '{0}' doesn't have VPU.kernel_code attribute",
-                      swKernelTask.kernelFunctionAttr());
-    VPUX_THROW_UNLESS(kernelEntryPoint, "Operation '{0}' doesn't have VPU.kernel_entry attribute",
-                      swKernelTask.kernelFunctionAttr());
+    VPUX_THROW_WHEN(!kernelCode, "Operation '{0}' doesn't have VPU.kernel_code attribute",
+                    swKernelTask.getKernelFunctionAttr());
+    VPUX_THROW_WHEN(!kernelEntryPoint, "Operation '{0}' doesn't have VPU.kernel_entry attribute",
+                    swKernelTask.getKernelFunctionAttr());
 
-    // TODO : check that arguments in given function
+    auto module = swKernelTask->getParentOfType<mlir::ModuleOp>();
+
     CompilationUnitDesc compilationDesc = {kernelFunc.getName(), kernelEntryPoint.getValue()};
     auto actKernelDesc = compileKernelData(compilationDesc, VPU::getArch(module));
 
@@ -291,11 +298,11 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
     auto invocationSection =
             createKernelDataRef(uniqueInvocationName, nonEmptyOffset, invocationArgs.size(), invocationArgsAndData);
 
-    auto profilingData = swKernelTask.profiling_data();
+    auto profilingData = swKernelTask.getProfilingData();
     VPUIP::BlobWriter::KernelDataRef perfDataRef;
     if (profilingData != nullptr) {
         if (auto bufOp = mlir::dyn_cast<VPURT::DeclareBufferOp>(profilingData.getDefiningOp())) {
-            const ::llvm::Optional<mlir::ArrayAttr> sectionIndexOpt = bufOp.getSectionIndex();
+            const ::std::optional<mlir::ArrayAttr> sectionIndexOpt = bufOp.getSectionIndex();
             if (sectionIndexOpt.has_value()) {
                 const int64_t sectionIndex =
                         (sectionIndexOpt.value())[0].cast<mlir::IntegerAttr>().getValue().getSExtValue();
@@ -320,7 +327,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
     invocationBuilder.add_dataSection(dataSection);
     invocationBuilder.add_associatedBarriers(barrierReference);
     invocationBuilder.add_invocationArgs(invocationSection);
-    invocationBuilder.add_tile(checked_cast<uint32_t>(swKernelTask.tileIndex().value_or(0)));
+    invocationBuilder.add_tile(checked_cast<uint32_t>(swKernelTask.getTileIndex().value_or(0)));
     invocationBuilder.add_inputTensors(inputs);
     invocationBuilder.add_outputTensors(outputs);
 
@@ -336,6 +343,94 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
     taskbuilder.add_invocations(invocations_v2);
 
     return {taskbuilder.Finish().Union(), MVCNN::SpecificTask_ActKernelTask};
+}
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createCacheOpSWKernelTask(mlir::Operation* op) {
+    auto [swKernelTask, kernelFunc] = getSwKernelAndFunc(op);
+
+    const auto kernelTaskType = kernelFunc->getAttrOfType<mlir::SymbolRefAttr>("VPU.task_type");
+    if (kernelTaskType) {
+        auto taskTypeVal = VPU::symbolizeActShaveTaskType(kernelTaskType.getLeafReference().strref());
+        VPUX_THROW_UNLESS(taskTypeVal.has_value(), "Operation '{0}' has invalid VPU.task_type attribute '{1}'",
+                          swKernelTask.getKernelFunctionAttr(), kernelTaskType.getLeafReference());
+        VPUX_THROW_WHEN(taskTypeVal.value() == VPU::ActShaveTaskType::COMPUTE,
+                        "Operation '{0}' is a COMPUTE SW Kernel!");
+    }
+
+    std::string cacheOpName = "cache_op";
+    MVCNN::ActKernelType actKernelType;
+    auto cacheOpType = VPU::symbolizeActShaveTaskType(kernelTaskType.getLeafReference().strref());
+
+    switch (cacheOpType.value()) {
+    case VPU::ActShaveTaskType::CACHE_FLUSH:
+        actKernelType = MVCNN::ActKernelType::ActKernelType_CACHE_OP_FLUSH;
+        cacheOpName.append("_flush");
+        break;
+    case VPU::ActShaveTaskType::CACHE_INVALIDATE:
+        actKernelType = MVCNN::ActKernelType::ActKernelType_CACHE_OP_INVALIDATE;
+        cacheOpName.append("_invalidate");
+        break;
+    case VPU::ActShaveTaskType::CACHE_FLUSH_INVALIDATE:
+        actKernelType = MVCNN::ActKernelType::ActKernelType_CACHE_OP_FLUSHINV;
+        cacheOpName.append("_flush_invalidate");
+        break;
+    default:
+        VPUX_THROW("Unrecognized Kernel Task Type '{0}'", kernelTaskType.getLeafReference());
+        break;
+    }
+
+    llvm::SmallVector<uint8_t> empty_data;
+    vpux::KernelDataDesc cache_op_data{cacheOpName, empty_data, empty_data.size()};
+    auto kernel_data_ref0 = createKernelDataRef(cache_op_data);
+
+    MVCNN::ActKernelBuilder kernelbuilder(_impl);
+    kernelbuilder.add_kernelText(kernel_data_ref0);
+    kernelbuilder.add_type(actKernelType);
+    kernelbuilder.add_kernelEntry(0);
+    auto kernel = kernelbuilder.Finish();
+
+    auto taskOp = op->getParentOfType<VPURT::TaskOp>();
+    VPUX_THROW_WHEN(taskOp == nullptr, "VPUIP task doesn`t have VPURT TaskOp as a parent");
+    auto barrierReference = createBarrierReference(taskOp);
+
+    vpux::SmallString uniqueInvocationName = vpux::SmallString(cacheOpName.append("_invo"));
+
+    vpux::KernelDataDesc empty_kernel{uniqueInvocationName.c_str(), empty_data, empty_data.size()};
+    auto kernel_data_ref1 = createKernelDataRef(empty_kernel);
+
+    MVCNN::ActKernelInvocationBuilder invocationBuilder(_impl);
+    invocationBuilder.add_dataSection(kernel_data_ref1);
+    invocationBuilder.add_associatedBarriers(barrierReference);
+    invocationBuilder.add_invocationArgs(kernel_data_ref1);
+    invocationBuilder.add_tile(0);
+
+    std::vector<flatbuffers::Offset<MVCNN::ActKernelInvocation>> invocations_v1 = {invocationBuilder.Finish()};
+    auto invocations_v2 = _impl.CreateVector(invocations_v1);
+
+    MVCNN::ActKernelTaskBuilder taskbuilder(_impl);
+    taskbuilder.add_kernel(kernel);
+    taskbuilder.add_invocations(invocations_v2);
+
+    return {taskbuilder.Finish().Union(), MVCNN::SpecificTask_ActKernelTask};
+}
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mlir::Operation* op) {
+    auto [swKernelTask, kernelFunc] = getSwKernelAndFunc(op);
+
+    const auto kernelTaskType = kernelFunc->getAttrOfType<mlir::SymbolRefAttr>("VPU.task_type");
+
+    if (kernelTaskType) {
+        auto taskTypeVal = VPU::symbolizeActShaveTaskType(kernelTaskType.getLeafReference().strref());
+        VPUX_THROW_UNLESS(taskTypeVal.has_value(), "Operation '{0}' has invalid VPU.task_type attribute '{1}'",
+                          swKernelTask.getKernelFunctionAttr(), kernelTaskType.getLeafReference());
+        if (taskTypeVal.value() == VPU::ActShaveTaskType::COMPUTE) {
+            return createComputeSWKernelTask(op);
+        } else {
+            return createCacheOpSWKernelTask(op);
+        }
+    } else {
+        return createComputeSWKernelTask(op);
+    }
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir::Operation* op,
@@ -366,7 +461,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
                       op->getName());
 
     MVCNN::UPALayerTaskBuilder builder(_impl);
-    builder.add_maxShaves(checked_cast<uint8_t>(upaShavesInfo.count()));
+    builder.add_maxShaves(checked_cast<uint8_t>(upaShavesInfo.getCount()));
     builder.add_softLayerParams_type(params.type);
     builder.add_softLayerParams(params.obj);
     builder.add_inputs(inputs);
@@ -383,15 +478,15 @@ const VPUIP::DMADescriptorReference vpux::VPUIP::BlobWriter::getDepthToSpaceNNDM
     auto dmaTask = mlir::dyn_cast<VPUIP::DepthToSpaceDMAOp>(op);
     VPUX_THROW_UNLESS(dmaTask, "Only DepthToSpaceDMAOp and PermuteDMAOp supported DMADescriptorReference.");
 
-    const auto inOrder = DimsOrder::fromValue(dmaTask.input());
-    const auto outOrder = DimsOrder::fromValue(dmaTask.output_buff());
+    const auto inOrder = DimsOrder::fromValue(dmaTask.getInput());
+    const auto outOrder = DimsOrder::fromValue(dmaTask.getOutputBuff());
     auto islegalType = (inOrder == DimsOrder::NHWC && outOrder == DimsOrder::NHWC);
     VPUX_THROW_UNLESS(islegalType, "DepthToSpaceDMAOp just support NHWC (NCHW TODO), but got {0}.", inOrder);
 
     uint32_t len(0), srcWidth(0), srcStride(0), srcPlaneStride(0);
     uint32_t dstWidth(0), dstStride(0), dstPlaneStride(0), numPlanes(0);
 
-    auto dmaDescriptor = dmaTask.dma_descriptor();
+    auto dmaDescriptor = dmaTask.getDmaDescriptor();
     VPUX_THROW_UNLESS(dmaDescriptor.has_value(), "DMA descriptor attr not found at '{0}'", dmaTask->getLoc());
     auto dmaDescriptorValue = dmaDescriptor.value();
 
@@ -416,7 +511,7 @@ const VPUIP::DMADescriptorReference vpux::VPUIP::BlobWriter::getSpaceToDepthNNDM
     auto dmaTask = mlir::dyn_cast<VPUIP::SpaceToDepthDMAOp>(op);
     VPUX_THROW_UNLESS(dmaTask, "Got unexpected SpaceToDepthDMAOp.");
 
-    auto dmaDescriptor = dmaTask.dma_descriptor();
+    auto dmaDescriptor = dmaTask.getDmaDescriptor();
     VPUX_THROW_UNLESS(dmaDescriptor.has_value(), "DMA descriptor attribute not found at '{0}'", dmaTask->getLoc());
 
     auto dmaDescriptorValue = dmaDescriptor.value();
@@ -439,7 +534,7 @@ const VPUIP::DMADescriptorReference vpux::VPUIP::BlobWriter::getExpandNNDMADescr
     auto dmaTask = mlir::dyn_cast<VPUIP::ExpandDMAOp>(op);
     VPUX_THROW_UNLESS(dmaTask, "Got unexpect ExpandDMAOp.");
 
-    auto dmaDescriptor = dmaTask.dma_descriptor();
+    auto dmaDescriptor = dmaTask.getDmaDescriptor();
     VPUX_THROW_UNLESS(dmaDescriptor.has_value(), "DMA descriptor attribute not found at '{0}'", dmaTask->getLoc());
 
     auto dmaDescriptorValue = dmaDescriptor.value();
@@ -462,11 +557,11 @@ const VPUIP::DMADescriptorReference vpux::VPUIP::BlobWriter::getPermuteNNDMADesc
     auto dmaTask = mlir::dyn_cast<VPUIP::PermuteDMAOp>(op);
     VPUX_THROW_UNLESS(dmaTask, "Only PermuteDMAOp supported DMADescriptorReference.");
 
-    const auto dataShape = getShape(dmaTask.input());
+    const auto dataShape = getShape(dmaTask.getInput());
     VPUX_THROW_UNLESS(dataShape.size() == 2 || dataShape.size() == 3,
                       "PermuteDMAOp shape size should be 2 or 3. but got {0}", dataShape.size());
 
-    auto dmaDescriptor = dmaTask.dma_descriptor();
+    auto dmaDescriptor = dmaTask.getDmaDescriptor();
     VPUX_THROW_UNLESS(dmaDescriptor.has_value(), "DMA descriptor attr not found at '{0}'", dmaTask->getLoc());
     auto dmaDescriptorValue = dmaDescriptor.value();
     auto len = checked_cast<uint32_t>(dmaDescriptorValue.getLen().getInt());
@@ -489,7 +584,7 @@ const VPUIP::DMADescriptorReference vpux::VPUIP::BlobWriter::getUpsamplingNNDMAD
     auto dmaTask = mlir::dyn_cast<VPUIP::UpsamplingDMAOp>(op);
     VPUX_THROW_UNLESS(dmaTask, "Got unexpect UpsamplingDMAOp");
 
-    auto dmaDescriptor = dmaTask.dma_descriptor();
+    auto dmaDescriptor = dmaTask.getDmaDescriptor();
     VPUX_THROW_UNLESS(dmaDescriptor.has_value(), "DMA descriptor attr not found at '{0}'", dmaTask->getLoc());
     auto dmaDescriptorValue = dmaDescriptor.value();
     auto len = checked_cast<uint32_t>(dmaDescriptorValue.getLen().getInt());
@@ -507,12 +602,17 @@ const VPUIP::DMADescriptorReference vpux::VPUIP::BlobWriter::getUpsamplingNNDMAD
                                          dstWidth, dstStride, dstPlaneStride, numPlanes};
 }
 
+const VPUIP::DMADescriptorReference vpux::VPUIP::BlobWriter::getSyncNNDMADescriptorReference(mlir::Operation*) const {
+    const uint32_t zero = 0;
+    return VPUIP::DMADescriptorReference{zero, zero, zero, zero, zero, zero, zero, zero};
+}
+
 const VPUIP::DMADescriptorReference vpux::VPUIP::BlobWriter::getPerAxisTileNNDMADescriptorReference(
         mlir::Operation* op) const {
     auto dmaTask = mlir::dyn_cast<VPUIP::PerAxisTileDMAOp>(op);
     VPUX_THROW_UNLESS(dmaTask, "Got unexpected PerAxisTileDMAOp.");
 
-    auto dmaDescriptor = dmaTask.dma_descriptor();
+    auto dmaDescriptor = dmaTask.getDmaDescriptor();
     VPUX_THROW_UNLESS(dmaDescriptor.has_value(), "DMA descriptor attribute not found at '{0}'", dmaTask->getLoc());
 
     auto dmaDescriptorValue = dmaDescriptor.value();
@@ -536,13 +636,13 @@ const VPUIP::DMADescriptorReference vpux::VPUIP::BlobWriter::getPerAxisTileNNDMA
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
         StringRef name, vpux::NDTypeInterface type, VPURT::BufferSection section, ArrayRef<int64_t> sectionIndex,
         int64_t byteOffset, ArrayRef<int64_t> mult, ArrayRef<int64_t> shift, int64_t postShift,
-        ArrayRef<uint8_t> zeroPoints, Optional<int64_t> sparsityMapOffset, Optional<int64_t> storageElementOffset,
-        Optional<int64_t> storageElementSize, Optional<int64_t> swizzlingKey) {
+        ArrayRef<uint8_t> zeroPoints, std::optional<int64_t> sparsityMapOffset,
+        std::optional<int64_t> storageElementOffset, std::optional<int64_t> storageElementSize,
+        std::optional<int64_t> swizzlingKey) {
     const auto serializedName = createString(name);
 
     const auto serializedDataType = VPUIP::createDType(type.getElementType());
     const auto serializedDims = createDims(type);
-    const auto serializedStrides = createStrides(type);
     const auto dimsOrder = type.getDimsOrder();
 
     const auto serializedDataReference =
@@ -558,11 +658,35 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
 
     const auto basePtrs = createVector(std::vector<uint16_t>{});
 
+    if (_architecture == VPU::ArchKind::VPUX30XX) {
+        const auto strides = createStrides<float>(type);
+        MVCNN::TensorReferenceBuilder builder(_impl);
+
+        builder.add_name(serializedName);
+        builder.add_dimensions(serializedDims);
+        builder.add_strides(strides);
+        builder.add_data(serializedDataReference);
+        builder.add_locale(serializedLocale);
+        builder.add_locale_index(serializedLocaleIndex);
+        builder.add_data_dtype(serializedDataType);
+        builder.add_quant_zero(serializedQuantZero);
+        builder.add_quant_mult(serializedQuantMult);
+        builder.add_quant_shift(serializedQuantShift);
+        builder.add_quant_post_shift_right(checked_cast<int8_t>(postShift));
+        builder.add_order(dimsOrder.code());
+        builder.add_base_ptrs(basePtrs);
+        if (swizzlingKey.has_value()) {
+            builder.add_swizzling_key(checked_cast<uint8_t>(swizzlingKey.value()));
+        }
+        return builder.Finish();
+    }
+
+    auto strides = createStrides<uint64_t>(type);
     MVCNN::TensorReferenceBuilder builder(_impl);
 
     builder.add_name(serializedName);
     builder.add_dimensions(serializedDims);
-    builder.add_strides(serializedStrides);
+    builder.add_bit_strides(strides);
     builder.add_data(serializedDataReference);
     builder.add_locale(serializedLocale);
     builder.add_locale_index(serializedLocaleIndex);
@@ -581,8 +705,8 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
 
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
         StringRef name, vpux::NDTypeInterface type, VPURT::BufferSection section, ArrayRef<int64_t> sectionIndex,
-        int64_t byteOffset, Optional<int64_t> sparsityMapOffset, Optional<int64_t> storageElementOffset,
-        Optional<int64_t> storageElementSize, Optional<int64_t> swizzlingKey) {
+        int64_t byteOffset, std::optional<int64_t> sparsityMapOffset, std::optional<int64_t> storageElementOffset,
+        std::optional<int64_t> storageElementSize, std::optional<int64_t> swizzlingKey) {
     SmallVector<uint8_t> zeroPoints;
     SmallVector<int64_t> mults;
     SmallVector<int64_t> shifts;
@@ -620,16 +744,16 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
 
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
         StringRef name, vpux::NDTypeInterface type, VPURT::BufferSection section, int64_t sectionIndex,
-        int64_t byteOffset, Optional<int64_t> sparsityMapOffset, Optional<int64_t> storageElementOffset,
-        Optional<int64_t> storageElementSize, Optional<int64_t> swizzlingKey) {
-    return createTensorRef(name, type, section, makeArrayRef({sectionIndex}), byteOffset, sparsityMapOffset,
+        int64_t byteOffset, std::optional<int64_t> sparsityMapOffset, std::optional<int64_t> storageElementOffset,
+        std::optional<int64_t> storageElementSize, std::optional<int64_t> swizzlingKey) {
+    return createTensorRef(name, type, section, ArrayRef({sectionIndex}), byteOffset, sparsityMapOffset,
                            storageElementOffset, storageElementSize, swizzlingKey);
 }
 
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
         mlir::Value val, StringRef name, VPURT::BufferSection section, ArrayRef<int64_t> sectionIndex,
-        int64_t byteOffset, Optional<int64_t> sparsityMapOffset, Optional<int64_t> storageElementOffset,
-        Optional<int64_t> storageElementSize, Optional<int64_t> swizzlingKey) {
+        int64_t byteOffset, std::optional<int64_t> sparsityMapOffset, std::optional<int64_t> storageElementOffset,
+        std::optional<int64_t> storageElementSize, std::optional<int64_t> swizzlingKey) {
     VPUX_THROW_UNLESS(_tensors.count(val) == 0, "Value '{0}' was already serialized", val.getLoc());
     const auto ref =
             createTensorRef(name, val.getType().cast<vpux::NDTypeInterface>(), section, sectionIndex, byteOffset,
@@ -640,9 +764,9 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
 
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
         mlir::Value val, StringRef name, VPURT::BufferSection section, int64_t sectionIndex, int64_t byteOffset,
-        Optional<int64_t> sparsityMapOffset, Optional<int64_t> storageElementOffset,
-        Optional<int64_t> storageElementSize, Optional<int64_t> swizzlingKey) {
-    return createTensorRef(val, name, section, makeArrayRef({sectionIndex}), byteOffset, sparsityMapOffset,
+        std::optional<int64_t> sparsityMapOffset, std::optional<int64_t> storageElementOffset,
+        std::optional<int64_t> storageElementSize, std::optional<int64_t> swizzlingKey) {
+    return createTensorRef(val, name, section, ArrayRef({sectionIndex}), byteOffset, sparsityMapOffset,
                            storageElementOffset, storageElementSize, swizzlingKey);
 }
 
@@ -652,7 +776,7 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::getTensorRef(mlir::V
     return it->second;
 }
 
-VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::createBarrier(mlir::Value val, Optional<int64_t> physicalID) {
+VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::createBarrier(mlir::Value val, std::optional<int64_t> physicalID) {
     VPUX_THROW_UNLESS(_barriersVirtIds.count(val) == 0, "Value {0} was already serialized", val);
 
     size_t numConsumers = 0;
@@ -681,7 +805,7 @@ VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::createBarrier(mlir::Value va
         if (auto taskOp = mlir::dyn_cast<VPURT::TaskOp>(userOp)) {
             if (auto nceClusterTaskOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(taskOp.getInnerTaskOp())) {
                 usesCount = 0;
-                for (auto dpuTaskOp : nceClusterTaskOp.variants().getOps<VPUIP::DPUTaskOp>()) {
+                for (auto dpuTaskOp : nceClusterTaskOp.getVariants().getOps<VPUIP::DPUTaskOp>()) {
                     VPUX_UNUSED(dpuTaskOp);
                     ++usesCount;
                 }
@@ -694,6 +818,13 @@ VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::createBarrier(mlir::Value va
             numProducers += usesCount;
         } else {
             VPUX_THROW("Barrier Value {0} has unsupported Effect in Operation {1}", val, *userOp);
+        }
+    }
+
+    if (auto configureBarrierOp = mlir::dyn_cast<VPURT::ConfigureBarrierOp>(val.getDefiningOp())) {
+        auto isFinalBarrier = configureBarrierOp.getIsFinalBarrier();
+        if (isFinalBarrier) {
+            numConsumers = 1;
         }
     }
 
@@ -719,10 +850,10 @@ uint32_t vpux::VPUIP::BlobWriter::getBarrierVirtualID(mlir::Value val) const {
     return it->second;
 }
 
-Optional<uint32_t> vpux::VPUIP::BlobWriter::getBarrierPhysicalID(mlir::Value val) const {
+std::optional<uint32_t> vpux::VPUIP::BlobWriter::getBarrierPhysicalID(mlir::Value val) const {
     const auto it = _barriersPhysIds.find(val);
     if (it == _barriersPhysIds.end()) {
-        return None;
+        return std::nullopt;
     }
     return it->second;
 }
@@ -780,29 +911,35 @@ VPUIP::BlobWriter::Vector<uint32_t> vpux::VPUIP::BlobWriter::createDims(vpux::ND
     return createDims(type.getShape());
 }
 
-VPUIP::BlobWriter::Vector<float> vpux::VPUIP::BlobWriter::createStrides(StridesRef strides, Bit elemSize) {
+template <typename T>
+VPUIP::BlobWriter::Vector<T> vpux::VPUIP::BlobWriter::createStrides(StridesRef strides, Bit elemSize) {
     Strides temp;
     temp.push_back(elemSize);
     temp.append(strides.begin(), strides.end());
 
-    const auto cvtBitStrideToByteFP = [](Bit val) {
-        if (val.count() % CHAR_BIT == 0) {
-            return checked_cast<float>(Byte(val).count());
+    const auto cvtBitStride = [](Bit val) {
+        if constexpr (!std::is_floating_point<T>::value) {
+            return checked_cast<T>(val.count());
         }
 
-        return checked_cast<float>(val.count()) / CHAR_BIT;
+        if (val.count() % CHAR_BIT == 0) {
+            return checked_cast<T>(Byte(val).count());
+        }
+
+        return checked_cast<T>(val.count()) / CHAR_BIT;
     };
 
-    return createVector(temp | transformed(cvtBitStrideToByteFP));
+    return createVector(temp | transformed(cvtBitStride));
 }
 
-VPUIP::BlobWriter::Vector<float> vpux::VPUIP::BlobWriter::createStrides(vpux::NDTypeInterface type) {
-    return createStrides(type.getStrides(), type.getElemTypeSize());
+template <typename T>
+VPUIP::BlobWriter::Vector<T> vpux::VPUIP::BlobWriter::createStrides(vpux::NDTypeInterface type) {
+    return createStrides<T>(type.getStrides(), type.getElemTypeSize());
 }
 
 VPUIP::BlobWriter::IndirectDataReference vpux::VPUIP::BlobWriter::createIndirectDataReference(
-        int64_t dataIndex, Optional<int64_t> sparsityIndex, Optional<int64_t> storageElementIndex,
-        Optional<int64_t> storageElementSize) {
+        int64_t dataIndex, std::optional<int64_t> sparsityIndex, std::optional<int64_t> storageElementIndex,
+        std::optional<int64_t> storageElementSize) {
     MVCNN::IndirectDataReferenceBuilder builder(_impl);
     builder.add_data_index(checked_cast<uint64_t>(dataIndex));
     if (sparsityIndex.has_value()) {

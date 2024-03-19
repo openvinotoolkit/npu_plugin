@@ -38,10 +38,11 @@ def IE_LayerOpInterface : OpInterface<"LayerOpInterface"> {
     ];
 
     let extraTraitClassDeclaration = [{
-        static mlir::LogicalResult inferReturnTypes(mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> loc,
-                                                    mlir::ValueRange operands, mlir::DictionaryAttr attrs, mlir::RegionRange regions,
+        static mlir::LogicalResult inferReturnTypes(mlir::MLIRContext* ctx, std::optional<mlir::Location> loc,
+                                                    mlir::ValueRange operands, mlir::DictionaryAttr attrs,
+                                                    mlir::OpaqueProperties props, mlir::RegionRange regions,
                                                     mlir::SmallVectorImpl<mlir::Type>& inferredTypes) {
-            return vpux::IE::inferTensorTypes(ConcreteOp::inferReturnTypeComponents, ctx, loc, operands, attrs, regions, inferredTypes);
+            return vpux::IE::inferTensorTypes(ConcreteOp::inferReturnTypeComponents, ctx, loc, operands, attrs, props, regions, inferredTypes);
         }
     }];
 
@@ -62,7 +63,7 @@ def IE_LayerWithPostOpInterface : OpInterface<"LayerWithPostOpInterface"> {
     let methods = [
         InterfaceMethod<
             "Get the post-processing operation",
-            "llvm::Optional<mlir::OperationName>", "getPostOp", (ins),
+            "std::optional<mlir::OperationName>", "getPostOp", (ins),
             [{}],
             [{
                 return vpux::IE::getLayerPostOp($_op);
@@ -98,8 +99,18 @@ def IE_LayerWithPostOpInterface : OpInterface<"LayerWithPostOpInterface"> {
 
         InterfaceMethod<
             "Set post-processing operation attribute",
-            "bool", "isSupportedPostOp", (ins "mlir::Operation*":$postOp)
+            "bool", "isSupportedPostOp", (ins "mlir::Operation*":$postOp, "const FuncRef<void(const formatv_object_base&)>&":$logCb)
         >,
+
+        InterfaceMethod<
+            "Set clamp operation attribute",
+            "void", "setLayerClampOp", (ins "mlir::Operation*":$clamp)
+        >,
+
+        InterfaceMethod<
+            "Set clamp operation attribute",
+            "bool", "isSupportedClampOp", (ins "mlir::Operation*":$clamp, "const FuncRef<void(const formatv_object_base&)>&":$logCb)
+        >
     ];
 }
 
@@ -142,7 +153,7 @@ def IE_LayoutInfoOpInterface : OpInterface<"LayoutInfoOpInterface"> {
         InterfaceMethod<
             "Infer supported Data Layouts from inputs to outputs or describe the supported combination",
             "void", "inferLayoutInfo",
-            (ins "vpux::IE::LayerLayoutInfo&":$info, "const bool":$seOpsEnabled)
+            (ins "vpux::IE::LayerLayoutInfo&":$info, "const bool":$seOpsEnabled, "const bool":$seTransposedConvEnabled)
         >,
 
         InterfaceMethod<
@@ -170,17 +181,38 @@ def IE_LayoutInfoOpInterface : OpInterface<"LayoutInfoOpInterface"> {
 //
 
 def IERT_ResourceOpInterface : OpInterface<"ResourceOpInterface"> {
-    let description = "Base interface for for a meta-like operation containing information about a runtime resource";
+    let description = "Base interface for a meta-like operation containing information about a runtime resource";
 
     let cppNamespace = "vpux::IERT";
 
     let methods = [
         InterfaceMethod<
-            "Get all layer input memory buffers",
+            "Get resource kind as StringAttr",
             "mlir::StringAttr", "getKind", (ins),
             [{}],
             [{
-                return $_op.sym_nameAttr();
+                return $_op.getSymNameAttr();
+            }]
+        >,
+    ];
+}
+
+//
+// ComputeResourceOp base
+//
+
+def IERT_ComputeResourceOpInterface : OpInterface<"ComputeResourceOpInterface"> {
+    let description = "Base interface for a meta-like operation containing information about a runtime compute resource";
+
+    let cppNamespace = "vpux::IERT";
+
+    let methods = [
+        InterfaceMethod<
+            "Get number of instantiated compute ops.",
+            "mlir::IntegerAttr", "getCountAttr", (ins),
+            [{}],
+            [{
+                return $_op.countAttr();
             }]
         >,
     ];

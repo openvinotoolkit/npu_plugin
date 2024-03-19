@@ -7,13 +7,10 @@
 
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/adjust_layout_utils.hpp"
-#include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/permute_utils.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
-#include "vpux/utils/IE/prefix.hpp"
 #include "vpux/utils/core/range.hpp"
 
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
@@ -21,6 +18,84 @@
 using namespace vpux;
 
 namespace {
+
+// If there are nonTrivial Reorders before and after Tile, the two Reorders will be fused after switch Tile and Reorder.
+
+bool isBeneficialReorderFuse(IE::TileOp tileOp) {
+    auto inputReorderOp = tileOp.getInput().getDefiningOp<IE::ReorderOp>();
+
+    if (!tileOp.getOutput().hasOneUse()) {
+        return false;
+    }
+
+    bool isTrivial = inputReorderOp == nullptr ? true : isTrivialReorder(inputReorderOp);
+
+    auto outputReorderOp = mlir::dyn_cast<IE::ReorderOp>(*(tileOp.getOutput().user_begin()));
+    isTrivial = isTrivial || (outputReorderOp == nullptr ? true : isTrivialReorder(outputReorderOp));
+
+    return inputReorderOp && outputReorderOp && !isTrivial;
+}
+
+// For tileOp tile data in high dim is more efficient than tile date in low dim.
+// For example tileOp 1x16x1x1 -> 1x16x100x100 (repeatsValues = [1,1,100,100]), NHWC is more efficient than NCHW layout,
+// because NHWC will tile data in the higher dime(H and W of NHWC), the tileOp will convert to no stride DMA. but for
+// NCHW will tile data in the lower dim (H and W of NCHW), the tileOp will convert to stride DMA which is low efficient.
+
+bool isBeneficialSwitch(IE::TileOp tileOp, vpux::DimsOrder origOrder, vpux::DimsOrder switchedOrder) {
+    auto outputShape = getShape(tileOp.getOutput());
+
+    if (std::all_of(outputShape.begin(), outputShape.end(), [](auto shape) {
+            return shape == 1;
+        })) {
+        return false;
+    }
+
+    auto repeatsValues = parseIntArrayAttr<int64_t>(tileOp.getRepeatsValuesAttr());
+
+    SmallVector<int32_t> repeatAxesIndexVal, notRepeatAndHasValueAxesIndexVal;
+
+    // Find the tile dim axes and not tile and has value(size != 1) dim axes.
+    // Eg in tileOp 1x16x1x1 -> 1x16x100x100, tile dim axes is [2, 3], not-tile-and-has-value dim axes is [1]. Dim 0
+    // size is 1, this dim has no impact on the reorder optimization.
+    for (size_t ind = 0; ind < repeatsValues.size(); ++ind) {
+        if (repeatsValues[ind] == 1 && outputShape[Dim(ind)] != 1) {
+            notRepeatAndHasValueAxesIndexVal.push_back(ind);
+        } else if (repeatsValues[ind] > 1) {
+            repeatAxesIndexVal.push_back(ind);
+        }
+    }
+
+    if (notRepeatAndHasValueAxesIndexVal.empty()) {
+        return false;
+    }
+
+    // Check if all NotRepeatAndHasValueAxes larger than RepeatAxes.
+    // Eg in tileOp 1x16x1x1(NHWC) -> 1x16x100x100(NHWC), repeat dim axes is [2, 3], not-repeat-dim axes is [0, 1]. For
+    // NHWC layout, the real repeat dim axes is [1, 2], real not-repeat dim axes is [0, 3], and real
+    // not-repeat-and-has-value dim axes is [3]. So we need check all of the not-repeat-and-has-value dim axes be larger
+    // than the repeat dim axes.
+    auto isAllNotRepeatAndHasValueAxesLargerThanRepeatAxes = [&](const vpux::DimsOrder& order,
+                                                                 ArrayRef<int32_t> repeatAxes,
+                                                                 ArrayRef<int32_t> notRepeatAndHasValueAxes) {
+        SmallVector<int32_t> realRepeatAxes, realNotRepeatAndHasValueAxes;
+        for (auto notRepeatAndHasValueAxis : notRepeatAndHasValueAxes) {
+            realNotRepeatAndHasValueAxes.push_back(order.dimPos(Dim(notRepeatAndHasValueAxis)));
+        }
+        for (auto repeatAxis : repeatAxes) {
+            realRepeatAxes.push_back(order.dimPos(Dim(repeatAxis)));
+        }
+
+        std::sort(realNotRepeatAndHasValueAxes.begin(), realNotRepeatAndHasValueAxes.end());
+        std::sort(realRepeatAxes.begin(), realRepeatAxes.end());
+
+        return realNotRepeatAndHasValueAxes.front() > realRepeatAxes.back();
+    };
+
+    return !isAllNotRepeatAndHasValueAxesLargerThanRepeatAxes(origOrder, repeatAxesIndexVal,
+                                                              notRepeatAndHasValueAxesIndexVal) &&
+           isAllNotRepeatAndHasValueAxesLargerThanRepeatAxes(switchedOrder, repeatAxesIndexVal,
+                                                             notRepeatAndHasValueAxesIndexVal);
+}
 
 //
 // ReorderWithShapeChange
@@ -75,20 +150,123 @@ SmallVector<SmallVector<Dim>> getReshapedAxes(ShapeRef inShape, ShapeRef outShap
     return reshapedAxes;
 }
 
+// Reorder can only propagate if the order of Reshape's reshaped axes are kept the same
+// For exmaple, (1,16,8,2)#NHWC -> Reorder -> (1,16,8,2)#NCHW -> Reshape -> (1,16,4,4)#NCHW
+// Only H & W are reshaped and their relative order stays the same
+// Thus, the Reorder can be propagated through the Reshape like below:
+// (1,16,8,2)#NHWC -> Reshape -> (1,16,4,4)#NHWC -> Reorder -> (1,16,4,4)#NCHW
+bool isReshapeInImmutableGroup(const SmallVector<SmallVector<Dim>>& reshapedAxes, const DimsOrder& order) {
+    for (const auto& group : reshapedAxes) {
+        auto dimIter = group.begin();
+        auto prevPos = order.dimPos(*dimIter);
+        while (++dimIter != group.end()) {
+            auto curPos = order.dimPos(*dimIter);
+            if (curPos - prevPos != 1) {
+                return false;
+            }
+            prevPos = curPos;
+        }
+    }
+
+    return true;
+}
+
+// Reorder could be propagated when irrelevant shapes are removed (shape=1) and
+// the memory permutation of the reshaped tensor remains the same as before the Reorder
+// We check two conditions:
+// 1. If propagated new Reorder's MemShape is identical with original shapeChangeOp's output MemShape.
+// 2. If propagated new Reorder's permutation is identical with original shapeChangeOp's output permutation.
+//
+// Eg1. (1,1,64,64)#NWHC ->Reorder-> (1,1,64,64)#NCHW ->ShapeChangeOp-> (1,64,64,1)#NCHW
+//   MemShape: (1,64,64,1) ->Reorder-> (1,1,64,64) ->ShapeChangeOp-> (1,64,64,1)
+//   NormMemShape: (0,1,2,0) ->Reorder-> (0,0,2,1) ->ShapeChangeOp-> (0,2,1,0)
+//   MemShape if propagateReorder: (1,64,64,1) ->ShapeCast-> (1,1,64,64) ->Reorder-> (1,64,64,1)
+//   NormMemShape if propagateReorder: (0,1,2,0) ->ShapeCast-> (0,0,1,2) ->Reorder-> (0,2,1,0)
+//   return ture as (64,64) == (64,64) && (2,1) == (2,1)
+//
+// Eg2. (1,1,64,64)#NCWH ->Reorder-> (1,1,64,64)#NCHW ->ShapeChangeOp-> (64,64,1,1)#NCHW
+//   MemShape: (1,1,64,64) ->Reorder-> (1,1,64,64) ->ShapeChangeOp-> (64,64,1,1)
+//   NormMemShape: (0,0,1,2) ->Reorder-> (0,0,2,1) ->ShapeChangeOp-> (2,1,0,0)
+//   MemShape if propagateReorder:  (1,1,64,64) ->ShapeCast-> (64,64,1,1) ->Reorder-> (64,64,1,1)
+//   NormMemShape if propagateReorder: (0,0,1,2) ->ShapeCast-> (1,2,0,0) ->ReorderOp-> (1,2,0,0)
+//   return false as (64,64) == (64,64) && (2,1) != (1,2)
+bool isCompatibleMemReshape(vpux::NDTypeInterface inType, vpux::NDTypeInterface outType) {
+    auto inMemShape = inType.getMemShape();
+    const auto inOrder = inType.getDimsOrder();
+    const auto newOutType = outType.changeDimsOrder(inOrder);
+    auto newOutMemShape = newOutType.getMemShape();
+
+    // return normalized memShape
+    // eg1: (1,1,64,64)#NHWC -> (0,1,2,0)
+    // eg2: (1,1,64,64)#NCHW -> (0,0,1,2)
+    auto getNormalizedMemShape = [](MemShapeRef memShape) -> MemShape {
+        SmallVector<int64_t> normalizedVec;
+        int64_t nonTrivailNum = 1;
+        for (auto& shape : memShape) {
+            if (shape == 1) {
+                normalizedVec.push_back(0);
+            } else {
+                normalizedVec.push_back(nonTrivailNum++);
+            }
+        }
+        return MemShape(normalizedVec);
+    };
+
+    // cal original normalized mem shape
+    auto inNormMemShape = getNormalizedMemShape(inMemShape);
+    auto originalReorderPermutation = getPermutationFromOrders(inOrder, outType.getDimsOrder(), inType.getContext());
+    auto origReorderNormMemShape = applyPerm(inNormMemShape, originalReorderPermutation);
+
+    // get new reshape's normalized mem permutation
+    auto newReshapeNormMemShape = getNormalizedMemShape(newOutMemShape);
+    auto newOutNormMemShape = applyPerm(newReshapeNormMemShape, originalReorderPermutation);
+
+    // ignore trivial dims
+    origReorderNormMemShape.erase(std::remove(origReorderNormMemShape.begin(), origReorderNormMemShape.end(), 0),
+                                  origReorderNormMemShape.end());
+    newOutNormMemShape.erase(std::remove(newOutNormMemShape.begin(), newOutNormMemShape.end(), 0),
+                             newOutNormMemShape.end());
+
+    // ignore shape is one
+    inMemShape.erase(std::remove(inMemShape.begin(), inMemShape.end(), 1), inMemShape.end());
+    newOutMemShape.erase(std::remove(newOutMemShape.begin(), newOutMemShape.end(), 1), newOutMemShape.end());
+
+    return inMemShape == newOutMemShape && origReorderNormMemShape == newOutNormMemShape;
+}
+
+// Maintain the Reorder -> PermuteCast -> Reorder chain as it can later be reduced to a single operation
+bool isMaintainPattern(mlir::Operation* op) {
+    if (auto prevPermuteCastOp = op->getOperand(0).getDefiningOp<IE::PermuteCastOp>()) {
+        if (auto prevReorderOp = prevPermuteCastOp.getOperand().getDefiningOp<IE::ReorderOp>()) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 template <class ConcreteOp>
 mlir::LogicalResult ReorderWithShapeChange<ConcreteOp>::matchAndRewrite(ConcreteOp origReshapeOp,
                                                                         mlir::PatternRewriter& rewriter) const {
     const auto origReshapeInput = origReshapeOp->getOperand(0);
+
+    // Propagate Reorder through Reshape only with pattern: Reorder -> Reshape -> Reorder
+    // two Reorders could fuse together
     auto origReorderOp = origReshapeInput.template getDefiningOp<IE::ReorderOp>();
     if (origReorderOp == nullptr) {
         return mlir::failure();
     }
+    auto outputReorderOp = mlir::dyn_cast<IE::ReorderOp>(*(origReshapeOp->getResult(0).user_begin()));
+    if (outputReorderOp == nullptr) {
+        return mlir::failure();
+    }
+
     _log.trace("Got Reorder at '{0}' -> {1} at '{2}' pair", origReorderOp->getLoc(), origReshapeOp->getName(),
                origReshapeOp->getLoc());
 
     const auto origReshapeOutput = origReshapeOp->getResult(0);
-    const auto inOrder = DimsOrder::fromValue(origReorderOp.input());
-    const auto outOrder = DimsOrder::fromAffineMap(origReorderOp.dstOrder());
+    const auto inOrder = DimsOrder::fromValue(origReorderOp.getInput());
+    const auto outOrder = DimsOrder::fromAffineMap(origReorderOp.getDstOrder());
     const auto reshapeOutOrder = origReshapeOutput.getType().template dyn_cast<vpux::NDTypeInterface>().getDimsOrder();
     if (outOrder != reshapeOutOrder) {
         return matchFailed(_log.nest(), rewriter, origReshapeOp,
@@ -96,34 +274,20 @@ mlir::LogicalResult ReorderWithShapeChange<ConcreteOp>::matchAndRewrite(Concrete
                            reshapeOutOrder);
     }
 
-    // Reorder can only propagate if the order of Reshape's reshaped axes are kept the same
-    // For exmaple, (1,16,8,2)#NHWC -> Reorder -> (1,16,8,2)#NCHW -> Reshape -> (1,16,4,4)#NCHW
-    // Only H & W are reshaped and their relative order stays the same
-    // Thus, the Reorder can be propagated through the Reshape like below:
-    // (1,16,8,2)#NHWC -> Reshape -> (1,16,4,4)#NHWC -> Reorder -> (1,16,4,4)#NCHW
+    const auto reshapeInShape = getShape(origReshapeInput);
+    const auto reshapeOutShape = getShape(origReshapeOutput);
+    const auto reshapedAxes = getReshapedAxes(reshapeInShape, reshapeOutShape, outOrder);
 
-    auto reshapeInShape = getShape(origReshapeInput);
-    auto reshapeOutShape = getShape(origReshapeOutput);
-    auto reshapedAxes = getReshapedAxes(reshapeInShape, reshapeOutShape, outOrder);
-
-    for (const auto& group : reshapedAxes) {
-        auto dimIter = group.begin();
-        auto prevPos = inOrder.dimPos(*dimIter);
-        while (++dimIter != group.end()) {
-            auto curPos = inOrder.dimPos(*dimIter);
-            if (curPos - prevPos != 1) {
-                return matchFailed(
-                        _log.nest(), rewriter, origReshapeOp,
-                        "The orders of reshaped axes {0} - {1} are different in input order {2} and output order {3}",
-                        *(dimIter - 1), *dimIter, inOrder, outOrder);
-            }
-            prevPos = curPos;
-        }
+    if (!isReshapeInImmutableGroup(reshapedAxes, inOrder) &&
+        !isCompatibleMemReshape(origReorderOp.getInput().getType(), origReshapeOutput.getType())) {
+        return matchFailed(_log.nest(), rewriter, origReshapeOp,
+                           "The orders of reshaped axes {0} are different in input order {2} and output order {3}, ",
+                           "and the shape change op is not a trivial mem reshape ", reshapedAxes, inOrder, outOrder);
     }
 
     auto shapeAttr = getIntArrayAttr(origReshapeOp.getContext(), reshapeOutShape);
-    auto shapeCastOp = rewriter.create<IE::ShapeCastOp>(origReshapeOp->getLoc(), origReorderOp.input(), shapeAttr);
-    rewriter.replaceOpWithNewOp<IE::ReorderOp>(origReshapeOp, shapeCastOp.result(), origReorderOp.dstOrderAttr());
+    auto shapeCastOp = rewriter.create<IE::ShapeCastOp>(origReshapeOp->getLoc(), origReorderOp.getInput(), shapeAttr);
+    rewriter.replaceOpWithNewOp<IE::ReorderOp>(origReshapeOp, shapeCastOp.getResult(), origReorderOp.getDstOrderAttr());
 
     return mlir::success();
 }
@@ -147,27 +311,25 @@ private:
 
 mlir::LogicalResult ReorderWithSubView::matchAndRewrite(IE::SliceOp origSubViewOp,
                                                         mlir::PatternRewriter& rewriter) const {
-    auto origReorderOp = origSubViewOp.source().getDefiningOp<IE::ReorderOp>();
+    auto origReorderOp = origSubViewOp.getSource().getDefiningOp<IE::ReorderOp>();
     if (origReorderOp == nullptr) {
         return mlir::failure();
     }
 
-    // Maintain the Reorder -> PermuteCast -> Reorder chain as it can later be reduced to a single operation
-    if (auto prevPermuteCastOp = origReorderOp.input().getDefiningOp<IE::PermuteCastOp>()) {
-        if (auto prevReorderOp = prevPermuteCastOp.input().getDefiningOp<IE::ReorderOp>())
-            return mlir::failure();
+    if (isMaintainPattern(origReorderOp.getOperation())) {
+        return mlir::failure();
     }
 
     _log.trace("Got reorder at '{0}' -> subview at '{1}' pair", origReorderOp->getLoc(), origSubViewOp->getLoc());
 
-    const auto isHomogeneousUser = [](mlir::Operation* reorderUser) -> bool {
-        return mlir::isa<IE::SliceOp, IE::ConcatOp, IE::PermuteCastOp>(reorderUser);
-    };
+    auto getUserOp = [](mlir::Operation* op) -> mlir::Operation* {
+        mlir::Operation* user = op;
+        while (mlir::isa<IE::PermuteCastOp, IE::AffineReshapeOp>(user) && user->hasOneUse()) {
+            user = *user->getUsers().begin();
+        }
 
-    if (!llvm::all_of(origReorderOp->getUsers(), isHomogeneousUser)) {
-        return matchFailed(_log.nest(), rewriter, origSubViewOp,
-                           "Reorder has more than one user and they are heterogeneous");
-    }
+        return user;
+    };
 
     // In case "ReorderOp + SliceOp", if ReorderOp has no permutation for last dim (For example
     // affine_map<(d0, d2, d3, d1, d4) -> (d0, d1, d2, d3, d4)>), and the SliceOp output shape size for last dim
@@ -175,7 +337,8 @@ mlir::LogicalResult ReorderWithSubView::matchAndRewrite(IE::SliceOp origSubViewO
     // after swap will make it worse from performance perspective as inefficient DMA
     if (!origReorderOp.getResult().hasOneUse()) {
         bool allSlicesUsers = true;
-        bool benifitToSwap = true;
+        bool benefitToSwap = true;
+        bool hasReorderUser = false;
         for (auto* reorderUser : llvm::make_early_inc_range(origReorderOp->getUsers())) {
             auto reorderUserSliceOp = mlir::dyn_cast<IE::SliceOp>(reorderUser);
             if (reorderUserSliceOp == nullptr) {
@@ -183,30 +346,90 @@ mlir::LogicalResult ReorderWithSubView::matchAndRewrite(IE::SliceOp origSubViewO
                 break;
             }
 
-            auto reorderInputDimsOrder = DimsOrder::fromValue(origReorderOp.input());
-            auto reorderOutputDimsOrder = DimsOrder::fromValue(origReorderOp.output());
+            auto reorderInputDimsOrder = DimsOrder::fromValue(origReorderOp.getInput());
+            auto reorderOutputDimsOrder = DimsOrder::fromValue(origReorderOp.getOutput());
             auto reorderInputPerm = reorderInputDimsOrder.toPermutation();
             auto reorderOutputPerm = reorderOutputDimsOrder.toPermutation();
             auto inputPermEnd = (reorderInputPerm.end() - 1)->ind();
             auto outputPermEnd = (reorderOutputPerm.end() - 1)->ind();
-            const auto sliceShape = parseIntArrayAttr<int64_t>(reorderUserSliceOp.static_sizes());
+            const auto sliceShape = parseIntArrayAttr<int64_t>(reorderUserSliceOp.getStaticSizes());
 
             if (inputPermEnd == outputPermEnd && sliceShape[outputPermEnd] == 1) {
-                benifitToSwap = false;
-                break;
+                benefitToSwap = false;
+            }
+
+            auto sliceUser = *reorderUser->getUsers().begin();
+            if (reorderUser->hasOneUse() && sliceUser != nullptr && mlir::isa<IE::ReorderOp>(getUserOp(sliceUser))) {
+                // Swap if reorder can be fused with reorder post slice operation
+                hasReorderUser = true;
             }
         }
 
-        if (allSlicesUsers && !benifitToSwap) {
+        if (allSlicesUsers && !benefitToSwap && !hasReorderUser) {
             return mlir::failure();
         }
     }
 
     auto newSubViewOp =
-            rewriter.create<IE::SliceOp>(origSubViewOp->getLoc(), origReorderOp.input(),
-                                         origSubViewOp.static_offsetsAttr(), origSubViewOp.static_sizesAttr());
+            rewriter.create<IE::SliceOp>(origSubViewOp->getLoc(), origReorderOp.getInput(),
+                                         origSubViewOp.getStaticOffsetsAttr(), origSubViewOp.getStaticSizesAttr());
 
-    rewriter.replaceOpWithNewOp<IE::ReorderOp>(origSubViewOp, newSubViewOp.result(), origReorderOp.dstOrderAttr());
+    rewriter.replaceOpWithNewOp<IE::ReorderOp>(origSubViewOp, newSubViewOp.getResult(),
+                                               origReorderOp.getDstOrderAttr());
+    return mlir::success();
+}
+
+//
+// ReorderWithTile
+//
+
+class ReorderWithTile final : public mlir::OpRewritePattern<IE::TileOp> {
+public:
+    ReorderWithTile(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::TileOp>(ctx), _log(log) {
+        setDebugName("ReorderWithTile");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::TileOp origTileOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ReorderWithTile::matchAndRewrite(IE::TileOp origTileOp, mlir::PatternRewriter& rewriter) const {
+    if (isBeneficialReorderFuse(origTileOp)) {
+        return mlir::failure();
+    }
+
+    auto origReorderOp = mlir::dyn_cast<IE::ReorderOp>(*(origTileOp.getOutput().user_begin()));
+    if (origReorderOp == nullptr) {
+        return mlir::failure();
+    }
+    // Avoid loop rewriting with ReorderWithLayer
+    if (mlir::isa<IE::ReorderOp>(*(origReorderOp.getOutput().user_begin()))) {
+        return mlir::failure();
+    }
+
+    if (isMaintainPattern(origReorderOp.getOperation())) {
+        return mlir::failure();
+    }
+
+    _log.trace("Got tile at '{0}' -> reorder at '{1}' pair", origTileOp->getLoc(), origReorderOp->getLoc());
+
+    if (!isBeneficialSwitch(origTileOp, DimsOrder::fromValue(origReorderOp.getInput()),
+                            DimsOrder::fromValue(origReorderOp.getOutput()))) {
+        return mlir::failure();
+    }
+
+    auto newReorderOp = rewriter.create<IE::ReorderOp>(origReorderOp->getLoc(), origTileOp.getInput(),
+                                                       origReorderOp.getDstOrderAttr());
+
+    auto outputType = origTileOp.getOutput().getType().cast<vpux::NDTypeInterface>();
+    auto newOutputType = outputType.changeDimsOrder(DimsOrder::fromAffineMap(newReorderOp.getDstOrder()));
+
+    rewriter.replaceOpWithNewOp<IE::TileOp>(origReorderOp, newOutputType, newReorderOp.getOutput(),
+                                            origTileOp.getRepeats(), origTileOp.getRepeatsValuesAttr());
+
     return mlir::success();
 }
 
@@ -227,20 +450,80 @@ private:
     Logger _log;
 };
 
+//
+//  The beneficial pattern:
+//
+//     input               input
+//       |                   |
+//     Reorder             Expand
+//       |                   |
+//     Expand   ==>        Reorder
+//       |                   |
+//     Slice(s)            Slice(s)
+//       |                   |
+//     Reorder(s)          Reorder(s)
+//       |                   |
+//     output              outPut
+//
+//  It's worth to swap parent Reorder and Expand,  the swaped Reorder will be handled by followup optimizations.
+//
+
+bool isBeneficialToSwapExpandReorders(IE::ExpandOp origExpandOp, IE::ReorderOp origReorderOp) {
+    // If Reorder is not Trivial Permute, will swap
+    if (!isTrivialReorder(origReorderOp)) {
+        return true;
+    }
+
+    if (origExpandOp.getInput().isa<mlir::BlockArgument>()) {
+        return false;
+    }
+
+    const auto expandOutput = origExpandOp.getOutput();
+
+    SmallVector<IE::SliceOp> slices;
+
+    for (auto userOp : expandOutput.getUsers()) {
+        auto maybeSlice = mlir::dyn_cast_or_null<IE::SliceOp>(*userOp);
+        if (maybeSlice == nullptr) {
+            return false;
+        }
+        slices.push_back(maybeSlice);
+    }
+
+    if (slices.empty()) {
+        return false;
+    }
+
+    SmallVector<mlir::Value> reorders;
+    for (auto& userOp : slices) {
+        auto sliceOutput = userOp.getResult();
+        if (!sliceOutput.hasOneUse()) {
+            return false;
+        }
+        auto maybeReorderOp = mlir::dyn_cast_or_null<IE::ReorderOp>(*sliceOutput.getUsers().begin());
+        if (maybeReorderOp == nullptr) {
+            return false;
+        }
+        reorders.push_back(maybeReorderOp);
+    }
+
+    return !reorders.empty();
+}
+
 void swapExpandWithReorder(mlir::PatternRewriter& rewriter, IE::ExpandOp expandOp, IE::ReorderOp origReorderOp) {
     mlir::OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPoint(expandOp);
 
-    auto newExpandOp = rewriter.create<IE::ExpandOp>(expandOp->getLoc(), origReorderOp.input(),
-                                                     expandOp.pads_beginAttr(), expandOp.pads_endAttr());
+    auto newExpandOp = rewriter.create<IE::ExpandOp>(expandOp->getLoc(), origReorderOp.getInput(),
+                                                     expandOp.getPadsBeginAttr(), expandOp.getPadsEndAttr());
 
-    rewriter.replaceOpWithNewOp<IE::ReorderOp>(expandOp, newExpandOp.output(), origReorderOp.dstOrderAttr());
+    rewriter.replaceOpWithNewOp<IE::ReorderOp>(expandOp, newExpandOp.getOutput(), origReorderOp.getDstOrderAttr());
 }
 
 mlir::LogicalResult ReorderWithExpand::matchAndRewrite(IE::ExpandOp origExpandOp,
                                                        mlir::PatternRewriter& rewriter) const {
     auto* ctx = origExpandOp->getContext();
-    auto origReorderOp = origExpandOp.input().getDefiningOp<IE::ReorderOp>();
+    auto origReorderOp = origExpandOp.getInput().getDefiningOp<IE::ReorderOp>();
     if (origReorderOp == nullptr) {
         return mlir::failure();
     }
@@ -256,11 +539,7 @@ mlir::LogicalResult ReorderWithExpand::matchAndRewrite(IE::ExpandOp origExpandOp
                            "Reorder has more than one user and they are heterogeneous");
     }
 
-    // If Reorder is Trivial Permute, will not swap
-    // Input (1x1x512x512, NCHW) -> Reorder (1x1x512x512, NHWC) -> Expand (1x16x512x512, NHWC)
-    // After Swap the Reorder is not Trivial Permute
-    // Input (1x1x512x512, NCHW) -> Expand (1x16x512x512, NCHW) -> Reorder (1x16x512x512, NHWC)
-    if (isTrivialReorder(origReorderOp)) {
+    if (!isBeneficialToSwapExpandReorders(origExpandOp, origReorderOp)) {
         return mlir::failure();
     }
 
@@ -268,9 +547,9 @@ mlir::LogicalResult ReorderWithExpand::matchAndRewrite(IE::ExpandOp origExpandOp
     // Input (1x1x512x512, NCWH) -> Reorder (1x1x512x512, NHWC) -> Expand (1x16x512x512, NHWC)
     // After Swap the Reorder cannot convert to PermuteDMA
     // Input (1x1x512x512, NCWH) -> Expand (1x16x512x512, NCWH) -> Reorder (1x16x512x512, NHWC)
-    auto expandOutType = origExpandOp.output().getType().cast<vpux::NDTypeInterface>();
-    auto newOrderInType = expandOutType.changeDimsOrder(DimsOrder::fromValue(origReorderOp.input()));
-    auto newOrderOutType = expandOutType.changeDimsOrder(DimsOrder::fromValue(origReorderOp.output()));
+    auto expandOutType = origExpandOp.getOutput().getType().cast<vpux::NDTypeInterface>();
+    auto newOrderInType = expandOutType.changeDimsOrder(DimsOrder::fromValue(origReorderOp.getInput()));
+    auto newOrderOutType = expandOutType.changeDimsOrder(DimsOrder::fromValue(origReorderOp.getOutput()));
     auto memPerm = getPermutationFromOrders(newOrderInType.getDimsOrder(), newOrderOutType.getDimsOrder(), ctx);
     auto unsupportPermuteDMA = [&]() -> bool {
         const auto inShape = newOrderInType.getShape();
@@ -287,6 +566,123 @@ mlir::LogicalResult ReorderWithExpand::matchAndRewrite(IE::ExpandOp origExpandOp
         swapExpandWithReorder(rewriter, expandOp, origReorderOp);
     }
 
+    return mlir::success();
+}
+
+//
+// ReorderWithExpandSlice
+//
+
+//  The beneficial pattern:
+//
+//       input(Not Reorder)   input
+//          |                   |
+//        Expand              Reorder
+//          |                   |
+//        Slice(s)   ==>      Expand
+//          |                   |
+//       Reorder(s)           Slice(s)
+//          |                   |
+//        output              Output
+//  This is a cleanup pattern.
+//  Move Reorder before Expand, it is beneficial if size of original Reorder(s) total size is larger than
+//  new inserted Reorder.
+//  Example:
+//  (1,1,1,32032) -> Expand -> (1,16,1,32032) -> Slice -> (1,16,1,31995) -> Reorder
+//                                            -> Slice -> (1,16,1,31995) -> Reorder
+//  After this pass, the pattern:
+//  (1,1,1,32032) -> Reorder -> Expand -> Slice
+//                                     -> Slice
+//  The size of the Reorders reduce from 16x31995x2 to 32032.
+
+class ReorderWithExpandSlice final : public mlir::OpRewritePattern<IE::ExpandOp> {
+public:
+    ReorderWithExpandSlice(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::ExpandOp>(ctx), _log(log) {
+        setDebugName("ReorderWithExpandSlice");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::ExpandOp origExpandOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ReorderWithExpandSlice::matchAndRewrite(IE::ExpandOp origExpandOp,
+                                                            mlir::PatternRewriter& rewriter) const {
+    _log.trace("Got Expand at '{0}' ", origExpandOp->getLoc());
+    if (mlir::isa_and_nonnull<IE::ReorderOp>(origExpandOp.getInput().getDefiningOp())) {
+        return mlir::failure();
+    }
+
+    const auto expandOutput = origExpandOp.getOutput();
+    SmallVector<IE::SliceOp> slices;
+
+    for (auto userOp : expandOutput.getUsers()) {
+        auto maybeSlice = mlir::dyn_cast_or_null<IE::SliceOp>(*userOp);
+        if (maybeSlice == nullptr) {
+            return mlir::failure();
+        }
+        slices.push_back(maybeSlice);
+    }
+
+    if (slices.empty()) {
+        return mlir::failure();
+    }
+
+    SmallVector<IE::ReorderOp> reorders;
+    for (auto& userOp : slices) {
+        auto sliceOutput = userOp.getResult();
+        if (!sliceOutput.hasOneUse()) {
+            return mlir::failure();
+        }
+        auto maybeReorderOp = mlir::dyn_cast_or_null<IE::ReorderOp>(*sliceOutput.getUsers().begin());
+        if (maybeReorderOp == nullptr) {
+            return mlir::failure();
+        }
+        reorders.push_back(maybeReorderOp);
+    }
+
+    if (reorders.empty() || slices.size() != reorders.size()) {
+        return mlir::failure();
+    }
+
+    int64_t subReordersTotalSize = 0;
+    // check all the reorder op have the same input and output DimsOrder
+    auto reorderOutputDimsOrder = DimsOrder::fromValue(reorders[0].getOutput());
+    for (auto& reorderOp : reorders) {
+        auto reorderOutputDimsOrderLocal = DimsOrder::fromValue(reorderOp.getOutput());
+        if (reorderOutputDimsOrderLocal != reorderOutputDimsOrder) {
+            return mlir::failure();
+        }
+        auto reorderOpOutputType = reorderOp.getOutput().getType().cast<vpux::NDTypeInterface>();
+        subReordersTotalSize += reorderOpOutputType.getTotalAllocSize().count();
+    }
+
+    // Only benefit the first inserted Reorder size smaller than subslice total size.
+    auto origExpandInputType = origExpandOp.getInput().getType().cast<vpux::NDTypeInterface>();
+    auto origExpandInputSize = origExpandInputType.getTotalAllocSize().count();
+    if (subReordersTotalSize <= origExpandInputSize) {
+        _log.trace("Expand input Size: '{0}' larger than total size of Reorder(s): '{1}'. ", origExpandInputSize,
+                   subReordersTotalSize);
+        return mlir::failure();
+    }
+
+    auto newReorderOp = rewriter.create<IE::ReorderOp>(origExpandOp->getLoc(), origExpandOp.getInput(),
+                                                       reorders[0].getDstOrderAttr());
+    auto newExpandOp = rewriter.create<IE::ExpandOp>(origExpandOp->getLoc(), newReorderOp.getOutput(),
+                                                     origExpandOp.getPadsBeginAttr(), origExpandOp.getPadsEndAttr());
+
+    for (size_t index = 0; index < slices.size(); index++) {
+        auto subSlice = slices[index];
+        auto subReorder = reorders[index];
+        auto newSliceOp = rewriter.create<IE::SliceOp>(subSlice->getLoc(), subReorder.getOutput().getType(),
+                                                       newExpandOp.getOutput(), subSlice.getStaticOffsetsAttr(),
+                                                       subSlice.getStaticSizesAttr());
+        rewriter.replaceOp(subSlice, newSliceOp.getOutputs());
+        subReorder.replaceAllUsesWith(subReorder.getInput());
+        rewriter.eraseOp(subReorder);
+    }
     return mlir::success();
 }
 
@@ -308,27 +704,27 @@ private:
 };
 
 mlir::LogicalResult ReorderWithSplit::matchAndRewrite(IE::SplitOp origSplitOp, mlir::PatternRewriter& rewriter) const {
-    if (origSplitOp.axis() != nullptr) {
+    if (origSplitOp.getAxis() != nullptr) {
         return mlir::failure();
     }
 
-    auto origReorderOp = origSplitOp.input().getDefiningOp<IE::ReorderOp>();
+    auto origReorderOp = origSplitOp.getInput().getDefiningOp<IE::ReorderOp>();
     if (origReorderOp == nullptr) {
         return mlir::failure();
     }
 
     _log.trace("Got reorder at '{0}' -> Split at '{1}' pair", origReorderOp->getLoc(), origSplitOp->getLoc());
 
-    const auto inOrder = DimsOrder::fromValue(origReorderOp.input());
-    const auto outOrder = DimsOrder::fromValue(origReorderOp.output());
-    const auto dstOrderAttr = origReorderOp.dstOrderAttr();
-    auto newSplit = rewriter.create<IE::SplitOp>(origSplitOp->getLoc(), origReorderOp.input(), origSplitOp.axis(),
-                                                 origSplitOp.num_splitsAttr(), origSplitOp.axis_valueAttr());
+    const auto inOrder = DimsOrder::fromValue(origReorderOp.getInput());
+    const auto outOrder = DimsOrder::fromValue(origReorderOp.getOutput());
+    const auto dstOrderAttr = origReorderOp.getDstOrderAttr();
+    auto newSplit = rewriter.create<IE::SplitOp>(origSplitOp->getLoc(), origReorderOp.getInput(), origSplitOp.getAxis(),
+                                                 origSplitOp.getNumSplitsAttr(), origSplitOp.getAxisValueAttr());
 
     SmallVector<mlir::Value> newOutputs;
-    newOutputs.reserve(origSplitOp.outputs().size());
+    newOutputs.reserve(origSplitOp.getOutputs().size());
 
-    for (auto res : origSplitOp.outputs()) {
+    for (auto res : origSplitOp.getOutputs()) {
         if (res.getUses().empty()) {
             newOutputs.push_back(newSplit.getResult(res.getResultNumber()));
             continue;
@@ -351,23 +747,15 @@ mlir::LogicalResult ReorderWithSplit::matchAndRewrite(IE::SplitOp origSplitOp, m
 // ReorderWithConcat
 //
 
-mlir::Value insertReorderForBlockArg(mlir::Value arg, DimsOrder dstOrder, mlir::PatternRewriter& rewriter,
-                                     mlir::Location loc) {
-    mlir::OpBuilder::InsertionGuard guard(rewriter);
-    rewriter.setInsertionPointToStart(arg.getParentBlock());
-    auto reorderOp = rewriter.create<IE::ReorderOp>(loc, arg, dstOrder.toAffineMap(rewriter.getContext()));
-    arg.replaceAllUsesExcept(reorderOp.output(), llvm::SmallPtrSet<mlir::Operation*, 1>{reorderOp});
-    return reorderOp.output();
-}
-
 void replaceChildReorderWithNewConcat(IE::ConcatOp& origConcatOp, IE::ConcatOp& newConcatOp,
                                       mlir::PatternRewriter& rewriter, Logger log) {
-    auto outputConcat = origConcatOp.output();
+    auto outputConcat = origConcatOp.getOutput();
     auto childReorderOp = mlir::dyn_cast_or_null<IE::ReorderOp>(*outputConcat.getUsers().begin());
 
-    auto newOutputConcat = newConcatOp.output();
-    vpux::changeDimsOrder(newOutputConcat, DimsOrder::fromValue(childReorderOp.output()), log);
-    childReorderOp.output().replaceAllUsesExcept(newOutputConcat, llvm::SmallPtrSet<mlir::Operation*, 1>{newConcatOp});
+    auto newOutputConcat = newConcatOp.getOutput();
+    vpux::changeDimsOrder(newOutputConcat, DimsOrder::fromValue(childReorderOp.getOutput()), log);
+    childReorderOp.getOutput().replaceAllUsesExcept(newOutputConcat,
+                                                    llvm::SmallPtrSet<mlir::Operation*, 1>{newConcatOp});
 
     rewriter.eraseOp(childReorderOp);
     rewriter.eraseOp(origConcatOp);
@@ -390,7 +778,7 @@ void replaceChildReorderWithNewConcat(IE::ConcatOp& origConcatOp, IE::ConcatOp& 
 //
 
 bool isBeneficialToSwapConcatReorders(IE::ConcatOp& origConcatOp) {
-    const auto outputConcat = origConcatOp.output();
+    const auto outputConcat = origConcatOp.getOutput();
     if (!outputConcat.hasOneUse()) {
         return false;
     }
@@ -403,14 +791,14 @@ bool isBeneficialToSwapConcatReorders(IE::ConcatOp& origConcatOp) {
     size_t nonReorderInput = 0;
     size_t reorderInput = 0;
 
-    for (const auto& arg : origConcatOp.inputs()) {
+    for (const auto& arg : origConcatOp.getInputs()) {
         if (auto argReorderOp = arg.getDefiningOp<IE::ReorderOp>()) {
-            auto op = argReorderOp.input().getDefiningOp();
+            auto op = argReorderOp.getInput().getDefiningOp();
             if (mlir::isa_and_nonnull<Const::DeclareOp, IE::ReadValueOp>(op) || op == nullptr) {
                 return false;
             }
 
-            if (DimsOrder::fromValue(argReorderOp.input()) != DimsOrder::fromValue(maybeReorder.output())) {
+            if (DimsOrder::fromValue(argReorderOp.getInput()) != DimsOrder::fromValue(maybeReorder.getOutput())) {
                 return false;
             }
 
@@ -439,24 +827,28 @@ private:
 mlir::LogicalResult ReorderWithConcat::matchAndRewrite(IE::ConcatOp origConcatOp,
                                                        mlir::PatternRewriter& rewriter) const {
     SmallVector<mlir::Value> initialInputs;
-    initialInputs.reserve(origConcatOp.inputs().size());
+    initialInputs.reserve(origConcatOp.getInputs().size());
     SmallVector<size_t> indexNonReorder;
 
-    Optional<DimsOrder> initialOrder;
+    std::optional<DimsOrder> initialOrder;
     const bool isBeneficial = isBeneficialToSwapConcatReorders(origConcatOp);
 
-    for (const auto& it : origConcatOp.inputs() | indexed) {
+    auto constNum = 0;
+    mlir::Operation* origReorderOp = nullptr;
+
+    for (const auto& it : origConcatOp.getInputs() | indexed) {
         auto arg = it.value();
         auto argReorderOp = arg.getDefiningOp<IE::ReorderOp>();
         if (argReorderOp == nullptr) {
             indexNonReorder.push_back(it.index());
             if (auto constOp = arg.getDefiningOp<Const::DeclareOp>()) {
                 initialInputs.push_back(constOp.getOutput());
+                constNum++;
                 continue;
             }
 
             if (auto readValueOp = arg.getDefiningOp<IE::ReadValueOp>()) {
-                initialInputs.push_back(readValueOp.output());
+                initialInputs.push_back(readValueOp.getOutput());
                 continue;
             }
 
@@ -469,14 +861,23 @@ mlir::LogicalResult ReorderWithConcat::matchAndRewrite(IE::ConcatOp origConcatOp
             return mlir::failure();
         }
 
-        const auto argOrder = DimsOrder::fromValue(argReorderOp.input());
+        origReorderOp = argReorderOp.getOperation();
+        const auto argOrder = DimsOrder::fromValue(argReorderOp.getInput());
         if (!initialOrder.has_value()) {
             initialOrder = argOrder;
         } else if (argOrder != initialOrder.value()) {
             return mlir::failure();
         }
 
-        initialInputs.push_back(argReorderOp.input());
+        initialInputs.push_back(argReorderOp.getInput());
+    }
+
+    // To avoid affecting multiple branches optimization with reOrders before concat
+    // Just skip only one non-const reorder input cases with the reorder-permutecast-reorder pattern
+    if ((origConcatOp.getNumOperands() - constNum == 1) && origReorderOp) {
+        if (isMaintainPattern(origReorderOp)) {
+            return mlir::failure();
+        }
     }
 
     if (!initialOrder.has_value()) {
@@ -484,29 +885,25 @@ mlir::LogicalResult ReorderWithConcat::matchAndRewrite(IE::ConcatOp origConcatOp
     }
 
     const auto newConcatOrder = initialOrder.value();
-    const auto originalConcatOrder = DimsOrder::fromValue(origConcatOp.output());
+    const auto originalConcatOrder = DimsOrder::fromValue(origConcatOp.getOutput());
 
     // Insert reorders for ConstOps and ReadValueOps */
     for (size_t ind = 0; ind < indexNonReorder.size(); ++ind) {
         const auto index = indexNonReorder[ind];
-
-        if (initialInputs[index].dyn_cast_or_null<mlir::BlockArgument>()) {
-            initialInputs[index] =
-                    insertReorderForBlockArg(initialInputs[index], newConcatOrder, rewriter, origConcatOp.getLoc());
-
-        } else {
-            auto op = initialInputs[index].getDefiningOp();
-            initialInputs[index] = insertReorderForOutput(op, op->getOpResult(0), newConcatOrder, rewriter, _log);
-        }
+        mlir::OpBuilder::InsertionGuard guard(rewriter);
+        rewriter.setInsertionPointAfterValue(initialInputs[index]);
+        auto reorderOp = rewriter.create<IE::ReorderOp>(origConcatOp->getLoc(), initialInputs[index],
+                                                        newConcatOrder.toAffineMap(rewriter.getContext()));
+        initialInputs[index] = reorderOp.getOutput();
     }
 
-    auto newConcat = rewriter.create<IE::ConcatOp>(origConcatOp->getLoc(), initialInputs, origConcatOp.per_axisAttr(),
-                                                   origConcatOp.static_offsetsAttr());
+    auto newConcat = rewriter.create<IE::ConcatOp>(origConcatOp->getLoc(), initialInputs, origConcatOp.getPerAxisAttr(),
+                                                   origConcatOp.getStaticOffsetsAttr());
 
     if (isBeneficial) {
         replaceChildReorderWithNewConcat(origConcatOp, newConcat, rewriter, _log);
     } else {
-        rewriter.replaceOpWithNewOp<IE::ReorderOp>(origConcatOp, origConcatOp.getType(), newConcat.output(),
+        rewriter.replaceOpWithNewOp<IE::ReorderOp>(origConcatOp, origConcatOp.getType(), newConcat.getOutput(),
                                                    originalConcatOrder.toAffineMap(origConcatOp.getContext()));
     }
 
@@ -534,7 +931,7 @@ private:
 
 mlir::LogicalResult ReorderWithQuantCast::matchAndRewrite(IE::QuantizeCastOp origQuantCastOp,
                                                           mlir::PatternRewriter& rewriter) const {
-    auto origReorderOp = origQuantCastOp.input().getDefiningOp<IE::ReorderOp>();
+    auto origReorderOp = origQuantCastOp.getInput().getDefiningOp<IE::ReorderOp>();
     if (origReorderOp == nullptr) {
         return mlir::failure();
     }
@@ -542,10 +939,11 @@ mlir::LogicalResult ReorderWithQuantCast::matchAndRewrite(IE::QuantizeCastOp ori
     _log.trace("Got reorder at '{0}' -> quantize cast at '{1}' pair", origReorderOp->getLoc(),
                origQuantCastOp->getLoc());
 
-    auto newQuantCastOp = rewriter.create<IE::QuantizeCastOp>(origQuantCastOp->getLoc(), origReorderOp.input(),
-                                                              origQuantCastOp.dstElemTypeAttr());
+    auto newQuantCastOp = rewriter.create<IE::QuantizeCastOp>(origQuantCastOp->getLoc(), origReorderOp.getInput(),
+                                                              origQuantCastOp.getDstElemTypeAttr());
 
-    rewriter.replaceOpWithNewOp<IE::ReorderOp>(origQuantCastOp, newQuantCastOp.output(), origReorderOp.dstOrderAttr());
+    rewriter.replaceOpWithNewOp<IE::ReorderOp>(origQuantCastOp, newQuantCastOp.getOutput(),
+                                               origReorderOp.getDstOrderAttr());
     return mlir::success();
 }
 
@@ -604,13 +1002,13 @@ DimsOrder inferPermuteCastOutLogicalLayout(vpux::DimsOrder origReorderDstOrder,
 // it could calculate the new permuteCast dstOrder: [d0, d1, d2, d3, d4]
 DimsOrder inferPermuteCastDstOrder(IE::ReorderOp origReorderOp, IE::PermuteCastOp origPermuteCastOp,
                                    mlir::MLIRContext* ctx) {
-    const auto origReorderDstOrder = DimsOrder::fromAffineMap(origReorderOp.dstOrder());
-    const auto origPermuteCastDstOrderAttr = origPermuteCastOp.dst_orderAttr();
+    const auto origReorderDstOrder = DimsOrder::fromAffineMap(origReorderOp.getDstOrder());
+    const auto origPermuteCastDstOrderAttr = origPermuteCastOp.getDstOrderAttr();
 
     auto logicalLayout = inferPermuteCastOutLogicalLayout(origReorderDstOrder, origPermuteCastDstOrderAttr.getValue());
 
     // Calculate the permutation of new permuteCast
-    const auto outputOrder = vpux::DimsOrder::fromValue(origReorderOp.input());
+    const auto outputOrder = vpux::DimsOrder::fromValue(origReorderOp.getInput());
     const auto memPerm = vpux::getPermutationFromOrders(logicalLayout, outputOrder, ctx);
 
     return DimsOrder::fromAffineMap(memPerm);
@@ -618,7 +1016,7 @@ DimsOrder inferPermuteCastDstOrder(IE::ReorderOp origReorderOp, IE::PermuteCastO
 
 mlir::LogicalResult ReorderWithPermuteCast::matchAndRewrite(IE::PermuteCastOp origPermuteCastOp,
                                                             mlir::PatternRewriter& rewriter) const {
-    auto origReorderOp = origPermuteCastOp.input().getDefiningOp<IE::ReorderOp>();
+    auto origReorderOp = origPermuteCastOp.getInput().getDefiningOp<IE::ReorderOp>();
     if (origReorderOp == nullptr) {
         return mlir::failure();
     }
@@ -637,15 +1035,15 @@ mlir::LogicalResult ReorderWithPermuteCast::matchAndRewrite(IE::PermuteCastOp or
         return mlir::failure();
     }
 
-    const auto origOutOrder = DimsOrder::fromValue(origPermuteCastOp.output());
+    const auto origOutOrder = DimsOrder::fromValue(origPermuteCastOp.getOutput());
     const auto numDims = checked_cast<unsigned>(origOutOrder.numDims());
     const auto identityMap = mlir::AffineMap::getMinorIdentityMap(numDims, numDims, rewriter.getContext());
-    if (origPermuteCastOp.mem_perm() != identityMap) {
+    if (origPermuteCastOp.getMemPerm() != identityMap) {
         return mlir::failure();
     }
 
     // No benefit for case that NCE tasks could fuse mem permute
-    auto layerWithPermute = origReorderOp.input().getDefiningOp<IE::LayerWithPermuteInterface>();
+    auto layerWithPermute = origReorderOp.getInput().getDefiningOp<IE::LayerWithPermuteInterface>();
     if (layerWithPermute != nullptr && layerWithPermute.isSupportedPermutation(origReorderOp)) {
         return mlir::failure();
     }
@@ -653,10 +1051,10 @@ mlir::LogicalResult ReorderWithPermuteCast::matchAndRewrite(IE::PermuteCastOp or
     // Infer the DstOrder of the new permuteCast
     auto newDstOrder = inferPermuteCastDstOrder(origReorderOp, origPermuteCastOp, rewriter.getContext());
     const auto newDstOrderAttr = mlir::AffineMapAttr::get(newDstOrder.toAffineMap(rewriter.getContext()));
-    auto newMemPermAttr = origPermuteCastOp.mem_permAttr();
+    auto newMemPermAttr = origPermuteCastOp.getMemPermAttr();
 
     // Not swap in case that the two reorder could not be eliminated and the nextReorder's user is concatOp
-    const auto nextReorderOutOrder = DimsOrder::fromAffineMap(nextReorderOp.dstOrder());
+    const auto nextReorderOutOrder = DimsOrder::fromAffineMap(nextReorderOp.getDstOrder());
     bool canEliminate = newDstOrder == nextReorderOutOrder;
     for (auto* nextReorderUser : llvm::make_early_inc_range(nextReorderOp.getResult().getUsers())) {
         auto nextConcat = mlir::dyn_cast<IE::ConcatOp>(nextReorderUser);
@@ -668,11 +1066,11 @@ mlir::LogicalResult ReorderWithPermuteCast::matchAndRewrite(IE::PermuteCastOp or
     _log.trace("Got reorder at '{0}' -> permute cast at '{1}' pair", origReorderOp->getLoc(),
                origPermuteCastOp->getLoc());
 
-    auto newPermuteCastOp = rewriter.create<IE::PermuteCastOp>(origPermuteCastOp->getLoc(), origReorderOp.input(),
+    auto newPermuteCastOp = rewriter.create<IE::PermuteCastOp>(origPermuteCastOp->getLoc(), origReorderOp.getInput(),
                                                                newDstOrderAttr, newMemPermAttr);
 
-    rewriter.replaceOpWithNewOp<IE::ReorderOp>(origPermuteCastOp, newPermuteCastOp.output(),
-                                               origPermuteCastOp.dst_orderAttr());
+    rewriter.replaceOpWithNewOp<IE::ReorderOp>(origPermuteCastOp, newPermuteCastOp.getOutput(),
+                                               origPermuteCastOp.getDstOrderAttr());
     return mlir::success();
 }
 
@@ -706,17 +1104,17 @@ mlir::LogicalResult ReorderWithConvert::matchAndRewrite(IE::ConvertOp convertOp,
         return mlir::failure();
     }
 
-    const auto srcType = convertOp.input().getType();
-    const auto dstElemType = convertOp.dstElemType();
+    const auto srcType = convertOp.getInput().getType();
+    const auto dstElemType = convertOp.getDstElemType();
     if (getElemTypeSize(srcType) >= getElemTypeSize(dstElemType)) {
         return matchFailed(rewriter, convertOp, "Convert doesn't increase data size");
     }
 
-    auto newReorderOp =
-            rewriter.create<IE::ReorderOp>(origReorderOp->getLoc(), convertOp.input(), origReorderOp.dstOrderAttr());
+    auto newReorderOp = rewriter.create<IE::ReorderOp>(origReorderOp->getLoc(), convertOp.getInput(),
+                                                       origReorderOp.getDstOrderAttr());
 
-    rewriter.replaceOpWithNewOp<IE::ConvertOp>(origReorderOp, origReorderOp.getType(), newReorderOp.output(),
-                                               convertOp.dstElemTypeAttr());
+    rewriter.replaceOpWithNewOp<IE::ConvertOp>(origReorderOp, origReorderOp.getType(), newReorderOp.getOutput(),
+                                               convertOp.getDstElemTypeAttr());
 
     return mlir::success();
 }
@@ -726,24 +1124,21 @@ mlir::LogicalResult ReorderWithConvert::matchAndRewrite(IE::ConvertOp convertOp,
 // Return mlir::Operation if target op is found, otherwise return mlir::failure().
 mlir::FailureOr<mlir::Operation*> searchOpConsumers(mlir::Operation* op,
                                                     const std::function<bool(mlir::Operation*)>& isTargetOpFound) {
-    if (op == nullptr || !op->hasOneUse()) {
+    if (op == nullptr) {
         return mlir::failure();
     }
 
-    mlir::Operation* operation = op;
-    while (operation && !operation->getUsers().empty()) {
-        auto user = *(operation->getUsers().begin());
-
-        if (isTargetOpFound(user)) {
-            return user;
-        } else if (IE::isPureViewOp(user)) {
-            if (!user->hasOneUse()) {
-                return mlir::failure();
+    for (auto user : op->getUsers()) {
+        mlir::Operation* operation = user;
+        while (operation) {
+            if (isTargetOpFound(operation)) {
+                return operation;
+            } else if (IE::isPureViewOp(operation) && operation->hasOneUse()) {
+                operation = *(operation->getUsers().begin());
+                continue;
+            } else {
+                break;
             }
-            operation = user;
-            continue;
-        } else {
-            break;
         }
     }
     return mlir::failure();
@@ -766,8 +1161,8 @@ mlir::FailureOr<mlir::Operation*> getReturnOpConsumer(mlir::Operation* op) {
 }
 
 bool doesConvertOpIncreaseElemSize(IE::ConvertOp convertOp) {
-    const auto srcType = convertOp.input().getType();
-    const auto dstElemType = convertOp.dstElemType();
+    const auto srcType = convertOp.getInput().getType();
+    const auto dstElemType = convertOp.getDstElemType();
     return getElemTypeSize(srcType) <= getElemTypeSize(dstElemType);
 }
 
@@ -777,8 +1172,11 @@ bool doesConvertOpIncreaseElemSize(IE::ConvertOp convertOp) {
 
 class ReorderWithLayer final : public mlir::OpInterfaceRewritePattern<IE::LayoutInfoOpInterface> {
 public:
-    ReorderWithLayer(mlir::MLIRContext* ctx, Logger log, const bool seOpsEnabled)
-            : mlir::OpInterfaceRewritePattern<IE::LayoutInfoOpInterface>(ctx), _log(log), _seOpsEnabled(seOpsEnabled) {
+    ReorderWithLayer(mlir::MLIRContext* ctx, Logger log, const bool seOpsEnabled, const bool seTransposedConvEnabled)
+            : mlir::OpInterfaceRewritePattern<IE::LayoutInfoOpInterface>(ctx),
+              _log(log),
+              _seOpsEnabled(seOpsEnabled),
+              _seTransposedConvEnabled(seTransposedConvEnabled) {
         setDebugName("ReorderWithLayer");
     }
 
@@ -788,6 +1186,7 @@ public:
 private:
     Logger _log;
     bool _seOpsEnabled;
+    bool _seTransposedConvEnabled;
 };
 
 mlir::LogicalResult ReorderWithLayer::matchAndRewrite(IE::LayoutInfoOpInterface layerOp,
@@ -809,6 +1208,15 @@ mlir::LogicalResult ReorderWithLayer::matchAndRewrite(IE::LayoutInfoOpInterface 
     // 2.ReorderOp's consumers are pure view like ops with ConvertOp and ReturnOp.
     //   Additionally ConvertOp is increasing element type size.
     //   e.g.Reorder->AffineReshape->ConvertOp(F16->F32)->AffineReshape->PermuteCast->QuantizeCast->ReturnOp
+    // 3.ReorderOp's consumers is tileOp and the propagation will lead a low efficient layout for tileOp.
+    if (auto tileOp = mlir::dyn_cast<IE::TileOp>(&layerOp)) {
+        if (!isBeneficialReorderFuse(*tileOp)) {
+            if (!isBeneficialSwitch(*tileOp, DimsOrder::fromValue(argReorderOp.getOutput()),
+                                    DimsOrder::fromValue(argReorderOp.getInput()))) {
+                return mlir::failure();
+            }
+        }
+    }
     auto getConsumerResult = getConvertOrReturnOpConsumer(argReorderOp);
     if (!mlir::failed(getConsumerResult)) {
         auto convertOrReturnOp = getConsumerResult.value();
@@ -826,12 +1234,12 @@ mlir::LogicalResult ReorderWithLayer::matchAndRewrite(IE::LayoutInfoOpInterface 
         }
     }
 
-    const auto propagatingOrder = DimsOrder::fromValue(argReorderOp.input());
+    const auto propagatingOrder = DimsOrder::fromValue(argReorderOp.getInput());
 
     // Propagate first input layout and infer layout info
     auto orderInfo = layerOp.getLayoutInfo();
     orderInfo.setInput(0, propagatingOrder);
-    layerOp.inferLayoutInfo(orderInfo, _seOpsEnabled);
+    layerOp.inferLayoutInfo(orderInfo, _seOpsEnabled, _seTransposedConvEnabled);
     if (orderInfo.getInput(0) != propagatingOrder) {
         return matchFailed(_log.nest(), rewriter, layerOp, "Layer doesn't support propagating order {0}",
                            propagatingOrder);
@@ -843,8 +1251,10 @@ mlir::LogicalResult ReorderWithLayer::matchAndRewrite(IE::LayoutInfoOpInterface 
         const auto order = DimsOrder::fromValue(input);
         const auto isConstInput = mlir::isa_and_nonnull<Const::DeclareOp>(input.getDefiningOp());
         const auto isReorderInput = mlir::isa_and_nonnull<IE::ReorderOp>(input.getDefiningOp());
+        const auto canAddTrivialReorder =
+                isTrivialReorder(order, orderInfo.getInput(checked_cast<uint32_t>(ind)), getShape(input));
 
-        if (order != orderInfo.getInput(ind) && !isConstInput && !isReorderInput) {
+        if (order != orderInfo.getInput(ind) && !isConstInput && !isReorderInput && !canAddTrivialReorder) {
             return matchFailed(_log.nest(), rewriter, layerOp, "Non-constant inputs require additional Reorders");
         }
     }
@@ -852,7 +1262,7 @@ mlir::LogicalResult ReorderWithLayer::matchAndRewrite(IE::LayoutInfoOpInterface 
     rewriter.startRootUpdate(layerOp);
 
     _log.nest(1).trace("Remove Reorder before the first input");
-    layerOp->getOpOperand(0).set(argReorderOp.input());
+    layerOp->getOpOperand(0).set(argReorderOp.getInput());
 
     const auto inputs = layerOp->getOpOperands();
     for (auto i : irange<size_t>(1, inputs.size())) {
@@ -864,6 +1274,10 @@ mlir::LogicalResult ReorderWithLayer::matchAndRewrite(IE::LayoutInfoOpInterface 
         _log.nest(1).trace("Process input #{0}", i);
         if (curOrder != supportedOrder) {
             insertReorderForInput(layerOp, input, supportedOrder, rewriter, _log.nest());
+        }
+
+        if (curOrder != propagatingOrder && mlir::isa<IE::PowerOp>(layerOp.getOperation())) {
+            insertReorderForInput(layerOp, input, propagatingOrder, rewriter, _log.nest());
         }
     }
 
@@ -909,11 +1323,11 @@ mlir::LogicalResult ReorderWithAssign::matchAndRewrite(IE::AssignOp origAssignOp
                                                        mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got ReorderWithAssign layer at '{1}'", getDebugName(), origAssignOp->getLoc());
 
-    if (!_assignNameSetToOptimize.count(origAssignOp.name())) {
+    if (!_assignNameSetToOptimize.count(origAssignOp.getName())) {
         return mlir::failure();
     }
 
-    auto prevOp = origAssignOp.input().getDefiningOp();
+    auto prevOp = origAssignOp.getInput().getDefiningOp();
 
     if (!prevOp->getResult(0).hasOneUse()) {
         return matchFailed(_log.nest(), rewriter, prevOp, "prev ReorderOp has more then one user");
@@ -924,8 +1338,8 @@ mlir::LogicalResult ReorderWithAssign::matchAndRewrite(IE::AssignOp origAssignOp
     }
 
     auto prevOpInputDimsOrder = DimsOrder::fromValue(prevOp->getOperand(0));
-    vpux::changeDimsOrder(origAssignOp.input(), prevOpInputDimsOrder, _log);
-    vpux::changeDimsOrder(origAssignOp.output(), prevOpInputDimsOrder, _log);
+    vpux::changeDimsOrder(origAssignOp.getInput(), prevOpInputDimsOrder, _log);
+    vpux::changeDimsOrder(origAssignOp.getOutput(), prevOpInputDimsOrder, _log);
     rewriter.replaceOp(prevOp, prevOp->getOperand(0));
     return mlir::success();
 }
@@ -953,15 +1367,15 @@ mlir::LogicalResult ReorderWithReadValue::matchAndRewrite(IE::ReadValueOp origRe
                                                           mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got ReorderWithReadValue layer at '{1}'", getDebugName(), origReadValueOp->getLoc());
 
-    if (!_readValueNameSetToOptimize.count(origReadValueOp.name())) {
+    if (!_readValueNameSetToOptimize.count(origReadValueOp.getName())) {
         return mlir::failure();
     }
 
-    if (!origReadValueOp.output().hasOneUse()) {
+    if (!origReadValueOp.getOutput().hasOneUse()) {
         return matchFailed(_log.nest(), rewriter, origReadValueOp, "ReadValue has more then one user");
     }
 
-    auto origReorderOp = mlir::dyn_cast<IE::ReorderOp>(*origReadValueOp.output().getUsers().begin());
+    auto origReorderOp = mlir::dyn_cast<IE::ReorderOp>(*origReadValueOp.getOutput().getUsers().begin());
 
     if (origReorderOp == nullptr) {
         return mlir::failure();
@@ -969,10 +1383,10 @@ mlir::LogicalResult ReorderWithReadValue::matchAndRewrite(IE::ReadValueOp origRe
 
     // Note that in this case we replace Declare -> ReadValue -> Reorder with Declare -> Reorder -> ReadValue,
     // Then Declare -> Reorder -> ReadValue will be changed to Declare -> ReadValue
-    auto newReorderOp = rewriter.create<IE::ReorderOp>(origReorderOp->getLoc(), origReadValueOp.input(),
-                                                       origReorderOp.dstOrderAttr());
+    auto newReorderOp = rewriter.create<IE::ReorderOp>(origReorderOp->getLoc(), origReadValueOp.getInput(),
+                                                       origReorderOp.getDstOrderAttr());
 
-    rewriter.replaceOpWithNewOp<IE::ReadValueOp>(origReorderOp, newReorderOp.output(), origReadValueOp.name());
+    rewriter.replaceOpWithNewOp<IE::ReadValueOp>(origReorderOp, newReorderOp.getOutput(), origReadValueOp.getName());
     // erase readvalue ops which has no more nodes next
     rewriter.eraseOp(origReadValueOp);
 
@@ -985,7 +1399,8 @@ mlir::LogicalResult ReorderWithReadValue::matchAndRewrite(IE::ReadValueOp origRe
 
 class OptimizeReordersPass final : public IE::OptimizeReordersBase<OptimizeReordersPass> {
 public:
-    explicit OptimizeReordersPass(const bool seOpsEnabled, Logger log): _seOpsEnabled(seOpsEnabled) {
+    explicit OptimizeReordersPass(const bool seOpsEnabled, const bool seTransposedConvEnabled, Logger log)
+            : _seOpsEnabled(seOpsEnabled), _seTransposedConvEnabled(seTransposedConvEnabled) {
         Base::initLogger(log, Base::getArgumentName());
     }
 
@@ -996,6 +1411,7 @@ private:
 
 private:
     bool _seOpsEnabled;
+    bool _seTransposedConvEnabled;
 };
 
 mlir::DenseSet<llvm::StringRef> OptimizeReordersPass::getReadValueAndAssignPairs(mlir::func::FuncOp func, Logger log) {
@@ -1004,22 +1420,22 @@ mlir::DenseSet<llvm::StringRef> OptimizeReordersPass::getReadValueAndAssignPairs
     mlir::DenseMap<llvm::StringRef, DimsOrder> assignMap;
 
     func->walk([&](IE::ReadValueOp readValueOp) {
-        auto nextOp = *readValueOp.output().getUsers().begin();
+        auto nextOp = *readValueOp.getOutput().getUsers().begin();
         if (mlir::isa_and_nonnull<IE::ReorderOp>(nextOp) && readValueOp.getResult().hasOneUse()) {
             // Only if readValue has one user, i.e. Reorder Op, the convert is legal to happen
             log.trace("Found Read Value Operation with Reorder Op'{0}' ", readValueOp->getLoc());
             auto nextOpResultDimsOrder = DimsOrder::fromValue(nextOp->getResult(0));
-            readValueMap.insert({readValueOp.name(), nextOpResultDimsOrder});
+            readValueMap.insert({readValueOp.getName(), nextOpResultDimsOrder});
         }
     });
 
     func->walk([&](IE::AssignOp assignOp) {
-        auto prevOp = assignOp.input().getDefiningOp();
+        auto prevOp = assignOp.getInput().getDefiningOp();
         if (mlir::isa_and_nonnull<IE::ReorderOp>(prevOp) && prevOp->getResult(0).hasOneUse()) {
             // Only if prev Reorder Op has one user, i.e. Assign Op, the convert is legal to happen
             log.trace("Found Assign Operation with Reorder Op'{0}' ", assignOp->getLoc());
             auto prevOpInputDimsOrder = DimsOrder::fromValue(prevOp->getOperand(0));
-            assignMap.insert({assignOp.name(), prevOpInputDimsOrder});
+            assignMap.insert({assignOp.getName(), prevOpInputDimsOrder});
         }
     });
 
@@ -1035,16 +1451,19 @@ mlir::DenseSet<llvm::StringRef> OptimizeReordersPass::getReadValueAndAssignPairs
 
 void OptimizeReordersPass::safeRunOnFunc() {
     auto& ctx = getContext();
+    (void)_seTransposedConvEnabled;
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<ReorderWithShapeChange<IE::ReshapeOp>>(&ctx, _log);
+    patterns.add<ReorderWithShapeChange<IE::AffineReshapeOp>>(&ctx, _log);
     patterns.add<ReorderWithShapeChange<IE::ShapeCastOp>>(&ctx, _log);
     patterns.add<ReorderWithSubView>(&ctx, _log);
     patterns.add<ReorderWithExpand>(&ctx, _log);
     patterns.add<ReorderWithSplit>(&ctx, _log);
     patterns.add<ReorderWithConcat>(&ctx, _log);
     patterns.add<ReorderWithQuantCast>(&ctx, _log);
-    patterns.add<ReorderWithLayer>(&ctx, _log, _seOpsEnabled);
+    patterns.add<ReorderWithTile>(&ctx, _log);
+    patterns.add<ReorderWithLayer>(&ctx, _log, _seOpsEnabled, _seTransposedConvEnabled);
     patterns.add<ReorderWithPermuteCast>(&ctx, _log);
     IE::ReorderOp::getCanonicalizationPatterns(patterns, &ctx);
 
@@ -1067,6 +1486,7 @@ void OptimizeReordersPass::safeRunOnFunc() {
 
     mlir::RewritePatternSet cleanupPatterns(&ctx);
     cleanupPatterns.add<ReorderWithConvert>(&ctx, _log);
+    cleanupPatterns.add<ReorderWithExpandSlice>(&ctx, _log);
     IE::ReorderOp::getCanonicalizationPatterns(cleanupPatterns, &ctx);
 
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(cleanupPatterns),
@@ -1081,6 +1501,7 @@ void OptimizeReordersPass::safeRunOnFunc() {
 // createOptimizeReordersPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::IE::createOptimizeReordersPass(const bool seOpsEnabled, Logger log) {
-    return std::make_unique<OptimizeReordersPass>(seOpsEnabled, log);
+std::unique_ptr<mlir::Pass> vpux::IE::createOptimizeReordersPass(const bool seOpsEnabled,
+                                                                 const bool seTransposedConvEnabled, Logger log) {
+    return std::make_unique<OptimizeReordersPass>(seOpsEnabled, seTransposedConvEnabled, log);
 }

@@ -9,9 +9,6 @@
 #include <set>
 
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
-#include <ie_icnn_network.hpp>
-#include <ie_input_info.hpp>
-#include <ie_remote_context.hpp>
 
 #include "vpux/utils/IE/config.hpp"
 #include "vpux/utils/core/quant_params.hpp"
@@ -21,26 +18,31 @@ namespace vpux {
 class ICompiler;
 
 /**
- * @brief A helper vector of pairs to represent descriptions for inputs and outputs
- * of a network
- */
-using NetworkIOVector = std::vector<std::pair<std::string, InferenceEngine::DataPtr>>;
-
-/**
- * @brief A helper type to keep OV 2.0 node raw data
+ * @brief A helper structure used for storing the metadata found within the I/O nodes.
+ * @details The "legacyName" attribute holds the name most commonly used as map key for multiple structures.
+ * This value also corresponds to the identifier used by the OpenVINO 1.0 API.
  *
+ * "originalShape" corresponds to the shape registered in the graph, while "transposedShape" holds the shape obtained
+ * upon applying a transposition corresponding to the legacy layout value. Use the "transposedShape" one if not sure
+ * which one you need.
  */
-struct OVRawNode {
-    std::string friendlyName;
-    ov::element::Type_t type;
-    ov::Shape shape;
-    std::unordered_set<std::string> tensorNames;
-    std::string inputName;
+struct IONodeDescriptor {
+    std::string legacyName;
+    std::string currentNodeName;
+    std::unordered_set<std::string> outputTensorNames;
+    ov::element::Type_t precision;
+    ov::PartialShape originalShape;
+    ov::PartialShape transposedShape;
 };
 
 /**
+ * @brief A helper map to represent descriptions for inputs and outputs
+ * of a network
+ */
+using IONodeDescriptorMap = std::unordered_map<std::string, IONodeDescriptor>;
+
+/**
  * @brief A helper type to represent vectors of OV 2.0 nodes
- *
  */
 using OVNodes = std::vector<std::shared_ptr<const ov::Node>>;
 
@@ -63,63 +65,128 @@ public:
     using CPtr = std::shared_ptr<const INetworkDescription>;
 
     /**
-     * @brief Returns name of a network
-     * @return Network name
+     * @return The name of the network
      */
-    virtual const std::string& getName() const = 0;
+    const std::string& getName() const {
+        return _name;
+    }
 
     /**
-     * @brief Returns a vector of pairs with information about network inputs which
-     * will be executed. The inputs are defined by a compiler and can be different
-     * from the original inputs due to compiler restrictions or optimizations
-     * @return Constant reference to an internally held NetworkIOVector object
+     * @return The input names which can be used as keys for the parameter descriptors map. The order of the names
+     * corresponds to the order in which the compiler received the parameters.
      */
-    virtual const NetworkIOVector& getDeviceInputsInfo() const = 0;
+    const std::vector<std::string>& getInputNames() const {
+        return _inputNames;
+    }
 
     /**
-     * @brief Returns a vector of pairs with information about network outputs which
-     * will be executed. The outputs are defined by a compiler and can be different
-     * from the original outputs due to compiler restrictions or optimizations
-     * @return Constant reference to an internally held NetworkIOVector object
+     * @return The output names which can be used as keys for the result descriptors map. The order of the names
+     * corresponds to the order in which the compiler received the parameters.
      */
-    virtual const NetworkIOVector& getDeviceOutputsInfo() const = 0;
+    const std::vector<std::string>& getOutputNames() const {
+        return _outputNames;
+    }
 
     /**
-     * @brief Returns a vector of pairs with information about profiling outputs.
-     * The outputs are defined by a compiler.
-     * @return Constant reference to an internally held NetworkIOVector object
+     * @return The state names which can be used as keys for the state descriptors map. The order of the names
+     * corresponds to the order in which the compiler received the parameters.
      */
-    virtual const NetworkIOVector& getDeviceProfilingOutputsInfo() const = 0;
+    const std::vector<std::string>& getStateNames() const {
+        return _stateNames;
+    }
 
-    virtual const std::vector<vpux::OVRawNode>& getOVParameters() const = 0;
-    virtual const std::vector<vpux::OVRawNode>& getOVResults() const = 0;
+    /**
+     * @return Structure describing the parameter nodes (i.e. inputs) of the current network.
+     */
+    const IONodeDescriptorMap& getParameterDescriptors() const {
+        return _parameters;
+    }
+
+    /**
+     * @return Structure describing the result nodes (i.e. outputs) of the current network.
+     */
+    const IONodeDescriptorMap& getResultDescriptors() const {
+        return _results;
+    }
+
+    /**
+     * @return Structure describing tensors corresponding to the states of the current network.
+     */
+    const IONodeDescriptorMap& getStateDescriptors() const {
+        return _states;
+    }
+
+    /**
+     * @return Structure describing tensors corresponding to the profiling outputs of the current network.
+     */
+    const IONodeDescriptorMap& getProfilingOutputDescriptors() const {
+        return _profilingOutputs;
+    }
+
+    /**
+     * @return A map indicating the order in which each input was found inside the compiled model.
+     */
+    const std::unordered_map<std::string, size_t>& getInputOrder() const {
+        return _inputOrder;
+    }
+
+    /**
+     * @return A map indicating the order in which each output was found inside the compiled model.
+     */
+    const std::unordered_map<std::string, size_t>& getOutputOrder() const {
+        return _outputOrder;
+    }
 
     // TODO Remove interface returning std::vector<char>.
     /**
      * @deprecated Return type should follow the function below.
      * The name itself can be reused once the old return type is dropped.
      */
-    virtual const std::vector<char>& getCompiledNetwork() const = 0;
+    const std::vector<char>& getCompiledNetwork() const {
+        return _compiledNetwork;
+    }
 
     /**
-     * @brief Returns a raw pointer to the compiled model
-     * @return Pointer to void
+     * @return A raw pointer to the compiled model
      */
-    virtual const void* getNetworkModel() const = 0;
+    const void* getNetworkModel() const {
+        return _compiledNetwork.data();
+    }
 
     /**
-     * @brief Returns size of the compiled model in bytes
-     * @return size in bytes
+     * @return The size of the compiled model in bytes
      */
-    virtual std::size_t getNetworkModelSize() const = 0;
+    std::size_t getNetworkModelSize() const {
+        return _compiledNetwork.size();
+    }
 
     /**
-     * @brief Get the number of streams, that can be executed in parallel
-     * with current network configuration.
+     * @return The number of streams, that can be executed in parallel with current network configuration.
      */
-    virtual int getNumStreams() const = 0;
+    int getNumStreams() const {
+        return _numStreams;
+    }
 
+protected:
     virtual ~INetworkDescription() = default;
+
+    std::vector<char> _compiledNetwork;
+
+    std::string _name;
+    std::vector<std::string> _inputNames;
+    std::vector<std::string> _outputNames;
+    std::vector<std::string> _stateNames;
+
+    IONodeDescriptorMap _parameters;
+    IONodeDescriptorMap _results;
+    IONodeDescriptorMap _states;
+    IONodeDescriptorMap _profilingOutputs;
+
+    // Required only when using the IMD backend
+    std::unordered_map<std::string, size_t> _inputOrder;
+    std::unordered_map<std::string, size_t> _outputOrder;
+
+    int _numStreams = 1;
 };
 
 /**
@@ -148,27 +215,51 @@ public:
     const std::string& getName() const {
         return _impl->getName();
     }
-    const NetworkIOVector& getDeviceInputsInfo() const {
-        return _impl->getDeviceInputsInfo();
+
+    const std::vector<std::string>& getInputNames() const {
+        return _impl->getInputNames();
     }
-    const NetworkIOVector& getDeviceOutputsInfo() const {
-        return _impl->getDeviceOutputsInfo();
+
+    const std::vector<std::string>& getOutputNames() const {
+        return _impl->getOutputNames();
     }
-    const NetworkIOVector& getDeviceProfilingOutputsInfo() const {
-        return _impl->getDeviceProfilingOutputsInfo();
+
+    const std::vector<std::string>& getStateNames() const {
+        return _impl->getStateNames();
     }
-    const std::vector<OVRawNode>& getOVParameters() const {
-        return _impl->getOVParameters();
+
+    const IONodeDescriptorMap& getParameterDescriptors() const {
+        return _impl->getParameterDescriptors();
     }
-    const std::vector<OVRawNode>& getOVResults() const {
-        return _impl->getOVResults();
+
+    const IONodeDescriptorMap& getResultDescriptors() const {
+        return _impl->getResultDescriptors();
     }
+
+    const IONodeDescriptorMap& getStateDescriptors() const {
+        return _impl->getStateDescriptors();
+    }
+
+    const IONodeDescriptorMap& getProfilingOutputDescriptors() const {
+        return _impl->getProfilingOutputDescriptors();
+    }
+
+    const std::unordered_map<std::string, size_t>& getInputOrder() const {
+        return _impl->getInputOrder();
+    }
+
+    const std::unordered_map<std::string, size_t>& getOutputOrder() const {
+        return _impl->getOutputOrder();
+    }
+
     const std::vector<char>& getCompiledNetwork() const {
         return _impl->getCompiledNetwork();
     }
+
     const void* getNetworkModel() const {
         return _impl->getNetworkModel();
     }
+
     std::size_t getNetworkModelSize() const {
         return _impl->getNetworkModelSize();
     }
@@ -195,7 +286,7 @@ public:
     using CPtr = std::shared_ptr<const ICompiler>;
 
     /**
-     * @brief Transforms a network from ngraph representation to a format executable
+     * @brief Transforms a network from the OpenVINO model representation to a format executable
      * by a VPU device
      * @param model a shared pointer to the OpenVINO model to be compiled
      * @param netName a reference to the string describing network name
@@ -263,7 +354,7 @@ public:
 
     std::shared_ptr<vpux::NetworkDescription> compile(std::shared_ptr<ov::Model>& model, const std::string& networkName,
                                                       const Config& config) {
-        return std::make_shared<NetworkDescription>(_impl->compile(model, networkName, config), _impl);
+        return std::make_shared<NetworkDescription>(_impl->compile(model, networkName, config), _so);
     }
 
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) {
@@ -271,16 +362,16 @@ public:
     }
 
     std::shared_ptr<vpux::NetworkDescription> parse(const std::vector<char>& network, const Config& config) {
-        return std::make_shared<NetworkDescription>(_impl->parse(network, config, ""), _impl);
+        return std::make_shared<NetworkDescription>(_impl->parse(network, config, ""), _so);
     }
 
     std::shared_ptr<vpux::NetworkDescription> parse(const std::string& filename, const Config& config) {
-        return std::make_shared<NetworkDescription>(_impl->parse(filename, config), _impl);
+        return std::make_shared<NetworkDescription>(_impl->parse(filename, config), _so);
     }
 
     std::shared_ptr<vpux::NetworkDescription> parse(std::istream& stream, const Config& config,
                                                     const std::string& graphName) {
-        return std::make_shared<NetworkDescription>(_impl->parse(stream, config, graphName), _impl);
+        return std::make_shared<NetworkDescription>(_impl->parse(stream, config, graphName), _so);
     }
 
 private:
@@ -291,9 +382,19 @@ private:
 };
 
 namespace helpers {
-InferenceEngine::InputsDataMap networkIOVectorIntoInputsDataMap(const vpux::NetworkIOVector& ioVector);
-InferenceEngine::OutputsDataMap networkIOVectorIntoOutputsDataMap(const vpux::NetworkIOVector& ioVector);
-vpux::OVNodes ovRawNodesIntoOVNodes(const std::vector<vpux::OVRawNode>& rawNodes, const bool isResult);
+
+/**
+ * @brief Creates node objects in the format used by OpenVINO.
+ * @param nodeDescriptors The metadata which shall be used for creating the nodes.
+ * @param names A vector of strings used for extracting the nodes' metadata in the order in which the parameters were
+ * extracted from the model before compilation.
+ * @param isResult Indicates wheter the nodes should be handled as parameter nodes (i.e. inputs) or result nodes (i.e.
+ * outputs).
+ * @return A vector of ordered nodes in the format used by OpenVINO.
+ */
+vpux::OVNodes nodeDescriptorsIntoNodes(const IONodeDescriptorMap& nodeDescriptors,
+                                       const std::vector<std::string>& names, const bool isResult);
+
 }  // namespace helpers
 
 }  // namespace vpux

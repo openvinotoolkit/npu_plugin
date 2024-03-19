@@ -6,22 +6,18 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
-#include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/subspaces.hpp"
-
-#include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NonMaxSuppressionUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::NMSParamsBuilder builder(writer);
 
-    builder.add_box_encoding(box_encoding() == IE::BoxEncodingType::CENTER);
-    builder.add_sort_result_descending(sort_result_descending());
-    builder.add_max_output_boxes_per_class(checked_cast<int32_t>(max_output_boxes_per_class_value()));
-    builder.add_iou_threshold(static_cast<float>(iou_threshold_value().convertToDouble()));
-    builder.add_score_threshold(static_cast<float>(score_threshold_value().convertToDouble()));
-    builder.add_soft_nms_sigma(static_cast<float>(soft_nms_sigma_valueAttr().getValueAsDouble()));
+    builder.add_box_encoding(getBoxEncoding() == IE::BoxEncodingType::CENTER);
+    builder.add_sort_result_descending(getSortResultDescending());
+    builder.add_max_output_boxes_per_class(checked_cast<int32_t>(getMaxOutputBoxesPerClassValue()));
+    builder.add_iou_threshold(static_cast<float>(getIouThresholdValue().convertToDouble()));
+    builder.add_score_threshold(static_cast<float>(getScoreThresholdValue().convertToDouble()));
+    builder.add_soft_nms_sigma(static_cast<float>(getSoftNmsSigmaValueAttr().getValueAsDouble()));
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_NMSParams});

@@ -12,8 +12,10 @@ add_tool_target(
     NAME ${TARGET_NAME}
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}
     LINK_LIBRARIES
-        IE::inference_engine IE::inference_engine_plugin_api IE::ngraph
+        openvino::runtime::dev
+        openvino::runtime
         opencv_core opencv_imgproc opencv_imgcodecs
         gflags
-        npu_utils
+        npu_llvm_utils
+        npu_model_utils
 )

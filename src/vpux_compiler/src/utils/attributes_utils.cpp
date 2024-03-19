@@ -17,22 +17,37 @@ int64_t getPositiveAxisInd(mlir::IntegerAttr axisIndAttr, int64_t rank) {
     return axis;
 }
 
-mlir::FailureOr<int64_t> getConstOrAttrValue(mlir::Value input, mlir::IntegerAttr attr) {
-    if (input) {
-        auto op = input.getDefiningOp<Const::DeclareOp>();
-        if (op == nullptr) {
-            return mlir::failure();
-        }
-
-        const auto content = op.getContent();
-        if (!content.isSplat()) {
-            return mlir::failure();
-        }
-
-        return content.getSplatValue<int64_t>();
+mlir::FailureOr<int64_t> getConstValue(mlir::Value input) {
+    auto op = input.getDefiningOp<Const::DeclareOp>();
+    if (op == nullptr) {
+        return mlir::failure();
     }
 
-    return attr.getValue().getSExtValue();
+    const auto content = op.getContent();
+    if (!content.isSplat()) {
+        return mlir::failure();
+    }
+
+    return content.getSplatValue<int64_t>();
+}
+
+mlir::FailureOr<SmallVector<int64_t>> getConstArrValue(mlir::Value input) {
+    auto op = input.getDefiningOp<Const::DeclareOp>();
+    if (op == nullptr) {
+        return mlir::failure();
+    }
+
+    const auto content = op.getContent();
+
+    return to_small_vector(content.getValues<int64_t>());
+}
+
+mlir::FailureOr<int64_t> getConstOrAttrValue(mlir::Value input, mlir::IntegerAttr attr) {
+    return (input != nullptr) ? getConstValue(input) : attr.getValue().getSExtValue();
+}
+
+mlir::FailureOr<SmallVector<int64_t>> getConstOrArrAttrValue(mlir::Value input, mlir::ArrayAttr attr) {
+    return (input != nullptr) ? getConstArrValue(input) : parseIntArrayAttr<int64_t>(attr);
 }
 
 }  // namespace vpux

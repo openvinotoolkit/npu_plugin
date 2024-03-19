@@ -6,10 +6,6 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/utils/adjust_layout_utils.hpp"
-#include "vpux/compiler/utils/logging.hpp"
-#include "vpux/compiler/utils/types.hpp"
-
-#include "vpux/utils/core/dense_map.hpp"
 
 #include <mlir/Transforms/DialectConversion.h>
 
@@ -25,8 +21,11 @@ using InputToReordersMap = DenseMap<mlir::Value, std::unordered_map<DimsOrder, I
 
 class LayerRewriter final : public mlir::OpInterfaceRewritePattern<IE::LayoutInfoOpInterface> {
 public:
-    LayerRewriter(mlir::MLIRContext* ctx, Logger log, const bool seOpsEnabled)
-            : mlir::OpInterfaceRewritePattern<IE::LayoutInfoOpInterface>(ctx), _log(log), _seOpsEnabled(seOpsEnabled) {
+    LayerRewriter(mlir::MLIRContext* ctx, Logger log, const bool seOpsEnabled, const bool seTransposedConvEnabled)
+            : mlir::OpInterfaceRewritePattern<IE::LayoutInfoOpInterface>(ctx),
+              _log(log),
+              _seOpsEnabled(seOpsEnabled),
+              _seTransposedConvEnabled(seTransposedConvEnabled) {
     }
 
 public:
@@ -35,6 +34,7 @@ public:
 private:
     Logger _log;
     bool _seOpsEnabled;
+    bool _seTransposedConvEnabled;
 };
 
 mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::LayoutInfoOpInterface origOp,
@@ -42,7 +42,7 @@ mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::LayoutInfoOpInterface ori
     _log.trace("Rewrite layer operation '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
 
     auto orderInfo = origOp.getLayoutInfo();
-    origOp.inferLayoutInfo(orderInfo, _seOpsEnabled);
+    origOp.inferLayoutInfo(orderInfo, _seOpsEnabled, _seTransposedConvEnabled);
 
     rewriter.startRootUpdate(origOp);
 
@@ -84,7 +84,8 @@ mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::LayoutInfoOpInterface ori
 
 class AdjustLayoutsPass final : public IE::AdjustLayoutsBase<AdjustLayoutsPass> {
 public:
-    explicit AdjustLayoutsPass(const bool seOpsEnabled, Logger log): _seOpsEnabled(seOpsEnabled) {
+    explicit AdjustLayoutsPass(const bool seOpsEnabled, const bool seTransposedConvEnabled, Logger log)
+            : _seOpsEnabled(seOpsEnabled), _seTransposedConvEnabled(seTransposedConvEnabled) {
         Base::initLogger(log, Base::getArgumentName());
     }
 
@@ -95,6 +96,7 @@ private:
 
 private:
     bool _seOpsEnabled;
+    bool _seTransposedConvEnabled;
 };
 
 mlir::LogicalResult AdjustLayoutsPass::initialize(mlir::MLIRContext* ctx) {
@@ -106,6 +108,9 @@ mlir::LogicalResult AdjustLayoutsPass::initialize(mlir::MLIRContext* ctx) {
     // Override the default
     if (seOpsEnabled.hasValue()) {
         _seOpsEnabled = seOpsEnabled.getValue();
+    }
+    if (seTransposedConvEnabled.hasValue()) {
+        _seTransposedConvEnabled = seTransposedConvEnabled.getValue();
     }
 
     return mlir::success();
@@ -122,7 +127,7 @@ void AdjustLayoutsPass::safeRunOnFunc() {
             auto orderInfo = iface.getLayoutInfo();
             _log.nest().trace("Current layouts: {0}", orderInfo);
 
-            iface.inferLayoutInfo(orderInfo, _seOpsEnabled);
+            iface.inferLayoutInfo(orderInfo, _seOpsEnabled, _seTransposedConvEnabled);
             _log.nest().trace("Required layouts: {0}", orderInfo);
 
             return !orderInfo.hasChanges();
@@ -133,7 +138,7 @@ void AdjustLayoutsPass::safeRunOnFunc() {
     target.addLegalOp<IE::ReorderOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<LayerRewriter>(&ctx, _log.nest(), _seOpsEnabled);
+    patterns.add<LayerRewriter>(&ctx, _log.nest(), _seOpsEnabled, _seTransposedConvEnabled);
 
     auto func = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
@@ -147,6 +152,7 @@ void AdjustLayoutsPass::safeRunOnFunc() {
 // createAdjustLayoutsPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::IE::createAdjustLayoutsPass(const bool seOpsEnabled, Logger log) {
-    return std::make_unique<AdjustLayoutsPass>(seOpsEnabled, log);
+std::unique_ptr<mlir::Pass> vpux::IE::createAdjustLayoutsPass(const bool seOpsEnabled,
+                                                              const bool seTransposedConvEnabled, Logger log) {
+    return std::make_unique<AdjustLayoutsPass>(seOpsEnabled, seTransposedConvEnabled, log);
 }

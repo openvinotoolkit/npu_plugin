@@ -8,8 +8,8 @@
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::ShuffleChannelsOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -18,7 +18,7 @@ mlir::LogicalResult vpux::IE::ShuffleChannelsOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = shuffleCh.input().getType().cast<mlir::ShapedType>();
+    const auto inType = shuffleCh.getInput().getType().cast<mlir::ShapedType>();
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
 
     return mlir::success();

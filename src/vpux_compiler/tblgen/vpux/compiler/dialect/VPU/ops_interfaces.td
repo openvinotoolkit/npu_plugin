@@ -57,7 +57,7 @@ def VPU_ClusteredOpInterface : OpInterface<"ClusteredOpInterface"> {
                 >,
         InterfaceMethod<
                 "Get multi-cluster strategy",
-                "llvm::Optional<vpux::VPU::MultiClusterStrategy>", "getMultiClusterStrategy", (ins),
+                "std::optional<vpux::VPU::MultiClusterStrategy>", "getMultiClusterStrategy", (ins),
                 [{
                     return $_op.getMultiClusterStrategy();
                 }]
@@ -73,13 +73,72 @@ def VPU_ClusteredOpInterface : OpInterface<"ClusteredOpInterface"> {
                 >,
 
         InterfaceMethod<
+                "Get optimal cluster number for operation",
+                "mlir::IntegerAttr", "getOptimalNumClusters", (ins "vpux::ShapeRef":$shape, "vpux::VPU::MultiClusterStrategy":$strategy),
+                [{}],
+                [{
+                    return vpux::VPU::getOptimalNumClusters($_op, shape[Dims4D::Act::C], strategy);
+                }]
+                >,
+
+        InterfaceMethod<
                 "Get DistributedTensorAttr with per cluster shapes/offsets defined explicitly, rather than through params such as kernel/pad/stride etc.",
                 "vpux::VPU::DistributedTensorAttr", "getExplicitDistributedTensorAttr",
                 (ins "vpux::ShapeRef":$shape, "vpux::VPU::DistributionMode":$distributionMode,
                 "mlir::ArrayAttr":$numTiles, "mlir::IntegerAttr":$numClusters, "mlir::ArrayAttr":$alignment,
                 "mlir::ArrayAttr":$kernel, "vpux::VPU::PaddingAttr":$pad, "mlir::ArrayAttr":$stride,
                 "mlir::UnitAttr":$uniformDistributedSegments)
-                >
+                >,
+
+        InterfaceMethod<
+                "Verifies if the operation is compatible with the SplitOverHeight multi-cluster strategy",
+                "bool", "isOperationSplitOverHeightCompatible",
+                (ins "const vpux::TileInfo&":$outputTile),
+                [{}],
+                [{
+                    return VPU::checkMCRestrictions($_op) && vpux::VPU::isOperationSplitOverHeightCompatible($_op, outputTile);
+                }]
+                >,
+
+        InterfaceMethod<
+                "Verifies if the operation is compatible with the SplitOverWidth multi-cluster strategy",
+                "bool", "isOperationSplitOverWidthCompatible",
+                (ins "vpux::ShapeRef":$outputShape, "vpux::ShapeRef":$offset, "vpux::ShapeRef":$axis),
+                [{}],
+                [{
+                    return VPU::checkMCRestrictions($_op) && vpux::VPU::isOperationSplitOverWidthCompatible($_op, outputShape, offset, axis);
+                }]
+                >,
+
+        InterfaceMethod<
+                "Verifies if the operation is compatible with the SplitOverKernel multi-cluster strategy",
+                "bool", "isOperationSplitOverKernelCompatible",
+                (ins "vpux::ShapeRef":$outputShape, "vpux::ShapeRef":$offset, "vpux::ShapeRef":$axis),
+                [{}],
+                [{
+                    return VPU::checkMCRestrictions($_op) && vpux::VPU::isOperationSplitOverKernelCompatible($_op, outputShape, offset, axis);
+                }]
+                >,
+
+        InterfaceMethod<
+                "Verifies if the operation fits into CMX with the given multi-cluster strategy",
+                "bool", "doesLayerFitIntoCMX",
+                (ins "VPU::MultiClusterStrategy":$strategy, "vpux::Byte":$reservedMem),
+                [{}],
+                [{
+                    return VPU::doesLayerFitIntoCMX($_op, strategy, reservedMem);
+                }]
+                >,
+
+        InterfaceMethod<
+                "Verifies if the operation fits into CMX with the given multi-cluster strategy and output alignment",
+                "bool", "doesLayerChangeOutputAlignmentFitIntoCMX",
+                (ins "VPU::MultiClusterStrategy":$strategy, "VPU::DistributedTypeInterface":$newDistributedTensorType),
+                [{}],
+                [{
+                    return false;
+                }]
+                >,
     ];
 }
 
@@ -152,7 +211,7 @@ def VPU_NCEOpInterface : OpInterface<"NCEOpInterface"> {
 
         InterfaceMethod<
             "Get NCE operation PPE",
-            "llvm::Optional<vpux::VPU::PPETaskAttr>", "getPPE", (ins),
+            "std::optional<vpux::VPU::PPETaskAttr>", "getPPE", (ins),
             [{
                 return $_op.getPpe();
             }]
@@ -185,6 +244,15 @@ def VPU_NCEOpInterface : OpInterface<"NCEOpInterface"> {
         >,
 
         InterfaceMethod<
+            "Get the activation window operand of the operation",
+            "mlir::Value", "getActivationWindowOperand", (ins),
+            [{}],
+            [{
+                return nullptr;
+            }]
+        >,
+
+        InterfaceMethod<
             "Add workload",
             "mlir::Operation*", "addWorkload",
             (ins "mlir::OpBuilder&":$builder, "mlir::Location":$loc,
@@ -192,15 +260,15 @@ def VPU_NCEOpInterface : OpInterface<"NCEOpInterface"> {
                  "vpux::VPU::PaddingAttr":$pad, "MPEMode":$mpeMode, "mlir::IntegerAttr":$clusterId),
             [{}],
             [{
-                return vpux::VPU::details::addWorkload($_op.workloads(), builder, loc, offsets, sizes, pad, mpeMode, clusterId);
+                return vpux::VPU::details::addWorkload($_op.getWorkloads(), builder, loc, offsets, sizes, pad, mpeMode, clusterId);
             }]
         >,
 
         InterfaceMethod<
             "Get all workloads",
-            "mlir::Region&", "workloads", (ins),
+            "mlir::Region&", "getWorkloads", (ins),
             [{
-                return $_op.workloads();
+                return $_op.getWorkloads();
             }]
         >,
 
@@ -303,6 +371,31 @@ def VPU_TilingBuilderOpInterface : OpInterface<"TilingBuilderOpInterface"> {
 }
 
 //
+// TilingViewLikeOpInterface
+//
+
+def VPU_TilingViewLikeOpInterface : OpInterface<"TilingViewLikeOpInterface"> {
+    let description = "Interface for view like operations to calculate tiling configuration";
+
+    let cppNamespace = "vpux::VPU";
+
+    let methods = [
+
+        InterfaceMethod<
+            "Infer input tiles information from the output tile",
+            "vpux::TilingInfo", "backInferTileInfo",
+            (ins "const vpux::TileInfo&":$outputTile, "vpux::Logger":$log)
+        >,
+
+        InterfaceMethod<
+            "Adjust the operation attributes to the current tile properties",
+            "void", "adjustAttrs",
+            (ins "const vpux::TilingInfo&":$inputTiling, "const TileInfo&":$outputTile, "vpux::ShapeRef":$outputShape)
+        >
+    ];
+}
+
+//
 // VerticalFusionOpInterface
 //
 
@@ -317,7 +410,7 @@ def VPU_VerticalFusionOpInterface : OpInterface<"VerticalFusionOpInterface"> {
             "bool", "isVFSupported", (ins),
             [{}],
             [{
-                return $_op->hasAttr("tilingStrategy");
+                return true;
             }]
         >,
 
@@ -327,6 +420,15 @@ def VPU_VerticalFusionOpInterface : OpInterface<"VerticalFusionOpInterface"> {
             [{}],
             [{
                 return true;
+            }]
+        >,
+
+        InterfaceMethod<
+            "Axes which cannot be used when operation is fused",
+            "DimArr", "restrictedFusionAxes", (ins),
+            [{}],
+            [{
+                return {};
             }]
         >
     ];
@@ -365,22 +467,6 @@ def VPU_EltwiseOp : NativeOpTrait<"EltwiseOp"> {
 }
 
 //
-// EMUUPAOpInterface
-//
-
-def VPU_EMUUPAOpInterface : OpInterface<"EMUUPAOpInterface"> {
-    let description = "Interface for VPU ops that are serialized to UPA EMU Task";
-
-    let cppNamespace = "vpux::VPU";
-
-    let extraTraitClassDeclaration = [{
-        static vpux::VPU::ExecutorKind getExecutorKind() {
-            return vpux::VPU::ExecutorKind::SHAVE_UPA;
-        }
-    }];
-}
-
-//
 // ViewLikeOpInterface
 //
 
@@ -401,12 +487,46 @@ def VPU_GroupedViewLikeOpInterface: OpInterface<"GroupedViewLikeOpInterface"> {
 }
 
 //
+// DDRAccessOpInterface
+//
+
+def VPU_DDRAccessOpInterface: OpInterface<"DDRAccessOpInterface"> {
+    let description = "Interface for VPU DDR access ops, this only applies to SW layers right now";
+
+    let cppNamespace = "vpux::VPU";
+
+    let methods = [
+        InterfaceMethod<
+            "Check whether DDR access is necessary or beneficial",
+            "bool", "isDDRAccessNecessaryOrBeneficial", (ins "vpux::Logger":$log)
+        >
+    ];
+}
+
+//
 // LimitedToArch op trait
 //
 
 class LimitedToArch<list<string> archs>
     : ParamNativeOpTrait<"LimitedToArch", !interleave(archs, ", ")>  {
     let cppNamespace = "vpux::VPU";
+}
+
+//
+// AlignedWorkloadChannelOpInterface
+//
+
+def VPU_AlignedWorkloadChannelsOpInterface : OpInterface<"AlignedWorkloadChannelsOpInterface"> {
+    let description = "Interface for operations to provide information about channels supported for workload";
+
+    let cppNamespace = "vpux::VPU";
+
+    let methods = [
+        InterfaceMethod<
+            "Get supported workload channels",
+            "SmallVector<int64_t>", "getSupportedWorkLoadChannels", (ins)
+        >
+    ];
 }
 
 #endif

@@ -28,8 +28,7 @@ NDTypeInterface inferNewTypeWithMemPerm(NDTypeInterface oldType, mlir::AffineMap
 
 IE::MemPermuteOp getSupportedInputMemPermute(mlir::Value input) {
     auto inputMemPermuteOp = input.getDefiningOp<IE::MemPermuteOp>();
-    if (inputMemPermuteOp == nullptr || !inputMemPermuteOp->hasOneUse() ||
-        getSupportedInputMemPermute(inputMemPermuteOp.input()) != nullptr) {
+    if (inputMemPermuteOp == nullptr || !inputMemPermuteOp->hasOneUse()) {
         return nullptr;
     }
     return inputMemPermuteOp;
@@ -40,7 +39,7 @@ IE::MemPermuteOp getSupportedOutputMemPermute(mlir::Value output) {
         return nullptr;
     }
     auto outputMemPermuteOp = mlir::dyn_cast_or_null<IE::MemPermuteOp>(*output.getUsers().begin());
-    if (outputMemPermuteOp == nullptr || getSupportedOutputMemPermute(outputMemPermuteOp.output()) != nullptr) {
+    if (outputMemPermuteOp == nullptr) {
         return nullptr;
     }
     return outputMemPermuteOp;
@@ -74,8 +73,8 @@ int64_t calcNumNonTrivialPermutesAroundEltwiseWithMemPerm(IE::LayerOpInterface l
     // calculate number of mempermutes on input side
     for (auto input : layerOp->getOperands()) {
         auto inputMemPermuteOp = getSupportedInputMemPermute(input);
-        auto permuteInput = (inputMemPermuteOp == nullptr) ? input : inputMemPermuteOp.input();
-        const auto inMemPerm = (inputMemPermuteOp == nullptr) ? idMap : inputMemPermuteOp.mem_perm();
+        auto permuteInput = (inputMemPermuteOp == nullptr) ? input : inputMemPermuteOp.getInput();
+        const auto inMemPerm = (inputMemPermuteOp == nullptr) ? idMap : inputMemPermuteOp.getMemPerm();
         const auto inMemShape = getMemShape(permuteInput);
         const auto newInMemPerm = newMemPerm.compose(inMemPerm);
         if (!isTrivialPermute(inMemShape, newInMemPerm)) {
@@ -87,7 +86,7 @@ int64_t calcNumNonTrivialPermutesAroundEltwiseWithMemPerm(IE::LayerOpInterface l
     if (layerOp->hasOneUse()) {
         auto outputMemPermuteOp = mlir::dyn_cast_or_null<IE::MemPermuteOp>(*layerOp->getUsers().begin());
         if (outputMemPermuteOp != nullptr) {
-            outMemPerm = outputMemPermuteOp.mem_perm();
+            outMemPerm = outputMemPermuteOp.getMemPerm();
         }
     }
     const auto newMemShape = applyPerm(getMemShape(layerOp->getResult(0)), newMemPerm);
@@ -115,10 +114,11 @@ mlir::LogicalResult AdjustForEltwise::matchAndRewrite(IE::LayerOpInterface origO
 
     auto bestMemPerm = idMap;
     auto bestNumNonTrivialPermutes = calcNumNonTrivialPermutesAroundEltwiseWithMemPerm(origOp, bestMemPerm);
-    const auto checkBetterMemPerm = [&](mlir::AffineMap newMemPerm, int64_t origNumMemPermutes) -> Optional<int64_t> {
+    const auto checkBetterMemPerm = [&](mlir::AffineMap newMemPerm,
+                                        int64_t origNumMemPermutes) -> std::optional<int64_t> {
         const auto numNonTrivialPermutes = calcNumNonTrivialPermutesAroundEltwiseWithMemPerm(origOp, newMemPerm);
         if (numNonTrivialPermutes >= origNumMemPermutes) {
-            return None;
+            return std::nullopt;
         }
         return numNonTrivialPermutes;
     };
@@ -135,23 +135,37 @@ mlir::LogicalResult AdjustForEltwise::matchAndRewrite(IE::LayerOpInterface origO
         if (inputMemPermuteOp == nullptr) {
             continue;
         }
+
+        // if there are unfused MemPermute ops on the input chain, return to give IE::MemPermuteOp Canonicalization a
+        // chance to be executed
+        auto inputMemPermuteParentOp = inputMemPermuteOp.getInput().getDefiningOp();
+        if (mlir::isa_and_nonnull<IE::MemPermuteOp>(inputMemPermuteParentOp)) {
+            return matchFailed(rewriter, origOp, "Unfused MemPermute ops on input chain");
+        }
         // need to permute back to input of the parent mempermute
-        auto inversedMemPerm = mlir::inversePermutation(inputMemPermuteOp.mem_perm());
+        auto inversedMemPerm = mlir::inversePermutation(inputMemPermuteOp.getMemPerm());
         auto betterNumMemPermutes = checkBetterMemPerm(inversedMemPerm, bestNumNonTrivialPermutes);
         if (betterNumMemPermutes.has_value()) {
             bestMemPerm = inversedMemPerm;
-            bestNumNonTrivialPermutes = betterNumMemPermutes.getValue();
+            bestNumNonTrivialPermutes = betterNumMemPermutes.value();
         }
     }
 
     // try with output permute
     auto outputMemPermuteOp = getSupportedOutputMemPermute(origOp->getResult(0));
     if (outputMemPermuteOp != nullptr) {
-        auto memPerm = outputMemPermuteOp.mem_perm();
+        // if there are unfused MemPermute ops on the output chain, return to give IE::MemPermuteOp Canonicalization a
+        // chance to be executed
+        auto outputMemPermuteChildOp = *outputMemPermuteOp.getOutput().getUsers().begin();
+        if (mlir::isa_and_nonnull<IE::MemPermuteOp>(outputMemPermuteChildOp)) {
+            return matchFailed(rewriter, origOp, "Unfused MemPermute ops on output chain");
+        }
+
+        auto memPerm = outputMemPermuteOp.getMemPerm();
         auto betterNumMemPermutes = checkBetterMemPerm(memPerm, bestNumNonTrivialPermutes);
         if (betterNumMemPermutes.has_value()) {
             bestMemPerm = memPerm;
-            bestNumNonTrivialPermutes = betterNumMemPermutes.getValue();
+            bestNumNonTrivialPermutes = betterNumMemPermutes.value();
         }
     }
 
@@ -168,7 +182,7 @@ mlir::LogicalResult AdjustForEltwise::matchAndRewrite(IE::LayerOpInterface origO
     for (auto& inputOperand : origOp->getOpOperands()) {
         auto inMemPermuteOp = rewriter.create<IE::MemPermuteOp>(origOp->getLoc(), inputOperand.get(),
                                                                 newOrder.toAffineMap(ctx), bestMemPerm);
-        inputOperand.set(inMemPermuteOp.output());
+        inputOperand.set(inMemPermuteOp.getOutput());
     }
 
     // change output type of layerOp
@@ -181,7 +195,7 @@ mlir::LogicalResult AdjustForEltwise::matchAndRewrite(IE::LayerOpInterface origO
     rewriter.setInsertionPointAfter(origOp);
     auto outMemPermuteOp = rewriter.create<IE::MemPermuteOp>(origOp->getLoc(), output, origOrder.toAffineMap(ctx),
                                                              mlir::inversePermutation(bestMemPerm));
-    output.replaceAllUsesExcept(outMemPermuteOp.output(), outMemPermuteOp);
+    output.replaceAllUsesExcept(outMemPermuteOp.getOutput(), outMemPermuteOp);
 
     rewriter.finalizeRootUpdate(origOp);
 
@@ -220,34 +234,34 @@ mlir::LogicalResult AdjustForTile::matchAndRewrite(IE::TileOp origOp, mlir::Patt
         return matchFailed(rewriter, origOp, "No MemPermuteOp found");
     }
 
-    auto tileInType = origOp.input().getType().cast<NDTypeInterface>();
+    auto tileInType = origOp.getInput().getType().cast<NDTypeInterface>();
     auto tileInMemShape = tileInType.getMemShape();
 
-    auto memPerm = outputPermuteOp.mem_perm();
+    auto memPerm = outputPermuteOp.getMemPerm();
     if (!isTrivialPermute(tileInMemShape, memPerm)) {
         return matchFailed(rewriter, origOp, "Not beneficial moving MemPermute up");
     }
 
-    auto repeatsValues = origOp.repeats_values();
+    auto repeatsValues = origOp.getRepeatsValues();
     if (!repeatsValues.has_value()) {
         return matchFailed(rewriter, origOp, "No repeats values found, please run canonicalizer before this pass");
     }
 
-    auto dstOrder = DimsOrder::fromAffineMap(outputPermuteOp.dst_order());
+    auto dstOrder = DimsOrder::fromAffineMap(outputPermuteOp.getDstOrder());
     auto newPermuteOutType = inferNewTypeWithMemPerm(tileInType, memPerm, dstOrder);
-    auto newPermuteOp = rewriter.create<IE::PermuteCastOp>(outputPermuteOp->getLoc(), newPermuteOutType, origOp.input(),
-                                                           dstOrder.toAffineMap(ctx), memPerm);
+    auto newPermuteOp = rewriter.create<IE::PermuteCastOp>(outputPermuteOp->getLoc(), newPermuteOutType,
+                                                           origOp.getInput(), dstOrder.toAffineMap(ctx), memPerm);
 
     auto origOrder = tileInType.getDimsOrder();
-    auto repeatsOnOrigShape = Shape(parseIntArrayAttr<int64_t>(repeatsValues.getValue()));
+    auto repeatsOnOrigShape = Shape(parseIntArrayAttr<int64_t>(repeatsValues.value()));
     auto repeatsOnOrigMemShape = origOrder.toMemoryOrder(repeatsOnOrigShape);
     auto repeatsOnNewMemShape = applyPerm(repeatsOnOrigMemShape, memPerm);
     auto repeatsOnNewShape = dstOrder.toLogicalOrder(repeatsOnNewMemShape);
-    auto newTileOutType = outputPermuteOp.output().getType();
-    auto newTileOp = rewriter.create<IE::TileOp>(origOp->getLoc(), newTileOutType, newPermuteOp.output(), nullptr,
+    auto newTileOutType = outputPermuteOp.getOutput().getType();
+    auto newTileOp = rewriter.create<IE::TileOp>(origOp->getLoc(), newTileOutType, newPermuteOp.getOutput(), nullptr,
                                                  getIntArrayAttr(ctx, repeatsOnNewShape));
 
-    outputPermuteOp.replaceAllUsesWith(newTileOp.output());
+    outputPermuteOp.replaceAllUsesWith(newTileOp.getOutput());
 
     return mlir::success();
 }

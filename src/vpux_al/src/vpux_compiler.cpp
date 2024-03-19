@@ -8,9 +8,9 @@
 #include "vpux/al/config/common.hpp"
 #include "vpux/al/config/compiler.hpp"
 #include "vpux/utils/IE/itt.hpp"
+#include "vpux/utils/core/file_reader.hpp"
 #include "vpux/utils/core/logger.hpp"
 
-#include <file_reader.h>
 #include <file_utils.h>
 #include <openvino/util/shared_object.hpp>
 
@@ -35,7 +35,7 @@ using vpux::driverCompilerAdapter::LevelZeroCompilerAdapter;
 vpux::NetworkDescription::NetworkDescription(INetworkDescription::Ptr impl, const std::shared_ptr<void>& so)
         : _impl(impl), _so(so) {
     if (_impl == nullptr) {
-        IE_THROW() << "ExecutableNetwork wrapper was not initialized.";
+        OPENVINO_THROW("ExecutableNetwork wrapper was not initialized.");
     }
 }
 
@@ -47,7 +47,7 @@ static std::string extractFileName(const std::string& fullPath) {
 std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(const std::string& filename, const Config& config) {
     std::ifstream stream(filename, std::ios::binary);
     if (!stream.is_open()) {
-        IE_THROW() << "Could not open file: " << filename;
+        OPENVINO_THROW("Could not open file: ", filename);
     }
     const std::string graphName = extractFileName(filename);
     return parse(stream, config, graphName);
@@ -56,9 +56,9 @@ std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(const std::str
 std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(std::istream& stream, const Config& config,
                                                                   const std::string& graphName) {
     OV_ITT_TASK_CHAIN(ICOMPILER_PARSE, itt::domains::VPUXPlugin, "ICompiler::parse", "getFileSize");
-    const size_t graphSize = vpu::KmbPlugin::utils::getFileSize(stream);
+    const size_t graphSize = vpux::getFileSize(stream);
     if (graphSize == 0) {
-        IE_THROW() << "Blob is empty";
+        OPENVINO_THROW("Blob is empty");
     }
     std::vector<char> blob(graphSize);
     OV_ITT_TASK_NEXT(ICOMPILER_PARSE, "read_blob");
@@ -106,7 +106,7 @@ vpux::Compiler::Ptr vpux::Compiler::create(const Config& config) {
 #endif
 
     default:
-        IE_THROW() << "Compiler type not found";
+        OPENVINO_THROW("Compiler type not found");
     }
 
     return compiler;
@@ -120,56 +120,42 @@ vpux::Compiler::Compiler(const std::string& libpath) {
         using CreateFuncT = void (*)(std::shared_ptr<ICompiler>&);
         static constexpr auto CreateFuncName = "CreateVPUXCompiler";
 
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        _so = ov::util::load_shared_object(ov::util::string_to_wstring(libpath).c_str());
+#else
         _so = ov::util::load_shared_object(libpath.c_str());
+#endif
 
         const auto createFunc = reinterpret_cast<CreateFuncT>(ov::util::get_symbol(_so, CreateFuncName));
 
         createFunc(_impl);
     } catch (const std::exception& ex) {
-        IE_THROW() << "Got an error during compiler creation: " << ex.what();
+        OPENVINO_THROW("Got an error during compiler creation: ", ex.what());
     } catch (...) {
-        IE_THROW() << "Got an unknown error during compiler creation";
+        OPENVINO_THROW("Got an unknown error during compiler creation");
     }
 }
 #endif
 
-InferenceEngine::InputsDataMap vpux::helpers::networkIOVectorIntoInputsDataMap(const vpux::NetworkIOVector& ioVector) {
-    InferenceEngine::InputsDataMap inputsDataMap = {};
-
-    for (const auto& input : ioVector) {
-        InferenceEngine::InputInfo info;
-        info.setInputData(std::make_shared<InferenceEngine::Data>(*input.second));
-        inputsDataMap.insert({input.first, std::make_shared<InferenceEngine::InputInfo>(info)});
-    }
-
-    return inputsDataMap;
-}
-
-InferenceEngine::OutputsDataMap vpux::helpers::networkIOVectorIntoOutputsDataMap(
-        const vpux::NetworkIOVector& ioVector) {
-    InferenceEngine::OutputsDataMap outputsDataMap = {};
-
-    for (const auto& output : ioVector) {
-        outputsDataMap.insert({output.first, std::make_shared<InferenceEngine::Data>(*output.second)});
-    }
-
-    return outputsDataMap;
-}
-
-vpux::OVNodes vpux::helpers::ovRawNodesIntoOVNodes(const std::vector<vpux::OVRawNode>& rawNodes, const bool isResult) {
+vpux::OVNodes vpux::helpers::nodeDescriptorsIntoNodes(const IONodeDescriptorMap& nodeDescriptors,
+                                                      const std::vector<std::string>& names, const bool isResult) {
     vpux::OVNodes nodes;
-    for (const auto& rawNode : rawNodes) {
+
+    for (const std::string& name : names) {
+        const IONodeDescriptor& nodeDescriptor = nodeDescriptors.at(name);
+
         std::shared_ptr<ov::Node> parameter;
-        parameter = std::make_shared<ov::op::v0::Parameter>(rawNode.type, rawNode.shape);
+        parameter = std::make_shared<ov::op::v0::Parameter>(nodeDescriptor.precision, nodeDescriptor.transposedShape);
         if (isResult) {
             const auto fakeParameter = parameter;
             parameter = std::make_shared<ov::op::v0::Result>(parameter);
-            fakeParameter->set_friendly_name(rawNode.inputName);
+            fakeParameter->set_friendly_name(nodeDescriptor.legacyName);
             parameter = parameter->copy_with_new_inputs({fakeParameter});
         }
-        parameter->set_friendly_name(rawNode.friendlyName);
-        parameter->output(0).get_tensor().set_names(rawNode.tensorNames);
+        parameter->set_friendly_name(nodeDescriptor.currentNodeName);
+        parameter->output(0).get_tensor().set_names(nodeDescriptor.outputTensorNames);
         nodes.push_back(parameter);
     }
+
     return nodes;
 }

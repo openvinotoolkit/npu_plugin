@@ -46,6 +46,11 @@ def PrintDot : PassBase<"print-dot", "vpux::ModulePass"> {
             "Print only task and barrier operations"
         >,
         Option<
+            "printOnlyAsyncExecOpt", "print-only-async-exec",
+            "bool", "",
+            "Print only async.exec operations"
+        >,
+        Option<
             "startAfterOpt", "start-after",
             "std::string", "",
             "Start graph generation after this operation"

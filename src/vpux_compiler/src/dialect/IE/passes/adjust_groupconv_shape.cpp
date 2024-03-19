@@ -6,21 +6,31 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/reshape_utils.hpp"
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
-#include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
-#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
-#include "vpux/compiler/utils/adjust_layout_utils.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/permute_utils.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
-
-#include <mlir/IR/BlockAndValueMapping.h>
-#include <mlir/Pass/PassManager.h>
-#include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
 
 namespace {
+const uint32_t levelCount = 2;
+SmallVector<mlir::PatternBenefit> benefitLevels = getBenefitLevels(levelCount);
+
+bool isConstAndSameAsGroup(mlir::Value value, int64_t groups) {
+    auto cst = value.getDefiningOp<Const::DeclareOp>();
+    if (!cst) {
+        return false;
+    }
+    // Only handle below scenario:
+    // kernel size 1x1 and Group == Output Channel
+    auto shapeSize = value.getType().cast<vpux::NDTypeInterface>().getNumElements();
+    if (shapeSize != groups) {
+        return false;
+    }
+    return true;
+};
 
 //
 // ReshapeGroupConvInput
@@ -28,28 +38,26 @@ namespace {
 
 class ReshapeGroupConvInput final : public mlir::OpRewritePattern<IE::GroupConvolutionOp> {
 public:
-    ReshapeGroupConvInput(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<IE::GroupConvolutionOp>(ctx), _log(log) {
+    ReshapeGroupConvInput(mlir::MLIRContext* ctx, mlir::PatternBenefit benefit, Logger log)
+            : mlir::OpRewritePattern<IE::GroupConvolutionOp>(ctx, benefit), _log(log) {
+        setDebugName("ReshapeGroupConvInput");
     }
 
 public:
     mlir::LogicalResult matchAndRewrite(IE::GroupConvolutionOp convOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    IE::ShapeCastOp buildReshape(mlir::Location loc, mlir::Value input, ArrayRef<int64_t> targetShape,
-                                 mlir::PatternRewriter& rewriter) const;
-
     IE::ShapeCastOp reshapeOutput(IE::GroupConvolutionOp origOp, mlir::Value convOutput,
                                   mlir::PatternRewriter& rewriter) const;
-    mlir::Value broadcastConst(mlir::Value activation, int64_t factor, Dim onDim,
-                               mlir::PatternRewriter& rewriter) const;
+    Const::DeclareOp broadcastConst(mlir::Value activation, int64_t factor, Dim onDim,
+                                    mlir::PatternRewriter& rewriter) const;
 
 private:
     Logger _log;
 };
 
-mlir::Value ReshapeGroupConvInput::broadcastConst(mlir::Value activation, int64_t dimVal, Dim onDim,
-                                                  mlir::PatternRewriter& rewriter) const {
+Const::DeclareOp ReshapeGroupConvInput::broadcastConst(mlir::Value activation, int64_t dimVal, Dim onDim,
+                                                       mlir::PatternRewriter& rewriter) const {
     const auto origInShape = getShape(activation);
     const auto KX = 1;
     const auto KY = 1;
@@ -64,17 +72,7 @@ mlir::Value ReshapeGroupConvInput::broadcastConst(mlir::Value activation, int64_
     Const::ContentAttr newContentAttr;
     if (content.isSplat()) {
         auto contentAttr = cst.getContentAttr();
-        auto baseContent = contentAttr.getBaseContent();
-        Shape realDataShape;
-        if (auto denseBaseAttr = baseContent.dyn_cast<mlir::DenseElementsAttr>()) {
-            newContentAttr = Const::ContentAttr::get(denseBaseAttr);
-            realDataShape = denseBaseAttr.getType().getShape();
-        } else if (auto opaqueBaseAttr = baseContent.dyn_cast<Const::OpaqueElementsAttr>()) {
-            newContentAttr = Const::ContentAttr::get(opaqueBaseAttr);
-            realDataShape = opaqueBaseAttr.getType().getShape();
-        } else {
-            VPUX_THROW("Got unsupported 'baseContent' in 'ContentAttr'");
-        }
+        newContentAttr = Const::ContentAttr::get(contentAttr.getBaseContent());  // content-only copy
         auto newConstantShape = Shape(origInShape.size(), int64_t(1));
         newContentAttr = newContentAttr.reshape(newConstantShape);
         for (auto attr : contentAttr.getTransformations()) {
@@ -89,7 +87,7 @@ mlir::Value ReshapeGroupConvInput::broadcastConst(mlir::Value activation, int64_
         newContentAttr = newContentAttr.broadcast(onDim, weightShape[onDim]);
     } else {
         auto broadcastDim = (OC > 1 ? Dims4D::Filter::OC : Dims4D::Filter::IC);
-        newContentAttr = cst.getContentAttr();
+        newContentAttr = cst.getContentAttr();  // Note: a *complete* attribute copy (with transformations)
         newContentAttr = newContentAttr.broadcast(broadcastDim, weightShape[broadcastDim]);
         newContentAttr = newContentAttr.reshape(weightShape);
     }
@@ -98,48 +96,23 @@ mlir::Value ReshapeGroupConvInput::broadcastConst(mlir::Value activation, int64_
 
 IE::ShapeCastOp ReshapeGroupConvInput::reshapeOutput(IE::GroupConvolutionOp origOp, mlir::Value convOutput,
                                                      mlir::PatternRewriter& rewriter) const {
-    const auto origOutShape = getShape(origOp.output());
+    const auto origOutShape = getShape(origOp.getOutput());
     const SmallVector<int64_t> targetShape = to_small_vector(origOutShape.raw());
 
     const auto reshapedLoc = appendLoc(origOp.getLoc(), "_output_reshape");
-    return buildReshape(reshapedLoc, convOutput, makeArrayRef(targetShape), rewriter);
-}
-
-IE::ShapeCastOp ReshapeGroupConvInput::buildReshape(mlir::Location loc, mlir::Value input,
-                                                    ArrayRef<int64_t> targetShape,
-                                                    mlir::PatternRewriter& rewriter) const {
-    const auto ctx = rewriter.getContext();
-    const auto srcType = input.getType().cast<vpux::NDTypeInterface>();
-    const auto dstType = srcType.changeShape(ShapeRef(targetShape));
-    const auto targetShapeAttr = getIntArrayAttr(ctx, targetShape);
-    auto inputShapeCastOp = rewriter.create<IE::ShapeCastOp>(loc, dstType, input, targetShapeAttr);
-    return inputShapeCastOp;
+    return vpux::IE::buildShapeCast(reshapedLoc, convOutput, ArrayRef(targetShape), rewriter);
 }
 
 mlir::LogicalResult ReshapeGroupConvInput::matchAndRewrite(IE::GroupConvolutionOp convOp,
                                                            mlir::PatternRewriter& rewriter) const {
     const auto alignedChannel = VPU::NCEInvariant::VPU_CHANNEL_ALIGNMENT;
-    auto groups = convOp.groups().value();
-    auto inNDInterface = convOp.input().getType().dyn_cast<vpux::NDTypeInterface>();
+    auto groups = convOp.getGroups().value();
+    auto inNDInterface = convOp.getInput().getType().dyn_cast<vpux::NDTypeInterface>();
     auto inDimOrder = inNDInterface.getDimsOrder();
     SmallVector<int64_t> newInputShape;
     if (DimsOrder::NHWC != inDimOrder) {
         return mlir::failure();
     }
-
-    auto isConstAndSameAsGroup = [groups](mlir::Value value) {
-        auto cst = value.getDefiningOp<Const::DeclareOp>();
-        if (!cst) {
-            return false;
-        }
-        // Only handle below scenario:
-        //  kernel size 1x1 and Group == Output Channel
-        auto shapeSize = value.getType().cast<vpux::NDTypeInterface>().getNumElements();
-        if (shapeSize != groups) {
-            return false;
-        }
-        return true;
-    };
 
     auto isSplat = [](mlir::Value val) {
         auto cst = val.getDefiningOp<Const::DeclareOp>();
@@ -148,11 +121,11 @@ mlir::LogicalResult ReshapeGroupConvInput::matchAndRewrite(IE::GroupConvolutionO
     };
 
     auto isElementWised = [isSplat](IE::GroupConvolutionOp op) {
-        return isSplat(op.filter()) && (!op.bias() || isSplat(op.bias()));
+        return isSplat(op.getFilter()) && (!op.getBias() || isSplat(op.getBias()));
     };
 
     const auto supportedGroupConv = [&](IE::GroupConvolutionOp layerOp) {
-        auto outNDInterface = layerOp.output().getType().cast<vpux::NDTypeInterface>();
+        auto outNDInterface = layerOp.getOutput().getType().cast<vpux::NDTypeInterface>();
         auto outDimOrder = outNDInterface.getDimsOrder();
         if (inDimOrder != outDimOrder) {
             return false;
@@ -162,7 +135,7 @@ mlir::LogicalResult ReshapeGroupConvInput::matchAndRewrite(IE::GroupConvolutionO
             return false;
         }
 
-        auto strides = parseIntArrayAttr<int64_t>(layerOp.strides());
+        auto strides = parseIntArrayAttr<int64_t>(layerOp.getStrides());
         auto withOutStrides = std::all_of(strides.begin(), strides.end(), [](auto val) {
             return val == 1;
         });
@@ -175,37 +148,31 @@ mlir::LogicalResult ReshapeGroupConvInput::matchAndRewrite(IE::GroupConvolutionO
             return false;
         }
         // check kernel size and is a depthwise convolution or not
-        if (!isConstAndSameAsGroup(layerOp.filter())) {
+        if (!isConstAndSameAsGroup(layerOp.getFilter(), groups)) {
             return false;
         }
 
         // check filter and bias const is same
-        if (layerOp.bias() != nullptr) {
-            if (!isConstAndSameAsGroup(layerOp.bias())) {
+        if (layerOp.getBias() != nullptr) {
+            if (!isConstAndSameAsGroup(layerOp.getBias(), groups)) {
                 return false;
             }
         }
 
-        auto input = layerOp.input().getDefiningOp<IE::PermuteQuantizeOp>();
+        auto input = layerOp.getInput().getDefiningOp<IE::PermuteQuantizeOp>();
         if (input) {
             // Expand can be fused to PermuteQuantize, ignore
-            if (!layerOp.output().hasOneUse()) {
+            if (!layerOp.getOutput().hasOneUse()) {
                 return false;
-            }
-            if (VPUIP::NCEInvariant::verifyKernel(*layerOp.output().getUsers().begin()).succeeded()) {
-                const auto outputShape = getShape(layerOp.output());
-                if (outputShape[Dims4D::Act::C] % alignedChannel) {
-                    return false;
-                }
             }
         }
 
         if (isElementWised(layerOp)) {
             auto newExpandedShapeResult =
-                    getShapeCastExpandedShapeInDimC(layerOp, getShape(layerOp.input()), _log.nest());
+                    getShapeCastExpandedShapeInDimC(layerOp, getShape(layerOp.getInput()), _log.nest());
             if (mlir::failed(newExpandedShapeResult)) {
                 newExpandedShapeResult =
-                        getShapeCastExpandedShapeCanNotAlign(layerOp, getShape(layerOp.input()), _log.nest());
+                        getShapeCastExpandedShapeCanNotAlign(layerOp, getShape(layerOp.getInput()), _log.nest());
                 if (mlir::failed(newExpandedShapeResult)) {
                     return false;
                 }
@@ -215,7 +182,7 @@ mlir::LogicalResult ReshapeGroupConvInput::matchAndRewrite(IE::GroupConvolutionO
         }
         // Input can be reshaped
         auto newExpandedShapeResult =
-                getShapeCastExpandedShapeKeepDimC(layerOp, getShape(layerOp.input()), _log.nest());
+                getShapeCastExpandedShapeKeepDimC(layerOp, getShape(layerOp.getInput()), _log.nest());
         if (mlir::failed(newExpandedShapeResult)) {
             return false;
         }
@@ -226,20 +193,180 @@ mlir::LogicalResult ReshapeGroupConvInput::matchAndRewrite(IE::GroupConvolutionO
         return mlir::failure();
     }
     _log.trace("Adjust input/filter/bias shape for group convolution at '{0}'", convOp->getLoc());
-    auto input = buildReshape(convOp.getLoc(), convOp.input(), newInputShape, rewriter);
-    auto weights = broadcastConst(convOp.filter(), newInputShape[Dims4D::Act::C.ind()], Dims4D::Filter::OC, rewriter);
-    auto bias = convOp.bias();
+    auto input = vpux::IE::buildShapeCast(convOp.getLoc(), convOp.getInput(), newInputShape, rewriter);
+    auto weights = broadcastConst(convOp.getFilter(), newInputShape[Dims4D::Act::C.ind()], Dims4D::Filter::OC, rewriter)
+                           .getOutput();
+    auto bias = convOp.getBias();
     if (bias) {
-        bias = broadcastConst(convOp.bias(), newInputShape[Dims4D::Act::C.ind()], Dims4D::Filter::IC, rewriter);
+        bias = mlir::cast<mlir::TypedValue<mlir::RankedTensorType>>(
+                broadcastConst(bias, newInputShape[Dims4D::Act::C.ind()], Dims4D::Filter::IC, rewriter).getOutput());
     }
     auto newGroupConv = rewriter.create<IE::GroupConvolutionOp>(
-            convOp.getLoc(), input, weights, bias, convOp.strides(), convOp.pads_begin(), convOp.pads_end(),
-            convOp.dilations(), getIntAttr(rewriter.getContext(), newInputShape[Dims4D::Act::C.ind()]), nullptr);
+            convOp.getLoc(), input, weights, bias, convOp.getStrides(), convOp.getPadsBegin(), convOp.getPadsEnd(),
+            convOp.getDilations(), getIntAttr(rewriter.getContext(), newInputShape[Dims4D::Act::C.ind()]),
+            convOp.getPostOpAttr(), convOp.getClampAttr());
     auto newInShape = getShape(input);
     auto origOutputType = convOp.getType().cast<vpux::NDTypeInterface>();
-    newGroupConv.output().setType(origOutputType.changeShape(newInShape));
+    newGroupConv.getOutput().setType(mlir::cast<mlir::RankedTensorType>(origOutputType.changeShape(newInShape)));
     auto output = reshapeOutput(convOp, newGroupConv, rewriter);
-    rewriter.replaceOp(convOp, output.result());
+    rewriter.replaceOp(convOp, output.getResult());
+    return mlir::success();
+}
+
+//
+// SliceGroupConvInput
+//
+
+class SliceGroupConvInput final : public mlir::OpRewritePattern<IE::GroupConvolutionOp> {
+public:
+    SliceGroupConvInput(mlir::MLIRContext* ctx, mlir::PatternBenefit benefit, Logger log)
+            : mlir::OpRewritePattern<IE::GroupConvolutionOp>(ctx, benefit), _log(log) {
+        setDebugName("SliceGroupConvInput");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::GroupConvolutionOp convOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult SliceGroupConvInput::matchAndRewrite(IE::GroupConvolutionOp origOp,
+                                                         mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got '{1}' at '{2}'", getDebugName(), origOp->getName(), origOp->getLoc());
+    auto ctx = rewriter.getContext();
+    auto groups = origOp.getGroups().value();
+    auto inNDInterface = origOp.getInput().getType().dyn_cast<vpux::NDTypeInterface>();
+    auto outNDInterface = origOp.getOutput().getType().dyn_cast<vpux::NDTypeInterface>();
+    auto inDimOrder = inNDInterface.getDimsOrder();
+    auto outDimOrder = outNDInterface.getDimsOrder();
+    auto inputShape = inNDInterface.getShape();
+    auto channel = inputShape[Dims4D::Act::C];
+
+    IE::ReorderOp preReorder = nullptr;
+
+    const auto supportedGroupConv = [&](IE::GroupConvolutionOp layerOp) {
+        if (DimsOrder::NHWC != inDimOrder) {
+            return false;
+        }
+
+        if (inDimOrder != outDimOrder) {
+            return false;
+        }
+
+        if (outNDInterface.getElementType() != inNDInterface.getElementType()) {
+            return false;
+        }
+
+        auto strides = parseIntArrayAttr<int64_t>(layerOp.getStrides());
+        auto withOutStrides = std::all_of(strides.begin(), strides.end(), [](auto val) {
+            return val == 1;
+        });
+        if (!withOutStrides) {
+            return false;
+        }
+
+        if (channel >= 4) {
+            return false;
+        }
+
+        if (groups == 1) {
+            return false;
+        }
+
+        // check kernel size and is a depthwise convolution or not
+        if (!isConstAndSameAsGroup(layerOp.getFilter(), groups)) {
+            return false;
+        }
+
+        // check filter and bias const is same
+        if (layerOp.getBias() != nullptr) {
+            if (!isConstAndSameAsGroup(layerOp.getBias(), groups)) {
+                return false;
+            }
+        }
+
+        preReorder = layerOp.getInput().getDefiningOp<IE::ReorderOp>();
+        if (preReorder == nullptr || !preReorder.getOutput().hasOneUse()) {
+            return false;
+        }
+
+        auto postReorder = mlir::cast<IE::ReorderOp>(*layerOp->getUsers().begin());
+        if (postReorder == nullptr || !layerOp->hasOneUse() ||
+            DimsOrder::fromValue(postReorder.getOutput()) != DimsOrder::NCHW) {
+            return false;
+        }
+
+        return true;
+    };
+
+    if (!supportedGroupConv(origOp)) {
+        return mlir::failure();
+    }
+
+    SmallVector<mlir::Value> values;
+    auto weightShape = getShape(origOp.getFilter());
+    mlir::Value biasValue = nullptr;
+
+    for (auto i : irange(groups)) {
+        auto staticOffsets = SmallVector<int64_t>(inputShape.size(), 0);
+        staticOffsets[Dims4D::Act::C.ind()] = i;
+
+        SmallVector<int64_t> staticSizes(inputShape.begin(), inputShape.end());
+        staticSizes[Dims4D::Act::C.ind()] = 1;
+        auto sliceInput =
+                rewriter.create<IE::SliceOp>(origOp->getLoc(), preReorder.getInput(),
+                                             getIntArrayAttr(ctx, staticOffsets), getIntArrayAttr(ctx, staticSizes));
+
+        auto preInOrder = DimsOrder::fromValue(preReorder.getInput());
+        const auto inMemShape = preInOrder.toMemoryOrder(getShape(sliceInput.getResult()));
+        auto permutation = getPermutationFromOrders(preInOrder, DimsOrder::fromValue(preReorder.getOutput()), ctx);
+
+        if (!isTrivialPermute(inMemShape, permutation)) {
+            return mlir::failure();
+        }
+
+        auto permuteCast = rewriter.create<IE::PermuteCastOp>(
+                origOp->getLoc(), sliceInput.getResult(),
+                mlir::AffineMapAttr::get(DimsOrder::fromValue(preReorder.getOutput()).toAffineMap(ctx)),
+                mlir::AffineMapAttr::get(permutation));
+
+        auto weightStaticOffsets = SmallVector<int64_t>(weightShape.size(), 0);
+        weightStaticOffsets[Dims4D::Filter::OC.ind()] = i;
+
+        SmallVector<int64_t> weightStaticSizes(weightShape.begin(), weightShape.end());
+        weightStaticSizes[Dims4D::Filter::OC.ind()] = 1;
+        auto sliceWeight = rewriter.create<IE::SliceOp>(origOp->getLoc(), origOp.getFilter(),
+                                                        getIntArrayAttr(ctx, weightStaticOffsets),
+                                                        getIntArrayAttr(ctx, weightStaticSizes));
+
+        if (origOp.getBias()) {
+            auto biasShape = getShape(origOp.getBias());
+            auto biasStaticOffsets = SmallVector<int64_t>(biasShape.size(), 0);
+            biasStaticOffsets[Dims4D::Filter::IC.ind()] = i;
+
+            SmallVector<int64_t> biasStaticSizes(biasShape.begin(), biasShape.end());
+            biasStaticSizes[Dims4D::Filter::IC.ind()] = 1;
+            auto sliceBias = rewriter.create<IE::SliceOp>(origOp->getLoc(), origOp.getBias(),
+                                                          getIntArrayAttr(ctx, biasStaticOffsets),
+                                                          getIntArrayAttr(ctx, biasStaticSizes));
+            biasValue = sliceBias.getResult();
+        }
+
+        auto newGroupConv = rewriter.create<IE::GroupConvolutionOp>(
+                origOp->getLoc(), permuteCast.getOutput(), sliceWeight.getResult(), biasValue, origOp.getStrides(),
+                origOp.getPadsBegin(), origOp.getPadsEnd(), origOp.getDilations(), getIntAttr(ctx, 1),
+                origOp.getPostOpAttr(), origOp.getClampAttr());
+        auto groupOutputType = newGroupConv.getOutput().getType().cast<NDTypeInterface>();
+        newGroupConv.getOutput().setType(mlir::cast<mlir::RankedTensorType>(
+                groupOutputType.changeDimsOrder(DimsOrder::fromValue(origOp.getOutput()))));
+
+        values.push_back(newGroupConv.getOutput());
+    }
+
+    auto newConcat = rewriter.create<IE::ConcatOp>(origOp->getLoc(), values, Dim(Dims4D::Act::C.ind()));
+    rewriter.replaceOp(origOp, newConcat.getOutput());
+
     return mlir::success();
 }
 
@@ -262,7 +389,8 @@ void AdjustGroupConvShapePass::safeRunOnFunc() {
     auto func = getOperation();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<ReshapeGroupConvInput>(&ctx, _log);
+    patterns.add<SliceGroupConvInput>(&ctx, benefitLevels[0], _log);
+    patterns.add<ReshapeGroupConvInput>(&ctx, benefitLevels[1], _log);
 
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();

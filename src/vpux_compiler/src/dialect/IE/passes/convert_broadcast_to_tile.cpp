@@ -11,7 +11,6 @@
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
-#include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
@@ -37,9 +36,9 @@ private:
 
 mlir::LogicalResult ConvertBroadcastToTile::matchAndRewrite(IE::BroadcastOp origOp,
                                                             mlir::PatternRewriter& rewriter) const {
-    const auto inputShape = to_small_vector(getShape(origOp.input()));
-    const auto outputShape = to_small_vector(getShape(origOp.output()));
-    const auto broadcastType = origOp.mode().value_or(IE::BroadcastType::NUMPY);
+    const auto inputShape = to_small_vector(getShape(origOp.getInput()));
+    const auto outputShape = to_small_vector(getShape(origOp.getOutput()));
+    const auto broadcastType = origOp.getMode().value_or(IE::BroadcastType::NUMPY);
     SmallVector<int64_t> broadcastAxes;
 
     VPUX_THROW_UNLESS(inputShape.size() <= outputShape.size(), "Broadcast input rank {0} exceeds output rank {1}",
@@ -51,7 +50,7 @@ mlir::LogicalResult ConvertBroadcastToTile::matchAndRewrite(IE::BroadcastOp orig
     if (broadcastType == IE::BroadcastType::BIDIRECTIONAL || broadcastType == IE::BroadcastType::NUMPY) {
         broadcastAxes = vpux::IE::getBroadcastAxesNumpyBidirectional(inputShape, outputShape);
     } else if (broadcastType == IE::BroadcastType::EXPLICIT) {
-        auto axesMapping = IE::constInputToData(origOp.getLoc(), origOp.axes_mapping()).value();
+        auto axesMapping = IE::constInputToData(origOp.getLoc(), origOp.getAxesMapping()).value();
         broadcastAxes = vpux::IE::getBroadcastAxesExplicit(axesMapping, outputShape);
     }
 
@@ -69,15 +68,16 @@ mlir::LogicalResult ConvertBroadcastToTile::matchAndRewrite(IE::BroadcastOp orig
 
     const auto dataType =
             mlir::RankedTensorType::get({static_cast<int64_t>(repeats.size())}, getSInt32Type(getContext()));
-    const auto dataAttr = mlir::DenseElementsAttr::get(dataType, makeArrayRef(repeats));
+    const auto dataAttr = mlir::DenseElementsAttr::get(dataType, ArrayRef(repeats));
     auto repeatsConstOp =
             rewriter.create<Const::DeclareOp>(origOp->getLoc(), dataType, Const::ContentAttr::get(dataAttr));
 
     const auto adjustedInputShapeAttr = getIntArrayAttr(getContext(), adjustedInputShape);
     auto reshapeInputOp =
-            rewriter.create<IE::ReshapeOp>(origOp->getLoc(), origOp.input(), nullptr, false, adjustedInputShapeAttr);
+            rewriter.create<IE::ReshapeOp>(origOp->getLoc(), origOp.getInput(), nullptr, false, adjustedInputShapeAttr);
 
-    rewriter.replaceOpWithNewOp<IE::TileOp>(origOp, origOp.getType(), reshapeInputOp.output(), repeatsConstOp, nullptr);
+    rewriter.replaceOpWithNewOp<IE::TileOp>(origOp, origOp.getType(), reshapeInputOp.getOutput(), repeatsConstOp,
+                                            nullptr);
 
     return mlir::success();
 }

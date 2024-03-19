@@ -6,8 +6,8 @@
 #pragma once
 
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/dialect/VPU/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_writer.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
@@ -18,6 +18,7 @@
 #include <mlir/IR/Operation.h>
 #include <mlir/IR/ValueRange.h>
 #include <mlir/Interfaces/SideEffectInterfaces.h>
+#include <vpu_cost_model.h>
 
 namespace vpux {
 namespace VPUIP {
@@ -159,7 +160,8 @@ public:
         return verifySameInOutDimsOrder(op);
     }
 
-    static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/) {
+    static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/,
+                                const bool /*seTransposedConvEnabled*/) {
         inferLayoutInfoSameInOutDimsOrder(info);
     }
 };
@@ -179,6 +181,12 @@ public:
         return verifySameOperandsAndResultElementType(op);
     }
 };
+
+//
+// DMATypeOpInterface
+//
+
+std::optional<VPUIP::DmaChannelType> getChannelType(mlir::Operation* op);
 
 }  // namespace VPUIP
 }  // namespace vpux

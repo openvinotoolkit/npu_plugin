@@ -40,7 +40,7 @@ mlir::LogicalResult VirtualBarrierRewrite::matchAndRewrite(VPURT::DeclareVirtual
     const auto& conf = _barrierSim.getConfig(origOp.getBarrier());
     _log.nest().trace("Use physical barrier ID '{0}'", conf.realId);
 
-    rewriter.replaceOpWithNewOp<VPURT::ConfigureBarrierOp>(origOp, conf.realId);
+    rewriter.replaceOpWithNewOp<VPURT::ConfigureBarrierOp>(origOp, conf.realId, origOp.getIsFinalBarrier());
     return mlir::success();
 }
 
@@ -62,7 +62,8 @@ void AssignPhysicalBarriersPass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getOperation();
 
-    const auto numBarriers = numBarriersOpt.hasValue() ? Optional<int64_t>(numBarriersOpt.getValue()) : None;
+    const auto numBarriers =
+            numBarriersOpt.hasValue() ? std::optional<int64_t>(numBarriersOpt.getValue()) : std::nullopt;
 
     auto& barrierSim = getAnalysis<VPURT::BarrierSimulator>();
     if (!barrierSim.isDynamicBarriers()) {
@@ -70,6 +71,10 @@ void AssignPhysicalBarriersPass::safeRunOnFunc() {
     }
 
     if (mlir::failed(barrierSim.checkProducerCount(_log.nest()))) {
+        signalPassFailure();
+        return;
+    }
+    if (mlir::failed(barrierSim.checkProducerAndConsumerCount(_log.nest()))) {
         signalPassFailure();
         return;
     }

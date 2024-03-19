@@ -14,25 +14,6 @@
 using namespace vpux;
 
 //
-// ContentAttr::walkImmediateSubElements
-//
-
-void vpux::Const::ConvertElemTypeAttr::walkImmediateSubElements(
-        llvm::function_ref<void(Attribute)>, llvm::function_ref<void(mlir::Type)> walkTypesFn) const {
-    walkTypesFn(getElemType());
-}
-
-//
-// ConvertElemTypeAttr::replaceImmediateSubElements
-//
-
-mlir::Attribute vpux::Const::ConvertElemTypeAttr::replaceImmediateSubElements(ArrayRef<mlir::Attribute>,
-                                                                              ArrayRef<mlir::Type> replTypes) const {
-    VPUX_THROW_WHEN(replTypes.size() < 1, "Replace types array is too short: '{0}'", replTypes.size());
-    return get(replTypes[0]);
-}
-
-//
 // ConvertElemTypeAttr::verify
 //
 
@@ -85,9 +66,6 @@ mlir::Attribute vpux::Const::ConvertElemTypeAttr::parse(mlir::AsmParser& parser,
 //
 
 vpux::NDTypeInterface vpux::Const::ConvertElemTypeAttr::inferOutputType(vpux::NDTypeInterface input) const {
-    const Bit typeSizeInBits = input.getElemTypeSize();
-    VPUX_THROW_UNLESS(typeSizeInBits.count() >= CHAR_BIT, "Got sub-byte input '{0}' in ConvertElemTypeAttr",
-                      input.getElementType());
     VPUX_THROW_UNLESS(input.getElementType().isIntOrFloat(), "Can't convert '{0}' element type to '{1}'",
                       input.getElementType(), getElemType());
 
@@ -107,5 +85,6 @@ Const::Content vpux::Const::ConvertElemTypeAttr::transform(vpux::Const::Content&
 //
 
 Const::ContentAttr vpux::Const::ContentAttr::convertElemType(mlir::Type newElemType) const {
-    return get(*this, Const::ConvertElemTypeAttr::get(newElemType).cast<Const::TransformAttrInterface>());
+    return ContentAttr::addTransformation(
+            *this, Const::ConvertElemTypeAttr::get(newElemType).cast<Const::TransformAttrInterface>());
 }

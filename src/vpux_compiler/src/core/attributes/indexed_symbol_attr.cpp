@@ -74,14 +74,14 @@ IndexedSymbolAttr vpux::IndexedSymbolAttr::get(mlir::StringAttr name, size_t id)
     return get(context, {mlir::FlatSymbolRefAttr::get(name), getIntAttr(context, checked_cast<int64_t>(id))});
 }
 
-Optional<IndexedSymbolAttr> vpux::IndexedSymbolAttr::getNestedReference() const {
+std::optional<IndexedSymbolAttr> vpux::IndexedSymbolAttr::getNestedReference() const {
     if (isa<mlir::FlatSymbolRefAttr>()) {
-        return None;
+        return std::nullopt;
     }
 
     auto arrayAttr = cast<mlir::ArrayAttr>();
     if (arrayAttr.size() == 1) {
-        return None;
+        return std::nullopt;
     }
 
     auto symIdx = arrayAttr.size() > 2 ? 2 : 1;
@@ -89,7 +89,7 @@ Optional<IndexedSymbolAttr> vpux::IndexedSymbolAttr::getNestedReference() const 
         return symAttr;
     }
 
-    return None;
+    return std::nullopt;
 }
 
 mlir::FlatSymbolRefAttr vpux::IndexedSymbolAttr::getRootReference() const {
@@ -136,28 +136,28 @@ mlir::SymbolRefAttr vpux::IndexedSymbolAttr::getFullReference() const {
     return mlir::SymbolRefAttr::get(rootRef.getAttr(), nestedRefs);
 }
 
-Optional<mlir::IntegerAttr> vpux::IndexedSymbolAttr::getIndexAttr() const {
+std::optional<mlir::IntegerAttr> vpux::IndexedSymbolAttr::getIndexAttr() const {
     if (isa<mlir::FlatSymbolRefAttr>()) {
-        return None;
+        return std::nullopt;
     }
 
     const auto arrayAttr = cast<mlir::ArrayAttr>();
 
     if (arrayAttr.size() == 1) {
-        return None;
+        return std::nullopt;
     }
 
     if (auto idxAttr = arrayAttr[1].dyn_cast<mlir::IntegerAttr>()) {
         return idxAttr;
     }
 
-    return None;
+    return std::nullopt;
 }
 
-Optional<int64_t> vpux::IndexedSymbolAttr::getIndex() const {
+std::optional<int64_t> vpux::IndexedSymbolAttr::getIndex() const {
     if (const auto indAttr = getIndexAttr()) {
         return indAttr->getInt();
     }
 
-    return None;
+    return std::nullopt;
 }

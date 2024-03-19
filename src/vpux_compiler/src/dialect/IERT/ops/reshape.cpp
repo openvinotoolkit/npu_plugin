@@ -38,7 +38,8 @@ mlir::Value vpux::IERT::GenericReshapeOp::getViewSource() {
     return getInput();
 }
 
-mlir::OpFoldResult vpux::IERT::GenericReshapeOp::fold(ArrayRef<mlir::Attribute> operands) {
+mlir::OpFoldResult vpux::IERT::GenericReshapeOp::fold(FoldAdaptor adaptor) {
+    auto operands = adaptor.getOperands();
     if (getInput().getType() == getOutput().getType()) {
         return getInput();
     }

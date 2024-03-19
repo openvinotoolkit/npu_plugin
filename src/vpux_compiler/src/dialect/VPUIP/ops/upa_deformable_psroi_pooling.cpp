@@ -5,12 +5,10 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
-#include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
-#include "vpux/utils/core/range.hpp"
 
 using namespace vpux;
 
@@ -30,21 +28,21 @@ IE::DeformablePSROIPoolingMode convertDeformablePSROIPoolingModeToIE(MVCNN::Defo
 }  // namespace
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::DeformablePSROIPoolingUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto spatialBinsX = spatial_bins_x().has_value() ? spatial_bins_x().value() : 1;
-    const auto spatialBinsY = spatial_bins_y().has_value() ? spatial_bins_y().value() : 1;
-    const auto groupSize = group_size().has_value() ? group_size().value() : 1;
-    const auto partSize = part_size().has_value() ? part_size().value() : 0;
+    const auto spatialBinsX = getSpatialBinsX().has_value() ? getSpatialBinsX().value() : 1;
+    const auto spatialBinsY = getSpatialBinsY().has_value() ? getSpatialBinsY().value() : 1;
+    const auto groupSize = getGroupSize().has_value() ? getGroupSize().value() : 1;
+    const auto partSize = getPartSize().has_value() ? getPartSize().value() : 0;
     const auto deformablepsROIPoolingMode =
-            mode().has_value() ? mode().value() : IE::DeformablePSROIPoolingMode::BILINEAR_DEFORMABLE;
+            getMode().has_value() ? getMode().value() : IE::DeformablePSROIPoolingMode::BILINEAR_DEFORMABLE;
 
     MVCNN::DeformablePSROIPoolingParamsBuilder builder(writer);
 
-    builder.add_output_dim(checked_cast<uint32_t>(output_dim()));
-    builder.add_spatial_scale(checked_cast<float>(spatial_scaleAttr().getValueAsDouble()));
+    builder.add_output_dim(checked_cast<uint32_t>(getOutputDim()));
+    builder.add_spatial_scale(checked_cast<float>(getSpatialScaleAttr().getValueAsDouble()));
     builder.add_group_size(checked_cast<uint32_t>(groupSize));
     builder.add_spatial_bins_x(checked_cast<uint32_t>(spatialBinsX));
     builder.add_spatial_bins_y(checked_cast<uint32_t>(spatialBinsY));
-    builder.add_trans_std(checked_cast<float>(trans_stdAttr().getValueAsDouble()));
+    builder.add_trans_std(checked_cast<float>(getTransStdAttr().getValueAsDouble()));
     builder.add_part_size(checked_cast<uint32_t>(partSize));
     builder.add_mode(convertVPUXDeformablePSROIPoolingModeToMVNCNN(deformablepsROIPoolingMode));
 

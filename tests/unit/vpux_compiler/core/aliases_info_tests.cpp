@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation.
+// Copyright (C) 2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -9,6 +9,8 @@
 #include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/logger.hpp"
 #include "vpux/utils/core/string_ref.hpp"
+
+#include "vpux/compiler/dialect/VPUIP/dialect.hpp"
 
 #include <mlir/Dialect/Async/IR/Async.h>
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
@@ -433,6 +435,63 @@ TEST(MLIR_AliasesInfo, RemoveAlias) {
             ASSERT_TRUE(newProducerOp != nullptr);
             EXPECT_TRUE(mlir::isa<AlisesInfoTest::TestGroupedViewOp>(newProducerOp))
                     << "producerOp = " << newProducerOp->getName().getStringRef().data();
+        }
+    });
+}
+
+TEST(MLIR_AliasesInfo, CallOp) {
+    mlir::DialectRegistry registry;
+    registry.insert<mlir::memref::MemRefDialect>();
+    registry.insert<mlir::func::FuncDialect>();
+    registry.insert<vpux::VPUIP::VPUIPDialect>();
+
+    // Here MultiViewOpInterface is registered for func::CallOp.
+    // The rationale behind this approach is that:
+    // - AliasesInfo is supposed to be used for 'bufferized' dialect
+    // - In real pipeline first bufferized dialect is VPUIP
+    // - This allows the code from VPUIP to be reused
+    // - This allows the func::CallOp to be processed in a unified way and does not change the analysis code
+    VPUIP::VPUIPDialect::setupExtraInterfaces(registry);
+
+    mlir::MLIRContext ctx(registry);
+
+    constexpr StringLiteral inputIR = R"(
+        module @TwoFunctions {  
+            func.func @foo1(%arg0: memref<1x8x60x60xf16>, %arg1: memref<1x4x60x60xf16>, %arg2: memref<1x2x60x60xf16>) -> (memref<1x4x60x60xf16>, memref<1x2x60x60xf16>) {
+                %0 = memref.subview %arg0[0, 0, 0, 0][1, 4, 60, 60][1, 1, 1, 1] : memref<1x8x60x60xf16> to memref<1x4x60x60xf16>
+                memref.copy %0, %arg1 : memref<1x4x60x60xf16> to  memref<1x4x60x60xf16>
+                %1 = memref.subview %arg0[0, 0, 0, 0][1, 2, 60, 60][1, 1, 1, 1] : memref<1x8x60x60xf16> to memref<1x2x60x60xf16>
+                memref.copy %1, %arg2 : memref<1x2x60x60xf16> to  memref<1x2x60x60xf16>
+                return %arg1, %arg2 : memref<1x4x60x60xf16>, memref<1x2x60x60xf16>
+            }
+            
+            func.func @foo2(%arg0: memref<1x4x60x60xf16>, %arg1: memref<1x4x60x60xf16>) -> memref<1x4x60x60xf16> {
+                memref.copy %arg0, %arg1 : memref<1x4x60x60xf16> to  memref<1x4x60x60xf16>
+                return %arg1 : memref<1x4x60x60xf16>
+            }
+
+            func.func @main(%arg0: memref<1x8x60x60xf16>, %arg1: memref<1x4x60x60xf16>, %arg2: memref<1x2x60x60xf16>) -> (memref<1x4x60x60xf16>, memref<1x2x60x60xf16>) {
+                %alloc = memref.alloc() : memref<1x4x60x60xf16>
+                %0:2 = call @foo1(%arg0, %alloc, %arg2) : (memref<1x8x60x60xf16>, memref<1x4x60x60xf16>, memref<1x2x60x60xf16>) -> (memref<1x4x60x60xf16>, memref<1x2x60x60xf16>)
+                %1 = call @foo2(%0#0, %arg1) : (memref<1x4x60x60xf16>, memref<1x4x60x60xf16>) -> memref<1x4x60x60xf16>
+                return %1, %0#1 : memref<1x4x60x60xf16>, memref<1x2x60x60xf16>
+            }
+        }
+    )";
+
+    auto module = mlir::parseSourceString<mlir::ModuleOp>(inputIR, &ctx);
+    ASSERT_TRUE(module.get() != nullptr);
+
+    auto func = module.get().lookupSymbol<mlir::func::FuncOp>("main");
+    ASSERT_TRUE(func != nullptr);
+
+    vpux::AliasesInfo info(func);
+    func.walk([&](mlir::func::ReturnOp op) {
+        for (const auto& resultValue : op.getOperands()) {
+            auto sources = info.getRoots(resultValue);
+
+            EXPECT_EQ(sources.size(), 1);
+            EXPECT_TRUE(mlir::isa<mlir::BlockArgument>(*sources.begin()));
         }
     });
 }

@@ -6,7 +6,6 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
-#include "vpux/compiler/utils/error.hpp"
 
 using namespace vpux;
 
@@ -15,14 +14,14 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BroadcastUPAOp::serialize(VPUIP::Bl
 
     MVCNN::BroadcastMode mvcnn_mode;
 
-    if (this->mode() == IE::BroadcastType::NUMPY) {
+    if (this->getMode() == IE::BroadcastType::NUMPY) {
         mvcnn_mode = MVCNN::BroadcastMode::BroadcastMode_NUMPY;
-    } else if (this->mode() == IE::BroadcastType::BIDIRECTIONAL) {
+    } else if (this->getMode() == IE::BroadcastType::BIDIRECTIONAL) {
         mvcnn_mode = MVCNN::BroadcastMode::BroadcastMode_BIDIRECTIONAL;
-    } else if (this->mode() == IE::BroadcastType::EXPLICIT) {
+    } else if (this->getMode() == IE::BroadcastType::EXPLICIT) {
         mvcnn_mode = MVCNN::BroadcastMode::BroadcastMode_EXPLICIT;
     } else {
-        VPUX_THROW("Unsupported broadcast mode {0}", this->mode());
+        VPUX_THROW("Unsupported broadcast mode {0}", this->getMode());
     }
 
     builder.add_mode(mvcnn_mode);

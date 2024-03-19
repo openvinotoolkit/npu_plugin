@@ -21,7 +21,7 @@ void createCaseGeneratorHeaderJson(llvm::json::OStream& j) {
 void createCaseGeneratorInputJson(llvm::json::OStream& j) {
     std::array<unsigned long int, 4> shape = {1, 256, 16, 16};
     std::string dtype = "uint8";
-    double scale = 0.01;
+    std::vector<double> scale = {0.01};
     unsigned long int zeropoint = 127;
     unsigned long int low_range = 0;
     unsigned long int high_range = 255;
@@ -45,7 +45,14 @@ void createCaseGeneratorInputJson(llvm::json::OStream& j) {
             j.objectBegin();
             j.attribute("low_range", low_range);
             j.attribute("high_range", high_range);
-            j.attribute("scale", scale);
+            j.attributeBegin("scale");
+            {
+                j.arrayBegin();
+                for (auto s : scale)
+                    j.value(s);
+                j.arrayEnd();
+            }
+            j.attributeEnd();
             j.attribute("zeropoint", zeropoint);
             j.objectEnd();
         }
@@ -59,7 +66,7 @@ void createCaseGeneratorInputJson(llvm::json::OStream& j) {
 void createCaseGeneratorWeightsJson(llvm::json::OStream& j) {
     std::array<unsigned long int, 4> shape = {64, 256, 1, 1};
     std::string dtype = "uint8";
-    double scale = 0.01;
+    std::vector<double> scale = {0.01};
     unsigned long int zeropoint = 0;
     unsigned long int low_range = 1;
     unsigned long int high_range = 1;
@@ -83,7 +90,14 @@ void createCaseGeneratorWeightsJson(llvm::json::OStream& j) {
             j.objectBegin();
             j.attribute("low_range", low_range);
             j.attribute("high_range", high_range);
-            j.attribute("scale", scale);
+            j.attributeBegin("scale");
+            {
+                j.arrayBegin();
+                for (auto s : scale)
+                    j.value(s);
+                j.arrayEnd();
+            }
+            j.attributeEnd();
             j.attribute("zeropoint", zeropoint);
             j.objectEnd();
         }
@@ -97,7 +111,7 @@ void createCaseGeneratorWeightsJson(llvm::json::OStream& j) {
 void createCaseGeneratorOutputJson(llvm::json::OStream& j) {
     std::array<unsigned long int, 4> shape = {1, 64, 16, 16};
     std::string dtype = "uint8";
-    double scale = 0.01;
+    std::vector<double> scale = {0.01};
     unsigned long int zeropoint = 0;
     unsigned long int low_range = 1;
     unsigned long int high_range = 1;
@@ -120,7 +134,14 @@ void createCaseGeneratorOutputJson(llvm::json::OStream& j) {
             j.objectBegin();
             j.attribute("low_range", low_range);
             j.attribute("high_range", high_range);
-            j.attribute("scale", scale);
+            j.attributeBegin("scale");
+            {
+                j.arrayBegin();
+                for (auto s : scale)
+                    j.value(s);
+                j.arrayEnd();
+            }
+            j.attributeEnd();
             j.attribute("zeropoint", zeropoint);
             j.objectEnd();
         }
@@ -203,7 +224,7 @@ void createAndRunConvTest() {
     ASSERT_EQ(nb::to_string(input.dtype), "uint8");
 
     nb::WeightLayer weight = desc.getWeightLayers().front();
-    ASSERT_EQ(weight.qp.scale, 0.01);
+    ASSERT_EQ(weight.qp.scale, std::vector<double>{0.01});
 }
 
 TEST(VPUX37XX_JSON_Parser, conv_test) {

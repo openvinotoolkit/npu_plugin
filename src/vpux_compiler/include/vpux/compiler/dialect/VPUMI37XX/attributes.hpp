@@ -21,5 +21,3 @@
 
 #define GET_ATTRDEF_CLASSES
 #include <vpux/compiler/dialect/VPUMI37XX/attributes.hpp.inc>
-
-#include <vpux/compiler/dialect/VPUMI37XX/structs.hpp.inc>

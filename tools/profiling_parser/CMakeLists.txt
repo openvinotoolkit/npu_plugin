@@ -13,5 +13,7 @@ add_tool_target(
     LINK_LIBRARIES
         flatbuffers
         gflags
-        npu_utils
+        npu_llvm_utils
+        npu_profiling_utils
 )
+

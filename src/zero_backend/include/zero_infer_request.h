@@ -5,9 +5,6 @@
 
 #pragma once
 
-#include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
-#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
-#include <ie_input_info.hpp>
 #include <mutex>
 
 #include "vpux.hpp"
@@ -21,38 +18,32 @@
 #include <ze_graph_ext.h>
 
 namespace vpux {
-class ZeroInferRequest : public IInferRequest {
+
+class ZeroInferRequest final : public SyncInferRequest {
 public:
     using Ptr = std::shared_ptr<ZeroInferRequest>;
 
-    explicit ZeroInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
-                              const InferenceEngine::OutputsDataMap& networkOutputs, const Executor::Ptr& executor,
-                              const Config& config, const std::string& netName,
-                              const std::vector<std::shared_ptr<const ov::Node>>& parameters,
-                              const std::vector<std::shared_ptr<const ov::Node>>& results,
-                              const vpux::NetworkIOVector& networkStatesInfo,
-                              const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr);
+    explicit ZeroInferRequest(const std::shared_ptr<const ov::ICompiledModel> compiledModel,
+                              const std::shared_ptr<const NetworkDescription> networkDescription,
+                              const Executor::Ptr executor, const Config& config);
 
-    void InferImpl() override;
-    void InferAsync() override;
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
-    std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> QueryState() override;
+    void infer() override;
+    void infer_async() override;
+    std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
-    void GetResult() override;
+    void get_result() override;
 
 private:
+    void check_network_precision(const ov::element::Type_t precision) override;
+
     const Executor::Ptr _executorPtr;
     const ZeroExecutor* _executor;
     const Config _config;
     Logger _logger;
-    std::shared_ptr<InferenceEngine::IAllocator> _allocator;
-
-    const vpux::NetworkIOVector _statesInfo;
-    std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> _states{};
-    std::once_flag _fillStatesOnceFlag;
 
     vpux::zeroProfiling::ProfilingPool _profiling_pool;
     vpux::zeroProfiling::ProfilingQuery _profiling_query;
+    std::shared_ptr<vpux::zeroProfiling::VpuInferProfiling> _vpu_profiling = nullptr;
     std::unique_ptr<Pipeline> _pipeline;
 };
 

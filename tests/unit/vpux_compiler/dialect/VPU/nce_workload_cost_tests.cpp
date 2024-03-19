@@ -5,9 +5,9 @@
 
 #include "vpux/compiler/core/tiling.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/dialect/VPU/cost_model.hpp"
-#include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/cost_model/cost_model.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPUIP/dpu_tiler.hpp"
 
 #include <llvm/ADT/SmallVector.h>
@@ -52,8 +52,9 @@ vpux::VPUIP::WorkloadCostParams buildWorkloadCost(const NceOpTensorShape& tensor
 TEST(MLIR_VPU_WorkloadCost, VPUNNCostInterface) {
     mlir::MLIRContext ctx;
 
+    // For VPUX30XX, only VECTOR & MATRIX mode are supported. CUBOID mode is not supported.
     llvm::SmallVector<vpux::VPU::MPEMode> mpeModeList{vpux::VPU::MPEMode::VECTOR_FP16, vpux::VPU::MPEMode::VECTOR,
-                                                      vpux::VPU::MPEMode::MATRIX, vpux::VPU::MPEMode::CUBOID_4x16};
+                                                      vpux::VPU::MPEMode::MATRIX};
 
     const auto costModel = vpux::VPU::createCostModel(vpux::VPU::ArchKind::VPUX30XX);
 
@@ -77,7 +78,7 @@ TEST(MLIR_VPU_WorkloadCost, VPUNNCostInterface) {
             vpux::Shape nTilesOnDim(costParams.outputShape.size(), 1);
             auto alignment = llvm::SmallVector<int64_t>(costParams.outputShape.size(), 1);
             alignment[vpux::Dims4D::Act::C.ind()] = vpux::VPU::NCEInvariant::VPU_CHANNEL_ALIGNMENT;
-            const auto optionalAlignment = vpux::Optional<llvm::ArrayRef<int64_t>>(alignment);
+            const auto optionalAlignment = std::optional<llvm::ArrayRef<int64_t>>(alignment);
             auto outTilesWithSingleSplit =
                     vpux::fillDividedTiles(nTilesOnDim, costParams.outputShape, optionalAlignment);
             VPUX_THROW_WHEN(mlir::failed(outTilesWithSingleSplit), "Invalid tiling");
@@ -87,7 +88,8 @@ TEST(MLIR_VPU_WorkloadCost, VPUNNCostInterface) {
                 singleSplit.emplace_back(std::move(outTile), mpeMode);
             }
 
-            auto baseHardwareExecutionCost = vpux::VPUIP::computeSplitCost(singleSplit, costParams, costModel);
+            auto baseHardwareExecutionCost =
+                    vpux::VPUIP::computeSplitCostForVPUX30XX(singleSplit, costParams, costModel);
 
             vpux::VPUIP::WorkloadSplitPool splitPool;
 
@@ -97,7 +99,7 @@ TEST(MLIR_VPU_WorkloadCost, VPUNNCostInterface) {
             }
 
             for (auto iter = splitPool.begin(); iter != splitPool.end(); iter++) {
-                auto hardwareExecutionCost = vpux::VPUIP::computeSplitCost(*iter, costParams, costModel);
+                auto hardwareExecutionCost = vpux::VPUIP::computeSplitCostForVPUX30XX(*iter, costParams, costModel);
                 EXPECT_LE(hardwareExecutionCost, baseHardwareExecutionCost);
             }
         }

@@ -30,7 +30,6 @@ void vpux::VPUIP::buildAsyncSchedulingPipeline(mlir::OpPassManager& pm, Logger l
 void vpux::VPUIP::buildHardwareAdaptationPipeline(mlir::OpPassManager& pm, Logger log) {
     const auto grc = getDefaultGreedyRewriteConfig();
 
-    pm.addPass(VPUIP::createConvertTransferOpsToDMAsPass(log));
     pm.addPass(VPUIP::createConvertAllocationsToDeclarationsPass(log));
     pm.addPass(VPUIP::createConvertViewOpsToDeclarationsPass(log));
     pm.addPass(VPUIP::createConvertAsyncOpsToTasksPass(log));

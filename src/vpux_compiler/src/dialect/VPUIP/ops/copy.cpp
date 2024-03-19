@@ -3,23 +3,15 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
+#include "vpux/compiler/core/cost_model_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-
-#include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
 
-void vpux::VPUIP::CopyOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                mlir::Value output_buff) {
-    build(builder, state, input, output_buff, /*channelType=*/nullptr, /*spillId=*/nullptr);
-}
+size_t vpux::VPUIP::CopyOp::getOperationCycleCost(std::shared_ptr<VPUNN::VPUCostModel>& costModel) {
+    auto module = getOperation()->getParentOfType<mlir::ModuleOp>();
 
-void vpux::VPUIP::CopyOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type output,
-                                mlir::Value input, mlir::Value output_buff) {
-    build(builder, state, output, input, output_buff, /*channelType=*/nullptr, /*spillId=*/nullptr);
-}
-
-void vpux::VPUIP::CopyOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                mlir::Value output_buff, int64_t spillId) {
-    build(builder, state, input, output_buff, /*channelType=*/nullptr, vpux::getIntAttr(builder, spillId));
+    // TODO: Expose API to get arch from cost model
+    const auto arch = VPU::getArch(module);
+    return checked_cast<size_t>(getDMACost(getInput(), getOutput(), arch, costModel));
 }

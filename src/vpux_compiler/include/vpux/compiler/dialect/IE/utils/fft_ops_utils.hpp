@@ -24,14 +24,14 @@ template <typename T>
 mlir::FailureOr<FFTParams> fftExtractParams(mlir::Location loc, T op, bool complexInputType = true) {
     mlir::FailureOr<SmallVector<int64_t>> axes;
     mlir::FailureOr<SmallVector<int64_t>> signalSize;
-    if (op.axes_attr().has_value()) {
-        axes = parseIntArrayAttr<int64_t>(op.axes_attr().value());
-    } else if (op.axes() != nullptr) {
-        axes = IE::constInputToData(loc, op.axes());
+    if (op.getAxesAttr().has_value()) {
+        axes = parseIntArrayAttr<int64_t>(op.getAxesAttr().value());
+    } else if (op.getAxes() != nullptr) {
+        axes = IE::constInputToData(loc, op.getAxes());
         if (mlir::failed(axes)) {
             return errorAt(loc, "Only constant input is supported for axes");
         }
-        auto inType = op.input().getType().template dyn_cast<mlir::ShapedType>();
+        auto inType = op.getInput().getType().template dyn_cast<mlir::ShapedType>();
         const auto inRank = inType.getRank();
         auto axesVal = axes.value();
         // DFT, IDFT and IRDFT contain complex data type, represented as tensor with 1 more dimension not consider in
@@ -50,14 +50,14 @@ mlir::FailureOr<FFTParams> fftExtractParams(mlir::Location loc, T op, bool compl
         return errorAt(loc, "Axes should be provided as attribute or input constant tensor");
     }
 
-    if (op.signal_size() != nullptr) {
-        signalSize = IE::constInputToData(loc, op.signal_size());
+    if (op.getSignalSize() != nullptr) {
+        signalSize = IE::constInputToData(loc, op.getSignalSize());
         if (mlir::failed(signalSize)) {
             return errorAt(loc, "Only constant input is supported for signal_size");
         }
     } else {
-        if (op.signal_size_attr().has_value()) {
-            signalSize = parseIntArrayAttr<int64_t>(op.signal_size_attr().value());
+        if (op.getSignalSizeAttr().has_value()) {
+            signalSize = parseIntArrayAttr<int64_t>(op.getSignalSizeAttr().value());
         } else {
             auto axesSize = axes.value().size();
             signalSize = SmallVector<int64_t>(axesSize, -1);
@@ -77,7 +77,7 @@ public:
 public:
     mlir::LogicalResult matchAndRewrite(T op, mlir::PatternRewriter& rewriter) const final {
         auto* ctx = op.getContext();
-        if (op.axes_attr() && op.signal_size_attr()) {
+        if (op.getAxesAttr() && op.getSignalSizeAttr()) {
             return mlir::failure();
         }
         bool complexInputType = true;
@@ -93,7 +93,7 @@ public:
         auto signalSize = params.value().signalSize;
         const auto axesAttr = getIntArrayAttr(ctx, axes);
         const auto signalSizeAttr = getIntArrayAttr(ctx, signalSize);
-        rewriter.replaceOpWithNewOp<T>(op, op.input(), nullptr, nullptr, axesAttr, signalSizeAttr);
+        rewriter.replaceOpWithNewOp<T>(op, op.getInput(), nullptr, nullptr, axesAttr, signalSizeAttr);
         return mlir::success();
     }
 };

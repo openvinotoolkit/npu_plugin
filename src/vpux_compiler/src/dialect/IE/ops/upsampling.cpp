@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
@@ -11,8 +10,8 @@
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::UpsamplingOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -21,12 +20,12 @@ mlir::LogicalResult vpux::IE::UpsamplingOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    auto padChannelVector = parseIntArrayAttr<int32_t>(upsampling.padAttr().getPadsChannel());
-    auto padHeightVector = parseIntArrayAttr<int32_t>(upsampling.padAttr().getPadsHeight());
-    auto padWidthVector = parseIntArrayAttr<int32_t>(upsampling.padAttr().getPadsWidth());
-    auto upsamplingFactorVector = parseIntArrayAttr<int32_t>(upsampling.upsampling_factor());
+    auto padChannelVector = parseIntArrayAttr<int32_t>(upsampling.getPadAttr().getPadsChannel());
+    auto padHeightVector = parseIntArrayAttr<int32_t>(upsampling.getPadAttr().getPadsHeight());
+    auto padWidthVector = parseIntArrayAttr<int32_t>(upsampling.getPadAttr().getPadsWidth());
+    auto upsamplingFactorVector = parseIntArrayAttr<int32_t>(upsampling.getUpsamplingFactor());
 
-    const auto inType = upsampling.input().getType().cast<mlir::ShapedType>();
+    const auto inType = upsampling.getInput().getType().cast<mlir::ShapedType>();
     const auto inShape = inType.getShape();
 
     VPUX_THROW_UNLESS(inShape.size() == 4, "Upsampling supports only 4D input tensor");

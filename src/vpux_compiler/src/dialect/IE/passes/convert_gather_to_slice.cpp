@@ -8,9 +8,7 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
-#include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
@@ -55,26 +53,26 @@ mlir::LogicalResult ConvertGatherToSlicePass::GatherConverter::matchAndRewrite(I
     _log.trace("Got Gather Op: {0}", gatherOp);
     auto* ctx = rewriter.getContext();
 
-    auto indices = gatherOp.indices().getDefiningOp<Const::DeclareOp>();
+    auto indices = gatherOp.getIndices().getDefiningOp<Const::DeclareOp>();
     const auto indicesContent = indices.getContent();
     const auto indicesVal = indicesContent.getSplatValue<int64_t>();
 
-    const auto axisVal = gatherOp.axis_value().value();
+    const auto axisVal = gatherOp.getAxisValue().value();
 
-    const auto inType = gatherOp.input().getType().cast<NDTypeInterface>();
+    const auto inType = gatherOp.getInput().getType().cast<NDTypeInterface>();
     const auto inputShape = inType.getShape();
-    auto static_offsets = SmallVector<int64_t>(inputShape.size(), 0);
-    static_offsets[axisVal] = indicesVal;
+    auto staticOffsets = SmallVector<int64_t>(inputShape.size(), 0);
+    staticOffsets[axisVal] = indicesVal;
 
-    SmallVector<int64_t> static_sizes(inputShape.begin(), inputShape.end());
-    static_sizes[axisVal] = 1;
+    SmallVector<int64_t> staticSizes(inputShape.begin(), inputShape.end());
+    staticSizes[axisVal] = 1;
 
     const auto sliceOpLoc = appendLoc(gatherOp.getLoc(), "_slice");
-    auto sliceOp = rewriter.create<IE::SliceOp>(sliceOpLoc, gatherOp.input(), getIntArrayAttr(ctx, static_offsets),
-                                                getIntArrayAttr(ctx, static_sizes));
+    auto sliceOp = rewriter.create<IE::SliceOp>(sliceOpLoc, gatherOp.getInput(), getIntArrayAttr(ctx, staticOffsets),
+                                                getIntArrayAttr(ctx, staticSizes));
 
-    rewriter.replaceOpWithNewOp<IE::ReshapeOp>(gatherOp, sliceOp.result(), nullptr, false,
-                                               getIntArrayAttr(ctx, getShape(gatherOp.output())));
+    rewriter.replaceOpWithNewOp<IE::ReshapeOp>(gatherOp, sliceOp.getResult(), nullptr, false,
+                                               getIntArrayAttr(ctx, getShape(gatherOp.getOutput())));
 
     return mlir::success();
 }
@@ -88,15 +86,16 @@ void ConvertGatherToSlicePass::safeRunOnFunc() {
 
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalOp<IE::GatherOp>([&](IE::GatherOp gatherOp) {
-        const auto batchDims = gatherOp.batch_dims();
+        const auto batchDims = gatherOp.getBatchDims();
 
-        auto indices = gatherOp.indices().getDefiningOp<Const::DeclareOp>();
+        auto indices = gatherOp.getIndices().getDefiningOp<Const::DeclareOp>();
         if (indices == nullptr) {
             return true;
         }
 
         const auto indicesContent = indices.getContent();
-        return !(indicesContent.getType().getNumElements() == 1 && batchDims == 0 && gatherOp.axis_value().has_value());
+        return !(indicesContent.getType().getNumElements() == 1 && batchDims == 0 &&
+                 gatherOp.getAxisValue().has_value());
     });
     target.addLegalOp<IE::SliceOp>();
     target.addLegalOp<IE::ReshapeOp>();

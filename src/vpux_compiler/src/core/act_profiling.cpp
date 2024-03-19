@@ -22,59 +22,16 @@
 
 namespace vpux {
 
-// Create a string that should be placed as a suffix for operation name (Loc) with relevant metadata
-// allowing post processing tools to correctly interpret profiling data
-std::string createActShaveProfilingLocSuffix(size_t inDdrOffset, size_t clusterSize, size_t inClusterOffset,
-                                             Optional<size_t> tileId) {
-    return formatv("{0}_{1}_{2}_{3}_{4}", PROFILING_PREFIX, inDdrOffset, clusterSize, inClusterOffset, tileId).str();
-}
-
-// Gather profiling metadata from a profiled ActShave task
-// Returns tuple: (size_t inDdrOffset, size_t clusterSize, size_t inClusterOffset and optional tile id)
-std::tuple<size_t, size_t, size_t, Optional<size_t>> parseActShaveProfilingOffsets(mlir::Location loc) {
-    const auto PROFILING_PREFIX_SIZE = std::string(PROFILING_PREFIX).size() + 1;
-    const auto NUM_MANDATORY_FIELDS = 3;
-    std::vector<size_t> values;
-    Optional<size_t> maybeTileId = {};
-    if (auto profLoc = loc.dyn_cast<mlir::FusedLoc>()) {
-        const auto strProfLoc = stringifyLocation(profLoc.getLocations().back());
-        const auto cleanStr = strProfLoc.substr(PROFILING_PREFIX_SIZE);
-        std::stringstream sstream(cleanStr);
-        std::string token;
-        while (std::getline(sstream, token, '_')) {
-            if (values.size() < NUM_MANDATORY_FIELDS) {
-                values.push_back(std::stoull(token));
-            } else {
-                maybeTileId = token == "<NONE>" ? Optional<size_t>() : std::stoull(token);
-                break;
-            }
-        }
-        const auto rPos = sstream.tellg();
-        VPUX_THROW_UNLESS(rPos == -1, "Location should be parsed completely, but remainder left: {0}",
-                          sstream.str().substr(rPos));
-    } else {
-        VPUX_THROW("Profiling should be fused loc");
-    }
-
-    VPUX_THROW_UNLESS(values.size() == 3, "Profiling metadata is not what was expected for operation {0}", loc);
-
-    return {values[0], values[1], values[2], maybeTileId};
-}
-
-// Update already existing profiling metadata which is a suffix task Loc setting with new
-// offset. This is to be used when ActShave task with multiple SwKernelRun ops is being unrolled
-mlir::Location getUpdatedActShaveProfilingLoc(mlir::Location loc, size_t tileId) {
-    size_t ddrOffset, clusterSize, inClusterOffset;
-    std::tie(ddrOffset, clusterSize, inClusterOffset, std::ignore) = parseActShaveProfilingOffsets(loc);
-    auto fusedLoc = loc.dyn_cast<mlir::FusedLoc>();
-    // Loc has profiling information included at the end. Remove it and recreate with updates offset within cluster
-    const auto reducedLoc = mlir::FusedLoc::get(loc->getContext(), fusedLoc.getLocations().drop_back());
-    return appendLoc(reducedLoc,
-                     createActShaveProfilingLocSuffix(ddrOffset, clusterSize, inClusterOffset + tileId, tileId));
-}
-
 mlir::IntegerType getActShaveProfilingElementType(mlir::MLIRContext* ctx) {
     return getUInt32Type(ctx);
+}
+
+unsigned BaseActShaveProfiler::getNextBufferId() {
+    return uniqBufferId++;
+}
+
+void BaseActShaveProfiler::resetBufferIdCounter() {
+    uniqBufferId = 0;
 }
 
 BaseActShaveProfiler::BaseActShaveProfiler(unsigned clustersNum, mlir::OpBuilder& builder, mlir::MLIRContext* ctx,
@@ -93,13 +50,13 @@ BaseActShaveProfiler::BaseActShaveProfiler(unsigned clustersNum, mlir::OpBuilder
           _uniqifier(std::move(uniqifier)) {
 }
 
-// Get amount of memory needed to store profiling data of all ActShave tasks in the model
+// Get count of memory needed to store profiling data of all ActShave tasks in the model
 unsigned BaseActShaveProfiler::getRequiredDdrMemory() const {
-    unsigned swTasksAmount =
+    unsigned swTasksCount =
             std::accumulate(_swTaskSignatures.begin(), _swTaskSignatures.end(), 0, [](const auto& a, const auto& b) {
                 return a + b._maxSubTasks;
             });
-    return swTasksAmount * _clustersNum * _profilingElementSize;
+    return swTasksCount * _clustersNum * _profilingElementSize;
 }
 
 // Go over all SwKernelOps and store required information about those tasks like required size of
@@ -136,18 +93,18 @@ void BaseActShaveProfiler::scheduleTask(VPUIP::SwKernelOp swOp) {
 // buffer is full it also inserts CMX2DDR DMA and allocates new profiling buffer
 void BaseActShaveProfiler::addProfilingOps(mlir::BlockArgument& profilingDdrResult,
                                            SmallVector<mlir::Value>& clusterResults) {
-    // Contains profiling_output of individual swTaskOp and amount of profiled tiles
+    // Contains profiling_output of individual swTaskOp and count of profiled tiles
     ProfilingResults nceProfilingOutputs;
     size_t currentDDROffset = 0;
     mlir::Operation* currentProfilingBuffer = nullptr;
     unsigned currentBufferSize;
-    int currentBufferId = -1;
+    unsigned currentBufferId = 0;
     const auto allocateProfilingBufferCMX = [&]() {
         if (_profilingBufferSizes.empty()) {
             return;
         }
 
-        ++currentBufferId;
+        currentBufferId = getNextBufferId();
         currentBufferSize = _profilingBufferSizes.front();
         VPUX_THROW_WHEN(currentBufferSize == 0, "Empty CMXBuffers is not allowed");
 
@@ -173,8 +130,8 @@ void BaseActShaveProfiler::addProfilingOps(mlir::BlockArgument& profilingDdrResu
                 copyToDdr(nceProfilingOutputs, currentProfilingBuffer, currentDDROffset, profilingDdrResult);
         clusterResults.push_back(copyToDDRResult);
 
-        auto flushedTasksAmount = countTasks(nceProfilingOutputs);
-        currentDDROffset += flushedTasksAmount;
+        auto flushedTasksCount = countTasks(nceProfilingOutputs);
+        currentDDROffset += flushedTasksCount;
 
         nceProfilingOutputs.clear();
     };
@@ -187,16 +144,18 @@ void BaseActShaveProfiler::addProfilingOps(mlir::BlockArgument& profilingDdrResu
 
         auto* insertionPoint = swTaskOp.getOperation();
         auto nceClusterTilingOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(swTaskOp->getParentOp());
+        bool isSingleCluster = true;
         // In case NCE task is wrapped with NCEClusterTiling then inserting should be done
         // at NCEClusterTiling op level and not inside it where NCEClusterTask op is
         if (nceClusterTilingOp) {
+            isSingleCluster = false;
             insertionPoint = nceClusterTilingOp.getOperation();
         }
         _builder.setInsertionPoint(insertionPoint);
 
-        const unsigned tasksAmount = swTaskSignature._maxSubTasks * _clustersNum;
+        const unsigned tasksCount = swTaskSignature._maxSubTasks * _clustersNum;
         auto profilingSamplesInCMX = countTasks(nceProfilingOutputs);
-        const auto expectedCMXMemoryUsage = (profilingSamplesInCMX + tasksAmount) * _profilingWorkloadSize;
+        const auto expectedCMXMemoryUsage = (profilingSamplesInCMX + tasksCount) * _profilingWorkloadSize;
         // If couldnt place current task in the end of cmx buffer flushing all previous tasks to DDR
         // expectedCMXMemoryUsage counts size for all clusters, while HW_ACT_SHAVE_PROFILING_MAX_BUFFER_SIZE only
         // for one so, need to align them for comparison
@@ -207,19 +166,20 @@ void BaseActShaveProfiler::addProfilingOps(mlir::BlockArgument& profilingDdrResu
             allocateProfilingBufferCMX();  // Allocate next CMX buffer
         }
 
-        auto subView = getViewToBuffer(currentProfilingBuffer, profilingSamplesInCMX, tasksAmount);
+        auto subView = getViewToBuffer(currentProfilingBuffer, profilingSamplesInCMX, tasksCount);
 
-        // If we have only one tile - we already know his index, otherwise setting None
-        Optional<size_t> maybeTileId = swTaskSignature._maxSubTasks == 1 ? 0 : Optional<size_t>();
-        const auto profilingMeta =
-                createActShaveProfilingLocSuffix(currentDDROffset, currentBufferSize, inClusterOffset, maybeTileId);
-        const auto loc = appendLoc(_uniqifier->getUniqueLoc(swTaskOp->getLoc()), profilingMeta);
+        // If we have only one tile - we already know his index, otherwise setting std::nullopt
+        std::optional<size_t> maybeTileId = swTaskSignature._maxSubTasks == 1 ? 0 : std::optional<size_t>();
+        std::optional<size_t> maybeClusterId = isSingleCluster ? 0 : std::optional<size_t>();
+        const auto profilingMeta = getSwProfilingMetaAttr(_ctx, currentBufferId, currentDDROffset, currentBufferSize,
+                                                          inClusterOffset, maybeTileId, maybeClusterId);
+        const auto uniqLoc = _uniqifier->getUniqueLoc(swTaskOp->getLoc());
 
-        auto profilingOutput = replaceOpWithProfiledOp(swTaskOp, subView, loc);
+        auto profilingOutput = replaceOpWithProfiledOp(swTaskOp, subView, uniqLoc, profilingMeta);
 
         inClusterOffset += swTaskSignature._maxSubTasks;
 
-        nceProfilingOutputs.push_back({profilingOutput, tasksAmount});
+        nceProfilingOutputs.push_back({profilingOutput, tasksCount});
     }
     flushCMX2DDR();
 }
@@ -229,8 +189,8 @@ SWTaskSignature BaseActShaveProfiler::getTaskSignature(VPUIP::SwKernelOp swOp) c
     return {swOp, numOfProfiledTasks, {numOfProfiledTasks}};
 }
 
-mlir::Type BaseActShaveProfiler::getTimestampType(int64_t tasksAmount) {
-    return getMemRefType({_profilingElementSize * tasksAmount}, getActShaveProfilingElementType(_ctx), DimsOrder::C,
+mlir::Type BaseActShaveProfiler::getTimestampType(int64_t tasksCount) {
+    return getMemRefType({_profilingElementSize * tasksCount}, getActShaveProfilingElementType(_ctx), DimsOrder::C,
                          _memKindAttr);
 }
 
@@ -285,7 +245,7 @@ mlir::Value UniformNonTiledActShaveProfiler::copyToDdr(ProfilingResults profilin
                     _ctx, mlir::StringRef("actshaveProfilingConcat") + std::to_string(currentDDROffset))),
             concatInputs, cmxMemOp->getResult(0));
 
-    return _builder.create<VPUIP::CopyOp>(copyLoc, concatview.output(), subDDR.result());
+    return _builder.create<VPUIP::CopyOp>(copyLoc, concatview.getOutput(), subDDR.getResult());
 }
 
 // Get a SubView of profiling buffer instance so that given ActShave task is given required chunk of it
@@ -302,26 +262,28 @@ mlir::Value UniformNonTiledActShaveProfiler::getViewToBuffer(mlir::Operation* cu
     auto sub = _builder.create<VPUIP::SubViewOp>(subViewLoc, currentProfilingBuffer->getResult(0),
                                                  SmallVector<int64_t>({static_cast<int>(offset)}), sizes);
 
-    return sub.result();
+    return sub.getResult();
 }
 
 // Replace a Actshave task with new one that has profiling output set
 mlir::Value UniformNonTiledActShaveProfiler::replaceOpWithProfiledOp(VPUIP::SwKernelOp origSwTask,
-                                                                     mlir::Value profilingBuffer, mlir::Location loc) {
+                                                                     mlir::Value profilingBuffer, mlir::Location loc,
+                                                                     VPUIP::SwProfilingMetadataAttr profMeta) {
     _log.trace("Replace op with new profiled task '{0}'", loc);
 
     SmallVector<mlir::Type> newResultTypes(origSwTask.getResultTypes());
     newResultTypes.push_back(profilingBuffer.getType());
 
-    auto swTask = _builder.create<VPUIP::SwKernelOp>(loc, origSwTask.inputs(), origSwTask.output_buffs(),
-                                                     profilingBuffer, origSwTask.kernelFunction(),
-                                                     origSwTask.tileIndexAttr(), origSwTask.stridesAttr());
+    auto swTask = _builder.create<VPUIP::SwKernelOp>(loc, origSwTask.getInputs(), origSwTask.getOutputBuffs(),
+                                                     profilingBuffer, origSwTask.getKernelFunction(),
+                                                     origSwTask.getTileIndexAttr(), origSwTask.getStridesAttr());
+    swTask.setProfilingMetadataAttr(profMeta);
 
     swTask.getRegion().takeBody(origSwTask.getRegion());
 
-    origSwTask->replaceAllUsesWith(swTask.results());
+    origSwTask->replaceAllUsesWith(swTask.getResults());
 
-    return swTask.profiling_output();
+    return swTask.getProfilingOutput();
 }
 
 VPUIP::DistributedBufferType NCETiledActShaveProfiler::getDistributedBufferType(unsigned totalElements) {
@@ -374,7 +336,7 @@ mlir::Value NCETiledActShaveProfiler::copyToDdr(ProfilingResults profilingResult
             auto distType = getDistributedBufferType(profRes.second * _profilingElementSize);
             auto viewLoc = appendLoc(profResult.getLoc(), "_view_cast_to_distributed");
             auto viewOp = _builder.create<VPUIP::ViewOp>(viewLoc, distType, profResult);
-            concatInputs.push_back(viewOp.result());
+            concatInputs.push_back(viewOp.getResult());
         } else {
             concatInputs.push_back(profResult);
         }
@@ -396,14 +358,14 @@ mlir::Value NCETiledActShaveProfiler::copyToDdr(ProfilingResults profilingResult
                     _ctx, mlir::StringRef("actshaveProfilingConcat") + std::to_string(currentDDROffset))),
             concatInputs, cmxMemOp->getResult(0));
 
-    SmallVector<mlir::Value> inputsOutputOperands{concatview.output(), subDDR.result()};
+    SmallVector<mlir::Value> inputsOutputOperands{concatview.getOutput(), subDDR.getResult()};
 
     const auto bodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
         builder.create<VPUIP::CopyOp>(loc, newOperands[0], newOperands[1]);
     };
 
     return _builder
-            .create<VPUIP::NCEClusterTilingOp>(copyLoc, subDDR.result().getType(), inputsOutputOperands, bodyBuilder)
+            .create<VPUIP::NCEClusterTilingOp>(copyLoc, subDDR.getResult().getType(), inputsOutputOperands, bodyBuilder)
             .getResult(0);
 }
 
@@ -421,13 +383,14 @@ mlir::Value NCETiledActShaveProfiler::getViewToBuffer(mlir::Operation* currentPr
     auto sub = _builder.create<VPUIP::SubViewOp>(subViewLoc, currentProfilingBuffer->getResult(0),
                                                  SmallVector<int64_t>({static_cast<int64_t>(offset)}), sizes);
 
-    return sub.result();
+    return sub.getResult();
 }
 
 // Replace a Actshave task with new one that has profiling output set. If this task is not multiclustered
 // then additional cast (ViewOp) is inserted for profiling slot to maintain type compatibility
 mlir::Value NCETiledActShaveProfiler::replaceOpWithProfiledOp(VPUIP::SwKernelOp origSwTask, mlir::Value profilingBuffer,
-                                                              mlir::Location loc) {
+                                                              mlir::Location loc,
+                                                              VPUIP::SwProfilingMetadataAttr profMeta) {
     _log.trace("Replace op with new profiled task '{0}'", loc);
 
     auto profilingSlot = profilingBuffer;
@@ -440,23 +403,24 @@ mlir::Value NCETiledActShaveProfiler::replaceOpWithProfiledOp(VPUIP::SwKernelOp 
     } else {
         auto viewOpName = appendLoc(loc, "_view_cast");
         auto viewOp = _builder.create<VPUIP::ViewOp>(viewOpName, getTimestampType(1), profilingBuffer);
-        profilingSlot = viewOp.result();
+        profilingSlot = viewOp.getResult();
     }
 
-    auto swTask = _builder.create<VPUIP::SwKernelOp>(loc, origSwTask.inputs(), origSwTask.output_buffs(), profilingSlot,
-                                                     origSwTask.kernelFunction(), origSwTask.tileIndexAttr(),
-                                                     origSwTask.stridesAttr());
+    auto swTask = _builder.create<VPUIP::SwKernelOp>(loc, origSwTask.getInputs(), origSwTask.getOutputBuffs(),
+                                                     profilingSlot, origSwTask.getKernelFunction(),
+                                                     origSwTask.getTileIndexAttr(), origSwTask.getStridesAttr());
+    swTask.setProfilingMetadataAttr(profMeta);
 
     // Adjust profiling output to a compact type since later it will be wrapped in NCEClusterTiling
     if (nceClusterTilingOp) {
         auto distType = profilingSlot.getType().dyn_cast<VPUIP::DistributedBufferType>();
-        swTask.profiling_output().setType(distType.getCompactType());
+        swTask.getProfilingOutput().setType(distType.getCompactType());
     }
 
     swTask.getRegion().takeBody(origSwTask.getRegion());
-    origSwTask->replaceAllUsesWith(swTask.results());
+    origSwTask->replaceAllUsesWith(swTask.getResults());
 
-    auto profilingOutput = swTask.profiling_output();
+    auto profilingOutput = swTask.getProfilingOutput();
 
     // In case original ActShaveTask was wrapped with NCEClusterTiling then new ActShaveTask
     // with additional profiling output should also be wrapped with NCEClusterTiling op whose
@@ -465,22 +429,22 @@ mlir::Value NCETiledActShaveProfiler::replaceOpWithProfiledOp(VPUIP::SwKernelOp 
         _log.nest().trace("Wrap task with NCEClusterTiling");
         // Operands of new NCEClusterTilingOp will be extended with profiling buffer
         SmallVector<mlir::Value> newNceClusterTilingOperands(nceClusterTilingOp->getOperands());
-        newNceClusterTilingOperands.push_back(swTask.profiling_data());
+        newNceClusterTilingOperands.push_back(swTask.getProfilingData());
 
         // Result of new NCEClusterTilingOp will be extended with profiling result
         SmallVector<mlir::Type> newNceClusterTilingResultTypes(nceClusterTilingOp->getResultTypes());
-        newNceClusterTilingResultTypes.push_back(swTask.profiling_data().getType());
+        newNceClusterTilingResultTypes.push_back(swTask.getProfilingData().getType());
 
         const auto bodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
             std::ignore = loc;
-            mlir::BlockAndValueMapping mapper;
+            mlir::IRMapping mapper;
 
-            auto origArguments = nceClusterTilingOp.body().front().getArguments();
+            auto origArguments = nceClusterTilingOp.getBody().front().getArguments();
 
             // Map original NCEClusterTiling argument to new corresponding operands and map
             // profiling buffer to last operand
             mapper.map(origArguments, newOperands.take_front(nceClusterTilingOp->getOperands().size()));
-            mapper.map(swTask.profiling_data(), newOperands.take_back(1).front());
+            mapper.map(swTask.getProfilingData(), newOperands.take_back(1).front());
 
             builder.clone(*swTask.getOperation(), mapper);
         };

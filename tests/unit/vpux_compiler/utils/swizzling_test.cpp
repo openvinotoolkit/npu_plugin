@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
+//
 #include <gtest/gtest.h>
 #include <climits>
 #include <vector>
@@ -54,7 +55,7 @@ bool swizzlingTest(uint32_t elements, uint32_t swizzleKey, VPU::ArchKind archKin
     for (uint32_t e{}; e < elements; ++e) {
         inputVector[e] = static_cast<T>(rand() % 256);
     }
-    auto inputRawData = makeArrayRef(reinterpret_cast<const char*>(inputVector.data()), inputVector.size() * sizeof(T));
+    auto inputRawData = ArrayRef(reinterpret_cast<const char*>(inputVector.data()), inputVector.size() * sizeof(T));
 
     const bool noSwizzlingApplied{elements * sizeof(T) <= swizzlePatternStride};
     bufferTransform.swizzle<T>(inputRawData, swizzledArrayRef);

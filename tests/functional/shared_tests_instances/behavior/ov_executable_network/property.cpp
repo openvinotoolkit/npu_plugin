@@ -4,7 +4,8 @@
 //
 
 #include "behavior/ov_executable_network/properties.hpp"
-#include "vpu_test_env_cfg.hpp"
+#include "common/utils.hpp"
+#include "common/vpu_test_env_cfg.hpp"
 #include "vpux/al/config/common.hpp"
 
 #include <vpux/properties.hpp>
@@ -18,9 +19,9 @@ namespace {
 std::vector<std::pair<std::string, ov::Any>> exe_network_supported_properties = {
         {ov::intel_vpux::print_profiling.name(), ov::Any(ov::intel_vpux::ProfilingOutputTypeArg::JSON)},
         {ov::intel_vpux::profiling_output_file.name(), ov::Any("some/file")},
-        {ov::intel_vpux::vpux_platform.name(), ov::Any(ov::intel_vpux::VPUXPlatform::EMULATOR)},
         {ov::hint::model_priority.name(), ov::Any(ov::hint::Priority::HIGH)},
         {ov::hint::num_requests.name(), ov::Any(8)},
+        {ov::hint::enable_cpu_pinning.name(), ov::Any(true)},
         {ov::hint::performance_mode.name(), ov::Any(ov::hint::PerformanceMode::THROUGHPUT)},
         {ov::enable_profiling.name(), ov::Any(true)},
         {ov::device::id.name(), ov::Any(LayerTestsUtils::getDeviceNameID(LayerTestsUtils::getDeviceName()))},
@@ -31,9 +32,11 @@ std::vector<std::pair<std::string, ov::Any>> exe_network_supported_properties = 
 
 std::vector<std::pair<std::string, ov::Any>> exe_network_immutable_properties = {
         {std::make_pair(ov::optimal_number_of_infer_requests.name(), ov::Any(2))},
+        {std::make_pair(ov::hint::enable_cpu_pinning.name(), ov::Any(false))},
         {std::make_pair(ov::supported_properties.name(), ov::Any("deadbeef"))},
         {std::make_pair(ov::model_name.name(), ov::Any("deadbeef"))}};
 
+// ExecutableNetwork Properties tests
 class VPUXClassExecutableNetworkGetPropertiesTest :
         public OVCompiledModelPropertiesBase,
         public ::testing::WithParamInterface<std::tuple<std::string, std::pair<std::string, ov::Any>>> {
@@ -61,6 +64,7 @@ public:
         std::ostringstream result;
         result << "targetDevice=" << LayerTestsUtils::getDeviceNameTestCase(targetDevice) << "_";
         result << "config=(" << configuration.first << "=" << configuration.second.as<std::string>() << ")";
+        result << "_targetPlatform=" + LayerTestsUtils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
         return result.str();
     }
 };
@@ -110,15 +114,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_VPUXClassExecutableNetworkTestSuite2, VPUXClassEx
 namespace {
 
 std::vector<std::pair<std::string, ov::Any>> plugin_mutable_properties = {
+        {ov::internal::exclusive_async_requests.name(), ov::Any(true)},
         {ov::hint::num_requests.name(), ov::Any(5)},
         {ov::intel_vpux::profiling_output_file.name(), ov::Any("some/file")},
         {ov::enable_profiling.name(), ov::Any(true)},
         {ov::hint::performance_mode.name(), ov::Any(ov::hint::PerformanceMode::THROUGHPUT)},
+        {ov::hint::enable_cpu_pinning.name(), ov::Any(true)},
         {ov::log::level.name(), ov::Any(ov::log::Level::DEBUG)},
         {ov::device::id.name(), ov::Any(LayerTestsUtils::getDeviceNameID(LayerTestsUtils::getDeviceName()))},
         {ov::intel_vpux::print_profiling.name(), ov::Any(ov::intel_vpux::ProfilingOutputTypeArg::JSON)},
         {ov::intel_vpux::compiler_type.name(), ov::Any(ov::intel_vpux::CompilerType::MLIR)},
-        {ov::intel_vpux::vpux_platform.name(), ov::Any(ov::intel_vpux::VPUXPlatform::AUTO_DETECT)},
+        {ov::intel_vpux::platform.name(), ov::Any(ov::intel_vpux::VPUXPlatform::AUTO_DETECT)},
         {ov::intel_vpux::compilation_mode.name(), ov::Any("DefaultHW")},
         {ov::intel_vpux::compilation_mode_params.name(), ov::Any("use-user-precision=false propagate-quant-dequant=0")},
         {ov::intel_vpux::dpu_groups.name(), ov::Any(2)},
@@ -134,10 +140,13 @@ std::vector<std::pair<std::string, ov::Any>> plugin_immutable_properties = {
         {ov::range_for_async_infer_requests.name(),
          ov::Any(std::tuple<unsigned int, unsigned int, unsigned int>{0, 10, 1})},
         {ov::range_for_streams.name(), ov::Any(std::tuple<unsigned int, unsigned int>{0, 10})},
-        {ov::caching_properties.name(), ov::Any("deadbeef")},
+        {ov::internal::caching_properties.name(), ov::Any("deadbeef")},
         {ov::optimal_number_of_infer_requests.name(), ov::Any(4)},
+        {ov::intel_vpux::device_alloc_mem_size.name(), ov::Any(2)},
+        {ov::intel_vpux::device_total_mem_size.name(), ov::Any(2)},
 };
 
+// Plugin Properties tests
 class VPUXClassPluginPropertiesTest :
         public OVCompiledModelPropertiesBase,
         public ::testing::WithParamInterface<std::tuple<std::string, std::pair<std::string, ov::Any>>> {
@@ -163,6 +172,7 @@ public:
         std::ostringstream result;
         result << "targetDevice=" << LayerTestsUtils::getDeviceNameTestCase(targetDevice) << "_";
         result << "config=(" << configuration.first << "=" << configuration.second.as<std::string>() << ")";
+        result << "_targetPlatform=" + LayerTestsUtils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
         return result.str();
     }
 };
@@ -213,6 +223,11 @@ TEST_P(VPUXClassPluginPropertiesTestSuite2, CanNotSetImmutableProperty) {
     ASSERT_EQ(orig_value.as<std::string>(), after_value.as<std::string>());
 }
 
+INSTANTIATE_TEST_SUITE_P(smoke_VPUXClassPluginPropertiesTest, VPUXClassPluginPropertiesTestSuite2,
+                         ::testing::Combine(::testing::Values(LayerTestsUtils::getDeviceName()),
+                                            ::testing::ValuesIn(plugin_immutable_properties)),
+                         VPUXClassPluginPropertiesTest::getTestCaseName);
+
 using VPUXClassPluginPropertiesTestSuite3 = VPUXClassPluginPropertiesTest;
 
 TEST_P(VPUXClassPluginPropertiesTestSuite3, CanGetPropertyWithOptionsNotAffectingCore) {
@@ -246,5 +261,38 @@ INSTANTIATE_TEST_SUITE_P(smoke_VPUXClassPluginPropertiesOptsTest2, VPUXClassPlug
                          ::testing::Combine(::testing::Values(LayerTestsUtils::getDeviceName()),
                                             ::testing::ValuesIn(plugin_mutable_properties)),
                          VPUXClassPluginPropertiesTest::getTestCaseName);
+
+using VPUXClassPluginPropertiesTestSuite4 = VPUXClassExecutableNetworkGetPropertiesTest;
+
+TEST_P(VPUXClassPluginPropertiesTestSuite4, CanNotSetGetInexistentProperty) {
+    // ie.set_property won't call plugin Engine::SetConfig due to empty string-ov::Plugin map from core_impl
+    // workaround to overcome this is to call first ie.get_property which calls get_plugin() from core_impl and
+    // populates plugin map
+    std::vector<ov::PropertyName> properties;
+    ASSERT_NO_THROW(properties = ie.get_property(deviceName, ov::supported_properties));
+
+    ASSERT_THROW(ie.set_property(deviceName, {{configKey, configValue}}), ov::Exception);
+
+    ASSERT_THROW(auto property1 = ie.get_property(deviceName, configKey), ov::Exception);
+
+    ASSERT_THROW(ov::CompiledModel compiled_model1 = ie.compile_model(model, deviceName, {{configKey, configValue}}),
+                 ov::Exception);
+
+    ov::CompiledModel compiled_model2;
+
+    ASSERT_NO_THROW(compiled_model2 = ie.compile_model(model, deviceName));
+
+    ASSERT_THROW(compiled_model2.set_property({{configKey, configValue}}),
+                 ov::Exception);  // Expect to throw due to unimplemented method
+
+    ASSERT_THROW(auto property2 = compiled_model2.get_property(configKey),
+                 ov::Exception);  // Expect to throw due to unsupported config
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_VPUXClassExecutableNetworkGetPropertiesTest, VPUXClassPluginPropertiesTestSuite4,
+                         ::testing::Combine(::testing::Values(LayerTestsUtils::getDeviceName()),
+                                            ::testing::ValuesIn({std::make_pair<std::string, ov::Any>(
+                                                    "THISCONFIGKEYNOTEXIST", ov::Any("THISCONFIGVALUENOTEXIST"))})),
+                         VPUXClassExecutableNetworkGetPropertiesTest::getTestCaseName);
 
 }  // namespace

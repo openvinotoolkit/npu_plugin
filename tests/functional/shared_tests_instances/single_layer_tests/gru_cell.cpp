@@ -9,7 +9,8 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXGRUCellLayerTest_VPU3720 : public GRUCellTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
+class GRUCellLayerTestCommon : public GRUCellTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
+class GRUCellLayerTest_NPU3720 : public GRUCellLayerTestCommon {
     void SetUp() override {
         inPrc = InferenceEngine::Precision::FP16;
         outPrc = InferenceEngine::Precision::FP16;
@@ -17,12 +18,13 @@ class VPUXGRUCellLayerTest_VPU3720 : public GRUCellTest, virtual public LayerTes
     }
 };
 
-TEST_P(VPUXGRUCellLayerTest_VPU3720, HW) {
+TEST_P(GRUCellLayerTest_NPU3720, HW) {
     threshold = 0.06;
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
 }
+
 }  // namespace LayerTestsDefinitions
 
 using namespace LayerTestsDefinitions;
@@ -37,13 +39,15 @@ const std::vector<std::vector<std::string>> activations = {{"sigmoid", "tanh"}};
 const std::vector<float> clip{0.f};
 const std::vector<bool> shouldLinearBeforeReset{true, false};
 const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP16};
+const std::vector<ngraph::helpers::InputLayerType> WRBLayerTypes = {ngraph::helpers::InputLayerType::CONSTANT};
 
-INSTANTIATE_TEST_SUITE_P(smoke_GRUCell_VPU3720, VPUXGRUCellLayerTest_VPU3720,
-                         ::testing::Combine(::testing::ValuesIn(shouldDecompose), ::testing::ValuesIn(batch),
-                                            ::testing::ValuesIn(hiddenSize), ::testing::ValuesIn(inputSize),
-                                            ::testing::ValuesIn(activations), ::testing::ValuesIn(clip),
-                                            ::testing::ValuesIn(shouldLinearBeforeReset),
-                                            ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-                         GRUCellTest::getTestCaseName);
+const auto gruCellParams = testing::Combine(
+        ::testing::ValuesIn(shouldDecompose), ::testing::ValuesIn(batch), ::testing::ValuesIn(hiddenSize),
+        ::testing::ValuesIn(inputSize), ::testing::ValuesIn(activations), ::testing::ValuesIn(clip),
+        ::testing::ValuesIn(shouldLinearBeforeReset), ::testing::ValuesIn(WRBLayerTypes),
+        ::testing::ValuesIn(WRBLayerTypes), ::testing::ValuesIn(WRBLayerTypes), ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
+
+INSTANTIATE_TEST_SUITE_P(smoke_GRUCell, GRUCellLayerTest_NPU3720, gruCellParams, GRUCellTest::getTestCaseName);
+
 }  // namespace

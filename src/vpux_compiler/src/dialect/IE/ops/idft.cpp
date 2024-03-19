@@ -5,21 +5,19 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/utils/fft_ops_utils.hpp"
-#include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::IDFTOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
     IE::IDFTOpAdaptor op(operands, attrs);
     if (mlir::failed(op.verify(loc))) {
         return mlir::failure();
     }
-    const auto inType = op.input().getType().cast<mlir::ShapedType>();
+    const auto inType = op.getInput().getType().cast<mlir::ShapedType>();
     auto outShape = to_small_vector(inType.getShape());
     auto params = fftExtractParams(loc, op);
     if (mlir::failed(params)) {

@@ -5,7 +5,7 @@
 
 #include "common/functions.h"
 #include "test_model/kmb_test_base.hpp"
-#include "vpux_private_config.hpp"
+#include "vpux_private_properties.hpp"
 
 using ConfigMap = std::map<std::string, std::string>;
 using ConfigTestParams = std::tuple<ConfigMap, ConfigMap, ConfigMap, ConfigMap, ConfigMap, ConfigMap>;
@@ -59,8 +59,10 @@ TEST_P(KmbConfigTest, setConfig) {
     inferConfig.insert(preProcConfig.cbegin(), preProcConfig.cend());
     inferConfig.insert(preProcParamConfig.cbegin(), preProcParamConfig.cend());
     inferConfig.insert(inferShavesConfig.cbegin(), inferShavesConfig.cend());
-    if (inferConfig.find(VPUX_CONFIG_KEY(COMPILER_TYPE)) == inferConfig.end())
-        inferConfig[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
+
+    if (inferConfig.find(ov::intel_vpux::compiler_type.name()) == inferConfig.end()) {
+        inferConfig[ov::intel_vpux::compiler_type.name()] = "MLIR";
+    }
 
     runTest(compileConfig, inferConfig);
 }
@@ -81,4 +83,4 @@ static const auto allBaseConfigurations = ::testing::Combine(
         ::testing::ValuesIn(compileConfigs), ::testing::ValuesIn(baseInferConfigs), ::testing::ValuesIn(emptyConfigs),
         ::testing::ValuesIn(emptyConfigs), ::testing::ValuesIn(emptyConfigs), ::testing::ValuesIn(emptyConfigs));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_SomeCase1, KmbConfigTest, allBaseConfigurations);
+INSTANTIATE_TEST_SUITE_P(SomeCase1, KmbConfigTest, allBaseConfigurations);

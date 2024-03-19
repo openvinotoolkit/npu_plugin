@@ -8,11 +8,8 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/adjust_layout_utils.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
-#include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
@@ -78,22 +75,22 @@ private:
 mlir::LogicalResult ConvertMatMulToConvPass::MatMulOpConverter::matchAndRewrite(IE::MatMulOp matmulOp,
                                                                                 mlir::PatternRewriter& rewriter) const {
     _log.trace("Find matmul 3d {0} at {1}", matmulOp, matmulOp->getLoc());
-    auto input1 = matmulOp.input1();
-    auto input2 = matmulOp.input2();
+    auto input1 = matmulOp.getInput1();
+    auto input2 = matmulOp.getInput2();
     auto ctx = rewriter.getContext();
 
-    if (matmulOp.transpose_a()) {
+    if (matmulOp.getTransposeA()) {
         auto perm = SmallVector<uint32_t>{0, 2, 1};
         const auto orderAttr =
                 mlir::AffineMapAttr::get(mlir::AffineMap::getPermutationMap(perm, matmulOp->getContext()));
-        input1 = rewriter.create<IE::TransposeOp>(matmulOp->getLoc(), input1, nullptr, orderAttr).output();
+        input1 = rewriter.create<IE::TransposeOp>(matmulOp->getLoc(), input1, nullptr, orderAttr).getOutput();
     }
 
-    if (!matmulOp.transpose_b()) {
+    if (!matmulOp.getTransposeB()) {
         auto perm = SmallVector<uint32_t>{1, 0};
         const auto orderAttr =
                 mlir::AffineMapAttr::get(mlir::AffineMap::getPermutationMap(perm, matmulOp->getContext()));
-        input2 = rewriter.create<IE::TransposeOp>(matmulOp->getLoc(), input2, nullptr, orderAttr).output();
+        input2 = rewriter.create<IE::TransposeOp>(matmulOp->getLoc(), input2, nullptr, orderAttr).getOutput();
     }
 
     auto newWeightsShape = to_small_vector(getShape(input2));
@@ -101,7 +98,8 @@ mlir::LogicalResult ConvertMatMulToConvPass::MatMulOpConverter::matchAndRewrite(
     newWeightsShape.insert(newWeightsShape.end(), 2, 1);
 
     const auto filterShapeAttr = getIntArrayAttr(ctx, newWeightsShape);
-    auto weight = rewriter.create<IE::ReshapeOp>(matmulOp->getLoc(), input2, nullptr, false, filterShapeAttr).output();
+    auto weight =
+            rewriter.create<IE::ReshapeOp>(matmulOp->getLoc(), input2, nullptr, false, filterShapeAttr).getOutput();
 
     auto inputShape = to_small_vector(getShape(input1));
     if (inputShape.size() == 3) {
@@ -111,7 +109,7 @@ mlir::LogicalResult ConvertMatMulToConvPass::MatMulOpConverter::matchAndRewrite(
     const auto inputShapeAttr = getIntArrayAttr(ctx, inputShape);
     auto reshapeLoc = appendLoc(matmulOp->getLoc(), "_BEFORE_CONV");
 
-    auto convInput = rewriter.create<IE::ReshapeOp>(reshapeLoc, input1, nullptr, false, inputShapeAttr).output();
+    auto convInput = rewriter.create<IE::ReshapeOp>(reshapeLoc, input1, nullptr, false, inputShapeAttr).getOutput();
 
     auto dstOrder = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(ctx));
     const auto memPerm = mlir::AffineMapAttr::get(DimsOrder::NCHW.toAffineMap(ctx));
@@ -124,8 +122,8 @@ mlir::LogicalResult ConvertMatMulToConvPass::MatMulOpConverter::matchAndRewrite(
     auto padsEnd = getIntArrayAttr(ctx, SmallVector<int64_t>{0, 0});
     auto dilations = getIntArrayAttr(ctx, SmallVector<int64_t>{1, 1});
     auto convOp = rewriter.create<IE::ConvolutionOp>(matmulOp->getLoc(), convInput, weight, nullptr, strides, padsBegin,
-                                                     padsEnd, dilations, nullptr)
-                          .output();
+                                                     padsEnd, dilations, nullptr, nullptr)
+                          .getOutput();
 
     _log.trace("Insert ConvolutionOp {0} ", convOp);
 
@@ -133,7 +131,7 @@ mlir::LogicalResult ConvertMatMulToConvPass::MatMulOpConverter::matchAndRewrite(
     dstOrder = mlir::AffineMapAttr::get(DimsOrder::NCHW.toAffineMap(ctx));
     convOp = rewriter.create<IE::PermuteCastOp>(matmulOp->getLoc(), convOp, dstOrder, memPerm);
 
-    const auto outShape = getShape(matmulOp.output());
+    const auto outShape = getShape(matmulOp.getOutput());
     const auto outShapeAttr = getIntArrayAttr(ctx, outShape);
     rewriter.replaceOpWithNewOp<IE::ReshapeOp>(matmulOp, convOp, nullptr, false, outShapeAttr);
 
@@ -151,8 +149,8 @@ void ConvertMatMulToConvPass::safeRunOnFunc() {
     mlir::ConversionTarget target(ctx);
 
     target.addDynamicallyLegalOp<IE::MatMulOp>([](IE::MatMulOp op) -> bool {
-        const auto input1Shape = getShape(op.input1());
-        const auto input2Shape = getShape(op.input2());
+        const auto input1Shape = getShape(op.getInput1());
+        const auto input2Shape = getShape(op.getInput2());
         if ((input1Shape.size() == 3 || (input1Shape.size() == 4 && input1Shape[Dim(0)] == 1)) &&
             input2Shape.size() == 2) {
             return false;

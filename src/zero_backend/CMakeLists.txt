@@ -38,15 +38,17 @@ target_include_directories(${TARGET_NAME}
 
 link_system_libraries(${TARGET_NAME}
     PRIVATE
-        IE::inference_engine_plugin_api
+        openvino::runtime::dev
         ze_loader
  )
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         npu_al
-        kmb_utils
-        npu_utils
+        npu_ov_utils
+        npu_llvm_utils
+        npu_plugin_utils
+        npu_profiling_utils
 )
 
 if(ENABLE_CLANG_FORMAT)
@@ -59,5 +61,5 @@ endif()
 #
 
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
-        LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
+        ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+        LIBRARY DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${VPUX_PLUGIN_COMPONENT})

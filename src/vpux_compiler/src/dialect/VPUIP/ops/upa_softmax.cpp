@@ -7,16 +7,13 @@
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 #include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/subspaces.hpp"
-
-#include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::VPUIP::SoftMaxUPAOp::verify() {
     const auto op = getOperation();
-    const auto inShape = getShape(input());
-    const auto axis = Dim(axisInd());
+    const auto inShape = getShape(getInput());
+    const auto axis = Dim(getAxisInd());
 
     if (inShape[axis] == 1) {
         return errorAt(op, "Softmax on 1 element doesn't make sense (dim along the 'axis' equal 1)");
@@ -33,7 +30,7 @@ mlir::LogicalResult vpux::VPUIP::SoftMaxUPAOp::verify() {
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SoftMaxUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::SoftmaxParamsBuilder builder(writer);
-    builder.add_axis(checked_cast<uint32_t>(axisInd()));
+    builder.add_axis(checked_cast<uint32_t>(getAxisInd()));
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_SoftmaxParams});

@@ -8,8 +8,8 @@
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::LSTMSequenceOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -18,9 +18,9 @@ mlir::LogicalResult vpux::IE::LSTMSequenceOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = lstm.initialHiddenState().getType().cast<mlir::ShapedType>();
+    const auto inType = lstm.getInitialHiddenState().getType().cast<mlir::ShapedType>();
     auto outHVShape = inType.getShape().vec();
-    outHVShape.insert(outHVShape.cbegin() + 2, lstm.sequenceLength());
+    outHVShape.insert(outHVShape.cbegin() + 2, lstm.getSequenceLength());
 
     inferredReturnShapes.emplace_back(outHVShape, inType.getElementType());         // outputHiddenValues
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());  // outputHiddenState

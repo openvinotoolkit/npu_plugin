@@ -4,15 +4,16 @@
 //
 
 #include <mlir/IR/BuiltinTypes.h>
-#include "vpux/compiler/dialect/ELF/utils.hpp"
+#include "vpux/compiler/dialect/ELFNPU37XX/utils.hpp"
 #include "vpux/compiler/dialect/VPUMI37XX/ops.hpp"
 #include "vpux/utils/core/mem_size.hpp"
 
 #include "vpux/compiler/dialect/VPUMI37XX/utils.hpp"
 
-#include <vpu_nnrt_api_37xx.h>
+#include <npu_37xx_nnrt.hpp>
 
 using namespace vpux;
+using namespace npu37xx;
 
 //
 // NNDMAOp
@@ -22,17 +23,17 @@ using namespace vpux;
 
 void VPUMI37XX::NNDMAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState, mlir::Type index,
                                mlir::Value input, mlir::ValueRange output_buffs, mlir::Value previousDMAIdx,
-                               mlir::ValueRange waitBarriers, mlir::ValueRange updateBarriers, bool compression,
-                               uint64_t start_after, uint64_t clean_after, bool is_out_of_order, bool is_critical,
-                               int64_t port, VPUIP::DMADescriptorAttr dma_descriptor) {
+                               mlir::ValueRange waitBarriers, mlir::ValueRange updateBarriers, uint64_t start_after,
+                               uint64_t clean_after, bool is_out_of_order, bool is_critical, int64_t port,
+                               vpux::VPUIP::DMAAccMode acceleration_mode, VPUIP::DMADescriptorAttr dma_descriptor) {
     build(odsBuilder, odsState, index, nullptr, input, output_buffs, previousDMAIdx, waitBarriers, updateBarriers,
-          compression, start_after, clean_after, is_out_of_order, is_critical, port, dma_descriptor);
+          start_after, clean_after, is_out_of_order, is_critical, port, acceleration_mode, dma_descriptor);
 }
 
 namespace {
 
 void decode_storage_order(ShapeRef dims, StridesRef strides, unsigned char* order) {
-    const unsigned int S = dims.size();
+    const size_t S = dims.size();
 
     for (unsigned int i = 0; i < S; ++i)
         order[i] = i;
@@ -70,8 +71,10 @@ public:
         unsigned int previous_stride = static_cast<unsigned int>(vpux::getElemTypeSize(ndType).count());
         unsigned int total_length_in_bits = previous_stride;
 
+        // In case of plane stride dimension at (dims-1)
+        plane_dim_ = dims - 1;
         for (unsigned int dim = 0, level = 0; dim < dims; ++dim) {
-            const unsigned int crt_size = sizes[Dim(order[dim])];
+            const unsigned int crt_size = checked_cast<unsigned int>(sizes[Dim(order[dim])]);
             unsigned int crt_stride = bit_strides(Dim(order[dim]));
             total_length_in_bits *= crt_size;
 
@@ -87,6 +90,9 @@ public:
 
                 *rt_strides[level] = crt_stride;
                 *rt_dims[level] = (previous_size * previous_stride) / (level ? *rt_strides[level - 1] : CHAR_BIT);
+                if (level == (SimplifiedTensorLayout::STRIDING_LEVELS - 1)) {
+                    plane_dim_ = dim;
+                }
                 ++level;
             }
 
@@ -104,6 +110,9 @@ public:
     }
     unsigned int line_length() const {
         return line_length_;
+    }
+    unsigned int plane_dimension() const {
+        return plane_dim_;
     }
     unsigned int plane_stride() const {
         return plane_stride_;
@@ -124,6 +133,7 @@ private:
     unsigned int line_length_ = 0;
     unsigned int plane_stride_ = 0;
     unsigned int plane_length_ = 0;
+    unsigned int plane_dim_ = 0;
     unsigned int total_length_ = 0;
 };
 
@@ -137,10 +147,8 @@ void vpux::VPUMI37XX::NNDMAOp::serialize(elf::writer::BinaryDataSection<uint8_t>
 
     const auto hasDescriptor = getDmaDescriptor().has_value();
 
-    auto inputType = getInput().getType().cast<mlir::MemRefType>();
-
-    dmaTask.barriers_sched_.start_after_ = checked_cast<uint16_t>(getStartAfter());
-    dmaTask.barriers_sched_.clean_after_ = checked_cast<uint16_t>(getCleanAfter());
+    dmaTask.barriers_sched_.start_after_ = checked_cast<uint32_t>(getStartAfter());
+    dmaTask.barriers_sched_.clean_after_ = checked_cast<uint32_t>(getCleanAfter());
 
     auto& descriptor = dmaTask.transaction_;
     descriptor.cfg_link.cfg_bits.burst_length = 255;  // set burst lenght to max value
@@ -151,26 +159,9 @@ void vpux::VPUMI37XX::NNDMAOp::serialize(elf::writer::BinaryDataSection<uint8_t>
     if (getOutputBuffs().size() > 1)
         descriptor.dst = 0xC00000;
 
-    // If this DMA Op is not used by any other Op this is the last Op in DMA chain and link_address shall be zero
-
-    vpux::VPUMI37XX::NNDMAOp dmaUser = nullptr;
-
-    for (auto user : getResult().getUsers()) {
-        auto newDmaUser = mlir::dyn_cast<vpux::VPUMI37XX::NNDMAOp>(user);
-
-        if (newDmaUser) {
-            VPUX_THROW_UNLESS(!dmaUser, "VPUMI37XX::NNDMAOp '{0}' at loc '{1}' has more than one DMA user",
-                              getOperation()->getName(), getLoc());
-
-            dmaUser = newDmaUser;
-        }
-    }
-
-    if (dmaUser) {
-        auto dmaOpIndex = dmaUser.getResult().getType().cast<VPURegMapped::IndexType>();
-        descriptor.link_address = static_cast<uint64_t>(dmaOpIndex.getValue());
-    } else {
-        descriptor.link_address = 0;
+    if (auto nextDMAIndexValue = getNextDMAIdx()) {
+        descriptor.link_address =
+                checked_cast<uint64_t>(mlir::cast<VPURegMapped::IndexType>(nextDMAIndexValue.getType()).getValue());
     }
 
     descriptor.cfg_link.cfg_bits.critical = 1;
@@ -189,21 +180,41 @@ void vpux::VPUMI37XX::NNDMAOp::serialize(elf::writer::BinaryDataSection<uint8_t>
     uint32_t dst_plane_stride = dst_layout.plane_stride();
     uint32_t size = src_layout.total_length();
 
-    if (!hasDescriptor && !getCompression()) {
+    const auto getPlaneStride = [&](mlir::Value value, unsigned int dim) -> uint32_t {
+        const auto ndType = value.getType().cast<vpux::NDTypeInterface>();
+        const auto memStride = ndType.getMemStrides();
+        const auto reversedDim = ndType.getRank() - 1 - dim;
+        return checked_cast<uint32_t>(Byte(memStride[MemDim(reversedDim)]).count());
+    };
+
+    if (!hasDescriptor && getAccelerationMode() == vpux::VPUIP::DMAAccMode::DISABLE) {
         if (!!src_plane_stride ^ !!dst_plane_stride) {
-            if (src_plane_stride)
-                num_planes = std::max(1u, src_layout.plane_count()), dst_plane_stride = size / num_planes;
-            else
-                num_planes = std::max(1u, dst_layout.plane_count()), src_plane_stride = size / num_planes;
+            // For the case that src-stride-level=2 and dst-stride-level=1 or vice verse, we can't simply
+            // calculate plane stride with 'size/num_planes' because src or dst is with stride.
+            // Use src/dst plane stride dimension to search for des/src plane stride in its memory stride shape,
+            // so the plane dimension is valid only when the correlative plane stride is not zero.
+            if (src_plane_stride) {
+                num_planes = std::max(1u, src_layout.plane_count());
+                dst_plane_stride = getPlaneStride(getOutputBuffs()[0], src_layout.plane_dimension());
+            } else {
+                num_planes = std::max(1u, dst_layout.plane_count());
+                src_plane_stride = getPlaneStride(getInput(), dst_layout.plane_dimension());
+            }
         }
 
         VPUX_THROW_UNLESS(num_planes > 0, "Encountered num planes = {0}", num_planes);
 
-        if (src_width == src_stride)
-            src_width = src_stride = size / num_planes;
+        // Plane size calculated here because num_planes might change above and there would be a need to re-adjust
+        size = size / num_planes;
 
-        if (dst_width == dst_stride)
-            dst_width = dst_stride = size / num_planes;
+        if (src_width == src_stride) {
+            src_width = size;
+            src_stride = size;
+        }
+        if (dst_width == dst_stride) {
+            dst_width = size;
+            dst_stride = size;
+        }
     }
 
     if (hasDescriptor) {
@@ -217,10 +228,7 @@ void vpux::VPUMI37XX::NNDMAOp::serialize(elf::writer::BinaryDataSection<uint8_t>
         descriptor.dst_plane_stride = checked_cast<int32_t>(dmaDescriptor.getDstPlaneStride().getInt());
         descriptor.num_planes = checked_cast<uint32_t>(dmaDescriptor.getNumPlanes().getInt());
     } else {
-        const auto elemSize = vpux::getElemTypeSize(inputType);
-        auto totalSizeBits = alignMemSize(inputType.getNumElements() * elemSize, Byte(1));
-
-        descriptor.length = vpux::Byte(totalSizeBits).count();
+        descriptor.length = size;
         descriptor.attr2d.src_width = src_width;
         descriptor.attr2d.dst_width = dst_width;
         descriptor.attr2d.src_stride = checked_cast<int32_t>(src_stride);
@@ -242,7 +250,8 @@ void vpux::VPUMI37XX::NNDMAOp::serialize(elf::writer::BinaryDataSection<uint8_t>
         descriptor.cfg_link.cfg_bits.type = 1;
     }
 
-    if (getCompression()) {
+    switch (getAccelerationMode()) {
+    case vpux::VPUIP::DMAAccMode::DECOMPRESSION:
         descriptor.cfg_link.cfg_bits.dec_en = 1;
         VPUX_THROW_UNLESS(descriptor.num_planes == 0,
                           "For DMA compression to be possible, the computed num_planes for the transaction needs to be "
@@ -252,6 +261,11 @@ void vpux::VPUMI37XX::NNDMAOp::serialize(elf::writer::BinaryDataSection<uint8_t>
         // Ensure plane strides are set to 0 and set transaction type to 1D
         descriptor.src_plane_stride = descriptor.dst_plane_stride = 0;
         descriptor.cfg_link.cfg_bits.type = 0;
+        break;
+    case vpux::VPUIP::DMAAccMode::DISABLE:
+        break;
+    default:
+        VPUX_THROW("{0} acceleration mode is not supported by DMA for VPU37XX arch", getAccelerationMode());
     }
 
     auto& barrierConsMask =
@@ -279,7 +293,7 @@ mlir::FailureOr<uint64_t> vpux::VPUMI37XX::NNDMAOp::getOffsetOfWithinOperation(m
         return offsetof(nn_public::VpuDMATask, transaction_) + offsetof(vpu_dma_descriptor_t, src);
     } else if (val == getOutputBuffs()[0]) {
         return offsetof(nn_public::VpuDMATask, transaction_) + offsetof(vpu_dma_descriptor_t, dst);
-    } else if (val == getPreviousDMAIdx()) {
+    } else if (val == getNextDMAIdx()) {
         return offsetof(nn_public::VpuDMATask, transaction_);
     }
 
@@ -290,14 +304,10 @@ vpux::VPURT::BufferSection vpux::VPUMI37XX::NNDMAOp::getMemorySpace() {
     return vpux::VPURT::BufferSection::DDR;
 }
 
-vpux::ELF::SectionFlagsAttr vpux::VPUMI37XX::NNDMAOp::getAccessingProcs() {
-    return (ELF::SectionFlagsAttr::SHF_EXECINSTR | ELF::SectionFlagsAttr::VPU_SHF_PROC_DMA);
+vpux::ELFNPU37XX::SectionFlagsAttr vpux::VPUMI37XX::NNDMAOp::getAccessingProcs() {
+    return (ELFNPU37XX::SectionFlagsAttr::SHF_EXECINSTR | ELFNPU37XX::SectionFlagsAttr::VPU_SHF_PROC_DMA);
 }
 
-vpux::ELF::SectionFlagsAttr vpux::VPUMI37XX::NNDMAOp::getUserProcs() {
-    return (ELF::SectionFlagsAttr::VPU_SHF_PROC_DMA);
-}
-
-vpux::VPURegMapped::TaskType vpux::VPUMI37XX::NNDMAOp::getTaskType() {
-    return vpux::VPURegMapped::TaskType::DMA;
+vpux::ELFNPU37XX::SectionFlagsAttr vpux::VPUMI37XX::NNDMAOp::getUserProcs() {
+    return (ELFNPU37XX::SectionFlagsAttr::VPU_SHF_PROC_DMA);
 }

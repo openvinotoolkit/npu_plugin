@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/dialect/VPU/ops.hpp"
-#include "vpux/compiler/dialect/VPU/types.hpp"
+#include "vpux/compiler/dialect/VPU/IR/ops.hpp"
+#include "vpux/compiler/dialect/VPU/IR/types.hpp"
 #include "vpux/compiler/init.hpp"
 
 #include "vpux/utils/core/mem_size.hpp"
@@ -40,7 +40,7 @@ TEST_F(MLIR_NDTypeInterface, SparseTensorType_Weights) {
     SmallVector<int64_t> numElems(64);
     std::iota(numElems.begin(), numElems.end(), 0);
     const auto numElemsType = mlir::RankedTensorType::get({64}, getInt64Type(&ctx));
-    const auto numElemsAttr = mlir::DenseElementsAttr::get(numElemsType, makeArrayRef(numElems));
+    const auto numElemsAttr = mlir::DenseElementsAttr::get(numElemsType, ArrayRef(numElems));
     const int64_t compressionAxis = 0;
     const int64_t alignment = 16;
     const auto compressionScheme = VPU::CompressionSchemeAttr::get(&ctx, getIntAttr(&ctx, compressionAxis),

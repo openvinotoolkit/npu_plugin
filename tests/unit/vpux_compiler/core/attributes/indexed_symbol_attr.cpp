@@ -5,8 +5,8 @@
 
 #include "vpux/compiler/core/attributes/indexed_symbol_attr.hpp"
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/init.hpp"
 
@@ -22,7 +22,6 @@ namespace {
 constexpr vpux::StringRef CMX_NAME = "CMX_NN";
 constexpr vpux::StringRef DDR_NAME = "DDR";
 
-constexpr vpux::StringRef NCE_NAME = "NCE";
 constexpr vpux::StringRef DPU_NAME = "DPU";
 
 void checkDDRSpace(vpux::IndexedSymbolAttr indexedSymbol) {
@@ -55,7 +54,7 @@ TEST_F(MLIR_IndexedSymbolAttr, CheckNestedAttr) {
     const auto rootAttr =
             vpux::IndexedSymbolAttr::get(&ctx, {rootNameAttr, vpux::getIntAttr(&ctx, rootIdx), nestedAttr});
 
-    const auto fullSymbolAttr = mlir::SymbolRefAttr::get(rootNameAttr.getAttr(), llvm::makeArrayRef(nestedNameAttr));
+    const auto fullSymbolAttr = mlir::SymbolRefAttr::get(rootNameAttr.getAttr(), vpux::ArrayRef(nestedNameAttr));
 
     ASSERT_EQ(rootAttr.getRootReference(), rootNameAttr);
     ASSERT_EQ(rootAttr.getLeafReference(), nestedNameAttr);
@@ -105,13 +104,13 @@ TEST_F(MLIR_IndexedSymbolAttr, CheckMemoryResourceAttr) {
 
     for (auto& op : func.getOps()) {
         if (auto allocOp = mlir::dyn_cast<mlir::memref::AllocOp>(op)) {
-            const auto type = allocOp.memref().getType().cast<vpux::NDTypeInterface>();
+            const auto type = allocOp.getMemref().getType().cast<vpux::NDTypeInterface>();
             auto memSpace = type.getMemSpace();
 
             checkCMXSpace(memSpace, 0);
         } else if (auto copyOp = mlir::dyn_cast<vpux::VPUIP::CopyOp>(op)) {
-            auto inMemSpace = copyOp.input().getType().cast<vpux::NDTypeInterface>().getMemSpace();
-            auto outMemSpace = copyOp.output().getType().cast<vpux::NDTypeInterface>().getMemSpace();
+            auto inMemSpace = copyOp.getInput().getType().cast<vpux::NDTypeInterface>().getMemSpace();
+            auto outMemSpace = copyOp.getOutput().getType().cast<vpux::NDTypeInterface>().getMemSpace();
 
             ASSERT_NE(inMemSpace, outMemSpace);
             ASSERT_TRUE(inMemSpace.getLeafName() == DDR_NAME || inMemSpace.getLeafName() == CMX_NAME);
@@ -130,7 +129,7 @@ TEST_F(MLIR_IndexedSymbolAttr, CheckExecutorResourceAttr) {
 
         module @test {
             IE.ExecutorResource 16 of @SHAVE_UPA
-            IE.ExecutorResource 4 of @NCE at 700.0MHz {
+            IE.TileResource 4 of @NCE at 700.0MHz {
                 IE.ExecutorResource 5 of @DPU
             }
             IE.ExecutorResource 1 of @DMA_NN
@@ -203,12 +202,10 @@ TEST_F(MLIR_IndexedSymbolAttr, CheckExecutorResourceAttr) {
             const auto executor = vpux::VPUIP::VPUIPDialect::getExecutor(executeOp);
             ASSERT_TRUE(executor != nullptr);
 
-            auto execRes = vpux::IE::getAvailableExecutor(module.get(), executor.getRootReference());
-            ASSERT_TRUE(execRes != nullptr);
-
-            if (executor.getRootName() == NCE_NAME) {
-                ASSERT_TRUE(execRes.hasProcessorFrequency());
-                ASSERT_EQ(execRes.getProcessorFrequency().getValueAsDouble(), 700.0);
+            if (vpux::IE::isNceTile(executor.getRootReference())) {
+                auto tileRes = vpux::IE::getTileExecutor(module.get());
+                ASSERT_TRUE(tileRes.hasProcessorFrequency());
+                ASSERT_EQ(tileRes.getProcessorFrequency().getValueAsDouble(), 700.0);
                 ASSERT_TRUE(executor.getIndex().has_value());
                 ASSERT_EQ(executor.getIndex().value(), 1);
                 ASSERT_TRUE(executor.getNestedReference().has_value());
@@ -220,7 +217,7 @@ TEST_F(MLIR_IndexedSymbolAttr, CheckExecutorResourceAttr) {
 
                 auto nestedExecRes = vpux::IE::getAvailableExecutor(module.get(), executor.getFullReference());
                 ASSERT_TRUE(nestedExecRes != nullptr);
-                ASSERT_EQ(nestedExecRes.sym_name(), DPU_NAME);
+                ASSERT_EQ(nestedExecRes.getSymName(), DPU_NAME);
             }
         }
     }

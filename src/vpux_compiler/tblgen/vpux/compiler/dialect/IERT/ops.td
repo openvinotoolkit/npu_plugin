@@ -57,7 +57,7 @@ def IERT_StaticAllocOp :
         IERT_Op<
             "StaticAlloc",
             [
-                NoSideEffect,
+                Pure,
                 DeclarationOp,
                 DotInterface
             ]
@@ -1513,7 +1513,7 @@ def IERT_GridSampleOp :
         AnyMemRef:$grid,
         AnyMemRef:$output_buff,
 
-        OptionalAttr<UnitAttr>:$align_corners,
+        UnitAttr:$align_corners,
         OptionalAttr<IE_GridSampleModeAttr>:$mode,
         OptionalAttr<IE_GridSamplePaddingModeAttr>:$padding_mode
     );
@@ -2035,7 +2035,7 @@ def IERT_QuantizeCastOp :
         IERT_Op<
             "QuantizeCast",
             [
-                NoSideEffect,
+                Pure,
                 DeclareOpInterfaceMethods<ViewLikeOpInterface>
             ]
         > {
@@ -2343,6 +2343,37 @@ def IERT_FloorModOp :
 }
 
 //
+// ModOp
+//
+
+def IERT_ModOp :
+        IERT_LayerOp<1, "Mod",
+            [
+                ViewLikeOpInterface,
+                SameOperandsElementType
+            ]
+        > {
+    let summary = "InferenceEngine run-time Mod layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input1,
+        MemRefOf<[F16, F32]>:$input2,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // LessOp
 //
 
@@ -2627,7 +2658,7 @@ def IERT_GenericReshapeOp :
         IERT_Op<
             "GenericReshape",
             [
-                NoSideEffect,
+                Pure,
                 SameOperandsAndResultElementType,
                 DeclareOpInterfaceMethods<ViewLikeOpInterface>
             ]
@@ -3125,7 +3156,7 @@ def IERT_ConcatViewOp :
             [
                 ViewLikeOpInterface,
                 InferTypeOpInterface,
-                NoSideEffect
+                Pure
             ]
         > {
     let summary = "InferenceEngine run-time ConcatView layer. Dummy operation to maintain use-def chains.";
@@ -3676,7 +3707,7 @@ def IERT_SubViewOp :
         IERT_Op<
             "SubView",
             [
-                NoSideEffect,
+                Pure,
                 DeclareOpInterfaceMethods<ViewLikeOpInterface>,
                 DeclareOpInterfaceMethods<InferTypeOpInterface>,
                 DotInterface
@@ -3836,7 +3867,7 @@ def IERT_PermuteCastOp :
             "PermuteCast",
             [
                 DeclareOpInterfaceMethods<ViewLikeOpInterface>,
-                NoSideEffect
+                Pure
             ]
         > {
     let summary = "Compile-time PermuteCast layer";
@@ -3974,8 +4005,8 @@ def IERT_CumSumOp :
         AnyMemRef:$output_buff,
 
         OptionalAttr<IntAttr>:$axis_value,
-        OptionalAttr<UnitAttr>:$exclusive,
-        OptionalAttr<UnitAttr>:$reverse
+        UnitAttr:$exclusive,
+        UnitAttr:$reverse
     );
 
     let results = (outs
@@ -3985,6 +4016,41 @@ def IERT_CumSumOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// EyeOp
+//
+
+def IERT_EyeOp :
+        IERT_LayerOp<1, "EyeOp",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time Eye layer";
+
+    let arguments = (ins
+        MemRefOf<[SI32, SI64]> :$diagonal_index,
+        AnyMemRef:$output_buff,
+
+        IntAttr:$num_rows_value,
+        IntAttr:$num_columns_value,
+        I64ArrayAttr:$batch_shape_value,
+
+        TypeAttr:$outputType
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $diagonal_index `:` type($diagonal_index) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];
@@ -4271,7 +4337,7 @@ def IERT_OneHotOp :
         F64Attr:$off_value,
         IntAttr:$axis,
 
-        TypeAttr:$outElemType
+        TypeAttr:$outputType
     );
 
     let results = (outs
@@ -4580,6 +4646,11 @@ def ExtendedCallOp : IERT_Op<"ExtendedCall",
         /// Return the callee of this operation.
         mlir::CallInterfaceCallable getCallableForCallee() {
             return (*this)->getAttrOfType<mlir::SymbolRefAttr>("callee");
+        }
+
+        /// Set the callee for this operation.
+        void setCalleeFromCallable(mlir::CallInterfaceCallable callee) {
+            setCalleeAttr(callee.get<mlir::SymbolRefAttr>());
         }
     }];
 

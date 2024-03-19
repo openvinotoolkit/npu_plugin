@@ -7,17 +7,13 @@
 
 #include "vpux/compiler/core/async_deps_info.hpp"
 #include "vpux/compiler/utils/analysis.hpp"
-#include "vpux/compiler/utils/logging.hpp"
-
-#include "vpux/utils/core/dense_map.hpp"
-#include "vpux/utils/core/small_vector.hpp"
 
 using namespace vpux;
 
 namespace {
 
 void moveWaitResults(mlir::async::AwaitOp waitOp, Logger log) {
-    const auto futureVal = waitOp.operand();
+    const auto futureVal = waitOp.getOperand();
 
     auto producerExecOp = mlir::dyn_cast_or_null<mlir::async::ExecuteOp>(futureVal.getDefiningOp());
     VPUX_THROW_UNLESS(producerExecOp != nullptr, "'async.await' operand is produced by unsupported operation");
@@ -30,7 +26,7 @@ void moveWaitResults(mlir::async::AwaitOp waitOp, Logger log) {
     using ExecutorToAsyncUsesMap = DenseMap<mlir::Operation*, SmallVector<mlir::OpOperand*>>;
     ExecutorToAsyncUsesMap allAsyncUses;
 
-    for (auto& use : waitOp.result().getUses()) {
+    for (auto& use : waitOp.getResult().getUses()) {
         if (auto userExecOp = use.getOwner()->getParentOfType<mlir::async::ExecuteOp>()) {
             allAsyncUses[userExecOp].push_back(&use);
         }
@@ -41,7 +37,7 @@ void moveWaitResults(mlir::async::AwaitOp waitOp, Logger log) {
     for (const auto& p : allAsyncUses) {
         auto userExecOp = mlir::cast<mlir::async::ExecuteOp>(p.first);
 
-        userExecOp.operandsMutable().append(futureVal);
+        userExecOp.getBodyOperandsMutable().append(futureVal);
         const auto innerArg = userExecOp.getBody()->addArgument(futureType.getValueType(), futureVal.getLoc());
 
         log.nest().trace("Add '{0}' as async operand for '{1}', which is mapped to '{2}'", futureVal,
@@ -71,18 +67,18 @@ void MoveWaitResultToAsyncBlockArgsPass::safeRunOnFunc() {
     const auto allWaitOps = to_small_vector(func.getOps<mlir::async::AwaitOp>());
 
     for (auto waitOp : llvm::make_early_inc_range(allWaitOps)) {
-        if (waitOp.result() == nullptr) {
+        if (waitOp.getResult() == nullptr) {
             return;
         }
 
         _log.trace("Process 'async.await' Operation at '{0}'", waitOp->getLoc());
         moveWaitResults(waitOp, _log.nest());
 
-        if (waitOp.result().use_empty()) {
+        if (waitOp.getResult().use_empty()) {
             _log.nest().trace("The operation result has no use left, remove it");
             waitOp->erase();
         } else {
-            if (auto* firstUser = getFirstUser(waitOp.result())) {
+            if (auto* firstUser = getFirstUser(waitOp.getResult())) {
                 _log.nest().trace("Move the operation close to its first user at '{0}'", firstUser->getLoc());
                 waitOp->moveBefore(firstUser);
             }

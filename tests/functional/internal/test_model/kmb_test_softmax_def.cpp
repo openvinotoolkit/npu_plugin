@@ -6,7 +6,7 @@
 #include "kmb_test_softmax_def.hpp"
 
 #include <blob_factory.hpp>
-#include <ngraph/runtime/reference/softmax.hpp>
+#include <openvino/reference/softmax.hpp>
 
 namespace {
 
@@ -26,8 +26,8 @@ BlobVector refSoftmax(const TestNetwork::NodePtr& layer, const BlobVector& input
     IE_ASSERT(inputPtr != nullptr);
     IE_ASSERT(outputPtr != nullptr);
 
-    ngraph::runtime::reference::softmax(inputPtr, outputPtr, layer->input(0).get_shape(),
-                                        ngraph::AxisSet({softmaxLayer->get_axis()}));
+    ov::reference::softmax(inputPtr, outputPtr, layer->input(0).get_shape(),
+                           ngraph::AxisSet({softmaxLayer->get_axis()}));
 
     return {output};
 };

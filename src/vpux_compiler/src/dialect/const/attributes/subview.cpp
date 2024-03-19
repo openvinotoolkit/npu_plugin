@@ -19,26 +19,6 @@
 using namespace vpux;
 
 //
-// SubViewAttr::walkImmediateSubElements
-//
-
-void vpux::Const::SubViewAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)> walkAttrsFn,
-                                                        llvm::function_ref<void(mlir::Type)>) const {
-    walkAttrsFn(getOffset());
-    walkAttrsFn(getShape());
-}
-
-//
-// SubViewAttr::replaceImmediateSubElements
-//
-
-mlir::Attribute vpux::Const::SubViewAttr::replaceImmediateSubElements(ArrayRef<mlir::Attribute> replAttrs,
-                                                                      ArrayRef<mlir::Type>) const {
-    VPUX_THROW_WHEN(replAttrs.size() < 2, "Replace attrs array is too short: '{0}'", replAttrs.size());
-    return get(replAttrs[0].dyn_cast_or_null<mlir::ArrayAttr>(), replAttrs[1].dyn_cast_or_null<mlir::ArrayAttr>());
-}
-
-//
 // SubViewAttr::verify
 //
 
@@ -325,7 +305,15 @@ Const::Content vpux::Const::SubViewAttr::transform(vpux::Const::Content& input) 
 //
 
 Const::ContentAttr vpux::Const::ContentAttr::subview(ShapeRef offset, ShapeRef shape) const {
-    return get(*this,
-               Const::SubViewAttr::get(getIntArrayAttr(getContext(), offset), getIntArrayAttr(getContext(), shape))
-                       .cast<Const::TransformAttrInterface>());
+    return ContentAttr::addTransformation(
+            *this, Const::SubViewAttr::get(getIntArrayAttr(getContext(), offset), getIntArrayAttr(getContext(), shape))
+                           .cast<Const::TransformAttrInterface>());
+}
+
+//
+// SubViewAttr::supportsSubByteStorageType
+//
+
+bool Const::SubViewAttr::supportsSubByteStorageType() const {
+    return true;
 }

@@ -22,13 +22,25 @@ namespace hwtest {
 namespace {
 
 mlir::Type parseType(mlir::OpBuilder builder, mlir::Type ty, const nb::QuantParams& qp) {
-    auto intTy = ty.dyn_cast<mlir::IntegerType>();
-    if (qp.present && intTy) {
-        ty = mlir::quant::UniformQuantizedType::get(intTy.isSigned() ? mlir::quant::QuantizationFlags::Signed : 0, ty,
-                                                    builder.getF32Type(), qp.scale, qp.zeropoint, qp.low_range,
-                                                    qp.high_range);
+    if (!qp.present) {
+        return ty;
     }
-    return ty;
+
+    auto intTy = ty.dyn_cast<mlir::IntegerType>();
+    if (!intTy) {
+        return ty;
+    }
+
+    if (qp.scale.size() == 1) {
+        return mlir::quant::UniformQuantizedType::get(intTy.isSigned() ? mlir::quant::QuantizationFlags::Signed : 0, ty,
+                                                      builder.getF32Type(), qp.scale.front(), qp.zeropoint,
+                                                      qp.low_range, qp.high_range);
+    }
+
+    std::vector<int64_t> zeropoint(qp.scale.size(), qp.zeropoint);
+    return mlir::quant::UniformQuantizedPerAxisType::get(
+            intTy.isSigned() ? mlir::quant::QuantizationFlags::Signed : 0, ty, builder.getF32Type(), qp.scale,
+            zeropoint, (DimsOrder::NCHW).dimPos(vpux::Dims4D::Act::C), qp.low_range, qp.high_range);
 }
 
 mlir::Type convertToMLIRType(mlir::OpBuilder builder, nb::DType dtype) {
@@ -44,8 +56,10 @@ mlir::Type convertToMLIRType(mlir::OpBuilder builder, nb::DType dtype) {
         return getSInt8Type(ctx);
     case nb::DType::I32:
         return getSInt32Type(ctx);
-    case nb::DType::FP8:
-        return builder.getF16Type();
+    case nb::DType::BF8:
+        return builder.getFloat8E5M2Type();
+    case nb::DType::HF8:
+        return builder.getFloat8E4M3FNType();
     case nb::DType::FP16:
         return builder.getF16Type();
     case nb::DType::FP32:
@@ -64,7 +78,7 @@ mlir::DenseElementsAttr generateWeights(std::ifstream& stream, mlir::RankedTenso
         // have to add at least one non-zero element to make attribute non-splat. BitPack can't
         // work with splat tensors
         generatedElements[0] = 1;
-        return mlir::DenseElementsAttr::get(type, llvm::makeArrayRef<StorageType>(generatedElements));
+        return mlir::DenseElementsAttr::get(type, llvm::ArrayRef<StorageType>(generatedElements));
     }
 
     std::vector<StorageType> buffer(elementsCount);
@@ -76,7 +90,7 @@ mlir::DenseElementsAttr generateWeights(std::ifstream& stream, mlir::RankedTenso
     const auto state = stream.rdstate();
 
     if (expectedBytesCountToRead == actualBytesCountRead) {
-        return mlir::DenseElementsAttr::get(type, llvm::makeArrayRef<StorageType>(buffer));
+        return mlir::DenseElementsAttr::get(type, llvm::ArrayRef<StorageType>(buffer));
     }
 
     VPUX_THROW_UNLESS((state & std::ifstream::eofbit) == 0,
@@ -144,9 +158,9 @@ mlir::DenseElementsAttr generateWeights(llvm::ArrayRef<int64_t> shape, mlir::Typ
         if (type.isSignedInteger(4)) {
             return mlir::DenseElementsAttr::get(
                     wtData_ddr_valueType,
-                    makeArrayRef(reinterpret_cast<const int8_t*>(weightsUnpacked.data()), weightsUnpacked.size()));
+                    ArrayRef(reinterpret_cast<const int8_t*>(weightsUnpacked.data()), weightsUnpacked.size()));
         } else {
-            return mlir::DenseElementsAttr::get(wtData_ddr_valueType, makeArrayRef(weightsUnpacked));
+            return mlir::DenseElementsAttr::get(wtData_ddr_valueType, ArrayRef(weightsUnpacked));
         }
     } else if (type.isSignedInteger(8)) {
         return generateWeights<std::int8_t>(stream, wtData_ddr_valueType, vecSize);
@@ -158,15 +172,40 @@ mlir::DenseElementsAttr generateWeights(llvm::ArrayRef<int64_t> shape, mlir::Typ
         return generateWeights<bfloat16>(stream, wtData_ddr_valueType, vecSize);
     } else if (type.isF32()) {
         return generateWeights<float>(stream, wtData_ddr_valueType, vecSize);
+    } else if (type.isFloat8E5M2()) {
+        return generateWeights<float>(stream, wtData_ddr_valueType, vecSize);
+    } else if (type.isFloat8E4M3FN()) {
+        return generateWeights<float>(stream, wtData_ddr_valueType, vecSize);
     } else {
         VPUX_THROW("Unexpected weights data type: {0}", type);
     }
 }
 
-std::size_t totalTensorSize(llvm::ArrayRef<int64_t> shape, mlir::Type elementType) {
-    if (auto qType = elementType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
-        elementType = qType.getStorageType();
+vpux::Const::ContentAttr generateDefaultWeightsAttr(mlir::DenseElementsAttr weights, mlir::Type type) {
+    auto weightsAttribute = vpux::Const::ContentAttr::get(weights);
+    weightsAttribute = weightsAttribute.reorder(vpux::DimsOrder::OYXI);
+
+    if (auto qty = type.dyn_cast<mlir::quant::QuantizedType>()) {
+        const auto quantizedType = vpux::changeStorageType(qty, weightsAttribute.getType().getElementType());
+        weightsAttribute = weightsAttribute.quantCast(quantizedType);
+        if (qty.getStorageType().isInteger(4)) {
+            weightsAttribute = weightsAttribute.bitPack(4);
+        }
     }
+
+    return weightsAttribute;
+}
+
+std::size_t totalTensorSize(llvm::ArrayRef<int64_t> shape, mlir::Type elementType) {
+    auto qType = elementType.dyn_cast_or_null<mlir::quant::UniformQuantizedType>();
+    auto qPerChType = elementType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>();
+
+    if (qType) {
+        elementType = qType.getStorageType();
+    } else if (qPerChType) {
+        elementType = qPerChType.getStorageType();
+    }
+
     size_t numBits = elementType.getIntOrFloatBitWidth();
 
     const auto totalSize =
@@ -201,16 +240,32 @@ mlir::Type parseWeightsType(mlir::OpBuilder builder, const nb::WeightLayer& weig
 
 void buildCNNOp(mlir::OpBuilder& builder, llvm::StringRef mainFuncName, llvm::ArrayRef<mlir::Type> inputs,
                 llvm::ArrayRef<mlir::Type> outputs) {
+    return buildCNNOp(builder, mainFuncName, inputs, outputs, {});
+}
+
+void buildCNNOp(mlir::OpBuilder& builder, llvm::StringRef mainFuncName, llvm::ArrayRef<mlir::Type> inputs,
+                llvm::ArrayRef<mlir::Type> outputs, llvm::ArrayRef<ProfilingDataSection> profilingSections) {
+    const auto enableProfiling = !profilingSections.empty();
     const auto mainFuncNameAttr = mlir::SymbolRefAttr::get(builder.getContext(), mainFuncName);
-    auto cnnOp = builder.create<IE::CNNNetworkOp>(builder.getUnknownLoc(), mainFuncNameAttr, false);
+    auto cnnOp = builder.create<IE::CNNNetworkOp>(builder.getUnknownLoc(), mainFuncNameAttr, enableProfiling);
     cnnOp.getInputsInfo().emplaceBlock();
     cnnOp.getOutputsInfo().emplaceBlock();
+    if (enableProfiling) {
+        for (auto& section : cnnOp.getProfilingOutputsInfo()) {
+            section.emplaceBlock();
+        }
+    }
 
     auto inputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.getInputsInfo().front(), builder.getListener());
     for (auto input : enumerate(inputs)) {
         auto inputType = input.value().cast<mlir::ShapedType>();
-        if (auto quantized = inputType.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedType>()) {
+        auto quantized = inputType.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedType>();
+        auto quantizedPerCh = inputType.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>();
+
+        if (quantized) {
             inputType = inputType.clone(quantized.getStorageType());
+        } else if (quantizedPerCh) {
+            inputType = inputType.clone(quantizedPerCh.getStorageType());
         }
 
         const auto inputName = printToString("input_{0}", input.index());
@@ -223,8 +278,13 @@ void buildCNNOp(mlir::OpBuilder& builder, llvm::StringRef mainFuncName, llvm::Ar
     auto outputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.getOutputsInfo().front(), builder.getListener());
     for (auto output : enumerate(outputs)) {
         auto outputType = output.value().cast<mlir::ShapedType>();
-        if (auto quantized = outputType.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedType>()) {
+        auto quantized = outputType.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedType>();
+        auto quantizedPerCh = outputType.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>();
+
+        if (quantized) {
             outputType = outputType.clone(quantized.getStorageType());
+        } else if (quantizedPerCh) {
+            outputType = outputType.clone(quantizedPerCh.getStorageType());
         }
 
         const auto resultName = printToString("output_{0}", output.index());
@@ -232,6 +292,36 @@ void buildCNNOp(mlir::OpBuilder& builder, llvm::StringRef mainFuncName, llvm::Ar
         const auto userTypeAttr = mlir::TypeAttr::get(outputType);
         outputsInfoBuilder.create<IE::DataInfoOp>(builder.getUnknownLoc(), nameAttr, userTypeAttr,
                                                   /*profilingSectionsCount=*/0);
+    }
+
+    if (enableProfiling) {
+        auto& profilingOutputsInfo = cnnOp.getProfilingOutputsInfo().front();
+        auto userInfoBuilder = mlir::OpBuilder::atBlockEnd(&profilingOutputsInfo.front());
+
+        const auto ctx = builder.getContext();
+
+        const auto lastSection = profilingSections[profilingSections.size() - 1];
+        const auto totalSize = lastSection.offset + lastSection.size;
+
+        auto newOutputResult =
+                mlir::MemRefType::get({static_cast<int64_t>(totalSize / sizeof(uint32_t))}, getUInt32Type(ctx));
+        auto newOutputShapedType = newOutputResult.cast<vpux::NDTypeInterface>();
+        auto outputUserResult = getTensorType(newOutputShapedType.getShape(), newOutputShapedType.getElementType(),
+                                              newOutputShapedType.getDimsOrder(), nullptr);
+
+        auto dataInfo = userInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx),
+                                                               mlir::StringAttr::get(ctx, "profilingOutput"),
+                                                               mlir::TypeAttr::get(outputUserResult),
+                                                               /*profilingSectionsCount=*/1);
+        dataInfo.getSections().front().emplaceBlock();
+
+        auto sectionsBuilder =
+                mlir::OpBuilder::atBlockBegin(&dataInfo.getSections().front().front(), builder.getListener());
+        for (auto section : profilingSections) {
+            sectionsBuilder.create<VPUIP::ProfilingSectionOp>(
+                    mlir::UnknownLoc::get(ctx), getIntAttr(ctx, section.execType), getIntAttr(ctx, section.offset),
+                    getIntAttr(ctx, section.size));
+        }
     }
 }
 
@@ -272,7 +362,6 @@ mlir::DenseElementsAttr splitWeightsOverCLoop(mlir::DenseElementsAttr wt_vec, Ar
                                                          static_cast<int64_t>(1), std::multiplies<int64_t>()));
     std::vector<T> wt_partial(vecSize);
 
-    // std::cout << "k, c, h, w, old_offset, new_offset\n";
     for (int64_t k = 0; k < K; k++)
         for (int64_t c = 0; c < new_C; c++)
             for (int64_t h = 0; h < H; h++)
@@ -281,8 +370,6 @@ mlir::DenseElementsAttr splitWeightsOverCLoop(mlir::DenseElementsAttr wt_vec, Ar
                     auto old_offset = k * C * H * W + (c + start_C) * H * W + h * W + w;
                     auto new_offset = k * new_C * H * W + c * H * W + h * W + w;
                     wt_partial[new_offset] = wt_full[old_offset];
-                    // std::cout << k << ", " << c << ", " << h << ", " << w << ", " << old_offset << ", " << new_offset
-                    // << "\n";
                 }
 
     auto wtData_ddr_valueType = mlir::RankedTensorType::get(wt_partial_shape, dtype);
@@ -295,7 +382,7 @@ mlir::DenseElementsAttr splitWeightsOverCLoop(mlir::DenseElementsAttr wt_vec, Ar
         }
     }
 
-    auto wt_data_values = makeArrayRef<T>(wt_partial);
+    auto wt_data_values = ArrayRef<T>(wt_partial);
     auto wt_data_vals = mlir::DenseElementsAttr::get(wtData_ddr_valueType, wt_data_values);
     return wt_data_vals;
 }
@@ -369,6 +456,11 @@ vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder builder, VPUR
     return builder.create<VPURT::DeclareBufferOp>(builder.getUnknownLoc(), type, section, locale, offset, swizzlingKey);
 }
 
+vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, mlir::Type type,
+                                                   VPURT::BufferSection section, size_t offset) {
+    return builder.create<VPURT::DeclareBufferOp>(builder.getUnknownLoc(), type, section, offset);
+}
+
 vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, mlir::MemRefType type,
                                                    VPURT::BufferSection section, int64_t locale, size_t offset) {
     return builder.create<VPURT::DeclareBufferOp>(builder.getUnknownLoc(), type, section, locale, offset);
@@ -390,7 +482,8 @@ mlir::OpResult getConstResult(vpux::Const::DeclareOp op) {
 
 vpux::VPUIP::DPUTaskOp createDPUTaskOp(mlir::OpBuilder builder, mlir::OpBuilder variantbuilder,
                                        ArrayRef<int64_t> outputShape, ArrayRef<int64_t> inputShape,
-                                       const std::vector<int64_t>& paddingVec, VPU::MPEMode mpeMode) {
+                                       const std::vector<int64_t>& paddingVec, VPU::MPEMode mpeMode,
+                                       int64_t clusterId) {
     std::vector<int32_t> startVec{0, 0, 0};
     auto start = getIntArrayAttr(builder, startVec);
     const auto outEnd = getIntArrayAttr(
@@ -401,7 +494,8 @@ vpux::VPUIP::DPUTaskOp createDPUTaskOp(mlir::OpBuilder builder, mlir::OpBuilder 
                                    paddingVec[PAD_NCETASK_TOP], paddingVec[PAD_NCETASK_BOTTOM]);
 
     auto dpuTask =
-            variantbuilder.create<VPUIP::DPUTaskOp>(builder.getUnknownLoc(), start, outEnd, start, inEnd, pad, mpeMode);
+            variantbuilder.create<VPUIP::DPUTaskOp>(builder.getUnknownLoc(), start, outEnd, start, inEnd, pad, mpeMode,
+                                                    getIntAttr<int64_t>(builder.getContext(), clusterId));
 
     return dpuTask;
 }

@@ -1,4 +1,3 @@
-//
 // Copyright (C) Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
@@ -9,10 +8,12 @@
 #include <thread>
 
 #include "base/ov_behavior_test_utils.hpp"
+#include "common/utils.hpp"
+#include "common/vpu_test_env_cfg.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "vpu_test_env_cfg.hpp"
+#include "ov_models/builders.hpp"
+#include "overload/overload_test_utils_vpux.hpp"
 
 #include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
@@ -41,7 +42,7 @@ class InferRequestRunTests :
 protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
-    std::shared_ptr<ov::Model> function;
+    std::shared_ptr<ov::Model> ov_model;
     ov::CompiledModel compiledModel;
     ov::Output<const ov::Node> input;
     ov::Output<const ov::Node> output;
@@ -52,9 +53,11 @@ public:
         ov::AnyMap configuration;
         std::tie(targetDevice, configuration) = obj.param;
         std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
+        targetDevice = LayerTestsUtils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
 
         std::ostringstream result;
-        result << "targetDevice=" << LayerTestsUtils::getDeviceNameTestCase(targetDevice) << "_";
+        result << "targetDevice=" << targetDevice << "_";
+        result << "targetPlatform=" << LayerTestsUtils::getTestsPlatformFromEnvironmentOr(targetDevice) << "_";
         if (!configuration.empty()) {
             for (auto& configItem : configuration) {
                 result << "configItem=" << configItem.first << "_";
@@ -70,7 +73,7 @@ public:
 
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         OVPluginTestBase::SetUp();
-        function = getDefaultNGraphFunctionForTheDevice(target_device);
+        ov_model = getDefaultNGraphFunctionForTheDeviceVpux();  // FIXME: E#80555
         ov::AnyMap params;
         for (auto&& v : configuration) {
             params.emplace(v.first, v.second);
@@ -102,7 +105,7 @@ TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsSyncInfers) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Load CNNNetwork to target plugins
-    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(function, target_device, configuration));
+    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(ov_model, target_device, configuration));
     OV_ASSERT_NO_THROW(input = compiledModel.input());
     OV_ASSERT_NO_THROW(output = compiledModel.output());
 
@@ -132,7 +135,7 @@ TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsAsyncInfers) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Load CNNNetwork to target plugins
-    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(function, target_device, configuration));
+    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(ov_model, target_device, configuration));
     OV_ASSERT_NO_THROW(input = compiledModel.input());
     OV_ASSERT_NO_THROW(output = compiledModel.output());
 
@@ -158,7 +161,7 @@ TEST_P(InferRequestRunTests, MultipleExecutorTestsSyncInfers) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Load CNNNetwork to target plugins
-    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(function, target_device, configuration));
+    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(ov_model, target_device, configuration));
     OV_ASSERT_NO_THROW(input = compiledModel.input());
     OV_ASSERT_NO_THROW(output = compiledModel.output());
 

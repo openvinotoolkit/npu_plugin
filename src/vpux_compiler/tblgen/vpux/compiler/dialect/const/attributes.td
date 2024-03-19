@@ -10,7 +10,6 @@ include "vpux/compiler/dialect/const/dialect.td"
 include "vpux/compiler/dialect/const/attr_interfaces.td"
 
 include "mlir/IR/AttrTypeBase.td"
-include "mlir/IR/SubElementInterfaces.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
 
 //
@@ -23,48 +22,17 @@ class Const_Attr<string name, list<Trait> traits = [], string baseCppClass = "ml
 }
 
 //
-// OpaqueElementsAttr
+// TransformAttrInterfaceArrayAttr
 //
 
-def Const_OpaqueElementsAttr : Const_Attr<"OpaqueElements", [ElementsAttrInterface]> {
-    let summary = "An opaque representation of a multi-dimensional array";
-    let description = [{
-        An opaque elements attribute is an elements attribute where the content of
-        the value is opaque. Attribute is used to store a reference to shared data 
-        received by compiler frontend. (It does not own the memory)
-
-        Note: The parsed string literal must be in hexadecimal form.
-
-        Examples:
-
-        ```mlir
-        opaque<"elided_large_const", "0xDEADBEEF"> : tensor<10xi32>
-        ```
-    }];
-
-    let parameters = (ins AttributeSelfTypeParameter<"", "mlir::ShapedType">:$type,
-                          StringRefParameter<"">:$value);
-    let builders = [
-        AttrBuilderWithInferredContext<(ins "mlir::ShapedType":$type,
-                                          "mlir::StringRef":$value), [{
-            return $_get(type.getContext(), type, value);
-        }]>,
-    ];
-
-    let extraClassDeclaration = [{
-        using ValueType = StringRef;
-    }];
-
-    let storageNamespace = "details";
-    let hasCustomAssemblyFormat = 1;
-    let skipDefaultBuilders = 1;
-}
+def Const_TransformAttrInterfaceArrayAttr :
+    ArrayOfAttr<Const_Dialect, "TransformAttrInterfaceArray", "TransformAttrInterfaceArray", "vpux::Const::TransformAttrInterface">;
 
 //
 // ContentAttr
 //
 
-def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+def Const_ContentAttr : Const_Attr<"Content", [Const_RequestQueueAttrInterface]> {
     let summary = "Lazy folded constant content";
 
     let description = [{
@@ -74,26 +42,23 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
 
     let parameters = (ins
         "mlir::ElementsAttr":$baseContent,
-        "mlir::ArrayAttr":$transformations,
+        "vpux::Const::TransformAttrInterfaceArrayAttr":$transformations,
         "vpux::NDTypeInterface":$finalType
     );
 
     let builders = [
         AttrBuilderWithInferredContext<
             (ins "mlir::ElementsAttr":$baseContent), [{
-                return $_get(baseContent.getContext(), baseContent, mlir::ArrayAttr(), baseContent.getType().cast<vpux::NDTypeInterface>());
+                auto finalType = vpux::Const::ContentAttr::inferFinalType(baseContent, {});
+                return $_get(baseContent.getContext(), baseContent, vpux::Const::TransformAttrInterfaceArrayAttr(), finalType);
             }]
         >,
 
         AttrBuilderWithInferredContext<
-            (ins "vpux::Const::ContentAttr":$input, "vpux::Const::TransformAttrInterface":$transformation), [{
-                return vpux::Const::ContentAttr::addTransformation(input, transformation);
-            }]
-        >,
-
-        AttrBuilderWithInferredContext<
-            (ins "mlir::ElementsAttr":$baseContent, "mlir::ArrayAttr":$transformations, "vpux::NDTypeInterface":$finalType), [{
-                return $_get(baseContent.getContext(), baseContent, transformations, finalType);
+            (ins "mlir::ElementsAttr":$baseContent, "mlir::ArrayRef<vpux::Const::TransformAttrInterface>":$transformations), [{
+                auto transformationsAttr = vpux::Const::TransformAttrInterfaceArrayAttr::get(baseContent.getContext(), transformations);
+                auto finalType = vpux::Const::ContentAttr::inferFinalType(baseContent, transformations);
+                return $_get(baseContent.getContext(), baseContent, transformationsAttr, finalType);
             }]
         >
     ];
@@ -107,10 +72,10 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
     let extraClassDeclaration = [{
         using ValueType = vpux::Const::Content;
 
-        ValueType fold() const;
+        ValueType fold(bool bypassCache = false) const;
 
         mlir::ElementsAttr getBaseContent() const;
-        vpux::SmallVector<vpux::Const::TransformAttrInterface> getTransformations() const;
+        mlir::ArrayRef<vpux::Const::TransformAttrInterface> getTransformations() const;
         vpux::NDTypeInterface getType() const;
 
         vpux::Const::ContentAttr broadcast(Dim axis, int64_t value) const;
@@ -119,7 +84,7 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
         vpux::Const::ContentAttr dequantize() const;
         vpux::Const::ContentAttr rescale(double scale) const;
         vpux::Const::ContentAttr relocateWeightsTablePointers(ArrayRef<int32_t> weightsPtr, uint64_t sparsityPtr, vpux::ShapeRef offsets,
-                                                              uint64_t weightsElemByteSize, VPUIP::CompressionSchemeAttr weightsCompression) const;
+                                                              uint64_t weightsElemBitSize, VPUIP::CompressionSchemeAttr weightsCompression) const;
         vpux::Const::ContentAttr swizzleConstant(uint64_t swizzleKey, uint64_t arch) const;
         vpux::Const::ContentAttr add(double bias) const;
         vpux::Const::ContentAttr reshape(vpux::ShapeRef newShape) const;
@@ -131,11 +96,14 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
         vpux::Const::ContentAttr transpose(vpux::DimsOrder newOrder) const;
         vpux::Const::ContentAttr expandDilated(vpux::ShapeRef dilations) const;
         vpux::Const::ContentAttr getSparsityMap() const;
-        vpux::Const::ContentAttr sparsify(bool compressOutputType) const;
+        vpux::Const::ContentAttr sparsify(bool compressOutputType, mlir::ElementsAttr numActualElements = nullptr) const;
         vpux::Const::ContentAttr changeShapeAndElemType(vpux::ShapeRef newShape, mlir::Type newElemType) const;
 
         static vpux::Const::ContentAttr addTransformation(vpux::Const::ContentAttr input, vpux::Const::TransformAttrInterface transformation);
-        int64_t getNumberOfElements() const;
+        static vpux::NDTypeInterface inferFinalType(mlir::ElementsAttr content, mlir::ArrayRef<vpux::Const::TransformAttrInterface> transformations);
+
+        vpux::Const::ContentAttr stripTransformationsFrom(Const::TransformAttrInterface transformation);
+        SmallVector<vpux::Const::TransformAttrInterface> getLastTransformationsFrom(Const::TransformAttrInterface transformation);
     }];
 
     let storageType = "vpux::Const::ContentAttr";
@@ -144,11 +112,24 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
 }
 
 //
+// Const_TerminateRequestAttr
+//
+
+def Const_TerminateRequestAttr : Const_Attr<"TerminateRequest", [Const_RequestQueueAttrInterface]> {
+    let summary = "Attribute representing the termination of a background folding thread";
+
+    let description = [{
+        This attribute is meant to be used in the request queue for the background folding feature.
+        When a thread receives this attribute via the folding request queue, it will terminate its execution.
+    }];
+}
+
+//
 // ConvertElemTypeAttr
 //
 
 def Const_ConvertElemTypeAttr : Const_Attr<"ConvertElemType",
-        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
     let summary = "Convert constant content element type";
 
     let parameters = (ins
@@ -174,7 +155,7 @@ def Const_ConvertElemTypeAttr : Const_Attr<"ConvertElemType",
 //
 
 def Const_QuantCastAttr : Const_Attr<"QuantCast",
-        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
     let summary = "Cast element type from raw integer to quantized type";
 
     let parameters = (ins
@@ -201,7 +182,7 @@ def Const_QuantCastAttr : Const_Attr<"QuantCast",
 //
 
 def Const_DequantizeAttr : Const_Attr<"Dequantize",
-        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
     let summary = "Dequantize constant content";
 }
 
@@ -210,7 +191,7 @@ def Const_DequantizeAttr : Const_Attr<"Dequantize",
 //
 
 def Const_RescaleAttr : Const_Attr<"Rescale",
-        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
     let summary = "Rescale constant content";
 
     let parameters = (ins
@@ -235,7 +216,7 @@ def Const_RescaleAttr : Const_Attr<"Rescale",
 //
 
 def Const_AddAttr : Const_Attr<"Add",
-        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
     let summary = "Add constant content";
 
     let parameters = (ins
@@ -260,7 +241,7 @@ def Const_AddAttr : Const_Attr<"Add",
 //
 
 def Const_ReshapeAttr : Const_Attr<"Reshape",
-        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
     let summary = "Reshape constant content";
 
     let parameters = (ins
@@ -286,7 +267,7 @@ def Const_ReshapeAttr : Const_Attr<"Reshape",
 //
 
 def Const_ReorderAttr : Const_Attr<"Reorder",
-        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
     let summary = "Reorder constant content";
 
     let parameters = (ins
@@ -312,7 +293,7 @@ def Const_ReorderAttr : Const_Attr<"Reorder",
 //
 
 def Const_ReverseAttr : Const_Attr<"Reverse",
-        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
     let summary = "Reverse constant content on specified axis";
 
     let description = [{
@@ -345,7 +326,7 @@ def Const_ReverseAttr : Const_Attr<"Reverse",
 //
 
 def Const_PadWithZeroAttr : Const_Attr<"PadWithZero",
-        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
     let summary = "Pad constant content with zeros";
 
     let parameters = (ins
@@ -372,7 +353,7 @@ def Const_PadWithZeroAttr : Const_Attr<"PadWithZero",
 //
 
 def Const_SubViewAttr : Const_Attr<"SubView",
-        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface, ["supportsSubByteStorageType"]>]> {
     let summary = "Extract subview from constant content";
 
     let parameters = (ins
@@ -399,7 +380,7 @@ def Const_SubViewAttr : Const_Attr<"SubView",
 //
 
 def Const_BroadcastAttr : Const_Attr<"Broadcast",
-        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
     let summary = "Broadcast axis by value of constant content";
 
     let parameters = (ins
@@ -425,8 +406,7 @@ def Const_BroadcastAttr : Const_Attr<"Broadcast",
 //
 
 def Const_BitPackAttr : Const_Attr<"BitPack",
-        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface, ["getPositionRequirement"]>,
-         DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface, ["getPositionRequirement"]>]> {
     let summary = "Pack sub-byte constant content";
 
     let parameters = (ins
@@ -452,7 +432,7 @@ def Const_BitPackAttr : Const_Attr<"BitPack",
 //
 
 def Const_TransposeAttr : Const_Attr<"Transpose",
-        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
     let summary = "Transpose constant content";
 
     let parameters = (ins
@@ -478,22 +458,22 @@ def Const_TransposeAttr : Const_Attr<"Transpose",
 //
 
 def Const_RelocateWeightsTableAttr : Const_Attr<"RelocateWeightsTable",
-        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
     let summary = "Patches offsets in the weights table";
 
     let parameters = (ins
         "mlir::ArrayAttr":$weightsPtr,
         "mlir::IntegerAttr":$sparsityPtr,
         "mlir::ArrayAttr":$offsets,
-        "mlir::IntegerAttr":$weightsElemByteSize,
+        "mlir::IntegerAttr":$weightsElemBitSize,
         "VPUIP::CompressionSchemeAttr":$weightsCompression
     );
 
     let builders = [
         AttrBuilderWithInferredContext<
             (ins "mlir::ArrayAttr":$weightsPtr, "mlir::IntegerAttr":$sparsityPtr, "mlir::ArrayAttr":$offsets,
-                 "mlir::IntegerAttr":$weightsElemByteSize, "VPUIP::CompressionSchemeAttr":$weightsCompression), [{
-                return $_get(weightsPtr.getContext(), weightsPtr, sparsityPtr, offsets, weightsElemByteSize, weightsCompression);
+                 "mlir::IntegerAttr":$weightsElemBitSize, "VPUIP::CompressionSchemeAttr":$weightsCompression), [{
+                return $_get(weightsPtr.getContext(), weightsPtr, sparsityPtr, offsets, weightsElemBitSize, weightsCompression);
             }]
         >
     ];
@@ -508,8 +488,8 @@ def Const_RelocateWeightsTableAttr : Const_Attr<"RelocateWeightsTable",
 //
 
 def Const_SwizzleConstantAttr : Const_Attr<"SwizzleConstant",
-        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface, ["getPositionRequirement"]>,
-        DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface, ["getPositionRequirement",
+                                                                    "supportsSubByteStorageType"]>]> {
     let summary = "Swizzles the constant based on swizzle key";
 
     let description = [{
@@ -521,21 +501,15 @@ def Const_SwizzleConstantAttr : Const_Attr<"SwizzleConstant",
 
     let parameters = (ins
         "mlir::IntegerAttr":$swizzleKey,
-        "mlir::IntegerAttr":$arch,
-        "mlir::BoolAttr":$alignSize
+        "mlir::IntegerAttr":$arch
     );
 
     let builders = [
         AttrBuilderWithInferredContext<
             (ins "mlir::IntegerAttr":$swizzleKey, "mlir::IntegerAttr": $arch), [{
-                return $_get(swizzleKey.getContext(), swizzleKey, arch, nullptr);
+                return $_get(swizzleKey.getContext(), swizzleKey, arch);
             }]
-        >,
-        AttrBuilderWithInferredContext<
-            (ins "mlir::IntegerAttr":$swizzleKey, "mlir::IntegerAttr": $arch, "mlir::BoolAttr": $alignSize), [{
-                return $_get(swizzleKey.getContext(), swizzleKey, arch, alignSize);
-            }]
-        >,
+        >
     ];
 
     let storageNamespace = "details";
@@ -548,7 +522,7 @@ def Const_SwizzleConstantAttr : Const_Attr<"SwizzleConstant",
 //
 
 def Const_ExpandDilatedAttr : Const_Attr<"ExpandDilated",
-        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
     let summary = "Expand constant content with zeros according to dilations";
 
     let parameters = (ins
@@ -586,7 +560,7 @@ def Const_GetSparsityMapAttr : Const_Attr<"GetSparsityMap",
 //
 
 def Const_SparsifyAttr : Const_Attr<"Sparsify", [
-        DeclareAttrInterfaceMethods<Const_TransformAttrInterface, ["getPositionRequirement", "updateAttributes"]>
+        DeclareAttrInterfaceMethods<Const_TransformAttrInterface, ["getPositionRequirement"]>
     ]> {
     let summary = "Remove zeros / zero-points from constant";
 
@@ -609,10 +583,6 @@ def Const_SparsifyAttr : Const_Attr<"Sparsify", [
         >
     ];
 
-    let extraClassDeclaration = [{
-        static int64_t countNumTotalElements(vpux::Const::SparsifyAttr transformation);
-    }];
-
     let storageNamespace = "details";
     let genVerifyDecl = 1;
     let skipDefaultBuilders = 1;
@@ -624,7 +594,7 @@ def Const_SparsifyAttr : Const_Attr<"Sparsify", [
 //
 
 def Const_ChangeShapeAndElemTypeAttr : Const_Attr<"ChangeShapeAndElemType",
-        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
     let summary = "Change the shape and element type of a constant";
 
     let description = [{

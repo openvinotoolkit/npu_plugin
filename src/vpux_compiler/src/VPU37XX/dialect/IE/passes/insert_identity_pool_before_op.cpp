@@ -5,10 +5,11 @@
 
 #include "vpux/compiler/dialect/IE/passes/insert_identity_pool_before_op.hpp"
 #include "vpux/compiler/VPU37XX/dialect/IE/passes.hpp"
+#include "vpux/compiler/dialect/IE/utils/pooling_utils.hpp"
 
+#include "vpux/compiler/utils/permute_utils.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
-#include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
 using namespace vpux;
@@ -16,7 +17,7 @@ using namespace vpux;
 namespace {
 
 bool isEligiblePermute(mlir::Operation* op, Logger log) {
-    const auto permuteInterface = op->getOperand(0).getDefiningOp<IE::LayerWithPermuteInterface>();
+    const auto permuteInterface = getFusableLayerWithPermuteInterface(op);
     if (permuteInterface != nullptr && permuteInterface->getResult(0).hasOneUse()) {
         log.trace("A permutation at {0} has already got a suitable producer", op->getLoc());
         return false;
@@ -59,18 +60,9 @@ mlir::Operation* insertAvgPool(mlir::Operation* concreteOp, mlir::PatternRewrite
     if (!IE::isEligiblePostOp(concreteOp, log)) {
         return nullptr;
     }
-    const SmallVector<int64_t> poolStrides = {1, 1};
-    const SmallVector<int64_t> poolKernels = {1, 1};
-    const SmallVector<int64_t> pads = {0, 0};
-    auto ctx = concreteOp->getContext();
-    const auto padsAttr = getIntArrayAttr(ctx, pads);
 
-    const auto outputType = concreteOp->getOperand(0).getType();
-    return rewriter.create<IE::AvgPoolOp>(concreteOp->getLoc(), outputType, concreteOp->getOperand(0),
-                                          getIntArrayAttr(ctx, poolKernels), getIntArrayAttr(ctx, poolStrides),
-                                          padsAttr, padsAttr,
-                                          vpux::IE::RoundingTypeAttr::get(ctx, vpux::IE::RoundingType::FLOOR),
-                                          mlir::UnitAttr::get(rewriter.getContext()), nullptr);
+    auto input = concreteOp->getOperand(0);
+    return IE::createIdentityAvgPool(input, input.getType(), rewriter, concreteOp->getLoc());
 }
 
 bool checkPooling(mlir::Operation* op, mlir::Operation* maybePermute) {
@@ -93,7 +85,7 @@ mlir::Operation* insertMaxPool(mlir::Operation* concreteOp, mlir::PatternRewrite
         return nullptr;
     }
     const auto outputType = concreteOp->getOperand(0).getType();
-    auto identityOp = createIdentityMaxPool(concreteOp->getOperand(0), outputType, rewriter);
+    auto identityOp = IE::createIdentityMaxPool(concreteOp->getOperand(0), outputType, rewriter);
 
     // This check is required to avoid processing IE.MemPermute with misaligned channels.
     if (!checkPooling(identityOp, concreteOp)) {

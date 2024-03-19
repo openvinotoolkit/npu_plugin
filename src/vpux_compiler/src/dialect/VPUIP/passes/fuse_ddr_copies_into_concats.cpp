@@ -29,11 +29,11 @@ bool isInputEligibleForConversion(const mlir::Value input, Logger log) {
         log.trace("Input producer is not a DDR2DDR copy.");
         return false;
     }
-    if (copyOp.input().isa<mlir::BlockArgument>()) {
+    if (copyOp.getInput().isa<mlir::BlockArgument>()) {
         log.trace("Input copy producer is a block argument.");
         return false;
     }
-    auto clusterOp = copyOp.input().getDefiningOp<VPUIP::NCEClusterTilingOp>();
+    auto clusterOp = copyOp.getInput().getDefiningOp<VPUIP::NCEClusterTilingOp>();
     if (clusterOp == nullptr) {
         log.trace("Input copy producer is not a VPUIP.NCEClusterTilingOp.");
         return false;
@@ -43,7 +43,7 @@ bool isInputEligibleForConversion(const mlir::Value input, Logger log) {
         log.trace("VPUIP.NCEClusterTilingOp does not wrap copy.");
         return false;
     }
-    auto clusterOpBuffs = clusterOp.output_buffs();
+    auto clusterOpBuffs = clusterOp.getOutputBuffs();
     if (clusterOpBuffs.size() != 1) {
         log.trace("VPUIP.NCEClusterTilingOp is expected to have one and only one output buffer.");
         return false;
@@ -107,7 +107,7 @@ private:
 //
 mlir::LogicalResult FuseCopies::matchAndRewrite(VPUIP::ConcatViewOp origConcatOp,
                                                 mlir::PatternRewriter& rewriter) const {
-    const auto concatInputs = origConcatOp.inputs();
+    const auto concatInputs = origConcatOp.getInputs();
     const auto isEligible = [&](const mlir::Value in) -> bool {
         return isInputEligibleForConversion(in, _log);
     };
@@ -119,24 +119,24 @@ mlir::LogicalResult FuseCopies::matchAndRewrite(VPUIP::ConcatViewOp origConcatOp
     rewriter.setInsertionPoint(origConcatOp);
     for (const auto& input : eligibleInputs) {
         auto copyOp = input.getDefiningOp<VPUIP::CopyOp>();
-        auto clusterOp = copyOp.input().getDefiningOp<VPUIP::NCEClusterTilingOp>();
-        auto clusterOpBuffs = clusterOp.output_buffs();
+        auto clusterOp = copyOp.getInput().getDefiningOp<VPUIP::NCEClusterTilingOp>();
+        auto clusterOpBuffs = clusterOp.getOutputBuffs();
         auto clusterOpAlloc = clusterOpBuffs[0].getDefiningOp<mlir::memref::AllocOp>();
-        auto copyOpAlloc = copyOp.output_buff();
+        auto copyOpAlloc = copyOp.getOutputBuff();
         auto newTilingCopy = createTillingCopy(rewriter, copyOp->getLoc(), clusterOp->getOperand(0), copyOpAlloc);
-        VPUX_THROW_UNLESS(newTilingCopy.results().size() == 1,
+        VPUX_THROW_UNLESS(newTilingCopy.getResults().size() == 1,
                           "VPUIP::NCEClusterTilingOp must have one and only one result");
-        copyOp.replaceAllUsesWith(newTilingCopy.results()[0]);
+        copyOp.replaceAllUsesWith(newTilingCopy.getResults()[0]);
         rewriter.eraseOp(copyOp);
 
-        const auto clusterOpResults = clusterOp.results();
+        const auto clusterOpResults = clusterOp.getResults();
         const auto hasNoUsers = [](const mlir::Value clusterOpResult) -> bool {
             return clusterOpResult.use_empty();
         };
         if (std::all_of(clusterOpResults.begin(), clusterOpResults.end(), hasNoUsers)) {
             rewriter.eraseOp(clusterOp);
         }
-        if (clusterOpAlloc.memref().use_empty()) {
+        if (clusterOpAlloc.getMemref().use_empty()) {
             rewriter.eraseOp(clusterOpAlloc);
         }
     }

@@ -12,11 +12,11 @@ using namespace vpux;
 ExecutorStallCycles vpux::getExecutorStallRegions(ScheduledOpInfoVec& scheduledOps) {
     ExecutorStallCycles executorStalls;
     // Map: Key: pair {executorKind, executorInstance}, Value: cycle
-    DenseMap<std::pair<VPU::ExecutorKind, size_t>, size_t> executorCycles;
+    std::map<std::pair<FeasibleMemoryScheduler::QueueType, size_t>, size_t> executorCycles;
 
     for (auto& schedOp : scheduledOps) {
         for (auto execInst : schedOp.executorInstanceMask.set_bits()) {
-            auto executorAndInstancePair = std::make_pair(schedOp.executor, execInst);
+            auto executorAndInstancePair = std::make_pair(schedOp.queueType, execInst);
             if (schedOp.cycleBegin_ > executorCycles[executorAndInstancePair]) {
                 // stall on executor from
                 auto executorStall = std::make_pair(executorCycles[executorAndInstancePair], schedOp.cycleBegin_);
@@ -36,8 +36,8 @@ StallCycles vpux::getStallsOnAllExecutorPipelines(ScheduledOpInfoVec& scheduledO
     // loop through executor with least stalls
     auto minStallSizeExecutor = std::min_element(
             executorStalls.begin(), executorStalls.end(),
-            [](const llvm::detail::DenseMapPair<std::pair<VPU::ExecutorKind, size_t>, StallCycles>& stall1,
-               const llvm::detail::DenseMapPair<std::pair<VPU::ExecutorKind, size_t>, StallCycles>& stall2) {
+            [](const std::pair<std::pair<FeasibleMemoryScheduler::QueueType, size_t>, StallCycles>& stall1,
+               const std::pair<std::pair<FeasibleMemoryScheduler::QueueType, size_t>, StallCycles>& stall2) {
                 return stall1.second.size() < stall2.second.size();
             });
 
@@ -91,7 +91,7 @@ void vpux::verifyDependenciesPreservedInCycles(AsyncDepsInfo& depsInfo, Schedule
     for (auto& schedOp : scheduledOps) {
         auto execOp = depsInfo.getExecuteOpAtIndex(schedOp.op_);
         auto cycleEnd = getAsyncExecuteCycleEnd(execOp);
-        for (auto con : depsInfo.getConsumerOps(schedOp.op_)) {
+        for (auto con : depsInfo.getConsumerOps(schedOp.op_).set_bits()) {
             auto conExecOp = depsInfo.getExecuteOpAtIndex(con);
             auto cycleBegin = getAsyncExecuteCycleBegin(conExecOp);
             // all consumers must execute after the dependency
@@ -106,9 +106,9 @@ StringRef vpux::getTaskType(const ScheduledOpInfo& op) {
         taskType = "DMA-spill-in";
     } else if (op.isOriginalSpillWriteOp()) {
         taskType = "DMA-spill-out";
-    } else if (op.executor == VPU::ExecutorKind::SHAVE_UPA) {
+    } else if (op.queueType.execKind == VPU::ExecutorKind::SHAVE_UPA) {
         taskType = "UPA";
-    } else if (op.executor == VPU::ExecutorKind::DMA_NN) {
+    } else if (op.queueType.execKind == VPU::ExecutorKind::DMA_NN) {
         if (op.isDataOp()) {
             taskType = "DMA-in";
         } else {
@@ -181,7 +181,7 @@ void vpux::printScheduleStatistics(mlir::func::FuncOp& netFunc, AsyncDepsInfo& d
                 // check if dependency is causing the stall
                 auto execOpIdx = depsInfo.getIndex(execOp);
                 int64_t eraliestExecutionStartCycle = 0;
-                for (auto depIdx : depsInfo.getOpDeps(execOpIdx)) {
+                for (auto depIdx : depsInfo.getOpDeps(execOpIdx).set_bits()) {
                     auto depExecOp = depsInfo.getExecuteOpAtIndex(depIdx);
                     if (!depExecOp->hasAttr(cycleEnd)) {
                         ++firstAsyncExecOp;
@@ -199,7 +199,7 @@ void vpux::printScheduleStatistics(mlir::func::FuncOp& netFunc, AsyncDepsInfo& d
                     auto consumerExecutorName = executorName;
                     size_t consumerIdx = 0;
                     // find earliest executing consumer
-                    for (auto conIdx : depsInfo.getConsumerOps(execOpIdx)) {
+                    for (auto conIdx : depsInfo.getConsumerOps(execOpIdx).set_bits()) {
                         auto conExecOp = depsInfo.getExecuteOpAtIndex(conIdx);
                         if (!conExecOp->hasAttr(cycleEnd)) {
                             ++firstAsyncExecOp;
@@ -293,7 +293,7 @@ void vpux::printSpillingStatistics(Logger log, SpillStats& beforePrefetching, Sp
 
 void vpux::createTracingJSON(mlir::func::FuncOp& netFunc, StringRef fileName) {
     std::ofstream out_stream(fileName.str());
-    VPUX_THROW_UNLESS(out_stream.good(), "File with manual strategy not created correctly");
+    VPUX_THROW_UNLESS(out_stream.good(), "File to dump traces to is not created correctly");
 
     profiling::TraceEventDesc ted;
     ted.pid = 0;
@@ -302,11 +302,14 @@ void vpux::createTracingJSON(mlir::func::FuncOp& netFunc, StringRef fileName) {
 
     // store all operation info in struct
     for (auto execOp : netFunc.getOps<mlir::async::ExecuteOp>()) {
+        const auto attr = execOp->getAttrOfType<mlir::IntegerAttr>("async-deps-index");
+        const auto index = checked_cast<uint32_t>(attr.getValue().getZExtValue());
+        auto indexString = std::to_string(index);
         auto executor = VPUIP::VPUIPDialect::getExecutor(execOp).getLeafName().str();
         auto cycleBegin = getAsyncExecuteCycleBegin(execOp);
         auto cycleEnd = getAsyncExecuteCycleEnd(execOp);
 
-        ted.name = vpux::stringifyLocation(execOp->getLoc());
+        ted.name = std::move(indexString);
         ted.category = executor;
         ted.tid = executorStrToId.at(executor);
         ted.timestamp = cycleBegin;

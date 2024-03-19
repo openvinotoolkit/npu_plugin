@@ -2,44 +2,56 @@
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
-
 #include <llvm/ADT/TypeSwitch.h>
 
 #include "vpux/compiler/core/attributes/dim.hpp"
 #include "vpux/compiler/core/tiling.hpp"
-#include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPU/IR/ops.hpp"
 #include "vpux/compiler/dialect/VPU/utils/distributed_tensor_utils.hpp"
 #include "vpux/compiler/dialect/VPU/utils/generate_tiling.hpp"
 #include "vpux/compiler/dialect/VPU/utils/manual_strategy_utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/sparsity_utils.hpp"
+#include "vpux/compiler/dialect/VPUIP/dpu_tiler.hpp"
+
+#include <mlir/IR/IRMapping.h>
 
 namespace vpux {
 namespace VPU {
 
-mlir::FailureOr<OutputTiling> getLayerTilingStrategy(VPU::TilingBuilderOpInterface origOp, bool enablePrefetchTiling,
-                                                     Logger log) {
+TilingMode getTilingSupportedMode(VPU::TilingBuilderOpInterface origOp, bool enablePrefetchTiling, Logger log) {
     auto tilingMode = TilingMode::ISOLATED;
-    return getLayerTilingStrategy(origOp, enablePrefetchTiling, log, tilingMode);
-}
 
-mlir::FailureOr<OutputTiling> getLayerTilingStrategy(VPU::TilingBuilderOpInterface origOp, bool enablePrefetchTiling,
-                                                     Logger log, TilingMode& mode) {
-    log.trace("getLayerTilingStrategy for op '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
     auto op = origOp.getOperation();
     auto tilingInfo = mlir::cast<VPU::TilingInfoOpInterface>(op);
-
-    log.nest().trace("Enable Prefetch Tiling: {0}", enablePrefetchTiling);
-
-    // Default to ISOLATED mode
-    mode = TilingMode::ISOLATED;
 
     // Prefetching for HW layers
     if (enablePrefetchTiling && mlir::isa<VPU::NCEOpInterface>(op)) {
         const auto resShape = getShape(op->getResult(0));
+        const Shape neutralTile(resShape.size(), 1);
+        auto fillTiles = fillDividedTiles(op, neutralTile, resShape);
         const auto isSupportIsolated =
-                tilingInfo.isSupportedTiling({TileInfo(resShape)}, TilingMode::ISOLATED, log.nest());
+                tilingInfo.isSupportedTiling(fillTiles.value(), TilingMode::ISOLATED, log.nest());
         const auto isPrefetchable = VPU::prefetchTilingConditionSatisfied(op, log.nest());
-        mode = isSupportIsolated && isPrefetchable ? TilingMode::PREFETCHING : TilingMode::PIPELINING;
+        tilingMode = isSupportIsolated && isPrefetchable ? TilingMode::PREFETCHING : TilingMode::PIPELINING;
     }
+
+    return tilingMode;
+}
+
+mlir::FailureOr<OutputTiling> getLayerTilingStrategy(VPU::TilingBuilderOpInterface origOp, bool enablePrefetchTiling,
+                                                     Logger log) {
+    auto tilingMode = TilingMode::ISOLATED;
+    return getLayerTilingStrategy(origOp, enablePrefetchTiling, tilingMode, log);
+}
+
+mlir::FailureOr<OutputTiling> getLayerTilingStrategy(VPU::TilingBuilderOpInterface origOp, bool enablePrefetchTiling,
+                                                     TilingMode& mode, Logger log) {
+    log.trace("getLayerTilingStrategy for op '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
+
+    log.nest().trace("Enable Prefetch Tiling: {0}", enablePrefetchTiling);
+
+    // Default to ISOLATED mode
+    mode = getTilingSupportedMode(origOp, enablePrefetchTiling, log);
 
     log.nest().trace("Assigning {0} tiling strategy", getTilingModeStr(mode));
     return origOp.getTilingStrategy(mode, log.nest());
@@ -82,8 +94,8 @@ SmallVector<mlir::Value> reifyTileTopK(VPU::TilingBuilderOpInterface origOp, con
     auto& inTiles = inputTiling.tiles;
     VPUX_THROW_UNLESS(!inTiles.empty(), "Got empty tile information");
 
-    mlir::BlockAndValueMapping mapper;
-    for (auto& p : origOp->getOperands() | indexed) {
+    mlir::IRMapping mapper;
+    for (auto p : origOp->getOperands() | indexed) {
         auto origInput = p.value();
         auto inputIdx = p.index();
         const auto valName = printToString("input {0}", inputIdx);
@@ -100,7 +112,7 @@ SmallVector<mlir::Value> reifyTileTopK(VPU::TilingBuilderOpInterface origOp, con
     tiledBuilderOp.adjustAttrs(inputTiling, outputTile);
 
     SmallVector<mlir::Value> ret;
-    for (auto& p : origOp->getResults() | indexed) {
+    for (auto p : origOp->getResults() | indexed) {
         auto idx = p.index();
         const auto baseResType = origOp->getResult(idx).getType().cast<vpux::NDTypeInterface>();
         const auto tiledResType = baseResType.extractDenseTile(outputTile.offsets, outputTile.shape);
@@ -121,7 +133,7 @@ mlir::LogicalResult applyTileStrategyTopK(VPU::TilingBuilderOpInterface origOp, 
     SmallVector<SmallVector<ShapeRef>> resultTileOffsets(origOp->getNumResults());
     for (const auto& outputTile : tiles) {
         const auto tiledRes = reifyTileTopK(origOp, outputTile, rewriter, log);
-        for (auto& p : origOp->getResults() | indexed) {
+        for (auto p : origOp->getResults() | indexed) {
             auto idx = p.index();
             const auto tiledShape = getShape(tiledRes[idx]);
             VPUX_THROW_UNLESS(tiledShape == outputTile.shape,
@@ -133,12 +145,12 @@ mlir::LogicalResult applyTileStrategyTopK(VPU::TilingBuilderOpInterface origOp, 
     }
 
     SmallVector<mlir::Value> opsConcat;
-    for (auto& p : origOp->getResults() | indexed) {
+    for (auto p : origOp->getResults() | indexed) {
         auto idx = p.index();
-        auto opConcat = rewriter.create<VPU::ConcatOp>(origOp->getLoc(), origOp->getResult(idx).getType(),
-                                                       mlir::ValueRange(resultTileVals[idx]),
-                                                       makeArrayRef(resultTileOffsets[idx]));
-        opsConcat.push_back(opConcat.output());
+        auto opConcat =
+                rewriter.create<VPU::ConcatOp>(origOp->getLoc(), origOp->getResult(idx).getType(),
+                                               mlir::ValueRange(resultTileVals[idx]), ArrayRef(resultTileOffsets[idx]));
+        opsConcat.push_back(opConcat.getOutput());
     }
     rewriter.replaceOp(origOp, opsConcat);
 
@@ -157,8 +169,8 @@ SmallVector<mlir::Value> reifyTilesDetectionOutputSortTopK(VPU::TilingBuilderOpI
 
     VPUX_THROW_UNLESS(!inTiles.empty(), "Got empty tile information");
 
-    mlir::BlockAndValueMapping mapper;
-    for (auto& p : origOp->getOperands() | indexed) {
+    mlir::IRMapping mapper;
+    for (auto p : origOp->getOperands() | indexed) {
         auto origInput = p.value();
         auto inputIdx = p.index();
 
@@ -213,10 +225,10 @@ mlir::LogicalResult applyTileStrategyDetectionOutputSortTopK(VPU::TilingBuilderO
     SmallVector<mlir::Value> opsConcat;
     for (const auto& p : origOp->getResults() | indexed) {
         auto idx = p.index();
-        auto opConcat = rewriter.create<VPU::ConcatOp>(origOp->getLoc(), origOp->getResult(idx).getType(),
-                                                       mlir::ValueRange(resultTileVals[idx]),
-                                                       makeArrayRef(resultTileOffsets[idx]));
-        opsConcat.push_back(opConcat.output());
+        auto opConcat =
+                rewriter.create<VPU::ConcatOp>(origOp->getLoc(), origOp->getResult(idx).getType(),
+                                               mlir::ValueRange(resultTileVals[idx]), ArrayRef(resultTileOffsets[idx]));
+        opsConcat.push_back(opConcat.getOutput());
     }
     rewriter.replaceOp(origOp, opsConcat);
 
@@ -233,8 +245,8 @@ mlir::Value reifyTile(VPU::TilingBuilderOpInterface origOp, const TileInfo& outp
 
     VPUX_THROW_UNLESS(!inTiles.empty(), "Got empty tile information");
 
-    mlir::BlockAndValueMapping mapper;
-    for (auto& p : origOp->getOperands() | indexed) {
+    mlir::IRMapping mapper;
+    for (auto p : origOp->getOperands() | indexed) {
         auto origInput = p.value();
         auto inputIdx = p.index();
 
@@ -299,7 +311,7 @@ mlir::LogicalResult applyTileStrategy(VPU::TilingBuilderOpInterface origOp, cons
     }
 
     rewriter.replaceOpWithNewOp<VPU::ConcatOp>(origOp, origOp->getResult(0).getType(), mlir::ValueRange(resultTileVals),
-                                               makeArrayRef(resultTileOffsets));
+                                               ArrayRef(resultTileOffsets));
 
     // update concat users and also place correctly in the IR
     for (auto* concatOp : resultTileVals[0].getUsers()) {
@@ -363,10 +375,10 @@ mlir::Operation* getParentTargetOp(mlir::Operation* op) {
     // prefetch is wanted from current op to parent op
     const auto isOpIgnorable = [](mlir::Operation* op) -> bool {
         if (auto nceEltwiseAnd = mlir::dyn_cast<VPU::NCEEltwiseOp>(op)) {
-            return nceEltwiseAnd.op_type() == VPU::EltwiseType::AND;
+            return nceEltwiseAnd.getOpType() == VPU::EltwiseType::AND;
         }
         return mlir::isa<IE::AndOp>(op) || mlir::isa<VPU::AndOp>(op) || mlir::isa<VPU::PermuteCastOp>(op) ||
-               mlir::isa<VPU::ReshapeOp>(op);
+               mlir::isa<VPU::ReshapeOp>(op) || mlir::isa<VPU::GroupSparseTensorOp>(op);
     };
 
     mlir::Operation* parentOp = op->getOperand(0).getDefiningOp();
@@ -518,15 +530,6 @@ bool opNeedsTiling(mlir::Operation* op, bool enablePrefetchTiling, Logger log) {
         return false;
     }
 
-    // not to stream activations for a multi-cluster strategy that exists
-    // to allow to switch segmentation strategy in cmx
-    if (auto clusterOp = mlir::dyn_cast<VPU::ClusteredOpInterface>(op)) {
-        if (clusterOp.getMultiClusterStrategy().hasValue() &&
-            clusterOp.getMultiClusterStrategy().getValue() == VPU::MultiClusterStrategy::HKSwitch) {
-            return false;
-        }
-    }
-
     if (auto iface = mlir::dyn_cast<VPU::TilingInfoOpInterface>(op)) {
         log.trace("Check: '{0}' at '{1}'", op->getName(), op->getLoc());
         const auto resShape = getShape(op->getResult(0));
@@ -546,6 +549,248 @@ bool opNeedsTiling(mlir::Operation* op, bool enablePrefetchTiling, Logger log) {
         }
     }
     return false;
+}
+
+// All variants of a invariant update a single barrier, therefore the barrier count would be the number of variants.
+// And the available slots of a barrier is limited to a architecture specific count. So the variants count must be
+// less than a specific number.
+bool doesNCEOpChannelSatisfyWorkload(mlir::Operation* nceOp, const TileInfo& outputTile) {
+    auto channelAlignedIface = mlir::dyn_cast<VPU::AlignedWorkloadChannelsOpInterface>(nceOp);
+    if (channelAlignedIface == nullptr) {
+        return true;
+    }
+    const auto supportedChannels = channelAlignedIface.getSupportedWorkLoadChannels();
+    auto log = Logger::global().nest();
+    log.trace("supportedChannels - {0}", supportedChannels);
+    const auto minSupportedChannel = supportedChannels.back();
+    const auto tileChannel = outputTile.shape[Dims4D::Act::C];
+    if (tileChannel % minSupportedChannel != 0) {
+        log.trace("tileChannel {0} can not be divisible by minSupportedChannel {1}", tileChannel, minSupportedChannel);
+        return false;
+    }
+    const auto maxNumClusters = tileChannel / minSupportedChannel;
+
+    auto getDataType = [](mlir::Type type) {
+        if (auto sparseTensor = type.dyn_cast<VPU::SparseTensorType>()) {
+            return sparseTensor.getData();
+        }
+        return type;
+    };
+
+    const auto getPerClusterShapes = [&]() {
+        auto outputType = getDataType(nceOp->getResult(0).getType()).cast<NDTypeInterface>();
+        const auto outputTileType = outputType.extractDenseTile(outputTile.offsets, outputTile.shape);
+
+        auto clusterOp = mlir::dyn_cast<VPU::ClusteredOpInterface>(nceOp);
+        if (clusterOp == nullptr || !clusterOp.getMultiClusterStrategy().has_value() ||
+            clusterOp.getMultiClusterStrategy().value() != VPU::MultiClusterStrategy::SplitOverKernel) {
+            return SmallVector<Shape>{outputTile.shape};
+        }
+        // SOK case
+        auto numClusters =
+                VPU::getOptimalNumClusters(clusterOp, tileChannel, VPU::MultiClusterStrategy::SplitOverKernel);
+        // check wl channel on each cluster to satisfy supportedChannels
+        if (numClusters.getInt() > maxNumClusters) {
+            numClusters = mlir::IntegerAttr::get(getInt64Type(nceOp->getContext()), maxNumClusters);
+        }
+        auto distributedType = getDistributedOutputTypeFromOp(clusterOp, outputTileType, numClusters,
+                                                              VPU::MultiClusterStrategy::SplitOverKernel);
+        return getDataType(distributedType).cast<VPU::DistributedTensorType>().getPerClusterComputeShapes();
+    };
+
+    // divide max available slots equally for producers and consumers to a barrier
+    // for a unified solution for all architectures
+    // TODO: E#107973: more bigger / relaxing availableSlot to decrease tiling
+    const auto maxAvailableSlots = VPUIP::getBarrierMaxVariantCount(nceOp);
+    const auto maxSlotsSum = VPUIP::getBarrierMaxVariantSum(nceOp);
+    const auto availableSlot = std::min(maxAvailableSlots, maxSlotsSum) / 2;
+
+    auto sparsityConstraint = VPU::getSparsityConstraint(getArch(nceOp));
+
+    size_t wlMaxNumPerCluster = 0;
+    for (auto& perClusterShape : getPerClusterShapes()) {
+        const auto perClusterChannel = perClusterShape[vpux::Dims4D::Act::C];
+        if (nceOp->getResult(0).getType().isa<VPU::SparseTensorType>()) {
+            // NCE operations with sparse outputs must have all variants with the same number of channels
+            const auto isChannelValid = llvm::any_of(supportedChannels, [&](int64_t channels) -> bool {
+                if (perClusterChannel % channels != 0) {
+                    return false;
+                }
+                if (!sparsityConstraint.areChannelsFitForSESize(channels)) {
+                    return false;
+                }
+                size_t wlNum = perClusterChannel / channels;
+                if (wlMaxNumPerCluster < wlNum) {
+                    wlMaxNumPerCluster = wlNum;
+                }
+                return true;
+            });
+            if (!isChannelValid) {
+                return false;
+            }
+        } else {
+            auto wlChannels = splitWorkloadChannel(perClusterChannel, supportedChannels);
+            // There may be some invalid tileChannel passed into. For example, channel is 16 but supportedChannels is
+            // [32]. We can't split it over C in that case.
+            if (wlChannels.size() == 0) {
+                log.warning("splitWorkloadChannel failed: perClusterChannel - {0}, supportedChannels - {1}",
+                            perClusterChannel, supportedChannels);
+                return false;
+            }
+            if (wlMaxNumPerCluster < wlChannels.size()) {
+                wlMaxNumPerCluster = wlChannels.size();
+            }
+        }
+    }
+
+    return wlMaxNumPerCluster <= availableSlot;
+}
+
+/*
+ * Get supported one-dimension isolated tiling strategies on all dimensions
+ * For each dimension, increase the tiling number until each tile fits into CMX
+ * or the tiling number reaches the maximum limitation
+ */
+SmallVector<OutputTiling> getOneDimIsolatedTilingStrategies(mlir::Operation* op,
+                                                            const std::pair<Dim, int64_t>& alignInfo, Logger log) {
+    SmallVector<OutputTiling> supportedTilingStrategies;
+    const auto outputShape = getShape(op->getResult(0));
+    const auto dimToAlign = alignInfo.first;
+    const auto dimAlignment = alignInfo.second;
+    auto tilingBuilder = mlir::dyn_cast<VPU::TilingBuilderOpInterface>(op);
+    if (tilingBuilder == nullptr) {
+        // return empty result if the op is not a tilingBuilder
+        return supportedTilingStrategies;
+    }
+    const auto& maxNumTiles = tilingBuilder.getMaxNumTiles();
+    for (const auto tileIndex : irange(outputShape.size())) {
+        Shape nTilesOnDim(outputShape.size(), 1);
+        auto dimToTile = Dim(tileIndex);
+        // iterate to search the supported tiling strategy
+        auto findSupportedTileSize = isSupportedTileSize(op, nTilesOnDim, TilingMode::ISOLATED, log);
+        while (!findSupportedTileSize) {
+            if (!isDimLeftToTile(nTilesOnDim, maxNumTiles, dimToTile)) {
+                break;
+            }
+            auto nextTileSearchResult =
+                    getNextTiling(dimToTile, dimToAlign, dimAlignment, nTilesOnDim, maxNumTiles, outputShape);
+            if (mlir::failed(nextTileSearchResult)) {
+                break;
+            }
+            nTilesOnDim = nextTileSearchResult.value();
+            findSupportedTileSize = isSupportedTileSize(op, nTilesOnDim, TilingMode::ISOLATED, log);
+        }
+        if (findSupportedTileSize && nTilesOnDim[dimToTile] > 1) {
+            // find an available isolated tiling strategy
+            supportedTilingStrategies.push_back(fillDividedTiles(op, nTilesOnDim, outputShape).value());
+            log.trace("Got one-dimension isolated tiling strategy {0} for op {1}", nTilesOnDim, op->getLoc());
+        }
+    }
+    return supportedTilingStrategies;
+}
+
+/*
+ * Get supported one-dimension tiling strategies on all dimensions
+ * Prefetching and pipelining tiling strategies are generated from isolated tiling strategy
+ * i.e., increase the tiling dimension of isolated tiling until prefetching/pipelining requirement is satisfied
+ */
+SmallVector<OutputTiling> getOneDimTilingStrategies(mlir::Operation* op, TilingMode tilingMode, Logger log) {
+    const auto alignRequirement = getAlignDimAndSize(op);
+    auto supportedTilingStrategies = getOneDimIsolatedTilingStrategies(op, alignRequirement, log.nest());
+    if (supportedTilingStrategies.empty() || tilingMode == TilingMode::ISOLATED) {
+        return supportedTilingStrategies;
+    }
+    const auto dimToAlign = alignRequirement.first;
+    const auto dimAlignment = alignRequirement.second;
+    auto tilingBuilder = mlir::dyn_cast<VPU::TilingBuilderOpInterface>(op);
+    VPUX_THROW_WHEN(tilingBuilder == nullptr, "Operation {0} doesn't support tiling", op->getName());
+    const auto& maxNumTiles = tilingBuilder.getMaxNumTiles();
+    const auto outputShape = getShape(op->getResult(0));
+    // Increase the tiled dimension to get PREFETCHING/PIPELINING tiling strategies
+    const auto oneDimIsolatedTilingSize = supportedTilingStrategies.size();
+    for (auto isolatedTilingIndex : irange(oneDimIsolatedTilingSize)) {
+        auto isolatedTiling = supportedTilingStrategies[isolatedTilingIndex];
+        auto prefetchableTilesOnDim = isolatedTiling[0].axis;
+        const auto nonOneDims = getNonOneDim(prefetchableTilesOnDim);
+        VPUX_THROW_UNLESS(nonOneDims.size() == 1,
+                          "Isolated tiling strategy is not one-dimension but {0}, not supported.", nonOneDims.size());
+        auto targetDim = *nonOneDims.begin();
+        auto findSupportedTileSize = isSupportedTileSize(op, prefetchableTilesOnDim, tilingMode, log);
+        while (!findSupportedTileSize) {
+            if (!isDimLeftToTile(prefetchableTilesOnDim, maxNumTiles, targetDim)) {
+                break;
+            }
+            auto nextTileSearchResult = getNextTiling(targetDim, dimToAlign, dimAlignment, prefetchableTilesOnDim,
+                                                      maxNumTiles, outputShape);
+            if (mlir::failed(nextTileSearchResult)) {
+                break;
+            }
+            prefetchableTilesOnDim = nextTileSearchResult.value();
+            findSupportedTileSize = isSupportedTileSize(op, prefetchableTilesOnDim, tilingMode, log);
+        }
+        if (findSupportedTileSize) {
+            // find an available isolated tiling strategy
+            supportedTilingStrategies.push_back(fillDividedTiles(op, prefetchableTilesOnDim, outputShape).value());
+            log.trace("Got one-dimension prefetching tiling strategy {0} for op {1}", prefetchableTilesOnDim,
+                      op->getLoc());
+        }
+    }
+    return supportedTilingStrategies;
+}
+
+mlir::FailureOr<OutputTiling> getHWLayerTilingStrategyBasedOnCost(mlir::Operation* op, TilingMode tilingMode,
+                                                                  DimArrRef tileDimOrder,
+                                                                  const std::shared_ptr<LayerCostModel>& costModel,
+                                                                  Logger log) {
+    auto nceOp = mlir::dyn_cast<VPU::NCEOpInterface>(op);
+    if (nceOp == nullptr || costModel == nullptr) {
+        return getHWLayerTilingStrategyWithTileDimOrder(op, tilingMode, tileDimOrder, log);
+    }
+    auto tilingInfo = mlir::dyn_cast<VPU::TilingInfoOpInterface>(op);
+    VPUX_THROW_WHEN(tilingInfo == nullptr, "Operation '{0}' doesn't implement TilingInfoOpInterface", op->getName());
+    auto tilingBuilder = mlir::dyn_cast<VPU::TilingBuilderOpInterface>(op);
+    VPUX_THROW_WHEN(tilingBuilder == nullptr, "Operation '{0}' doesn't implement TilingBuilderOpInterface",
+                    op->getName());
+
+    const auto outputShape = getShape(op->getResult(0));
+
+    VPUX_THROW_UNLESS(outputShape.size() == 4, "Unsupported operation '{0}' at '{1}', it has non 4D result",
+                      op->getName(), op->getLoc());
+    auto oneDimStratgies = getOneDimTilingStrategies(op, tilingMode, log.nest());
+    if (oneDimStratgies.empty()) {
+        return getHWLayerTilingStrategyWithTileDimOrder(op, tilingMode, tileDimOrder, log);
+    }
+
+    // If the op does not have MC strategy, use Clustering by default
+    auto mcStrategy = VPU::MultiClusterStrategy::Clustering;
+    auto clusteredNCEOp = mlir::dyn_cast<VPU::ClusteredOpInterface>(op);
+    if (clusteredNCEOp != nullptr) {
+        auto strategy = clusteredNCEOp.getMultiClusterStrategy();
+        if (strategy.has_value()) {
+            mcStrategy = strategy.value();
+        }
+    }
+
+    // compare the costs and get the best one-dimension tiling strategy
+    auto bestTilingStrategy = SmallVector({TileInfo(1)});
+    auto bestCost = INVALID_COST_BASE;
+
+    for (const auto& curTiling : oneDimStratgies) {
+        auto curCost = costModel->getDPUandDMATimeCostWithCustomTiling(nceOp, mcStrategy, curTiling);
+        if (curCost >= INVALID_COST_BASE) {
+            log.warning("Invalid cost for tiling strategy {0}", bestTilingStrategy);
+            return getHWLayerTilingStrategyWithTileDimOrder(op, tilingMode, tileDimOrder, log);
+        } else {
+            log.nest().trace("tiling strategy {0} cost is {1}", curTiling, curCost);
+            if (curCost < bestCost) {
+                bestTilingStrategy = curTiling;
+                bestCost = curCost;
+            }
+        }
+    }
+    log.trace("Got best one-dimension tiling strategy {0} for op {1} at {2}", bestTilingStrategy, op->getName(),
+              op->getLoc());
+    return bestTilingStrategy;
 }
 
 }  // namespace VPU

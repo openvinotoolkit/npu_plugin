@@ -5,13 +5,7 @@
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
-#include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
-
-#include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 #include "vpux/compiler/dialect/IE/utils/transpose_op_utils.hpp"
-
-#include <vpux/compiler/conversion.hpp>
 
 using namespace vpux;
 
@@ -62,12 +56,14 @@ The benifits are:
 */
 mlir::LogicalResult SwapMVNWithTranspose::OpSwapConverter::matchAndRewrite(IE::MVNOp origOp,
                                                                            mlir::PatternRewriter& rewriter) const {
-    const auto mvnIn = origOp.input();
+    const auto mvnIn = origOp.getInput();
     auto origTransposeOp = mvnIn.getDefiningOp<IE::TransposeOp>();
-    auto mvnOp = rewriter.create<IE::MVNOp>(origOp->getLoc(), origTransposeOp.input(), origOp.across_channelsAttr(),
-                                            origOp.normalize_varianceAttr(), origOp.epsAttr());
+    auto mvnOp =
+            rewriter.create<IE::MVNOp>(origOp->getLoc(), origTransposeOp.getInput(), origOp.getAcrossChannelsAttr(),
+                                       origOp.getNormalizeVarianceAttr(), origOp.getEpsAttr());
 
-    rewriter.replaceOpWithNewOp<IE::TransposeOp>(origOp, mvnOp.output(), nullptr, origTransposeOp.order_valueAttr());
+    rewriter.replaceOpWithNewOp<IE::TransposeOp>(origOp, mvnOp.getOutput(), nullptr,
+                                                 origTransposeOp.getOrderValueAttr());
     rewriter.eraseOp(origTransposeOp);
 
     return mlir::success();
@@ -83,19 +79,19 @@ void SwapMVNWithTranspose::safeRunOnFunc() {
             return true;
         }
 
-        if (op.across_channels()) {
+        if (op.getAcrossChannels()) {
             return true;
         }
 
-        auto prevTranspoe = op.input().getDefiningOp<IE::TransposeOp>();
-        auto nextTranspoe = mlir::dyn_cast<IE::TransposeOp>(*op.output().getUsers().begin());
-        if (!prevTranspoe || !nextTranspoe || !prevTranspoe.output().hasOneUse() ||
-            !nextTranspoe.output().hasOneUse()) {
+        auto prevTranspoe = op.getInput().getDefiningOp<IE::TransposeOp>();
+        auto nextTranspoe = mlir::dyn_cast<IE::TransposeOp>(*op.getOutput().getUsers().begin());
+        if (!prevTranspoe || !nextTranspoe || !prevTranspoe.getOutput().hasOneUse() ||
+            !nextTranspoe.getOutput().hasOneUse()) {
             return true;
         }
 
         if (vpux::IE::isWHSwappingTranspose(prevTranspoe) && vpux::IE::isWHSwappingTranspose(nextTranspoe)) {
-            return prevTranspoe.input().isa<mlir::BlockArgument>();
+            return prevTranspoe.getInput().isa<mlir::BlockArgument>();
         }
 
         return true;

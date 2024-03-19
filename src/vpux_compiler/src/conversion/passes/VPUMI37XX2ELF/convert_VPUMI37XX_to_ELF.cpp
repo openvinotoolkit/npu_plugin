@@ -5,21 +5,22 @@
 
 #include "vpux/compiler/act_kernels/nce2p7.h"
 #include "vpux/compiler/conversion.hpp"
-#include "vpux/compiler/dialect/ELF/ops.hpp"
-#include "vpux/compiler/dialect/ELF/utils.hpp"
+#include "vpux/compiler/dialect/ELFNPU37XX/ops.hpp"
+#include "vpux/compiler/dialect/ELFNPU37XX/utils.hpp"
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUMI37XX/ops.hpp"
+#include "vpux/compiler/dialect/VPUMI37XX/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 
-#include <vpu_nnrt_api_37xx.h>
+#include <npu_37xx_nnrt.hpp>
 
 #include <kernels/inc/common_types.h>
 
 #include <vpux_elf/types/vpu_extensions.hpp>
 
-#include <mlir/IR/BlockAndValueMapping.h>
+#include <mlir/IR/IRMapping.h>
 #include <mlir/Transforms/DialectConversion.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
@@ -30,6 +31,7 @@
 #include <limits>
 
 using namespace vpux;
+using namespace npu37xx;
 
 constexpr auto NNCMX_SLICE_SIZE = mvds::nce2p7::CMX_SLICE_SIZE;
 constexpr auto ACT_SHAVE_STACK_SIZE = (8_KB).to<vpux::Byte>().count();
@@ -49,79 +51,88 @@ public:
 
 private:
     template <typename DerivedOpType, typename CreateSectionOpType>
-    mlir::Value createSection(mlir::func::FuncOp func, mlir::MLIRContext* ctx, std::string secNameStr,
-                              vpux::ELF::SectionTypeAttr secType, vpux::ELF::SectionFlagsAttr secFlags,
-                              elf::Elf_Word secAlign = elf::VPU_SH_ADDR_ALIGN_FOR_VPU);
-    mlir::SmallVector<mlir::Value> createDMASections(mlir::func::FuncOp& func, mlir::MLIRContext* ctx,
-                                                     mlir::SmallVector<int64_t>& dmaCount,
-                                                     mlir::Operation::operand_range dmaTasks);
+    CreateSectionOpType createSection(mlir::func::FuncOp func, mlir::MLIRContext* ctx, std::string secNameStr,
+                                      vpux::ELFNPU37XX::SectionTypeAttr secType,
+                                      vpux::ELFNPU37XX::SectionFlagsAttr secFlags,
+                                      elf::Elf_Word secAlign = elf::VPU_SH_ADDR_ALIGN_FOR_VPU);
+    mlir::SmallVector<ELFNPU37XX::CreateSectionOp> createDMASections(mlir::func::FuncOp& func, mlir::MLIRContext* ctx,
+                                                                     mlir::SmallVector<int64_t>& dmaCount,
+                                                                     mlir::Operation::operand_range dmaTasks);
 
     mlir::Value createCMXMappingSymtab(mlir::func::FuncOp func, mlir::MLIRContext* ctx);
-    mlir::Value lookupELFSymbol(mlir::Value& symtabValue, mlir::Value& sym_input_value);
+    mlir::Value lookupELFSymbol(mlir::Value symtabValue, mlir::Value sym_input_value);
     mlir::Value createBuffersSecAndSymtab(mlir::func::FuncOp func, mlir::MLIRContext* ctx);
     void createNetworkIOSymtab(mlir::func::FuncOp func, mlir::MLIRContext* ctx, vpux::IE::CNNNetworkOp cnnOp);
     void createDMARelocs(mlir::func::FuncOp& func, mlir::MLIRContext* ctx, mlir::SmallVector<int64_t>& dmaCount,
-                         mlir::Operation::operand_range dmaTasks, mlir::SmallVector<mlir::Value>& dmaSectionValues);
-    void createKernelParamsRelocs(mlir::func::FuncOp func);
-    void createActKernelRelocs(mlir::func::FuncOp func);
+                         mlir::Operation::operand_range dmaTasks,
+                         mlir::SmallVector<ELFNPU37XX::CreateSectionOp>& dmaSectionValues);
+    void createKernelParamsRelocs(mlir::func::FuncOp func, mlir::MLIRContext* ctx,
+                                  ELFNPU37XX::CreateSectionOp kernelParamsSection, bool& shaveScratchAccess,
+                                  bool& shaveConstAccess);
+    void createActKernelRelocs(mlir::func::FuncOp func, ELFNPU37XX::CreateSectionOp actKernelRangeSection,
+                               ELFNPU37XX::CreateSectionOp kernelTextSection,
+                               ELFNPU37XX::CreateSectionOp actKernelInvocationSection,
+                               ELFNPU37XX::CreateSectionOp kernelDataSection,
+                               ELFNPU37XX::CreateSectionOp kernelParamSection);
     void setupActKernelRtConfigs(mlir::func::FuncOp func, mlir::ModuleOp moduleOp, mlir::MLIRContext* ctx);
     void createDPURelocs(mlir::func::FuncOp func);
+    template <class T>
+    void createBlockArgReloc(T op, mlir::OpBuilder inBuilder, mlir::OpBuilder outBuilder, size_t offset,
+                             vpux::ELFNPU37XX::RelocationType relocationType, mlir::BlockArgument blockArg);
 
     void safeRunOnModule() final;
 
-    static mlir::Value getNextDMATask(mlir::Value& currentTask) {
-        for (auto taskUser : currentTask.getUsers()) {
-            if (auto nextDMAOp = mlir::dyn_cast_or_null<VPUMI37XX::NNDMAOp>(taskUser)) {
-                auto currentDMAOp = mlir::cast<VPUMI37XX::NNDMAOp>(currentTask.getDefiningOp());
-                VPUX_THROW_UNLESS(nextDMAOp.getPort() == currentDMAOp.getPort(),
-                                  "Port mismatch betwen tasks from same DMA list");
-                VPUX_THROW_UNLESS(nextDMAOp.getPreviousDMAIdx() == currentTask, "DMA list fatal link error");
-                return nextDMAOp.getResult();
-            }
-        }
-        return mlir::Value();
-    }
-
 private:
-    vpux::ELF::RelocationManager relocationManager;
+    vpux::ELFNPU37XX::RelocationManager relocationManager;
+
+    ELFNPU37XX::CreateLogicalSectionOp scratchBufferSectionOp;
+    ELFNPU37XX::CreateSectionOp constSectionOp;
 
     mlir::Value networkInputSymTabValue, networkOutputSymTabValue, profOutputSymTabValue;
 
-    mlir::Value tasksSymTabValue, bufferSymTabValue, CMXMappingSymtabValue;
+    mlir::Value bufferSymTabValue, CMXMappingSymtabValue;
 
-    mlir::Value mappedInferenceSectionOpValue;
+    ELFNPU37XX::CreateSectionOp mappedInferenceSectionOp;
 
     std::map<std::string, mlir::Value> symbolMap;
 
-    // map that correlates between Const::DeclareOp values and their ELF::SymbolOp value
+    // map that correlates between Const::DeclareOp values and their ELFNPU37XX::SymbolOp value
     llvm::MapVector<mlir::Value, mlir::Value> constSymMap;
 
     // map that correlates between Const::DeclareOp values and their offset in the .data.const section
     llvm::MapVector<mlir::Value, size_t> constOffsetMap;
 
-    std::vector<ELF::SymbolOp> elfCMXMappingSyms;
+    std::vector<ELFNPU37XX::SymbolOp> elfCMXMappingSyms;
+
+    using SymbolCache = mlir::DenseMap<mlir::Value, mlir::DenseMap<mlir::Value, mlir::Value>>;
+    SymbolCache symbolCache;
+    ELFNPU37XX::OffsetCache offsetCache;
+    ELFNPU37XX::CreateSymbolTableSectionOp tasksSymbolTable;
+    ELFNPU37XX::CreateSymbolTableSectionOp ddrSymbolTable;
 };
 
-// createSection() creates an ELF::CreateSectionOp and puts into its body
+// createSection() creates an ELFNPU37XX::CreateSectionOp and puts into its body
 //   an ELF.PutOpInSectionOp instruction for each object of type DerivedOpType
 //   from func (a FuncOp).
 template <typename DerivedOpType, typename CreateSectionOpType>
-mlir::Value ConvertVPUMI37XX2ELFPass::createSection(mlir::func::FuncOp func, mlir::MLIRContext* ctx,
-                                                    std::string secNameStr, vpux::ELF::SectionTypeAttr secType,
-                                                    vpux::ELF::SectionFlagsAttr secFlags, elf::Elf_Word secAlign) {
+CreateSectionOpType ConvertVPUMI37XX2ELFPass::createSection(mlir::func::FuncOp func, mlir::MLIRContext* ctx,
+                                                            std::string secNameStr,
+                                                            vpux::ELFNPU37XX::SectionTypeAttr secType,
+                                                            vpux::ELFNPU37XX::SectionFlagsAttr secFlags,
+                                                            elf::Elf_Word secAlign) {
     auto builderFunc = mlir::OpBuilder::atBlockTerminator(&func.getBody().front());
 
-    vpux::ELF::SectionType sectionType = vpux::ELF::SectionType::get(ctx);
+    vpux::ELFNPU37XX::SectionType sectionType = vpux::ELFNPU37XX::SectionType::get(ctx);
 
     size_t opAlignmentRequirements = DerivedOpType::getAlignmentRequirements();
-    size_t secAlignReq = vpux::ELF::math::lcm(secAlign, opAlignmentRequirements);
+    size_t secAlignReq = vpux::ELFNPU37XX::math::lcm(secAlign, opAlignmentRequirements);
 
-    CreateSectionOpType elfCreateSectionOp =
+    auto elfCreateSectionOp =
             builderFunc.create<CreateSectionOpType>(mlir::UnknownLoc::get(ctx),
-                                                    sectionType,               // mlir::Type
-                                                    secNameStr,                // llvm::StringRef secName,
-                                                    secType,                   // vpux::ELF::SectionTypeAttr secType,
-                                                    secFlags,                  // vpux::ELF::SectionFlagsAttr secFlags,
+                                                    sectionType,  // mlir::Type
+                                                    secNameStr,   // llvm::StringRef secName,
+                                                    secType,      // vpux::ELFNPU37XX::SectionTypeAttr secType,
+                                                    secFlags,     // vpux::ELFNPU37XX::SectionFlagsAttr secFlags,
                                                     elf::VPU_SH_INFO_FOR_VPU,  // int64_t secInfo,
                                                     secAlignReq                // int64_t secAddrAlign
             );
@@ -132,7 +143,7 @@ mlir::Value ConvertVPUMI37XX2ELFPass::createSection(mlir::func::FuncOp func, mli
 
     auto ops = func.getOps<DerivedOpType>();
     if (ops.empty()) {
-        return elfCreateSectionOp.getResult();
+        return elfCreateSectionOp;
     }
 
     for (DerivedOpType op : ops) {
@@ -142,55 +153,54 @@ mlir::Value ConvertVPUMI37XX2ELFPass::createSection(mlir::func::FuncOp func, mli
             }
         }
 
-        auto binaryOp = mlir::cast<vpux::ELF::BinaryOpInterface>(op.getOperation());
+        auto binaryOp = mlir::cast<vpux::ELFNPU37XX::BinaryOpInterface>(op.getOperation());
         size_t paddingRequired = offsetTracker % binaryOp.getAlignmentRequirements();
         if (paddingRequired) {
             auto off = secAlignReq - paddingRequired;
-            builder.template create<ELF::PadOp>(builder.getUnknownLoc(), off, nullptr);
+            builder.template create<ELFNPU37XX::PadOp>(builder.getUnknownLoc(), off, nullptr);
             offsetTracker += off;
         }
 
-        builder.template create<ELF::PutOpInSectionOp>(builder.getUnknownLoc(), op.getResult());
+        builder.template create<ELFNPU37XX::PutOpInSectionOp>(builder.getUnknownLoc(), op.getResult());
         offsetTracker += binaryOp.getBinarySize();
     }
 
-    return elfCreateSectionOp.getResult();
+    return elfCreateSectionOp;
 }
 
-mlir::SmallVector<mlir::Value> ConvertVPUMI37XX2ELFPass::createDMASections(mlir::func::FuncOp& func,
-                                                                           mlir::MLIRContext* ctx,
-                                                                           mlir::SmallVector<int64_t>& dmaCount,
-                                                                           mlir::Operation::operand_range dmaTasks) {
-    mlir::SmallVector<mlir::Value> returnValues;
+mlir::SmallVector<ELFNPU37XX::CreateSectionOp> ConvertVPUMI37XX2ELFPass::createDMASections(
+        mlir::func::FuncOp& func, mlir::MLIRContext* ctx, mlir::SmallVector<int64_t>& dmaCount,
+        mlir::Operation::operand_range dmaTasks) {
+    mlir::SmallVector<ELFNPU37XX::CreateSectionOp> returnValues;
 
     if (dmaTasks.empty()) {
         return returnValues;
     }
 
     std::string secNameBaseStr = ".text.dmaTasks";
-    vpux::ELF::SectionTypeAttr secType = vpux::ELF::SectionTypeAttr::SHT_PROGBITS;
-    vpux::ELF::SectionFlagsAttr secFlags = vpux::ELF::SectionFlagsAttr::SHF_ALLOC;
+    vpux::ELFNPU37XX::SectionTypeAttr secType = vpux::ELFNPU37XX::SectionTypeAttr::SHT_PROGBITS;
+    vpux::ELFNPU37XX::SectionFlagsAttr secFlags = vpux::ELFNPU37XX::SectionFlagsAttr::SHF_ALLOC;
 
-    vpux::ELF::SectionType sectionType = vpux::ELF::SectionType::get(ctx);
+    vpux::ELFNPU37XX::SectionType sectionType = vpux::ELFNPU37XX::SectionType::get(ctx);
     size_t opAlignmentRequirements = VPUMI37XX::NNDMAOp::getAlignmentRequirements();
-    size_t secAlignReq = vpux::ELF::math::lcm(elf::VPU_SH_ADDR_ALIGN_FOR_VPU, opAlignmentRequirements);
+    size_t secAlignReq = vpux::ELFNPU37XX::math::lcm(elf::VPU_SH_ADDR_ALIGN_FOR_VPU, opAlignmentRequirements);
 
     // Firstly, create sections for all DMA ports to keep reloc logic simple
     // Empty sections will be removed by cleanup pass
     for (size_t listIdx = 0; listIdx < dmaCount.size(); ++listIdx) {
         auto builderFunc = mlir::OpBuilder::atBlockTerminator(&func.getBody().front());
-        ELF::CreateSectionOp elfCreateSectionOp = builderFunc.create<ELF::CreateSectionOp>(
+        auto elfCreateSectionOp = builderFunc.create<ELFNPU37XX::CreateSectionOp>(
                 mlir::UnknownLoc::get(ctx),
                 sectionType,                               // mlir::Type
                 secNameBaseStr + std::to_string(listIdx),  // llvm::StringRef secName,
-                secType,                                   // vpux::ELF::SectionTypeAttr secType,
-                secFlags,                                  // vpux::ELF::SectionFlagsAttr secFlags,
+                secType,                                   // vpux::ELFNPU37XX::SectionTypeAttr secType,
+                secFlags,                                  // vpux::ELFNPU37XX::SectionFlagsAttr secFlags,
                 elf::VPU_SH_INFO_FOR_VPU,                  // int64_t secInfo,
                 secAlignReq                                // int64_t secAddrAlign
         );
 
         mlir::OpBuilder::atBlockEnd(elfCreateSectionOp.getBlock());
-        returnValues.push_back(elfCreateSectionOp.getResult());
+        returnValues.push_back(elfCreateSectionOp);
     }
 
     // Secondly, populate sections with the corresponding DMA tasks
@@ -198,127 +208,128 @@ mlir::SmallVector<mlir::Value> ConvertVPUMI37XX2ELFPass::createDMASections(mlir:
         size_t offsetTracker = secAlignReq;
         auto listIdx = mlir::cast<VPUMI37XX::NNDMAOp>(listHead.getDefiningOp()).getPort();
         auto listElemCount = dmaCount[listIdx];
-        auto builder = mlir::OpBuilder::atBlockEnd(
-                mlir::cast<ELF::CreateSectionOp>(returnValues[listIdx].getDefiningOp()).getBlock());
+        auto builder = mlir::OpBuilder::atBlockEnd(returnValues[listIdx].getBlock());
 
         for (auto dmaTaskIdx = 0; dmaTaskIdx < listElemCount; ++dmaTaskIdx) {
             auto nndmaOp = mlir::cast<VPUMI37XX::NNDMAOp>(listHead.getDefiningOp());
-            auto binaryOp = mlir::cast<vpux::ELF::BinaryOpInterface>(nndmaOp.getOperation());
+            auto binaryOp = mlir::cast<vpux::ELFNPU37XX::BinaryOpInterface>(nndmaOp.getOperation());
             size_t paddingRequired = offsetTracker % binaryOp.getAlignmentRequirements();
             if (paddingRequired) {
                 auto off = secAlignReq - paddingRequired;
-                builder.template create<ELF::PadOp>(builder.getUnknownLoc(), off, nullptr);
+                builder.template create<ELFNPU37XX::PadOp>(builder.getUnknownLoc(), off, nullptr);
                 offsetTracker += off;
             }
 
-            builder.template create<ELF::PutOpInSectionOp>(builder.getUnknownLoc(), nndmaOp.getResult());
+            builder.template create<ELFNPU37XX::PutOpInSectionOp>(builder.getUnknownLoc(), nndmaOp.getResult());
             offsetTracker += binaryOp.getBinarySize();
 
-            listHead = getNextDMATask(listHead);
+            listHead = mlir::cast<VPUMI37XX::NNDMAOp>(listHead.getDefiningOp()).getNextDMAIdx();
         }
     }
 
     return returnValues;
-}
+}  // namespace
 
 template <>
-mlir::Value ConvertVPUMI37XX2ELFPass::createSection<Const::DeclareOp, ELF::CreateSectionOp>(
-        mlir::func::FuncOp func, mlir::MLIRContext* ctx, std::string secNameStr, vpux::ELF::SectionTypeAttr secType,
-        vpux::ELF::SectionFlagsAttr secFlags, elf::Elf_Word secAlign) {
+ELFNPU37XX::CreateSectionOp ConvertVPUMI37XX2ELFPass::createSection<Const::DeclareOp, ELFNPU37XX::CreateSectionOp>(
+        mlir::func::FuncOp func, mlir::MLIRContext* ctx, std::string secNameStr,
+        vpux::ELFNPU37XX::SectionTypeAttr secType, vpux::ELFNPU37XX::SectionFlagsAttr secFlags,
+        elf::Elf_Word secAlign) {
     auto builderFunc = mlir::OpBuilder::atBlockTerminator(&func.getBody().front());
 
-    vpux::ELF::SectionType sectionType = vpux::ELF::SectionType::get(ctx);
+    vpux::ELFNPU37XX::SectionType sectionType = vpux::ELFNPU37XX::SectionType::get(ctx);
 
     auto elfCreateSectionOp =
-            builderFunc.create<ELF::CreateSectionOp>(mlir::UnknownLoc::get(ctx),
-                                                     sectionType,               // mlir::Type
-                                                     secNameStr,                // llvm::StringRef secName,
-                                                     secType,                   // vpux::ELF::SectionTypeAttr secType,
-                                                     secFlags,                  // vpux::ELF::SectionFlagsAttr secFlags,
-                                                     elf::VPU_SH_INFO_FOR_VPU,  // int64_t secInfo,
-                                                     secAlign                   // int64_t secAddrAlign
+            builderFunc.create<ELFNPU37XX::CreateSectionOp>(mlir::UnknownLoc::get(ctx),
+                                                            sectionType,  // mlir::Type
+                                                            secNameStr,   // llvm::StringRef secName,
+                                                            secType,      // vpux::ELFNPU37XX::SectionTypeAttr secType,
+                                                            secFlags,  // vpux::ELFNPU37XX::SectionFlagsAttr secFlags,
+                                                            elf::VPU_SH_INFO_FOR_VPU,  // int64_t secInfo,
+                                                            secAlign                   // int64_t secAddrAlign
             );
 
-    vpux::ELF::SymbolTypeEnumAttr typeSym;
+    vpux::ELFNPU37XX::SymbolTypeEnumAttr typeSym;
     mlir::IntegerAttr sizeSym;
     mlir::IntegerAttr valueSym;
     mlir::UnitAttr isBuiltin = nullptr;
 
-    mlir::Value constSecValue = elfCreateSectionOp.getResult();
+    auto constSecValue = elfCreateSectionOp.getResult();
 
-    builderFunc.create<ELF::SymbolOp>(builderFunc.getUnknownLoc(),
-                                      vpux::ELF::SymbolType::get(ctx),                 // mlir::Type
-                                      constSecValue,                                   // mlir::Value inputArg
-                                      isBuiltin,                                       // mlir::UnitAttr
-                                      mlir::StringAttr::get(ctx, "sym_constSection"),  // mlir::StringAttr
-                                      typeSym,                                         // vpux::ELF::SymbolTypeEnumAttr
-                                      sizeSym,                                         // size
-                                      valueSym                                         // value
-    );
+    symbolMap["sym_constSection"] =
+            builderFunc
+                    .create<ELFNPU37XX::SymbolOp>(builderFunc.getUnknownLoc(),
+                                                  vpux::ELFNPU37XX::SymbolType::get(ctx),  // mlir::Type
+                                                  constSecValue,                           // mlir::Value inputArg
+                                                  isBuiltin,                               // mlir::UnitAttr
+                                                  mlir::StringAttr::get(ctx, "sym_constSection"),  // mlir::StringAttr
+                                                  typeSym,  // vpux::ELFNPU37XX::SymbolTypeEnumAttr
+                                                  sizeSym,  // size
+                                                  valueSym  // value
+                                                  )
+                    .getResult();
 
     auto builder = mlir::OpBuilder::atBlockEnd(elfCreateSectionOp.getBlock());
 
     for (Const::DeclareOp op : func.getOps<Const::DeclareOp>()) {
-        builder.create<ELF::PutOpInSectionOp>(builder.getUnknownLoc(),  // endOp->getLoc(),
-                                              op.getResult()            // mlir::Value inputArg
+        builder.create<ELFNPU37XX::PutOpInSectionOp>(builder.getUnknownLoc(),  // endOp->getLoc(),
+                                                     op.getResult()            // mlir::Value inputArg
         );
     }
 
-    return elfCreateSectionOp.getResult();
+    return elfCreateSectionOp;
 }
 
 mlir::Value ConvertVPUMI37XX2ELFPass::createBuffersSecAndSymtab(mlir::func::FuncOp func, mlir::MLIRContext* ctx) {
-    mlir::Value bufferSectionOpValue = createSection<vpux::VPURT::DeclareBufferOp, ELF::CreateLogicalSectionOp>(
-            func, ctx, ".data.BuffersIO", vpux::ELF::SectionTypeAttr::SHT_NOBITS,
-            vpux::ELF::SectionFlagsAttr::SHF_ALLOC);
+    scratchBufferSectionOp = createSection<vpux::VPURT::DeclareBufferOp, ELFNPU37XX::CreateLogicalSectionOp>(
+            func, ctx, ".data.BuffersIO", vpux::ELFNPU37XX::SectionTypeAttr::SHT_NOBITS,
+            vpux::ELFNPU37XX::SectionFlagsAttr::SHF_WRITE | vpux::ELFNPU37XX::SectionFlagsAttr::SHF_ALLOC);
 
-    auto constSecValue = createSection<vpux::Const::DeclareOp, ELF::CreateSectionOp>(
-            func, ctx, ".data.ConstIO", vpux::ELF::SectionTypeAttr::SHT_PROGBITS,
-            vpux::ELF::SectionFlagsAttr::SHF_ALLOC);
+    constSectionOp = createSection<vpux::Const::DeclareOp, ELFNPU37XX::CreateSectionOp>(
+            func, ctx, ".data.ConstIO", vpux::ELFNPU37XX::SectionTypeAttr::SHT_PROGBITS,
+            vpux::ELFNPU37XX::SectionFlagsAttr::SHF_ALLOC);
 
     auto builderFunc = mlir::OpBuilder::atBlockTerminator(&func.getBody().front());
 
-    vpux::ELF::SymbolTypeEnumAttr typeSym;
+    vpux::ELFNPU37XX::SymbolTypeEnumAttr typeSym;
     mlir::IntegerAttr sizeSym;
     mlir::IntegerAttr valueSym;
     mlir::UnitAttr isBuiltin = nullptr;
 
-    auto bufferSectionSym =
-            builderFunc.create<ELF::SymbolOp>(mlir::UnknownLoc::get(ctx),
-                                              vpux::ELF::SymbolType::get(ctx),                  // mlir::Type
-                                              bufferSectionOpValue,                             // mlir::Value inputArg
-                                              isBuiltin,                                        // mlir::UnitAttr
-                                              mlir::StringAttr::get(ctx, "sym_bufferSection"),  // mlir::StringAttr
-                                              typeSym,  // vpux::ELF::SymbolTypeEnumAttr
-                                              sizeSym,  // size
-                                              valueSym  // value
-            );
+    auto bufferSectionSym = builderFunc.create<ELFNPU37XX::SymbolOp>(
+            mlir::UnknownLoc::get(ctx),
+            vpux::ELFNPU37XX::SymbolType::get(ctx),           // mlir::Type
+            scratchBufferSectionOp.getResult(),               // mlir::Value inputArg
+            isBuiltin,                                        // mlir::UnitAttr
+            mlir::StringAttr::get(ctx, "sym_bufferSection"),  // mlir::StringAttr
+            typeSym,                                          // vpux::ELFNPU37XX::SymbolTypeEnumAttr
+            sizeSym,                                          // size
+            valueSym                                          // value
+    );
 
     symbolMap["sym_bufferSection"] = bufferSectionSym.getResult();
 
-    auto bufferSymTabOp =
-            builderFunc.create<ELF::CreateSymbolTableSectionOp>(mlir::UnknownLoc::get(ctx),
-                                                                vpux::ELF::SectionType::get(ctx),  // mlir::Type
-                                                                ".symtab.buffers",  // llvm::StringRef secName,
-                                                                vpux::ELF::SectionFlagsAttr::SHF_NONE,
-                                                                isBuiltin  // mlir::UnitAttr
-            );
+    ddrSymbolTable = builderFunc.create<ELFNPU37XX::CreateSymbolTableSectionOp>(
+            mlir::UnknownLoc::get(ctx),
+            vpux::ELFNPU37XX::SectionType::get(ctx),        // mlir::Type
+            mlir::StringAttr::get(ctx, ".symtab.buffers"),  // mlir::StringAttr secName,
+            vpux::ELFNPU37XX::SectionFlagsAttrAttr::get(
+                    ctx, vpux::ELFNPU37XX::SectionFlagsAttr::SHF_NONE),  // vpux::ELFNPU37XX::SectionFlagsAttr secFlags
+            isBuiltin                                                    // mlir::UnitAttr
+    );
 
-    mlir::Region& regBufferSymTabOp = bufferSymTabOp.getOperation()->getRegion(0);
+    mlir::Region& regBufferSymTabOp = ddrSymbolTable.getOperation()->getRegion(0);
     mlir::Block* blkBufferSymTabOp = new mlir::Block();
     regBufferSymTabOp.push_back(blkBufferSymTabOp);
     mlir::OpBuilder builderBufferSymTab(blkBufferSymTabOp, blkBufferSymTabOp->begin());
 
     mlir::Value bufferSectionSymValue = bufferSectionSym.getResult();
-    mlir::Value bufferSymTabValue = bufferSymTabOp.getResult();
+    mlir::Value bufferSymTabValue = ddrSymbolTable.getResult();
 
-    builderBufferSymTab.create<ELF::PutOpInSectionOp>(builderBufferSymTab.getUnknownLoc(), bufferSectionSymValue);
-
-    ELF::ElfSectionInterface constSecInterface =
-            mlir::dyn_cast<ELF::ElfSectionInterface>(constSecValue.getDefiningOp());
-
-    builderBufferSymTab.create<ELF::PutOpInSectionOp>(builderBufferSymTab.getUnknownLoc(),
-                                                      ELF::RelocationManager::getSymbol(constSecInterface));
+    builderBufferSymTab.create<ELFNPU37XX::PutOpInSectionOp>(builderBufferSymTab.getUnknownLoc(),
+                                                             bufferSectionSymValue);
+    builderBufferSymTab.create<ELFNPU37XX::PutOpInSectionOp>(builderBufferSymTab.getUnknownLoc(),
+                                                             symbolMap["sym_constSection"]);
 
     return bufferSymTabValue;
 }
@@ -328,40 +339,44 @@ mlir::Value ConvertVPUMI37XX2ELFPass::createCMXMappingSymtab(mlir::func::FuncOp 
 
     std::vector<mlir::arith::ConstantOp> symVals;
 
-    vpux::ELF::SymbolType symbolType = vpux::ELF::SymbolType::get(ctx);
-    vpux::ELF::SymbolTypeEnumAttr typeSym;
+    vpux::ELFNPU37XX::SymbolType symbolType = vpux::ELFNPU37XX::SymbolType::get(ctx);
+    vpux::ELFNPU37XX::SymbolTypeEnumAttr typeSym;
     mlir::IntegerAttr sizeSym;
     mlir::IntegerAttr valueSym;
     mlir::UnitAttr isBuiltin = mlir::UnitAttr::get(ctx);
 
-    for (unsigned i = 0; i <= vpux::ELF::getMaxEnumValForCMXMappingSymbol(); ++i) {
-        auto optionalCMXMappingSymValue = vpux::ELF::symbolizeCMXMappingSymbol(i);
+    for (unsigned i = 0; i <= vpux::ELFNPU37XX::getMaxEnumValForCMXMappingSymbol(); ++i) {
+        auto optionalCMXMappingSymValue = vpux::ELFNPU37XX::symbolizeCMXMappingSymbol(i);
         if (!optionalCMXMappingSymValue.has_value())
             continue;
 
         auto CMXMappingSymValue = optionalCMXMappingSymValue.value();
-        auto CMXMappingSymStringRef = vpux::ELF::stringifyCMXMappingSymbol(CMXMappingSymValue);
+        auto CMXMappingSymStringRef = vpux::ELFNPU37XX::stringifyCMXMappingSymbol(CMXMappingSymValue);
 
         symVals.push_back(builderFunc.create<mlir::arith::ConstantIntOp>(mlir::UnknownLoc::get(ctx), i, 8));
-        elfCMXMappingSyms.push_back(builderFunc.create<ELF::SymbolOp>(
+        elfCMXMappingSyms.push_back(builderFunc.create<ELFNPU37XX::SymbolOp>(
                 mlir::UnknownLoc::get(ctx),
                 symbolType,                                                            // mlir::Type
                 symVals[i],                                                            // mlir::Value inputArg
                 isBuiltin, mlir::StringAttr::get(ctx, CMXMappingSymStringRef.data()),  // mlir::StringAttr
-                typeSym,                                                               // vpux::ELF::SymbolTypeEnumAttr
-                sizeSym,                                                               // size
-                valueSym                                                               // value
+                typeSym,  // vpux::ELFNPU37XX::SymbolTypeEnumAttr
+                sizeSym,  // size
+                valueSym  // value
                 ));
     }
 
-    vpux::ELF::SectionType secType = vpux::ELF::SectionType::get(ctx);
+    vpux::ELFNPU37XX::SectionType secType = vpux::ELFNPU37XX::SectionType::get(ctx);
 
-    ELF::CreateSymbolTableSectionOp createCMXMappingSymtabOp = builderFunc.create<ELF::CreateSymbolTableSectionOp>(
-            mlir::UnknownLoc::get(ctx),
-            secType,                                // mlir::Type
-            "VPU_RT_SYMTAB",                        // llvm::StringRef secName,
-            vpux::ELF::SectionFlagsAttr::SHF_NONE,  // vpux::ELF::SectionFlagsAttr secFlags,
-            isBuiltin);
+    ELFNPU37XX::CreateSymbolTableSectionOp createCMXMappingSymtabOp =
+            builderFunc.create<ELFNPU37XX::CreateSymbolTableSectionOp>(
+                    mlir::UnknownLoc::get(ctx),
+                    secType,                                      // mlir::Type
+                    mlir::StringAttr::get(ctx, "VPU_RT_SYMTAB"),  // mlir::StringAttr secName,
+                    vpux::ELFNPU37XX::SectionFlagsAttrAttr::get(
+                            ctx, vpux::ELFNPU37XX::SectionFlagsAttr::SHF_NONE),  // vpux::ELFNPU37XX::SectionFlagsAttr
+                                                                                 // secFlags,
+                    isBuiltin                                                    // mlir::UnitAttr
+            );
 
     mlir::Region& regCMXMappingSymtab = createCMXMappingSymtabOp.getOperation()->getRegion(0);
     mlir::Block* blkCMXMappingSymtab = new mlir::Block();
@@ -371,7 +386,7 @@ mlir::Value ConvertVPUMI37XX2ELFPass::createCMXMappingSymtab(mlir::func::FuncOp 
     mlir::OpBuilder builderCMXMappingSymtab(blkCMXMappingSymtab, blkCMXMappingSymtab->begin());
 
     for (auto elfCMXMappingSym : elfCMXMappingSyms) {
-        builderCMXMappingSymtab.create<ELF::PutOpInSectionOp>(
+        builderCMXMappingSymtab.create<ELFNPU37XX::PutOpInSectionOp>(
                 builderCMXMappingSymtab.getUnknownLoc(),  // endOp->getLoc(),
                 elfCMXMappingSym.getResult()              // mlir::Value inputArg
         );
@@ -395,8 +410,8 @@ void ConvertVPUMI37XX2ELFPass::createNetworkIOSymtab(mlir::func::FuncOp func, ml
     mlir::IntegerType uint64Type = mlir::IntegerType::get(ctx, 64, mlir::IntegerType::Unsigned);
 
     for (auto funcArg : func.getArguments()) {
-        vpux::ELF::SymbolType symbolType = vpux::ELF::SymbolType::get(ctx);
-        vpux::ELF::SymbolTypeEnumAttr typeSym;
+        vpux::ELFNPU37XX::SymbolType symbolType = vpux::ELFNPU37XX::SymbolType::get(ctx);
+        vpux::ELFNPU37XX::SymbolTypeEnumAttr typeSym;
         mlir::IntegerAttr valueSym;
         mlir::UnitAttr isBuiltin = nullptr;
 
@@ -408,38 +423,40 @@ void ConvertVPUMI37XX2ELFPass::createNetworkIOSymtab(mlir::func::FuncOp func, ml
         auto index = funcArg.getArgNumber();
         if (index < dataInfoOpInVec.size()) {
             symsVecPtr = &inputSyms;
-            nameSym = mlir::StringAttr::get(ctx, dataInfoOpInVec[index].name());
+            nameSym = mlir::StringAttr::get(ctx, dataInfoOpInVec[index].getName());
         } else if (index < (dataInfoOpInVec.size() + dataInfoOpOutVec.size())) {
             symsVecPtr = &outputSyms;
             index -= dataInfoOpInVec.size();
-            nameSym = mlir::StringAttr::get(ctx, dataInfoOpOutVec[index].name());
+            nameSym = mlir::StringAttr::get(ctx, dataInfoOpOutVec[index].getName());
         } else {
             symsVecPtr = &profOutputSyms;
             index -= dataInfoOpInVec.size() + dataInfoOpOutVec.size();
-            nameSym = mlir::StringAttr::get(ctx, dataInfoOpProfilingOutVec[index].name());
+            nameSym = mlir::StringAttr::get(ctx, dataInfoOpProfilingOutVec[index].getName());
         }
 
-        auto netIOSym = builderFunc.create<ELF::SymbolOp>(builderFunc.getUnknownLoc(),
-                                                          symbolType,  // mlir::Type
-                                                          funcArg,     // mlir::Value inputArg
-                                                          isBuiltin,   // mlir::UnitAttr
-                                                          nameSym,     // mlir::StringAttr
-                                                          typeSym,     // vpux::ELF::SymbolTypeEnumAttr
-                                                          sizeSym,     // size
-                                                          valueSym     // value
+        auto netIOSym = builderFunc.create<ELFNPU37XX::SymbolOp>(builderFunc.getUnknownLoc(),
+                                                                 symbolType,  // mlir::Type
+                                                                 funcArg,     // mlir::Value inputArg
+                                                                 isBuiltin,   // mlir::UnitAttr
+                                                                 nameSym,     // mlir::StringAttr
+                                                                 typeSym,     // vpux::ELFNPU37XX::SymbolTypeEnumAttr
+                                                                 sizeSym,     // size
+                                                                 valueSym     // value
         );
 
         symsVecPtr->push_back(netIOSym.getResult());
     }
 
     // Secondly we create the symbol table for the input symbols
-    ELF::CreateSymbolTableSectionOp createInputSymTableSectionOp = builderFunc.create<ELF::CreateSymbolTableSectionOp>(
-            mlir::UnknownLoc::get(ctx),
-            vpux::ELF::SectionType::get(ctx),                // mlir::Type
-            ".symtab.input",                                 // llvm::StringRef secName,
-            vpux::ELF::SectionFlagsAttr::VPU_SHF_USERINPUT,  // vpux::ELF::SectionFlagsAttr secFlags,
-            nullptr                                          // mlir::UnitAttr
-    );
+    ELFNPU37XX::CreateSymbolTableSectionOp createInputSymTableSectionOp =
+            builderFunc.create<ELFNPU37XX::CreateSymbolTableSectionOp>(
+                    mlir::UnknownLoc::get(ctx),
+                    vpux::ELFNPU37XX::SectionType::get(ctx),                // mlir::Type
+                    ".symtab.input",                                        // llvm::StringRef secName,
+                    vpux::ELFNPU37XX::SectionFlagsAttr::VPU_SHF_USERINPUT,  // vpux::ELFNPU37XX::SectionFlagsAttr
+                                                                            // secFlags,
+                    false                                                   // bool isBuiltin
+            );
     //
     mlir::Region& regInputSymTabSec = createInputSymTableSectionOp.getOperation()->getRegion(0);
     mlir::Block* blkInputSymTabSec = new mlir::Block();
@@ -451,13 +468,15 @@ void ConvertVPUMI37XX2ELFPass::createNetworkIOSymtab(mlir::func::FuncOp func, ml
     networkInputSymTabValue = createInputSymTableSectionOp.getResult();
 
     // Thirdly we create the symbol table for the output symbols
-    ELF::CreateSymbolTableSectionOp createOutputSymTableSectionOp = builderFunc.create<ELF::CreateSymbolTableSectionOp>(
-            mlir::UnknownLoc::get(ctx),
-            vpux::ELF::SectionType::get(ctx),                 // mlir::Type
-            ".symtab.output",                                 // llvm::StringRef secName,
-            vpux::ELF::SectionFlagsAttr::VPU_SHF_USEROUTPUT,  // vpux::ELF::SectionFlagsAttr secFlags,
-            nullptr                                           // mlir::UnitAttr
-    );
+    ELFNPU37XX::CreateSymbolTableSectionOp createOutputSymTableSectionOp =
+            builderFunc.create<ELFNPU37XX::CreateSymbolTableSectionOp>(
+                    mlir::UnknownLoc::get(ctx),
+                    vpux::ELFNPU37XX::SectionType::get(ctx),                 // mlir::Type
+                    ".symtab.output",                                        // llvm::StringRef secName,
+                    vpux::ELFNPU37XX::SectionFlagsAttr::VPU_SHF_USEROUTPUT,  // vpux::ELFNPU37XX::SectionFlagsAttr
+                                                                             // secFlags,
+                    false                                                    // bool isBuiltin
+            );
     //
     mlir::Region& regOutputSymTabSec = createOutputSymTableSectionOp.getOperation()->getRegion(0);
     mlir::Block* blkOutputSymTabSec = new mlir::Block();
@@ -469,13 +488,14 @@ void ConvertVPUMI37XX2ELFPass::createNetworkIOSymtab(mlir::func::FuncOp func, ml
     networkOutputSymTabValue = createOutputSymTableSectionOp.getResult();
 
     for (auto inputSym : inputSyms) {
-        builderInputSymTabSec.create<ELF::PutOpInSectionOp>(builderInputSymTabSec.getUnknownLoc(),  // endOp->getLoc(),
-                                                            inputSym  // mlir::Value inputArg
+        builderInputSymTabSec.create<ELFNPU37XX::PutOpInSectionOp>(
+                builderInputSymTabSec.getUnknownLoc(),  // endOp->getLoc(),
+                inputSym                                // mlir::Value inputArg
         );
     }
 
     for (auto outputSym : outputSyms) {
-        builderOutputSymTabSec.create<ELF::PutOpInSectionOp>(
+        builderOutputSymTabSec.create<ELFNPU37XX::PutOpInSectionOp>(
                 builderOutputSymTabSec.getUnknownLoc(),  // endOp->getLoc(),
                 outputSym                                // mlir::Value inputArg
         );
@@ -483,13 +503,14 @@ void ConvertVPUMI37XX2ELFPass::createNetworkIOSymtab(mlir::func::FuncOp func, ml
 
     // If profiling is enabled add also profiling output symbol table
     if (!dataInfoOpProfilingOutVec.empty()) {
-        ELF::CreateSymbolTableSectionOp createProfOutputSymTableSectionOp =
-                builderFunc.create<ELF::CreateSymbolTableSectionOp>(
+        ELFNPU37XX::CreateSymbolTableSectionOp createProfOutputSymTableSectionOp =
+                builderFunc.create<ELFNPU37XX::CreateSymbolTableSectionOp>(
                         mlir::UnknownLoc::get(ctx),
-                        vpux::ELF::SectionType::get(ctx),                 // mlir::Type
-                        ".symtab.prof_output",                            // llvm::StringRef secName,
-                        vpux::ELF::SectionFlagsAttr::VPU_SHF_PROFOUTPUT,  // vpux::ELF::SectionFlagsAttr secFlags,
-                        nullptr                                           // mlir::UnitAttr
+                        vpux::ELFNPU37XX::SectionType::get(ctx),                 // mlir::Type
+                        ".symtab.prof_output",                                   // llvm::StringRef secName,
+                        vpux::ELFNPU37XX::SectionFlagsAttr::VPU_SHF_PROFOUTPUT,  // vpux::ELFNPU37XX::SectionFlagsAttr
+                                                                                 // secFlags,
+                        false                                                    // bool isBuiltin
                 );
         //
         mlir::Region& regProfOutputSymTabSec = createProfOutputSymTableSectionOp.getOperation()->getRegion(0);
@@ -502,7 +523,7 @@ void ConvertVPUMI37XX2ELFPass::createNetworkIOSymtab(mlir::func::FuncOp func, ml
         profOutputSymTabValue = createProfOutputSymTableSectionOp.getResult();
 
         for (auto profOutputSym : profOutputSyms) {
-            builderProfOutputSymTabSec.create<ELF::PutOpInSectionOp>(
+            builderProfOutputSymTabSec.create<ELFNPU37XX::PutOpInSectionOp>(
                     builderProfOutputSymTabSec.getUnknownLoc(),  // endOp->getLoc(),
                     profOutputSym                                // mlir::Value inputArg
             );
@@ -510,7 +531,31 @@ void ConvertVPUMI37XX2ELFPass::createNetworkIOSymtab(mlir::func::FuncOp func, ml
     }
 }
 
-void ConvertVPUMI37XX2ELFPass::createKernelParamsRelocs(mlir::func::FuncOp func) {
+template <typename T>
+void ConvertVPUMI37XX2ELFPass::createBlockArgReloc(T op, mlir::OpBuilder builderInputRelocSec,
+                                                   mlir::OpBuilder builderOutputRelocSec, size_t offset,
+                                                   vpux::ELFNPU37XX::RelocationType relocationType,
+                                                   mlir::BlockArgument blockArg) {
+    if (mlir::Value netSymValue = lookupELFSymbol(networkOutputSymTabValue, blockArg)) {
+        builderOutputRelocSec.create<ELFNPU37XX::RelocImmOffsetOp>(builderOutputRelocSec.getUnknownLoc(),
+                                                                   op.getResult(), offset,
+                                                                   relocationType,  // relocationType
+                                                                   netSymValue,     // ::mlir::Value sourceSymbol
+                                                                   0                // int64_t addend
+        );
+    } else if (mlir::Value netSymValue = lookupELFSymbol(networkInputSymTabValue, blockArg)) {
+        builderInputRelocSec.create<ELFNPU37XX::RelocImmOffsetOp>(builderInputRelocSec.getUnknownLoc(), op.getResult(),
+                                                                  offset,
+                                                                  relocationType,  // relocationType
+                                                                  netSymValue,     // ::mlir::Value sourceSymbol
+                                                                  0                // int64_t addend
+        );
+    }
+}
+
+void ConvertVPUMI37XX2ELFPass::createKernelParamsRelocs(mlir::func::FuncOp func, mlir::MLIRContext* ctx,
+                                                        ELFNPU37XX::CreateSectionOp kernelParamsSection,
+                                                        bool& shaveScratchAccess, bool& shaveConstAccess) {
     auto kernelParamsOps = func.getOps<vpux::VPUMI37XX::KernelParamsOp>();
 
     if (kernelParamsOps.empty()) {
@@ -519,10 +564,10 @@ void ConvertVPUMI37XX2ELFPass::createKernelParamsRelocs(mlir::func::FuncOp func)
 
     mlir::OpBuilder builderFunc(&(func.getBody().front().back()));
 
-    ELF::ElfSectionInterface targetSection;
-    ELF::CreateSymbolTableSectionOp symTab;
-    ELF::CreateRelocationSectionOp relocSection;
-    ELF::SymbolOp sourceSym;
+    ELFNPU37XX::ElfSectionInterface targetSection;
+    ELFNPU37XX::CreateSymbolTableSectionOp symTab;
+    ELFNPU37XX::CreateRelocationSectionOp relocSection;
+    ELFNPU37XX::SymbolOp sourceSym;
     mlir::Value kernelParamsSectionSym = symbolMap["sym_kernelParamsSection"];
 
     // All the Kenel Params stuctures are serialized in a single section, in a continuous manner
@@ -534,59 +579,147 @@ void ConvertVPUMI37XX2ELFPass::createKernelParamsRelocs(mlir::func::FuncOp func)
     mlir::Value kernelParamsSectionValue = targetSection.getOperation()->getResult(0);
     auto paramsAutoRelocBuilder = mlir::OpBuilder::atBlockEnd(relocSection.getBlock());
 
-    for (auto kernelParamsOp : kernelParamsOps) {
+    for (auto kernelParamsOpIt : kernelParamsOps | indexed) {
+        auto kernelParamsOp = kernelParamsOpIt.value();
+
+        ELFNPU37XX::CreateRelocationSectionOp createInputRelocationSectionOp = builderFunc.create<
+                ELFNPU37XX::CreateRelocationSectionOp>(
+                mlir::UnknownLoc::get(ctx),
+                vpux::ELFNPU37XX::SectionType::get(ctx),                            // mlir::Type
+                ".rlt.Kernel_NetInput" + std::to_string(kernelParamsOpIt.index()),  // llvm::StringRef secName,
+                networkInputSymTabValue,                                            // sourceSymbolTableSection,
+                kernelParamsSection.getResult(),                                    // targetSection,
+                vpux::ELFNPU37XX::SectionFlagsAttr::SHF_INFO_LINK | vpux::ELFNPU37XX::SectionFlagsAttr::VPU_SHF_JIT |
+                        vpux::ELFNPU37XX::SectionFlagsAttr::VPU_SHF_USERINPUT  // vpux::ELFNPU37XX::SectionFlagsAttr
+                                                                               // secFlags,
+        );
+
+        mlir::Region& regInputRelocSec = createInputRelocationSectionOp.getOperation()->getRegion(0);
+        mlir::Block* blkInputRelocSec = new mlir::Block();
+
+        regInputRelocSec.push_back(blkInputRelocSec);
+
+        mlir::OpBuilder builderInputRelocSec(blkInputRelocSec, blkInputRelocSec->begin());
+
+        ELFNPU37XX::CreateRelocationSectionOp createOutputRelocationSectionOp = builderFunc.create<
+                ELFNPU37XX::CreateRelocationSectionOp>(
+                mlir::UnknownLoc::get(ctx),
+                vpux::ELFNPU37XX::SectionType::get(ctx),                             // mlir::Type
+                ".rlt.Kernel_NetOutput" + std::to_string(kernelParamsOpIt.index()),  // llvm::StringRef secName,
+                networkOutputSymTabValue,                                            // sourceSymbolTableSection,
+                kernelParamsSection.getResult(),                                     // targetSection,
+                vpux::ELFNPU37XX::SectionFlagsAttr::SHF_INFO_LINK | vpux::ELFNPU37XX::SectionFlagsAttr::VPU_SHF_JIT |
+                        vpux::ELFNPU37XX::SectionFlagsAttr::VPU_SHF_USEROUTPUT  // vpux::ELFNPU37XX::SectionFlagsAttr
+                                                                                // secFlags,
+        );
+        mlir::Region& regOutputRelocSec = createOutputRelocationSectionOp.getOperation()->getRegion(0);
+        mlir::Block* blkOutputRelocSec = new mlir::Block();
+        regOutputRelocSec.push_back(blkOutputRelocSec);
+
+        mlir::OpBuilder builderOutputRelocSec(blkOutputRelocSec, blkOutputRelocSec->begin());
+
         auto kernelParamsOpVal = kernelParamsOp.getResult();
-        auto partial_addend = ELF::getOffsetOfOpInSection(kernelParamsOpVal, kernelParamsSectionValue) +
-                              kernelParamsOp.getParamsStructSize();
+        auto partial_addend =
+                ELFNPU37XX::getOffsetOfOpInSection(kernelParamsOpVal, kernelParamsSectionValue, offsetCache) +
+                kernelParamsOp.getParamsStructSize();
 
         auto kernelInputs = kernelParamsOp.getInputs();
 
         // input addr
-        for (auto kernelInput : kernelInputs) {
-            symTab = relocationManager.getSymTab(kernelInput);
-
-            relocSection = relocationManager.getRelocSection(targetSection, symTab);
-
-            auto builder = mlir::OpBuilder::atBlockEnd(relocSection.getBlock());
-
-            auto kernelInputBinaryOp = mlir::dyn_cast<ELF::BinaryOpInterface>(kernelInput.getDefiningOp());
-
-            size_t addend = 0;
-            if (kernelInputBinaryOp.getMemorySpace() == VPURT::BufferSection::CMX_NN) {
-                sourceSym = elfCMXMappingSyms[static_cast<int>(
-                        vpux::ELF::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR)];
-                addend = ELF::getOffsetOfOpInSection(kernelInput);
-            } else {
-                auto kernelInputSection = relocationManager.getSection(kernelInput);
-                sourceSym = ELF::RelocationManager::getSymbol(kernelInputSection);
-                mlir::Value kernelInputSectionValue = kernelInputSection.getOperation()->getResult(0);
-                addend = ELF::getOffsetOfOpInSection(kernelInput, kernelInputSectionValue);
+        for (auto kernelInputIt : kernelInputs | indexed) {
+            auto kernelInput = kernelInputIt.value();
+            if (kernelInput.getDefiningOp<Const::DeclareOp>() != nullptr) {
+                shaveConstAccess = true;
             }
+            if (auto kernelInputArg = kernelInput.dyn_cast<mlir::BlockArgument>()) {
+                auto offset = kernelInputIt.index() * sizeof(sw_params::MemRefData) +
+                              offsetof(sw_params::MemRefData, dataAddr);
+                createBlockArgReloc(kernelParamsOp, builderInputRelocSec, builderOutputRelocSec, offset,
+                                    vpux::ELFNPU37XX::RelocationType::R_VPU_32, kernelInputArg);
+            } else {
+                auto kernelInputBuff = kernelInput.getDefiningOp<VPURT::DeclareBufferOp>();
+                if (kernelInputBuff && (kernelInputBuff.getMemorySpace() == VPURT::BufferSection::DDR)) {
+                    shaveScratchAccess = true;
+                }
+                if (kernelInputBuff && (kernelInputBuff.getMemorySpace() == VPURT::BufferSection::NetworkInput)) {
+                    auto kernelInputIndex = parseIntArrayAttr<int64_t>(kernelInputBuff.getSectionIndex().value());
+                    auto kernelInputOffset = kernelInputBuff.getByteOffset();
+                    auto funcArg = func.getArgument(kernelInputIndex[0]);
+                    if (mlir::Value netInputSymValue = lookupELFSymbol(networkInputSymTabValue, funcArg)) {
+                        builderInputRelocSec.create<ELFNPU37XX::RelocImmOffsetOp>(
+                                builderInputRelocSec.getUnknownLoc(), kernelParamsOp.getResult(),
+                                kernelInputIt.index() * sizeof(sw_params::MemRefData) +
+                                        offsetof(sw_params::MemRefData, dataAddr),
+                                vpux::ELFNPU37XX::RelocationType::R_VPU_32,  // relocationType
+                                netInputSymValue,                            // ::mlir::Value sourceSymbol
+                                kernelInputOffset                            // int64_t addend
+                        );
+                    }
+                } else if (kernelInputBuff &&
+                           (kernelInputBuff.getMemorySpace() == VPURT::BufferSection::NetworkOutput)) {
+                    auto kernelInputIndex = parseIntArrayAttr<int64_t>(kernelInputBuff.getSectionIndex().value());
+                    auto kernelInputOffset = kernelInputBuff.getByteOffset();
+                    auto funcArg =
+                            func.getArgument(kernelInputIndex[0] + func.getNumArguments() - func.getNumResults());
+                    if (mlir::Value netOutputSymValue = lookupELFSymbol(networkOutputSymTabValue, funcArg)) {
+                        builderOutputRelocSec.create<ELFNPU37XX::RelocImmOffsetOp>(
+                                builderOutputRelocSec.getUnknownLoc(), kernelParamsOp.getResult(),
+                                kernelInputIt.index() * sizeof(sw_params::MemRefData) +
+                                        offsetof(sw_params::MemRefData, dataAddr),
+                                vpux::ELFNPU37XX::RelocationType::R_VPU_32,  // relocationType
+                                netOutputSymValue,                           // ::mlir::Value sourceSymbol
+                                kernelInputOffset                            // int64_t addend
+                        );
+                    }
+                } else {
+                    symTab = relocationManager.getSymTab(kernelInput);
 
-            builder.create<ELF::RelocOp>(kernelInput.getLoc(), kernelParamsOp, kernelInput,
-                                         vpux::ELF::RelocationType::R_VPU_32, sourceSym, addend);
+                    relocSection = relocationManager.getRelocSection(targetSection, symTab);
+
+                    auto builder = mlir::OpBuilder::atBlockEnd(relocSection.getBlock());
+
+                    auto kernelInputBinaryOp =
+                            mlir::dyn_cast<ELFNPU37XX::BinaryOpInterface>(kernelInput.getDefiningOp());
+
+                    size_t addend = 0;
+
+                    if (kernelInputBinaryOp.getMemorySpace() == VPURT::BufferSection::CMX_NN) {
+                        sourceSym = elfCMXMappingSyms[static_cast<int>(
+                                vpux::ELFNPU37XX::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR)];
+                        addend = ELFNPU37XX::getOffsetOfOpInSection(kernelInput);
+                    } else {
+                        auto kernelInputSection = relocationManager.getSection(kernelInput);
+                        sourceSym = ELFNPU37XX::RelocationManager::getSymbol(kernelInputSection);
+                        mlir::Value kernelInputSectionValue = kernelInputSection.getOperation()->getResult(0);
+                        addend = ELFNPU37XX::getOffsetOfOpInSection(kernelInput, kernelInputSectionValue, offsetCache);
+                    }
+
+                    builder.create<ELFNPU37XX::RelocOp>(kernelInput.getLoc(), kernelParamsOp, kernelInput,
+                                                        vpux::ELFNPU37XX::RelocationType::R_VPU_32, sourceSym, addend);
+                }
+            }
         }
 
         auto addDynamicShapeRelocation = [&](mlir::Value dims, uint64_t offset) {
             symTab = relocationManager.getSymTab(dims);
 
-            auto dimsBinaryOp = mlir::dyn_cast<ELF::BinaryOpInterface>(dims.getDefiningOp());
+            auto dimsBinaryOp = mlir::dyn_cast<ELFNPU37XX::BinaryOpInterface>(dims.getDefiningOp());
             size_t addend = 0;
             if (dimsBinaryOp.getMemorySpace() == VPURT::BufferSection::CMX_NN) {
                 sourceSym = elfCMXMappingSyms[static_cast<int>(
-                        vpux::ELF::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR)];
-                addend = ELF::getOffsetOfOpInSection(dims);
+                        vpux::ELFNPU37XX::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR)];
+                addend = ELFNPU37XX::getOffsetOfOpInSection(dims);
             } else {
                 auto dimsSection = relocationManager.getSection(dims);
-                sourceSym = ELF::RelocationManager::getSymbol(dimsSection);
+                sourceSym = ELFNPU37XX::RelocationManager::getSymbol(dimsSection);
                 mlir::Value dimsSectionValue = dimsSection.getOperation()->getResult(0);
-                addend = ELF::getOffsetOfOpInSection(dims, dimsSectionValue);
+                addend = ELFNPU37XX::getOffsetOfOpInSection(dims, dimsSectionValue, offsetCache);
             }
 
             relocSection = relocationManager.getRelocSection(targetSection, symTab);
             auto builder = mlir::OpBuilder::atBlockEnd(relocSection.getBlock());
-            builder.create<ELF::RelocImmOffsetOp>(kernelParamsOp.getLoc(), kernelParamsOp.getResult(), offset,
-                                                  vpux::ELF::RelocationType::R_VPU_32, sourceSym, addend);
+            builder.create<ELFNPU37XX::RelocImmOffsetOp>(kernelParamsOp.getLoc(), kernelParamsOp.getResult(), offset,
+                                                         vpux::ELFNPU37XX::RelocationType::R_VPU_32, sourceSym, addend);
         };
 
         // input Dims addr
@@ -598,22 +731,22 @@ void ConvertVPUMI37XX2ELFPass::createKernelParamsRelocs(mlir::func::FuncOp func)
                                           kernelInputsIt.index() * sizeof(sw_params::MemRefData) +
                                                   offsetof(sw_params::MemRefData, dimsAddr));
             } else {
-                paramsAutoRelocBuilder.create<ELF::RelocImmOffsetOp>(
+                paramsAutoRelocBuilder.create<ELFNPU37XX::RelocImmOffsetOp>(
                         kernelParamsOp.getLoc(), kernelParamsOp.getResult(),
                         kernelInputsIt.index() * sizeof(sw_params::MemRefData) +
                                 offsetof(sw_params::MemRefData, dimsAddr),
-                        vpux::ELF::RelocationType::R_VPU_32, kernelParamsSectionSym, partial_addend);
+                        vpux::ELFNPU37XX::RelocationType::R_VPU_32, kernelParamsSectionSym, partial_addend);
             }
             partial_addend += sizeof(int32_t) * getShape(kernelInputsIt.value()).size();
         }
 
         // input Strides addr
         for (auto kernelInputsIt : kernelInputs | indexed) {
-            paramsAutoRelocBuilder.create<ELF::RelocImmOffsetOp>(
+            paramsAutoRelocBuilder.create<ELFNPU37XX::RelocImmOffsetOp>(
                     kernelParamsOp.getLoc(), kernelParamsOp.getResult(),
                     kernelInputsIt.index() * sizeof(sw_params::MemRefData) +
                             offsetof(sw_params::MemRefData, stridesAddr),
-                    vpux::ELF::RelocationType::R_VPU_32, kernelParamsSectionSym, partial_addend);
+                    vpux::ELFNPU37XX::RelocationType::R_VPU_32, kernelParamsSectionSym, partial_addend);
 
             partial_addend += sizeof(int64_t) * getMemStrides(kernelInputsIt.value()).size();
         }
@@ -622,30 +755,61 @@ void ConvertVPUMI37XX2ELFPass::createKernelParamsRelocs(mlir::func::FuncOp func)
         auto kernelInputsSize = kernelInputs.size();
 
         // output addr
-        for (auto kernelOutput : kernelOutputs) {
-            symTab = relocationManager.getSymTab(kernelOutput);
-
-            relocSection = relocationManager.getRelocSection(targetSection, symTab);
-
-            auto builder = mlir::OpBuilder::atBlockEnd(relocSection.getBlock());
-
-            auto kernelOutputBinaryOp = mlir::dyn_cast<ELF::BinaryOpInterface>(kernelOutput.getDefiningOp());
-
-            size_t addend = 0;
-
-            if (kernelOutputBinaryOp.getMemorySpace() == VPURT::BufferSection::CMX_NN) {
-                sourceSym = elfCMXMappingSyms[static_cast<int>(
-                        vpux::ELF::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR)];
-                addend = ELF::getOffsetOfOpInSection(kernelOutput);
+        for (auto kernelOutputIt : kernelOutputs | indexed) {
+            auto kernelOutput = kernelOutputIt.value();
+            if (auto kernelOutputArg = kernelOutput.dyn_cast<mlir::BlockArgument>()) {
+                auto offset = (kernelInputsSize + kernelOutputIt.index()) * sizeof(sw_params::MemRefData) +
+                              offsetof(sw_params::MemRefData, dataAddr);
+                createBlockArgReloc(kernelParamsOp, builderInputRelocSec, builderOutputRelocSec, offset,
+                                    vpux::ELFNPU37XX::RelocationType::R_VPU_32, kernelOutputArg);
             } else {
-                auto kernelOutputSection = relocationManager.getSection(kernelOutput);
-                sourceSym = ELF::RelocationManager::getSymbol(kernelOutputSection);
-                mlir::Value kernelOutputSectionValue = kernelOutputSection.getOperation()->getResult(0);
-                addend = ELF::getOffsetOfOpInSection(kernelOutput, kernelOutputSectionValue);
-            }
+                auto kernelOutputBuff = kernelOutput.getDefiningOp<VPURT::DeclareBufferOp>();
+                if (kernelOutputBuff && (kernelOutputBuff.getMemorySpace() == VPURT::BufferSection::DDR)) {
+                    shaveScratchAccess = true;
+                }
+                if (kernelOutputBuff && (kernelOutputBuff.getMemorySpace() == VPURT::BufferSection::NetworkOutput)) {
+                    auto kernelOutputIndex = parseIntArrayAttr<int64_t>(kernelOutputBuff.getSectionIndex().value());
+                    auto kernelOutputOffset = kernelOutputBuff.getByteOffset();
+                    auto funcArg =
+                            func.getArgument(kernelOutputIndex[0] + func.getNumArguments() - func.getNumResults());
+                    if (mlir::Value netOutputSymValue = lookupELFSymbol(networkOutputSymTabValue, funcArg)) {
+                        builderOutputRelocSec.create<ELFNPU37XX::RelocImmOffsetOp>(
+                                builderOutputRelocSec.getUnknownLoc(), kernelParamsOp.getResult(),
+                                (kernelInputsSize + kernelOutputIt.index()) * sizeof(sw_params::MemRefData) +
+                                        offsetof(sw_params::MemRefData, dataAddr),
+                                vpux::ELFNPU37XX::RelocationType::R_VPU_32,  // relocationType
+                                netOutputSymValue,                           // ::mlir::Value sourceSymbol
+                                kernelOutputOffset                           // int64_t addend
+                        );
+                    }
+                } else {
+                    symTab = relocationManager.getSymTab(kernelOutput);
 
-            builder.create<ELF::RelocOp>(kernelOutput.getLoc(), kernelParamsOp, kernelOutput,
-                                         vpux::ELF::RelocationType::R_VPU_32, sourceSym, addend);
+                    relocSection = relocationManager.getRelocSection(targetSection, symTab);
+
+                    auto builder = mlir::OpBuilder::atBlockEnd(relocSection.getBlock());
+
+                    auto kernelOutputBinaryOp =
+                            mlir::dyn_cast<ELFNPU37XX::BinaryOpInterface>(kernelOutput.getDefiningOp());
+
+                    size_t addend = 0;
+
+                    if (kernelOutputBinaryOp.getMemorySpace() == VPURT::BufferSection::CMX_NN) {
+                        sourceSym = elfCMXMappingSyms[static_cast<int>(
+                                vpux::ELFNPU37XX::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR)];
+                        addend = ELFNPU37XX::getOffsetOfOpInSection(kernelOutput);
+                    } else {
+                        auto kernelOutputSection = relocationManager.getSection(kernelOutput);
+                        sourceSym = ELFNPU37XX::RelocationManager::getSymbol(kernelOutputSection);
+                        mlir::Value kernelOutputSectionValue = kernelOutputSection.getOperation()->getResult(0);
+                        addend =
+                                ELFNPU37XX::getOffsetOfOpInSection(kernelOutput, kernelOutputSectionValue, offsetCache);
+                    }
+
+                    builder.create<ELFNPU37XX::RelocOp>(kernelOutput.getLoc(), kernelParamsOp, kernelOutput,
+                                                        vpux::ELFNPU37XX::RelocationType::R_VPU_32, sourceSym, addend);
+                }
+            }
         }
 
         // output Dims addr
@@ -657,175 +821,145 @@ void ConvertVPUMI37XX2ELFPass::createKernelParamsRelocs(mlir::func::FuncOp func)
                                           (kernelInputsSize + kernelOutputsIt.index()) * sizeof(sw_params::MemRefData) +
                                                   offsetof(sw_params::MemRefData, dimsAddr));
             } else {
-                paramsAutoRelocBuilder.create<ELF::RelocImmOffsetOp>(
+                paramsAutoRelocBuilder.create<ELFNPU37XX::RelocImmOffsetOp>(
                         kernelParamsOp.getLoc(), kernelParamsOp.getResult(),
                         (kernelInputsSize + kernelOutputsIt.index()) * sizeof(sw_params::MemRefData) +
                                 offsetof(sw_params::MemRefData, dimsAddr),
-                        vpux::ELF::RelocationType::R_VPU_32, kernelParamsSectionSym, partial_addend);
+                        vpux::ELFNPU37XX::RelocationType::R_VPU_32, kernelParamsSectionSym, partial_addend);
             }
+
             partial_addend += sizeof(int32_t) * getShape(kernelOutputsIt.value()).size();
         }
 
         // output Strides addr
         for (auto kernelOutputsIt : kernelOutputs | indexed) {
-            paramsAutoRelocBuilder.create<ELF::RelocImmOffsetOp>(
+            paramsAutoRelocBuilder.create<ELFNPU37XX::RelocImmOffsetOp>(
                     kernelParamsOp.getLoc(), kernelParamsOp.getResult(),
                     (kernelInputsSize + kernelOutputsIt.index()) * sizeof(sw_params::MemRefData) +
                             offsetof(sw_params::MemRefData, stridesAddr),
-                    vpux::ELF::RelocationType::R_VPU_32, kernelParamsSectionSym, partial_addend);
+                    vpux::ELFNPU37XX::RelocationType::R_VPU_32, kernelParamsSectionSym, partial_addend);
 
             partial_addend += sizeof(int64_t) * getMemStrides(kernelOutputsIt.value()).size();
         }
     }
 }
 
-mlir::Value ConvertVPUMI37XX2ELFPass::lookupELFSymbol(mlir::Value& symtabValue, mlir::Value& sym_input_value) {
-    auto symtabOp = llvm::dyn_cast<vpux::ELF::CreateSymbolTableSectionOp>(symtabValue.getDefiningOp());
+mlir::Value ConvertVPUMI37XX2ELFPass::lookupELFSymbol(mlir::Value symtabValue, mlir::Value sym_input_value) {
+    auto& symbolTableCacheEntry = symbolCache.FindAndConstruct(symtabValue);
+    auto& symbolTableCache = symbolTableCacheEntry.second;
+    if (symbolTableCache.empty()) {
+        auto symtabOp = llvm::dyn_cast<vpux::ELFNPU37XX::CreateSymbolTableSectionOp>(symtabValue.getDefiningOp());
 
-    auto symtabBlk = symtabOp.getBody();
-    for (auto& op : symtabBlk->getOperations()) {
-        if (auto symOp = llvm::dyn_cast<vpux::ELF::SymbolOp>(op)) {
-            if (symOp.getInputArg() == sym_input_value) {
-                return symOp.getResult();
-            }
-        } else if (auto placeholder = llvm::dyn_cast<vpux::ELF::PutOpInSectionOp>(op)) {
-            auto actualOp = placeholder.getInputArg().getDefiningOp();
-            auto symOp = llvm::dyn_cast<vpux::ELF::SymbolOp>(actualOp);
-            if (symOp.getInputArg() == sym_input_value) {
-                return symOp.getResult();
+        auto symtabBlk = symtabOp.getBody();
+        for (auto& op : symtabBlk->getOperations()) {
+            if (auto symOp = llvm::dyn_cast<vpux::ELFNPU37XX::SymbolOp>(op)) {
+                symbolTableCache[symOp.getInputArg()] = symOp.getResult();
+            } else if (auto placeholder = llvm::dyn_cast<vpux::ELFNPU37XX::PutOpInSectionOp>(op)) {
+                auto actualOp = placeholder.getInputArg().getDefiningOp();
+                auto symOp = llvm::dyn_cast<vpux::ELFNPU37XX::SymbolOp>(actualOp);
+                symbolTableCache[symOp.getInputArg()] = symOp.getResult();
             }
         }
     }
 
-    mlir::Value no_val;
-    return no_val;
+    const auto symbolIt = symbolTableCache.find(sym_input_value);
+    return symbolIt == symbolTableCache.end() ? mlir::Value{} : symbolIt->second;
 }
 
-void ConvertVPUMI37XX2ELFPass::createActKernelRelocs(mlir::func::FuncOp func) {
+void ConvertVPUMI37XX2ELFPass::createActKernelRelocs(mlir::func::FuncOp func,
+                                                     ELFNPU37XX::CreateSectionOp actKernelRangeSection,
+                                                     ELFNPU37XX::CreateSectionOp kernelTextSection,
+                                                     ELFNPU37XX::CreateSectionOp actKernelInvocationSection,
+                                                     ELFNPU37XX::CreateSectionOp kernelDataSection,
+                                                     ELFNPU37XX::CreateSectionOp kernelParamsSection) {
     mlir::OpBuilder builderFunc(&(func.getBody().front().back()));
 
-    ELF::ElfSectionInterface targetSection;
-    ELF::CreateSymbolTableSectionOp symTab;
-    ELF::CreateRelocationSectionOp relocSection;
-    ELF::SymbolOp sourceSym;
+    auto cmxSymbolTable = relocationManager.getCMXSymTab();
 
-    // range relocs
-    auto actKernelRangeOps = func.getOps<vpux::VPUMI37XX::ActKernelRangeOp>();
-    for (auto actKernelRangeOp : actKernelRangeOps) {
-        targetSection = relocationManager.getSection(actKernelRangeOp.getResult());
+    {
+        auto kernelTextSectionSymbol =
+                mlir::dyn_cast<ELFNPU37XX::SymbolOp>(symbolMap["sym_kernelTextSection"].getDefiningOp());
+        auto actKernelRangeRelocSection = relocationManager.getRelocSection(actKernelRangeSection, tasksSymbolTable);
+        auto actKernelRangeRelocSectionBuilder = mlir::OpBuilder::atBlockEnd(actKernelRangeRelocSection.getBlock());
+        for (auto actKernelRangeOp : func.getOps<vpux::VPUMI37XX::ActKernelRangeOp>()) {
+            if (VPUMI37XX::isSwKernelCacheOp(actKernelRangeOp)) {
+                continue;
+            }
 
-        auto kernelText = actKernelRangeOp.getKernelTextIndex();
-
-        symTab = relocationManager.getSymTab(kernelText);
-
-        relocSection = relocationManager.getRelocSection(targetSection, symTab);
-
-        auto builder = mlir::OpBuilder::atBlockEnd(relocSection.getBlock());
-
-        sourceSym = mlir::dyn_cast<ELF::SymbolOp>(symbolMap["sym_kernelTextSection"].getDefiningOp());
-
-        auto kernelTextSection = relocationManager.getSection(kernelText).getOperation()->getResult(0);
-
-        builder.create<ELF::RelocOp>(kernelText.getLoc(), actKernelRangeOp, kernelText,
-                                     vpux::ELF::RelocationType::R_VPU_32, sourceSym,
-                                     ELF::getOffsetOfOpInSection(kernelText, kernelTextSection));
+            auto kernelText = actKernelRangeOp.getKernelTextIndex();
+            actKernelRangeRelocSectionBuilder.create<ELFNPU37XX::RelocOp>(
+                    kernelText.getLoc(), actKernelRangeOp, kernelText, vpux::ELFNPU37XX::RelocationType::R_VPU_32,
+                    kernelTextSectionSymbol,
+                    ELFNPU37XX::getOffsetOfOpInSection(kernelText, kernelTextSection->getResult(0), offsetCache));
+        }
     }
 
-    // invo relocs
-    auto actKernelInvoOps = func.getOps<vpux::VPUMI37XX::ActKernelInvocationOp>();
+    {
+        auto kernelDataSectionSymbol =
+                mlir::dyn_cast<ELFNPU37XX::SymbolOp>(symbolMap["sym_kernelDataSection"].getDefiningOp());
+        auto kernelParamsSectionSymbol =
+                mlir::dyn_cast<ELFNPU37XX::SymbolOp>(symbolMap["sym_kernelParamsSection"].getDefiningOp());
+        auto actKernelInvocationCMXRelocSection =
+                relocationManager.getRelocSection(actKernelInvocationSection, cmxSymbolTable);
+        auto actKernelInovcationCMXRelocSectionBuilder =
+                mlir::OpBuilder::atBlockEnd(actKernelInvocationCMXRelocSection.getBlock());
+        auto actKernelInvocationRelocSection =
+                relocationManager.getRelocSection(actKernelInvocationSection, tasksSymbolTable);
+        auto actKernelInovcationRelocSectionBuilder =
+                mlir::OpBuilder::atBlockEnd(actKernelInvocationRelocSection.getBlock());
+        for (auto actKernelInvoOp : func.getOps<vpux::VPUMI37XX::ActKernelInvocationOp>()) {
+            auto associatedRangeOp =
+                    llvm::dyn_cast<vpux::VPUMI37XX::ActKernelRangeOp>(actKernelInvoOp.getRangeIndex().getDefiningOp());
 
-    for (auto actKernelInvoOp : actKernelInvoOps) {
-        auto actKernelInvoOpIndex = actKernelInvoOp.getIndex().getType().cast<vpux::VPURegMapped::IndexType>();
-        auto associatedRangeOp =
-                llvm::dyn_cast<vpux::VPUMI37XX::ActKernelRangeOp>(actKernelInvoOp.getRangeIndex().getDefiningOp());
+            actKernelInovcationCMXRelocSectionBuilder.create<ELFNPU37XX::RelocOp>(
+                    actKernelInvocationCMXRelocSection.getLoc(), actKernelInvoOp.getResult(),
+                    associatedRangeOp.getResult(), vpux::ELFNPU37XX::RelocationType::R_VPU_32_RTM,
+                    elfCMXMappingSyms[static_cast<int>(vpux::ELFNPU37XX::CMXMappingSymbol::VPU_NNRD_SYM_RTM_ACT)]
+                            .getResult(),
+                    sizeof(nn_public::VpuActKernelRange));
 
-        targetSection = relocationManager.getSection(actKernelInvoOp.getResult());
-
-        // range reloc
-        symTab = relocationManager.getCMXSymTab();
-
-        relocSection = relocationManager.getRelocSection(targetSection, symTab);
-
-        auto builder = mlir::OpBuilder::atBlockEnd(relocSection.getBlock());
-
-        builder.create<ELF::RelocOp>(
-                relocSection.getLoc(), actKernelInvoOp.getResult(), associatedRangeOp.getResult(),
-                vpux::ELF::RelocationType::R_VPU_32_RTM,
-                elfCMXMappingSyms[static_cast<int>(vpux::ELF::CMXMappingSymbol::VPU_NNRD_SYM_RTM_ACT)].getResult(),
-                sizeof(nn_public::VpuActKernelRange));
-
-        // data section reloc
-        auto kernelData = associatedRangeOp.getKernelArgsIndex();
-
-        symTab = relocationManager.getSymTab(kernelData);
-
-        relocSection = relocationManager.getRelocSection(targetSection, symTab);
-
-        builder = mlir::OpBuilder::atBlockEnd(relocSection.getBlock());
-
-        sourceSym = mlir::dyn_cast<ELF::SymbolOp>(symbolMap["sym_kernelDataSection"].getDefiningOp());
-
-        auto kernelDataSection = relocationManager.getSection(kernelData).getOperation()->getResult(0);
-
-        builder.create<ELF::RelocImmOffsetOp>(actKernelInvoOp.getLoc(), actKernelInvoOp.getResult(),
-                                              offsetof(nn_public::VpuActKernelInvocation, data_window_base),
-                                              vpux::ELF::RelocationType::R_VPU_32, sourceSym,
-                                              ELF::getOffsetOfOpInSection(kernelData, kernelDataSection));
-
-        // params reloc
-        mlir::Value associatedKernelParamsOp;
-        auto kernelParamsOps = func.getOps<vpux::VPUMI37XX::KernelParamsOp>();
-        for (auto kernelParamsOp : kernelParamsOps) {
-            auto kernelParamsOpIndex = kernelParamsOp.getIndex().getType().cast<vpux::VPURegMapped::IndexType>();
-            if (kernelParamsOpIndex.getValue() == actKernelInvoOpIndex.getValue()) {
-                associatedKernelParamsOp = kernelParamsOp.getResult();
-                break;
-            }
-        }
-
-        symTab = relocationManager.getSymTab(associatedKernelParamsOp);
-
-        relocSection = relocationManager.getRelocSection(targetSection, symTab);
-
-        builder = mlir::OpBuilder::atBlockEnd(relocSection.getBlock());
-
-        sourceSym = mlir::dyn_cast<ELF::SymbolOp>(symbolMap["sym_kernelParamsSection"].getDefiningOp());
-
-        auto kernelParamsSection = relocationManager.getSection(associatedKernelParamsOp).getOperation()->getResult(0);
-
-        builder.create<ELF::RelocImmOffsetOp>(
-                actKernelInvoOp.getLoc(), actKernelInvoOp.getResult(),
-                offsetof(nn_public::VpuActKernelInvocation, kernel_args), vpux::ELF::RelocationType::R_VPU_32,
-                sourceSym, ELF::getOffsetOfOpInSection(associatedKernelParamsOp, kernelParamsSection));
-
-        // profiling reloc
-        // perf_packet_out field from ActKernelInvocation structure needs to point to
-        // profiling buffer allocated by compiler
-        if (auto profBuffer = actKernelInvoOp.getProfilingData()) {
-            symTab = relocationManager.getCMXSymTab();
-
-            relocSection = relocationManager.getRelocSection(targetSection, symTab);
-
-            builder = mlir::OpBuilder::atBlockEnd(relocSection.getBlock());
-
-            auto kernelProfilingBinaryOp = mlir::dyn_cast<ELF::BinaryOpInterface>(profBuffer.getDefiningOp());
-
-            size_t addend = 0;
-
-            if (kernelProfilingBinaryOp.getMemorySpace() == VPURT::BufferSection::CMX_NN) {
-                sourceSym = elfCMXMappingSyms[static_cast<int>(
-                        vpux::ELF::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR)];
-                addend = ELF::getOffsetOfOpInSection(profBuffer);
-            } else {
-                auto kernelProfilingSection = relocationManager.getSection(profBuffer);
-                sourceSym = ELF::RelocationManager::getSymbol(kernelProfilingSection);
-                mlir::Value kernelProfilingSectionValue = kernelProfilingSection.getOperation()->getResult(0);
-                addend = ELF::getOffsetOfOpInSection(profBuffer, kernelProfilingSectionValue);
+            if (!VPUMI37XX::isSwKernelCacheOp(associatedRangeOp)) {
+                auto kernelData = associatedRangeOp.getKernelArgsIndex();
+                actKernelInovcationRelocSectionBuilder.create<ELFNPU37XX::RelocImmOffsetOp>(
+                        actKernelInvoOp.getLoc(), actKernelInvoOp.getResult(),
+                        offsetof(nn_public::VpuActKernelInvocation, data_window_base),
+                        vpux::ELFNPU37XX::RelocationType::R_VPU_32, kernelDataSectionSymbol,
+                        ELFNPU37XX::getOffsetOfOpInSection(kernelData, kernelDataSection->getResult(0), offsetCache));
             }
 
-            builder.create<ELF::RelocImmOffsetOp>(actKernelInvoOp.getLoc(), actKernelInvoOp.getResult(),
-                                                  offsetof(nn_public::VpuActKernelInvocation, perf_packet_out),
-                                                  vpux::ELF::RelocationType::R_VPU_32_SUM, sourceSym, addend);
+            actKernelInovcationRelocSectionBuilder.create<ELFNPU37XX::RelocImmOffsetOp>(
+                    actKernelInvoOp.getLoc(), actKernelInvoOp.getResult(),
+                    offsetof(nn_public::VpuActKernelInvocation, kernel_args),
+                    vpux::ELFNPU37XX::RelocationType::R_VPU_32, kernelParamsSectionSymbol,
+                    ELFNPU37XX::getOffsetOfOpInSection(actKernelInvoOp.getParamsIndex(),
+                                                       kernelParamsSection->getResult(0), offsetCache));
+
+            // profiling reloc
+            // perf_packet_out field from ActKernelInvocation structure needs to point to
+            // profiling buffer allocated by compiler
+            if (auto profBuffer = actKernelInvoOp.getProfilingData()) {
+                auto kernelProfilingBinaryOp =
+                        mlir::dyn_cast<ELFNPU37XX::BinaryOpInterface>(profBuffer.getDefiningOp());
+
+                size_t addend = 0;
+
+                ELFNPU37XX::SymbolOp sourceSym;
+                if (kernelProfilingBinaryOp.getMemorySpace() == VPURT::BufferSection::CMX_NN) {
+                    sourceSym = elfCMXMappingSyms[static_cast<int>(
+                            vpux::ELFNPU37XX::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR)];
+                    addend = ELFNPU37XX::getOffsetOfOpInSection(profBuffer);
+                } else {
+                    auto kernelProfilingSection = relocationManager.getSection(profBuffer);
+                    sourceSym = ELFNPU37XX::RelocationManager::getSymbol(kernelProfilingSection);
+                    mlir::Value kernelProfilingSectionValue = kernelProfilingSection.getOperation()->getResult(0);
+                    addend = ELFNPU37XX::getOffsetOfOpInSection(profBuffer, kernelProfilingSectionValue, offsetCache);
+                }
+
+                actKernelInovcationCMXRelocSectionBuilder.create<ELFNPU37XX::RelocImmOffsetOp>(
+                        actKernelInvoOp.getLoc(), actKernelInvoOp.getResult(),
+                        offsetof(nn_public::VpuActKernelInvocation, perf_packet_out),
+                        vpux::ELFNPU37XX::RelocationType::R_VPU_32_SUM, sourceSym, addend);
+            }
         }
     }
 }
@@ -852,12 +986,12 @@ void ConvertVPUMI37XX2ELFPass::setupActKernelRtConfigs(mlir::func::FuncOp func, 
     auto runtimeKernelFunction = vpuSwModuleOp.lookupSymbol<mlir::func::FuncOp>("runtime");
 
     mlir::Value actShaveRt;
-    ELF::ElfSectionInterface actKRtConfigSec;
+    ELFNPU37XX::ElfSectionInterface actKRtConfigSec;
 
     auto actShaveStackMemrefType =
             vpux::getLinearMemrefType(ctx, ACT_SHAVE_STACK_SIZE, vpux::getInt8Type(ctx), VPU::MemoryKind::DDR);
 
-    vpux::ELF::SymbolTypeEnumAttr typeSym;
+    vpux::ELFNPU37XX::SymbolTypeEnumAttr typeSym;
     mlir::IntegerAttr sizeSym;
     mlir::IntegerAttr valueSym;
     mlir::UnitAttr isBuiltin = nullptr;
@@ -877,30 +1011,30 @@ void ConvertVPUMI37XX2ELFPass::setupActKernelRtConfigs(mlir::func::FuncOp func, 
         shaveStacks.push_back(shaveStackBufferVal);
 
         auto strIndex = std::to_string(i);
-        auto shaveStackSection = builderFunc.create<ELF::CreateLogicalSectionOp>(
+        auto shaveStackSection = builderFunc.create<ELFNPU37XX::CreateLogicalSectionOp>(
                 builderFunc.getUnknownLoc(),
-                vpux::ELF::SectionType::get(ctx),                     // mlir::Type
-                std::string(".bss.actShaveStack_").append(strIndex),  // llvm::StringRef secName,
-                vpux::ELF::SectionTypeAttr::SHT_NOBITS,               // vpux::ELF::SectionTypeAttr secType,
-                vpux::ELF::SectionFlagsAttr::VPU_SHF_PROC_SHAVE,      // vpux::ELF::SectionFlagsAttr secFlags,
-                elf::VPU_SH_INFO_FOR_VPU,                             // int64_t secInfo,
-                ELF::VPUX_SHAVE_ALIGNMENT                             // int64_t secAddrAlign
+                vpux::ELFNPU37XX::SectionType::get(ctx),                 // mlir::Type
+                std::string(".bss.actShaveStack_").append(strIndex),     // llvm::StringRef secName,
+                vpux::ELFNPU37XX::SectionTypeAttr::SHT_NOBITS,           // vpux::ELFNPU37XX::SectionTypeAttr secType,
+                vpux::ELFNPU37XX::SectionFlagsAttr::VPU_SHF_PROC_SHAVE,  // vpux::ELFNPU37XX::SectionFlagsAttr secFlags,
+                elf::VPU_SH_INFO_FOR_VPU,                                // int64_t secInfo,
+                ELFNPU37XX::VPUX_SHAVE_ALIGNMENT                         // int64_t secAddrAlign
         );
 
         auto builderShaveStackSection = mlir::OpBuilder::atBlockEnd(shaveStackSection.getBlock());
 
-        builderShaveStackSection.create<ELF::PutOpInSectionOp>(
+        builderShaveStackSection.create<ELFNPU37XX::PutOpInSectionOp>(
                 builderShaveStackSection.getUnknownLoc(),  // endOp->getLoc(),
                 shaveStackBufferVal                        // mlir::Value inputArg
         );
 
-        auto actShaveStackSymOp = builderFunc.create<ELF::SymbolOp>(
+        auto actShaveStackSymOp = builderFunc.create<ELFNPU37XX::SymbolOp>(
                 builderFunc.getUnknownLoc(),
-                vpux::ELF::SymbolType::get(ctx),                                                 // mlir::Type
+                vpux::ELFNPU37XX::SymbolType::get(ctx),                                          // mlir::Type
                 shaveStackSection.getResult(),                                                   // mlir::Value inputArg
                 isBuiltin,                                                                       // mlir::UnitAttr
                 mlir::StringAttr::get(ctx, std::string("sym_actShaveStack_").append(strIndex)),  // mlir::StringAttr
-                typeSym,  // vpux::ELF::SymbolTypeEnumAttr
+                typeSym,  // vpux::ELFNPU37XX::SymbolTypeEnumAttr
                 sizeSym,  // size
                 valueSym  // value
         );
@@ -921,14 +1055,14 @@ void ConvertVPUMI37XX2ELFPass::setupActKernelRtConfigs(mlir::func::FuncOp func, 
 
         actShaveRt = actShvRtOp.getResult();
 
-        actKRtConfigSec = builderFunc.create<ELF::CreateSectionOp>(
+        actKRtConfigSec = builderFunc.create<ELFNPU37XX::CreateSectionOp>(
                 builderFunc.getUnknownLoc(),
-                vpux::ELF::SectionType::get(ctx),          // mlir::Type
-                ".text.actKernelRtConfigSec",              // llvm::StringRef secName,
-                vpux::ELF::SectionTypeAttr::SHT_PROGBITS,  // vpux::ELF::SectionTypeAttr secType,
-                vpux::ELF::SectionFlagsAttr::SHF_NONE,     // vpux::ELF::SectionFlagsAttr secFlags,
-                elf::VPU_SH_INFO_FOR_VPU,                  // int64_t secInfo,
-                1024                                       // int64_t secAddrAlign
+                vpux::ELFNPU37XX::SectionType::get(ctx),          // mlir::Type
+                ".text.actKernelRtConfigSec",                     // llvm::StringRef secName,
+                vpux::ELFNPU37XX::SectionTypeAttr::SHT_PROGBITS,  // vpux::ELFNPU37XX::SectionTypeAttr secType,
+                vpux::ELFNPU37XX::SectionFlagsAttr::SHF_NONE,     // vpux::ELFNPU37XX::SectionFlagsAttr secFlags,
+                elf::VPU_SH_INFO_FOR_VPU,                         // int64_t secInfo,
+                1024                                              // int64_t secAddrAlign
         );
 
         mappedInferenceOp.getActShaveRtMutable().assign(actShaveRt);
@@ -945,14 +1079,14 @@ void ConvertVPUMI37XX2ELFPass::setupActKernelRtConfigs(mlir::func::FuncOp func, 
 
         actShaveRt = declareBufferOp.getResult();
 
-        actKRtConfigSec = builderFunc.create<ELF::CreateLogicalSectionOp>(
+        actKRtConfigSec = builderFunc.create<ELFNPU37XX::CreateLogicalSectionOp>(
                 builderFunc.getUnknownLoc(),
-                vpux::ELF::SectionType::get(ctx),        // mlir::Type
-                ".bss.actKernelRtConfigSec",             // llvm::StringRef secName,
-                vpux::ELF::SectionTypeAttr::SHT_NOBITS,  // vpux::ELF::SectionTypeAttr secType,
-                vpux::ELF::SectionFlagsAttr::SHF_NONE,   // vpux::ELF::SectionFlagsAttr secFlags,
-                elf::VPU_SH_INFO_FOR_VPU,                // int64_t secInfo,
-                ELF::VPUX_SHAVE_ALIGNMENT                // int64_t secAddrAlign
+                vpux::ELFNPU37XX::SectionType::get(ctx),        // mlir::Type
+                ".bss.actKernelRtConfigSec",                    // llvm::StringRef secName,
+                vpux::ELFNPU37XX::SectionTypeAttr::SHT_NOBITS,  // vpux::ELFNPU37XX::SectionTypeAttr secType,
+                vpux::ELFNPU37XX::SectionFlagsAttr::SHF_NONE,   // vpux::ELFNPU37XX::SectionFlagsAttr secFlags,
+                elf::VPU_SH_INFO_FOR_VPU,                       // int64_t secInfo,
+                ELFNPU37XX::VPUX_SHAVE_ALIGNMENT                // int64_t secAddrAlign
         );
     }
 
@@ -961,65 +1095,64 @@ void ConvertVPUMI37XX2ELFPass::setupActKernelRtConfigs(mlir::func::FuncOp func, 
 
     auto builderElfSectionOpReg = mlir::OpBuilder::atBlockEnd(actKRtConfigSec.getBlock());
 
-    builderElfSectionOpReg.create<ELF::PutOpInSectionOp>(builderElfSectionOpReg.getUnknownLoc(),  // endOp->getLoc(),
-                                                         actShaveRt  // mlir::Value inputArg
+    builderElfSectionOpReg.create<ELFNPU37XX::PutOpInSectionOp>(
+            builderElfSectionOpReg.getUnknownLoc(),  // endOp->getLoc(),
+            actShaveRt                               // mlir::Value inputArg
     );
 
     mlir::Value actKRtConfigSecValue = actKRtConfigSec.getOperation()->getResult(0);
 
-    auto actKRtConfigSym = builderFunc.create<ELF::SymbolOp>(
+    auto actKRtConfigSym = builderFunc.create<ELFNPU37XX::SymbolOp>(
             builderFunc.getUnknownLoc(),
-            vpux::ELF::SymbolType::get(ctx),                          // mlir::Type
+            vpux::ELFNPU37XX::SymbolType::get(ctx),                   // mlir::Type
             actKRtConfigSecValue,                                     // mlir::Value inputArg
             isBuiltin,                                                // mlir::UnitAttr
             mlir::StringAttr::get(ctx, "sym_actKernelRtConfigsSec"),  // mlir::StringAttr
-            typeSym,                                                  // vpux::ELF::SymbolTypeEnumAttr
+            typeSym,                                                  // vpux::ELFNPU37XX::SymbolTypeEnumAttr
             sizeSym,                                                  // size
             valueSym                                                  // value
     );
     symbolMap["sym_actKernelRtConfigsSec"] = actKRtConfigSym.getResult();
 
-    auto actKRtConfigSymTab = builderFunc.create<ELF::CreateSymbolTableSectionOp>(
+    auto actKRtConfigSymTab = builderFunc.create<ELFNPU37XX::CreateSymbolTableSectionOp>(
             builderFunc.getUnknownLoc(),
-            vpux::ELF::SectionType::get(ctx),  // mlir::Type
-            ".symtab.actKernelRtConfig",       // llvm::StringRef secName,
-            vpux::ELF::SectionFlagsAttr::SHF_NONE,
-            isBuiltin  // mlir::UnitAttr
+            vpux::ELFNPU37XX::SectionType::get(ctx),                  // mlir::Type
+            mlir::StringAttr::get(ctx, ".symtab.actKernelRtConfig"),  // mlir::StringAttr secName,
+            vpux::ELFNPU37XX::SectionFlagsAttrAttr::get(
+                    ctx, vpux::ELFNPU37XX::SectionFlagsAttr::SHF_NONE),  // vpux::ELFNPU37XX::SectionFlagsAttr secFlags,
+            isBuiltin                                                    // mlir::UnitAttr
     );
 
     auto builderActKRtConfigSymTab = mlir::OpBuilder::atBlockEnd(actKRtConfigSymTab.getBlock());
 
-    builderActKRtConfigSymTab.create<ELF::PutOpInSectionOp>(builderActKRtConfigSymTab.getUnknownLoc(),
-                                                            actKRtConfigSym.getResult());
+    builderActKRtConfigSymTab.create<ELFNPU37XX::PutOpInSectionOp>(builderActKRtConfigSymTab.getUnknownLoc(),
+                                                                   actKRtConfigSym.getResult());
 
     for (auto shaveStackSym : shaveStacksSyms) {
-        builderActKRtConfigSymTab.create<ELF::PutOpInSectionOp>(builderActKRtConfigSymTab.getUnknownLoc(),
-                                                                shaveStackSym);
+        builderActKRtConfigSymTab.create<ELFNPU37XX::PutOpInSectionOp>(builderActKRtConfigSymTab.getUnknownLoc(),
+                                                                       shaveStackSym);
     }
 
     mlir::Value actKRtConfigSymValue = actKRtConfigSym.getResult();
 
-    ELF::ElfSectionInterface mappedInferenceSec =
-            mlir::cast<ELF::ElfSectionInterface>(mappedInferenceSectionOpValue.getDefiningOp());
+    VPUX_THROW_UNLESS(mappedInferenceSectionOp != nullptr, "CreateActKernelConfig: MappedInference section is null");
 
-    VPUX_THROW_UNLESS(mappedInferenceSec != nullptr, "CreateActKernelConfig: MappedInference section is null");
-
-    auto relocSection = relocationManager.getRelocSection(mappedInferenceSec, actKRtConfigSymTab);
+    auto relocSection = relocationManager.getRelocSection(mappedInferenceSectionOp, actKRtConfigSymTab);
 
     auto builderMappedInfRelocSec = mlir::OpBuilder::atBlockEnd(relocSection.getBlock());
 
     for (auto mappedInferenceOp : mappedInferenceOps) {
-        builderMappedInfRelocSec.create<ELF::RelocImmOffsetOp>(
+        builderMappedInfRelocSec.create<ELFNPU37XX::RelocImmOffsetOp>(
                 builderMappedInfRelocSec.getUnknownLoc(), mappedInferenceOp.getResult(),
                 offsetof(nn_public::VpuMappedInference, shv_rt_configs) +
                         offsetof(nn_public::VpuNNShaveRuntimeConfigs, act_rt_window_base),
-                vpux::ELF::RelocationType::R_VPU_32, actKRtConfigSymValue, 0);
+                vpux::ELFNPU37XX::RelocationType::R_VPU_32, actKRtConfigSymValue, 0);
 
         for (auto shaveStack : shaveStacks | indexed) {
             const auto index = shaveStack.index();
-            builderMappedInfRelocSec.create<ELF::RelocOp>(
+            builderMappedInfRelocSec.create<ELFNPU37XX::RelocOp>(
                     builderMappedInfRelocSec.getUnknownLoc(), mappedInferenceOp.getResult(), shaveStack.value(),
-                    vpux::ELF::RelocationType::R_VPU_32, shaveStacksSyms[index], ACT_SHAVE_STACK_SIZE);
+                    vpux::ELFNPU37XX::RelocationType::R_VPU_32, shaveStacksSyms[index], ACT_SHAVE_STACK_SIZE);
         }
     }
 }
@@ -1027,17 +1160,17 @@ void ConvertVPUMI37XX2ELFPass::setupActKernelRtConfigs(mlir::func::FuncOp func, 
 void ConvertVPUMI37XX2ELFPass::createDPURelocs(mlir::func::FuncOp func) {
     auto invariants = func.getOps<VPUMI37XX::DPUInvariantOp>();
 
-    ELF::ElfSectionInterface targetSection;
-    ELF::CreateSymbolTableSectionOp symTabOfInput;
-    ELF::CreateRelocationSectionOp relocSection;
-    ELF::SymbolOp sourceSym;
+    ELFNPU37XX::ElfSectionInterface targetSection;
+    ELFNPU37XX::CreateSymbolTableSectionOp symTabOfInput;
+    ELFNPU37XX::CreateRelocationSectionOp relocSection;
+    ELFNPU37XX::SymbolOp sourceSym;
     VPURT::DeclareBufferOp declarator;
 
-    ELF::SymbolOp weightTableStartSym;
+    ELFNPU37XX::SymbolOp weightTableStartSym;
     uint64_t weightTableStartAddend = 0;
 
     vpux::IndexedSymbolAttr bufferMemSpace;
-    llvm::Optional<VPURT::BufferSection> bufferSection;
+    std::optional<VPURT::BufferSection> bufferSection;
 
     // TODO: E#54007 currently ignoring sparsity and SOH/SOK.
     for (auto invariant : invariants) {
@@ -1052,9 +1185,10 @@ void ConvertVPUMI37XX2ELFPass::createDPURelocs(mlir::func::FuncOp func) {
         auto input = invariant.getInput();
         declarator = mlir::cast<VPURT::DeclareBufferOp>(input.getDefiningOp());
 
-        symTabOfInput = declarator.getSection() == VPURT::BufferSection::CMX_NN
-                                ? mlir::cast<ELF::CreateSymbolTableSectionOp>(CMXMappingSymtabValue.getDefiningOp())
-                                : relocationManager.getSymTab(input);
+        symTabOfInput =
+                declarator.getSection() == VPURT::BufferSection::CMX_NN
+                        ? mlir::cast<ELFNPU37XX::CreateSymbolTableSectionOp>(CMXMappingSymtabValue.getDefiningOp())
+                        : relocationManager.getSymTab(input);
 
         relocSection = relocationManager.getRelocSection(targetSection, symTabOfInput);
 
@@ -1068,12 +1202,11 @@ void ConvertVPUMI37XX2ELFPass::createDPURelocs(mlir::func::FuncOp func) {
 
         if (bufferSection.value() == VPURT::BufferSection::CMX_NN) {
             sourceSym = elfCMXMappingSyms[static_cast<int>(
-                    vpux::ELF::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR)];
+                    vpux::ELFNPU37XX::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR)];
             // if we DO NOT have segmentation we relocate to Start_of_CMX + (sectionIdx * SLICE_LENGHT) + local_offset
             // if we DO have segmentation we relocate to start_of_CMX + local_offset. Distributed buffers always
             // assume we start from cluster 0
-            if (!invariant.getIsSegmented().value_or(false) ||
-                invariant.getNceTaskType() == VPUIP::NCETaskType::ELTWISE) {
+            if (!invariant.getIsSegmented() || invariant.getNceTaskType() == VPUIP::NCETaskType::ELTWISE) {
                 auto secIdx = bufferMemSpace.getIndex().value_or(0);
                 addend += secIdx * NNCMX_SLICE_SIZE;
             }
@@ -1084,9 +1217,9 @@ void ConvertVPUMI37XX2ELFPass::createDPURelocs(mlir::func::FuncOp func) {
         auto regsOffset = offsetof(nn_public::VpuDPUInvariant, registers_);
 
         // Input relocations, relocating act_offset registers
-        builder.create<ELF::RelocImmOffsetOp>(input.getLoc(), invariant,
-                                              regsOffset + offsetof(nn_public::VpuDPUInvariantRegisters, act_offset[0]),
-                                              ELF::RelocationType::R_VPU_32, sourceSym, addend);
+        builder.create<ELFNPU37XX::RelocImmOffsetOp>(
+                input.getLoc(), invariant, regsOffset + offsetof(nn_public::VpuDPUInvariantRegisters, act_offset[0]),
+                ELFNPU37XX::RelocationType::R_VPU_32, sourceSym, addend);
 
         // For dense_se=0 (i.e. explicit SE table), the act_offset registers act as a base address over which the
         // SE pointers offsets are added. As such, they have to correspond to the address where the data is found
@@ -1094,18 +1227,19 @@ void ConvertVPUMI37XX2ELFPass::createDPURelocs(mlir::func::FuncOp func) {
         if (invariant.getInputStorageElementTable() != nullptr) {
             addend += NNCMX_SLICE_SIZE;
         }
-        builder.create<ELF::RelocImmOffsetOp>(input.getLoc(), invariant,
-                                              regsOffset + offsetof(nn_public::VpuDPUInvariantRegisters, act_offset[1]),
-                                              ELF::RelocationType::R_VPU_32, sourceSym, addend);
+        builder.create<ELFNPU37XX::RelocImmOffsetOp>(
+                input.getLoc(), invariant, regsOffset + offsetof(nn_public::VpuDPUInvariantRegisters, act_offset[1]),
+                ELFNPU37XX::RelocationType::R_VPU_32, sourceSym, addend);
 
-        bool isSegmented = invariant.getIsSegmented().value_or(false);
+        bool isSegmented = invariant.getIsSegmented();
 
         if (auto inputSparsityMap = invariant.getInputSparsityMap()) {
             declarator = mlir::cast<VPURT::DeclareBufferOp>(inputSparsityMap.getDefiningOp());
 
-            symTabOfInput = declarator.getSection() == VPURT::BufferSection::CMX_NN
-                                    ? mlir::cast<ELF::CreateSymbolTableSectionOp>(CMXMappingSymtabValue.getDefiningOp())
-                                    : relocationManager.getSymTab(input);
+            symTabOfInput =
+                    declarator.getSection() == VPURT::BufferSection::CMX_NN
+                            ? mlir::cast<ELFNPU37XX::CreateSymbolTableSectionOp>(CMXMappingSymtabValue.getDefiningOp())
+                            : relocationManager.getSymTab(input);
             relocSection = relocationManager.getRelocSection(targetSection, symTabOfInput);
 
             builder = mlir::OpBuilder::atBlockEnd(relocSection.getBlock());
@@ -1118,7 +1252,7 @@ void ConvertVPUMI37XX2ELFPass::createDPURelocs(mlir::func::FuncOp func) {
 
             if (bufferSection.value() == VPURT::BufferSection::CMX_NN) {
                 sourceSym = elfCMXMappingSyms[static_cast<int>(
-                        vpux::ELF::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR)];
+                        vpux::ELFNPU37XX::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR)];
             } else {
                 sourceSym = relocationManager.getSymbol(targetSection);
             }
@@ -1128,10 +1262,10 @@ void ConvertVPUMI37XX2ELFPass::createDPURelocs(mlir::func::FuncOp func) {
             auto secIdx = bufferMemSpace.getIndex().value_or(0);
             addend += (isSegmented && !isEltwise) ? 0 : secIdx * NNCMX_SLICE_SIZE;
 
-            builder.create<ELF::RelocImmOffsetOp>(
+            builder.create<ELFNPU37XX::RelocImmOffsetOp>(
                     invariant.getInputSparsityMap().getLoc(), invariant,
                     regsOffset + offsetof(nn_public::VpuDPUInvariantRegisters, se_sp_addr) + sizeof(uint32_t),
-                    ELF::RelocationType::R_VPU_32, sourceSym, addend);
+                    ELFNPU37XX::RelocationType::R_VPU_32, sourceSym, addend);
 
             if (isEltwise) {
                 auto elop_addend = addend;
@@ -1139,25 +1273,26 @@ void ConvertVPUMI37XX2ELFPass::createDPURelocs(mlir::func::FuncOp func) {
                     auto tensorBSparsity = mlir::cast<VPURT::DeclareBufferOp>(tensorBSparsityMapVal.getDefiningOp());
                     elop_addend = tensorBSparsity.getByteOffset();
                 }
-                builder.create<ELF::RelocImmOffsetOp>(
+                builder.create<ELFNPU37XX::RelocImmOffsetOp>(
                         invariant.getInputSparsityMap().getLoc(), invariant,
                         regsOffset + offsetof(nn_public::VpuDPUInvariantRegisters, elop_sparsity_addr),
-                        ELF::RelocationType::R_VPU_32, sourceSym, elop_addend);
+                        ELFNPU37XX::RelocationType::R_VPU_32, sourceSym, elop_addend);
             } else if (isSegmented) {
                 addend += NNCMX_SLICE_SIZE;
-                builder.create<ELF::RelocImmOffsetOp>(
+                builder.create<ELFNPU37XX::RelocImmOffsetOp>(
                         invariant.getInputSparsityMap().getLoc(), invariant,
                         regsOffset + offsetof(nn_public::VpuDPUInvariantRegisters, se_sp_addr[1]) + sizeof(uint32_t),
-                        ELF::RelocationType::R_VPU_32, sourceSym, addend);
+                        ELFNPU37XX::RelocationType::R_VPU_32, sourceSym, addend);
             }
         }
 
         if (auto inputSETable = invariant.getInputStorageElementTable()) {
             declarator = mlir::cast<VPURT::DeclareBufferOp>(inputSETable.getDefiningOp());
 
-            symTabOfInput = declarator.getSection() == VPURT::BufferSection::CMX_NN
-                                    ? mlir::cast<ELF::CreateSymbolTableSectionOp>(CMXMappingSymtabValue.getDefiningOp())
-                                    : relocationManager.getSymTab(input);
+            symTabOfInput =
+                    declarator.getSection() == VPURT::BufferSection::CMX_NN
+                            ? mlir::cast<ELFNPU37XX::CreateSymbolTableSectionOp>(CMXMappingSymtabValue.getDefiningOp())
+                            : relocationManager.getSymTab(input);
 
             relocSection = relocationManager.getRelocSection(targetSection, symTabOfInput);
 
@@ -1171,22 +1306,22 @@ void ConvertVPUMI37XX2ELFPass::createDPURelocs(mlir::func::FuncOp func) {
 
             if (bufferSection.value() == VPURT::BufferSection::CMX_NN) {
                 sourceSym = elfCMXMappingSyms[static_cast<int>(
-                        vpux::ELF::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR)];
+                        vpux::ELFNPU37XX::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR)];
             } else {
                 sourceSym = relocationManager.getSymbol(targetSection);
             }
 
-            builder.create<ELF::RelocImmOffsetOp>(
+            builder.create<ELFNPU37XX::RelocImmOffsetOp>(
                     invariant.getInputStorageElementTable().getLoc(), invariant,
                     regsOffset + offsetof(nn_public::VpuDPUInvariantRegisters, se_sp_addr),
-                    ELF::RelocationType::R_VPU_32, sourceSym, addend);
+                    ELFNPU37XX::RelocationType::R_VPU_32, sourceSym, addend);
 
             if (isSegmented) {
                 addend += NNCMX_SLICE_SIZE;
-                builder.create<ELF::RelocImmOffsetOp>(
+                builder.create<ELFNPU37XX::RelocImmOffsetOp>(
                         invariant.getInputStorageElementTable().getLoc(), invariant,
                         regsOffset + offsetof(nn_public::VpuDPUInvariantRegisters, se_sp_addr[1]),
-                        ELF::RelocationType::R_VPU_32, sourceSym, addend);
+                        ELFNPU37XX::RelocationType::R_VPU_32, sourceSym, addend);
             }
         }
 
@@ -1194,9 +1329,10 @@ void ConvertVPUMI37XX2ELFPass::createDPURelocs(mlir::func::FuncOp func) {
         if (auto weights = invariant.getWeights()) {
             declarator = mlir::cast<VPURT::DeclareBufferOp>(weights.getDefiningOp());
 
-            symTabOfInput = declarator.getSection() == VPURT::BufferSection::CMX_NN
-                                    ? mlir::cast<ELF::CreateSymbolTableSectionOp>(CMXMappingSymtabValue.getDefiningOp())
-                                    : relocationManager.getSymTab(input);
+            symTabOfInput =
+                    declarator.getSection() == VPURT::BufferSection::CMX_NN
+                            ? mlir::cast<ELFNPU37XX::CreateSymbolTableSectionOp>(CMXMappingSymtabValue.getDefiningOp())
+                            : relocationManager.getSymTab(input);
             relocSection = relocationManager.getRelocSection(targetSection, symTabOfInput);
 
             builder = mlir::OpBuilder::atBlockEnd(relocSection.getBlock());
@@ -1211,7 +1347,7 @@ void ConvertVPUMI37XX2ELFPass::createDPURelocs(mlir::func::FuncOp func) {
 
             if (bufferSection.value() == VPURT::BufferSection::CMX_NN) {
                 sourceSym = elfCMXMappingSyms[static_cast<int>(
-                        vpux::ELF::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR)];
+                        vpux::ELFNPU37XX::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR)];
                 auto secIdx = bufferMemSpace.getIndex().value_or(0);
                 addend += secIdx * NNCMX_SLICE_SIZE;
             } else {
@@ -1219,10 +1355,10 @@ void ConvertVPUMI37XX2ELFPass::createDPURelocs(mlir::func::FuncOp func) {
             }
 
             if (opType != VPUIP::NCETaskType::ELTWISE) {
-                builder.create<ELF::RelocImmOffsetOp>(
+                builder.create<ELFNPU37XX::RelocImmOffsetOp>(
                         weights.getLoc(), invariant,
                         regsOffset + offsetof(nn_public::VpuDPUInvariantRegisters, wt_offset),
-                        ELF::RelocationType::R_VPU_32, sourceSym, addend);
+                        ELFNPU37XX::RelocationType::R_VPU_32, sourceSym, addend);
             } else {
                 auto secIdx = bufferMemSpace.getIndex().value_or(0);
                 auto weightsOffs = mlir::cast<VPURT::DeclareBufferOp>(weights.getDefiningOp()).getByteOffset() +
@@ -1237,10 +1373,10 @@ void ConvertVPUMI37XX2ELFPass::createDPURelocs(mlir::func::FuncOp func) {
 
                 // correlated with serializer, where rest of the offsets are expected to be directly filled, in
                 // accordance with this if-then-else
-                builder.create<ELF::RelocImmOffsetOp>(
+                builder.create<ELFNPU37XX::RelocImmOffsetOp>(
                         invariant.getInput().getLoc(), invariant,
                         regsOffset + offsetof(nn_public::VpuDPUInvariantRegisters, act_offset[0]),
-                        ELF::RelocationType::R_VPU_32, sourceSym, std::min(actOffs, weightsOffs));
+                        ELFNPU37XX::RelocationType::R_VPU_32, sourceSym, std::min(actOffs, weightsOffs));
             }
         }
 
@@ -1259,9 +1395,10 @@ void ConvertVPUMI37XX2ELFPass::createDPURelocs(mlir::func::FuncOp func) {
 
             declarator = mlir::cast<VPURT::DeclareBufferOp>(output.getDefiningOp());
 
-            symTabOfInput = declarator.getSection() == VPURT::BufferSection::CMX_NN
-                                    ? mlir::cast<ELF::CreateSymbolTableSectionOp>(CMXMappingSymtabValue.getDefiningOp())
-                                    : relocationManager.getSymTab(input);
+            symTabOfInput =
+                    declarator.getSection() == VPURT::BufferSection::CMX_NN
+                            ? mlir::cast<ELFNPU37XX::CreateSymbolTableSectionOp>(CMXMappingSymtabValue.getDefiningOp())
+                            : relocationManager.getSymTab(input);
 
             relocSection = relocationManager.getRelocSection(targetSection, symTabOfInput);
 
@@ -1275,7 +1412,7 @@ void ConvertVPUMI37XX2ELFPass::createDPURelocs(mlir::func::FuncOp func) {
 
             if (bufferSection.value() == VPURT::BufferSection::CMX_NN) {
                 sourceSym = elfCMXMappingSyms[static_cast<int>(
-                        vpux::ELF::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR)];
+                        vpux::ELFNPU37XX::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR)];
                 auto secIdx = bufferMemSpace.getIndex().value_or(0);
                 addend += secIdx * NNCMX_SLICE_SIZE;
             } else {
@@ -1291,18 +1428,20 @@ void ConvertVPUMI37XX2ELFPass::createDPURelocs(mlir::func::FuncOp func) {
             static constexpr uint32_t base0Offset = offsetof(nn_public::VpuDPUInvariantRegisters, base_adr[0]);
             static constexpr uint32_t base1Offset = offsetof(nn_public::VpuDPUInvariantRegisters, base_adr[1]);
 
-            builder.create<ELF::RelocImmOffsetOp>(output.getLoc(), invariant, regsOffset + base0Offset,
-                                                  ELF::RelocationType::R_VPU_32_MULTICAST_BASE, sourceSym, addend);
-            builder.create<ELF::RelocImmOffsetOp>(output.getLoc(), invariant, regsOffset + base1Offset,
-                                                  ELF::RelocationType::R_VPU_32_MULTICAST_BASE, sourceSym, addend);
+            builder.create<ELFNPU37XX::RelocImmOffsetOp>(output.getLoc(), invariant, regsOffset + base0Offset,
+                                                         ELFNPU37XX::RelocationType::R_VPU_32_MULTICAST_BASE, sourceSym,
+                                                         addend);
+            builder.create<ELFNPU37XX::RelocImmOffsetOp>(output.getLoc(), invariant, regsOffset + base1Offset,
+                                                         ELFNPU37XX::RelocationType::R_VPU_32_MULTICAST_BASE, sourceSym,
+                                                         addend);
 
             if (auto outputSparsityMap = invariant.getOutputSparsityMapBuff()) {
                 declarator = mlir::cast<VPURT::DeclareBufferOp>(outputSparsityMap.getDefiningOp());
 
-                symTabOfInput =
-                        declarator.getSection() == VPURT::BufferSection::CMX_NN
-                                ? mlir::cast<ELF::CreateSymbolTableSectionOp>(CMXMappingSymtabValue.getDefiningOp())
-                                : relocationManager.getSymTab(input);
+                symTabOfInput = declarator.getSection() == VPURT::BufferSection::CMX_NN
+                                        ? mlir::cast<ELFNPU37XX::CreateSymbolTableSectionOp>(
+                                                  CMXMappingSymtabValue.getDefiningOp())
+                                        : relocationManager.getSymTab(input);
 
                 relocSection = relocationManager.getRelocSection(targetSection, symTabOfInput);
 
@@ -1316,16 +1455,16 @@ void ConvertVPUMI37XX2ELFPass::createDPURelocs(mlir::func::FuncOp func) {
 
                 if (bufferSection.value() == VPURT::BufferSection::CMX_NN) {
                     sourceSym = elfCMXMappingSyms[static_cast<int>(
-                            vpux::ELF::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR)];
+                            vpux::ELFNPU37XX::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR)];
                     auto secIdx = bufferMemSpace.getIndex().value_or(0);
                     addend += secIdx * NNCMX_SLICE_SIZE;
                 } else {
                     sourceSym = relocationManager.getSymbol(targetSection);
                 }
 
-                builder.create<ELF::RelocImmOffsetOp>(
+                builder.create<ELFNPU37XX::RelocImmOffsetOp>(
                         output.getLoc(), invariant, regsOffset + offsetof(nn_public::VpuDPUInvariantRegisters, sp_base),
-                        ELF::RelocationType::R_VPU_32_MULTICAST_BASE, sourceSym, addend);
+                        ELFNPU37XX::RelocationType::R_VPU_32_MULTICAST_BASE, sourceSym, addend);
             }
         }
 
@@ -1334,9 +1473,10 @@ void ConvertVPUMI37XX2ELFPass::createDPURelocs(mlir::func::FuncOp func) {
         if (auto weightTable = invariant.getWeightTable()) {
             declarator = mlir::cast<VPURT::DeclareBufferOp>(weightTable.getDefiningOp());
 
-            symTabOfInput = declarator.getSection() == VPURT::BufferSection::CMX_NN
-                                    ? mlir::cast<ELF::CreateSymbolTableSectionOp>(CMXMappingSymtabValue.getDefiningOp())
-                                    : relocationManager.getSymTab(input);
+            symTabOfInput =
+                    declarator.getSection() == VPURT::BufferSection::CMX_NN
+                            ? mlir::cast<ELFNPU37XX::CreateSymbolTableSectionOp>(CMXMappingSymtabValue.getDefiningOp())
+                            : relocationManager.getSymTab(input);
             relocSection = relocationManager.getRelocSection(targetSection, symTabOfInput);
 
             builder = mlir::OpBuilder::atBlockEnd(relocSection.getBlock());
@@ -1349,7 +1489,7 @@ void ConvertVPUMI37XX2ELFPass::createDPURelocs(mlir::func::FuncOp func) {
 
             if (bufferSection.value() == VPURT::BufferSection::CMX_NN) {
                 sourceSym = elfCMXMappingSyms[static_cast<int>(
-                        vpux::ELF::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR)];
+                        vpux::ELFNPU37XX::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR)];
                 auto secIdx = bufferMemSpace.getIndex().value_or(0);
                 addend += secIdx * NNCMX_SLICE_SIZE;
             } else {
@@ -1359,19 +1499,19 @@ void ConvertVPUMI37XX2ELFPass::createDPURelocs(mlir::func::FuncOp func) {
             // wt_offset needs to be set even if there is no weights operand in MAXPOOL or AVEPOOL
             if (!invariant.getWeights() &&
                 (opType == VPUIP::NCETaskType::MAXPOOL || opType == VPUIP::NCETaskType::AVEPOOL)) {
-                builder.create<ELF::RelocImmOffsetOp>(
+                builder.create<ELFNPU37XX::RelocImmOffsetOp>(
                         weightTable.getLoc(), invariant,
                         regsOffset + offsetof(nn_public::VpuDPUInvariantRegisters, wt_offset),
-                        ELF::RelocationType::R_VPU_32, sourceSym, addend);
+                        ELFNPU37XX::RelocationType::R_VPU_32, sourceSym, addend);
             }
 
             addend += declarator.getByteOffset();
             weightTableStartSym = sourceSym;
             weightTableStartAddend = addend;
-            builder.create<ELF::RelocImmOffsetOp>(
+            builder.create<ELFNPU37XX::RelocImmOffsetOp>(
                     weightTable.getLoc(), invariant,
                     regsOffset + offsetof(nn_public::VpuDPUInvariantRegisters, weight_start),
-                    ELF::RelocationType::R_VPU_32, sourceSym, addend);
+                    ELFNPU37XX::RelocationType::R_VPU_32, sourceSym, addend);
         }
 
         // variant to invariant relocation
@@ -1387,19 +1527,21 @@ void ConvertVPUMI37XX2ELFPass::createDPURelocs(mlir::func::FuncOp func) {
             auto targetSection = relocationManager.getSection(variant.getResult());
 
             auto relocSection = relocationManager.getRelocSection(
-                    targetSection, mlir::cast<ELF::CreateSymbolTableSectionOp>(CMXMappingSymtabValue.getDefiningOp()));
+                    targetSection,
+                    mlir::cast<ELFNPU37XX::CreateSymbolTableSectionOp>(CMXMappingSymtabValue.getDefiningOp()));
 
             auto builder = mlir::OpBuilder::atBlockEnd(relocSection.getBlock());
 
-            sourceSym = elfCMXMappingSyms[static_cast<int>(ELF::CMXMappingSymbol::VPU_NNRD_SYM_RTM_IVAR)];
+            sourceSym = elfCMXMappingSyms[static_cast<int>(ELFNPU37XX::CMXMappingSymbol::VPU_NNRD_SYM_RTM_IVAR)];
 
-            builder.create<ELF::RelocOp>(invariant.getLoc(), variant, invariantVal, ELF::RelocationType::R_VPU_32_RTM,
-                                         sourceSym, sizeof(nn_public::VpuDPUInvariant));
+            builder.create<ELFNPU37XX::RelocOp>(invariant.getLoc(), variant, invariantVal,
+                                                ELFNPU37XX::RelocationType::R_VPU_32_RTM, sourceSym,
+                                                sizeof(nn_public::VpuDPUInvariant));
 
             if (invariant.getWeightTable()) {
-                builder.create<ELF::RelocImmOffsetOp>(
+                builder.create<ELFNPU37XX::RelocImmOffsetOp>(
                         variant.getLoc(), variant, offsetof(nn_public::VpuDPUVariant, weight_table_offset_),
-                        ELF::RelocationType::R_VPU_32_SUM, weightTableStartSym, weightTableStartAddend);
+                        ELFNPU37XX::RelocationType::R_VPU_32_SUM, weightTableStartSym, weightTableStartAddend);
             }
 
             // in case of invariant, the input drives the specific cluster dispatching. We control this based on the
@@ -1407,11 +1549,11 @@ void ConvertVPUMI37XX2ELFPass::createDPURelocs(mlir::func::FuncOp func) {
             bufferMemSpace = invariant.getInput().getType().cast<vpux::NDTypeInterface>().getMemSpace();
             int64_t clusterIdx = bufferMemSpace.getIndex().value_or(0);
 
-            sourceSym = elfCMXMappingSyms[static_cast<int>(ELF::CMXMappingSymbol::VPU_NNRD_SYM_FIFO_BASE)];
+            sourceSym = elfCMXMappingSyms[static_cast<int>(ELFNPU37XX::CMXMappingSymbol::VPU_NNRD_SYM_FIFO_BASE)];
             if (clusterIdx) {
-                builder.create<ELF::RelocImmOffsetOp>(variant.getLoc(), variant,
-                                                      offsetof(nn_public::VpuDPUVariant, cluster_),
-                                                      ELF::RelocationType::R_VPU_32, sourceSym, clusterIdx);
+                builder.create<ELFNPU37XX::RelocImmOffsetOp>(
+                        variant.getLoc(), variant, offsetof(nn_public::VpuDPUVariant, cluster_),
+                        ELFNPU37XX::RelocationType::R_VPU_32, sourceSym, clusterIdx);
             }
         }
     }
@@ -1422,11 +1564,11 @@ void ConvertVPUMI37XX2ELFPass::createDPURelocs(mlir::func::FuncOp func) {
 void ConvertVPUMI37XX2ELFPass::createDMARelocs(mlir::func::FuncOp& funcOp, mlir::MLIRContext* ctx,
                                                mlir::SmallVector<int64_t>& dmaCount,
                                                mlir::Operation::operand_range dmaTasks,
-                                               mlir::SmallVector<mlir::Value>& dmaSectionValues) {
-    ELF::ElfSectionInterface targetSection;
-    ELF::CreateSymbolTableSectionOp symTab;
-    ELF::CreateRelocationSectionOp relocSection;
-    ELF::SymbolOp sourceSym;
+                                               mlir::SmallVector<ELFNPU37XX::CreateSectionOp>& dmaSections) {
+    ELFNPU37XX::ElfSectionInterface targetSection;
+    ELFNPU37XX::CreateSymbolTableSectionOp symTab;
+    ELFNPU37XX::CreateRelocationSectionOp relocSection;
+    ELFNPU37XX::SymbolOp sourceSym;
 
     mlir::OpBuilder builderFunc(&(funcOp.getBody().front().back()));
 
@@ -1434,17 +1576,17 @@ void ConvertVPUMI37XX2ELFPass::createDMARelocs(mlir::func::FuncOp& funcOp, mlir:
         auto listIdx = mlir::cast<VPUMI37XX::NNDMAOp>(listHead.getDefiningOp()).getPort();
         auto listElemCount = dmaCount[listIdx];
 
-        ELF::CreateRelocationSectionOp createInputRelocationSectionOp =
-                builderFunc.create<ELF::CreateRelocationSectionOp>(
-                        mlir::UnknownLoc::get(ctx),
-                        vpux::ELF::SectionType::get(ctx),               // mlir::Type
-                        ".rlt.DMA_NetInput" + std::to_string(listIdx),  // llvm::StringRef secName,
-                        networkInputSymTabValue,                        // sourceSymbolTableSection,
-                        dmaSectionValues[listIdx],                      // targetSection,
-                        vpux::ELF::SectionFlagsAttr::SHF_INFO_LINK | vpux::ELF::SectionFlagsAttr::VPU_SHF_JIT |
-                                vpux::ELF::SectionFlagsAttr::VPU_SHF_USERINPUT  // vpux::ELF::SectionFlagsAttr
-                                                                                // secFlags,
-                );
+        ELFNPU37XX::CreateRelocationSectionOp createInputRelocationSectionOp = builderFunc.create<
+                ELFNPU37XX::CreateRelocationSectionOp>(
+                mlir::UnknownLoc::get(ctx),
+                vpux::ELFNPU37XX::SectionType::get(ctx),        // mlir::Type
+                ".rlt.DMA_NetInput" + std::to_string(listIdx),  // llvm::StringRef secName,
+                networkInputSymTabValue,                        // sourceSymbolTableSection,
+                dmaSections[listIdx].getResult(),               // targetSection,
+                vpux::ELFNPU37XX::SectionFlagsAttr::SHF_INFO_LINK | vpux::ELFNPU37XX::SectionFlagsAttr::VPU_SHF_JIT |
+                        vpux::ELFNPU37XX::SectionFlagsAttr::VPU_SHF_USERINPUT  // vpux::ELFNPU37XX::SectionFlagsAttr
+                                                                               // secFlags,
+        );
 
         mlir::Region& regInputRelocSec = createInputRelocationSectionOp.getOperation()->getRegion(0);
         mlir::Block* blkInputRelocSec = new mlir::Block();
@@ -1453,17 +1595,17 @@ void ConvertVPUMI37XX2ELFPass::createDMARelocs(mlir::func::FuncOp& funcOp, mlir:
 
         mlir::OpBuilder builderInputRelocSec(blkInputRelocSec, blkInputRelocSec->begin());
 
-        ELF::CreateRelocationSectionOp createOutputRelocationSectionOp =
-                builderFunc.create<ELF::CreateRelocationSectionOp>(
-                        mlir::UnknownLoc::get(ctx),
-                        vpux::ELF::SectionType::get(ctx),                // mlir::Type
-                        ".rlt.DMA_NetOutput" + std::to_string(listIdx),  // llvm::StringRef secName,
-                        networkOutputSymTabValue,                        // sourceSymbolTableSection,
-                        dmaSectionValues[listIdx],                       // targetSection,
-                        vpux::ELF::SectionFlagsAttr::SHF_INFO_LINK | vpux::ELF::SectionFlagsAttr::VPU_SHF_JIT |
-                                vpux::ELF::SectionFlagsAttr::VPU_SHF_USEROUTPUT  // vpux::ELF::SectionFlagsAttr
-                                                                                 // secFlags,
-                );
+        ELFNPU37XX::CreateRelocationSectionOp createOutputRelocationSectionOp = builderFunc.create<
+                ELFNPU37XX::CreateRelocationSectionOp>(
+                mlir::UnknownLoc::get(ctx),
+                vpux::ELFNPU37XX::SectionType::get(ctx),         // mlir::Type
+                ".rlt.DMA_NetOutput" + std::to_string(listIdx),  // llvm::StringRef secName,
+                networkOutputSymTabValue,                        // sourceSymbolTableSection,
+                dmaSections[listIdx].getResult(),                // targetSection,
+                vpux::ELFNPU37XX::SectionFlagsAttr::SHF_INFO_LINK | vpux::ELFNPU37XX::SectionFlagsAttr::VPU_SHF_JIT |
+                        vpux::ELFNPU37XX::SectionFlagsAttr::VPU_SHF_USEROUTPUT  // vpux::ELFNPU37XX::SectionFlagsAttr
+                                                                                // secFlags,
+        );
         mlir::Region& regOutputRelocSec = createOutputRelocationSectionOp.getOperation()->getRegion(0);
         mlir::Block* blkOutputRelocSec = new mlir::Block();
         regOutputRelocSec.push_back(blkOutputRelocSec);
@@ -1472,16 +1614,18 @@ void ConvertVPUMI37XX2ELFPass::createDMARelocs(mlir::func::FuncOp& funcOp, mlir:
 
         mlir::OpBuilder builderProfOutputRelocSec(ctx);
         if (profOutputSymTabValue) {
-            ELF::CreateRelocationSectionOp createProfOutputRelocationSectionOp =
-                    builderFunc.create<ELF::CreateRelocationSectionOp>(
+            ELFNPU37XX::CreateRelocationSectionOp createProfOutputRelocationSectionOp =
+                    builderFunc.create<ELFNPU37XX::CreateRelocationSectionOp>(
                             mlir::UnknownLoc::get(ctx),
-                            vpux::ELF::SectionType::get(ctx),                 // mlir::Type
+                            vpux::ELFNPU37XX::SectionType::get(ctx),          // mlir::Type
                             ".rlt.DMA_ProfOutput" + std::to_string(listIdx),  // llvm::StringRef secName,
                             profOutputSymTabValue,                            // sourceSymbolTableSection,
-                            dmaSectionValues[listIdx],                        // targetSection,
-                            vpux::ELF::SectionFlagsAttr::SHF_INFO_LINK | vpux::ELF::SectionFlagsAttr::VPU_SHF_JIT |
-                                    vpux::ELF::SectionFlagsAttr::VPU_SHF_PROFOUTPUT  // vpux::ELF::SectionFlagsAttr
-                                                                                     // secFlags,
+                            dmaSections[listIdx].getResult(),                 // targetSection,
+                            vpux::ELFNPU37XX::SectionFlagsAttr::SHF_INFO_LINK |
+                                    vpux::ELFNPU37XX::SectionFlagsAttr::VPU_SHF_JIT |
+                                    vpux::ELFNPU37XX::SectionFlagsAttr::
+                                            VPU_SHF_PROFOUTPUT  // vpux::ELFNPU37XX::SectionFlagsAttr
+                                                                // secFlags,
                     );
             mlir::Region& regProfOutputRelocSec = createProfOutputRelocationSectionOp.getOperation()->getRegion(0);
             mlir::Block* blkProfOutputRelocSec = new mlir::Block();
@@ -1490,30 +1634,20 @@ void ConvertVPUMI37XX2ELFPass::createDMARelocs(mlir::func::FuncOp& funcOp, mlir:
             builderProfOutputRelocSec = mlir::OpBuilder(blkProfOutputRelocSec, blkProfOutputRelocSec->begin());
         }
 
-        targetSection = mlir::dyn_cast<ELF::ElfSectionInterface>(dmaSectionValues[listIdx].getDefiningOp());
+        targetSection = dmaSections[listIdx];
+        auto cmxRelocationSection = relocationManager.getRelocSection(targetSection, relocationManager.getCMXSymTab());
+        auto cmxBuilder = mlir::OpBuilder::atBlockEnd(cmxRelocationSection.getBlock());
+        auto ddrRelocationSection = relocationManager.getRelocSection(targetSection, ddrSymbolTable);
+        auto ddrBuilder = mlir::OpBuilder::atBlockEnd(ddrRelocationSection.getBlock());
 
         // Need to go through individual DMA task lists
         for (auto dmaIdx = 0; dmaIdx < listElemCount; ++dmaIdx) {
             auto dmaOp = mlir::dyn_cast_or_null<VPUMI37XX::NNDMAOp>(listHead.getDefiningOp());
             // input addr
             if (auto dmaInputArg = dmaOp.getInput().dyn_cast<mlir::BlockArgument>()) {
-                if (mlir::Value netInputSymValue = lookupELFSymbol(networkInputSymTabValue, dmaInputArg)) {
-                    builderInputRelocSec.create<ELF::RelocImmOffsetOp>(
-                            builderInputRelocSec.getUnknownLoc(), dmaOp.getResult(),
-                            offsetof(nn_public::VpuDMATask, transaction_) + offsetof(vpu_dma_descriptor_t, src),
-                            vpux::ELF::RelocationType::R_VPU_64,  // relocationType
-                            netInputSymValue,                     // ::mlir::Value sourceSymbol
-                            0                                     // int64_t addend
-                    );
-                } else if (mlir::Value netInputSymValue = lookupELFSymbol(networkOutputSymTabValue, dmaInputArg)) {
-                    builderOutputRelocSec.create<ELF::RelocImmOffsetOp>(
-                            builderOutputRelocSec.getUnknownLoc(), dmaOp.getResult(),
-                            offsetof(nn_public::VpuDMATask, transaction_) + offsetof(vpu_dma_descriptor_t, src),
-                            vpux::ELF::RelocationType::R_VPU_64,  // relocationType
-                            netInputSymValue,                     // ::mlir::Value sourceSymbol
-                            0                                     // int64_t addend
-                    );
-                }
+                auto offset = offsetof(nn_public::VpuDMATask, transaction_) + offsetof(vpu_dma_descriptor_t, src);
+                createBlockArgReloc(dmaOp, builderInputRelocSec, builderOutputRelocSec, offset,
+                                    vpux::ELFNPU37XX::RelocationType::R_VPU_64, dmaInputArg);
             } else {
                 auto dmaInputArg_ = dmaOp.getInput().getDefiningOp<VPURT::DeclareBufferOp>();
                 if (dmaInputArg_ && (dmaInputArg_.getMemorySpace() == VPURT::BufferSection::NetworkInput)) {
@@ -1524,12 +1658,12 @@ void ConvertVPUMI37XX2ELFPass::createDMARelocs(mlir::func::FuncOp& funcOp, mlir:
                     auto inputOffset = dmaInputArg_.getByteOffset();
                     auto funcArg = funcOp.getArgument(funcArgIndex[0]);
                     if (mlir::Value netInputSymValue = lookupELFSymbol(networkInputSymTabValue, funcArg)) {
-                        builderInputRelocSec.create<ELF::RelocImmOffsetOp>(
+                        builderInputRelocSec.create<ELFNPU37XX::RelocImmOffsetOp>(
                                 builderInputRelocSec.getUnknownLoc(), dmaOp.getResult(),
                                 offsetof(nn_public::VpuDMATask, transaction_) + offsetof(vpu_dma_descriptor_t, src),
-                                vpux::ELF::RelocationType::R_VPU_64,  // relocationType
-                                netInputSymValue,                     // ::mlir::Value sourceSymbol
-                                inputOffset                           // int64_t addend
+                                vpux::ELFNPU37XX::RelocationType::R_VPU_64,  // relocationType
+                                netInputSymValue,                            // ::mlir::Value sourceSymbol
+                                inputOffset                                  // int64_t addend
                         );
                     }
                 } else if (dmaInputArg_ && (dmaInputArg_.getMemorySpace() == VPURT::BufferSection::NetworkOutput)) {
@@ -1541,48 +1675,66 @@ void ConvertVPUMI37XX2ELFPass::createDMARelocs(mlir::func::FuncOp& funcOp, mlir:
                     auto funcArg =
                             funcOp.getArgument(funcArgIndex[0] + funcOp.getNumArguments() - funcOp.getNumResults());
                     if (mlir::Value netOutputSymValue = lookupELFSymbol(networkOutputSymTabValue, funcArg)) {
-                        builderOutputRelocSec.create<ELF::RelocImmOffsetOp>(
+                        builderOutputRelocSec.create<ELFNPU37XX::RelocImmOffsetOp>(
                                 builderOutputRelocSec.getUnknownLoc(), dmaOp.getResult(),
                                 offsetof(nn_public::VpuDMATask, transaction_) + offsetof(vpu_dma_descriptor_t, src),
-                                vpux::ELF::RelocationType::R_VPU_64,  // relocationType
-                                netOutputSymValue,                    // ::mlir::Value sourceSymbol
-                                inputOffset                           // int64_t addend
+                                vpux::ELFNPU37XX::RelocationType::R_VPU_64,  // relocationType
+                                netOutputSymValue,                           // ::mlir::Value sourceSymbol
+                                inputOffset                                  // int64_t addend
                         );
                     }
                 } else {
                     auto dmaInput = dmaOp.getInput();
-
-                    symTab = relocationManager.getSymTab(dmaInput);
-
-                    relocSection = relocationManager.getRelocSection(targetSection, symTab);
-
-                    auto builder = mlir::OpBuilder::atBlockEnd(relocSection.getBlock());
-
                     auto inputMemSpace = dmaInput.getType().cast<vpux::NDTypeInterface>().getMemSpace();
-                    // if no bufferSection specified explicitly, use the Defaul DDR
-                    auto bufferSection = inputMemSpace ? VPURT::symbolizeBufferSection(inputMemSpace.getLeafName())
-                                                       : VPURT::BufferSection::DDR;
-                    VPUX_THROW_UNLESS(bufferSection.has_value(), "Buffer with no section associated");
-
-                    size_t addend = 0;
-
-                    if (bufferSection == VPURT::BufferSection::CMX_NN) {
-                        sourceSym = elfCMXMappingSyms[static_cast<int>(
-                                vpux::ELF::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR)];
-                        addend = ELF::getOffsetOfOpInSection(dmaInput);
-                    } else if (bufferSection == VPURT::BufferSection::Register) {
-                        sourceSym = elfCMXMappingSyms[static_cast<int>(
-                                vpux::ELF::CMXMappingSymbol::VPU_NNRD_SYM_HW_REGISTER)];
-                        addend = mlir::dyn_cast<vpux::VPURT::DeclareBufferOp>(dmaInput.getDefiningOp()).getByteOffset();
-                    } else {
-                        auto dmaInputSection = relocationManager.getSection(dmaInput);
-                        sourceSym = ELF::RelocationManager::getSymbol(dmaInputSection);
-                        mlir::Value dmaInputSectionValue = dmaInputSection.getOperation()->getResult(0);
-                        addend = ELF::getOffsetOfOpInSection(dmaInput, dmaInputSectionValue);
+                    std::optional<VPURT::BufferSection> bufferSection;
+                    if (inputMemSpace) {
+                        bufferSection = VPURT::symbolizeBufferSection(inputMemSpace.getLeafName());
+                        VPUX_THROW_WHEN(!bufferSection.has_value(),
+                                        "Unrecognizable memory space {0} of input {1} DMA {2}", inputMemSpace, dmaInput,
+                                        dmaOp);
                     }
 
-                    builder.create<ELF::RelocOp>(dmaInput.getLoc(), dmaOp, dmaInput,
-                                                 vpux::ELF::RelocationType::R_VPU_64, sourceSym, addend);
+                    if (bufferSection == VPURT::BufferSection::CMX_NN) {
+                        auto sourceSym = elfCMXMappingSyms[static_cast<int>(
+                                vpux::ELFNPU37XX::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR)];
+                        auto addend = ELFNPU37XX::getOffsetOfOpInSection(dmaInput);
+                        cmxBuilder.create<ELFNPU37XX::RelocOp>(dmaInput.getLoc(), dmaOp, dmaInput,
+                                                               vpux::ELFNPU37XX::RelocationType::R_VPU_64, sourceSym,
+                                                               addend);
+                    } else if (bufferSection == VPURT::BufferSection::Constant ||
+                               mlir::isa<Const::DeclareOp>(dmaInput.getDefiningOp())) {
+                        auto sourceSym = symbolMap["sym_constSection"];
+                        auto addend = ELFNPU37XX::getOffsetOfOpInSection(dmaInput, constSectionOp, offsetCache);
+                        ddrBuilder.create<ELFNPU37XX::RelocOp>(dmaInput.getLoc(), dmaOp, dmaInput,
+                                                               vpux::ELFNPU37XX::RelocationType::R_VPU_64, sourceSym,
+                                                               addend);
+                    } else if (bufferSection == VPURT::BufferSection::DDR) {
+                        auto sourceSym = symbolMap["sym_bufferSection"];
+                        auto addend = ELFNPU37XX::getOffsetOfOpInSection(dmaInput, scratchBufferSectionOp, offsetCache);
+                        ddrBuilder.create<ELFNPU37XX::RelocOp>(dmaInput.getLoc(), dmaOp, dmaInput,
+                                                               vpux::ELFNPU37XX::RelocationType::R_VPU_64, sourceSym,
+                                                               addend);
+                    } else {
+                        auto symTab = relocationManager.getSymTab(dmaInput);
+                        auto relocSection = relocationManager.getRelocSection(targetSection, symTab);
+                        auto builder = mlir::OpBuilder::atBlockEnd(relocSection.getBlock());
+                        ELFNPU37XX::SymbolOp sourceSym;
+                        size_t addend = 0;
+                        if (bufferSection == VPURT::BufferSection::Register) {
+                            sourceSym = elfCMXMappingSyms[static_cast<int>(
+                                    vpux::ELFNPU37XX::CMXMappingSymbol::VPU_NNRD_SYM_HW_REGISTER)];
+                            addend = mlir::dyn_cast<vpux::VPURT::DeclareBufferOp>(dmaInput.getDefiningOp())
+                                             .getByteOffset();
+                        } else {
+                            auto dmaInputSection = relocationManager.getSection(dmaInput);
+                            sourceSym = ELFNPU37XX::RelocationManager::getSymbol(dmaInputSection);
+                            mlir::Value dmaInputSectionValue = dmaInputSection.getOperation()->getResult(0);
+                            addend = ELFNPU37XX::getOffsetOfOpInSection(dmaInput, dmaInputSectionValue, offsetCache);
+                        }
+                        builder.create<ELFNPU37XX::RelocOp>(dmaInput.getLoc(), dmaOp, dmaInput,
+                                                            vpux::ELFNPU37XX::RelocationType::R_VPU_64, sourceSym,
+                                                            addend);
+                    }
                 }
             }
 
@@ -1591,23 +1743,9 @@ void ConvertVPUMI37XX2ELFPass::createDMARelocs(mlir::func::FuncOp& funcOp, mlir:
 
             if (auto dmaOutputArg = outputBuffs[0].dyn_cast<mlir::BlockArgument>()) {
                 VPUX_THROW_WHEN(outputBuffs.size() != 1, "have first arg as blockArgument with multiple outputs");
-                if (mlir::Value netOutputSymValue = lookupELFSymbol(networkOutputSymTabValue, dmaOutputArg)) {
-                    builderOutputRelocSec.create<ELF::RelocImmOffsetOp>(
-                            builderOutputRelocSec.getUnknownLoc(), dmaOp.getResult(),
-                            offsetof(nn_public::VpuDMATask, transaction_) + offsetof(vpu_dma_descriptor_t, dst),
-                            vpux::ELF::RelocationType::R_VPU_64,  // relocationType
-                            netOutputSymValue,                    // ::mlir::Value sourceSymbol
-                            0                                     // int64_t addend
-                    );
-                } else if (mlir::Value netOutputSymValue = lookupELFSymbol(networkInputSymTabValue, dmaOutputArg)) {
-                    builderInputRelocSec.create<ELF::RelocImmOffsetOp>(
-                            builderInputRelocSec.getUnknownLoc(), dmaOp.getResult(),
-                            offsetof(nn_public::VpuDMATask, transaction_) + offsetof(vpu_dma_descriptor_t, dst),
-                            vpux::ELF::RelocationType::R_VPU_64,  // relocationType
-                            netOutputSymValue,                    // ::mlir::Value sourceSymbol
-                            0                                     // int64_t addend
-                    );
-                }
+                auto offset = offsetof(nn_public::VpuDMATask, transaction_) + offsetof(vpu_dma_descriptor_t, dst);
+                createBlockArgReloc(dmaOp, builderInputRelocSec, builderOutputRelocSec, offset,
+                                    vpux::ELFNPU37XX::RelocationType::R_VPU_64, dmaOutputArg);
             } else {
                 auto dmaOutputArg_ = outputBuffs[0].getDefiningOp<VPURT::DeclareBufferOp>();
                 VPUX_THROW_UNLESS(dmaOutputArg_,
@@ -1625,12 +1763,12 @@ void ConvertVPUMI37XX2ELFPass::createDMARelocs(mlir::func::FuncOp& funcOp, mlir:
                     auto funcArg =
                             funcOp.getArgument(funcArgIndex[0] + funcOp.getNumArguments() - funcOp.getNumResults());
                     if (mlir::Value netOutputSymValue = lookupELFSymbol(networkOutputSymTabValue, funcArg)) {
-                        builderOutputRelocSec.create<ELF::RelocImmOffsetOp>(
+                        builderOutputRelocSec.create<ELFNPU37XX::RelocImmOffsetOp>(
                                 builderOutputRelocSec.getUnknownLoc(), dmaOp.getResult(),
                                 offsetof(nn_public::VpuDMATask, transaction_) + offsetof(vpu_dma_descriptor_t, dst),
-                                vpux::ELF::RelocationType::R_VPU_64,  // relocationType
-                                netOutputSymValue,                    // ::mlir::Value sourceSymbol
-                                outputOffset                          // int64_t addend
+                                vpux::ELFNPU37XX::RelocationType::R_VPU_64,  // relocationType
+                                netOutputSymValue,                           // ::mlir::Value sourceSymbol
+                                outputOffset                                 // int64_t addend
                         );
                     }
                 } else if (dmaOutputArg_.getMemorySpace() == VPURT::BufferSection::ProfilingOutput) {
@@ -1644,73 +1782,76 @@ void ConvertVPUMI37XX2ELFPass::createDMARelocs(mlir::func::FuncOp& funcOp, mlir:
                     auto outputOffset = dmaOutputArg_.getByteOffset();
                     auto funcArg = funcOp.getArgument(funcOp.getNumArguments() - 1);
                     if (mlir::Value profOutputSymValue = lookupELFSymbol(profOutputSymTabValue, funcArg)) {
-                        builderProfOutputRelocSec.create<ELF::RelocImmOffsetOp>(
+                        builderProfOutputRelocSec.create<ELFNPU37XX::RelocImmOffsetOp>(
                                 builderProfOutputRelocSec.getUnknownLoc(), dmaOp.getResult(),
                                 offsetof(nn_public::VpuDMATask, transaction_) + offsetof(vpu_dma_descriptor_t, dst),
-                                vpux::ELF::RelocationType::R_VPU_64,  // relocationType
-                                profOutputSymValue,                   // ::mlir::Value sourceSymbol
-                                outputOffset                          // int64_t addend
+                                vpux::ELFNPU37XX::RelocationType::R_VPU_64,  // relocationType
+                                profOutputSymValue,                          // ::mlir::Value sourceSymbol
+                                outputOffset                                 // int64_t addend
                         );
                     }
                 } else {
                     auto dmaOutput = outputBuffs[0];
-
-                    symTab = relocationManager.getSymTab(dmaOutput);
-
-                    relocSection = relocationManager.getRelocSection(targetSection, symTab);
-
-                    auto builder = mlir::OpBuilder::atBlockEnd(relocSection.getBlock());
-
                     auto outputMemSpace = dmaOutput.getType().cast<vpux::NDTypeInterface>().getMemSpace();
-                    // if no bufferSection specified explicitly, use the Defaul DDR
-                    auto bufferSection = outputMemSpace ? VPURT::symbolizeBufferSection(outputMemSpace.getLeafName())
-                                                        : VPURT::BufferSection::DDR;
-                    VPUX_THROW_UNLESS(bufferSection.has_value(), "Buffer with no section associated");
-
-                    size_t addend = 0;
-
-                    if (bufferSection == VPURT::BufferSection::CMX_NN) {
-                        sourceSym = elfCMXMappingSyms[static_cast<int>(
-                                vpux::ELF::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR)];
-                        addend = ELF::getOffsetOfOpInSection(dmaOutput);
-                    } else if (bufferSection == VPURT::BufferSection::Register) {
-                        sourceSym = elfCMXMappingSyms[static_cast<int>(
-                                vpux::ELF::CMXMappingSymbol::VPU_NNRD_SYM_HW_REGISTER)];
-                        addend =
-                                mlir::dyn_cast<vpux::VPURT::DeclareBufferOp>(dmaOutput.getDefiningOp()).getByteOffset();
-                    } else {
-                        auto dmaOutputSection = relocationManager.getSection(dmaOutput);
-                        sourceSym = ELF::RelocationManager::getSymbol(dmaOutputSection);
-                        mlir::Value dmaOutputSectionValue = dmaOutputSection.getOperation()->getResult(0);
-                        addend = ELF::getOffsetOfOpInSection(dmaOutput, dmaOutputSectionValue);
+                    std::optional<VPURT::BufferSection> bufferSection;
+                    if (outputMemSpace) {
+                        bufferSection = VPURT::symbolizeBufferSection(outputMemSpace.getLeafName());
+                        VPUX_THROW_WHEN(!bufferSection.has_value(),
+                                        "Unrecognizable memory space {0} of output {1} DMA {2}", outputMemSpace,
+                                        dmaOutput, dmaOp);
                     }
-
                     // in case of broadcast output using OR relocation. The DST will have the default MASK value for
                     // multicast;
-                    auto relocType = outputBuffs.size() > 1 ? vpux::ELF::RelocationType::R_VPU_64_OR
-                                                            : vpux::ELF::RelocationType::R_VPU_64;
-                    builder.create<ELF::RelocOp>(dmaOutput.getLoc(), dmaOp, dmaOutput, relocType, sourceSym, addend);
+                    auto relocType = outputBuffs.size() > 1 ? vpux::ELFNPU37XX::RelocationType::R_VPU_64_OR
+                                                            : vpux::ELFNPU37XX::RelocationType::R_VPU_64;
+
+                    if (bufferSection == VPURT::BufferSection::CMX_NN) {
+                        auto sourceSym = elfCMXMappingSyms[static_cast<int>(
+                                vpux::ELFNPU37XX::CMXMappingSymbol::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR)];
+                        auto addend = ELFNPU37XX::getOffsetOfOpInSection(dmaOutput);
+                        cmxBuilder.create<ELFNPU37XX::RelocOp>(dmaOutput.getLoc(), dmaOp, dmaOutput, relocType,
+                                                               sourceSym, addend);
+                    } else if (bufferSection == VPURT::BufferSection::DDR) {
+                        auto sourceSym = symbolMap["sym_bufferSection"];
+                        auto addend =
+                                ELFNPU37XX::getOffsetOfOpInSection(dmaOutput, scratchBufferSectionOp, offsetCache);
+                        ddrBuilder.create<ELFNPU37XX::RelocOp>(dmaOutput.getLoc(), dmaOp, dmaOutput, relocType,
+                                                               sourceSym, addend);
+                    } else {
+                        auto symTab = relocationManager.getSymTab(dmaOutput);
+                        auto relocSection = relocationManager.getRelocSection(targetSection, symTab);
+                        auto builder = mlir::OpBuilder::atBlockEnd(relocSection.getBlock());
+                        ELFNPU37XX::SymbolOp sourceSym;
+                        size_t addend = 0;
+                        if (bufferSection == VPURT::BufferSection::Register) {
+                            sourceSym = elfCMXMappingSyms[static_cast<int>(
+                                    vpux::ELFNPU37XX::CMXMappingSymbol::VPU_NNRD_SYM_HW_REGISTER)];
+                            addend = mlir::dyn_cast<vpux::VPURT::DeclareBufferOp>(dmaOutput.getDefiningOp())
+                                             .getByteOffset();
+                        } else {
+                            auto dmaOutputSection = relocationManager.getSection(dmaOutput);
+                            auto dmaOutputSectionValue = dmaOutputSection.getOperation()->getResult(0);
+                            sourceSym = ELFNPU37XX::RelocationManager::getSymbol(dmaOutputSection);
+                            addend = ELFNPU37XX::getOffsetOfOpInSection(dmaOutput, dmaOutputSectionValue, offsetCache);
+                        }
+                        builder.create<ELFNPU37XX::RelocOp>(dmaOutput.getLoc(), dmaOp, dmaOutput, relocType, sourceSym,
+                                                            addend);
+                    }
                 }
             }
 
             // link_address
             if (static_cast<uint32_t>(listElemCount) > dmaOp.getType().getValue() + 1) {
-                symTab = relocationManager.getCMXSymTab();
-
-                relocSection = relocationManager.getRelocSection(targetSection, symTab);
-
-                auto builder = mlir::OpBuilder::atBlockEnd(relocSection.getBlock());
-
-                builder.create<ELF::RelocImmOffsetOp>(
-                        relocSection.getLoc(), dmaOp, offsetof(nn_public::VpuDMATask, transaction_),
-                        vpux::ELF::RelocationType::R_VPU_32_RTM,
-                        elfCMXMappingSyms[static_cast<int>(vpux::ELF::CMXMappingSymbol::VPU_NNRD_SYM_RTM_DMA0) +
+                cmxBuilder.create<ELFNPU37XX::RelocImmOffsetOp>(
+                        cmxRelocationSection.getLoc(), dmaOp, offsetof(nn_public::VpuDMATask, transaction_),
+                        vpux::ELFNPU37XX::RelocationType::R_VPU_32_RTM,
+                        elfCMXMappingSyms[static_cast<int>(vpux::ELFNPU37XX::CMXMappingSymbol::VPU_NNRD_SYM_RTM_DMA0) +
                                           listIdx]
                                 .getResult(),
                         sizeof(nn_public::VpuDMATask));
             }
 
-            listHead = getNextDMATask(listHead);
+            listHead = mlir::cast<VPUMI37XX::NNDMAOp>(listHead.getDefiningOp()).getNextDMAIdx();
         }
     }
 }
@@ -1753,72 +1894,132 @@ void ConvertVPUMI37XX2ELFPass::safeRunOnModule() {
     // Sections Creation
     //
 
-    mlir::SmallVector<mlir::Value> nndmaSectionOpValues;
+    auto dmaSectionOps = createDMASections(funcOp, ctx, dmaCount, dmaTasks);
 
-    nndmaSectionOpValues = createDMASections(funcOp, ctx, dmaCount, dmaTasks);
+    auto barrierSectionOp = createSection<vpux::VPUMI37XX::ConfigureBarrierOp, ELFNPU37XX::CreateSectionOp>(
+            funcOp, ctx, ".text.BarrierConfigs", vpux::ELFNPU37XX::SectionTypeAttr::SHT_PROGBITS,
+            vpux::ELFNPU37XX::SectionFlagsAttr::SHF_NONE);
 
-    mlir::Value barrierSectionOpValue = createSection<vpux::VPUMI37XX::ConfigureBarrierOp, ELF::CreateSectionOp>(
-            funcOp, ctx, ".text.BarrierConfigs", vpux::ELF::SectionTypeAttr::SHT_PROGBITS,
-            vpux::ELF::SectionFlagsAttr::SHF_NONE);
+    auto kernelTextSectionOp = createSection<vpux::VPUMI37XX::DeclareKernelTextOp, ELFNPU37XX::CreateSectionOp>(
+            funcOp, ctx, ".text.KernelText", vpux::ELFNPU37XX::SectionTypeAttr::SHT_PROGBITS,
+            vpux::ELFNPU37XX::SectionFlagsAttr::SHF_NONE);
 
-    mlir::Value kernelTextSectionOpValue = createSection<vpux::VPUMI37XX::DeclareKernelTextOp, ELF::CreateSectionOp>(
-            funcOp, ctx, ".text.KernelText", vpux::ELF::SectionTypeAttr::SHT_PROGBITS,
-            vpux::ELF::SectionFlagsAttr::SHF_NONE);
+    auto kernelDataSectionOp = createSection<vpux::VPUMI37XX::DeclareKernelArgsOp, ELFNPU37XX::CreateSectionOp>(
+            funcOp, ctx, ".text.KernelData", vpux::ELFNPU37XX::SectionTypeAttr::SHT_PROGBITS,
+            vpux::ELFNPU37XX::SectionFlagsAttr::SHF_WRITE);
 
-    mlir::Value kernelDataSectionOpValue = createSection<vpux::VPUMI37XX::DeclareKernelArgsOp, ELF::CreateSectionOp>(
-            funcOp, ctx, ".text.KernelData", vpux::ELF::SectionTypeAttr::SHT_PROGBITS,
-            vpux::ELF::SectionFlagsAttr::SHF_NONE);
+    auto kernelParamsSectionOp = createSection<vpux::VPUMI37XX::KernelParamsOp, ELFNPU37XX::CreateSectionOp>(
+            funcOp, ctx, ".text.KernelParams", vpux::ELFNPU37XX::SectionTypeAttr::SHT_PROGBITS,
+            vpux::ELFNPU37XX::SectionFlagsAttr::SHF_NONE);
 
-    mlir::Value kernelParamsSectionOpValue = createSection<vpux::VPUMI37XX::KernelParamsOp, ELF::CreateSectionOp>(
-            funcOp, ctx, ".text.KernelParams", vpux::ELF::SectionTypeAttr::SHT_PROGBITS,
-            vpux::ELF::SectionFlagsAttr::SHF_NONE);
+    auto actKernelRangesSectionOp = createSection<vpux::VPUMI37XX::ActKernelRangeOp, ELFNPU37XX::CreateSectionOp>(
+            funcOp, ctx, ".text.ActKernelRanges", vpux::ELFNPU37XX::SectionTypeAttr::SHT_PROGBITS,
+            vpux::ELFNPU37XX::SectionFlagsAttr::SHF_NONE);
 
-    mlir::Value actKernelRangesSectionOpValue = createSection<vpux::VPUMI37XX::ActKernelRangeOp, ELF::CreateSectionOp>(
-            funcOp, ctx, ".text.ActKernelRanges", vpux::ELF::SectionTypeAttr::SHT_PROGBITS,
-            vpux::ELF::SectionFlagsAttr::SHF_NONE);
+    auto actKernelInvosSectionOp = createSection<vpux::VPUMI37XX::ActKernelInvocationOp, ELFNPU37XX::CreateSectionOp>(
+            funcOp, ctx, ".text.ActKernelInvocations", vpux::ELFNPU37XX::SectionTypeAttr::SHT_PROGBITS,
+            vpux::ELFNPU37XX::SectionFlagsAttr::SHF_NONE);
 
-    mlir::Value actKernelInvosSectionOpValue =
-            createSection<vpux::VPUMI37XX::ActKernelInvocationOp, ELF::CreateSectionOp>(
-                    funcOp, ctx, ".text.ActKernelInvocations", vpux::ELF::SectionTypeAttr::SHT_PROGBITS,
-                    vpux::ELF::SectionFlagsAttr::SHF_NONE);
+    mappedInferenceSectionOp = createSection<vpux::VPUMI37XX::MappedInferenceOp, ELFNPU37XX::CreateSectionOp>(
+            funcOp, ctx, ".text.MappedInference", vpux::ELFNPU37XX::SectionTypeAttr::SHT_PROGBITS,
+            vpux::ELFNPU37XX::SectionFlagsAttr::SHF_NONE);
 
-    mappedInferenceSectionOpValue = createSection<vpux::VPUMI37XX::MappedInferenceOp, ELF::CreateSectionOp>(
-            funcOp, ctx, ".text.MappedInference", vpux::ELF::SectionTypeAttr::SHT_PROGBITS,
-            vpux::ELF::SectionFlagsAttr::SHF_NONE);
+    auto invariantsSectionOp = createSection<vpux::VPUMI37XX::DPUInvariantOp, ELFNPU37XX::CreateSectionOp>(
+            funcOp, ctx, ".text.DPUInvariants", vpux::ELFNPU37XX::SectionTypeAttr::SHT_PROGBITS,
+            vpux::ELFNPU37XX::SectionFlagsAttr::SHF_NONE);
 
-    mlir::Value invariantsSection = createSection<vpux::VPUMI37XX::DPUInvariantOp, ELF::CreateSectionOp>(
-            funcOp, ctx, ".text.DPUInvariants", vpux::ELF::SectionTypeAttr::SHT_PROGBITS,
-            vpux::ELF::SectionFlagsAttr::SHF_NONE);
+    auto variantsSectionOp = createSection<vpux::VPUMI37XX::DPUVariantOp, ELFNPU37XX::CreateSectionOp>(
+            funcOp, ctx, ".text.DPUVariants", vpux::ELFNPU37XX::SectionTypeAttr::SHT_PROGBITS,
+            vpux::ELFNPU37XX::SectionFlagsAttr::SHF_NONE);
 
-    mlir::Value variantsSection = createSection<vpux::VPUMI37XX::DPUVariantOp, ELF::CreateSectionOp>(
-            funcOp, ctx, ".text.DPUVariants", vpux::ELF::SectionTypeAttr::SHT_PROGBITS,
-            vpux::ELF::SectionFlagsAttr::SHF_NONE);
-
-    auto metadataSectionOp = builderFunc.create<ELF::CreateMetadataSectionOp>(
+    auto metadataSectionOp = builderFunc.create<ELFNPU37XX::CreateMetadataSectionOp>(
             builderFunc.getUnknownLoc(),
-            vpux::ELF::SectionType::get(ctx),                               // mlir::Type
-            ".metadata",                                                    // llvm::StringRef secName,
-            vpux::ELF::SectionFlagsAttr::SHF_NONE,                          // vpux::ELF::SectionFlagsAttr secFlags,
-            elf::VPU_SH_INFO_FOR_VPU,                                       // int64_t secInfo,
+            vpux::ELFNPU37XX::SectionType::get(ctx),       // mlir::Type
+            ".metadata",                                   // llvm::StringRef secName,
+            vpux::ELFNPU37XX::SectionFlagsAttr::SHF_NONE,  // vpux::ELFNPU37XX::SectionFlagsAttr secFlags,
+            elf::VPU_SH_INFO_FOR_VPU,                      // int64_t secInfo,
             vpux::VPUMI37XX::NetworkMetadataOp::getAlignmentRequirements()  // int64_t secAddrAlign
     );
 
-    auto builderMetadataSec = mlir::OpBuilder::atBlockEnd(metadataSectionOp.getBlock());
+    auto performanceMetricsOp = createSection<vpux::VPUMI37XX::PerformanceMetricsOp, ELFNPU37XX::CreateSectionOp>(
+            funcOp, ctx, ".perf.metrics", vpux::ELFNPU37XX::SectionTypeAttr::VPU_SHT_PERF_METRICS,
+            vpux::ELFNPU37XX::SectionFlagsAttr::SHF_NONE);
 
+    auto builderPerfSec = mlir::OpBuilder::atBlockEnd(performanceMetricsOp.getBlock());
+    builderPerfSec.create<VPUMI37XX::PerformanceMetricsOp>(mlir::UnknownLoc::get(ctx), trivialIndexType);
+
+    auto builderMetadataSec = mlir::OpBuilder::atBlockEnd(metadataSectionOp.getBlock());
     builderMetadataSec.create<VPUMI37XX::NetworkMetadataOp>(mlir::UnknownLoc::get(ctx), trivialIndexType);
 
+    //
+    // The following sections are created as additional versioning & platform information that needs to be serialized to
+    // the ELF
+    //
+
+    //
+    // ELF ABI Version
+    //
+    auto elfABINoteSectionOp = builderFunc.create<ELFNPU37XX::CreateSectionOp>(
+            builderFunc.getUnknownLoc(),
+            ELFNPU37XX::SectionType::get(ctx),                    // mlir::Type
+            ".note.LoaderABIVersion",                             // llvm::StringRef secName,
+            ELFNPU37XX::SectionTypeAttr::SHT_NOTE,                // ELFNPU37XX::SectionTypeAttr secType,
+            ELFNPU37XX::SectionFlagsAttr::SHF_NONE,               // ELFNPU37XX::SectionFlagsAttr secFlags,
+            elf::VPU_SH_INFO_FOR_VPU,                             // int64_t secInfo,
+            ELFNPU37XX::ABIVersionOp::getAlignmentRequirements()  // int64_t secAddrAlign
+    );
+
+    auto builderABINoteSec = mlir::OpBuilder::atBlockEnd(elfABINoteSectionOp.getBlock());
+    builderABINoteSec.create<ELFNPU37XX::ABIVersionOp>(mlir::UnknownLoc::get(ctx));
+
+    //
+    // Mapped Inference Version
+    //
+    auto MINoteSectionOp = builderFunc.create<ELFNPU37XX::CreateSectionOp>(
+            builderFunc.getUnknownLoc(),
+            ELFNPU37XX::SectionType::get(ctx),                               // mlir::Type
+            ".note.MappedInferenceVersion",                                  // llvm::StringRef secName,
+            ELFNPU37XX::SectionTypeAttr::SHT_NOTE,                           // ELFNPU37XX::SectionTypeAttr secType,
+            ELFNPU37XX::SectionFlagsAttr::SHF_NONE,                          // ELFNPU37XX::SectionFlagsAttr secFlags,
+            elf::VPU_SH_INFO_FOR_VPU,                                        // int64_t secInfo,
+            VPUMI37XX::MappedInferenceVersionOp::getAlignmentRequirements()  // int64_t secAddrAlign
+    );
+
+    auto builderMINoteSec = mlir::OpBuilder::atBlockEnd(MINoteSectionOp.getBlock());
+    builderMINoteSec.create<VPUMI37XX::MappedInferenceVersionOp>(builderMINoteSec.getUnknownLoc());
+
+    //
+    // Platform Information
+    //
+    auto platformInfoSectionOp = builderFunc.create<ELFNPU37XX::CreateSectionOp>(
+            builderFunc.getUnknownLoc(),
+            ELFNPU37XX::SectionType::get(ctx),                     // mlir::Type
+            ".meta.PlatformInfo",                                  // llvm::StringRef secName,
+            ELFNPU37XX::SectionTypeAttr::VPU_SHT_PLATFORM_INFO,    // ELFNPU37XX::SectionTypeAttr secType,
+            ELFNPU37XX::SectionFlagsAttr::SHF_NONE,                // ELFNPU37XX::SectionFlagsAttr secFlags,
+            elf::VPU_SH_INFO_FOR_VPU,                              // int64_t secInfo,
+            VPUMI37XX::PlatformInfoOp::getAlignmentRequirements()  // int64_t secAddrAlign
+    );
+
+    auto builderPlatformInfoSec = mlir::OpBuilder::atBlockEnd(platformInfoSectionOp.getBlock());
+    builderPlatformInfoSec.create<VPUMI37XX::PlatformInfoOp>(builderPlatformInfoSec.getUnknownLoc());
+
     if (!cnnOp.getProfilingOutputsInfo().empty()) {
-        auto profilingSectionOp = builderFunc.create<ELF::CreateProfilingSectionOp>(
+        auto profilingSectionOp = builderFunc.create<ELFNPU37XX::CreateProfilingSectionOp>(
                 builderFunc.getUnknownLoc(),
-                vpux::ELF::SectionType::get(ctx),       // mlir::Type
-                ".profiling",                           // llvm::StringRef secName,
-                vpux::ELF::SectionFlagsAttr::SHF_NONE,  // vpux::ELF::SectionFlagsAttr secFlags,
-                elf::VPU_SH_INFO_FOR_VPU,               // int64_t secInfo,
+                vpux::ELFNPU37XX::SectionType::get(ctx),       // mlir::Type
+                ".profiling",                                  // llvm::StringRef secName,
+                vpux::ELFNPU37XX::SectionFlagsAttr::SHF_NONE,  // vpux::ELFNPU37XX::SectionFlagsAttr secFlags,
+                elf::VPU_SH_INFO_FOR_VPU,                      // int64_t secInfo,
                 vpux::VPUMI37XX::ProfilingMetadataOp::getAlignmentRequirements()  // int64_t secAddrAlign
         );
 
-        auto builderProfilingSec = mlir::OpBuilder::atBlockEnd(profilingSectionOp.getBlock());
-        builderProfilingSec.create<VPUMI37XX::ProfilingMetadataOp>(mlir::UnknownLoc::get(ctx), trivialIndexType);
+        SmallVector<mlir::Operation*> profOps(funcOp.getOps<VPUMI37XX::ProfilingMetadataOp>());
+        VPUX_THROW_UNLESS(profOps.size() == 1, "Found {0} VPUMI37XX::ProfilingMetadataOps, but should be exact 1",
+                          profOps.size());
+        // Move ProfilingMetadataOp from funcOp to CreateProfilingSectionOp
+        auto* block = profilingSectionOp.getBlock();
+        profOps.front()->moveBefore(block, block->begin());
     }
 
     _log.trace("ConvertVPUMI37XX2ELFPass, after sections creation:\n {0} \n", moduleOp);
@@ -1827,113 +2028,118 @@ void ConvertVPUMI37XX2ELFPass::safeRunOnModule() {
     // Create Symbols for the relevant sections
     //
 
-    vpux::ELF::SymbolTypeEnumAttr typeSym;
+    vpux::ELFNPU37XX::SymbolTypeEnumAttr typeSym;
     mlir::IntegerAttr sizeSym;
     mlir::IntegerAttr valueSym;
     mlir::UnitAttr isBuiltin = nullptr;
-    mlir::SmallVector<vpux::ELF::SymbolOp> dmaSectionSyms;
+    mlir::SmallVector<vpux::ELFNPU37XX::SymbolOp> dmaSectionSyms;
 
-    for (size_t listIdx = 0; listIdx < dmaCount.size(); ++listIdx) {
-        dmaSectionSyms.push_back(builderFunc.create<ELF::SymbolOp>(
-                mlir::UnknownLoc::get(ctx),
-                vpux::ELF::SymbolType::get(ctx),                                         // mlir::Type
-                nndmaSectionOpValues[listIdx],                                           // mlir::Value inputArg
-                isBuiltin,                                                               // mlir::UnitAttr
-                mlir::StringAttr::get(ctx, "sym_dmaSection" + std::to_string(listIdx)),  // mlir::StringAttr
-                typeSym,  // vpux::ELF::SymbolTypeEnumAttr
-                sizeSym,  // size
-                valueSym  // value
-                ));
+    // dmaCount size is always > 0, even when having 0 DMA operations in the network,
+    // but in that case dmaSectionOps size will be 0. Check this to avoid out-of-bounds access.
+    const bool doesNetworkHaveDMAOperations = !dmaSectionOps.empty();
+    if (doesNetworkHaveDMAOperations) {
+        for (size_t listIdx = 0; listIdx < dmaCount.size(); ++listIdx) {
+            dmaSectionSyms.push_back(builderFunc.create<ELFNPU37XX::SymbolOp>(
+                    mlir::UnknownLoc::get(ctx),
+                    vpux::ELFNPU37XX::SymbolType::get(ctx),                                  // mlir::Type
+                    dmaSectionOps[listIdx].getResult(),                                      // mlir::Value inputArg
+                    isBuiltin,                                                               // mlir::UnitAttr
+                    mlir::StringAttr::get(ctx, "sym_dmaSection" + std::to_string(listIdx)),  // mlir::StringAttr
+                    typeSym,  // vpux::ELFNPU37XX::SymbolTypeEnumAttr
+                    sizeSym,  // size
+                    valueSym  // value
+                    ));
 
-        symbolMap["sym_dmaSection" + std::to_string(listIdx)] = dmaSectionSyms[listIdx].getResult();
+            symbolMap["sym_dmaSection" + std::to_string(listIdx)] = dmaSectionSyms[listIdx].getResult();
+        }
     }
 
-    auto barrierSectionSym =
-            builderFunc.create<ELF::SymbolOp>(mlir::UnknownLoc::get(ctx),
-                                              vpux::ELF::SymbolType::get(ctx),                   // mlir::Type
-                                              barrierSectionOpValue,                             // mlir::Value inputArg
-                                              isBuiltin,                                         // mlir::UnitAttr
-                                              mlir::StringAttr::get(ctx, "sym_barrierSection"),  // mlir::StringAttr
-                                              typeSym,  // vpux::ELF::SymbolTypeEnumAttr
-                                              sizeSym,  // size
-                                              valueSym  // value
-            );
+    auto barrierSectionSym = builderFunc.create<ELFNPU37XX::SymbolOp>(
+            mlir::UnknownLoc::get(ctx),
+            vpux::ELFNPU37XX::SymbolType::get(ctx),            // mlir::Type
+            barrierSectionOp.getResult(),                      // mlir::Value inputArg
+            isBuiltin,                                         // mlir::UnitAttr
+            mlir::StringAttr::get(ctx, "sym_barrierSection"),  // mlir::StringAttr
+            typeSym,                                           // vpux::ELFNPU37XX::SymbolTypeEnumAttr
+            sizeSym,                                           // size
+            valueSym                                           // value
+    );
 
     symbolMap["sym_barrierSection"] = barrierSectionSym.getResult();
 
-    auto actKernelRangeSectionSym = builderFunc.create<ELF::SymbolOp>(
+    auto actKernelRangeSectionSym = builderFunc.create<ELFNPU37XX::SymbolOp>(
             mlir::UnknownLoc::get(ctx),
-            vpux::ELF::SymbolType::get(ctx),                          // mlir::Type
-            actKernelRangesSectionOpValue,                            // mlir::Value inputArg
+            vpux::ELFNPU37XX::SymbolType::get(ctx),                   // mlir::Type
+            actKernelRangesSectionOp.getResult(),                     // mlir::Value inputArg
             isBuiltin,                                                // mlir::UnitAttr
             mlir::StringAttr::get(ctx, "sym_actKernelRangeSection"),  // mlir::StringAttr
-            typeSym,                                                  // vpux::ELF::SymbolTypeEnumAttr
+            typeSym,                                                  // vpux::ELFNPU37XX::SymbolTypeEnumAttr
             sizeSym,                                                  // size
             valueSym                                                  // value
     );
 
     symbolMap["sym_actKernelRangeSection"] = actKernelRangeSectionSym.getResult();
 
-    auto actKernelInvoSectionSym =
-            builderFunc.create<ELF::SymbolOp>(mlir::UnknownLoc::get(ctx),
-                                              vpux::ELF::SymbolType::get(ctx),                  // mlir::Type
-                                              actKernelInvosSectionOpValue,                     // mlir::Value inputArg
-                                              isBuiltin,                                        // mlir::UnitAttr
-                                              mlir::StringAttr::get(ctx, "sym_actKernelInvo"),  // mlir::StringAttr
-                                              typeSym,  // vpux::ELF::SymbolTypeEnumAttr
-                                              sizeSym,  // size
-                                              valueSym  // value
-            );
+    auto actKernelInvoSectionSym = builderFunc.create<ELFNPU37XX::SymbolOp>(
+            mlir::UnknownLoc::get(ctx),
+            vpux::ELFNPU37XX::SymbolType::get(ctx),           // mlir::Type
+            actKernelInvosSectionOp.getResult(),              // mlir::Value inputArg
+            isBuiltin,                                        // mlir::UnitAttr
+            mlir::StringAttr::get(ctx, "sym_actKernelInvo"),  // mlir::StringAttr
+            typeSym,                                          // vpux::ELFNPU37XX::SymbolTypeEnumAttr
+            sizeSym,                                          // size
+            valueSym                                          // value
+    );
 
     symbolMap["sym_actKernelInvo"] = actKernelInvoSectionSym.getResult();
 
-    auto kernelTextSectionSym =
-            builderFunc.create<ELF::SymbolOp>(mlir::UnknownLoc::get(ctx),
-                                              vpux::ELF::SymbolType::get(ctx),  // mlir::Type
-                                              kernelTextSectionOpValue,         // mlir::Value inputArg
-                                              isBuiltin,                        // mlir::UnitAttr
-                                              mlir::StringAttr::get(ctx, "sym_kernelTextSection"),  // mlir::StringAttr
-                                              typeSym,  // vpux::ELF::SymbolTypeEnumAttr
-                                              sizeSym,  // size
-                                              valueSym  // value
-            );
+    auto kernelTextSectionSym = builderFunc.create<ELFNPU37XX::SymbolOp>(
+            mlir::UnknownLoc::get(ctx),
+            vpux::ELFNPU37XX::SymbolType::get(ctx),               // mlir::Type
+            kernelTextSectionOp.getResult(),                      // mlir::Value inputArg
+            isBuiltin,                                            // mlir::UnitAttr
+            mlir::StringAttr::get(ctx, "sym_kernelTextSection"),  // mlir::StringAttr
+            typeSym,                                              // vpux::ELFNPU37XX::SymbolTypeEnumAttr
+            sizeSym,                                              // size
+            valueSym                                              // value
+    );
 
     symbolMap["sym_kernelTextSection"] = kernelTextSectionSym.getResult();
 
-    auto kernelDataSectionSym =
-            builderFunc.create<ELF::SymbolOp>(mlir::UnknownLoc::get(ctx),
-                                              vpux::ELF::SymbolType::get(ctx),  // mlir::Type
-                                              kernelDataSectionOpValue,         // mlir::Value inputArg
-                                              isBuiltin,                        // mlir::UnitAttr
-                                              mlir::StringAttr::get(ctx, "sym_kernelDataSection"),  // mlir::StringAttr
-                                              typeSym,  // vpux::ELF::SymbolTypeEnumAttr
-                                              sizeSym,  // size
-                                              valueSym  // value
-            );
+    auto kernelDataSectionSym = builderFunc.create<ELFNPU37XX::SymbolOp>(
+            mlir::UnknownLoc::get(ctx),
+            vpux::ELFNPU37XX::SymbolType::get(ctx),               // mlir::Type
+            kernelDataSectionOp.getResult(),                      // mlir::Value inputArg
+            isBuiltin,                                            // mlir::UnitAttr
+            mlir::StringAttr::get(ctx, "sym_kernelDataSection"),  // mlir::StringAttr
+            typeSym,                                              // vpux::ELFNPU37XX::SymbolTypeEnumAttr
+            sizeSym,                                              // size
+            valueSym                                              // value
+    );
 
     symbolMap["sym_kernelDataSection"] = kernelDataSectionSym.getResult();
 
-    auto kernelParamsSectionSym = builderFunc.create<ELF::SymbolOp>(
+    auto kernelParamsSectionSym = builderFunc.create<ELFNPU37XX::SymbolOp>(
             mlir::UnknownLoc::get(ctx),
-            vpux::ELF::SymbolType::get(ctx),                        // mlir::Type
-            kernelParamsSectionOpValue,                             // mlir::Value inputArg
+            vpux::ELFNPU37XX::SymbolType::get(ctx),                 // mlir::Type
+            kernelParamsSectionOp.getResult(),                      // mlir::Value inputArg
             isBuiltin,                                              // mlir::UnitAttr
             mlir::StringAttr::get(ctx, "sym_kernelParamsSection"),  // mlir::StringAttr
-            typeSym,                                                // vpux::ELF::SymbolTypeEnumAttr
+            typeSym,                                                // vpux::ELFNPU37XX::SymbolTypeEnumAttr
             sizeSym,                                                // size
             valueSym                                                // value
     );
 
     symbolMap["sym_kernelParamsSection"] = kernelParamsSectionSym.getResult();
 
-    auto inVariantsSectionSym = builderFunc.create<ELF::SymbolOp>(
-            mlir::UnknownLoc::get(ctx), vpux::ELF::SymbolType::get(ctx), invariantsSection, isBuiltin,
+    auto inVariantsSectionSym = builderFunc.create<ELFNPU37XX::SymbolOp>(
+            mlir::UnknownLoc::get(ctx), vpux::ELFNPU37XX::SymbolType::get(ctx), invariantsSectionOp, isBuiltin,
             mlir::StringAttr::get(ctx, "sym_inVariantsSection"), typeSym, sizeSym, valueSym);
 
     symbolMap["sym_inVariantsSection"] = inVariantsSectionSym.getResult();
 
-    auto variantsSectionSym = builderFunc.create<ELF::SymbolOp>(
-            mlir::UnknownLoc::get(ctx), vpux::ELF::SymbolType::get(ctx), variantsSection, isBuiltin,
+    auto variantsSectionSym = builderFunc.create<ELFNPU37XX::SymbolOp>(
+            mlir::UnknownLoc::get(ctx), vpux::ELFNPU37XX::SymbolType::get(ctx), variantsSectionOp, isBuiltin,
             mlir::StringAttr::get(ctx, "sym_variantsSection"), typeSym, sizeSym, valueSym);
 
     symbolMap["sym_variantsSection"] = variantsSectionSym.getResult();
@@ -1946,55 +2152,55 @@ void ConvertVPUMI37XX2ELFPass::safeRunOnModule() {
     bufferSymTabValue = createBuffersSecAndSymtab(funcOp, ctx);
     CMXMappingSymtabValue = createCMXMappingSymtab(funcOp, ctx);
 
-    ELF::CreateSymbolTableSectionOp CMXMappingSymtabOp =
-            mlir::dyn_cast<ELF::CreateSymbolTableSectionOp>(CMXMappingSymtabValue.getDefiningOp());
+    ELFNPU37XX::CreateSymbolTableSectionOp CMXMappingSymtabOp =
+            mlir::dyn_cast<ELFNPU37XX::CreateSymbolTableSectionOp>(CMXMappingSymtabValue.getDefiningOp());
     relocationManager.initCMXSymTab(CMXMappingSymtabOp);
 
-    auto tasksSymTabOp =
-            builderFunc.create<ELF::CreateSymbolTableSectionOp>(mlir::UnknownLoc::get(ctx),
-                                                                vpux::ELF::SectionType::get(ctx),  // mlir::Type
-                                                                ".symtab.tasks",  // llvm::StringRef secName,
-                                                                vpux::ELF::SectionFlagsAttr::SHF_NONE,
-                                                                isBuiltin  // mlir::UnitAttr
-            );
+    tasksSymbolTable = builderFunc.create<ELFNPU37XX::CreateSymbolTableSectionOp>(
+            mlir::UnknownLoc::get(ctx),
+            vpux::ELFNPU37XX::SectionType::get(ctx),      // mlir::Type
+            mlir::StringAttr::get(ctx, ".symtab.tasks"),  // mlir::StringAttr secName,
+            vpux::ELFNPU37XX::SectionFlagsAttrAttr::get(
+                    ctx, vpux::ELFNPU37XX::SectionFlagsAttr::SHF_NONE),  // vpux::ELFNPU37XX::SectionFlagsAttr secFlags,
+            isBuiltin                                                    // mlir::UnitAttr
+    );
 
-    tasksSymTabValue = tasksSymTabOp.getResult();
-
-    mlir::Region& regTasksSymTabOp = tasksSymTabOp.getOperation()->getRegion(0);
+    mlir::Region& regTasksSymTabOp = tasksSymbolTable.getOperation()->getRegion(0);
     mlir::Block* blkTasksSymTabOp = new mlir::Block();
     regTasksSymTabOp.push_back(blkTasksSymTabOp);
     mlir::OpBuilder builderTasksSymTab(blkTasksSymTabOp, blkTasksSymTabOp->begin());
 
     for (auto listHead : dmaTasks) {
         auto listIdx = mlir::cast<VPUMI37XX::NNDMAOp>(listHead.getDefiningOp()).getPort();
-        builderTasksSymTab.create<ELF::PutOpInSectionOp>(builderTasksSymTab.getUnknownLoc(),
-                                                         dmaSectionSyms[listIdx].getResult());
+        builderTasksSymTab.create<ELFNPU37XX::PutOpInSectionOp>(builderTasksSymTab.getUnknownLoc(),
+                                                                dmaSectionSyms[listIdx].getResult());
     }
-    builderTasksSymTab.create<ELF::PutOpInSectionOp>(builderTasksSymTab.getUnknownLoc(), barrierSectionSym.getResult());
-    builderTasksSymTab.create<ELF::PutOpInSectionOp>(builderTasksSymTab.getUnknownLoc(),
-                                                     kernelTextSectionSym.getResult());
-    builderTasksSymTab.create<ELF::PutOpInSectionOp>(builderTasksSymTab.getUnknownLoc(),
-                                                     kernelDataSectionSym.getResult());
-    builderTasksSymTab.create<ELF::PutOpInSectionOp>(builderTasksSymTab.getUnknownLoc(),
-                                                     kernelParamsSectionSym.getResult());
-    builderTasksSymTab.create<ELF::PutOpInSectionOp>(builderTasksSymTab.getUnknownLoc(),
-                                                     actKernelRangeSectionSym.getResult());
-    builderTasksSymTab.create<ELF::PutOpInSectionOp>(builderTasksSymTab.getUnknownLoc(),
-                                                     actKernelInvoSectionSym.getResult());
-    builderTasksSymTab.create<ELF::PutOpInSectionOp>(builderTasksSymTab.getUnknownLoc(),
-                                                     inVariantsSectionSym.getResult());
-    builderTasksSymTab.create<ELF::PutOpInSectionOp>(builderTasksSymTab.getUnknownLoc(),
-                                                     variantsSectionSym.getResult());
+    builderTasksSymTab.create<ELFNPU37XX::PutOpInSectionOp>(builderTasksSymTab.getUnknownLoc(),
+                                                            barrierSectionSym.getResult());
+    builderTasksSymTab.create<ELFNPU37XX::PutOpInSectionOp>(builderTasksSymTab.getUnknownLoc(),
+                                                            kernelTextSectionSym.getResult());
+    builderTasksSymTab.create<ELFNPU37XX::PutOpInSectionOp>(builderTasksSymTab.getUnknownLoc(),
+                                                            kernelDataSectionSym.getResult());
+    builderTasksSymTab.create<ELFNPU37XX::PutOpInSectionOp>(builderTasksSymTab.getUnknownLoc(),
+                                                            kernelParamsSectionSym.getResult());
+    builderTasksSymTab.create<ELFNPU37XX::PutOpInSectionOp>(builderTasksSymTab.getUnknownLoc(),
+                                                            actKernelRangeSectionSym.getResult());
+    builderTasksSymTab.create<ELFNPU37XX::PutOpInSectionOp>(builderTasksSymTab.getUnknownLoc(),
+                                                            actKernelInvoSectionSym.getResult());
+    builderTasksSymTab.create<ELFNPU37XX::PutOpInSectionOp>(builderTasksSymTab.getUnknownLoc(),
+                                                            inVariantsSectionSym.getResult());
+    builderTasksSymTab.create<ELFNPU37XX::PutOpInSectionOp>(builderTasksSymTab.getUnknownLoc(),
+                                                            variantsSectionSym.getResult());
 
     auto vpux_entry_SymbolTypeEnumAttr =
-            vpux::ELF::SymbolTypeEnumAttr::get(ctx, vpux::ELF::SymbolTypeEnum::VPU_STT_ENTRY);
-    auto mappedInferenceSym = builderTasksSymTab.create<ELF::SymbolOp>(
+            vpux::ELFNPU37XX::SymbolTypeEnumAttr::get(ctx, vpux::ELFNPU37XX::SymbolTypeEnum::VPU_STT_ENTRY);
+    auto mappedInferenceSym = builderTasksSymTab.create<ELFNPU37XX::SymbolOp>(
             builderTasksSymTab.getUnknownLoc(),
-            vpux::ELF::SymbolType::get(ctx),                      // mlir::Type
+            vpux::ELFNPU37XX::SymbolType::get(ctx),               // mlir::Type
             mappedInferenceOp.getResult(),                        // mlir::Value inputArg
             isBuiltin,                                            // mlir::UnitAttr
             mlir::StringAttr::get(ctx, "MappedInference_entry"),  // mlir::StringAttr
-            vpux_entry_SymbolTypeEnumAttr,                        // vpux::ELF::SymbolTypeEnumAttr
+            vpux_entry_SymbolTypeEnumAttr,                        // vpux::ELFNPU37XX::SymbolTypeEnumAttr
             sizeSym,                                              // size
             valueSym                                              // value
     );
@@ -2007,11 +2213,28 @@ void ConvertVPUMI37XX2ELFPass::safeRunOnModule() {
     // create general relocs for the tasks
     //
 
-    createDMARelocs(funcOp, ctx, dmaCount, dmaTasks, nndmaSectionOpValues);
+    createDMARelocs(funcOp, ctx, dmaCount, dmaTasks, dmaSectionOps);
     _log.trace("ConvertVPUMI37XX2ELFPass, after DMA Relocs creation:\n {0} \n", moduleOp);
 
-    createKernelParamsRelocs(funcOp);
-    createActKernelRelocs(funcOp);
+    bool shaveScratchAccess = false;
+    bool shaveConstAccess = false;
+    createKernelParamsRelocs(funcOp, ctx, kernelParamsSectionOp, shaveScratchAccess, shaveConstAccess);
+    if (shaveScratchAccess) {
+        VPUX_THROW_UNLESS(scratchBufferSectionOp != nullptr, "Scratch buffer section result is null");
+        auto currFlagsAttrVal = scratchBufferSectionOp.getSecFlags();
+        currFlagsAttrVal = currFlagsAttrVal | ELFNPU37XX::SectionFlagsAttr::VPU_SHF_PROC_SHAVE;
+        scratchBufferSectionOp.setSecFlagsAttr(ELFNPU37XX::SectionFlagsAttrAttr::get(ctx, currFlagsAttrVal));
+    }
+
+    if (shaveConstAccess) {
+        VPUX_THROW_UNLESS(constSectionOp != nullptr, "Const buffer section result is null");
+        auto currFlagsAttrVal = constSectionOp.getSecFlags();
+        currFlagsAttrVal = currFlagsAttrVal | ELFNPU37XX::SectionFlagsAttr::VPU_SHF_PROC_SHAVE;
+        constSectionOp.setSecFlagsAttr(ELFNPU37XX::SectionFlagsAttrAttr::get(ctx, currFlagsAttrVal));
+    }
+
+    createActKernelRelocs(funcOp, actKernelRangesSectionOp, kernelTextSectionOp, actKernelInvosSectionOp,
+                          kernelDataSectionOp, kernelParamsSectionOp);
     setupActKernelRtConfigs(funcOp, moduleOp, ctx);
     _log.trace("ConvertVPUMI37XX2ELFPass, after Shave Relocs creation:\n {0} \n", moduleOp);
 
@@ -2022,50 +2245,46 @@ void ConvertVPUMI37XX2ELFPass::safeRunOnModule() {
     // create relocs for the tasks in MappedInference
     //
 
-    ELF::ElfSectionInterface targetSection =
-            mlir::dyn_cast<ELF::ElfSectionInterface>(mappedInferenceSectionOpValue.getDefiningOp());
-    ELF::CreateSymbolTableSectionOp symTab = tasksSymTabOp;
-    ELF::CreateRelocationSectionOp relocSection = relocationManager.getRelocSection(targetSection, symTab);
-
+    auto relocSection = relocationManager.getRelocSection(mappedInferenceSectionOp, tasksSymbolTable);
     auto builderMappedInfRelocSec = mlir::OpBuilder::atBlockEnd(relocSection.getBlock());
 
     // Refresh range after mapped inference was updated
     dmaTasks = mappedInferenceOp.getDmaTasks();
     for (auto listHead : dmaTasks) {
         auto listIdx = mlir::cast<VPUMI37XX::NNDMAOp>(listHead.getDefiningOp()).getPort();
-        builderMappedInfRelocSec.create<ELF::RelocOp>(
+        builderMappedInfRelocSec.create<ELFNPU37XX::RelocOp>(
                 builderMappedInfRelocSec.getUnknownLoc(), mappedInferenceOp.getResult(), listHead,
-                vpux::ELF::RelocationType::R_VPU_64, dmaSectionSyms[listIdx].getResult(), 0);
+                vpux::ELFNPU37XX::RelocationType::R_VPU_64, dmaSectionSyms[listIdx].getResult(), 0);
     }
 
     if (barrierCount > 0) {
-        builderMappedInfRelocSec.create<ELF::RelocOp>(
+        builderMappedInfRelocSec.create<ELFNPU37XX::RelocOp>(
                 builderMappedInfRelocSec.getUnknownLoc(), mappedInferenceOp.getResult(), barrierTasks,
-                vpux::ELF::RelocationType::R_VPU_64, barrierSectionSym.getResult(), 0);
+                vpux::ELFNPU37XX::RelocationType::R_VPU_64, barrierSectionSym.getResult(), 0);
     }
 
     if (rangeCount > 0) {
-        builderMappedInfRelocSec.create<ELF::RelocOp>(
+        builderMappedInfRelocSec.create<ELFNPU37XX::RelocOp>(
                 builderMappedInfRelocSec.getUnknownLoc(), mappedInferenceOp.getResult(), actKernelRanges,
-                vpux::ELF::RelocationType::R_VPU_64, actKernelRangeSectionSym.getResult(), 0);
+                vpux::ELFNPU37XX::RelocationType::R_VPU_64, actKernelRangeSectionSym.getResult(), 0);
     }
 
     if (invoCount > 0) {
-        builderMappedInfRelocSec.create<ELF::RelocOp>(
+        builderMappedInfRelocSec.create<ELFNPU37XX::RelocOp>(
                 builderMappedInfRelocSec.getUnknownLoc(), mappedInferenceOp.getResult(), actKernelInvocations,
-                vpux::ELF::RelocationType::R_VPU_64, actKernelInvoSectionSym.getResult(), 0);
+                vpux::ELFNPU37XX::RelocationType::R_VPU_64, actKernelInvoSectionSym.getResult(), 0);
     }
 
     if (invariantCount > 0) {
-        builderMappedInfRelocSec.create<ELF::RelocOp>(
+        builderMappedInfRelocSec.create<ELFNPU37XX::RelocOp>(
                 builderMappedInfRelocSec.getUnknownLoc(), mappedInferenceOp.getResult(), invariantTasks,
-                vpux::ELF::RelocationType::R_VPU_64, inVariantsSectionSym.getResult(), 0);
+                vpux::ELFNPU37XX::RelocationType::R_VPU_64, inVariantsSectionSym.getResult(), 0);
     }
 
     if (variantCount > 0) {
-        builderMappedInfRelocSec.create<ELF::RelocOp>(
+        builderMappedInfRelocSec.create<ELFNPU37XX::RelocOp>(
                 builderMappedInfRelocSec.getUnknownLoc(), mappedInferenceOp.getResult(), variantTasks,
-                vpux::ELF::RelocationType::R_VPU_64, variantsSectionSym.getResult(), 0);
+                vpux::ELFNPU37XX::RelocationType::R_VPU_64, variantsSectionSym.getResult(), 0);
     }
 
     _log.trace("Convert2VPUIPRegMappedAndELFPass::safeRunOnFunc(): FINISH\n {0}\n", moduleOp);

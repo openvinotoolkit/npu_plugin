@@ -30,7 +30,7 @@ public:
     using vpux::FunctionPass::FunctionPass;
 
 protected:
-    void safeRunOnFunc() final;
+    void createTaskLocationBuffers();
     template <typename Content>
     using MetadataBuffersContainer =
             llvm::SmallVector<llvm::DenseMap<VPURegMapped::TaskType, llvm::SmallVector<Content>>>;

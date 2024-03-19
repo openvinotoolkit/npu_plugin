@@ -1,11 +1,10 @@
-//
 // Copyright (C) Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
 #include "subgraph_tests/quantized_group_convolution.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "vpux_private_config.hpp"
+#include "vpux_private_properties.hpp"
 
 #include <vector>
 
@@ -26,7 +25,9 @@ namespace SubgraphTestsDefinitions {
 //      (quantize)
 //
 
-class VPUXQuantGroupConvLayerTest_VPU3700 :
+class QuantGroupConvLayerTest_NPU3700 :
+        // API 1.0 usage in OV
+        // [Tracking number: E#97126]
         public QuantGroupConvLayerTest,
         virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void SetUp() override {
@@ -46,7 +47,7 @@ class VPUXQuantGroupConvLayerTest_VPU3700 :
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, quantLevels, quantGranularity,
                  quantizeWeights) = groupConvParams;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         auto paramOuts =
                 ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
@@ -78,33 +79,32 @@ class VPUXQuantGroupConvLayerTest_VPU3700 :
             auto fqNode = ngraph::builder::makeFakeQuantize(weightsNode, ngPrc, quantLevels, weightsFqConstShapes, {0},
                                                             {255}, {0}, {255});
 
-            auto constNode = std::make_shared<ngraph::opset1::Constant>(
-                    ngraph::element::Type_t::i64, ngraph::Shape{weightsShapes.size()}, weightsShapes);
-            weights = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(
-                    std::make_shared<ngraph::opset1::Reshape>(fqNode, constNode, false));
+            auto constNode = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64,
+                                                                    ngraph::Shape{weightsShapes.size()}, weightsShapes);
+            weights = std::dynamic_pointer_cast<ov::op::v1::Reshape>(
+                    std::make_shared<ov::op::v1::Reshape>(fqNode, constNode, false));
         } else {
             auto weightsNode = ngraph::builder::makeConstant(ngPrc, weightsShapes, weightsData, weightsData.empty());
             weights = weightsNode;
         }
 
-        auto groupConv =
-                std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(ngraph::builder::makeGroupConvolution(
-                        dataFq, weights, ngPrc, stride, padBegin, padEnd, dilation, padType));
+        auto groupConv = std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(ngraph::builder::makeGroupConvolution(
+                dataFq, weights, ngPrc, stride, padBegin, padEnd, dilation, padType));
 
         const auto outFq = ngraph::builder::makeFakeQuantize(groupConv, ngPrc, quantLevels, {}, {0}, {255}, {0}, {255});
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(outFq)};
+        ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(outFq)};
         function = std::make_shared<ngraph::Function>(results, params, "QuantGroupConvolution");
     }
 };
 
-TEST_P(VPUXQuantGroupConvLayerTest_VPU3700, SW) {
+TEST_P(QuantGroupConvLayerTest_NPU3700, SW) {
     setPlatformVPU3700();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXQuantGroupConvLayerTest_VPU3700, HW) {
+TEST_P(QuantGroupConvLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
@@ -140,7 +140,7 @@ const auto quantGroupConv2DParams = ::testing::Combine(
         ::testing::ValuesIn(numGroups), ::testing::ValuesIn(levels), ::testing::ValuesIn(granularity),
         ::testing::ValuesIn(quantizeWeights2D));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_QuantGroupConv2D, VPUXQuantGroupConvLayerTest_VPU3700,
+INSTANTIATE_TEST_SUITE_P(smoke_QuantGroupConv2D, QuantGroupConvLayerTest_NPU3700,
                          ::testing::Combine(quantGroupConv2DParams, ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(inputShapes2D),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
@@ -161,7 +161,7 @@ const auto quantGroupConv3DParams = ::testing::Combine(
         ::testing::ValuesIn(numGroups), ::testing::ValuesIn(levels), ::testing::ValuesIn(granularity),
         ::testing::ValuesIn(quantizeWeights3D));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_QuantGroupConv3D, VPUXQuantGroupConvLayerTest_VPU3700,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_QuantGroupConv3D, QuantGroupConvLayerTest_NPU3700,
                          ::testing::Combine(quantGroupConv3DParams, ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(inputShapes3D),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),

@@ -51,32 +51,107 @@ Byte ViewLikeRewrite::calculateOffset(mlir::Value val) const {
     }
 
     if (auto subViewOp = mlir::dyn_cast_or_null<VPUIP::SubViewOp>(val.getDefiningOp())) {
-        const auto strides = getStrides(subViewOp.source());
-        const auto offsets = parseIntArrayAttr<int64_t>(subViewOp.static_offsets());
+        auto strides = getStrides(subViewOp.getSource());
+        const auto offsets = parseIntArrayAttr<int64_t>(subViewOp.getStaticOffsets());
         VPUX_THROW_UNLESS(strides.size() == offsets.size(), "SubView offsets '{0}' doesn't match strides '{1}'",
                           offsets, strides);
 
-        // Calculate simple offset
-        for (auto p : zip(strides, offsets)) {
-            offset += Byte(std::get<0>(p) * std::get<1>(p));
+        auto distributedType = subViewOp.getSource().getType().dyn_cast<VPUIP::DistributedBufferType>();
+
+        VPU::DistributedTensorAttr distribution;
+        std::optional<int64_t> tileIndex;
+        int64_t numTile = 0, tileIndexVal = 0;
+        if (distributedType != nullptr) {
+            distribution = distributedType.getDistribution();
+            tileIndex = VPUIP::getTilingDimIndex(distributedType);
+            if (tileIndex.has_value()) {
+                tileIndexVal = tileIndex.value();
+                numTile = parseIntArrayAttr<int64_t>(distribution.getNumTiles())[tileIndexVal];
+            }
         }
 
-        if (auto distributedType = subViewOp.source().getType().dyn_cast<VPUIP::DistributedBufferType>()) {
-            // Get tiling dim index
-            const auto tileIndex = VPUIP::getTilingDimIndex(distributedType);
-            if (tileIndex.has_value()) {
-                auto tileIndexVal = tileIndex.value();
-                auto origShape = getShape(subViewOp.source());
-                auto subShape = getShape(subViewOp.result());
-                if (origShape.size() != 4 || origShape.size() != subShape.size()) {
-                    return offset;
-                }
+        auto getSameAxisForClusterTiledSlice = [&]() -> std::optional<int64_t> {
+            if (!tileIndex.has_value()) {
+                return std::nullopt;
+            }
 
-                // Correct offset for tiling dim if different input/output tile index shape
-                if (origShape[Dim(tileIndexVal)] != subShape[Dim(tileIndexVal)]) {
-                    auto numTiles = parseIntArrayAttr<int64_t>(distributedType.getDistribution().getNumTiles());
-                    offset -= Byte(strides[Dim(tileIndexVal)] * offsets[tileIndexVal]) / numTiles[tileIndexVal];
+            auto origShape = getShape(subViewOp.getSource());
+            auto subShape = getShape(subViewOp.getResult());
+            if (origShape.size() != 4 || origShape.size() != subShape.size()) {
+                return std::nullopt;
+            }
+
+            // ClusterTiling and subview are done on the same axis
+            if (origShape[Dim(tileIndexVal)] != subShape[Dim(tileIndexVal)]) {
+                VPUX_THROW_WHEN(distribution.getMode().getValue() == VPU::DistributionMode::OVERLAPPED,
+                                "Cannot extract correct address for subview with OVERLAPPED distribution mode and "
+                                "subview axis same as clustering axis");
+                return tileIndexVal;
+            }
+
+            return std::nullopt;
+        };
+
+        const auto sameClusteringSliceAxis = getSameAxisForClusterTiledSlice();
+
+        // update strides based on numTiles
+        if (distributedType && distribution.getMode().getValue() == VPU::DistributionMode::SEGMENTED) {
+            // The algorithm for sameClusteringSlice does not need updated strides
+            if (!sameClusteringSliceAxis.has_value() && tileIndex.has_value()) {
+                auto dimOrder = DimsOrder::fromValue(val);
+                const auto origShape = getShape(subViewOp.getSource());
+                const auto tiledShape = divUp(origShape[Dim(tileIndex.value())], numTile);
+                const auto tiledMemAxis = dimOrder.dimPos(Dim(tileIndex.value()));
+                auto permutation =
+                        to_small_vector(distributedType.getDimsOrder().toPermutation() | transformed([](Dim dim) {
+                                            return checked_cast<uint32_t>(dim.ind());
+                                        }));
+
+                for (int64_t i = static_cast<int64_t>(tiledMemAxis) - 1; i >= 0; --i) {
+                    auto curDim = Dim(permutation[i]);
+                    auto lowerDim = Dim(permutation[i + 1]);
+                    if (i == static_cast<int64_t>(tiledMemAxis) - 1) {
+                        strides[curDim] = strides[lowerDim] * tiledShape;
+                    } else {
+                        strides[curDim] = strides[lowerDim] * origShape[lowerDim];
+                    }
                 }
+            }
+        }
+
+        for (int64_t axis = 0; axis < static_cast<int64_t>(strides.size()); axis++) {
+            const auto stride = strides[Dim(axis)];
+            const auto sliceOffset = offsets[axis];
+
+            if (sameClusteringSliceAxis.has_value() && sameClusteringSliceAxis.value() == axis) {
+                // When clustering axis is the same as Subview axis, the offsets are relative to the full un-clustered
+                // buffer. We make the assumption that the offset to current slice is distributed equally across
+                // clusters.
+                // E.g.:
+                // VPUIP.SubView %source [0, 0, 0, 0] [1, 12, 186, 240] -> SEGMENTED with numTiles = [1, 1, 4, 1]
+                // 0 - offset in orig shape, divided into 4 clusters
+                //          => subview_start_offset = stride * (0 / 4) = 0 ~ offset0
+                // VPUIP.SubView %source [0, 0, 186, 0] [1, 12, 186, 240] -> SEGMENTED with numTiles = [1, 1, 4, 1]
+                // 186 - offset in orig shape, divided into 4 clusters
+                //          => subview_start_offset = stride * divUp(186, 4) = stride * 47 ~ offset1
+                // The distribution in memory for this example would be:
+                //             Cluster 0        Cluster 1        Cluster 2        Cluster 3
+                // offset0  x_______________________________________________________________
+                //          |  47 lines of  |  47 lines of  |  46 lines of  |  46 lines of  |
+                //          | actual data   | actual data   | actual data   | actual data   |
+                //          |               |               |---------------|---------------|
+                // offset1  x---------------|---------------|---------------|---------------|
+                //          |  47 lines of  |    47 lines   |    46 lines   |    46 lines   |
+                //          | actual data   |               |---------------|---------------|
+                //          |_______________|_______________|_______________|_______________|
+
+                // TODO: Above scenario happens mostly in the context of act shave tiling and are subject to the
+                // following assumptions: SEGMENTED distribution mode, 2 Act Shaves/per cluster
+                // Clean up ticket: E#98440
+                offset += Byte(stride * divUp(sliceOffset, numTile));
+            } else {
+                // Compute simple offset
+                offset += Byte(stride * sliceOffset);
             }
         }
     }
@@ -102,7 +177,7 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
     const auto rootVal = *roots.begin();
 
     VPURT::BufferSection section = VPURT::BufferSection::DDR;
-    Optional<mlir::ArrayAttr> sectionIndex;
+    std::optional<mlir::ArrayAttr> sectionIndex;
 
     if (auto declareOp = rootVal.getDefiningOp<VPURT::DeclareBufferOp>()) {
         _log.nest().trace("It aliases internal buffer produced by '{0}'", declareOp->getLoc());
@@ -111,7 +186,7 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
         section = VPURT::symbolizeBufferSection(outType.getMemSpace().getLeafName()).value();
         auto memSpaceIndex = outType.getMemSpace().getIndex();
         if (memSpaceIndex.has_value()) {
-            sectionIndex = getIntArrayAttr(rewriter, makeArrayRef({memSpaceIndex.value()}));
+            sectionIndex = getIntArrayAttr(rewriter, ArrayRef({memSpaceIndex.value()}));
         }
     } else if (auto blockArg = rootVal.dyn_cast<mlir::BlockArgument>()) {
         _log.nest().trace("It aliases Block argument '{0}'", blockArg);
@@ -154,7 +229,7 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
         } else {
             VPUX_THROW("The view source doesn't belong to network entry point Function");
         }
-        sectionIndex = getIntArrayAttr(getContext(), makeArrayRef(sectionIndexVal));
+        sectionIndex = getIntArrayAttr(getContext(), ArrayRef(sectionIndexVal));
     } else {
         VPUX_THROW("Unknown source owner");
     }
@@ -184,7 +259,7 @@ public:
 
 mlir::LogicalResult RewriteConcatView::matchAndRewrite(VPUIP::ConcatViewOp origOp,
                                                        mlir::PatternRewriter& rewriter) const {
-    for (auto input : origOp.inputs()) {
+    for (auto input : origOp.getInputs()) {
         if (auto waitOp = input.getDefiningOp<mlir::async::AwaitOp>()) {
             if (waitOp->hasOneUse()) {
                 waitOp->dropAllUses();
@@ -193,7 +268,7 @@ mlir::LogicalResult RewriteConcatView::matchAndRewrite(VPUIP::ConcatViewOp origO
         }
     }
 
-    rewriter.replaceOp(origOp, origOp.output_buff());
+    rewriter.replaceOp(origOp, origOp.getOutputBuff());
     return ::mlir::success();
 }
 

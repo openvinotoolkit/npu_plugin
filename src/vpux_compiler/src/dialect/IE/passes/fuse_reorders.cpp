@@ -4,7 +4,6 @@
 //
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
-#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/utils/permute_utils.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
@@ -29,32 +28,45 @@ private:
     Logger _log;
 };
 
-bool lastOpPredicate(const mlir::Operation* op) {
-    return mlir::dyn_cast_or_null<mlir::func::ReturnOp>(op) != nullptr;
+// Match following patterns:
+// Pattern 1: NCE task -> Reorder -> ReturnOp
+// Pattern 2: NCE task -> Reorder -> ConvertOp -> ReturnOp
+// Pattern 3: NCE task -> Reorder -> SW layer (e.g., Tanh) -> ReturnOp
+// Pattern 4: NCE task -> Reorder -> SW layer (e.g., Tanh) -> ConvertOp -> ReturnOp
+bool isReturnOrConvertWithReturn(mlir::Operation* op) {
+    auto isReturnOp = [](mlir::Operation* op) {
+        return mlir::isa<mlir::func::ReturnOp>(op);
+    };
+
+    if (isReturnOp(op)) {
+        return true;
+    }
+
+    auto convertOp = mlir::dyn_cast<IE::ConvertOp>(op);
+    if (convertOp && llvm::all_of(convertOp->getUsers(), isReturnOp)) {
+        return true;
+    }
+
+    return false;
 }
 
-bool isTrailingActShaveOp(mlir::Operation* op) {
-    if (op == nullptr) {
+bool isEligiblePatternForFuse(IE::ReorderOp reorderOp) {
+    for (const auto& reorderUser : reorderOp->getUsers()) {
+        if (isReturnOrConvertWithReturn(reorderUser)) {
+            continue;
+        }
+        if (IE::isActShaveKernel(reorderUser) && llvm::all_of(reorderUser->getUsers(), isReturnOrConvertWithReturn)) {
+            continue;
+        }
         return false;
     }
-
-    const auto& opUsers = op->getUsers();
-    if (!llvm::all_of(opUsers, lastOpPredicate)) {
-        return false;
-    }
-
-    return IE::isActShaveKernel(op);
+    return true;
 }
 
 mlir::LogicalResult ReorderRewriter::matchAndRewrite(IE::ReorderOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got '{1}' at '{2}'", getDebugName(), origOp->getName(), origOp->getLoc());
 
-    const auto isEligibleForFuse = [](mlir::Operation* op) -> bool {
-        // Either the NCE taks itself must be the last in the graph,
-        // or it must be penultimate and followed by some activation shave task.
-        return lastOpPredicate(op) || isTrailingActShaveOp(op);
-    };
-    if (!llvm::all_of(origOp->getUsers(), isEligibleForFuse)) {
+    if (!isEligiblePatternForFuse(origOp)) {
         return matchFailed(_log.nest(), rewriter, origOp, "ODU permutation applies only to the last reorder");
     }
 
@@ -62,7 +74,7 @@ mlir::LogicalResult ReorderRewriter::matchAndRewrite(IE::ReorderOp origOp, mlir:
         return matchFailed(_log.nest(), rewriter, origOp, "ReorderOp is actually a permute cast");
     }
 
-    auto layerWithPermute = origOp.input().getDefiningOp<IE::LayerWithPermuteInterface>();
+    auto layerWithPermute = origOp.getInput().getDefiningOp<IE::LayerWithPermuteInterface>();
     if (layerWithPermute == nullptr) {
         return matchFailed(_log.nest(), rewriter, origOp, "ReorderRewriter applies for NCE tasks");
     }
@@ -82,7 +94,7 @@ mlir::LogicalResult ReorderRewriter::matchAndRewrite(IE::ReorderOp origOp, mlir:
     if (origType == nullptr) {
         return matchFailed(_log.nest(), rewriter, origOp, "NCE task does not implement vpux::NDTypeInterface");
     }
-    const auto newType = origType.changeDimsOrder(DimsOrder::fromAffineMap(origOp.dstOrder()));
+    const auto newType = origType.changeDimsOrder(DimsOrder::fromAffineMap(origOp.getDstOrder()));
     layerWithPermute->getResult(0).setType(newType);
 
     _log.trace("Fuse {0} to {1}", origOp->getLoc(), layerWithPermute->getLoc());

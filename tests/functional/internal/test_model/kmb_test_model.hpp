@@ -8,7 +8,6 @@
 #include <common_test_utils/test_common.hpp>
 #include <inference_engine.hpp>
 #include <ngraph/ngraph.hpp>
-#include <vpux/vpux_compiler_config.hpp>
 
 #include "vpux_test_utils.hpp"
 

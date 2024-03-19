@@ -14,26 +14,6 @@
 using namespace vpux;
 
 //
-// BroadcastAttr::walkImmediateSubElements
-//
-
-void vpux::Const::BroadcastAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)> walkAttrsFn,
-                                                          llvm::function_ref<void(mlir::Type)>) const {
-    walkAttrsFn(getAxis());
-    walkAttrsFn(getValue());
-}
-
-//
-// BroadcastAttr::replaceImmediateSubElements
-//
-
-mlir::Attribute vpux::Const::BroadcastAttr::replaceImmediateSubElements(ArrayRef<mlir::Attribute> replAttrs,
-                                                                        ArrayRef<mlir::Type>) const {
-    VPUX_THROW_WHEN(replAttrs.size() < 2, "Replace attrs array is too short: '{0}'", replAttrs.size());
-    return get(replAttrs[0].dyn_cast_or_null<mlir::IntegerAttr>(), replAttrs[1].dyn_cast_or_null<mlir::IntegerAttr>());
-}
-
-//
 // BroadcastAttr::print
 //
 
@@ -80,10 +60,6 @@ mlir::Attribute vpux::Const::BroadcastAttr::parse(mlir::AsmParser& parser, mlir:
 //
 
 vpux::NDTypeInterface vpux::Const::BroadcastAttr::inferOutputType(vpux::NDTypeInterface input) const {
-    const Bit typeSizeInBits = input.getElemTypeSize();
-    VPUX_THROW_UNLESS(typeSizeInBits.count() >= CHAR_BIT, "Got sub-byte input '{0}' in BroadcastAttr",
-                      input.getElementType());
-
     const auto value = getValue().getInt();
     const auto axis = Dim(getAxis().getInt());
 
@@ -115,7 +91,6 @@ Const::Content vpux::Const::BroadcastAttr::transform(vpux::Const::Content& input
         std::copy_n(inBuf.data(), inBuf.size(), outBuf.data());
     } else {
         const auto value = getValue().getInt();
-        //
         auto cstType = input.getType();
         auto physicalShape = cstType.getMemShape().raw();
         auto index = cstType.getDimsOrder().dimPos(Dim(getAxis().getInt()));
@@ -141,6 +116,7 @@ Const::Content vpux::Const::BroadcastAttr::transform(vpux::Const::Content& input
 }
 
 Const::ContentAttr vpux::Const::ContentAttr::broadcast(Dim axis, int64_t value) const {
-    return get(*this, Const::BroadcastAttr::get(getIntAttr(getContext(), axis.ind()), getIntAttr(getContext(), value))
-                              .cast<Const::TransformAttrInterface>());
+    return ContentAttr::addTransformation(
+            *this, Const::BroadcastAttr::get(getIntAttr(getContext(), axis.ind()), getIntAttr(getContext(), value))
+                           .cast<Const::TransformAttrInterface>());
 }

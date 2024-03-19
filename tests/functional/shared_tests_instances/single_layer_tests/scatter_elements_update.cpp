@@ -1,4 +1,3 @@
-//
 // Copyright (C) Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
@@ -10,13 +9,13 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXScatterElementsUpdateLayerTest :
+class ScatterElementsUpdateLayerTestCommon :
         public ScatterElementsUpdateLayerTest,
         virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
-class VPUXScatterElementsUpdateLayerTest_VPU3720 : public VPUXScatterElementsUpdateLayerTest {};
+class ScatterElementsUpdateLayerTest_NPU3720 : public ScatterElementsUpdateLayerTestCommon {};
 
-TEST_P(VPUXScatterElementsUpdateLayerTest_VPU3720, HW) {
+TEST_P(ScatterElementsUpdateLayerTest_NPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -34,11 +33,11 @@ std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<int>>> a
 const std::vector<std::vector<size_t>> indicesValue = {{1, 0, 1}};
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_ScatterElementsUpdate, VPUXScatterElementsUpdateLayerTest_VPU3720,
+        smoke_ScatterElementsUpdate, ScatterElementsUpdateLayerTest_NPU3720,
         testing::Combine(testing::ValuesIn(ScatterElementsUpdateLayerTest::combineShapes(axesShapeInShape)),
                          testing::ValuesIn(indicesValue), testing::Values(InferenceEngine::Precision::FP16),
                          testing::Values(InferenceEngine::Precision::I32),
                          testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-        VPUXScatterElementsUpdateLayerTest_VPU3720::getTestCaseName);
+        ScatterElementsUpdateLayerTest_NPU3720::getTestCaseName);
 
 }  // namespace

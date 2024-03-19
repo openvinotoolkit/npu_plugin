@@ -13,33 +13,33 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXActivationLayerTest : public ActivationLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
+class ActivationLayerTestCommon : public ActivationLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
-class VPUXActivationLayerTest_VPU3700 : public VPUXActivationLayerTest {};
-class VPUXActivationLayerTest_VPU3720 : public VPUXActivationLayerTest {};
-using VPUXActivationLayerTest_VPU3720_ELF = VPUXActivationLayerTest_VPU3720;
+class ActivationLayerTest_NPU3700 : public ActivationLayerTestCommon {};
+class ActivationLayerTest_NPU3720 : public ActivationLayerTestCommon {};
+using ActivationLayerTest_NPU3720_ELF = ActivationLayerTest_NPU3720;
 
-class VPUXActivationTilingTest_VPU3720 : public VPUXActivationLayerTest {};
+class ActivationTilingTest_NPU3720 : public ActivationLayerTestCommon {};
 
-TEST_P(VPUXActivationLayerTest_VPU3700, HW) {
+TEST_P(ActivationLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXActivationLayerTest_VPU3720, SW) {
+TEST_P(ActivationLayerTest_NPU3720, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXActivationTilingTest_VPU3720, HW) {
+TEST_P(ActivationTilingTest_NPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXActivationLayerTest_VPU3720_ELF, SW) {
+TEST_P(ActivationLayerTest_NPU3720_ELF, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     useELFCompilerBackend();
@@ -93,6 +93,11 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {HSigmoid, {{1.0f}}},
 };
 
+const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesFP32 = {
+        {Relu, {{1.0f}}},
+        {Log, {{1.0f}}},
+};
+
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {{{1, 50, 1, 1}, {{}}}, {{1, 128, 1, 1}, {{}}}};
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> preluBasic = {
@@ -113,83 +118,95 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic2DShape = {
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basicTiling = {{{1, 8, 80, 1280}, {{}}}};
 
 const auto basicCases = ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)), ::testing::ValuesIn(netPrecisions),
+        ::testing::ValuesIn(ov::test::utils::combineParams(activationTypes)), ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::FP16),
         ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
+        ::testing::ValuesIn(ov::test::utils::combineParams(basic)),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 const auto basicPReluCases = ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineParams(activationParamTypes)), ::testing::ValuesIn(netPrecisions),
+        ::testing::ValuesIn(ov::test::utils::combineParams(activationParamTypes)), ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::FP16),
         ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::ValuesIn(CommonTestUtils::combineParams(preluBasic)),
+        ::testing::ValuesIn(ov::test::utils::combineParams(preluBasic)),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 const auto basicNDCases = ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypesND)), ::testing::ValuesIn(netPrecisions),
+        ::testing::ValuesIn(ov::test::utils::combineParams(activationTypesND)), ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::ValuesIn(CommonTestUtils::combineParams(basicNDCase)),
+        ::testing::ValuesIn(ov::test::utils::combineParams(basicNDCase)),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 // For operations that only support FP16 input values in 'vpuip_2'
 const auto basicFP16OnlyCases = ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypesFP16Only)),
+        ::testing::ValuesIn(ov::test::utils::combineParams(activationTypesFP16Only)),
         ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::Precision::FP16),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
+        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::ValuesIn(ov::test::utils::combineParams(basic)),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 const auto basicCases2D = ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes2D)),
+        ::testing::ValuesIn(ov::test::utils::combineParams(activationTypes2D)),
         ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::FP16),
         ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::ValuesIn(CommonTestUtils::combineParams(basic2DShape)),
+        ::testing::ValuesIn(ov::test::utils::combineParams(basic2DShape)),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
 const auto basicTilingCases = ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypesTiling)),
+        ::testing::ValuesIn(ov::test::utils::combineParams(activationTypesTiling)),
         ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::FP16),
         ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::ValuesIn(CommonTestUtils::combineParams(basicTiling)),
+        ::testing::ValuesIn(ov::test::utils::combineParams(basicTiling)),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Activation_Test, VPUXActivationLayerTest_VPU3700, basicCases,
+const auto basicCasesFP32 = ::testing::Combine(
+        ::testing::ValuesIn(ov::test::utils::combineParams(activationTypesFP32)),
+        ::testing::Values(InferenceEngine::Precision::FP32), ::testing::Values(InferenceEngine::Precision::FP32),
+        ::testing::Values(InferenceEngine::Precision::FP32), ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::ValuesIn(ov::test::utils::combineParams(basic)),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
+
+// ------ NPU3700 ------
+
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test, ActivationLayerTest_NPU3700, basicCases,
                          ActivationLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Activation_Test_PRelu, VPUXActivationLayerTest_VPU3700, basicPReluCases,
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_PRelu, ActivationLayerTest_NPU3700, basicPReluCases,
                          ActivationLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Activation_Test_ND, VPUXActivationLayerTest_VPU3700, basicNDCases,
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_ND, ActivationLayerTest_NPU3700, basicNDCases,
                          ActivationLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Activation_Test_FP16Only, VPUXActivationLayerTest_VPU3700,
-                         basicFP16OnlyCases, ActivationLayerTest::getTestCaseName);
-
-// ------ VPU3720 ------
-
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_Activation_Test, VPUXActivationLayerTest_VPU3720, basicCases,
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_FP16Only, ActivationLayerTest_NPU3700, basicFP16OnlyCases,
                          ActivationLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_Activation_Test_PRelu, VPUXActivationLayerTest_VPU3720, basicPReluCases,
+// ------ NPU3720 ------
+
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_Activation_Test, ActivationLayerTest_NPU3720, basicCases,
                          ActivationLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_Activation_Test_2D, VPUXActivationLayerTest_VPU3720, basicCases2D,
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_Activation_Test_PRelu, ActivationLayerTest_NPU3720, basicPReluCases,
                          ActivationLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_tiling_Activation_Test, VPUXActivationTilingTest_VPU3720, basicTilingCases,
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_Activation_Test_2D, ActivationLayerTest_NPU3720, basicCases2D,
+                         ActivationLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_tiling_Activation_Test, ActivationTilingTest_NPU3720, basicTilingCases,
+                         ActivationLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_FP32_Test, ActivationTilingTest_NPU3720, basicCasesFP32,
                          ActivationLayerTest::getTestCaseName);
 
 // ------ ELF ------
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_Activation_Test_PRelu, VPUXActivationLayerTest_VPU3720_ELF, basicPReluCases,
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_Activation_Test_PRelu, ActivationLayerTest_NPU3720_ELF, basicPReluCases,
                          ActivationLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test, VPUXActivationLayerTest_VPU3720_ELF, basicCases,
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test, ActivationLayerTest_NPU3720_ELF, basicCases,
                          ActivationLayerTest::getTestCaseName);
 
 }  // namespace

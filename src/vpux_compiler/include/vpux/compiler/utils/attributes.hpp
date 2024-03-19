@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/range.hpp"
 #include "vpux/utils/core/small_vector.hpp"
@@ -12,11 +13,11 @@
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/BuiltinTypes.h>
-#include <ngraph/type/float16.hpp>
+#include <openvino/core/type/float16.hpp>
 
 namespace vpux {
 
-using ngraph::float16;
+using ov::float16;
 
 //
 // get<Scalar>Attr
@@ -110,6 +111,10 @@ SmallVector<T> parseIntArrayAttr(mlir::ArrayAttr arr) {
                                const auto intAttr = attr.dyn_cast_or_null<mlir::IntegerAttr>();
                                VPUX_THROW_UNLESS(intAttr != nullptr, "Got non Integer Attribute '{0}' in Array", attr);
 
+                               if (intAttr.getType().isUnsignedInteger()) {
+                                   return checked_cast<T>(intAttr.getUInt());
+                               }
+
                                return checked_cast<T>(intAttr.getValue().getSExtValue());
                            }));
 }
@@ -163,10 +168,23 @@ inline mlir::DenseElementsAttr wrapData(const mlir::RankedTensorType dataStorage
     if (elemType.isF32()) {
         return mlir::DenseElementsAttr::get(dataStorageType, value);
     } else if (elemType.isF16()) {
-        const ngraph::float16 valFP16 = value;
+        const ov::float16 valFP16 = value;
         return mlir::DenseElementsAttr::get(dataStorageType, valFP16);
     }
-    return nullptr;
+    VPUX_THROW("Unsupported element type '{0}'", elemType);
+}
+
+inline mlir::DenseElementsAttr wrapArrayRef(const mlir::RankedTensorType dataStorageType, ArrayRef<float> array) {
+    const auto elemType = dataStorageType.getElementType();
+    if (elemType.isF32()) {
+        return mlir::DenseElementsAttr::get(dataStorageType, array);
+    } else if (elemType.isF16()) {
+        const auto arrayFP16 = to_small_vector(array | transformed([](float val) {
+                                                   return static_cast<float16>(val);
+                                               }));
+        return mlir::DenseElementsAttr::get(dataStorageType, ArrayRef(arrayFP16));
+    }
+    VPUX_THROW("Unsupported element type '{0}'", elemType);
 }
 
 }  // namespace vpux

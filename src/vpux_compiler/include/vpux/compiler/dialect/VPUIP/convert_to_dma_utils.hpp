@@ -23,12 +23,13 @@ constexpr int64_t PER_PERMUTE_MAX_DMA_NUMBER = 8;
 constexpr int64_t PERMUTE_DMA_MAX_LENGTH = 256;
 
 // Replace permute with DMA
-Optional<Shape> getPermuteDMAInputShape(NDTypeInterface inType, NDTypeInterface outType, mlir::AffineMap memPerm,
-                                        vpux::Logger log);
-Optional<Shape> getPermuteDMAOutputShape(NDTypeInterface inType, NDTypeInterface outType, mlir::AffineMap memPerm,
-                                         vpux::Logger log);
-Optional<SmallVector<Shape>> getPermuteDMASubInputShapes(NDTypeInterface inType, NDTypeInterface outType,
-                                                         mlir::AffineMap memPerm, vpux::Logger log);
+std::optional<Shape> getPermuteDMAInputShape(NDTypeInterface inType, NDTypeInterface outType, mlir::AffineMap memPerm,
+                                             vpux::Logger log);
+std::optional<Shape> getPermuteDMAOutputShape(NDTypeInterface inType, NDTypeInterface outType, mlir::AffineMap memPerm,
+                                              vpux::Logger log);
+std::optional<SmallVector<Shape>> getPermuteDMASubInputShapes(NDTypeInterface inType, NDTypeInterface outType,
+                                                              mlir::AffineMap memPerm, int64_t dmaPortCount,
+                                                              vpux::Logger log);
 SmallVector<vpux::Shape> getPermuteDMASubOutputShapes(SmallVector<vpux::Shape> subInputShapes,
                                                       vpux::NDTypeInterface inType, vpux::NDTypeInterface outType,
                                                       mlir::AffineMap memPerm);
@@ -42,9 +43,9 @@ Dim getPermuteDMANumPlaneDim(vpux::NDTypeInterface inType, mlir::AffineMap memPe
 bool isSplitNeededForPermuteDMA(vpux::NDTypeInterface inType, mlir::AffineMap memPerm);
 
 // Get Tiled dim of the distributed output of PermuteDMA op
-Optional<Dim> getTileDimForPermuteDMA(vpux::NDTypeInterface inType, vpux::NDTypeInterface outType,
-                                      mlir::AffineMap memPerm, VPUIP::DistributedBufferType distributedOutputType,
-                                      vpux::Logger log);
+std::optional<Dim> getTileDimForPermuteDMA(vpux::NDTypeInterface inType, vpux::NDTypeInterface outType,
+                                           mlir::AffineMap memPerm, VPUIP::DistributedBufferType distributedOutputType,
+                                           vpux::Logger log);
 SmallVector<DimArr> getPermuteDMAOutputMergedDimList(vpux::NDTypeInterface outputType, ShapeRef mergedOutputShape);
 
 // Check the tile axis is compatible for generating the DMA descriptor
@@ -55,16 +56,16 @@ bool doesPermuteDMATileDimSupportWrapInCluster(vpux::NDTypeInterface inputType, 
                                                VPUIP::DistributedBufferType distributedOutputType, vpux::Logger log);
 
 bool isCombineAtFront(ShapeRef shape, DimsOrder order);
-Optional<mlir::AffineMap> getMemPermFromSwKernel(VPUIP::SwKernelOp swKernelTask);
+std::optional<mlir::AffineMap> getMemPermFromSwKernel(VPUIP::SwKernelOp swKernelTask);
 bool isMemPermSwKernel(VPUIP::SwKernelOp swKernelTask);
 
 // Replace DepthToSpace with DMA
 using DepthToSpaceReturnType = std::tuple<IE::DepthToSpaceModeAttr, mlir::IntegerAttr, IE::ChannelPaddingAttr>;
-Optional<DepthToSpaceReturnType> getDepthToSpaceSwKernelAttr(VPUIP::SwKernelOp swKernelTask);
+std::optional<DepthToSpaceReturnType> getDepthToSpaceSwKernelAttr(VPUIP::SwKernelOp swKernelTask);
 bool isDepthToSpaceSwKernel(VPUIP::SwKernelOp swKernelTask);
 
 // Replace SpaceToDepth with DMA
-Optional<std::pair<IE::SpaceToDepthModeAttr, mlir::IntegerAttr>> getSpaceToDepthSwKernelAttr(
+std::optional<std::pair<IE::SpaceToDepthModeAttr, mlir::IntegerAttr>> getSpaceToDepthSwKernelAttr(
         VPUIP::SwKernelOp swKernelTask);
 bool isSpaceToDepthSwKernel(VPUIP::SwKernelOp swKernelTask);
 
@@ -77,7 +78,7 @@ struct PerAxisTileAttr {
 
 bool isTileSwKernel(VPUIP::SwKernelOp swKernelTask);
 bool isPerAxisTileSwKernel(VPUIP::SwKernelOp swKernelTask);
-Optional<VPUIP::PerAxisTileAttr> getPerAxisTileSwKernelAttr(VPUIP::SwKernelOp swKernelTask);
+std::optional<VPUIP::PerAxisTileAttr> getPerAxisTileSwKernelAttr(VPUIP::SwKernelOp swKernelTask);
 
 // All of PerAxisTileDMA should with 3D shape rank to simplify the Descriptor
 // This function merge the original shape to 3D and returns the input and output merged shape
@@ -90,6 +91,7 @@ SmallVector<vpux::Shape> getPerAxisTileDMASubShapes(vpux::ShapeRef shape);
 bool doesSWLayerFitIntoCMX(mlir::Operation* op, vpux::Logger log);
 bool isLegalConvertToDMA(mlir::Operation* op, vpux::Logger log);
 bool isLegalAndBeneficialConvertToDMA(mlir::Operation* op, vpux::Logger log);
+vpux::NDTypeInterface changeShapeWithMemShape(vpux::NDTypeInterface* type, vpux::ShapeRef newMemShape, DimsOrder order);
 VPUIP::DMADescriptorAttr updateNumPlanes(VPUIP::DMADescriptorAttr dmaDescriptor, int64_t numPlane);
 
 VPURT::DeclareBufferOp createNewDeclareBuffer(mlir::PatternRewriter& rewriter, mlir::Operation* insertionPoint,

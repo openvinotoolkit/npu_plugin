@@ -9,22 +9,18 @@
 
 #include "common.hpp"
 #include "vpux/properties.hpp"
-#include "vpux/vpux_plugin_config.hpp"
-#include "vpux_private_config.hpp"
 #include "vpux_private_properties.hpp"
 
-#include <ie_plugin_config.hpp>
+namespace ov {
 
-namespace InferenceEngine {
+namespace intel_vpux {
 
-namespace VPUXConfigParams {
+std::string_view stringifyEnum(CompilerType val);
+std::string_view stringifyEnum(ElfCompilerBackend val);
 
-llvm::StringLiteral stringifyEnum(InferenceEngine::VPUXConfigParams::CompilerType val);
-llvm::StringLiteral stringifyEnum(InferenceEngine::VPUXConfigParams::ElfCompilerBackend val);
+}  // namespace intel_vpux
 
-}  // namespace VPUXConfigParams
-
-}  // namespace InferenceEngine
+}  // namespace ov
 
 namespace vpux {
 
@@ -39,12 +35,16 @@ void registerCompilerOptions(OptionsDesc& desc);
 //
 
 struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, InferenceEngine::VPUXConfigParams::CompilerType> {
-    static StringRef key() {
+    static std::string_view key() {
         return ov::intel_vpux::compiler_type.name();
     }
 
+    static constexpr std::string_view getTypeName() {
+        return "InferenceEngine::VPUXConfigParams::CompilerType";
+    }
+
 #ifdef VPUX_DEVELOPER_BUILD
-    static StringRef envVar() {
+    static std::string_view envVar() {
         return "IE_NPU_COMPILER_TYPE";
     }
 #endif
@@ -57,7 +57,9 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, InferenceEngine::VPUXConf
 #endif
     }
 
-    static InferenceEngine::VPUXConfigParams::CompilerType parse(StringRef val);
+    static InferenceEngine::VPUXConfigParams::CompilerType parse(std::string_view val);
+
+    static std::string toString(const InferenceEngine::VPUXConfigParams::CompilerType& val);
 
     static OptionMode mode() {
         return OptionMode::CompileTime;
@@ -73,12 +75,12 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, InferenceEngine::VPUXConf
 //
 
 struct COMPILATION_MODE final : OptionBase<COMPILATION_MODE, std::string> {
-    static StringRef key() {
+    static std::string_view key() {
         return ov::intel_vpux::compilation_mode.name();
     }
 
 #ifdef VPUX_DEVELOPER_BUILD
-    static StringRef envVar() {
+    static std::string_view envVar() {
         return "IE_NPU_COMPILATION_MODE";
     }
 #endif
@@ -101,7 +103,7 @@ struct COMPILATION_MODE final : OptionBase<COMPILATION_MODE, std::string> {
 //
 
 struct COMPILATION_MODE_PARAMS final : OptionBase<COMPILATION_MODE_PARAMS, std::string> {
-    static StringRef key() {
+    static std::string_view key() {
         return ov::intel_vpux::compilation_mode_params.name();
     }
 
@@ -123,11 +125,11 @@ struct COMPILATION_MODE_PARAMS final : OptionBase<COMPILATION_MODE_PARAMS, std::
 //
 
 struct DPU_GROUPS final : OptionBase<DPU_GROUPS, int64_t> {
-    static StringRef key() {
+    static std::string_view key() {
         return ov::intel_vpux::dpu_groups.name();
     }
 
-    static SmallVector<StringRef> deprecatedKeys() {
+    static std::vector<std::string_view> deprecatedKeys() {
         return {};
     }
 
@@ -144,7 +146,7 @@ struct DPU_GROUPS final : OptionBase<DPU_GROUPS, int64_t> {
     }
 
 #ifdef VPUX_DEVELOPER_BUILD
-    static StringRef envVar() {
+    static std::string_view envVar() {
         return "IE_NPU_DPU_GROUPS";
     }
 #endif
@@ -155,11 +157,11 @@ struct DPU_GROUPS final : OptionBase<DPU_GROUPS, int64_t> {
 //
 
 struct DMA_ENGINES final : OptionBase<DMA_ENGINES, int64_t> {
-    static StringRef key() {
+    static std::string_view key() {
         return ov::intel_vpux::dma_engines.name();
     }
 
-    static SmallVector<StringRef> deprecatedKeys() {
+    static std::vector<std::string_view> deprecatedKeys() {
         return {};
     }
 
@@ -176,7 +178,7 @@ struct DMA_ENGINES final : OptionBase<DMA_ENGINES, int64_t> {
     }
 
 #ifdef VPUX_DEVELOPER_BUILD
-    static StringRef envVar() {
+    static std::string_view envVar() {
         return "IE_NPU_DMA_ENGINES";
     }
 #endif
@@ -188,21 +190,27 @@ struct DMA_ENGINES final : OptionBase<DMA_ENGINES, int64_t> {
 
 struct USE_ELF_COMPILER_BACKEND final :
         OptionBase<USE_ELF_COMPILER_BACKEND, InferenceEngine::VPUXConfigParams::ElfCompilerBackend> {
-    static StringRef key() {
+    static std::string_view key() {
         return ov::intel_vpux::use_elf_compiler_backend.name();
     }
 
+    static constexpr std::string_view getTypeName() {
+        return "InferenceEngine::VPUXConfigParams::ElfCompilerBackend";
+    }
+
 #ifdef VPUX_DEVELOPER_BUILD
-    static StringRef envVar() {
+    static std::string_view envVar() {
         return "IE_NPU_USE_ELF_COMPILER_BACKEND";
     }
 #endif
 
     static InferenceEngine::VPUXConfigParams::ElfCompilerBackend defaultValue() {
-        return InferenceEngine::VPUXConfigParams::ElfCompilerBackend::YES;
+        return InferenceEngine::VPUXConfigParams::ElfCompilerBackend::AUTO;
     }
 
-    static InferenceEngine::VPUXConfigParams::ElfCompilerBackend parse(StringRef val);
+    static InferenceEngine::VPUXConfigParams::ElfCompilerBackend parse(std::string_view val);
+
+    static std::string toString(const InferenceEngine::VPUXConfigParams::ElfCompilerBackend& val);
 };
 
 }  // namespace vpux

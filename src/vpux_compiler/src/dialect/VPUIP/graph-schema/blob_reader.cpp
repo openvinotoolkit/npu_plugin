@@ -9,6 +9,7 @@
 #include "vpux/compiler/dialect/VPUIP/graph-schema/import.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
+#include "vpux/compiler/dialect/VPURT/attributes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -319,9 +320,9 @@ mlir::Value vpux::VPUIP::BlobReader::createTensorOp(mlir::OpBuilder& builder, co
         const auto tensorType = mlir::RankedTensorType::get(importedType.getShape(), importedType.getElementType());
         const auto numElems = tensorType.getNumElements();
         const Byte elemTypeSize = getElemTypeSize(tensorType);
-        const auto rawBuffer = makeArrayRef(
-                reinterpret_cast<const char*>(_graphFile->binary_data()->Get(_constCounter++)->data()->Data()),
-                numElems * elemTypeSize.count());
+        const auto rawBuffer =
+                ArrayRef(reinterpret_cast<const char*>(_graphFile->binary_data()->Get(_constCounter++)->data()->Data()),
+                         numElems * elemTypeSize.count());
 
         const auto value = mlir::DenseElementsAttr::getFromRawBuffer(tensorType, rawBuffer);
         VPUX_THROW_UNLESS(tensorRef->locale_index() && tensorRef->locale_index()->size() == 1,
@@ -350,6 +351,12 @@ mlir::Value vpux::VPUIP::BlobReader::createTensorOp(mlir::OpBuilder& builder, co
     const auto sectionIndex = to_small_vector(*tensorRef->locale_index() | transformed([](uint32_t v) {
         return checked_cast<int64_t>(v);
     }));
+
+    // section is not specified if DDR memory is used
+    if (section == VPURT::BufferSection::DDR) {
+        return builder.create<VPURT::DeclareBufferOp>(mlir::UnknownLoc::get(_ctx), importedType, section,
+                                                      tensorRef->data()->data_index());
+    }
 
     return builder.create<VPURT::DeclareBufferOp>(mlir::UnknownLoc::get(_ctx), importedType, section, sectionIndex,
                                                   tensorRef->data()->data_index());
@@ -397,7 +404,7 @@ void vpux::VPUIP::BlobReader::buildMainFunc() {
 
     auto funcArguments = _inputTypes;
     funcArguments.insert(funcArguments.end(), _outputTypes.begin(), _outputTypes.end());
-    const auto funcType = mlir::FunctionType::get(_ctx, makeArrayRef(funcArguments), makeArrayRef(_outputTypes));
+    const auto funcType = mlir::FunctionType::get(_ctx, ArrayRef(funcArguments), ArrayRef(_outputTypes));
     auto func = builder.create<mlir::func::FuncOp>(mlir::UnknownLoc::get(_ctx), _mainFuncName.getValue(), funcType);
 
     auto opsBuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), &builderLog);

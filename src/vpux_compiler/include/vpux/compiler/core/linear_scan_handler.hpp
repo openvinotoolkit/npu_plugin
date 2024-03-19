@@ -30,11 +30,13 @@ public:
     void markAsDead(mlir::Value val);
     void markAllBuffersAsDead();
     void markAsAlive(mlir::Value val);
+    void markAsDynamicSpill(mlir::Value val);
+    void removeDynamicSpill(mlir::Value val);
     Byte maxAllocatedSize() const;
-    bool checkInvariantExceedingNNCMX(mlir::Value val, AddressType baseOffset, AddressType cmxSize) const;
 
 public:
     bool isAlive(mlir::Value val) const;
+    bool isDynamicSpill(mlir::Value val) const;
     static bool isFixedAlloc(mlir::Value val);
     AddressType getSize(mlir::Value val);
     AddressType getAlignment(mlir::Value val) const;
@@ -48,17 +50,10 @@ public:
     void setAddress(mlir::Value val, AddressType address);
 
 private:
-    VPUIP::SubViewOp getSubViewUserOp(mlir::Value val) const;
-    bool hasEltwiseUser(mlir::Value val) const;
-    AddressType calculateStaticOffsetWithStrides(ArrayRef<AddressType> subViewStaticOffsets,
-                                                 StridesRef subViewStrides) const;
-    bool addressWithStridesExceedsNNCMX(AddressType baseOffset, AddressType staticOffsetWithStrides,
-                                        StridesRef subViewStrides, AddressType cmxSize) const;
-
-private:
     DenseMap<mlir::Value, AddressType> _valOffsets;
     DenseMap<mlir::Value, AddressType> _sizeCache;
     llvm::DenseSet<mlir::Value> _aliveValues;
+    llvm::DenseSet<mlir::Value> _dynamicSpillValues;
     AddressType _defaultAlignment = 1;
     Byte _maxAllocatedSize;
 };

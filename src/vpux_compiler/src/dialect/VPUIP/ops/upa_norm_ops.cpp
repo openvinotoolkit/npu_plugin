@@ -12,13 +12,13 @@ using namespace vpux;
 
 mlir::LogicalResult vpux::VPUIP::NormUPAOp::verify() {
     const auto op = getOperation();
-    const auto inShape = getShape(input());
+    const auto inShape = getShape(getInput());
 
     if (inShape.size() == 4 && inShape[Dim(0)] != 1) {
         return errorAt(op, "Only input tensor batch = 1 is supported, got '{0}'", inShape[Dim(0)]);
     }
 
-    const auto biasVal = bias().convertToDouble();
+    const auto biasVal = getBias().convertToDouble();
     if (biasVal != 1.0) {
         return errorAt(op, "Only bias = 1.0 is supported, got '{0}'", biasVal);
     }
@@ -28,7 +28,7 @@ mlir::LogicalResult vpux::VPUIP::NormUPAOp::verify() {
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NormUPAOp::serialize(VPUIP::BlobWriter& writer) {
     VPUIP::BlobWriter::String region;
-    switch (this->region()) {
+    switch (this->getRegion()) {
     case IE::LRN_IERegion::ACROSS:
         region = writer.createString("across");
         break;
@@ -36,13 +36,13 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NormUPAOp::serialize(VPUIP::BlobWri
         region = writer.createString("same");
         break;
     default:
-        VPUX_THROW("Unsupported LRN_IERegion {0}", this->region());
+        VPUX_THROW("Unsupported LRN_IERegion {0}", this->getRegion());
     }
 
     MVCNN::NormParamsBuilder builder(writer);
-    builder.add_alpha(static_cast<float>(alpha().convertToDouble()));
-    builder.add_beta(static_cast<float>(beta().convertToDouble()));
-    builder.add_local_size(checked_cast<int32_t>(local_size()));
+    builder.add_alpha(static_cast<float>(getAlpha().convertToDouble()));
+    builder.add_beta(static_cast<float>(getBeta().convertToDouble()));
+    builder.add_local_size(checked_cast<int32_t>(getLocalSize()));
     builder.add_region(region);
     const auto paramsOff = builder.Finish();
 

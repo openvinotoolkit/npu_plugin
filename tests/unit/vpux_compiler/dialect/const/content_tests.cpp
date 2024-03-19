@@ -7,6 +7,7 @@
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/types.hpp"
+#include "vpux/utils/core/small_vector.hpp"
 
 #include "vpux/utils/core/numeric.hpp"
 #include "vpux/utils/core/range.hpp"
@@ -15,11 +16,16 @@
 
 #include <mlir/Dialect/Quant/QuantOps.h>
 #include <mlir/Dialect/Quant/QuantTypes.h>
+#include <mlir/IR/AsmState.h>
+#include <mlir/IR/BuiltinDialect.h>
+#include <mlir/IR/DialectResourceBlobManager.h>
 #include <mlir/IR/MLIRContext.h>
 
 #include <gtest/gtest.h>
 #include <vpux/compiler/utils/quantization.hpp>
 
+#include <cassert>
+#include <memory>
 #include <numeric>
 
 using namespace vpux;
@@ -33,6 +39,17 @@ std::vector<T> generateValues(size_t n) {
     }
 
     return vals;
+}
+
+template <typename T>
+std::unique_ptr<T[]> generateValuesPointer(size_t n) {
+    std::unique_ptr<T[]> data = std::make_unique<T[]>(n);
+    T* vals = data.get();
+    for (size_t i = 0; i < n; ++i) {
+        vals[i] = static_cast<T>(i);
+    }
+
+    return data;
 }
 
 template <typename T>
@@ -78,7 +95,9 @@ TEST_F(MLIR_ConstContentAttrTest, FromDenseElementsAttr) {
     const auto baseType = mlir::RankedTensorType::get({1, 2, 3, 4}, mlir::Float32Type::get(&ctx));
 
     const auto vals = generateValues<float>(baseType.getNumElements());
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
+    ASSERT_NE(static_cast<const void*>(baseAttr.getRawData().data()), static_cast<const void*>(vals.data()))
+            << "Local data has to be copied inside DenseElementsAttr";
 
     const auto contentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(contentAttr, nullptr);
@@ -94,6 +113,24 @@ TEST_F(MLIR_ConstContentAttrTest, FromDenseElementsAttr) {
     for (size_t i = 0; i < contentVals.size(); ++i) {
         EXPECT_EQ(contentVals[i], vals[i]);
     }
+}
+
+// Note: some networks (in tests at least) provide 0-element constants
+TEST_F(MLIR_ConstContentAttrTest, FromEmptyDenseElementsAttr) {
+    const auto baseType = mlir::RankedTensorType::get({0}, mlir::Float32Type::get(&ctx));
+
+    const std::vector<char> empty{};
+    const auto baseAttr = mlir::DenseElementsAttr::getFromRawBuffer(baseType, ArrayRef(empty.data(), empty.size()));
+    ASSERT_TRUE(baseAttr.empty());
+
+    const auto contentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(contentAttr, nullptr);
+    EXPECT_EQ(contentAttr.getType(), baseType);
+
+    const auto content = contentAttr.fold();
+    EXPECT_EQ(content.getType(), baseType);
+    EXPECT_FALSE(content.isSplat());
+    ASSERT_TRUE(content.getValues<float>().empty());
 }
 
 TEST_F(MLIR_ConstContentAttrTest, FromSplatDenseElementsAttr) {
@@ -120,12 +157,27 @@ TEST_F(MLIR_ConstContentAttrTest, FromSplatDenseElementsAttr) {
     }
 }
 
-TEST_F(MLIR_ConstContentAttrTest, FromOpaqueElementsAttr) {
+TEST_F(MLIR_ConstContentAttrTest, FromDenseResourceElementsAttr) {
     const auto baseType = mlir::RankedTensorType::get({1, 2, 3, 4}, mlir::Float32Type::get(&ctx));
 
-    const auto vals = generateValues<float>(baseType.getNumElements());
-    const auto bytes = StringRef(reinterpret_cast<const char*>(vals.data()), vals.size() * sizeof(float));
-    const auto baseAttr = Const::OpaqueElementsAttr::get(baseType, bytes);
+    std::unique_ptr<float[]> data = generateValuesPointer<float>(baseType.getNumElements());
+    auto deleteFloatArray = [](float* ptr, size_t, size_t) {
+        decltype(data)::deleter_type deleter{};
+        deleter(ptr);
+    };
+    constexpr bool isMutable = false;
+    mlir::AsmResourceBlob blob(mlir::ArrayRef<float>(data.get(), baseType.getNumElements()),
+                               std::move(deleteFloatArray), isMutable);
+    float* dataPtr = data.release();  // avoid double-free
+
+    // do what protected mlir::DenseResourceElementsAttr::get() does
+    auto& manager = mlir::DenseResourceElementsHandle::getManagerInterface(&ctx);
+    const auto baseAttr = mlir::DenseResourceElementsAttr::get(
+            baseType, manager.insert("FromDenseResourceElementsAttr", std::move(blob)));
+
+    ASSERT_EQ(static_cast<const void*>(baseAttr.getRawHandle().getBlob()->getData().data()),
+              static_cast<const void*>(dataPtr))
+            << "Local data is not copied inside DenseResourceElementsAttr - unlike DenseElementsAttr";
 
     const auto contentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(contentAttr, nullptr);
@@ -136,18 +188,168 @@ TEST_F(MLIR_ConstContentAttrTest, FromOpaqueElementsAttr) {
     EXPECT_FALSE(content.isSplat());
 
     const auto contentVals = content.getValues<float>();
-    EXPECT_EQ(contentVals.size(), vals.size());
+    EXPECT_EQ(contentVals.size(), baseType.getNumElements());
+
+    for (size_t i = 0; i < contentVals.size(); ++i) {
+        EXPECT_EQ(contentVals[i], dataPtr[i]);
+    }
+}
+
+TEST_F(MLIR_ConstContentAttrTest, FromDenseResourceElementsAttrNonOwning) {
+    const auto baseType = mlir::RankedTensorType::get({1, 2, 3, 4}, mlir::Float32Type::get(&ctx));
+    const auto vals = generateValues<float>(baseType.getNumElements());
+    constexpr auto noop = [](float*, size_t, size_t) {};
+    constexpr bool isMutable = false;
+    mlir::AsmResourceBlob blob(mlir::ArrayRef<float>(vals), noop, isMutable);
+
+    // do what protected mlir::DenseResourceElementsAttr::get() does
+    auto& manager = mlir::DenseResourceElementsHandle::getManagerInterface(&ctx);
+    const auto baseAttr = mlir::DenseResourceElementsAttr::get(
+            baseType, manager.insert("FromDenseResourceElementsAttrNonOwning", std::move(blob)));
+
+    ASSERT_EQ(static_cast<const void*>(baseAttr.getRawHandle().getBlob()->getData().data()),
+              static_cast<const void*>(vals.data()))
+            << "Local data is not copied inside DenseResourceElementsAttr - unlike DenseElementsAttr";
+
+    const auto contentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(contentAttr, nullptr);
+    EXPECT_EQ(contentAttr.getType(), baseType);
+
+    const auto content = contentAttr.fold();
+    EXPECT_EQ(content.getType(), baseType);
+    EXPECT_FALSE(content.isSplat());
+
+    const auto contentVals = content.getValues<float>();
+    EXPECT_EQ(contentVals.size(), baseType.getNumElements());
 
     for (size_t i = 0; i < contentVals.size(); ++i) {
         EXPECT_EQ(contentVals[i], vals[i]);
     }
 }
 
+TEST_F(MLIR_ConstContentAttrTest, FromSplatDenseResourceElementsAttr) {
+    const auto baseType = mlir::RankedTensorType::get({1, 2, 3, 4}, mlir::Float32Type::get(&ctx));
+    const float splatVal = 4.0f;
+    const std::vector<float> vals = {splatVal};
+    constexpr auto noop = [](float*, size_t, size_t) {};
+    constexpr bool isMutable = false;
+    mlir::AsmResourceBlob blob(mlir::ArrayRef<float>(vals), noop, isMutable);
+
+    // do what protected mlir::DenseResourceElementsAttr::get() does
+    auto& manager = mlir::DenseResourceElementsHandle::getManagerInterface(&ctx);
+    const auto baseAttr = mlir::DenseResourceElementsAttr::get(
+            baseType, manager.insert("FromSplatDenseResourceElementsAttr", std::move(blob)));
+
+    ASSERT_EQ(static_cast<const void*>(baseAttr.getRawHandle().getBlob()->getData().data()),
+              static_cast<const void*>(vals.data()))
+            << "Local data is not copied inside DenseResourceElementsAttr - unlike DenseElementsAttr";
+
+    const auto contentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(contentAttr, nullptr);
+    EXPECT_EQ(contentAttr.getType(), baseType);
+
+    const auto content = contentAttr.fold();
+    EXPECT_EQ(content.getType(), baseType);
+    EXPECT_TRUE(content.isSplat());
+    EXPECT_EQ(content.getSplatValue<float>(), splatVal);
+
+    const auto contentVals = content.getValues<float>();
+    EXPECT_EQ(contentVals.size(), baseType.getNumElements());
+
+    for (size_t i = 0; i < contentVals.size(); ++i) {
+        EXPECT_EQ(contentVals[i], splatVal);
+    }
+}
+
+// Note: some networks (in tests at least) provide 0-element constants
+TEST_F(MLIR_ConstContentAttrTest, FromEmptyDenseResourceElementsAttr) {
+    const auto baseType = mlir::RankedTensorType::get({0}, mlir::Float32Type::get(&ctx));
+    const std::vector<float> empty{};
+    constexpr auto noop = [](float*, size_t, size_t) {};
+    constexpr bool isMutable = false;
+    mlir::AsmResourceBlob blob(mlir::ArrayRef<float>(empty), noop, isMutable);
+
+    auto& manager = mlir::DenseResourceElementsHandle::getManagerInterface(&ctx);
+    const auto baseAttr = mlir::DenseResourceElementsAttr::get(
+            baseType, manager.insert("FromEmptyDenseResourceElementsAttr", std::move(blob)));
+
+    ASSERT_TRUE(baseAttr.empty());
+
+    const auto contentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(contentAttr, nullptr);
+    EXPECT_EQ(contentAttr.getType(), baseType);
+
+    const auto content = contentAttr.fold();
+    EXPECT_EQ(content.getType(), baseType);
+    EXPECT_FALSE(content.isSplat());
+    ASSERT_TRUE(content.getValues<float>().empty());
+}
+
+TEST_F(MLIR_ConstContentAttrTest, FromEqualElementsSplatDenseResourceElementsAttr) {
+    const auto baseType = mlir::RankedTensorType::get({1, 2, 3, 4}, mlir::Float32Type::get(&ctx));
+    const float splatVal = -4.0f;
+    const std::vector<float> vals(baseType.getNumElements(), splatVal);
+    constexpr auto noop = [](float*, size_t, size_t) {};
+    constexpr bool isMutable = false;
+    mlir::AsmResourceBlob blob(mlir::ArrayRef<float>(vals), noop, isMutable);
+
+    // do what protected mlir::DenseResourceElementsAttr::get() does
+    auto& manager = mlir::DenseResourceElementsHandle::getManagerInterface(&ctx);
+    const auto baseAttr = mlir::DenseResourceElementsAttr::get(
+            baseType, manager.insert("FromEqualElementsSplatDenseResourceElementsAttr", std::move(blob)));
+
+    ASSERT_EQ(static_cast<const void*>(baseAttr.getRawHandle().getBlob()->getData().data()),
+              static_cast<const void*>(vals.data()))
+            << "Local data is not copied inside DenseResourceElementsAttr - unlike DenseElementsAttr";
+
+    const auto contentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(contentAttr, nullptr);
+    EXPECT_EQ(contentAttr.getType(), baseType);
+
+    const auto content = contentAttr.fold();
+    EXPECT_EQ(content.getType(), baseType);
+    EXPECT_TRUE(content.isSplat());
+    EXPECT_EQ(content.getSplatValue<float>(), splatVal);
+
+    const auto contentVals = content.getValues<float>();
+    EXPECT_EQ(contentVals.size(), baseType.getNumElements());
+
+    for (size_t i = 0; i < contentVals.size(); ++i) {
+        EXPECT_EQ(contentVals[i], splatVal);
+    }
+}
+
+TEST_F(MLIR_ConstContentAttrTest, ExpositionOnlyDenseResourceDuplicate) {
+    const auto baseType = mlir::RankedTensorType::get({1, 2, 3, 4}, mlir::Float32Type::get(&ctx));
+    const auto vals = generateValues<float>(baseType.getNumElements());
+    constexpr auto noop = [](float*, size_t, size_t) {};
+    constexpr bool isMutable = false;
+    mlir::AsmResourceBlob blob(mlir::ArrayRef<float>(vals), noop, isMutable);
+    mlir::AsmResourceBlob blobDuplicate(mlir::ArrayRef<float>(vals), noop, isMutable);
+    static_assert(!std::is_copy_constructible_v<mlir::AsmResourceBlob> &&
+                  !std::is_copy_assignable_v<mlir::AsmResourceBlob>);
+
+    // do what protected mlir::DenseResourceElementsAttr::get() does
+    auto& manager = mlir::DenseResourceElementsHandle::getManagerInterface(&ctx);
+
+    const auto attr = mlir::DenseResourceElementsAttr::get(
+            baseType, manager.insert("ExpositionOnlyDenseResourceDuplicate", std::move(blob)));
+    const auto attrDuplicate = mlir::DenseResourceElementsAttr::get(
+            baseType, manager.insert("ExpositionOnlyDenseResourceDuplicate", std::move(blobDuplicate)));
+
+    ASSERT_NE(attrDuplicate.getRawHandle().getKey(), attr.getRawHandle().getKey())
+            << "Two separately created DenseResourceElementsAttr objects could not share the same key - otherwise, "
+               "revise nGraph constant sharing in NGraphImporter::parseNode()";
+
+    const auto attrCopy = attr;
+    ASSERT_EQ(attrCopy.getRawHandle().getKey(), attr.getRawHandle().getKey());
+}
+
 TEST_F(MLIR_ConstContentAttrTest, ConvertStorageElemType) {
     const auto baseType = mlir::RankedTensorType::get({1, 2, 3, 4}, mlir::Float32Type::get(&ctx));
 
     const auto vals = generateValues<float>(baseType.getNumElements());
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
 
     const auto contentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(contentAttr, nullptr);
@@ -165,11 +367,223 @@ TEST_F(MLIR_ConstContentAttrTest, ConvertStorageElemType) {
     }
 }
 
+TEST_F(MLIR_ConstContentAttrTest, CopyTo_FP32) {
+    const auto baseType = mlir::RankedTensorType::get({8}, mlir::Float32Type::get(&ctx));
+
+    const auto vals = generateValues<float>(baseType.getNumElements());
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
+
+    const auto contentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(contentAttr, nullptr);
+    EXPECT_EQ(contentAttr.getType(), baseType);
+
+    const auto content = contentAttr.fold();
+    EXPECT_EQ(content.getType(), baseType);
+    EXPECT_FALSE(content.isSplat());
+
+    const auto bufSizeBytes = checked_cast<size_t>(content.getType().getTotalAllocSize().count());
+    const auto bufSize = bufSizeBytes / sizeof(float);
+    std::vector<float> tempBuf(bufSize);
+    content.copyTo(MutableArrayRef(reinterpret_cast<char*>(tempBuf.data()), bufSizeBytes));
+
+    EXPECT_EQ(vals.size(), bufSize);
+    for (size_t i = 0; i < vals.size(); ++i) {
+        EXPECT_EQ(vals[i], tempBuf[i]);
+    }
+}
+
+TEST_F(MLIR_ConstContentAttrTest, CopyTo_U8) {
+    const auto baseType = mlir::RankedTensorType::get({8}, mlir::IntegerType::get(&ctx, 8));
+
+    const auto vals = generateValues<uint8_t>(baseType.getNumElements());
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
+
+    const auto contentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(contentAttr, nullptr);
+    EXPECT_EQ(contentAttr.getType(), baseType);
+
+    const auto content = contentAttr.fold();
+    EXPECT_EQ(content.getType(), baseType);
+    EXPECT_FALSE(content.isSplat());
+
+    const auto bufSizeBytes = checked_cast<size_t>(content.getType().getTotalAllocSize().count());
+    std::vector<uint8_t> tempBuf(bufSizeBytes);
+    content.copyTo(MutableArrayRef(reinterpret_cast<char*>(tempBuf.data()), bufSizeBytes));
+
+    EXPECT_EQ(vals.size(), tempBuf.size());
+    for (size_t i = 0; i < vals.size(); ++i) {
+        EXPECT_EQ(vals[i], tempBuf[i]);
+    }
+}
+
+TEST_F(MLIR_ConstContentAttrTest, CopyTo_I4) {
+    const auto baseType = mlir::RankedTensorType::get({4}, mlir::IntegerType::get(&ctx, 8));
+
+    const std::vector<uint8_t> vals = {1,    // 0x1
+                                       7,    // 0x7
+                                       10,   // 0xA
+                                       15};  // 0xF
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
+
+    auto contentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(contentAttr, nullptr);
+    EXPECT_EQ(contentAttr.getType(), baseType);
+
+    contentAttr = contentAttr.convertElemType(mlir::IntegerType::get(&ctx, 4));
+    ASSERT_NE(contentAttr, nullptr);
+
+    const auto content = contentAttr.fold();
+    EXPECT_FALSE(content.isSplat());
+
+    const auto bufSizeBytes = checked_cast<size_t>(content.getType().getTotalAllocSize().count());
+    std::vector<uint8_t> tempBuf(bufSizeBytes);
+    content.copyTo(MutableArrayRef(reinterpret_cast<char*>(tempBuf.data()), bufSizeBytes));
+
+    const std::vector<uint8_t> expectedVals = {0x17, 0xAF};
+    EXPECT_EQ(expectedVals.size(), bufSizeBytes);
+    for (size_t i = 0; i < expectedVals.size(); ++i) {
+        EXPECT_EQ(expectedVals[i], tempBuf[i]);
+    }
+}
+
+TEST_F(MLIR_ConstContentAttrTest, CopyTo_I1) {
+    const auto baseType = mlir::RankedTensorType::get({16}, mlir::IntegerType::get(&ctx, 8));
+
+    const std::vector<uint8_t> vals = {0, 0, 0, 1,   // 0x1
+                                       0, 0, 1, 1,   // 0x3
+                                       1, 1, 1, 1,   // 0xF
+                                       1, 1, 1, 0};  // 0xE
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
+
+    auto contentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(contentAttr, nullptr);
+    EXPECT_EQ(contentAttr.getType(), baseType);
+
+    contentAttr = contentAttr.convertElemType(mlir::IntegerType::get(&ctx, 1));
+    ASSERT_NE(contentAttr, nullptr);
+
+    const auto content = contentAttr.fold();
+    EXPECT_FALSE(content.isSplat());
+
+    const auto bufSizeBytes = checked_cast<size_t>(content.getType().getTotalAllocSize().count());
+    std::vector<uint8_t> tempBuf(bufSizeBytes);
+    content.copyTo(MutableArrayRef(reinterpret_cast<char*>(tempBuf.data()), bufSizeBytes));
+
+    const std::vector<uint8_t> expectedVals = {0x13, 0xFE};
+    EXPECT_EQ(expectedVals.size(), bufSizeBytes);
+    for (size_t i = 0; i < expectedVals.size(); ++i) {
+        EXPECT_EQ(expectedVals[i], tempBuf[i]);
+    }
+}
+
+TEST_F(MLIR_ConstContentAttrTest, Splat_CopyTo_FP32) {
+    const auto baseType = mlir::RankedTensorType::get({8}, mlir::Float32Type::get(&ctx));
+
+    const std::vector<float> vals = {1.0f};
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
+
+    const auto contentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(contentAttr, nullptr);
+    EXPECT_EQ(contentAttr.getType(), baseType);
+
+    const auto content = contentAttr.fold();
+    EXPECT_EQ(content.getType(), baseType);
+    EXPECT_TRUE(content.isSplat());
+
+    const auto bufSizeBytes = checked_cast<size_t>(content.getType().getTotalAllocSize().count());
+    const auto bufSize = bufSizeBytes / sizeof(float);
+    std::vector<float> tempBuf(bufSize);
+    content.copyTo(MutableArrayRef(reinterpret_cast<char*>(tempBuf.data()), bufSizeBytes));
+
+    EXPECT_EQ(bufSize, baseType.getNumElements());
+    for (size_t i = 0; i < tempBuf.size(); ++i) {
+        EXPECT_EQ(tempBuf[i], vals[0]);
+    }
+}
+
+TEST_F(MLIR_ConstContentAttrTest, Splat_CopyTo_U8) {
+    const auto baseType = mlir::RankedTensorType::get({8}, mlir::IntegerType::get(&ctx, 8));
+
+    const std::vector<uint8_t> vals = {1};
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
+
+    const auto contentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(contentAttr, nullptr);
+    EXPECT_EQ(contentAttr.getType(), baseType);
+
+    const auto content = contentAttr.fold();
+    EXPECT_EQ(content.getType(), baseType);
+    EXPECT_TRUE(content.isSplat());
+
+    const auto bufSizeBytes = checked_cast<size_t>(content.getType().getTotalAllocSize().count());
+    std::vector<uint8_t> tempBuf(bufSizeBytes);
+    content.copyTo(MutableArrayRef(reinterpret_cast<char*>(tempBuf.data()), bufSizeBytes));
+
+    EXPECT_EQ(bufSizeBytes, baseType.getNumElements());
+    for (size_t i = 0; i < tempBuf.size(); ++i) {
+        EXPECT_EQ(tempBuf[i], vals[0]);
+    }
+}
+
+TEST_F(MLIR_ConstContentAttrTest, Splat_CopyTo_I4) {
+    const auto baseType = mlir::RankedTensorType::get({4}, mlir::IntegerType::get(&ctx, 8));
+
+    const std::vector<uint8_t> vals = {10};
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
+
+    auto contentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(contentAttr, nullptr);
+    EXPECT_EQ(contentAttr.getType(), baseType);
+
+    contentAttr = contentAttr.convertElemType(mlir::IntegerType::get(&ctx, 4));
+    ASSERT_NE(contentAttr, nullptr);
+
+    const auto content = contentAttr.fold();
+    EXPECT_TRUE(content.isSplat());
+
+    const auto bufSizeBytes = checked_cast<size_t>(content.getType().getTotalAllocSize().count());
+    std::vector<uint8_t> tempBuf(bufSizeBytes);
+    content.copyTo(MutableArrayRef(reinterpret_cast<char*>(tempBuf.data()), bufSizeBytes));
+
+    const std::vector<uint8_t> expectedVals = {0xAA, 0xAA};
+    EXPECT_EQ(expectedVals.size(), bufSizeBytes);
+    for (size_t i = 0; i < expectedVals.size(); ++i) {
+        EXPECT_EQ(expectedVals[i], tempBuf[i]);
+    }
+}
+
+TEST_F(MLIR_ConstContentAttrTest, Splat_CopyTo_I1) {
+    const auto baseType = mlir::RankedTensorType::get({16}, mlir::IntegerType::get(&ctx, 8));
+
+    const std::vector<uint8_t> vals = {1};
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
+
+    auto contentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(contentAttr, nullptr);
+    EXPECT_EQ(contentAttr.getType(), baseType);
+
+    contentAttr = contentAttr.convertElemType(mlir::IntegerType::get(&ctx, 1));
+    ASSERT_NE(contentAttr, nullptr);
+
+    const auto content = contentAttr.fold();
+    EXPECT_TRUE(content.isSplat());
+
+    const auto bufSizeBytes = checked_cast<size_t>(content.getType().getTotalAllocSize().count());
+    std::vector<uint8_t> tempBuf(bufSizeBytes);
+    content.copyTo(MutableArrayRef(reinterpret_cast<char*>(tempBuf.data()), bufSizeBytes));
+
+    const std::vector<uint8_t> expectedVals = {0xFF, 0xFF};
+    EXPECT_EQ(expectedVals.size(), bufSizeBytes);
+    for (size_t i = 0; i < expectedVals.size(); ++i) {
+        EXPECT_EQ(expectedVals[i], tempBuf[i]);
+    }
+}
+
 TEST_F(MLIR_ConstContentAttrTest, ConvertElemType) {
     const auto baseType = mlir::RankedTensorType::get({1, 2, 3, 4}, mlir::Float32Type::get(&ctx));
 
     const auto vals = generateValues<float>(baseType.getNumElements());
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(baseContentAttr, nullptr);
@@ -224,7 +638,7 @@ TEST_F(MLIR_ConstContentAttrTest, ConvertElemTypeSubByte) {
             mlir::RankedTensorType::get({3}, mlir::IntegerType::get(&ctx, 8, mlir::IntegerType::Unsigned));
 
     const auto vals = generateValues<uint8_t>(baseType.getNumElements());
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(baseContentAttr, nullptr);
@@ -256,7 +670,7 @@ TEST_F(MLIR_ConstContentAttrTest, Add) {
         return item + bias;
     });
 
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(baseContentAttr, nullptr);
@@ -284,7 +698,7 @@ TEST_F(MLIR_ConstContentAttrTest, QuantCast) {
     const auto baseType = mlir::RankedTensorType::get({1, 16}, getUInt8Type(&ctx));
 
     const auto vals = generateValues<uint8_t>(baseType.getNumElements());
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(baseContentAttr, nullptr);
@@ -321,7 +735,7 @@ TEST_F(MLIR_ConstContentAttrTest, Dequantize) {
         vals[i] = static_cast<int8_t>(choice * 127);
     }
 
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(baseContentAttr, nullptr);
@@ -353,7 +767,7 @@ TEST_F(MLIR_ConstContentAttrTest, Reshape) {
     const auto baseType = mlir::RankedTensorType::get({1, 9, 2}, mlir::Float32Type::get(&ctx));
 
     const auto vals = generateValues<float>(baseType.getNumElements());
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(baseContentAttr, nullptr);
@@ -383,7 +797,7 @@ TEST_F(MLIR_ConstContentAttrTest, ReverseCWise) {
     const auto baseType = mlir::RankedTensorType::get({N, C, H, W}, mlir::Float32Type::get(&ctx));
 
     const auto vals = generateValues<float>(baseType.getNumElements());
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(baseContentAttr, nullptr);
@@ -421,7 +835,7 @@ TEST_F(MLIR_ConstContentAttrTest, ReverseNWise) {
     const auto baseType = mlir::RankedTensorType::get({N, C, H, W}, mlir::Float32Type::get(&ctx));
 
     const auto vals = generateValues<float>(baseType.getNumElements());
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(baseContentAttr, nullptr);
@@ -459,7 +873,7 @@ TEST_F(MLIR_ConstContentAttrTest, Reorder) {
     const auto baseType = mlir::RankedTensorType::get({N, C, H, W}, mlir::Float32Type::get(&ctx));
 
     const auto vals = generateValues<float>(baseType.getNumElements());
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(baseContentAttr, nullptr);
@@ -497,7 +911,7 @@ TEST_F(MLIR_ConstContentAttrTest, ReorderAfterReshape) {
     const auto baseType = mlir::RankedTensorType::get({N, C * H * W}, mlir::Float32Type::get(&ctx));
 
     const auto vals = generateValues<float>(baseType.getNumElements());
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(baseContentAttr, nullptr);
@@ -534,7 +948,7 @@ TEST_F(MLIR_ConstContentAttrTest, Pad) {
     const auto baseType = mlir::RankedTensorType::get({IC, IH, IW}, getSInt32Type(&ctx));
 
     const auto vals = generateValues<int32_t>(baseType.getNumElements());
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(baseContentAttr, nullptr);
@@ -597,7 +1011,7 @@ TEST_F(MLIR_ConstContentAttrTest, PadUniformQuant) {
     const auto baseType = mlir::RankedTensorType::get({OC, IC, IH, IW}, mlir::Float32Type::get(&ctx));
 
     const auto vals = generateValues<float>(baseType.getNumElements());
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(baseContentAttr, nullptr);
@@ -643,7 +1057,7 @@ TEST_F(MLIR_ConstContentAttrTest, PadPerAxisQuant) {
     const auto baseType = mlir::RankedTensorType::get({OC, IC, IH, IW}, mlir::Float32Type::get(&ctx));
 
     const auto vals = generateValues<float>(baseType.getNumElements());
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(baseContentAttr, nullptr);
@@ -698,7 +1112,7 @@ TEST_F(MLIR_ConstContentAttrTest, SubView) {
     const auto baseType = mlir::RankedTensorType::get({IC, IH, IW}, getSInt32Type(&ctx));
 
     const auto vals = generateValues<int32_t>(baseType.getNumElements());
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(baseContentAttr, nullptr);
@@ -745,7 +1159,7 @@ TEST_F(MLIR_ConstContentAttrTest, SubViewI1) {
         vals[index] = static_cast<bool>(index % 2);
     }
 
-    const auto valsArrayRef = makeArrayRef<bool>(vals);
+    const auto valsArrayRef = ArrayRef<bool>(vals);
     const auto baseAttr = mlir::DenseElementsAttr::get(baseType, valsArrayRef);
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
@@ -826,7 +1240,7 @@ TEST_F(MLIR_ConstContentAttrTest, BitPack) {
 
     const auto vals = std::vector<int8_t>{1, 2, 3, 4, 5, 6};
     const auto expectedResult = std::vector<int8_t>{0x21, 0x43, 0x65};
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(baseContentAttr, nullptr);
@@ -843,7 +1257,7 @@ TEST_F(MLIR_ConstContentAttrTest, BitPack) {
     EXPECT_EQ(content.getType(), expectedType);
 
     std::vector<int8_t> actVals(vals.size() / 2, 0);
-    auto buf = makeMutableArrayRef(reinterpret_cast<char*>(actVals.data()), actVals.size());
+    auto buf = MutableArrayRef(reinterpret_cast<char*>(actVals.data()), actVals.size());
     content.copyTo(buf);
 
     EXPECT_TRUE(std::equal(actVals.begin(), actVals.end(), expectedResult.begin()));
@@ -858,7 +1272,7 @@ TEST_F(MLIR_ConstContentAttrTest, BitPackQuant) {
 
     const auto vals = std::vector<int8_t>{1, 2, 3, 1, 2, 3};
     const auto expectedResult = std::vector<int8_t>{0x21, 0x13, 0x32};
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(baseContentAttr, nullptr);
@@ -885,7 +1299,7 @@ TEST_F(MLIR_ConstContentAttrTest, BitPackQuant) {
     EXPECT_EQ(content.getType(), expectedType);
 
     std::vector<int8_t> actVals(vals.size() / 2, 0);
-    auto buf = makeMutableArrayRef(reinterpret_cast<char*>(actVals.data()), actVals.size());
+    auto buf = MutableArrayRef(reinterpret_cast<char*>(actVals.data()), actVals.size());
     content.copyTo(buf);
 
     EXPECT_TRUE(std::equal(actVals.begin(), actVals.end(), expectedResult.begin()));
@@ -897,7 +1311,7 @@ TEST_F(MLIR_ConstContentAttrTest, Transpose) {
     const auto baseType = mlir::RankedTensorType::get({N, C}, mlir::Float32Type::get(&ctx));
 
     const auto vals = generateValues<float>(baseType.getNumElements());
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(baseContentAttr, nullptr);
@@ -934,7 +1348,7 @@ TEST_F(MLIR_ConstContentAttrTest, BitPackIsLast) {
     const auto baseType = mlir::RankedTensorType::get({IN, IC, IH, IW}, getSInt8Type(&ctx));
 
     const auto vals = std::vector<int8_t>{1, 2, 3, 4, 5, 6};
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(baseContentAttr, nullptr);
@@ -986,7 +1400,7 @@ TEST_F(MLIR_ConstContentAttrTest, ExpandDilated) {
     const auto baseType = mlir::RankedTensorType::get({OC, IC, KY, KX}, getSInt32Type(&ctx));
 
     const auto vals = generateValues<int32_t>(baseType.getNumElements());
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(baseContentAttr, nullptr);
@@ -1040,7 +1454,7 @@ TEST_F(MLIR_ConstContentAttrTest, GetSparsityMap) {
     // expected result binary form:        0  1  1  1  1  1  1  1 |1  1  0   1   0  1   1   1
     // expected result HEX form:               E            F     |     B             E
     const auto expectedResult = std::vector<uint8_t>{0xFE, 0xEB};
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(baseContentAttr, nullptr);
@@ -1059,7 +1473,7 @@ TEST_F(MLIR_ConstContentAttrTest, GetSparsityMap) {
     const auto alignment = static_cast<size_t>(16);
     const auto alignedValsSize = vpux::alignValUp(valsSize, alignment);
     std::vector<uint8_t> actVals(alignedValsSize, 0);
-    auto buf = makeMutableArrayRef(reinterpret_cast<char*>(actVals.data()), actVals.size());
+    auto buf = MutableArrayRef(reinterpret_cast<char*>(actVals.data()), actVals.size());
     content.copyTo(buf);
 
     EXPECT_TRUE(std::equal(actVals.begin(), actVals.begin() + valsSize, expectedResult.begin()));
@@ -1085,7 +1499,7 @@ TEST_F(MLIR_ConstContentAttrTest, GetSparsityMapQuantized) {
     // expected result binary form:        0  1  1  1  1  1  1  1 |0  1  0  1   0   1   1   1
     // expected result HEX form:                E          F      |     A             E
     const auto expectedResult = std::vector<uint8_t>{0xFE, 0xEA};
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(baseContentAttr, nullptr);
@@ -1109,7 +1523,7 @@ TEST_F(MLIR_ConstContentAttrTest, GetSparsityMapQuantized) {
     const auto alignment = static_cast<size_t>(16);
     const auto alignedValsSize = vpux::alignValUp(valsSize, alignment);
     std::vector<uint8_t> actVals(alignedValsSize, 0);
-    auto buf = makeMutableArrayRef(reinterpret_cast<char*>(actVals.data()), actVals.size());
+    auto buf = MutableArrayRef(reinterpret_cast<char*>(actVals.data()), actVals.size());
     content.copyTo(buf);
 
     EXPECT_TRUE(std::equal(actVals.begin(), actVals.begin() + valsSize, expectedResult.begin()));
@@ -1126,19 +1540,19 @@ TEST_F(MLIR_ConstContentAttrTest, Sparsify) {
                                            16, 0, 18, 19, 20, 0, 22, 23, 24, 25, 26, 0,  0, 29, 30, 31};
     const auto expectedResult = std::vector<uint8_t>{1,  2,  3,  4,  5,  6,  7,  8,  9,  11, 13, 14, 15, 0, 0, 0,
                                                      16, 18, 19, 20, 22, 23, 24, 25, 26, 29, 30, 31, 0,  0, 0, 0};
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(baseContentAttr, nullptr);
     EXPECT_EQ(baseContentAttr.getType(), baseType);
 
-    const auto contentAttr = baseContentAttr.sparsify(true);
+    const auto contentAttr = baseContentAttr.sparsify(false);
     ASSERT_NE(contentAttr, nullptr);
 
     const auto content = contentAttr.fold();
 
     std::vector<uint8_t> actVals(vals.size(), 0);
-    auto buf = makeMutableArrayRef(reinterpret_cast<char*>(actVals.data()), actVals.size());
+    auto buf = MutableArrayRef(reinterpret_cast<char*>(actVals.data()), actVals.size());
     content.copyTo(buf);
 
     EXPECT_TRUE(std::equal(actVals.begin(), actVals.end(), expectedResult.begin()));
@@ -1164,7 +1578,7 @@ TEST_F(MLIR_ConstContentAttrTest, SparsifyQuantized) {
                                            16, 16, 18, 19, 20, 16, 22, 23, 24, 25, 26, 16, 16, 29, 30, 31};
     const auto expectedResult = std::vector<uint8_t>{1,  2,  3,  4,  5,  6,  7,  8,  9,  11, 13, 14, 15, 0, 0, 0,
                                                      18, 19, 20, 22, 23, 24, 25, 26, 29, 30, 31, 0,  0,  0, 0, 0};
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(baseContentAttr, nullptr);
@@ -1175,13 +1589,13 @@ TEST_F(MLIR_ConstContentAttrTest, SparsifyQuantized) {
                                                    zeroPoint, storageTypeMin, storageTypeMax);
     const auto quantContentAttr = baseContentAttr.quantCast(quantType);
 
-    const auto contentAttr = quantContentAttr.sparsify(true);
+    const auto contentAttr = quantContentAttr.sparsify(false);
     ASSERT_NE(contentAttr, nullptr);
 
     const auto content = contentAttr.fold();
 
     std::vector<uint8_t> actVals(vals.size(), 0);
-    auto buf = makeMutableArrayRef(reinterpret_cast<char*>(actVals.data()), actVals.size());
+    auto buf = MutableArrayRef(reinterpret_cast<char*>(actVals.data()), actVals.size());
     content.copyTo(buf);
 
     EXPECT_EQ(actVals.size(), expectedResult.size());
@@ -1196,7 +1610,7 @@ TEST_F(MLIR_ConstContentAttrTest, PositionRequirement) {
     const auto baseType = mlir::RankedTensorType::get({IN, IC, IH, IW}, mlir::Float32Type::get(&ctx));
 
     const auto vals = std::vector<float>{0, 1, 2, 3, 4, 5, 6, 7, 8};
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(baseContentAttr, nullptr);
@@ -1222,43 +1636,12 @@ TEST_F(MLIR_ConstContentAttrTest, PositionRequirement) {
     EXPECT_EQ(finalTransformations[3].getTransformationName(), "SwizzleConstant");
 }
 
-TEST_F(MLIR_ConstContentAttrTest, ElideLargeElements) {
-    int numElems = 10;
-    const Shape shape({numElems});
-    const auto dataType = mlir::RankedTensorType::get(shape.raw(), mlir::Float32Type::get(&ctx));
-
-    std::vector<float> content(shape.totalSize());
-    std::iota(content.begin(), content.end(), 0);
-
-    const auto rawBuffer = StringRef(reinterpret_cast<char*>(content.data()),
-                                     shape.totalSize() * getElemTypeSize(dataType).to<Byte>().count());
-    const auto dataAttr = Const::OpaqueElementsAttr::get(dataType, rawBuffer);
-
-    mlir::OpBuilder builder(&ctx);
-    auto constDeclOp =
-            builder.create<Const::DeclareOp>(mlir::UnknownLoc::get(&ctx), dataType, Const::ContentAttr::get(dataAttr));
-
-    std::string ostr;
-    llvm::raw_string_ostream os(ostr);
-
-    mlir::OpPrintingFlags flags;
-    flags.elideLargeElementsAttrs(numElems / 2);
-
-    constDeclOp.print(os, flags);
-
-    // Check that constant was elided:
-    StringRef actualStr(ostr);
-    constexpr StringLiteral expectedStr = "#const.OpaqueElements<\"elided_large_const\", \"0xDEADBEEF\">";
-
-    EXPECT_TRUE(actualStr.contains(expectedStr));
-}
-
 TEST_F(MLIR_ConstContentAttrTest, ChangeShapeAndElemType) {
     ctx.loadDialect<mlir::quant::QuantizationDialect>();
 
     const auto baseType = mlir::RankedTensorType::get({2, 1, 1, 8}, getUInt8Type(&ctx));
     const auto vals = generateValues<uint8_t>(baseType.getNumElements());
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
 
     ASSERT_NE(baseContentAttr, nullptr);
@@ -1288,7 +1671,7 @@ TEST_F(MLIR_ConstContentAttrTest, ChangeShapeAndElemTypePerAxisQuant) {
 
     const auto baseType = mlir::RankedTensorType::get({2, 1, 1, 8}, getUInt8Type(&ctx));
     const auto vals = generateValues<uint8_t>(baseType.getNumElements());
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
 
     const auto zp = 127;
@@ -1330,7 +1713,7 @@ TEST_F(MLIR_ConstContentAttrTest, ChangeShapeAndElemTypePerAxisQuant) {
 TEST_F(MLIR_ConstContentAttrTest, ChangeShapeAndElemTypeFloat) {
     const auto baseType = mlir::RankedTensorType::get({2, 1, 1, 8}, mlir::Float32Type::get(&ctx));
     const auto vals = generateValues<float>(baseType.getNumElements());
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
 
     ASSERT_NE(baseContentAttr, nullptr);
@@ -1352,3 +1735,150 @@ TEST_F(MLIR_ConstContentAttrTest, ChangeShapeAndElemTypeFloat) {
         EXPECT_EQ(contentVals[i], vals[i]);
     }
 }
+
+TEST_F(MLIR_ConstContentAttrTest, GetTransformationsRange) {
+    const auto baseType = mlir::RankedTensorType::get({10}, mlir::Float32Type::get(&ctx));
+    const auto vals = generateValues<float>(baseType.getNumElements());
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
+    auto contentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(contentAttr, nullptr);
+
+    contentAttr = contentAttr.add(1.0).reshape({2, 5}).subview({0, 0}, {1, 5});
+    ASSERT_NE(contentAttr, nullptr);
+
+    auto transformations = contentAttr.getTransformations();
+    ASSERT_EQ(transformations.size(), 3);
+
+    auto reshapeTransformation = transformations[1];
+    ASSERT_NE(reshapeTransformation, nullptr);
+
+    auto headContentAttr = contentAttr.stripTransformationsFrom(reshapeTransformation);
+    ASSERT_NE(headContentAttr, nullptr);
+    auto headTransformations = headContentAttr.getTransformations();
+    ASSERT_EQ(headTransformations.size(), 1);
+    EXPECT_EQ(headTransformations[0].getTransformationName(), "Add");
+
+    auto tailTransformations = contentAttr.getLastTransformationsFrom(reshapeTransformation);
+    ASSERT_EQ(tailTransformations.size(), 2);
+    EXPECT_EQ(tailTransformations[0].getTransformationName(), "Reshape");
+    EXPECT_EQ(tailTransformations[1].getTransformationName(), "SubView");
+}
+
+TEST_F(MLIR_ConstContentAttrTest, GetTransformationsRangeDuplicatedTransformations) {
+    const auto baseType = mlir::RankedTensorType::get({10}, mlir::Float32Type::get(&ctx));
+    const auto vals = generateValues<float>(baseType.getNumElements());
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
+    auto contentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(contentAttr, nullptr);
+
+    contentAttr = contentAttr.add(1.0).reshape({2, 5}).reshape({2, 5}).subview({0, 0}, {1, 5});
+    ASSERT_NE(contentAttr, nullptr);
+
+    auto transformations = contentAttr.getTransformations();
+    ASSERT_EQ(transformations.size(), 4);
+
+    // Both Reshape transformations have the same underlying object since they contain the same parameters inside, so
+    // using either will reach the same result
+    auto reshapeTransformation = transformations[2];
+    ASSERT_NE(reshapeTransformation, nullptr);
+
+    auto headContentAttr = contentAttr.stripTransformationsFrom(reshapeTransformation);
+    ASSERT_NE(headContentAttr, nullptr);
+    auto headTransformations = headContentAttr.getTransformations();
+    ASSERT_EQ(headTransformations.size(), 2);
+    EXPECT_EQ(headTransformations[0].getTransformationName(), "Add");
+    EXPECT_EQ(headTransformations[1].getTransformationName(), "Reshape");
+
+    auto tailTransformations = contentAttr.getLastTransformationsFrom(reshapeTransformation);
+    ASSERT_EQ(tailTransformations.size(), 2);
+    EXPECT_EQ(tailTransformations[0].getTransformationName(), "Reshape");
+    EXPECT_EQ(tailTransformations[1].getTransformationName(), "SubView");
+}
+
+using CreateElementsAttr = std::function<mlir::ElementsAttr(mlir::MLIRContext*)>;
+class MLIR_ConstContentAttrTypedTest :
+        public MLIR_ConstContentAttrTest,
+        public ::testing::WithParamInterface<CreateElementsAttr> {
+    static const char* dataAddressImpl(mlir::ElementsAttr attr) {
+        // support most probable candidates
+        if (const auto content = attr.dyn_cast<mlir::DenseElementsAttr>()) {
+            return content.getRawData().data();
+        }
+        if (const auto content = attr.dyn_cast<mlir::DenseResourceElementsAttr>()) {
+            return content.getRawHandle().getBlob()->getData().data();
+        }
+        assert(false && "Extend this function with extra types");
+        return nullptr;
+    }
+
+protected:
+    mlir::ElementsAttr baseContent() {
+        return GetParam()(&ctx);
+    }
+    static const void* dataAddress(mlir::ElementsAttr attr) {
+        // return a void* instead to compare pointers instead of strings
+        return static_cast<const void*>(dataAddressImpl(attr));
+    }
+
+    SmallVector<Const::TransformAttrInterface> getTransformations() {
+        SmallVector<Const::TransformAttrInterface> randomTransformations = {
+                Const::ConvertElemTypeAttr::get(mlir::Float16Type::get(&ctx)),
+        };
+        return randomTransformations;
+    }
+};
+
+// Note: expect copy behavior to be identical, regardless of the base content type
+TEST_P(MLIR_ConstContentAttrTypedTest, CopyContentAttr) {
+    const auto baseAttr = baseContent();
+    const auto contentAttr = Const::ContentAttr::get(baseAttr, getTransformations());
+
+    const auto copy = contentAttr;
+    ASSERT_EQ(copy.getType(), contentAttr.getType());
+    ASSERT_EQ(copy.getTransformations(), contentAttr.getTransformations());
+    ASSERT_EQ(copy.getBaseContent().getTypeID(), contentAttr.getBaseContent().getTypeID());
+    ASSERT_EQ(dataAddress(copy.getBaseContent()), dataAddress(contentAttr.getBaseContent()))
+            << "ContentAttr copy should not deepcopy data";
+}
+
+TEST_P(MLIR_ConstContentAttrTypedTest, CopyContentAttrIndirectly) {
+    const auto baseAttr = baseContent();
+    const auto contentAttr = Const::ContentAttr::get(baseAttr, getTransformations());
+
+    const auto indirectCopy = Const::ContentAttr::get(contentAttr.getBaseContent());
+    ASSERT_NE(indirectCopy.getType(), contentAttr.getType()) << "Content-only copy does not copy type";
+    ASSERT_NE(indirectCopy.getTransformations(), contentAttr.getTransformations())
+            << "Content-only copy does not copy transformations";
+    ASSERT_EQ(indirectCopy.getBaseContent().getTypeID(), contentAttr.getBaseContent().getTypeID());
+    ASSERT_EQ(dataAddress(indirectCopy.getBaseContent()), dataAddress(contentAttr.getBaseContent()))
+            << "ContentAttr::get() should not deepcopy data";
+}
+
+INSTANTIATE_TEST_SUITE_P(
+        CommonElementsAttrImplementations, MLIR_ConstContentAttrTypedTest,
+        ::testing::Values(
+                [](mlir::MLIRContext* ctx) -> mlir::ElementsAttr {
+                    const auto type = mlir::RankedTensorType::get({1, 2, 3, 4}, mlir::Float32Type::get(ctx));
+                    const auto vals = generateValues<float>(type.getNumElements());
+                    return mlir::DenseElementsAttr::get(type, ArrayRef(vals));
+                },
+
+                [](mlir::MLIRContext* ctx) -> mlir::ElementsAttr {
+                    const auto type = mlir::RankedTensorType::get({1, 2, 3, 4}, mlir::Float32Type::get(ctx));
+
+                    // create owning blob
+                    std::unique_ptr<float[]> data = std::make_unique<float[]>(type.getNumElements());
+                    auto deleteFloatArray = [](float* ptr, size_t, size_t) {
+                        decltype(data)::deleter_type deleter{};
+                        deleter(ptr);
+                    };
+                    constexpr bool isMutable = false;
+                    mlir::AsmResourceBlob blob(mlir::ArrayRef<float>(data.get(), type.getNumElements()),
+                                               std::move(deleteFloatArray), isMutable);
+                    data.release();  // avoid double-free
+
+                    // do what protected mlir::DenseResourceElementsAttr::get() does
+                    auto& manager = mlir::DenseResourceElementsHandle::getManagerInterface(ctx);
+                    return mlir::DenseResourceElementsAttr::get(
+                            type, manager.insert("MLIR_ConstContentAttrTypedTest_resource", std::move(blob)));
+                }));

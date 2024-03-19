@@ -56,8 +56,8 @@ void adjustPaddings(ConcreteOp* op, const TilingInfo& inputTiling) {
     auto newPadsBeginAttr = getIntArrayAttr(op->getContext(), padsBegin);
     auto newPadsEndAttr = getIntArrayAttr(op->getContext(), padsEnd);
 
-    op->pads_beginAttr(newPadsBeginAttr);
-    op->pads_endAttr(newPadsEndAttr);
+    op->setPadsBeginAttr(newPadsBeginAttr);
+    op->setPadsEndAttr(newPadsEndAttr);
 }
 
 }  // namespace IE

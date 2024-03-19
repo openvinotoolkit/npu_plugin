@@ -47,8 +47,8 @@ TEST_F(MLIR_MemoryContiguousWithTilingTest, SegmentedDistributedBufferType) {
         const auto orderAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(&ctx));
         const auto elemStrides = SmallVector<int64_t>({64 * 16 * 13, 1, 64 * 16, 64});
         const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-        const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr,
-                                                   /*allocSize=*/nullptr, &ctx);
+        const auto layout = vpux::MemRefAttr::get(orderAttr, stridesAttr,
+                                                  /*allocSize=*/nullptr, &ctx);
 
         const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 
@@ -73,8 +73,8 @@ TEST_F(MLIR_MemoryContiguousWithTilingTest, SegmentedDistributedBufferType) {
         const auto orderAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(&ctx));
         const auto elemStrides = SmallVector<int64_t>({64 * 16 * 13, 1, 64 * 16, 64});
         const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-        const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr,
-                                                   /*allocSize=*/nullptr, &ctx);
+        const auto layout = vpux::MemRefAttr::get(orderAttr, stridesAttr,
+                                                  /*allocSize=*/nullptr, &ctx);
 
         const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 
@@ -99,8 +99,8 @@ TEST_F(MLIR_MemoryContiguousWithTilingTest, SegmentedDistributedBufferType) {
         const auto orderAttr = mlir::AffineMapAttr::get(DimsOrder::NCHW.toAffineMap(&ctx));
         const auto elemStrides = SmallVector<int64_t>({64 * 13 * 16, 13 * 16, 16, 1});
         const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-        const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr,
-                                                   /*allocSize=*/nullptr, &ctx);
+        const auto layout = vpux::MemRefAttr::get(orderAttr, stridesAttr,
+                                                  /*allocSize=*/nullptr, &ctx);
 
         const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 
@@ -125,8 +125,8 @@ TEST_F(MLIR_MemoryContiguousWithTilingTest, OverlappedDistributedBufferType) {
     const auto orderAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(&ctx));
     const auto elemStrides = SmallVector<int64_t>({64 * 16 * 13, 1, 64 * 16, 64});
     const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-    const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr,
-                                               /*allocSize=*/nullptr, &ctx);
+    const auto layout = vpux::MemRefAttr::get(orderAttr, stridesAttr,
+                                              /*allocSize=*/nullptr, &ctx);
 
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 
@@ -162,8 +162,8 @@ TEST_F(MLIR_MemoryContiguousWithTilingTest, SegmentedDuplicatedDistributedBuffer
     const auto orderAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(&ctx));
     const auto elemStrides = SmallVector<int64_t>({64 * 16 * 13, 1, 64 * 16, 64});
     const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-    const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr,
-                                               /*allocSize=*/nullptr, &ctx);
+    const auto layout = vpux::MemRefAttr::get(orderAttr, stridesAttr,
+                                              /*allocSize=*/nullptr, &ctx);
 
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 
@@ -188,8 +188,8 @@ TEST_F(MLIR_MemoryContiguousWithTilingTest, DuplicatedDistributedBufferType) {
     const auto orderAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(&ctx));
     const auto elemStrides = SmallVector<int64_t>({64 * 16 * 13, 1, 64 * 16, 64});
     const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-    const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr,
-                                               /*allocSize=*/nullptr, &ctx);
+    const auto layout = vpux::MemRefAttr::get(orderAttr, stridesAttr,
+                                              /*allocSize=*/nullptr, &ctx);
 
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 

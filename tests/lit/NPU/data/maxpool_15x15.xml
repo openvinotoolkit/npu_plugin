@@ -1,0 +1,50 @@
+<?xml version="1.0" ?>
+<net name="single_maxpool" version="10">
+        <layers>
+                <layer id="0" name="data" type="Parameter" version="opset1">
+                        <data element_type="f16" shape="1, 1, 15, 15"/>
+                        <output>
+                                <port id="0" names="data" precision="FP16">
+                                        <dim>1</dim>
+                                        <dim>1</dim>
+                                        <dim>15</dim>
+                                        <dim>15</dim>
+                                </port>
+                        </output>
+                </layer>
+                <layer id="1" name="pool1" type="MaxPool" version="opset1">
+                        <data auto_pad="explicit" kernel="2, 2" pads_begin="0, 0" pads_end="0, 0" rounding_type="floor" strides="1, 1"/>
+                        <input>
+                                <port id="0" precision="FP16">
+                                        <dim>1</dim>
+                                        <dim>1</dim>
+                                        <dim>15</dim>
+                                        <dim>15</dim>
+                                </port>
+                        </input>
+                        <output>
+                                <port id="1" names="pool1" precision="FP16">
+                                        <dim>1</dim>
+                                        <dim>1</dim>
+                                        <dim>14</dim>
+                                        <dim>14</dim>
+                                </port>
+                        </output>
+                </layer>
+                <layer id="2" name="Output" type="Result" version="opset1">
+                        <input>
+                                <port id="0" precision="FP16">
+                                        <dim>1</dim>
+                                        <dim>1</dim>
+                                        <dim>14</dim>
+                                        <dim>14</dim>
+                                </port>
+                        </input>
+                </layer>
+        </layers>
+        <edges>
+                <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+                <edge from-layer="1" from-port="1" to-layer="2" to-port="0"/>
+        </edges>
+</net>
+

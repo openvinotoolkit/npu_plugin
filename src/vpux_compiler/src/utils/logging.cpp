@@ -55,13 +55,13 @@ public:
     explicit PassLogging(Logger log): _log(log) {
     }
 
-    void runBeforePipeline(Optional<mlir::OperationName> name, const PipelineParentInfo&) final {
+    void runBeforePipeline(std::optional<mlir::OperationName> name, const PipelineParentInfo&) final {
         if (name.has_value()) {
             _log.trace("Start Pass Pipeline {0}", *name);
         }
     }
 
-    void runAfterPipeline(Optional<mlir::OperationName> name, const PipelineParentInfo&) final {
+    void runAfterPipeline(std::optional<mlir::OperationName> name, const PipelineParentInfo&) final {
         if (name.has_value()) {
             _log.trace("End Pass Pipeline {0}", *name);
         }

@@ -1,12 +1,12 @@
-//
 // Copyright (C) 2018-2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
 #include "shared_test_classes/subgraph/memory_LSTMCell.hpp"
 #include <subgraph_tests/memory_LSTMCell.hpp>
+#include "common/utils.hpp"
+#include "common/vpu_test_env_cfg.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "vpu_test_env_cfg.hpp"
 
 using namespace SubgraphTestsDefinitions;
 
@@ -39,7 +39,7 @@ std::map<std::string, std::string> additional_config = {};
 
 INSTANTIATE_TEST_SUITE_P(smoke_MemoryLSTMCellTest, MemoryLSTMCellTest,
                          ::testing::Combine(::testing::ValuesIn(transformation),
-                                            ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
+                                            ::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::Values(InferenceEngine::Precision::FP32),
                                             ::testing::ValuesIn(input_sizes), ::testing::ValuesIn(hidden_sizes),
                                             ::testing::Values(additional_config)),

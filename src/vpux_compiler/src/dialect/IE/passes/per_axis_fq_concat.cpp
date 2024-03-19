@@ -6,13 +6,7 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IE/utils/quantization.hpp"
 
-#include "vpux/compiler/core/layers.hpp"
-#include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
-
-#include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
 
@@ -57,8 +51,7 @@ bool isPerAxisFqValue(mlir::Value input) {
         return false;
     }
 
-    const auto axis = IE::getFQAxisIndex(maybeFqOp);
-    return axis.has_value();
+    return !IE::isPerTensorFQ({maybeFqOp});
 }
 
 bool isPerAxisFqOp(mlir::Operation* op) {
@@ -67,16 +60,15 @@ bool isPerAxisFqOp(mlir::Operation* op) {
         return false;
     }
 
-    const auto axis = IE::getFQAxisIndex(maybeFqOp);
-    return axis.has_value();
+    return !IE::isPerTensorFQ({maybeFqOp});
 }
 
 bool isLegalConcat(IE::ConcatOp origConcatOp) {
-    const auto concatUsers = origConcatOp.output().getUsers();
+    const auto concatUsers = origConcatOp.getOutput().getUsers();
     if (std::all_of(concatUsers.begin(), concatUsers.end(), isPerAxisFqOp)) {
         return true;
     }
-    const auto concatInputList = origConcatOp.inputs();
+    const auto concatInputList = origConcatOp.getInputs();
     return !std::all_of(concatInputList.begin(), concatInputList.end(), isPerAxisFqValue);
 }
 
@@ -93,7 +85,7 @@ Const::DeclareOp createFqTensor(mlir::Location loc, const std::vector<float>& to
     // Build FQ input using concatenated values
     const auto tensorType = mlir::RankedTensorType::get({1, checked_cast<int64_t>(totalFqValues.size()), 1, 1},
                                                         mlir::Float32Type::get(rewriter.getContext()));
-    const auto tensorAttr = mlir::DenseElementsAttr::get(tensorType, makeArrayRef(totalFqValues));
+    const auto tensorAttr = mlir::DenseElementsAttr::get(tensorType, ArrayRef(totalFqValues));
     const auto tensorContentAttr = Const::ContentAttr::get(tensorAttr);
     return rewriter.create<Const::DeclareOp>(loc, tensorType, tensorContentAttr);
 }
@@ -104,7 +96,7 @@ mlir::LogicalResult PerAxisFQConcatPass::ConcatOpConverter::matchAndRewrite(IE::
         return mlir::failure();
     }
 
-    const auto concatInputList = origOp.inputs();
+    const auto concatInputList = origOp.getInputs();
     if (concatInputList.empty()) {
         return mlir::failure();
     }
@@ -119,13 +111,13 @@ mlir::LogicalResult PerAxisFQConcatPass::ConcatOpConverter::matchAndRewrite(IE::
 
     for (const auto& concatInput : concatInputList) {
         auto fqOp = concatInput.getDefiningOp<IE::FakeQuantizeOp>();
-        appendFqValues(fqOp.input_low(), totalInLo);
-        appendFqValues(fqOp.input_high(), totalInHi);
-        appendFqValues(fqOp.output_low(), totalOutLo);
-        appendFqValues(fqOp.output_high(), totalOutHi);
+        appendFqValues(fqOp.getInputLow(), totalInLo);
+        appendFqValues(fqOp.getInputHigh(), totalInHi);
+        appendFqValues(fqOp.getOutputLow(), totalOutLo);
+        appendFqValues(fqOp.getOutputHigh(), totalOutHi);
 
-        const auto autob = fqOp.auto_broadcast();
-        const auto levels = fqOp.levels();
+        const auto autob = fqOp.getAutoBroadcast();
+        const auto levels = fqOp.getLevels();
         autoBroadcastVec.push_back(autob);
         levelsVec.push_back(levels);
     }
@@ -149,16 +141,16 @@ mlir::LogicalResult PerAxisFQConcatPass::ConcatOpConverter::matchAndRewrite(IE::
         return mlir::failure();
     }
 
-    auto concatOp = rewriter.create<IE::ConcatOp>(origOp->getLoc(), concatInputList, origOp.per_axisAttr(),
-                                                  origOp.static_offsetsAttr());
+    auto concatOp = rewriter.create<IE::ConcatOp>(origOp->getLoc(), concatInputList, origOp.getPerAxisAttr(),
+                                                  origOp.getStaticOffsetsAttr());
 
     auto inLowOp = createFqTensor(origOp->getLoc(), totalInLo, rewriter);
     auto inHighOp = createFqTensor(origOp->getLoc(), totalInHi, rewriter);
     auto outLowOp = createFqTensor(origOp->getLoc(), totalOutLo, rewriter);
     auto outHighOp = createFqTensor(origOp->getLoc(), totalOutHi, rewriter);
 
-    rewriter.replaceOpWithNewOp<IE::FakeQuantizeOp>(origOp, concatOp.output(), inLowOp, inHighOp, outLowOp, outHighOp,
-                                                    levels, autob);
+    rewriter.replaceOpWithNewOp<IE::FakeQuantizeOp>(origOp, concatOp.getOutput(), inLowOp, inHighOp, outLowOp,
+                                                    outHighOp, levels, autob);
 
     return mlir::success();
 }

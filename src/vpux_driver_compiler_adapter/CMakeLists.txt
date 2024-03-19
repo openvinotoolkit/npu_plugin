@@ -39,21 +39,10 @@ target_include_directories(${OBJ_TARGET_NAME}
         ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/level-zero/include
         ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/level-zero-ext)
 
-if(BUILD_SHARED_LIBS)
-    link_system_libraries(${OBJ_TARGET_NAME}
-        PRIVATE
-            IE::inference_engine
-    )
-else()
-    link_system_libraries(${OBJ_TARGET_NAME}
-        PRIVATE
-            openvino::runtime
-    )
-endif()
-
 link_system_libraries(${OBJ_TARGET_NAME}
     PRIVATE
-        IE::inference_engine_plugin_api
+        openvino::runtime
+        openvino::runtime::dev
         npu_ngraph_transformations
     PUBLIC
         ze_loader
@@ -84,5 +73,5 @@ endif()
 #
 
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
-        LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
+        ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+        LIBRARY DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${VPUX_PLUGIN_COMPONENT})

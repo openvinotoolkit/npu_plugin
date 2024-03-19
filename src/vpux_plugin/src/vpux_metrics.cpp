@@ -9,29 +9,26 @@
 // Plugin
 #include "device_helpers.hpp"
 #include "vpux/properties.hpp"
-#include "vpux/vpux_metrics.hpp"
-#include "vpux_metrics.h"
-#include "vpux_private_config.hpp"
+#include "vpux_metrics.hpp"
 #include "vpux_private_properties.hpp"
 
 namespace vpux {
 
 Metrics::Metrics(const VPUXBackends::CPtr& backends): _backends(backends) {
-    _supportedMetrics = {
-            METRIC_KEY(SUPPORTED_METRICS),
-            METRIC_KEY(AVAILABLE_DEVICES),
-            METRIC_KEY(FULL_DEVICE_NAME),
-            METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-            METRIC_KEY(OPTIMIZATION_CAPABILITIES),
-            METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
-            METRIC_KEY(RANGE_FOR_STREAMS),
-            METRIC_KEY(IMPORT_EXPORT_SUPPORT),
-            METRIC_KEY(DEVICE_ARCHITECTURE),
-            ov::caching_properties.name(),
-            ov::cache_dir.name(),
-            VPUX_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE),
-            VPUX_METRIC_KEY(DRIVER_VERSION),
-    };
+    _supportedMetrics = {ov::supported_properties.name(),
+                         ov::available_devices.name(),
+                         ov::device::full_name.name(),
+                         ov::device::capabilities.name(),
+                         ov::range_for_async_infer_requests.name(),
+                         ov::range_for_streams.name(),
+                         ov::device::capability::EXPORT_IMPORT,
+                         ov::device::architecture.name(),
+                         ov::internal::caching_properties.name(),
+                         ov::internal::supported_properties.name(),
+                         ov::cache_dir.name(),
+                         ov::intel_vpux::device_alloc_mem_size.name(),
+                         ov::intel_vpux::device_total_mem_size.name(),
+                         ov::intel_vpux::driver_version.name()};
 
     _supportedConfigKeys = {ov::log::level.name(),
                             ov::enable_profiling.name(),
@@ -57,7 +54,7 @@ std::string Metrics::GetFullDeviceName(const std::string& specifiedDeviceName) c
     if (device) {
         return device->getFullDeviceName();
     }
-    IE_THROW() << "No device with name '" << specifiedDeviceName << "' is available";
+    OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
 }
 
 // TODO each backend may support different configs
@@ -96,12 +93,25 @@ std::vector<ov::PropertyName> Metrics::GetCachingProperties() const {
     return _cachingProperties;
 }
 
+std::vector<ov::PropertyName> Metrics::GetInternalSupportedProperties() const {
+    return _internalSupportedProperties;
+}
+
 std::string Metrics::GetBackendName() const {
     if (_backends == nullptr) {
-        IE_THROW() << "No available backends";
+        OPENVINO_THROW("No available backends");
     }
 
     return _backends->getBackendName();
+}
+
+uint64_t Metrics::GetDeviceAllocMemSize(const std::string& specifiedDeviceName) const {
+    const auto devName = getDeviceName(specifiedDeviceName);
+    auto device = _backends->getDevice(devName);
+    if (device) {
+        return device->getAllocMemSize();
+    }
+    OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
 }
 
 uint64_t Metrics::GetDeviceTotalMemSize(const std::string& specifiedDeviceName) const {
@@ -110,7 +120,7 @@ uint64_t Metrics::GetDeviceTotalMemSize(const std::string& specifiedDeviceName) 
     if (device) {
         return device->getTotalMemSize();
     }
-    IE_THROW() << "No device with name '" << specifiedDeviceName << "' is available";
+    OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
 }
 
 uint32_t Metrics::GetDriverVersion(const std::string& specifiedDeviceName) const {
@@ -119,13 +129,13 @@ uint32_t Metrics::GetDriverVersion(const std::string& specifiedDeviceName) const
     if (device) {
         return device->getDriverVersion();
     }
-    IE_THROW() << "No device with name '" << specifiedDeviceName << "' is available";
+    OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
 }
 
 std::string Metrics::getDeviceName(const std::string& specifiedDeviceName) const {
     std::vector<std::string> devNames;
     if (_backends == nullptr || (devNames = _backends->getAvailableDevicesNames()).empty()) {
-        IE_THROW() << "No available devices";
+        OPENVINO_THROW("No available devices");
     }
 
     // In case of single device and empty input from user we should use the first element from the device list
@@ -133,7 +143,7 @@ std::string Metrics::getDeviceName(const std::string& specifiedDeviceName) const
         if (devNames.size() == 1) {
             return devNames[0];
         } else {
-            IE_THROW() << "The device name was not specified. Please specify device name by providing DEVICE_ID";
+            OPENVINO_THROW("The device name was not specified. Please specify device name by providing DEVICE_ID");
         }
     }
 
@@ -147,7 +157,7 @@ std::string Metrics::getDeviceName(const std::string& specifiedDeviceName) const
             return userPlatform == devPlatform;
         });
         if (platformIt == devNames.cend()) {
-            IE_THROW() << "List of system devices doesn't contain specified device " << specifiedDeviceName;
+            OPENVINO_THROW("List of system devices doesn't contain specified device ", specifiedDeviceName);
         }
     }
 

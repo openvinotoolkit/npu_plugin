@@ -12,7 +12,9 @@
 namespace vpux {
 class BitCompactorCodec final : public ICodec {
 public:
-    std::vector<uint8_t> compress(std::vector<uint8_t>& data) const override;
+    bool supportsFP16compression() const override;
+    mlir::FailureOr<std::vector<uint8_t>> compress(std::vector<uint8_t>& data, const CompressionMode mode,
+                                                   const Logger& _log) const override;
 };
 
 }  // namespace vpux

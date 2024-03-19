@@ -15,27 +15,6 @@
 using namespace vpux;
 
 //
-// ContentAttr::walkImmediateSubElements
-//
-
-void vpux::Const::QuantCastAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)>,
-                                                          llvm::function_ref<void(mlir::Type)> walkTypesFn) const {
-    if (const auto elemTypeVal = getElemType()) {
-        walkTypesFn(elemTypeVal);
-    }
-}
-
-//
-// QuantCastAttr::replaceImmediateSubElements
-//
-
-mlir::Attribute vpux::Const::QuantCastAttr::replaceImmediateSubElements(ArrayRef<mlir::Attribute>,
-                                                                        ArrayRef<mlir::Type> replTypes) const {
-    VPUX_THROW_WHEN(replTypes.size() < 1, "Replace types array is too short: '{0}'", replTypes.size());
-    return get(getContext(), replTypes[0].dyn_cast_or_null<mlir::quant::QuantizedType>());
-}
-
-//
 // QuantCastAttr::verify
 //
 
@@ -108,5 +87,6 @@ Const::Content vpux::Const::QuantCastAttr::transform(vpux::Const::Content& input
 //
 
 Const::ContentAttr vpux::Const::ContentAttr::quantCast(mlir::quant::QuantizedType newElemType) const {
-    return get(*this, Const::QuantCastAttr::get(getContext(), newElemType).cast<Const::TransformAttrInterface>());
+    return ContentAttr::addTransformation(
+            *this, Const::QuantCastAttr::get(getContext(), newElemType).cast<Const::TransformAttrInterface>());
 }

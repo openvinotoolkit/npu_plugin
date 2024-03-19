@@ -5,7 +5,6 @@
 
 #include "vpux/compiler/utils/quantization.hpp"
 
-#include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/subspaces.hpp"
@@ -32,7 +31,7 @@ mlir::LogicalResult vpux::validateQuantElemType(mlir::Location loc, vpux::NDType
         const auto qDimSize = mainType.getShape()[Dim(static_cast<uint32_t>(qDim))];
         const auto numScales = perAxisQType.getScales().size();
 
-        if (qDimSize != mlir::ShapedType::kDynamicSize) {
+        if (qDimSize != mlir::ShapedType::kDynamic) {
             if (checked_cast<size_t>(qDimSize) != numScales) {
                 return errorAt(loc,
                                "Number of scales '{0}' in per-axis quantized type do not match the quantized dimension "
@@ -372,8 +371,8 @@ std::pair<int64_t, int64_t> vpux::getClampValuesForQuantizedOps(std::pair<double
     auto clampLowStorageMin = outElemQType.getStorageTypeMin() - zp;
     auto clampHighStorageMax = outElemQType.getStorageTypeMax() - zp;
 
-    auto qMin = static_cast<int64_t>(std::round(realMinMax.first / scale));
-    auto qMax = static_cast<int64_t>(std::round(realMinMax.second / scale));
+    auto qMin = checked_cast<int64_t>(std::round(realMinMax.first / scale));
+    auto qMax = checked_cast<int64_t>(std::round(realMinMax.second / scale));
 
     auto clampLow = std::max(clampLowStorageMin, qMin);
     auto clampHigh = std::min(clampHighStorageMax, qMax);
@@ -441,9 +440,7 @@ std::tuple<double, int64_t> vpux::calcScaleAndZeroPoint(int64_t qMin, int64_t qM
     return std::make_tuple(scale, zp);
 }
 
-namespace {
-
-std::tuple<int64_t, int64_t, mlir::Type> getStorageParams(mlir::MLIRContext* ctx, int64_t levels, bool isSigned) {
+std::tuple<int64_t, int64_t, mlir::Type> vpux::getStorageParams(mlir::MLIRContext* ctx, int64_t levels, bool isSigned) {
     switch (levels) {
     case 256:
         if (isSigned) {
@@ -486,8 +483,6 @@ std::tuple<int64_t, int64_t, mlir::Type> getStorageParams(mlir::MLIRContext* ctx
     }
 }
 
-}  // namespace
-
 mlir::quant::QuantizedType vpux::getQuantizedType(mlir::Attribute lowConstAttr, mlir::Attribute highConstAttr,
                                                   int64_t levels, mlir::FloatType realType, bool isSigned,
                                                   mlir::Location loc, IE::AutoBroadcastType broadcast) {
@@ -528,7 +523,7 @@ mlir::quant::QuantizedType vpux::getQuantizedType(mlir::Attribute lowConstAttr, 
     }
     const auto broadcastShape = broadcastShapeRes.value();
 
-    Optional<int32_t> axisInd;
+    std::optional<int32_t> axisInd;
     for (size_t i = 0; i < broadcastShape.size(); ++i) {
         if (broadcastShape[Dim(i).ind()] == 1) {
             continue;
@@ -624,8 +619,8 @@ void vpux::getFakeQuantParams(vpux::NDTypeInterface qType, int64_t& levels, mlir
         attrShape[axis] = rMinVals.size();
 
         attrType = mlir::RankedTensorType::get(attrShape.raw(), mlir::Float32Type::get(qType.getContext()));
-        rMinAttr = mlir::DenseElementsAttr::get(attrType, makeArrayRef(rMinVals));
-        rMaxAttr = mlir::DenseElementsAttr::get(attrType, makeArrayRef(rMaxVals));
+        rMinAttr = mlir::DenseElementsAttr::get(attrType, ArrayRef(rMinVals));
+        rMaxAttr = mlir::DenseElementsAttr::get(attrType, ArrayRef(rMaxVals));
     } else {
         VPUX_THROW("Unsupported Quantized Type '{0}'", qElemType);
     }
@@ -646,40 +641,6 @@ float vpux::dequantize(int64_t qVal, double scale, int64_t zeroPoint) {
 int32_t vpux::toFixedPoint(const double realVal) {
     const double mult = 1 << 16;
     return std::lround(realVal * mult);
-}
-
-std::pair<EMU::BlobWriter::Vector<uint16_t>, EMU::BlobWriter::Vector<uint16_t>> vpux::serializeScalesAndZeroPointsEmu(
-        mlir::Value input, mlir::Value output, EMU::BlobWriter& writer) {
-    const auto inType = input.getType().cast<mlir::RankedTensorType>().getElementType();
-    const auto outType = output.getType().cast<mlir::RankedTensorType>().getElementType();
-
-    const auto qType = inType.isa<mlir::quant::QuantizedType>() ? inType.cast<mlir::quant::QuantizedType>()
-                                                                : outType.cast<mlir::quant::QuantizedType>();
-
-    const auto getRawFP16 = [](auto val) {
-        const auto valFP16 = float16(val);
-        return valFP16.to_bits();
-    };
-
-    const auto getVecFP16 = [&](const auto& range) {
-        return writer.createVector(range | transformed(getRawFP16));
-    };
-
-    SmallVector<double> scales;
-    SmallVector<int64_t> zeroPoints;
-    if (qType.isa<mlir::quant::UniformQuantizedType>()) {
-        auto quantParams = qType.cast<mlir::quant::UniformQuantizedType>();
-        scales = {quantParams.getScale()};
-        zeroPoints = {quantParams.getZeroPoint()};
-    } else if (qType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
-        auto quantParams = qType.cast<mlir::quant::UniformQuantizedPerAxisType>();
-        scales = {quantParams.getScales().begin(), quantParams.getScales().end()};
-        zeroPoints = {quantParams.getZeroPoints().begin(), quantParams.getZeroPoints().end()};
-    } else {
-        VPUX_THROW("Unsupported quantized type {0}", qType);
-    }
-
-    return {getVecFP16(scales), getVecFP16(zeroPoints)};
 }
 
 mlir::Type vpux::rescaleUniformQuantizedType(const mlir::Type tensorType, const double factor) {

@@ -3,60 +3,53 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
+#include <vpu_ov2_layer_test.hpp>
 #include "common/functions.h"
-#include "vpu_ov1_layer_test.hpp"
 
-#include <ngraph_functions/builders.hpp>
-#include <ngraph_functions/utils/ngraph_helpers.hpp>
+#include <ov_models/builders.hpp>
+#include <ov_models/utils/ov_helpers.hpp>
 #include <shared_test_classes/base/layer_test_utils.hpp>
 
-namespace {
+namespace ov::test {
 
-typedef std::tuple<InferenceEngine::Precision, InferenceEngine::Precision, InferenceEngine::SizeVector,
-                   InferenceEngine::SizeVector, ngraph::Strides, ngraph::Strides,
-                   std::pair<ngraph::CoordinateDiff, ngraph::CoordinateDiff>>
+typedef std::tuple<ov::element::Type, ov::element::Type, ov::Shape, ov::Shape, ov::Strides, ov::Strides,
+                   std::pair<ov::CoordinateDiff, ov::CoordinateDiff>, ov::Layout>
         CMajorConvNHWCTestParams;
-class VPUXCMajorConvNHWCTest_VPU3700 :
-        public LayerTestsUtils::VpuOv1LayerTestsCommon,
+class CMajorConvNHWCTest_NPU3700 :
+        public VpuOv2LayerTest,
         public testing::WithParamInterface<CMajorConvNHWCTestParams> {
-    void ConfigureNetwork() override {
-        auto params = GetParam();
-
-        InferenceEngine::Precision ip, op;
-        std::tie(ip, op, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) = params;
-
-        cnnNetwork.getInputsInfo().begin()->second->setPrecision(ip);
-        cnnNetwork.getInputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NHWC);
-        cnnNetwork.getOutputsInfo().begin()->second->setPrecision(op);
-        cnnNetwork.getOutputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NHWC);
-    }
     void SetUp() override {
         auto prms = GetParam();
 
-        InferenceEngine::SizeVector inputShape;
-        InferenceEngine::SizeVector weightsShape;
-        ngraph::Strides strides;
-        std::pair<ngraph::CoordinateDiff, ngraph::CoordinateDiff> pads;
-        ngraph::Strides dilations;
+        ov::Shape inputShape;
+        ov::Shape weightsShape;
+        ov::Strides strides;
+        std::pair<ov::CoordinateDiff, ov::CoordinateDiff> pads;
+        ov::Strides dilations;
+        ov::Layout order;
 
-        std::tie(std::ignore, std::ignore, inputShape, weightsShape, strides, dilations, pads) = prms;
+        std::tie(inType, outType, inputShape, weightsShape, strides, dilations, pads, order) = prms;
 
-        const auto params = ngraph::builder::makeParams(ngraph::element::f32, {inputShape});
-        const auto paramOuts =
-                ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+        init_input_shapes(static_shapes_to_test_representation({inputShape}));
 
-        const auto weightsU8 =
-                ngraph::builder::makeConstant<uint8_t>(ngraph::element::u8, weightsShape, {}, true, 255, 0);
-        const auto weightsFP32 = std::make_shared<ngraph::opset2::Convert>(weightsU8, ngraph::element::f32);
+        ov::ParameterVector params{
+                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputDynamicShapes.front())};
 
-        const auto conv = std::make_shared<ngraph::opset2::Convolution>(paramOuts[0], weightsFP32, strides, pads.first,
-                                                                        pads.second, dilations);
+        const auto weightsU8 = ngraph::builder::makeConstant<uint8_t>(ov::element::u8, weightsShape, {}, true, 255, 0);
+        const auto weightsFP32 = std::make_shared<ov::op::v0::Convert>(weightsU8, ov::element::f32);
 
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(conv)};
-        function = std::make_shared<ngraph::Function>(results, params, "VPUXCMajorConvNHWCTest");
+        const auto conv = std::make_shared<ov::op::v1::Convolution>(params.at(0), weightsFP32, strides, pads.first,
+                                                                    pads.second, dilations);
 
-        targetDevice = LayerTestsUtils::testPlatformTargetDevice();
-        threshold = 0.1f;
+        const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(conv)};
+        function = std::make_shared<ov::Model>(results, ov::ParameterVector{params}, "CMajorConvNHWCTest");
+        auto preProc = ov::preprocess::PrePostProcessor(function);
+        preProc.input().tensor().set_layout(order);
+        preProc.input().model().set_layout(order);
+        preProc.output().tensor().set_layout(order);
+        preProc.output().model().set_layout(order);
+        function = preProc.build();
+        rel_threshold = 0.1f;
     }
 
     template <typename T>
@@ -79,13 +72,14 @@ public:
     static std::string getTestCaseName(::testing::TestParamInfo<CMajorConvNHWCTestParams> obj) {
         auto params = obj.param;
 
-        InferenceEngine::Precision ip, op;
-        InferenceEngine::SizeVector inputShape;
-        InferenceEngine::SizeVector weightsShape;
-        ngraph::Strides strides;
-        std::pair<ngraph::CoordinateDiff, ngraph::CoordinateDiff> pads;
-        ngraph::Strides dilations;
-        std::tie(ip, op, inputShape, weightsShape, strides, dilations, pads) = params;
+        ov::element::Type ip, op;
+        ov::Shape inputShape;
+        ov::Shape weightsShape;
+        ov::Strides strides;
+        std::pair<ov::CoordinateDiff, ov::CoordinateDiff> pads;
+        ov::Strides dilations;
+
+        std::tie(ip, op, inputShape, weightsShape, strides, dilations, pads, std::ignore) = params;
 
         const std::string sep = "_";
         std::ostringstream result;
@@ -102,31 +96,29 @@ public:
     }
 };
 
-TEST_P(VPUXCMajorConvNHWCTest_VPU3700, HW) {
-    setPlatformVPU3700();
-    setDefaultHardwareModeMLIR();
-    Run();
+TEST_P(CMajorConvNHWCTest_NPU3700, HW) {
+    setDefaultHardwareMode();
+    run(VPUXPlatform::VPU3700);
 }
 
-const std::vector<InferenceEngine::Precision> prec = {InferenceEngine::Precision::FP16,
-                                                      InferenceEngine::Precision::FP32, InferenceEngine::Precision::U8};
+const std::vector<ov::element::Type> prec = {ov::element::f16, ov::element::f32, ov::element::u8};
 
-const std::vector<InferenceEngine::SizeVector> inputShapes{{1, 3, 32, 32}};
+const std::vector<ov::Shape> inputShapes{{1, 3, 32, 32}};
 
-const std::vector<InferenceEngine::SizeVector> weightShapes{{16, 3, 1, 1}};
+const std::vector<ov::Shape> weightShapes{{16, 3, 1, 1}};
 
-const std::vector<ngraph::Strides> strides{{1, 1}};
+const std::vector<ov::Strides> strides{{1, 1}};
 
-const std::vector<ngraph::Strides> dilations{{1, 1}};
+const std::vector<ov::Strides> dilations{{1, 1}};
 
-const std::vector<std::pair<ngraph::CoordinateDiff, ngraph::CoordinateDiff>> pads{{{0, 0}, {0, 0}}};
+const std::vector<std::pair<ov::CoordinateDiff, ov::CoordinateDiff>> pads{{{0, 0}, {0, 0}}};
 
 /* NOTE: Tests have not yet run on actual device, because of CI instability. Only LoadNetwork phase was done. */
-INSTANTIATE_TEST_CASE_P(smoke_Permute_NHWC_To_NCHW, VPUXCMajorConvNHWCTest_VPU3700,
+INSTANTIATE_TEST_CASE_P(smoke_Permute_NHWC_To_NCHW, CMajorConvNHWCTest_NPU3700,
                         ::testing::Combine(::testing::ValuesIn(prec), ::testing::ValuesIn(prec),
                                            ::testing::ValuesIn(inputShapes), ::testing::ValuesIn(weightShapes),
                                            ::testing::ValuesIn(strides), ::testing::ValuesIn(dilations),
-                                           ::testing::ValuesIn(pads)),
-                        VPUXCMajorConvNHWCTest_VPU3700::getTestCaseName);
+                                           ::testing::ValuesIn(pads), ::testing::Values(ov::Layout("NHWC"))),
+                        CMajorConvNHWCTest_NPU3700::getTestCaseName);
 
-}  // namespace
+}  // namespace ov::test

@@ -10,13 +10,18 @@ add_mlir_library(${TARGET_NAME}
     EXCLUDE_FROM_LIBMLIR
     DISABLE_INSTALL
     LINK_LIBS PRIVATE
-        npu_utils
         npu_compiler_utils
+        npu_ov_utils
+        npu_llvm_utils
+        npu_profiling_utils
         MLIRAsyncDialect
         MLIRControlFlowInterfaces
         MLIRViewLikeInterface
-    DEPENDS
-        MLIRVPUXIncGenList)
+        npu_compiler_dialect_vpuip
+        flatbuffers
+        npu_elf)
+add_dependencies(${TARGET_NAME} MLIRVPUXIncGenList)
+
 target_include_directories(${TARGET_NAME}
     SYSTEM PRIVATE
         $<BUILD_INTERFACE:${MLIR_INCLUDE_DIRS}>

@@ -4,271 +4,230 @@
 //
 
 #include <debug.h>
-#include <ie_blob.h>
-#include <blob_factory.hpp>
 
-#include <vpux_variable_state.hpp>
 #include "zero_infer_request.h"
 
 #include "vpux/al/config/common.hpp"
 #include "vpux/al/config/runtime.hpp"
 
-#include "vpux/utils/IE/data_attributes_check.hpp"
 #include "vpux/utils/IE/itt.hpp"
 #include "vpux/utils/IE/prefix.hpp"
 
-namespace ie = InferenceEngine;
 using namespace vpux;
 
-//------------------------------------------------------------------------------
-//      Helpers
-//------------------------------------------------------------------------------
 namespace {
-static void checkNetworkPrecision(const ie::Precision& precision) {
-    switch (precision) {
-    case ie::Precision::FP32:
-        break;
-    case ie::Precision::FP16:
-        break;
-    case ie::Precision::U8:
-        break;
-    case ie::Precision::I8:
-        break;
-    case ie::Precision::U32:
-        break;
-    case ie::Precision::I32:
-        break;
-    case ie::Precision::U16:
-        break;
-    case ie::Precision::I16:
-        break;
-    default:
-        IE_THROW(ParameterMismatch) << "Unsupported input precision: " << precision
-                                    << "! Supported precisions: FP32, FP16, U8, I8, U32, I32, U16, I16";
+
+constexpr bool STATE_TENSOR = true;
+constexpr bool NOT_STATE_TENSOR = false;
+
+/**
+ * @brief Checks that the metadata of the provided descriptor corresponds to the values registered in the Level Zero
+ * structure.
+ * @param nodeDescriptor The OpenVINO API specific I/O descriptor which shall be compared.
+ * @param zeDescriptor The Level Zero specific structure used for comparison.
+ * @param name Tensor identifier used for error logging.
+ */
+void check_level_zero_attributes_match(const IONodeDescriptor& nodeDescriptor,
+                                       const ZeroExecutor::ArgumentDescriptor& zeDescriptor, const std::string& name) {
+    const ov::element::Type_t ovPrecision = nodeDescriptor.precision;
+    const ze_graph_argument_precision_t zePrecision = zeDescriptor.info.devicePrecision;
+
+    if (zeroUtils::getZePrecision(ovPrecision) != zePrecision) {
+        OPENVINO_THROW("Precision mismatch for parameter " + name);
     }
-}
 
-static ie::Blob::Ptr allocateLocalBlob(const ie::TensorDesc& tensorDesc, void* dataPtr) {
-    checkNetworkPrecision(tensorDesc.getPrecision());
+    const std::vector<size_t>& ovDimensions = nodeDescriptor.originalShape.get_shape();
 
-    ie::Blob::Ptr blob = make_blob_with_precision(tensorDesc, dataPtr);
-    if (blob == nullptr) {
-        IE_THROW() << "Can't make blob.";
+    if (ovDimensions.size() > ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE) {
+        OPENVINO_THROW(
+                "Maximum number of dimensions supported: " + std::to_string(ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE) +
+                '\n' + "Given: " + std::to_string(ovDimensions.size()));
     }
-    return blob;
-}
 
-// check that ie Layout and zeroApi layout are the same for some argument
-bool twoApiLayoutCouplingCheck(const ze_graph_argument_layout_t zeroL, const ie::Layout ieL) {
-    using namespace ::InferenceEngine;
-    if (ZE_GRAPH_ARGUMENT_LAYOUT_ANY == zeroL && ANY == ieL)
-        return true;
-    if (ZE_GRAPH_ARGUMENT_LAYOUT_NCHW == zeroL && NCHW == ieL)
-        return true;
-    if (ZE_GRAPH_ARGUMENT_LAYOUT_NHWC == zeroL && (NHWC == ieL || NC == ieL || C == ieL))
-        return true;
-    if (ZE_GRAPH_ARGUMENT_LAYOUT_NCDHW == zeroL && NCDHW == ieL)
-        return true;
-    if (ZE_GRAPH_ARGUMENT_LAYOUT_NDHWC == zeroL && NDHWC == ieL)
-        return true;
-    if (ZE_GRAPH_ARGUMENT_LAYOUT_OIHW == zeroL && OIHW == ieL)
-        return true;
-    if (ZE_GRAPH_ARGUMENT_LAYOUT_C == zeroL && C == ieL)
-        return true;
-    if (ZE_GRAPH_ARGUMENT_LAYOUT_CHW == zeroL && CHW == ieL)
-        return true;
-    if (ZE_GRAPH_ARGUMENT_LAYOUT_HW == zeroL && HW == ieL)
-        return true;
-    if (ZE_GRAPH_ARGUMENT_LAYOUT_NC == zeroL && NC == ieL)
-        return true;
-    if (ZE_GRAPH_ARGUMENT_LAYOUT_CN == zeroL && CN == ieL)
-        return true;
-    return false;
-}
-
-template <typename T>
-std::size_t getNumDims(const T& dims) {
-    return std::count_if(std::begin(dims), std::end(dims), [](const std::size_t& dim) -> bool {
-        return (dim > 1);
-    });
+    for (size_t index = 0; index < ovDimensions.size(); ++index) {
+        if (ovDimensions[index] != zeDescriptor.info.dims[index]) {
+            OPENVINO_THROW("Shape mismatch for parameter " + name);
+        }
+    }
+    for (size_t index = ovDimensions.size(); index < ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE; ++index) {
+        if (zeDescriptor.info.dims[index] != 0 && zeDescriptor.info.dims[index] != 1) {
+            OPENVINO_THROW("Shape mismatch for parameter " + name);
+        }
+    }
 }
 
 }  // namespace
 
 //------------------------------------------------------------------------------
-ZeroInferRequest::ZeroInferRequest(const ie::InputsDataMap& networkInputs, const ie::OutputsDataMap& networkOutputs,
-                                   const Executor::Ptr& executor, const Config& config, const std::string& /*netName*/,
-                                   const std::vector<std::shared_ptr<const ov::Node>>& parameters,
-                                   const std::vector<std::shared_ptr<const ov::Node>>& results,
-                                   const vpux::NetworkIOVector& networkStatesInfo,
-                                   const std::shared_ptr<ie::IAllocator>& allocator)
-        : IInferRequest(networkInputs, networkOutputs),
+ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<const ov::ICompiledModel> compiledModel,
+                                   const std::shared_ptr<const NetworkDescription> networkDescription,
+                                   const Executor::Ptr executor, const Config& config)
+        : SyncInferRequest(compiledModel, networkDescription),
           _executorPtr(executor),
           _executor(static_cast<ZeroExecutor*>(_executorPtr.get())),
           _config(config),
           _logger("ZeroInferRequest", config.get<LOG_LEVEL>()),
-          _allocator(allocator),
-          _statesInfo(networkStatesInfo),
           _profiling_pool(_executor->graph(), zeroProfiling::POOL_SIZE, _executor->graph_profiling_ddi_table_ext()),
-          _profiling_query(0, _executor->device(), _executor->graph_profiling_ddi_table_ext()),
-          _pipeline(makePipeline(_executorPtr, _config, _profiling_pool, _profiling_query)) {
-    if (_networkOutputs.empty() || _networkInputs.empty()) {
-        IE_THROW() << "No information about network's output/input.";
-    }
-    _parameters = parameters;
-    _results = results;
-
-    const auto& deviceInputs = _executor->getNetworkDesc().getDeviceInputsInfo();
-    for (const auto& deviceInput : deviceInputs) {
-        const std::string& inputName = deviceInput.first;
-        const auto& networkInputMatch = _networkInputs.find(inputName);
-        if (networkInputMatch == _networkInputs.end()) {
-            IE_THROW() << "Network input not found: " + inputName;
-        }
-
-        const ie::TensorDesc inputTensorDesc = networkInputMatch->second->getTensorDesc();
-        _inputs[inputName] = allocateLocalBlob(inputTensorDesc, _pipeline->inputs().getHostPtr(inputName));
-    }
-
-    const auto& deviceOutputs = _executor->getNetworkDesc().getDeviceOutputsInfo();
-    for (const auto& deviceOutput : deviceOutputs) {
-        const std::string& outputName = deviceOutput.first;
-        const auto& networkOutputMatch = _networkOutputs.find(outputName);
-        if (networkOutputMatch == _networkOutputs.end()) {
-            IE_THROW() << "Network output not found: " + outputName;
-        }
-
-        const ie::TensorDesc outputTensorDesc = networkOutputMatch->second->getTensorDesc();
-        _outputs[outputName] = allocateLocalBlob(outputTensorDesc, _pipeline->outputs().getHostPtr(outputName));
-    }
-}
-
-void ZeroInferRequest::InferImpl() {
-    InferAsync();
-    GetResult();
-}
-
-void ZeroInferRequest::InferAsync() {
-    _logger.debug("InferRequest::InferAsync started");
-    OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "InferAsync");
-
-    execDataPreprocessing(_inputs);
-    const auto& deviceInputs = _executor->getNetworkDesc().getDeviceInputsInfo();
-    const std::map<std::string, ZeroExecutor::ArgumentDescriptor>& executorInputsDescriptors =
+          _profiling_query(0, _executor->device(), _executor->graph_profiling_ddi_table_ext()) {
+    const std::unordered_map<std::string, ZeroExecutor::ArgumentDescriptor>& executorInputDescriptors =
             _executor->inputs_desc_map();
+    const std::unordered_map<std::string, ZeroExecutor::ArgumentDescriptor>& executorOutputDescriptors =
+            _executor->outputs_desc_map();
 
-    // Copy input data to staging buffer on Cpu (input always first argument)
-    for (const auto& deviceInput : deviceInputs) {
-        const auto& name = deviceInput.first;
-        const auto& data = deviceInput.second;
-        const auto& input = _inputs.at(name);
+    auto proftype = config.get<PROFILING_TYPE>();
+    if (proftype == InferenceEngine::VPUXConfigParams::ProfilingType::INFER) {
+        _vpu_profiling = std::make_shared<vpux::zeroProfiling::VpuInferProfiling>(
+                _executor->context(), _executor->device(), _config.get<LOG_LEVEL>());
+    }
 
-        if (!executorInputsDescriptors.count(name)) {
-            IE_THROW() << "Invalid graph input descriptor key: " + name;
+    /// Construct pipepline
+    _pipeline = makePipeline(_executorPtr, _config, _profiling_pool, _profiling_query, _vpu_profiling);
+
+    for (const std::string& inputName : _inputNames) {
+        if (!executorInputDescriptors.count(inputName)) {
+            OPENVINO_THROW("Invalid graph input descriptor key: " + inputName);
         }
 
-        const ZeroExecutor::ArgumentDescriptor& desc = executorInputsDescriptors.at(name);
+        const IONodeDescriptor& parameterDescriptor = _parameterDescriptors.at(inputName);
+        check_level_zero_attributes_match(parameterDescriptor, executorInputDescriptors.at(inputName), inputName);
 
-        // TODO Currently L0 and Plugin might return different layouts which have dims like [1,1...]
-        // They might be reinterpreted in different ways, so this check has been added to prevent that behavior
-        if (std::max(getNumDims(desc.info.dims), getNumDims(data->getTensorDesc().getDims())) > 2) {
-            if (!twoApiLayoutCouplingCheck(desc.info.deviceLayout, data->getLayout())) {
-                IE_THROW() << "Parsing error: layouts are different for push blobs";
-            }
-        }
-        if (desc.info.devicePrecision != zeroUtils::getZePrecision(data->getPrecision())) {
-            IE_THROW() << "Parsing error: precisions are different for push blobs";
-        }
-        checkDataAttributesMatch(input->getTensorDesc(), data->getTensorDesc());
+        // The I/O buffers already allocated using the Level Zero API are being reused here
+        allocate_tensor(inputName, parameterDescriptor, _pipeline->inputs().getHostPtr(inputName), NOT_STATE_TENSOR);
+    }
 
-        // we should check memory type: host memory or generic and copy if it's a generic
-        const auto memInput = ie::as<ie::MemoryBlob>(input);
-        VPUX_THROW_UNLESS(memInput != nullptr, "Input ie::Blob::Ptr cannot be cast to ie::MemoryBlob::Ptr");
-        const auto inputMemLock = memInput->rmap();
-        const uint8_t* inputPtr = inputMemLock.as<const uint8_t*>();
-        if (!_pipeline->inputs().checkHostPtr(inputPtr)) {
-            void* hostMem = _pipeline->inputs().getHostPtr(name);
-            if (nullptr == hostMem || nullptr == inputPtr) {
-                IE_THROW() << "Memory or input blob null pointer";
+    for (const std::string& outputName : _outputNames) {
+        if (!executorOutputDescriptors.count(outputName)) {
+            OPENVINO_THROW("Invalid graph output descriptor key: " + outputName);
+        }
+
+        const IONodeDescriptor& resultDescriptor = _resultDescriptors.at(outputName);
+        check_level_zero_attributes_match(resultDescriptor, executorOutputDescriptors.at(outputName), outputName);
+        allocate_tensor(outputName, resultDescriptor, _pipeline->outputs().getHostPtr(outputName), NOT_STATE_TENSOR);
+    }
+
+    for (const std::string& stateName : _stateNames) {
+        const std::string& stateInputBufferName = READVALUE_PREFIX + stateName;
+        const std::string& stateOutputBufferName = ASSIGN_PREFIX + stateName;
+
+        if (!executorInputDescriptors.count(stateInputBufferName)) {
+            OPENVINO_THROW("Invalid graph input descriptor key: " + stateInputBufferName);
+        }
+        if (!executorOutputDescriptors.count(stateOutputBufferName)) {
+            OPENVINO_THROW("Invalid graph output descriptor key: " + stateOutputBufferName);
+        }
+
+        const IONodeDescriptor& stateDescriptor = _stateDescriptors.at(stateName);
+        check_level_zero_attributes_match(stateDescriptor, executorInputDescriptors.at(stateInputBufferName),
+                                          stateInputBufferName);
+        check_level_zero_attributes_match(stateDescriptor, executorOutputDescriptors.at(stateOutputBufferName),
+                                          stateOutputBufferName);
+
+        // Only one buffer per state variable is required, we'll use the "output" one since this one captures the latest
+        // tensor value
+        allocate_tensor(stateName, stateDescriptor, _pipeline->outputs().getHostPtr(stateOutputBufferName),
+                        STATE_TENSOR);
+    }
+}
+
+void ZeroInferRequest::infer() {
+    infer_async();
+    get_result();
+}
+
+void ZeroInferRequest::infer_async() {
+    _logger.debug("InferRequest::infer_async started");
+    OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "infer_async");
+
+    for (const auto& name : _inputAndStateInputNames) {
+        const std::shared_ptr<ov::ITensor>& inputTensor = _allTensors.at(name);
+
+        // If the memory address correponding to the data buffer does not correspond to the address expected by the
+        // driver then we need to perform an extra buffer copy operation
+        const uint8_t* tensorBuffer = reinterpret_cast<uint8_t*>(inputTensor->data());
+        if (!_pipeline->inputs().checkHostPtr(tensorBuffer)) {
+            void* zeBuffer;
+
+            if (!isStateOutputName(name)) {
+                zeBuffer = _pipeline->inputs().getHostPtr(name);
+            } else {
+                // Input and output buffers have been allocated for each state variable using the Level Zero API. The
+                // input buffers are identified by a "read value" prefix, while the output buffers and the tensors found
+                // within the OpenVINO specific structures use the "assign" prefix.
+                zeBuffer = _pipeline->inputs().getHostPtr(stateOutputToStateInputName(name));
             }
-            if (0 != ie_memcpy(hostMem, input->byteSize(), inputPtr, input->byteSize())) {
-                IE_THROW() << "memcpy error for push blob " << name;
+
+            if (zeBuffer == nullptr || tensorBuffer == nullptr) {
+                OPENVINO_THROW("Empty buffer");
             }
+            std::memcpy(zeBuffer, tensorBuffer, inputTensor->get_byte_size());
         }
     }
 
     _pipeline->push();
 }
 
-std::vector<std::shared_ptr<ie::IVariableStateInternal>> ZeroInferRequest::QueryState() {
-    // TODO: Check that std::call_once is not redudant here
-    std::call_once(_fillStatesOnceFlag, [&]() {
-        for (auto& stateInfo : _statesInfo) {
-            const auto readValueName = READVALUE_PREFIX + stateInfo.first;
-
-            IE_ASSERT(1 == _networkInputs.count(readValueName));
-            IE_ASSERT(1 == _networkOutputs.count(ASSIGN_PREFIX + stateInfo.first));
-
-            _states.push_back(std::make_shared<VariableState>(stateInfo.first, this->GetBlob(readValueName)));
-        }
-    });
-
-    return _states;
-}
-
-void ZeroInferRequest::GetResult() {
-    OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "GetResult");
-    const auto& deviceOutputs = _executor->getNetworkDesc().getDeviceOutputsInfo();
+void ZeroInferRequest::get_result() {
+    OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "get_result");
 
     _pipeline->pull();
-    const std::map<std::string, ZeroExecutor::ArgumentDescriptor>& executorOutputsDescriptors =
-            _executor->outputs_desc_map();
 
-    // Copy output data to staging buffer on Cpu (input always first argument)
-    for (auto& deviceOutput : deviceOutputs) {
-        const auto& name = deviceOutput.first;
-        const auto& data = deviceOutput.second;
-        const auto& output = _outputs.at(name);
+    for (const auto& name : _outputAndStateOutputNames) {
+        const std::shared_ptr<ov::ITensor>& outputTensor = _allTensors.at(name);
 
-        if (!executorOutputsDescriptors.count(name)) {
-            IE_THROW() << "Invalid graph output descriptor key: " + name;
-        }
+        // If the memory address correponding to the data buffer does not correspond to the address expected by the
+        // driver then we need to perform an extra buffer copy operation
+        uint8_t* tensorBuffer = reinterpret_cast<uint8_t*>(outputTensor->data());
+        if (!_pipeline->outputs().checkHostPtr(tensorBuffer)) {
+            void* zeBuffer = _pipeline->outputs().getHostPtr(name);
 
-        const ZeroExecutor::ArgumentDescriptor& desc = executorOutputsDescriptors.at(name);
-        if (std::max(getNumDims(desc.info.dims), getNumDims(data->getTensorDesc().getDims())) > 2) {
-            if (!twoApiLayoutCouplingCheck(desc.info.deviceLayout, data->getLayout())) {
-                IE_THROW() << "Parsing error: layouts are different for pull blobs";
+            if (zeBuffer == nullptr || tensorBuffer == nullptr) {
+                OPENVINO_THROW("Empty buffer");
             }
-        }
-        if (desc.info.devicePrecision != zeroUtils::getZePrecision(data->getPrecision())) {
-            IE_THROW() << "Parsing error: precisions are different for pull blobs";
-        }
-        checkDataAttributesMatch(output->getTensorDesc(), data->getTensorDesc());
-
-        // we should check memory type: host memory or generic and copy if it's a generic
-        const auto memOutput = ie::as<ie::MemoryBlob>(output);
-        VPUX_THROW_UNLESS(memOutput != nullptr, "Output ie::Blob::Ptr cannot be cast to ie::MemoryBlob::Ptr");
-        auto outputMemLock = memOutput->wmap();
-        uint8_t* outputPtr = outputMemLock.as<uint8_t*>();
-        if (!_pipeline->outputs().checkHostPtr(outputPtr)) {
-            const void* hostMem = _pipeline->outputs().getHostPtr(name);
-            if (nullptr == hostMem || nullptr == outputPtr) {
-                IE_THROW() << "Memory or output blob null pointer";
-            }
-            if (0 != ie_memcpy(outputPtr, output->byteSize(), hostMem, output->byteSize())) {
-                IE_THROW() << "memcpy error for pull blob " << name;
-            }
+            std::memcpy(tensorBuffer, zeBuffer, outputTensor->get_byte_size());
         }
     }
 
     _pipeline->reset();
-    _logger.debug("InferRequest::GetResult finished");
+    _logger.debug("InferRequest::get_result finished");
 }
 
-std::map<std::string, ie::InferenceEngineProfileInfo> ZeroInferRequest::GetPerformanceCounts() const {
+void ZeroInferRequest::check_network_precision(const ov::element::Type_t precision) {
+    switch (precision) {
+    case ov::element::Type_t::f32:
+        break;
+    case ov::element::Type_t::f16:
+        break;
+    case ov::element::Type_t::u8:
+        break;
+    case ov::element::Type_t::i8:
+        break;
+    case ov::element::Type_t::u16:
+        break;
+    case ov::element::Type_t::i16:
+        break;
+    case ov::element::Type_t::u32:
+        break;
+    case ov::element::Type_t::i32:
+        break;
+    case ov::element::Type_t::u64:
+        break;
+    case ov::element::Type_t::i64:
+        break;
+    default:
+        OPENVINO_THROW("Unsupported tensor precision: " + ov::element::Type(precision).get_type_name() +
+                       "! Supported precisions: FP32, FP16, U8, I8, U16, I16, U32, I32, U64, I64");
+    }
+}
+
+std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
     if (_config.get<PERF_COUNT>()) {
-        return const_cast<ZeroInferRequest*>(this)->_profiling_query.getLayerStatistics(
-                _config.get<COMPILER_TYPE>(), _executor->getNetworkDesc().getCompiledNetwork());
+        auto proftype = _config.get<PROFILING_TYPE>();
+        if (proftype == InferenceEngine::VPUXConfigParams::ProfilingType::INFER) {
+            return _vpu_profiling->getVpuInferStatistics();
+        } else {  /// proftype = MODEL or undefined = fallback to model profiling
+            return const_cast<ZeroInferRequest*>(this)->_profiling_query.getLayerStatistics(
+                    _config.get<COMPILER_TYPE>(), _executor->getNetworkDesc().getCompiledNetwork());
+        }
     } else {
         return {};
     }

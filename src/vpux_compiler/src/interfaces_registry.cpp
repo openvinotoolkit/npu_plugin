@@ -10,7 +10,7 @@
 
 #include <memory>
 
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
 #include "vpux/utils/core/error.hpp"
 
 namespace vpux {

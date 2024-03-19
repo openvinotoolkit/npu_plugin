@@ -75,7 +75,7 @@ Byte getTotalSize(mlir::Value val);
 Byte getCompactSize(mlir::Value val);
 
 // compute axis permutation
-Optional<int32_t> getQuantizedAxis(int32_t axis, ShapeRef prevShape, ShapeRef newShape);
+std::optional<int32_t> getQuantizedAxis(int32_t axis, ShapeRef prevShape, ShapeRef newShape);
 
 //
 // MemRefType utilities
@@ -117,7 +117,6 @@ mlir::MemRefType convertToMemRef(mlir::RankedTensorType tensorType);
 //
 
 bool isCompatibleForInplaceOp(NDTypeInterface inInterface, NDTypeInterface outInterface, Logger log);
-NDTypeInterface getEffectiveSparseOutputType(mlir::Type dataType, mlir::Type seTableType);
 
 //
 // Type comparison
@@ -129,5 +128,7 @@ bool areTypesCompatible(mlir::TypeRange lhs, mlir::TypeRange rhs, IE::TypeCompar
 // Checks if the only difference between two UniformQuantizedPerAxisType is the quantized dimension
 bool isQuantizedDimensionPermutation(mlir::quant::UniformQuantizedPerAxisType inputElemType,
                                      mlir::quant::UniformQuantizedPerAxisType newElemType);
+
+bool isSubByteType(mlir::Type elemType);
 
 }  // namespace vpux

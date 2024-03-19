@@ -12,9 +12,12 @@ add_mlir_library(${TARGET_NAME}
     LINK_LIBS PRIVATE
         npu_compiler_core
         npu_compiler_utils
-        npu_utils
-    DEPENDS
-        MLIRVPUXIncGenList)
+        npu_llvm_utils
+        npu_ov_utils
+        flatbuffers
+        npu_elf)
+add_dependencies(${TARGET_NAME} MLIRVPUXIncGenList)
+
 target_include_directories(${TARGET_NAME}
     SYSTEM PRIVATE
         $<BUILD_INTERFACE:${MLIR_INCLUDE_DIRS}>

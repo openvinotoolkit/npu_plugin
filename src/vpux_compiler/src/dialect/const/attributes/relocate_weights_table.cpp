@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
-#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_invariant.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
@@ -17,31 +17,6 @@
 using namespace vpux;
 
 //
-// RelocateWeightsTableAttr::walkImmediateSubElements
-//
-
-void vpux::Const::RelocateWeightsTableAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)> walkAttrsFn,
-                                                                     llvm::function_ref<void(mlir::Type)>) const {
-    walkAttrsFn(getWeightsPtr());
-    walkAttrsFn(getSparsityPtr());
-    walkAttrsFn(getOffsets());
-    walkAttrsFn(getWeightsElemByteSize());
-    walkAttrsFn(getWeightsCompression());
-}
-
-//
-// RelocateWeightsTableAttr::replaceImmediateSubElements
-//
-
-mlir::Attribute vpux::Const::RelocateWeightsTableAttr::replaceImmediateSubElements(ArrayRef<mlir::Attribute> replAttrs,
-                                                                                   ArrayRef<mlir::Type>) const {
-    VPUX_THROW_WHEN(replAttrs.size() < 5, "Replace attrs array is too short: '{0}'", replAttrs.size());
-    return get(replAttrs[0].dyn_cast_or_null<mlir::ArrayAttr>(), replAttrs[1].dyn_cast_or_null<mlir::IntegerAttr>(),
-               replAttrs[2].dyn_cast_or_null<mlir::ArrayAttr>(), replAttrs[3].dyn_cast_or_null<mlir::IntegerAttr>(),
-               replAttrs[4].dyn_cast_or_null<VPUIP::CompressionSchemeAttr>());
-}
-
-//
 // RelocateWeightsTableAttr::print
 //
 
@@ -52,9 +27,9 @@ void vpux::Const::RelocateWeightsTableAttr::print(mlir::AsmPrinter& printer) con
     printer.printAttribute(getSparsityPtr());
     printer << ", ";
     printer.printAttribute(getOffsets());
-    if (getWeightsElemByteSize() != nullptr) {
+    if (getWeightsElemBitSize() != nullptr) {
         printer << ", ";
-        printer.printAttribute(getWeightsElemByteSize());
+        printer.printAttribute(getWeightsElemBitSize());
     }
     if (getWeightsCompression() != nullptr) {
         printer << ", ";
@@ -75,7 +50,7 @@ mlir::Attribute vpux::Const::RelocateWeightsTableAttr::parse(mlir::AsmParser& pa
     mlir::ArrayAttr weightsPtr;
     mlir::IntegerAttr sparsityPtr;
     mlir::ArrayAttr offsets;
-    mlir::IntegerAttr weightsElemByteSize;
+    mlir::IntegerAttr weightsElemBitSize;
     VPUIP::CompressionSchemeAttr weightsCompression;
 
     if (mlir::failed(parser.parseAttribute(weightsPtr))) {
@@ -98,8 +73,8 @@ mlir::Attribute vpux::Const::RelocateWeightsTableAttr::parse(mlir::AsmParser& pa
         return nullptr;
     }
 
-    if (mlir::succeeded(parser.parseGreater())) {
-        return Const::RelocateWeightsTableAttr::get(weightsPtr, sparsityPtr, offsets, weightsElemByteSize,
+    if (mlir::succeeded(parser.parseOptionalGreater())) {
+        return Const::RelocateWeightsTableAttr::get(weightsPtr, sparsityPtr, offsets, weightsElemBitSize,
                                                     weightsCompression);
     }
 
@@ -107,12 +82,12 @@ mlir::Attribute vpux::Const::RelocateWeightsTableAttr::parse(mlir::AsmParser& pa
         return nullptr;
     }
 
-    if (mlir::failed(parser.parseAttribute(weightsElemByteSize))) {
+    if (mlir::failed(parser.parseAttribute(weightsElemBitSize))) {
         return nullptr;
     }
 
-    if (mlir::succeeded(parser.parseGreater())) {
-        return Const::RelocateWeightsTableAttr::get(weightsPtr, sparsityPtr, offsets, weightsElemByteSize,
+    if (mlir::succeeded(parser.parseOptionalGreater())) {
+        return Const::RelocateWeightsTableAttr::get(weightsPtr, sparsityPtr, offsets, weightsElemBitSize,
                                                     weightsCompression);
     }
 
@@ -128,7 +103,7 @@ mlir::Attribute vpux::Const::RelocateWeightsTableAttr::parse(mlir::AsmParser& pa
         return nullptr;
     }
 
-    return Const::RelocateWeightsTableAttr::get(weightsPtr, sparsityPtr, offsets, weightsElemByteSize,
+    return Const::RelocateWeightsTableAttr::get(weightsPtr, sparsityPtr, offsets, weightsElemBitSize,
                                                 weightsCompression);
 }
 
@@ -165,33 +140,42 @@ Const::Content vpux::Const::RelocateWeightsTableAttr::transform(vpux::Const::Con
         sparsityPtrStep = values[1 * numElemPerOC + 1] - values[0 * numElemPerOC + 1];
     }
 
-    const int64_t OC = checked_cast<int64_t>(values.size() / numElemPerOC);
-    const int64_t numClusters = checked_cast<int64_t>(offsets.size());
+    const auto OC = checked_cast<int64_t>(values.size() / numElemPerOC);
+    const auto numClusters = checked_cast<int64_t>(offsets.size());
+
+    // In case all clusters have the same channel offsets, the weights are not segmented
+    const auto areWeightsSegmented =
+            std::adjacent_find(offsets.begin(), offsets.end(), std::not_equal_to<>()) != offsets.end();
+
+    const auto isNewCluster = [&](const int64_t oc, const int64_t currentClusterIdx) -> bool {
+        return areWeightsSegmented && (currentClusterIdx + 1) < numClusters && oc >= offsets[currentClusterIdx + 1];
+    };
 
     SmallVector<int64_t> weightsPtrSteps(OC);
     if (getWeightsCompression() != nullptr) {
         const auto numElems = to_small_vector(getWeightsCompression().getNumElems().getValues<int64_t>());
         VPUX_THROW_UNLESS(numElems.size() == static_cast<size_t>(OC),
                           "Invalid weights compression with {0} elements for {1} channels", numElems.size(), OC);
-        VPUX_THROW_UNLESS(getWeightsElemByteSize() != nullptr, "Missing weights element type attribute");
-        const auto weightsElemByteSize = getWeightsElemByteSize().getInt();
+        VPUX_THROW_UNLESS(getWeightsElemBitSize() != nullptr, "Missing weights element type attribute");
+        const auto weightsElemBitSize = getWeightsElemBitSize().getInt();
         const auto alignment = (getWeightsCompression().getAlignment() != nullptr)
                                        ? getWeightsCompression().getAlignment().getInt()
                                        : VPU::NCEInvariant::VPU_WEIGHT_SET_BYTE_ALIGNMENT;
 
         int64_t weightsPtrOffset = 0;
         for (int64_t oc = 0, clusterIdx = 0; oc < OC; ++oc) {
-            if ((clusterIdx + 1) < numClusters && oc >= offsets[clusterIdx + 1]) {
+            if (isNewCluster(oc, clusterIdx)) {
                 clusterIdx++;
                 weightsPtrOffset = 0;
             }
             weightsPtrSteps[oc] = weightsPtrOffset;
-            const auto weightSetSize = (numElems[oc] * weightsElemByteSize);
-            weightsPtrOffset += alignValUp<int64_t>(weightSetSize, alignment);
+            const auto weightSetByteSize =
+                    alignMemSize(Bit(numElems[oc] * weightsElemBitSize), Byte(1)).to<Byte>().count();
+            weightsPtrOffset += alignValUp<int64_t>(weightSetByteSize, alignment);
         }
     } else {
         for (int64_t oc = 0, clusterIdx = 0; oc < OC; ++oc) {
-            if ((clusterIdx + 1) < numClusters && oc >= offsets[clusterIdx + 1]) {
+            if (isNewCluster(oc, clusterIdx)) {
                 clusterIdx++;
             }
             weightsPtrSteps[oc] = weightPtrStep * (oc - offsets[clusterIdx]);
@@ -199,7 +183,7 @@ Const::Content vpux::Const::RelocateWeightsTableAttr::transform(vpux::Const::Con
     }
 
     for (int64_t oc = 0, clusterIdx = 0; oc < OC; ++oc) {
-        if ((clusterIdx + 1) < numClusters && oc >= offsets[clusterIdx + 1]) {
+        if (isNewCluster(oc, clusterIdx)) {
             clusterIdx++;
         }
 
@@ -221,11 +205,12 @@ Const::Content vpux::Const::RelocateWeightsTableAttr::transform(vpux::Const::Con
 }
 
 Const::ContentAttr vpux::Const::ContentAttr::relocateWeightsTablePointers(
-        ArrayRef<int32_t> weightsPtr, uint64_t sparsityPtr, ShapeRef offsets, uint64_t weightsElemByteSize,
+        ArrayRef<int32_t> weightsPtr, uint64_t sparsityPtr, ShapeRef offsets, uint64_t weightsElemBitSize,
         VPUIP::CompressionSchemeAttr weightsCompression) const {
-    return get(*this, Const::RelocateWeightsTableAttr::get(
-                              getIntArrayAttr(getContext(), weightsPtr), getIntAttr(getContext(), sparsityPtr),
-                              getIntArrayAttr(getContext(), offsets), getIntAttr(getContext(), weightsElemByteSize),
-                              weightsCompression)
-                              .cast<Const::TransformAttrInterface>());
+    return ContentAttr::addTransformation(
+            *this, Const::RelocateWeightsTableAttr::get(
+                           getIntArrayAttr(getContext(), weightsPtr), getIntAttr(getContext(), sparsityPtr),
+                           getIntArrayAttr(getContext(), offsets), getIntAttr(getContext(), weightsElemBitSize),
+                           weightsCompression)
+                           .cast<Const::TransformAttrInterface>());
 }

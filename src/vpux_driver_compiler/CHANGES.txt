@@ -1,5 +1,13 @@
 Change Log:
 -----------
+VPUXCompilerL0 5.2.0:
+  - Added support for the legacy set of values corresponding to the "model priority" configuration.
+
+VPUXCompilerL0 5.1.0:
+  - Remove VPUXCompilerL0.h
+  - Remove VPUXCompilerL0.dll
+  - Remove VPUXCompilerL0.so
+
 VPUXCompilerL0 5.0.0:
   - Support config key with NPU_ prefix
 
@@ -7,9 +15,6 @@ VPUXCompilerL0 4.2.0:
   - Change folder name from VPUXCompilerL0 to vpux_driver_compiler
   - Rename VPUXCompilerL0.h to vpux_driver_compiler.h
   - Code refactor
-
-VPUXCompilerL0 4.1.0
-  - Add 5000 to platform
 
 VPUXCompilerL0 4.0.0
   - Support config key with VPU_ prefix instead of VPUX_ prefix

@@ -1,4 +1,3 @@
-//
 // Copyright (C) Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
@@ -10,7 +9,7 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXRangeLayerTest_VPU3720 : public RangeLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
+class RangeLayerTestCommon : public RangeLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     // Latest 'RangeLayerTest::SetUp' builds 'start,stop,step' as non-CONST inputs, thus unable to infer output shape.
     // So using older SetUp that builds CONST inputs.
     void SetUp() override {
@@ -18,14 +17,14 @@ class VPUXRangeLayerTest_VPU3720 : public RangeLayerTest, virtual public LayerTe
         float start, stop, step;
         tie(start, stop, step, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        std::vector<size_t> inShape{1};  // dummy ranked tensor
-        auto params = ngraph::builder::makeParams(ngPrc, {inShape});
-        auto start_constant = std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{}, start);
-        auto stop_constant = std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{}, stop);
-        auto step_constant = std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{}, step);
-        auto range = std::make_shared<ngraph::opset4::Range>(start_constant, stop_constant, step_constant, ngPrc);
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(range)};
-        function = std::make_shared<ngraph::Function>(results, params, "Range");
+        ov::Shape inShape{1};  // dummy ranked tensor
+        auto params = std::make_shared<ov::op::v0::Parameter>(ngPrc, inShape);
+        auto start_constant = std::make_shared<ov::op::v0::Constant>(ngPrc, ngraph::Shape{}, start);
+        auto stop_constant = std::make_shared<ov::op::v0::Constant>(ngPrc, ngraph::Shape{}, stop);
+        auto step_constant = std::make_shared<ov::op::v0::Constant>(ngPrc, ngraph::Shape{}, step);
+        auto range = std::make_shared<ov::op::v4::Range>(start_constant, stop_constant, step_constant, ngPrc);
+        const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(range)};
+        function = std::make_shared<ngraph::Function>(results, ov::ParameterVector{params}, "Range");
     }
 
     void Infer() override {
@@ -33,8 +32,9 @@ class VPUXRangeLayerTest_VPU3720 : public RangeLayerTest, virtual public LayerTe
         LayerTestsCommon::Infer();
     }
 };
+class RangeLayerTest_NPU3720 : public RangeLayerTestCommon {};
 
-TEST_P(VPUXRangeLayerTest_VPU3720, HW) {
+TEST_P(RangeLayerTest_NPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -75,11 +75,11 @@ const auto testRangeNegativeStepParams = ::testing::Combine(
         testing::Values(InferenceEngine::Layout::ANY), testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-// VPU3720
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_Range, VPUXRangeLayerTest_VPU3720, testRangePositiveStepParams,
-                         VPUXRangeLayerTest_VPU3720::getTestCaseName);
+// NPU3720
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_Range, RangeLayerTest_NPU3720, testRangePositiveStepParams,
+                         RangeLayerTest_NPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_negative_Range, VPUXRangeLayerTest_VPU3720, testRangeNegativeStepParams,
-                         VPUXRangeLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_negative_Range, RangeLayerTest_NPU3720, testRangeNegativeStepParams,
+                         RangeLayerTest_NPU3720::getTestCaseName);
 
 }  // namespace

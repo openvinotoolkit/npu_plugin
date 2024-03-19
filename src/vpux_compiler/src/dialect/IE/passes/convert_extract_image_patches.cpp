@@ -2,16 +2,10 @@
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
-#include "vpux/compiler/dialect/IE/utils/const_attributes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
-#include "vpux/utils/IE/loop.hpp"
-#include "vpux/utils/core/enums.hpp"
-
-#include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
@@ -36,14 +30,15 @@ private:
 };
 
 bool isExtractImagePatchesJustTranspose(IE::ExtractImagePatchesOp op, Logger log) {
-    if (op.sizes() == nullptr || op.strides() == nullptr || op.rates() == nullptr || op.autoPadAttr() == nullptr) {
+    if (op.getSizes() == nullptr || op.getStrides() == nullptr || op.getRates() == nullptr ||
+        op.getAutoPadAttr() == nullptr) {
         return false;
     }
 
-    const auto dataShape = getShape(op.data());
-    const auto sizes = parseIntArrayAttr<int64_t>(op.sizes());
-    const auto strides = parseIntArrayAttr<int64_t>(op.strides());
-    const auto rates = parseIntArrayAttr<int64_t>(op.rates());
+    const auto dataShape = getShape(op.getData());
+    const auto sizes = parseIntArrayAttr<int64_t>(op.getSizes());
+    const auto strides = parseIntArrayAttr<int64_t>(op.getStrides());
+    const auto rates = parseIntArrayAttr<int64_t>(op.getRates());
 
     // Check that the ExtractImagePatrches does only a transpose
     if (sizes.size() != 2 || sizes[vpux::Dims4D::Kernel::Y.ind()] != 1 ||
@@ -57,7 +52,7 @@ bool isExtractImagePatchesJustTranspose(IE::ExtractImagePatchesOp op, Logger log
     if (rates.size() != 2 || (rates[vpux::Dims4D::Kernel::Y.ind()] != 1 || rates[vpux::Dims4D::Kernel::X.ind()] != 1)) {
         return false;
     }
-    if (op.autoPad() != IE::PadType::VALID) {
+    if (op.getAutoPad() != IE::PadType::VALID) {
         return false;
     }
     if (dataShape[vpux::Dims4D::Act::C] != 1) {
@@ -73,7 +68,7 @@ mlir::LogicalResult replaceExtractImagePatchesWithTranspose(IE::ExtractImagePatc
     // The equivalent permutation order
     log.trace("ExtractImagePatches op is replaced with a Transpose op - '{0}'", op->getLoc());
     const auto orderOutputAttr = mlir::AffineMapAttr::get(vpux::DimsOrder::NWHC.toAffineMap(ctx));
-    rewriter.replaceOpWithNewOp<IE::TransposeOp>(op, op.getType(), op.data(), nullptr, orderOutputAttr);
+    rewriter.replaceOpWithNewOp<IE::TransposeOp>(op, op.getType(), op.getData(), nullptr, orderOutputAttr);
     return mlir::success();
 }
 
@@ -88,7 +83,7 @@ mlir::LogicalResult ConvertToReduceSumRewriter::matchAndRewrite(IE::ExtractImage
     // Check if one of the following patterns appears:
     // 1. ReduceSum -> ExtractImagePatches -> Tranpose -> ReduceSum
     // 2. ReduceSum -> ExtractImagePatches -> ReduceSum
-    auto aboveReduceSumOp = origOp.data().getDefiningOp<IE::ReduceSumOp>();
+    auto aboveReduceSumOp = origOp.getData().getDefiningOp<IE::ReduceSumOp>();
     if (aboveReduceSumOp != nullptr) {
         // The ReduceSum op should have only one consumer
         if (!aboveReduceSumOp.getResult().hasOneUse()) {
@@ -99,16 +94,16 @@ mlir::LogicalResult ConvertToReduceSumRewriter::matchAndRewrite(IE::ExtractImage
             return replaceExtractImagePatchesWithTranspose(origOp, rewriter, _log);
         }
 
-        auto transposeOp = mlir::dyn_cast<IE::TransposeOp>(*(origOp.output().getUsers().begin()));
+        auto transposeOp = mlir::dyn_cast<IE::TransposeOp>(*(origOp.getOutput().getUsers().begin()));
         vpux::IE::ReduceSumOp belowReduceSumOp;
         if (transposeOp != nullptr) {
             // The Transpose op should have only one consumer
             if (!transposeOp.getResult().hasOneUse()) {
                 return replaceExtractImagePatchesWithTranspose(origOp, rewriter, _log);
             }
-            belowReduceSumOp = mlir::dyn_cast<IE::ReduceSumOp>(*(transposeOp.output().getUsers().begin()));
+            belowReduceSumOp = mlir::dyn_cast<IE::ReduceSumOp>(*(transposeOp.getOutput().getUsers().begin()));
         } else {
-            belowReduceSumOp = mlir::dyn_cast<IE::ReduceSumOp>(*(origOp.output().getUsers().begin()));
+            belowReduceSumOp = mlir::dyn_cast<IE::ReduceSumOp>(*(origOp.getOutput().getUsers().begin()));
         }
 
         if (belowReduceSumOp == nullptr) {
@@ -118,27 +113,27 @@ mlir::LogicalResult ConvertToReduceSumRewriter::matchAndRewrite(IE::ExtractImage
                    origOp->getLoc());
 
         // Additional checks for aboveReduceSumOp
-        if (!aboveReduceSumOp.keep_dims() || !aboveReduceSumOp.axes_value().has_value()) {
+        if (!aboveReduceSumOp.getKeepDims() || !aboveReduceSumOp.getAxesValue().has_value()) {
             return replaceExtractImagePatchesWithTranspose(origOp, rewriter, _log);
         }
 
-        auto aboveReduceSumOpAxes = parseIntArrayAttr<int64_t>(aboveReduceSumOp.axes_value().value());
+        auto aboveReduceSumOpAxes = parseIntArrayAttr<int64_t>(aboveReduceSumOp.getAxesValue().value());
         if (aboveReduceSumOpAxes.size() > 1 || aboveReduceSumOpAxes[0] != vpux::Dims4D::Act::C.ind()) {
             return replaceExtractImagePatchesWithTranspose(origOp, rewriter, _log);
         }
 
         // Additional checks for belowReduceSumOp
-        if (!belowReduceSumOp.axes_value().has_value()) {
+        if (!belowReduceSumOp.getAxesValue().has_value()) {
             return replaceExtractImagePatchesWithTranspose(origOp, rewriter, _log);
         }
 
-        auto belowReduceSumOpAxes = parseIntArrayAttr<int64_t>(belowReduceSumOp.axes_value().value());
+        auto belowReduceSumOpAxes = parseIntArrayAttr<int64_t>(belowReduceSumOp.getAxesValue().value());
         if (transposeOp == nullptr) {
             if (belowReduceSumOpAxes.size() > 1 || belowReduceSumOpAxes[0] != vpux::Dims4D::Act::C.ind()) {
                 return replaceExtractImagePatchesWithTranspose(origOp, rewriter, _log);
             }
         } else {
-            const auto transposeOpPerm = vpux::DimsOrder::fromAffineMap(transposeOp.order_value().value());
+            const auto transposeOpPerm = vpux::DimsOrder::fromAffineMap(transposeOp.getOrderValue().value());
             if (transposeOpPerm != vpux::DimsOrder::NHWC || belowReduceSumOpAxes.size() > 1 ||
                 belowReduceSumOpAxes[0] != vpux::Dims4D::Act::W.ind()) {
                 return replaceExtractImagePatchesWithTranspose(origOp, rewriter, _log);
@@ -150,11 +145,11 @@ mlir::LogicalResult ConvertToReduceSumRewriter::matchAndRewrite(IE::ExtractImage
         aboveReduceSumOpAxes.push_back(vpux::Dims4D::Act::W.ind());
         // Create the array attribute containing the fused reduction axes
         mlir::MLIRContext* ctx = origOp->getContext();
-        auto axesAttr = getIntArrayAttr(ctx, makeArrayRef(aboveReduceSumOpAxes));
-        auto newReduceSumOp =
-                rewriter.create<IE::ReduceSumOp>(origOp->getLoc(), aboveReduceSumOp.input(), nullptr, axesAttr, false);
+        auto axesAttr = getIntArrayAttr(ctx, ArrayRef(aboveReduceSumOpAxes));
+        auto newReduceSumOp = rewriter.create<IE::ReduceSumOp>(origOp->getLoc(), aboveReduceSumOp.getInput(), nullptr,
+                                                               axesAttr, false);
         mlir::SmallVector<int64_t> unsqueezeAxis{vpux::Dims4D::Act::H.ind()};
-        if (belowReduceSumOp.keep_dims()) {
+        if (belowReduceSumOp.getKeepDims()) {
             unsqueezeAxis.push_back(belowReduceSumOpAxes[0]);
         }
         const auto unsqueezeAxesAttr = getIntArrayAttr(getContext(), unsqueezeAxis);
@@ -186,15 +181,15 @@ mlir::LogicalResult ConvertToSliceConcatRewriter::matchAndRewrite(IE::ExtractIma
     _log.trace("[{0}] Got '{1}' at '{2}'", getDebugName(), origOp->getName(), origOp->getLoc());
 
     // Check if ExtractImagePatches is equivalent with with NxSlice->Concat sequence
-    if (origOp.sizes() == nullptr || origOp.strides() == nullptr || origOp.rates() == nullptr ||
-        origOp.autoPadAttr() == nullptr) {
+    if (origOp.getSizes() == nullptr || origOp.getStrides() == nullptr || origOp.getRates() == nullptr ||
+        origOp.getAutoPadAttr() == nullptr) {
         return mlir::failure();
     }
 
-    const auto dataShape = getShape(origOp.data());
-    const auto sizes = parseIntArrayAttr<int64_t>(origOp.sizes());
-    const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
-    const auto rates = parseIntArrayAttr<int64_t>(origOp.rates());
+    const auto dataShape = getShape(origOp.getData());
+    const auto sizes = parseIntArrayAttr<int64_t>(origOp.getSizes());
+    const auto strides = parseIntArrayAttr<int64_t>(origOp.getStrides());
+    const auto rates = parseIntArrayAttr<int64_t>(origOp.getRates());
 
     // Check that the ExtractImagePatrches does only a transpose
     if (sizes.size() != 2 || sizes[vpux::Dims4D::Kernel::Y.ind()] == 1 ||
@@ -209,7 +204,7 @@ mlir::LogicalResult ConvertToSliceConcatRewriter::matchAndRewrite(IE::ExtractIma
     if (rates.size() != 2 || (rates[vpux::Dims4D::Kernel::Y.ind()] != 1 || rates[vpux::Dims4D::Kernel::X.ind()] != 1)) {
         return mlir::failure();
     }
-    if (origOp.autoPad() != IE::PadType::VALID) {
+    if (origOp.getAutoPad() != IE::PadType::VALID) {
         return mlir::failure();
     }
     if (dataShape[vpux::Dims4D::Act::C] != 1) {
@@ -229,12 +224,12 @@ mlir::LogicalResult ConvertToSliceConcatRewriter::matchAndRewrite(IE::ExtractIma
         return mlir::failure();
     }
 
-    auto transposeOp = mlir::dyn_cast<IE::TransposeOp>(*(origOp.output().getUsers().begin()));
+    auto transposeOp = mlir::dyn_cast<IE::TransposeOp>(*(origOp.getOutput().getUsers().begin()));
     if (transposeOp == nullptr) {
         return mlir::failure();
     }
 
-    const auto origPerm = vpux::DimsOrder::fromAffineMap(transposeOp.order_value().value());
+    const auto origPerm = vpux::DimsOrder::fromAffineMap(transposeOp.getOrderValue().value());
     if (origPerm != vpux::DimsOrder::NHWC) {
         return mlir::failure();
     }
@@ -242,14 +237,14 @@ mlir::LogicalResult ConvertToSliceConcatRewriter::matchAndRewrite(IE::ExtractIma
                origOp.getLoc());
 
     const auto dataHeight = dataShape[vpux::Dims4D::Act::H];
-    const auto sizesHeight = (parseIntArrayAttr<int64_t>(origOp.sizes()))[vpux::Dims4D::Kernel::Y.ind()];
+    const auto sizesHeight = (parseIntArrayAttr<int64_t>(origOp.getSizes()))[vpux::Dims4D::Kernel::Y.ind()];
     const auto numberOfSlices = checked_cast<size_t>(dataHeight - sizesHeight + 1);
     mlir::SmallVector<mlir::Value> sliceOpValues;
 
-    if (transposeOp.output().getUsers().empty()) {
+    if (transposeOp.getOutput().getUsers().empty()) {
         return mlir::failure();
     }
-    auto affineReshapeOp = mlir::dyn_cast<IE::AffineReshapeOp>(*(transposeOp.output().getUsers().begin()));
+    auto affineReshapeOp = mlir::dyn_cast<IE::AffineReshapeOp>(*(transposeOp.getOutput().getUsers().begin()));
 
     // Backup function to do the corresponding rewrite of pattern 2
     auto rewriteExtractImagePatchesTranspose = [&](bool suitableReshape) -> mlir::LogicalResult {
@@ -259,10 +254,10 @@ mlir::LogicalResult ConvertToSliceConcatRewriter::matchAndRewrite(IE::ExtractIma
             staticOffsets[vpux::Dims4D::Act::H.ind()] = idx;
             mlir::SmallVector<int64_t> staticSizes = to_small_vector(dataShape.raw());
             staticSizes[vpux::Dims4D::Act::H.ind()] = sizesHeight;
-            auto sliceOp =
-                    rewriter.create<IE::SliceOp>(origOp->getLoc(), origOp.data(), getIntArrayAttr(ctx, staticOffsets),
-                                                 getIntArrayAttr(ctx, staticSizes));
-            sliceOpValues.push_back(sliceOp.result());
+            auto sliceOp = rewriter.create<IE::SliceOp>(origOp->getLoc(), origOp.getData(),
+                                                        getIntArrayAttr(ctx, staticOffsets),
+                                                        getIntArrayAttr(ctx, staticSizes));
+            sliceOpValues.push_back(sliceOp.getResult());
         }
         if (suitableReshape) {
             rewriter.replaceOpWithNewOp<IE::ConcatOp>(affineReshapeOp, sliceOpValues, vpux::Dims4D::Act::C);
@@ -284,8 +279,8 @@ mlir::LogicalResult ConvertToSliceConcatRewriter::matchAndRewrite(IE::ExtractIma
             if (!transposeOp.getResult().hasOneUse()) {
                 return false;
             }
-            const auto affineReshapeDimMapping = parseIntArrayOfArrayAttr<int64_t>(affineReshapeOp.dim_mappingAttr());
-            const auto affineReshapeShapeValue = parseIntArrayAttr<int64_t>(affineReshapeOp.shape_valueAttr());
+            const auto affineReshapeDimMapping = parseIntArrayOfArrayAttr<int64_t>(affineReshapeOp.getDimMappingAttr());
+            const auto affineReshapeShapeValue = parseIntArrayAttr<int64_t>(affineReshapeOp.getShapeValueAttr());
             // AffineReshape conditions
             if (affineReshapeDimMapping.size() != 4) {
                 return false;

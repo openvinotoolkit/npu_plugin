@@ -4,18 +4,15 @@
 //
 
 #include "vpux/compiler/dialect/IE/passes/insert_identity_pool_before_op.hpp"
-#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 
-#include "vpux/compiler/utils/rewriter.hpp"
-
-#include <llvm/ADT/TypeSwitch.h>
-#include <mlir/IR/BlockAndValueMapping.h>
+#include <mlir/IR/IRMapping.h>
 
 using namespace vpux;
 
 bool vpux::IE::isEligiblePostOp(mlir::Operation* op, Logger log) {
-    const auto postOpInterface = op->getOperand(0).getDefiningOp<IE::LayerWithPostOpInterface>();
-    if (postOpInterface != nullptr && postOpInterface->getResult(0).hasOneUse()) {
+    auto postOpInterface = op->getOperand(0).getDefiningOp<IE::LayerWithPostOpInterface>();
+    if (postOpInterface != nullptr && !postOpInterface.getPostOp().has_value() &&
+        postOpInterface->getResult(0).hasOneUse()) {
         log.trace("A PostOp at {0} has already got a suitable producer", op->getLoc());
         return false;
     }
@@ -29,9 +26,9 @@ mlir::LogicalResult vpux::IE::genericIdInserter(mlir::Operation* concreteOp, con
         return mlir::failure();
     }
 
-    mlir::BlockAndValueMapping mapper;
+    mlir::IRMapping mapper;
     const SmallVector<mlir::Value> inputsToMap = {identityOp->getResult(0)};
-    mapper.map(concreteOp->getOperands(), makeArrayRef(inputsToMap));
+    mapper.map(concreteOp->getOperands(), ArrayRef(inputsToMap));
     auto* newLayerOp = rewriter.clone(*concreteOp, mapper);
     rewriter.replaceOp(concreteOp, newLayerOp->getResult(0));
 

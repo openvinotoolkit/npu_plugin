@@ -3,7 +3,18 @@
 # SPDX-License-Identifier: Apache 2.0
 #
 
+#
+
 vpux_setup_lit_tool(flatc)
+
+if(ENABLE_NPU_MONO)
+    if(NOT DEFINED ELF_SUBMODULE_PATH)
+        message(FATAL_ERROR "Graphfile schema submodule path is not set while `npu_mono` was activated")
+    endif()
+    set(SCHEMA_SOURCE_DIR ${ELF_SUBMODULE_PATH}/src/schema)
+else()
+    set(SCHEMA_SOURCE_DIR ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/elf/src/schema) # Legacy path
+endif(ENABLE_NPU_MONO)
 
 add_custom_target(copy_vpuip_schema_tests ALL
     COMMAND
@@ -11,7 +22,7 @@ add_custom_target(copy_vpuip_schema_tests ALL
             "$<TARGET_FILE_DIR:npuUnitTests>/lit-tests/schema"
     COMMAND
         ${CMAKE_COMMAND} -E copy_directory
-            "${VPUX_ELF_SOURCE_DIR}/src/schema"
+            "${SCHEMA_SOURCE_DIR}"
             "$<TARGET_FILE_DIR:npuUnitTests>/lit-tests/schema"
     COMMENT "[LIT] Copy VPUIP schema files for tests"
 )
@@ -27,16 +38,15 @@ add_custom_target(copy_lit_tests_script ALL
         COMMENT "[LIT] Copy runner script"
 )
 
-set(data_path_30XX "path('VPUX30XX/data')")
-set(data_path_37XX "path('VPUX37XX/data')")
+set(data_path_npu "path('NPU/data')")
 
-vpux_setup_lit_tests(VPUX
+vpux_setup_lit_tests(NPU
     PATTERNS "*.mlir" "*.json"
-    EXTRA_SOURCES "lit.local.cfg" "*.bin" "*.txt"
-    VARS "vpuip_schema_file" "data_path_30XX" "data_path_37XX"
+    EXTRA_SOURCES "lit.local.cfg" "*.bin" "*.txt" "*.xml"
+    VARS "vpuip_schema_file" "data_path_npu"
     PARAMS "arch"
     PARAMS_DEFAULT_VALUES "VPUX30XX"
-    SUBSTITUTIONS "vpuip_schema_file" "data_path_30XX" "data_path_37XX"
+    SUBSTITUTIONS "vpuip_schema_file" "data_path_npu"
 )
 
 set(_lit_tests_dir_full_path "$<TARGET_FILE_DIR:npuUnitTests>/lit-tests")

@@ -8,27 +8,34 @@
 #include "single_layer_tests/strided_slice.hpp"
 #include "vpu_ov1_layer_test.hpp"
 namespace LayerTestsDefinitions {
-class VPUXStridedSliceLayerTest :
+class StridedSliceLayerTestCommon :
         public StridedSliceLayerTest,
         virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
-class VPUXStridedSliceLayerTest_VPU3700 : public VPUXStridedSliceLayerTest {};
 
-class VPUXStridedSliceLayerTest_VPU3720 : public VPUXStridedSliceLayerTest {};
-class VPUXStridedSliceLayerTilingTest_VPU3720 : public VPUXStridedSliceLayerTest {};
+class StridedSliceLayerTest_NPU3700 : public StridedSliceLayerTestCommon {};
+class StridedSliceLayerTest_NPU3720 : public StridedSliceLayerTestCommon {};
+class StridedSliceNCELayerTest_NPU3720 : public StridedSliceLayerTestCommon {};
+class StridedSliceLayerTilingTest_NPU3720 : public StridedSliceLayerTestCommon {};
 
-TEST_P(VPUXStridedSliceLayerTest_VPU3700, HW) {
+TEST_P(StridedSliceLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXStridedSliceLayerTest_VPU3720, SW) {
+TEST_P(StridedSliceLayerTest_NPU3720, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXStridedSliceLayerTilingTest_VPU3720, HW) {
+TEST_P(StridedSliceNCELayerTest_NPU3720, HW) {
+    setPlatformVPU3720();
+    setDefaultHardwareModeMLIR();
+    Run();
+}
+
+TEST_P(StridedSliceLayerTilingTest_NPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -94,6 +101,15 @@ std::vector<StridedSliceSpecificParams> precommit_tests = {
         {{1, 48, 32, 32}, {0, 16, 0, 20}, {1, 32, 32, 30}, {1, 1, 1, 2}, {1, 0, 1, 0}, {1, 0, 1, 0}, {}, {}, {}},
 };
 
+std::vector<StridedSliceSpecificParams> nce_tests = {
+        {{5, 16, 16, 16}, {1, 4, 5, 10}, {0, 0, 0, 0}, {2, 7, 5, 3}, {0, 0, 0, 0}, {1, 1, 1, 1}, {}, {}, {}},
+        {{1, 48, 32, 32}, {0, 16, 0, 20}, {1, 32, 32, 30}, {1, 1, 1, 2}, {1, 0, 1, 0}, {1, 0, 1, 0}, {}, {}, {}},
+        {{1, 3, 416, 416}, {0, 0, 0, 0}, {1, 3, 416, 416}, {1, 1, 2, 2}, {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, {}},
+        {{1, 3, 416, 416}, {0, 0, 1, 0}, {1, 3, 416, 416}, {1, 1, 2, 2}, {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, {}},
+        {{1, 3, 416, 416}, {0, 0, 0, 1}, {1, 3, 416, 416}, {1, 1, 2, 2}, {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, {}},
+        {{1, 3, 416, 416}, {0, 0, 1, 1}, {1, 3, 416, 416}, {1, 1, 2, 2}, {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, {}},
+};
+
 std::vector<StridedSliceSpecificParams> tests_5d = {
         {{1, 5, 20, 32, 32},
          {0, 0, 0, 0, 0},
@@ -137,6 +153,15 @@ std::vector<StridedSliceSpecificParams> precomit_tiling_tests = {
          {},
          {},
          {}},
+        {{1, 3, 640, 640},
+         {0, 0, 0, 0},
+         {0, 0, 0, 2147483647},  // The 2147483647 value from ends is supported beacause of ResolveStridedSlice pass.
+         {1, 1, 1, 2},
+         {1, 1, 1, 1},
+         {1, 1, 1, 0},
+         {},
+         {},
+         {}},
 };
 
 [[maybe_unused]] std::vector<StridedSliceSpecificParams> testsWithNegativeStrides = {
@@ -154,6 +179,11 @@ std::vector<StridedSliceSpecificParams> precomit_tiling_tests = {
         {{1, 12, 100}, {0, -6, 0}, {0, -8, 0}, {-1, -2, -1}, {1, 0, 1}, {1, 0, 1}, {}, {}, {}},
 };
 
+std::vector<StridedSliceSpecificParams> testsConfig = {
+        {{32, 20}, {2, 10}, {32, 20}, {1, 2}, {0, 1}, {1, 0}, {}, {}, {}},
+        {{2, 5, 32, 32}, {0, 0, 0, 20}, {1, 2, 30, 30}, {1, 1, 2, 1}, {0, 0, 0, 1}, {0, 1, 0, 1}, {}, {}, {}},
+};
+
 const std::vector<InferenceEngine::Precision> InputPrecisions = {
         InferenceEngine::Precision::FP16,
         InferenceEngine::Precision::U8,
@@ -161,7 +191,9 @@ const std::vector<InferenceEngine::Precision> InputPrecisions = {
 
 using Config = std::map<std::string, std::string>;
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_StridedSlice, VPUXStridedSliceLayerTest_VPU3700,
+// --------- NPU3700 ---------
+
+INSTANTIATE_TEST_SUITE_P(smoke_StridedSlice, StridedSliceLayerTest_NPU3700,
                          ::testing::Combine(::testing::ValuesIn(tests),
                                             ::testing::Values(InferenceEngine::Precision::FP16),
                                             ::testing::ValuesIn(InputPrecisions),
@@ -172,7 +204,9 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_StridedSlice, VPUXStridedSliceLayerT
                                             ::testing::Values(Config{})),
                          StridedSliceLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_StridedSlice, VPUXStridedSliceLayerTest_VPU3720,
+// --------- NPU3720 ---------
+
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_StridedSlice, StridedSliceLayerTest_NPU3720,
                          ::testing::Combine(::testing::ValuesIn(precommit_tests),
                                             ::testing::Values(InferenceEngine::Precision::FP16),
                                             ::testing::ValuesIn(InputPrecisions),
@@ -183,7 +217,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_precommit_StridedSlice, VPUXStridedSliceLayerTest
                                             ::testing::Values(Config{})),
                          StridedSliceLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_StridedSlice_5D, VPUXStridedSliceLayerTest_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_StridedSlice, StridedSliceNCELayerTest_NPU3720,
+                         ::testing::Combine(::testing::ValuesIn(nce_tests),
+                                            ::testing::Values(InferenceEngine::Precision::FP16),
+                                            ::testing::ValuesIn(InputPrecisions),
+                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                            ::testing::Values(InferenceEngine::Layout::ANY),
+                                            ::testing::Values(InferenceEngine::Layout::ANY),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
+                                            ::testing::Values(Config{})),
+                         StridedSliceLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_StridedSlice_5D, StridedSliceLayerTest_NPU3720,
                          ::testing::Combine(::testing::ValuesIn(tests_5d),
                                             ::testing::Values(InferenceEngine::Precision::FP16),
                                             ::testing::ValuesIn(InputPrecisions),
@@ -195,7 +240,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_StridedSlice_5D, VPUXStridedSliceLayerTest_VPU372
                          StridedSliceLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_tiling_StridedSlice, VPUXStridedSliceLayerTilingTest_VPU3720,
+        smoke_tiling_StridedSlice, StridedSliceLayerTilingTest_NPU3720,
         ::testing::Combine(::testing::ValuesIn(tiling_tests), ::testing::Values(InferenceEngine::Precision::FP16),
                            ::testing::ValuesIn(InputPrecisions), ::testing::Values(InferenceEngine::Precision::FP16),
                            ::testing::Values(InferenceEngine::Layout::ANY),
@@ -203,13 +248,13 @@ INSTANTIATE_TEST_SUITE_P(
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()), ::testing::Values(Config{})),
         StridedSliceLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_tiling_StridedSlice, VPUXStridedSliceLayerTilingTest_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_tiling_StridedSlice, StridedSliceLayerTilingTest_NPU3720,
                          ::testing::Combine(::testing::ValuesIn(precomit_tiling_tests),
                                             ::testing::Values(InferenceEngine::Precision::FP16),
                                             ::testing::ValuesIn(InputPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::FP16),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
+                                            ::testing::Values(InferenceEngine::Layout::NHWC),
+                                            ::testing::Values(InferenceEngine::Layout::NHWC),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(Config{})),
                          StridedSliceLayerTest::getTestCaseName);

@@ -25,7 +25,8 @@ public:
                                              mlir::ArrayAttr kernelStrides, Logger log = Logger::global());
     static mlir::LogicalResult verifyPoolCMX(mlir::Location loc, mlir::ModuleOp module, vpux::NDTypeInterface inputType,
                                              vpux::NDTypeInterface outputType, mlir::ArrayAttr kernelSize,
-                                             mlir::ArrayAttr kernelStrides, Logger log = Logger::global());
+                                             mlir::ArrayAttr kernelStrides, bool hasActivationWindow,
+                                             Logger log = Logger::global());
     static mlir::LogicalResult verifyEltwiseCMX(mlir::Location loc, mlir::ModuleOp module, bool isInplace,
                                                 vpux::NDTypeInterface firstInputType,
                                                 vpux::NDTypeInterface secondInputType, vpux::NDTypeInterface outputType,
@@ -33,7 +34,7 @@ public:
     static mlir::LogicalResult verifyGroupConvCMX(mlir::Location loc, mlir::ModuleOp module,
                                                   vpux::NDTypeInterface inputType, vpux::NDTypeInterface filterType,
                                                   vpux::NDTypeInterface outputType, mlir::ArrayAttr kernelStrides,
-                                                  Logger log = Logger::global());
+                                                  bool hasActivationWindow, Logger log = Logger::global());
 
     static mlir::LogicalResult verifyPipeliningCMX(VPU::ConvolutionOp origOp, const vpux::OutputTiling& tiling,
                                                    Logger log = Logger::global());
@@ -104,9 +105,11 @@ public:
     static mlir::LogicalResult verifyChannels(IE::InterpolateOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyChannels(VPU::NCEInterpolateOp origOp, Logger log = Logger::global());
 
+    static mlir::LogicalResult verifyChannels(IE::TransposedConvolutionOp origOp, Logger log = Logger::global());
+
 public:
     static mlir::LogicalResult verifyKernel(IE::ConvolutionOp origOp, Logger log = Logger::global());
-    static mlir::LogicalResult verifyKernel(IE::DeconvolutionOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyKernel(IE::TransposedConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyKernel(VPU::NCEConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyKernel(VPU::NCEInterpolateOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyKernel(VPU::NCECompressConvolutionOp origOp, Logger log = Logger::global());

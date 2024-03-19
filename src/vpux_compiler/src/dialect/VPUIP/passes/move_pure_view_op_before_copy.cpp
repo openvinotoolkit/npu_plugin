@@ -3,11 +3,13 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/explicit_distribution_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/utils/allocate_buffers.hpp"
 #include "vpux/compiler/utils/permute_utils.hpp"
+#include "vpux/compiler/utils/reshape_utils.hpp"
 
 #include "vpux/compiler/utils/rewriter.hpp"
 
@@ -49,6 +51,130 @@ VPUIP::LayerOpInterface createNewTillingCopyOp(mlir::PatternRewriter& rewriter, 
     SmallVector<mlir::Value> inputsOutputOperands = {input, outputBuff};
     return rewriter.create<VPUIP::NCEClusterTilingOp>(loc, outputBuff.getType(), inputsOutputOperands,
                                                       copyOutBodyBuilder);
+}
+
+// Try to get reshape IO axes mapping when below two conditions are met:
+// 1.MemShape on target axis is not changed by reshaping.
+// 2.Data total size is not changed on both higher and lower dimension.
+
+// For example: reshape 2x64x64x32 to 128x64x4x8x1 and input axis is [d2]
+// We will get output axis [d1] and this function returns axis mapping {d2, d1}
+//  - inMemShape[d2] = 64 and
+//    outMemShape[d1] = 64
+//  - Input DataTotalSize on d2 higher dimension is 128 (2x64) and
+//    output DataTotalSize on d1 higher dimension is 128
+//  - Input DataTotalSize on d2 lower dimension is 32 and
+//    output DataTotalSize on d1 higher dimension is 32 (4x8x1)
+
+// This function would reture mlir::failure() if can not find IO axes mapping successfully.
+// Return {-1, -1} to indicate there's no numTiles and alignment attributes in distribution.
+mlir::FailureOr<std::pair<int64_t, int64_t>> getDistributedAxesMappingAfterShapeChanged(
+        vpux::NDTypeInterface reshapeInType, vpux::NDTypeInterface reshapeOutType,
+        VPU::DistributedTensorAttr copyInDistribution, Logger log) {
+    auto inOrder = reshapeInType.getDimsOrder();
+    auto outOrder = reshapeOutType.getDimsOrder();
+
+    auto parseMaxElemIndexFromArray = [](ArrayRef<int64_t> array) -> mlir::FailureOr<int64_t> {
+        const auto numDimsGreaterThanOne = std::count_if(array.begin(), array.end(), [](int64_t v) {
+            return v > 1;
+        });
+        if (numDimsGreaterThanOne != 1) {
+            return mlir::failure();
+        }
+
+        auto maxElem = std::max_element(array.begin(), array.end());
+        return std::distance(array.begin(), maxElem);
+    };
+
+    int64_t numTilesAxis = -1;
+    int64_t alignmentAxis = -1;
+
+    auto numTilesAttr = copyInDistribution.getNumTiles();
+    if (numTilesAttr != nullptr) {
+        const auto numTilesVec = parseIntArrayAttr<int64_t>(numTilesAttr);
+        auto parseNumTilesAxis = parseMaxElemIndexFromArray(numTilesVec);
+        if (!mlir::failed(parseNumTilesAxis)) {
+            numTilesAxis = parseNumTilesAxis.value();
+        }
+    }
+
+    auto alignmentAttr = copyInDistribution.getAlignment();
+    if (alignmentAttr != nullptr) {
+        const auto alignmentVec = parseIntArrayAttr<int64_t>(alignmentAttr);
+        auto parseAlignmentAxis = parseMaxElemIndexFromArray(alignmentVec);
+        if (!mlir::failed(parseAlignmentAxis)) {
+            alignmentAxis = parseAlignmentAxis.value();
+        }
+    }
+
+    if (numTilesAxis != -1 && alignmentAxis != -1 && numTilesAxis != alignmentAxis) {
+        log.trace("Unexpected numTilesAxis {0} and alignmentAxis {1} in distribution {2}", numTilesAxis, alignmentAxis,
+                  copyInDistribution);
+        return mlir::failure();
+    }
+
+    auto inAxis = numTilesAxis;
+    if (numTilesAxis == -1) {
+        inAxis = alignmentAxis;
+    }
+
+    if (inAxis == -1) {
+        log.trace("Distribution {0} does not contain numTiles or alignment attribute", copyInDistribution);
+        return std::pair(numTilesAxis, alignmentAxis);
+    }
+
+    auto inMemDim = inOrder.toMemDim(Dim(inAxis));
+    const auto inMemShape = reshapeInType.getMemShape();
+    const auto outMemShape = reshapeOutType.getMemShape();
+    const auto legalOutputMemDims = vpux::deduceLegalOutputMemDims(inMemShape, outMemShape, inMemDim);
+    if (!legalOutputMemDims.has_value()) {
+        return mlir::failure();
+    }
+
+    auto outMemDims = legalOutputMemDims.value();
+    if (outMemDims.size() != 1) {
+        return mlir::failure();
+    }
+
+    int64_t outAxis = outOrder.toDim(*outMemDims.begin()).ind();
+
+    log.trace("Got IO axes mapping {0} -> {1}", inAxis, outAxis);
+
+    return std::make_pair(inAxis, outAxis);
+}
+
+VPU::DistributedTensorAttr changeDistributedAxisOnDistributedTensorAttr(VPU::DistributedTensorAttr inDistribution,
+                                                                        int64_t inDistributionAxis,
+                                                                        int64_t outDistributionAxis,
+                                                                        int64_t outputRank) {
+    auto ctx = inDistribution.getContext();
+
+    auto generateNewArray = [&](ArrayRef<int64_t> srcArray, int64_t inAxis, int64_t outAxis) -> SmallVector<int64_t> {
+        SmallVector<int64_t> newArray(outputRank, 1);
+        VPUX_THROW_UNLESS(inAxis >= 0 && inAxis < checked_cast<int64_t>(srcArray.size()),
+                          "Input axis index is out of range {0}", inAxis);
+        VPUX_THROW_UNLESS(outAxis >= 0 && outAxis < outputRank, "Output axis index is out of range {0}", outAxis);
+        newArray[outAxis] = srcArray[inAxis];
+        return newArray;
+    };
+
+    auto numTilesAttr = inDistribution.getNumTiles();
+    if (numTilesAttr != nullptr) {
+        const auto numTilesVec = parseIntArrayAttr<int64_t>(numTilesAttr);
+        numTilesAttr = getIntArrayAttr(ctx, generateNewArray(numTilesVec, inDistributionAxis, outDistributionAxis));
+    }
+
+    auto alignmentAttr = inDistribution.getAlignment();
+    if (alignmentAttr != nullptr) {
+        const auto alignmentVec = parseIntArrayAttr<int64_t>(alignmentAttr);
+        alignmentAttr = getIntArrayAttr(ctx, generateNewArray(alignmentVec, inDistributionAxis, outDistributionAxis));
+    }
+
+    return VPU::DistributedTensorAttr::get(ctx, inDistribution.getMode(), numTilesAttr, inDistribution.getKernel(),
+                                           inDistribution.getPads(), inDistribution.getStrides(),
+                                           inDistribution.getNumClusters(), alignmentAttr,
+                                           inDistribution.getUniformDistributedSegments(), nullptr, nullptr, nullptr,
+                                           nullptr, inDistribution.getEqualMemoryAndComputeView());
 }
 
 //
@@ -102,8 +228,8 @@ mlir::LogicalResult LayerRewriterBase::matchAndRewrite(mlir::ViewLikeOpInterface
     // If shapeCast is moved before copy, instead of copying 4 channels,
     // copy operation will try to move 16 channels from memory.
     if (auto shapeCast = mlir::dyn_cast<VPUIP::ShapeCastOp>(*origOp)) {
-        auto clusterTask = mlir::dyn_cast_or_null<VPUIP::NCEClusterTaskOp>(*shapeCast.result().getUsers().begin());
-        if (clusterTask != nullptr && clusterTask.input_channels_compression() == true) {
+        auto clusterTask = mlir::dyn_cast_or_null<VPUIP::NCEClusterTaskOp>(*shapeCast.getResult().getUsers().begin());
+        if (clusterTask != nullptr && clusterTask.getInputChannelsCompression() == true) {
             return mlir::failure();
         }
     }
@@ -116,17 +242,36 @@ mlir::LogicalResult LayerRewriterBase::matchAndRewrite(mlir::ViewLikeOpInterface
     auto copyOpInputType = VPUIP::extractDataType(copyOpInput).cast<vpux::NDTypeInterface>();
     auto copyOpOutputType = VPUIP::extractDataType(copyOpOutput).cast<vpux::NDTypeInterface>();
 
+    auto viewOpInputType = origOp->getOperand(0).getType().cast<vpux::NDTypeInterface>();
     auto viewOpOutputType = origOp->getResult(0).getType().cast<vpux::NDTypeInterface>();
     auto viewOpOutputShape = viewOpOutputType.getShape();
     auto viewOpOutputElemType = viewOpOutputType.getElementType();
 
+    const auto inputShape = viewOpInputType.getShape();
+    const auto outputShape = viewOpOutputType.getShape();
+    const auto isRankChangedByViewOp = inputShape.size() != outputShape.size();
     auto distributedType = copyOpInput.getType().dyn_cast<VPUIP::DistributedBufferType>();
+    mlir::FailureOr<std::pair<int64_t, int64_t>> getDistributedAxesMapping = mlir::failure();
+    if (distributedType != nullptr && mlir::isa<VPUIP::ShapeCastOp, VPUIP::GenericReshapeOp>(origOp)) {
+        getDistributedAxesMapping = getDistributedAxesMappingAfterShapeChanged(viewOpInputType, viewOpOutputType,
+                                                                               distributedType.getDistribution(), _log);
+    }
+
+    const auto isSupportedDuplicated = [&](const VPU::DistributionMode& mode) {
+        if (isRankChangedByViewOp && mlir::failed(getDistributedAxesMapping)) {
+            return false;
+        }
+
+        return VPU::bitEnumContainsAny(mode, VPU::DistributionMode::DUPLICATED) ||
+               VPU::bitEnumContainsAny(mode, VPU::DistributionMode::MULTICASTED);
+    };
     if (distributedType != nullptr) {
-        const auto isDuplicated = [](const VPU::DistributionMode& mode) {
-            return VPU::bitEnumContains(mode, VPU::DistributionMode::DUPLICATED) ||
-                   VPU::bitEnumContains(mode, VPU::DistributionMode::MULTICASTED);
-        };
         const auto isSupportSegmented = [&](const VPU::DistributionMode& mode) {
+            // TODO: The num_tiles attribute also has to be adapted in case of different ranks
+            if (isRankChangedByViewOp) {
+                return false;
+            }
+
             if (mode != VPU::DistributionMode::SEGMENTED || !VPU::isSegmentedOverH(distributedType.getDistribution())) {
                 return false;
             }
@@ -148,22 +293,18 @@ mlir::LogicalResult LayerRewriterBase::matchAndRewrite(mlir::ViewLikeOpInterface
             }
             if (mlir::isa<VPUIP::ShapeCastOp, VPUIP::GenericReshapeOp>(origOp)) {
                 const auto arch = VPU::getArch(origOp.getOperation());
-                const auto newDistributionAttr =
-                        getSOHDistAttrWithNewShape(rewriter.getContext(), distributedType, viewOpOutputShape, arch);
-                const auto tilingScheme = parseIntArrayAttr<int64_t>(newDistributionAttr.getNumTiles());
-                const auto axis = vpux::VPU::getDistributedTilingAxis(tilingScheme);
-                const auto alignmentAttr = newDistributionAttr.getAlignment();
-                if (alignmentAttr != nullptr) {
-                    if (viewOpOutputShape[Dim(axis)] < parseIntArrayAttr<int64_t>(alignmentAttr)[axis]) {
-                        return false;
-                    }
-                }
-                return VPUIP::isDistributedCompatibleAfterShapeChange(distributedType, viewOpOutputShape, arch);
+                return VPUIP::isDistributedCompatibleAfterShapeChangeForViewOps(distributedType, viewOpOutputShape,
+                                                                                viewOpOutputType.getDimsOrder(), arch);
             }
             return false;
         };
-        const auto isSupportedOverlapping = [](const VPUIP::DistributedBufferType distType,
-                                               const mlir::ViewLikeOpInterface viewOp, const mlir::Value copyInput) {
+        const auto isSupportedOverlapping = [&](const VPUIP::DistributedBufferType distType,
+                                                const mlir::ViewLikeOpInterface viewOp, const mlir::Value copyInput) {
+            // TODO: The num_tiles attribute also has to be adapted in case of different ranks
+            if (isRankChangedByViewOp) {
+                return false;
+            }
+
             auto distribution = distType.getDistribution();
             const auto mode = distribution.getMode().getValue();
             if (mode != VPU::DistributionMode::OVERLAPPED) {
@@ -184,34 +325,12 @@ mlir::LogicalResult LayerRewriterBase::matchAndRewrite(mlir::ViewLikeOpInterface
                 }
             }
 
-            if (auto permuteCast = mlir::dyn_cast<VPUIP::PermuteCastOp>(*viewOp)) {
-                auto inOrder = permuteCast->getOperand(0).getType().cast<vpux::NDTypeInterface>().getDimsOrder();
-                auto outOrder = permuteCast->getResult(0).getType().cast<vpux::NDTypeInterface>().getDimsOrder();
-
-                auto numTilesAttr = distribution.getNumTiles();
-                const auto numTilesVec = parseIntArrayAttr<int64_t>(numTilesAttr);
-                const auto numTilesInMemOrder = inOrder.toMemoryOrder(Shape(numTilesVec));
-                const auto numTilesPermutedInMemOrder = applyPerm(numTilesInMemOrder, permuteCast.mem_perm());
-                const auto permutedNumTiles = outOrder.toLogicalOrder(numTilesPermutedInMemOrder).raw();
-
-                // Clustering axis will not be H or W after PermuteCast and will fail in OVERLAPPED distributed attr
-                // check
-                if (permutedNumTiles[Dims4D::Act::H.ind()] == 1 && permutedNumTiles[Dims4D::Act::W.ind()] == 1) {
-                    return false;
-                }
-            }
             return false;
         };
         const auto mode = distributedType.getDistribution().getMode().getValue();
-        if (!isDuplicated(mode) && !isSupportSegmented(mode) &&
+        if (!isSupportedDuplicated(mode) && !isSupportSegmented(mode) &&
             !isSupportedOverlapping(distributedType, origOp, copyOpInput)) {
             _log.trace("Not supported distributed type");
-            return mlir::failure();
-        }
-        // TODO: The num_tiles attribute also has to be adapted in case of different ranks
-        const auto inputShape = origOp->getOperand(0).getType().cast<vpux::NDTypeInterface>().getShape();
-        const auto outputShape = origOp->getResult(0).getType().cast<vpux::NDTypeInterface>().getShape();
-        if (inputShape.size() != outputShape.size()) {
             return mlir::failure();
         }
     }
@@ -235,15 +354,42 @@ mlir::LogicalResult LayerRewriterBase::matchAndRewrite(mlir::ViewLikeOpInterface
         const auto origDistribution = distributedType.getDistribution();
 
         if (auto permuteCast = mlir::dyn_cast<VPUIP::PermuteCastOp>(*origOp)) {
-            auto inOrder = permuteCast->getOperand(0).getType().cast<vpux::NDTypeInterface>().getDimsOrder();
-            auto outOrder = permuteCast->getResult(0).getType().cast<vpux::NDTypeInterface>().getDimsOrder();
+            auto inPermuteType = permuteCast->getOperand(0).getType().cast<vpux::NDTypeInterface>();
+            auto outPermuteType = permuteCast->getResult(0).getType().cast<vpux::NDTypeInterface>();
 
-            return applyPermutationOnDistributedTensorAttr(origDistribution, permuteCast.mem_perm(), inOrder, outOrder);
+            return applyPermutationOnDistributedTensorAttr(origDistribution, permuteCast.getMemPerm(),
+                                                           inPermuteType.getDimsOrder(), outPermuteType.getDimsOrder(),
+                                                           inPermuteType.getShape(), outPermuteType.getShape());
         }
 
-        return (mode == VPU::DistributionMode::SEGMENTED)
-                       ? VPUIP::getSOHDistAttrWithNewShape(ctx, distributedType, viewOpOutputShape, arch)
-                       : origDistribution;
+        if (mode == VPU::DistributionMode::SEGMENTED) {
+            return VPUIP::getSOHDistAttrWithNewShape(ctx, distributedType, viewOpOutputShape, arch);
+        }
+
+        if (mlir::isa<VPUIP::ShapeCastOp, VPUIP::GenericReshapeOp>(origOp) && isSupportedDuplicated(mode)) {
+            if (!VPU::isDistributedAttrWithExplicitShapesAndOffsets(origDistribution)) {
+                if (isRankChangedByViewOp) {
+                    auto axesMapping = getDistributedAxesMapping.value();
+                    return changeDistributedAxisOnDistributedTensorAttr(origDistribution, axesMapping.first,
+                                                                        axesMapping.second, viewOpOutputType.getRank());
+                }
+                return origDistribution;
+            }
+
+            // GenericReshape and ShapeCast can change the output shape without needing to follow any rule.
+            // Therefore, when having distributions such as SEGMENTED|DUPLICATED or SEGMENTED|MULTICASTED
+            // we might end up with the "tiling dim" not having the same shape it had at input. It is also possible for
+            // the new shape to not be tile-able over the number of clusters.
+            // However, GenericReshape & ShapeCast are ops that work on the memory view and do not need compute view
+            // at all, so to ensure we do not end up with an output with a clustering dim that cannot be tiled, we're
+            // setting distribution as DUPLICATED for output.
+            auto duplicatedOutputMode = VPU::DistributionModeAttr::get(ctx, VPU::DistributionMode::DUPLICATED);
+            return VPU::getNonOverlappedDistributedAttr(viewOpOutputShape, duplicatedOutputMode, nullptr,
+                                                        origDistribution.getNumClusters(), nullptr,
+                                                        origDistribution.getUniformDistributedSegments(), ctx);
+        }
+
+        return origDistribution;
     };
 
     if (distributedType != nullptr) {
@@ -339,8 +485,13 @@ bool isSubViewCompatibleWithDistributedBuffer(VPUIP::SubViewOp subViewOp,
     }
 
     auto tileIndexVal = tileIndex.value();
-    auto origShape = getShape(subViewOp.source());
-    auto subShape = getShape(subViewOp.result());
+    auto origShape = getShape(subViewOp.getSource());
+    auto subShape = getShape(subViewOp.getResult());
+
+    if (!VPUIP::isChannelOffsetsAndTileDimCompatibleWithClusterCopy(
+                parseIntArrayAttr<int64_t>(subViewOp.getStaticOffsetsAttr()), tileIndexVal, distributedType)) {
+        return false;
+    }
 
     // Be compatible if SubView does not shrink segmented axis
     return origShape[Dim(tileIndexVal)] == subShape[Dim(tileIndexVal)];
@@ -348,18 +499,18 @@ bool isSubViewCompatibleWithDistributedBuffer(VPUIP::SubViewOp subViewOp,
 
 mlir::LogicalResult MoveSubviewToTheFrontOfCopyBase::matchAndRewrite(VPUIP::CopyOp copyOp,
                                                                      mlir::PatternRewriter& rewriter) const {
-    auto subViewOp = copyOp.input().getDefiningOp<VPUIP::SubViewOp>();
+    auto subViewOp = copyOp.getInput().getDefiningOp<VPUIP::SubViewOp>();
     if (subViewOp == nullptr) {
         return mlir::failure();
     }
 
-    auto sourceOp = subViewOp.source().getDefiningOp();
+    auto sourceOp = subViewOp.getSource().getDefiningOp();
     if (sourceOp == nullptr) {
         // Source is BlockArgument
         return mlir::failure();
     }
 
-    auto parentCopyOp = _getCopyOp(subViewOp.source().getDefiningOp());
+    auto parentCopyOp = _getCopyOp(subViewOp.getSource().getDefiningOp());
     if (parentCopyOp == nullptr) {
         return mlir::failure();
     }
@@ -388,15 +539,15 @@ mlir::LogicalResult MoveSubviewToTheFrontOfCopyBase::matchAndRewrite(VPUIP::Copy
 
     // create and insert a new subview
     auto newSubViewOp =
-            rewriter.create<VPUIP::SubViewOp>(subViewOp->getLoc(), originOperand, subViewOp.static_offsetsAttr(),
-                                              subViewOp.static_sizesAttr(), subViewOp.static_stridesAttr());
+            rewriter.create<VPUIP::SubViewOp>(subViewOp->getLoc(), originOperand, subViewOp.getStaticOffsetsAttr(),
+                                              subViewOp.getStaticSizesAttr(), subViewOp.getStaticStridesAttr());
 
     auto subViewOpShape = getShape(newSubViewOp);
     auto allocOp = VPUIP::getRootAlloc<mlir::memref::AllocOp>(parentCopyOp.getOutputs()[0]);
     VPUX_THROW_UNLESS(allocOp, "CopyOp output buffer should be AllocationOp");
     auto allocOpDtype = allocOp->getResult(0).getType().cast<vpux::NDTypeInterface>();
     // Per-axis quantization must be aligned with the shape.
-    const auto targetElemType = newSubViewOp.result().getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto targetElemType = newSubViewOp.getResult().getType().cast<vpux::NDTypeInterface>().getElementType();
     const auto newAllocOpType = allocOpDtype.changeShapeElemType(subViewOpShape, targetElemType);
     if (mlir::isa<mlir::memref::AllocOp>(allocOp)) {
         allocOp->getResult(0).setType(allocOpDtype.changeShapeElemType(subViewOpShape, targetElemType));
@@ -410,7 +561,8 @@ mlir::LogicalResult MoveSubviewToTheFrontOfCopyBase::matchAndRewrite(VPUIP::Copy
         allocOp = newAllocOp;
     }
 
-    auto newParentOp = _createNewCopyOp(rewriter, newSubViewOp->getLoc(), newSubViewOp.result(), allocOp->getResult(0));
+    auto newParentOp =
+            _createNewCopyOp(rewriter, newSubViewOp->getLoc(), newSubViewOp.getResult(), allocOp->getResult(0));
     if (newParentOp->isBeforeInBlock(allocOp)) {
         VPUIP::moveRootAllocBefore(allocOp, newParentOp);
     }
@@ -419,7 +571,7 @@ mlir::LogicalResult MoveSubviewToTheFrontOfCopyBase::matchAndRewrite(VPUIP::Copy
     rewriter.eraseOp(parentCopyOp);
 
     // remove old subView
-    subViewOp.result().replaceAllUsesWith(subViewOp.source());
+    subViewOp.getResult().replaceAllUsesWith(subViewOp.getSource());
     rewriter.eraseOp(subViewOp);
     return mlir::success();
 }

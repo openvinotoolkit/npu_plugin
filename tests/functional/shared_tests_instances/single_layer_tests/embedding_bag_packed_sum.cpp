@@ -8,11 +8,13 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXEmbeddingBagPackedSumLayerTest_VPU3720 :
+class EmbeddingBagPackedSumLayerTestCommon :
         public EmbeddingBagPackedSumLayerTest,
         virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
-TEST_P(VPUXEmbeddingBagPackedSumLayerTest_VPU3720, HW) {
+class EmbeddingBagPackedSumLayerTest_NPU3720 : public EmbeddingBagPackedSumLayerTestCommon {};
+
+TEST_P(EmbeddingBagPackedSumLayerTest_NPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -33,7 +35,7 @@ const auto params = testing::Combine(::testing::Values(embTableShape), ::testing
 const InferenceEngine::Precision embeddingTablePrecision = InferenceEngine::Precision::FP16;
 const InferenceEngine::Precision indicesPrecisions = InferenceEngine::Precision::I32;
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_EmbeddingBagPackedSum_VPU3720, VPUXEmbeddingBagPackedSumLayerTest_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_EmbeddingBagPackedSum, EmbeddingBagPackedSumLayerTest_NPU3720,
                          ::testing::Combine(params, ::testing::Values(embeddingTablePrecision),
                                             ::testing::Values(indicesPrecisions),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),

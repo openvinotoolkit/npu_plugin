@@ -5,15 +5,8 @@
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
-#include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/VPU/ops.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
-#include <ngraph/coordinate_diff.hpp>
-
-#include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
@@ -60,16 +53,16 @@ mlir::LogicalResult ConvertSquaredDiffToSubAndPowerPass::SquaredDifferenceRewrit
         IE::SquaredDifferenceOp sqdOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Got SquaredDifferenceOp for conversion to Subtract and Power - '{0}'", sqdOp->getLoc());
 
-    auto subtract = rewriter.create<IE::SubtractOp>(sqdOp.getLoc(), sqdOp.input1(), sqdOp.input2(),
-                                                    sqdOp.auto_broadcast(), nullptr);
+    auto subtract = rewriter.create<IE::SubtractOp>(sqdOp.getLoc(), sqdOp.getInput1(), sqdOp.getInput2(),
+                                                    sqdOp.getAutoBroadcast(), nullptr, nullptr);
 
-    const SmallVector<ngraph::float16> vals = {2.f};
+    const SmallVector<ov::float16> vals = {2.f};
     const SmallVector<int64_t> shape(subtract.getType().getRank(), 1);
-    const auto baseType = mlir::RankedTensorType::get(makeArrayRef(shape), mlir::Float16Type::get(getContext()));
-    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+    const auto baseType = mlir::RankedTensorType::get(ArrayRef(shape), mlir::Float16Type::get(getContext()));
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, ArrayRef(vals));
     auto exponent = rewriter.create<Const::DeclareOp>(sqdOp.getLoc(), baseType, Const::ContentAttr::get(baseAttr));
 
-    rewriter.replaceOpWithNewOp<IE::PowerOp>(sqdOp, subtract, exponent, sqdOp.auto_broadcast());
+    rewriter.replaceOpWithNewOp<IE::PowerOp>(sqdOp, subtract, exponent, sqdOp.getAutoBroadcast());
 
     return mlir::success();
 }

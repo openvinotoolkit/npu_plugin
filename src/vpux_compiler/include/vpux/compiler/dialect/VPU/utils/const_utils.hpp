@@ -6,7 +6,7 @@
 #pragma once
 
 #include "vpux/compiler/dialect/IE/attributes.hpp"
-#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_sparsity.hpp"
 
 namespace vpux {
 namespace VPU {
@@ -17,15 +17,15 @@ std::vector<int32_t> createWeightsTableData(mlir::Value opInput, mlir::Value opO
                                             Const::ContentAttr bias, int64_t OC, vpux::VPU::PPETaskAttr ppeTaskAttr,
                                             VPU::ArchKind _arch, vpux::IE::PostOpAttr postOpAttr);
 mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location loc, ArrayRef<int32_t> weightsTable);
-Optional<SmallVector<int32_t>> createInstructionListTableData(mlir::Value opOutput, vpux::IE::PostOpAttr postOp,
-                                                              VPU::ArchKind _arch);
+std::optional<SmallVector<int32_t>> createInstructionListTableData(mlir::Value opOutput, vpux::IE::PostOpAttr postOp,
+                                                                   VPU::ArchKind _arch);
 mlir::Value createInstructionListTableTensor(mlir::OpBuilder& builder, mlir::Location loc,
-                                             const Optional<SmallVector<int32_t>>& instructionListTable);
+                                             const std::optional<SmallVector<int32_t>>& instructionListTable);
 
 mlir::Value alignDepthWiseWeightsTensor(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value origFilter);
 mlir::Value alignConvWeightsTensor(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value origFilter,
                                    const bool isCMajorConv);
-mlir::Value getZerosConst(mlir::PatternRewriter& rewriter, Shape constShape, mlir::Value input, mlir::Location loc);
+mlir::Value getZerosConst(mlir::PatternRewriter& rewriter, ShapeRef constShape, mlir::Value input, mlir::Location loc);
 mlir::Value buildWeightsConst(vpux::ShapeRef weightsShape, DimsOrder weightsOrder, ArrayRef<float> weightsValue,
                               mlir::Value activation, mlir::PatternRewriter& rewriter);
 /**
@@ -45,6 +45,14 @@ Byte calculateAlignedBuffersMemoryRequirement(VPU::ArchKind arch, mlir::SmallVec
 
 Const::DeclareOp declareFloatConst(mlir::OpBuilder& builder, mlir::Location loc, float val,
                                    mlir::RankedTensorType argType);
+
+mlir::DenseElementsAttr wrapData(const mlir::RankedTensorType dataStorageType, ArrayRef<float> values);
+mlir::FailureOr<Const::DeclareOp> updateConstStorageValues(Const::DeclareOp origConst, ArrayRef<float> constValues,
+                                                           mlir::PatternRewriter& rewriter, Logger log);
+
+bool hasNegativeValues(const Const::Content& content);
+Const::DeclareOp createFloatConst(mlir::RankedTensorType constType, ArrayRef<float> constValues, mlir::Location loc,
+                                  mlir::PatternRewriter& rewriter);
 
 }  // namespace VPU
 }  // namespace vpux

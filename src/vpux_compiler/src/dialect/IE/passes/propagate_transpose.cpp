@@ -9,11 +9,8 @@
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
-#include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
-
-#include <vpux/compiler/conversion.hpp>
 
 using namespace vpux;
 
@@ -39,23 +36,23 @@ private:
 mlir::LogicalResult MoveThroughSoftmax::matchAndRewrite(IE::SoftMaxOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Got '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
 
-    auto transposeOp = origOp.input().getDefiningOp<IE::TransposeOp>();
+    auto transposeOp = origOp.getInput().getDefiningOp<IE::TransposeOp>();
     if (transposeOp == nullptr || !transposeOp->hasOneUse()) {
         return matchFailed(_log, rewriter, origOp, "TransposeOp not found or has multiple uses");
     }
 
-    const auto softmaxInputRank = origOp.input().getType().dyn_cast<NDTypeInterface>().getRank();
-    const auto softmaxAxisInd = getPositiveAxisInd(origOp.axisIndAttr(), softmaxInputRank);
+    const auto softmaxInputRank = origOp.getInput().getType().dyn_cast<NDTypeInterface>().getRank();
+    const auto softmaxAxisInd = getPositiveAxisInd(origOp.getAxisIndAttr(), softmaxInputRank);
 
-    const auto transposePerm = DimsOrder::fromAffineMap(transposeOp.order_value().getValue());
+    const auto transposePerm = DimsOrder::fromAffineMap(transposeOp.getOrderValue().value());
     const auto newSoftmaxAxisInd = transposePerm.dimAt(softmaxAxisInd).ind();
 
     auto newSoftmaxOp =
-            rewriter.create<IE::SoftMaxOp>(origOp.getLoc(), transposeOp.input().getType(), transposeOp.input(),
-                                           getIntAttr(getContext(), newSoftmaxAxisInd), origOp.padSizeAttr());
-    auto newTransposeOp = rewriter.create<IE::TransposeOp>(transposeOp.getLoc(), newSoftmaxOp.output(),
-                                                           transposeOp.order(), transposeOp.order_valueAttr());
-    origOp.replaceAllUsesWith(newTransposeOp.output());
+            rewriter.create<IE::SoftMaxOp>(origOp.getLoc(), transposeOp.getInput().getType(), transposeOp.getInput(),
+                                           getIntAttr(getContext(), newSoftmaxAxisInd), origOp.getPadSizeAttr());
+    auto newTransposeOp = rewriter.create<IE::TransposeOp>(transposeOp.getLoc(), newSoftmaxOp.getOutput(),
+                                                           transposeOp.getOrder(), transposeOp.getOrderValueAttr());
+    origOp.replaceAllUsesWith(newTransposeOp.getOutput());
 
     return mlir::success();
 }
@@ -80,20 +77,21 @@ private:
 mlir::LogicalResult MoveThroughGelu::matchAndRewrite(IE::GeluOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Got '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
 
-    auto transposeOp = origOp.input().getDefiningOp<IE::TransposeOp>();
+    auto transposeOp = origOp.getInput().getDefiningOp<IE::TransposeOp>();
     if (transposeOp == nullptr || !transposeOp->hasOneUse()) {
         return matchFailed(_log, rewriter, origOp, "TransposeOp not found or has multiple uses");
     }
 
-    const auto transposeOrder = transposeOp.order_value();
+    const auto transposeOrder = transposeOp.getOrderValue();
     if (!transposeOrder.has_value()) {
         return matchFailed(_log, rewriter, origOp, "Found invalid TransposeOp");
     }
 
-    auto newGelu = rewriter.create<IE::GeluOp>(origOp.getLoc(), transposeOp.input().getType(), transposeOp.input());
-    auto newTransposeOp = rewriter.create<IE::TransposeOp>(transposeOp.getLoc(), newGelu.output(), transposeOp.order(),
-                                                           transposeOp.order_valueAttr());
-    origOp.replaceAllUsesWith(newTransposeOp.output());
+    auto newGelu =
+            rewriter.create<IE::GeluOp>(origOp.getLoc(), transposeOp.getInput().getType(), transposeOp.getInput());
+    auto newTransposeOp = rewriter.create<IE::TransposeOp>(transposeOp.getLoc(), newGelu.getOutput(),
+                                                           transposeOp.getOrder(), transposeOp.getOrderValueAttr());
+    origOp.replaceAllUsesWith(newTransposeOp.getOutput());
 
     return mlir::success();
 }

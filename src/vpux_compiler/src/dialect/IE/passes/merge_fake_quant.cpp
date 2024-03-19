@@ -9,7 +9,6 @@
 #include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
-#include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
@@ -35,14 +34,14 @@ private:
 
 mlir::LogicalResult MergeQuantDequant::matchAndRewrite(IE::DequantizeOp dequantizeOp,
                                                        mlir::PatternRewriter& rewriter) const {
-    auto quantizeOp = dequantizeOp.input().getDefiningOp<IE::QuantizeOp>();
+    auto quantizeOp = dequantizeOp.getInput().getDefiningOp<IE::QuantizeOp>();
     if (quantizeOp == nullptr) {
         return mlir::failure();
     }
 
     _log.trace("Got Quantize ('{0}') -> Dequantize ('{1}') pair", quantizeOp.getLoc(), dequantizeOp.getLoc());
 
-    const auto quantizeType = dequantizeOp.input().getType().cast<vpux::NDTypeInterface>();
+    const auto quantizeType = dequantizeOp.getInput().getType().cast<vpux::NDTypeInterface>();
 
     int64_t levels = 0;
     mlir::RankedTensorType attrType;
@@ -52,7 +51,7 @@ mlir::LogicalResult MergeQuantDequant::matchAndRewrite(IE::DequantizeOp dequanti
     auto rMinOp = rewriter.create<Const::DeclareOp>(dequantizeOp.getLoc(), attrType, Const::ContentAttr::get(rMinAttr));
     auto rMaxOp = rewriter.create<Const::DeclareOp>(dequantizeOp.getLoc(), attrType, Const::ContentAttr::get(rMaxAttr));
 
-    rewriter.replaceOpWithNewOp<IE::FakeQuantizeOp>(dequantizeOp, quantizeOp.input(), rMinOp.getOutput(),
+    rewriter.replaceOpWithNewOp<IE::FakeQuantizeOp>(dequantizeOp, quantizeOp.getInput(), rMinOp.getOutput(),
                                                     rMaxOp.getOutput(), rMinOp.getOutput(), rMaxOp.getOutput(), levels,
                                                     IE::AutoBroadcastType::NUMPY);
 
@@ -78,12 +77,12 @@ private:
 
 mlir::LogicalResult MergeQuantCastDequant::matchAndRewrite(IE::DequantizeOp dequantizeOp,
                                                            mlir::PatternRewriter& rewriter) const {
-    auto quantizeCastOp = dequantizeOp.input().getDefiningOp<IE::QuantizeCastOp>();
+    auto quantizeCastOp = dequantizeOp.getInput().getDefiningOp<IE::QuantizeCastOp>();
     if (quantizeCastOp == nullptr) {
         return mlir::failure();
     }
 
-    auto quantizeOp = quantizeCastOp.input().getDefiningOp<IE::QuantizeOp>();
+    auto quantizeOp = quantizeCastOp.getInput().getDefiningOp<IE::QuantizeOp>();
     if (quantizeOp == nullptr) {
         return mlir::failure();
     }
@@ -91,8 +90,8 @@ mlir::LogicalResult MergeQuantCastDequant::matchAndRewrite(IE::DequantizeOp dequ
     _log.trace("Got Quantize ('{0}') -> QuantizeCast ('{1}') -> Dequantize ('{2}') ops", quantizeOp.getLoc(),
                quantizeCastOp.getLoc(), dequantizeOp.getLoc());
 
-    const auto inputQuantizeType = quantizeCastOp.input().getType().cast<vpux::NDTypeInterface>();
-    const auto outputQuantizeCastType = dequantizeOp.input().getType().cast<vpux::NDTypeInterface>();
+    const auto inputQuantizeType = quantizeCastOp.getInput().getType().cast<vpux::NDTypeInterface>();
+    const auto outputQuantizeCastType = dequantizeOp.getInput().getType().cast<vpux::NDTypeInterface>();
 
     int64_t inLevels = 0, outLevels = 0;
     mlir::RankedTensorType inAttrType, outAttrType;
@@ -113,7 +112,7 @@ mlir::LogicalResult MergeQuantCastDequant::matchAndRewrite(IE::DequantizeOp dequ
     auto outMaxOp =
             rewriter.create<Const::DeclareOp>(dequantizeOp.getLoc(), outAttrType, Const::ContentAttr::get(outMaxAttr));
 
-    rewriter.replaceOpWithNewOp<IE::FakeQuantizeOp>(dequantizeOp, quantizeOp.input(), inMinOp.getOutput(),
+    rewriter.replaceOpWithNewOp<IE::FakeQuantizeOp>(dequantizeOp, quantizeOp.getInput(), inMinOp.getOutput(),
                                                     inMaxOp.getOutput(), outMinOp.getOutput(), outMaxOp.getOutput(),
                                                     inLevels, IE::AutoBroadcastType::NUMPY);
 

@@ -9,10 +9,6 @@
 #include "vpux/compiler/dialect/IE/utils/broadcast_utils.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
-
-#include <mlir/Pass/PassManager.h>
-#include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
 
@@ -41,11 +37,11 @@ static inline Const::DeclareOp createConstOpFromValue(mlir::PatternRewriter& rew
 }
 
 Const::DeclareOp getConstInput(IE::SubtractOp subtractOp) {
-    if (auto input2Fq = subtractOp.input2().getDefiningOp<IE::FakeQuantizeOp>()) {
-        if (auto fqConstInput = input2Fq.input().getDefiningOp<Const::DeclareOp>()) {
+    if (auto input2Fq = subtractOp.getInput2().getDefiningOp<IE::FakeQuantizeOp>()) {
+        if (auto fqConstInput = input2Fq.getInput().getDefiningOp<Const::DeclareOp>()) {
             return fqConstInput;
         }
-    } else if (auto input2Const = subtractOp.input2().getDefiningOp<Const::DeclareOp>()) {
+    } else if (auto input2Const = subtractOp.getInput2().getDefiningOp<Const::DeclareOp>()) {
         return input2Const;
     }
     return nullptr;
@@ -64,16 +60,16 @@ mlir::Value createNegativeFqVal(mlir::PatternRewriter& rewriter, mlir::Location 
 
 IE::FakeQuantizeOp createNewFq(mlir::PatternRewriter& rewriter, mlir::Location loc, mlir::Value fqInput,
                                IE::FakeQuantizeOp initialFqOp) {
-    auto fqValType = initialFqOp.input_high().getType().cast<vpux::NDTypeInterface>().getElementType();
+    auto fqValType = initialFqOp.getInputHigh().getType().cast<vpux::NDTypeInterface>().getElementType();
     const auto storageType = mlir::RankedTensorType::get({}, fqValType);
 
-    mlir::Value inLow = createNegativeFqVal(rewriter, loc, initialFqOp.input_high(), storageType);
-    mlir::Value inHigh = createNegativeFqVal(rewriter, loc, initialFqOp.input_low(), storageType);
-    mlir::Value outLow = createNegativeFqVal(rewriter, loc, initialFqOp.output_high(), storageType);
-    mlir::Value outHigh = createNegativeFqVal(rewriter, loc, initialFqOp.output_low(), storageType);
+    mlir::Value inLow = createNegativeFqVal(rewriter, loc, initialFqOp.getInputHigh(), storageType);
+    mlir::Value inHigh = createNegativeFqVal(rewriter, loc, initialFqOp.getInputLow(), storageType);
+    mlir::Value outLow = createNegativeFqVal(rewriter, loc, initialFqOp.getOutputHigh(), storageType);
+    mlir::Value outHigh = createNegativeFqVal(rewriter, loc, initialFqOp.getOutputLow(), storageType);
 
-    return rewriter.create<IE::FakeQuantizeOp>(loc, fqInput, inLow, inHigh, outLow, outHigh, initialFqOp.levels(),
-                                               initialFqOp.auto_broadcast());
+    return rewriter.create<IE::FakeQuantizeOp>(loc, fqInput, inLow, inHigh, outLow, outHigh, initialFqOp.getLevels(),
+                                               initialFqOp.getAutoBroadcast());
 }
 
 //
@@ -98,8 +94,8 @@ mlir::LogicalResult ConvertSubtractToDWConvAdd::matchAndRewrite(IE::SubtractOp s
     auto subOpLoc = subOp.getLoc();
     _log.trace("Found SubtractOp at location '{0}'", subOpLoc);
 
-    auto input1 = subOp.input1();
-    auto input2 = subOp.input2();
+    auto input1 = subOp.getInput1();
+    auto input2 = subOp.getInput2();
 
     const auto input1Shape = getShape(input1);
     const auto input2Shape = getShape(input2);
@@ -107,7 +103,7 @@ mlir::LogicalResult ConvertSubtractToDWConvAdd::matchAndRewrite(IE::SubtractOp s
         return mlir::failure();
     }
 
-    const auto elemType = subOp.output().getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto elemType = subOp.getOutput().getType().cast<vpux::NDTypeInterface>().getElementType();
 
     mlir::Value negativeInput = nullptr;
 
@@ -128,8 +124,8 @@ mlir::LogicalResult ConvertSubtractToDWConvAdd::matchAndRewrite(IE::SubtractOp s
             const auto fqArgType = mlir::RankedTensorType::get({}, elemType);
             auto fqVal = createConstOpFromValue(rewriter, subOpLoc, -1.0f, fqArgType);
             auto filterFQ = rewriter.create<IE::FakeQuantizeOp>(subOpLoc, filter, fqVal, fqVal, fqVal, fqVal,
-                                                                fqInput2.levels(), fqInput2.auto_broadcast());
-            filter = filterFQ.output();
+                                                                fqInput2.getLevels(), fqInput2.getAutoBroadcast());
+            filter = filterFQ.getOutput();
         }
 
         auto dilationsAttr = getIntArrayAttr(rewriter, SmallVector<int32_t>{1, 1});
@@ -140,12 +136,12 @@ mlir::LogicalResult ConvertSubtractToDWConvAdd::matchAndRewrite(IE::SubtractOp s
 
         auto dwConv = rewriter.create<IE::GroupConvolutionOp>(subOpLoc, input2, filter, /*bias=*/nullptr, stridesAttr,
                                                               padBeginAttr, padEndAttr, dilationsAttr, groupAttr,
-                                                              /*post_opAttr=*/nullptr);
-        negativeInput = dwConv.output();
+                                                              /*post_opAttr=*/nullptr, /*clampAttr=*/nullptr);
+        negativeInput = dwConv.getOutput();
     }
 
     if (fqInput2 != nullptr) {
-        negativeInput = createNewFq(rewriter, subOpLoc, negativeInput, fqInput2).output();
+        negativeInput = createNewFq(rewriter, subOpLoc, negativeInput, fqInput2).getOutput();
     }
 
     if (constInput2 == nullptr) {
@@ -160,19 +156,19 @@ mlir::LogicalResult ConvertSubtractToDWConvAdd::matchAndRewrite(IE::SubtractOp s
                         subOpLoc, negativeInput,
                         vpux::IE::createShapeConstForBroadCast(rewriter, ctx, subOpLoc, input1Shape), nullptr,
                         broadcastType);
-                negativeInput = inputBroadcast.output();
+                negativeInput = inputBroadcast.getOutput();
             } else {
                 inputBroadcast = rewriter.create<IE::BroadcastOp>(
                         subOpLoc, input1,
                         vpux::IE::createShapeConstForBroadCast(rewriter, ctx, subOpLoc, negativeInputShape), nullptr,
                         broadcastType);
-                input1 = inputBroadcast.output();
+                input1 = inputBroadcast.getOutput();
             }
         }
     }
 
-    rewriter.replaceOpWithNewOp<IE::AddOp>(subOp, input1, negativeInput, subOp.auto_broadcastAttr(),
-                                           /*post_op=*/nullptr);
+    rewriter.replaceOpWithNewOp<IE::AddOp>(subOp, input1, negativeInput, subOp.getAutoBroadcastAttr(),
+                                           /*post_op=*/nullptr, /*clamp=*/nullptr);
     return mlir::success();
 }
 
@@ -197,13 +193,13 @@ mlir::LogicalResult ConvertSubtractToNegativeAdd::matchAndRewrite(IE::SubtractOp
                                                                   mlir::PatternRewriter& rewriter) const {
     _log.trace("Found SubtractOp at location '{0}'", subOp.getLoc());
 
-    auto input1 = subOp.input1();
-    auto input2 = subOp.input2();
+    auto input1 = subOp.getInput1();
+    auto input2 = subOp.getInput2();
 
     auto negativeOp = rewriter.create<IE::NegativeOp>(subOp.getLoc(), input2.getType(), input2);
 
-    rewriter.replaceOpWithNewOp<IE::AddOp>(subOp, input1, negativeOp, subOp.auto_broadcastAttr(),
-                                           /*post_op=*/nullptr);
+    rewriter.replaceOpWithNewOp<IE::AddOp>(subOp, input1, negativeOp, subOp.getAutoBroadcastAttr(),
+                                           /*post_op=*/nullptr, /*clamp=*/nullptr);
     return mlir::success();
 }
 

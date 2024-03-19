@@ -5,26 +5,18 @@
 
 #include "vpux/IMD/infer_request.hpp"
 
-#include <map>
-#include <memory>
-#include <string>
-#include <vector>
-
 #include <debug.h>
-#include <ie_blob.h>
-#include <blob_factory.hpp>
+#include <openvino/runtime/make_tensor.hpp>
 #include <openvino/util/file_util.hpp>
 
-#include <vpux_variable_state.hpp>
 #include "vpux/IMD/executor.hpp"
-#include "vpux/IMD/parsed_config.hpp"
+#include "vpux/IMD/parsed_properties.hpp"
 #include "vpux/IMD/platform_helpers.hpp"
 
 #include "vpux/al/config/common.hpp"
 #include "vpux/al/config/runtime.hpp"
 
 #include <device_helpers.hpp>
-#include "vpux/utils/IE/data_attributes_check.hpp"
 #include "vpux/utils/IE/itt.hpp"
 #include "vpux/utils/IE/prefix.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
@@ -35,104 +27,141 @@
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Program.h>
 
-namespace ie = InferenceEngine;
-using namespace InferenceEngine;
+namespace {
+
+constexpr void* NO_PREALLOCATED_BUFFER = nullptr;
+constexpr bool STATE_TENSOR = true;
+constexpr bool NOT_STATE_TENSOR = false;
+
+}  // namespace
 
 namespace vpux {
 
-namespace {
-void checkNetworkPrecision(const ie::Precision& precision) {
-    if (precision != ie::Precision::FP32 && precision != ie::Precision::FP16 && precision != ie::Precision::U8 &&
-        precision != ie::Precision::I8 && precision != ie::Precision::I32 && precision != ie::Precision::U32) {
-        IE_THROW(ParameterMismatch) << "Unsupported input precision: " << precision
-                                    << "! Supported precisions: FP32, FP16, U8, I8, I32, U32";
+IMDInferRequest::IMDInferRequest(const std::shared_ptr<const ov::ICompiledModel> compiledModel,
+                                 const std::shared_ptr<const NetworkDescription> networkDescription,
+                                 const Executor::Ptr executor, const Config& config)
+        : SyncInferRequest(compiledModel, networkDescription),
+          _executorPtr(executor),
+          _config(config),
+          _logger("IMDInferRequest", config.get<LOG_LEVEL>()),
+          _inputOrder(networkDescription->getInputOrder()),
+          _outputOrder(networkDescription->getOutputOrder()) {
+    for (const std::string& inputName : _inputNames) {
+        const IONodeDescriptor& parameterDescriptor = _parameterDescriptors.at(inputName);
+
+        // No I/O buffers have been allocated so far by the plugin - allocate new ones here
+        allocate_tensor(inputName, parameterDescriptor, NO_PREALLOCATED_BUFFER, NOT_STATE_TENSOR);
+    }
+
+    for (const std::string& outputName : _outputNames) {
+        const IONodeDescriptor& resultDescriptor = _resultDescriptors.at(outputName);
+        allocate_tensor(outputName, resultDescriptor, NO_PREALLOCATED_BUFFER, NOT_STATE_TENSOR);
+    }
+
+    for (const std::string& stateName : _stateNames) {
+        const IONodeDescriptor& stateDescriptor = _stateDescriptors.at(stateName);
+        allocate_tensor(stateName, stateDescriptor, NO_PREALLOCATED_BUFFER, STATE_TENSOR);
     }
 }
 
-ie::Blob::Ptr allocateLocalBlob(const ie::TensorDesc& tensorDesc,
-                                const std::shared_ptr<InferenceEngine::IAllocator>& allocator) {
-    checkNetworkPrecision(tensorDesc.getPrecision());
-
-    ie::Blob::Ptr blob;
-    if (allocator == nullptr) {
-        blob = make_blob_with_precision(tensorDesc);
-    } else {
-        blob = make_blob_with_precision(tensorDesc, allocator);
-    }
-    if (blob == nullptr) {
-        IE_THROW() << "InputBlob is nullptr.";
-    }
-    blob->allocate();
-    return blob;
+void IMDInferRequest::infer() {
+    infer_async();
+    get_result();
 }
-}  // namespace
 
-SmallString IMD::IMDInferRequest::createTempWorkDir() {
-    _logger.trace("Create unique temporary working directory...");
+void IMDInferRequest::infer_async() {
+    _logger.debug("InferRequest::infer_async started");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "infer_async");
 
-    SmallString workDir;
-    const auto errc = llvm::sys::fs::createUniqueDirectory("vpux-IMD", workDir);
+    _logger.info("Run inference using InferenceManagerDemo application");
+
+    _workDirectory = create_temporary_work_directory();
+
+    store_compiled_model();
+    store_network_inputs();
+    run_app();
+    _logger.debug("InferRequest::infer_async finished");
+}
+
+void IMDInferRequest::get_result() {
+    _logger.debug("InferRequest::get_result started");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "get_result");
+
+    load_network_outputs();
+
+    _logger.trace("Remove the temporary working directory '{0}'", _workDirectory);
+    const auto errc = llvm::sys::fs::remove_directories(_workDirectory);
+
+    if (errc) {
+        _logger.error("Failed to remove temporary working directory : {0}", errc.message());
+    }
+
+    _logger.debug("InferRequest::get_result finished");
+}
+
+SmallString IMDInferRequest::create_temporary_work_directory() {
+    _logger.trace("Create unique temporary working directory");
+
+    SmallString _workDirectory;
+    const auto errc = llvm::sys::fs::createUniqueDirectory("vpux-IMD", _workDirectory);
     VPUX_THROW_WHEN(errc, "Failed to create temporary working directory : {0}", errc.message());
 
-    _logger.nest().trace("{0}", workDir);
+    _logger.nest().trace("{0}", _workDirectory);
 
-    return workDir;
+    return _workDirectory;
 }
 
-void IMD::IMDInferRequest::storeNetworkBlob(StringRef workDir) {
-    _logger.trace("Store the network blob...");
+void IMDInferRequest::store_compiled_model() {
+    _logger.trace("Store the compile model");
 
-    const auto& compiledBlob = static_cast<ExecutorImpl*>(_executorPtr.get())->getNetworkDesc().getCompiledNetwork();
+    const std::vector<char>& compiledModel =
+            static_cast<IMDExecutor*>(_executorPtr.get())->getNetworkDesc().getCompiledNetwork();
 
     const std::string fileName = "test.blob";
-    const auto modelFilePath = printToString("{0}/{1}", workDir, fileName);
+    const auto modelFilePath = printToString("{0}/{1}", _workDirectory.str(), fileName);
     std::ofstream file(modelFilePath, std::ios::binary);
+
     VPUX_THROW_UNLESS(file.is_open(), "Can't open file '{0}' for write", modelFilePath);
-    file.write(compiledBlob.data(), compiledBlob.size());
+
+    file.write(compiledModel.data(), compiledModel.size());
 
     _logger.nest().trace("{0}", modelFilePath);
 }
 
-void IMD::IMDInferRequest::storeNetworkInputs(StringRef workDir, const BlobMap& inputs) {
-    _logger.trace("Store the network inputs...");
+void IMDInferRequest::store_network_inputs() {
+    _logger.trace("Store the network inputs");
 
-    const auto& networkDescriptor = static_cast<ExecutorImpl*>(_executorPtr.get())->getNetworkDesc();
-    const auto& deviceInputsInfo = networkDescriptor.getDeviceInputsInfo();
+    size_t inputIndex;
 
-    for (const auto& p : deviceInputsInfo | indexed) {
-        const auto& blobName = p.value().first;
-        const auto& inputData = inputs.at(blobName);
-        const auto ind = p.index();
+    for (const auto& name : _inputAndStateInputNames) {
+        const std::shared_ptr<ov::ITensor>& inputTensor = _allTensors.at(name);
 
-        const TensorDesc& inputDataAttributes = inputData->getTensorDesc();
-        const TensorDesc& deviceDataAttributes = p.value().second->getTensorDesc();
-        checkDataAttributesMatch(inputDataAttributes, deviceDataAttributes);
+        if (!isStateOutputName(name)) {
+            inputIndex = _inputOrder.at(name);
+        } else {
+            inputIndex = _inputOrder.at(stateOutputToStateInputName(name));
+        }
 
-        const auto& dataMemoryBlob = as<MemoryBlob>(inputData);
-        VPUX_THROW_UNLESS(dataMemoryBlob != nullptr, "Got non MemoryBlob");
-
-        const auto mem = dataMemoryBlob->rmap();
-        const auto ptr = mem.as<const char*>();
-        VPUX_THROW_UNLESS(ptr != nullptr, "Blob was not allocated");
-
-        const auto inputFilePath = printToString("{0}/input-{1}.bin", workDir, ind);
+        const auto inputFilePath = printToString("{0}/input-{1}.bin", _workDirectory.str(), inputIndex);
         std::ofstream file(inputFilePath, std::ios_base::binary | std::ios_base::out);
-        VPUX_THROW_UNLESS(file.is_open(), "Can't open file '{0}' for write", inputFilePath);
-        file.write(ptr, dataMemoryBlob->byteSize());
 
-        _logger.nest().trace("{0} - {1}", blobName, inputFilePath);
+        VPUX_THROW_UNLESS(file.is_open(), "Can't open file '{0}' for write", inputFilePath);
+
+        file.write(reinterpret_cast<const char*>(inputTensor->data()), inputTensor->get_byte_size());
+
+        _logger.nest().trace("{0} - {1}", name, inputFilePath);
     }
 }
 
-void IMD::IMDInferRequest::runApp(StringRef workDir) {
-    _logger.trace("Run the application...");
+void IMDInferRequest::run_app() {
+    _logger.trace("Run the application");
 
     SmallString curPath;
     auto errc = llvm::sys::fs::current_path(curPath);
     VPUX_THROW_WHEN(errc, "Failed to get current path : {0}", errc.message());
 
     VPUX_SCOPE_EXIT {
-        _logger.nest().trace("Restore current working directory '{0}'...", curPath);
+        _logger.nest().trace("Restore current working directory '{0}'", curPath);
         errc = llvm::sys::fs::set_current_path(curPath);
 
         if (errc) {
@@ -140,17 +169,15 @@ void IMD::IMDInferRequest::runApp(StringRef workDir) {
         }
     };
 
-    _logger.nest().trace("Change current working directory to the new temporary folder '{0}'...", workDir);
-    errc = llvm::sys::fs::set_current_path(workDir);
+    _logger.nest().trace("Change current working directory to the new temporary folder '{0}'", _workDirectory.str());
+    errc = llvm::sys::fs::set_current_path(_workDirectory.str());
     VPUX_THROW_WHEN(errc, "Failed to change current path : {0}", errc.message());
 
-    _logger.nest().trace("{0}", static_cast<ExecutorImpl*>(_executorPtr.get())->getApp().runArgs);
-
     const std::string emptyString = "";
-    SmallVector<Optional<StringRef>> redirects = {
-            llvm::None,  // stdin(0)
-            llvm::None,  // stdout(1)
-            llvm::None   // stderr(2)
+    SmallVector<std::optional<StringRef>> redirects = {
+            std::nullopt,  // stdin(0)
+            std::nullopt,  // stdout(1)
+            std::nullopt   // stderr(2)
     };
 
     if (_logger.level() < LogLevel::Error) {
@@ -164,161 +191,97 @@ void IMD::IMDInferRequest::runApp(StringRef workDir) {
     }
 
     std::string errMsg;
-    const auto procErr = llvm::sys::ExecuteAndWait(
-            static_cast<ExecutorImpl*>(_executorPtr.get())->getApp().runProgram,
-            llvm::makeArrayRef(static_cast<ExecutorImpl*>(_executorPtr.get())->getApp().runArgs),
-            /*Env=*/None, llvm::makeArrayRef(redirects),
-            checked_cast<uint32_t>(static_cast<ExecutorImpl*>(_executorPtr.get())->getApp().timeoutSec),
-            /*MemoryLimit=*/0, &errMsg);
-    VPUX_THROW_WHEN(procErr != 0, "Failed to run InferenceManagerDemo : {0}", errMsg);
+    auto app = static_cast<IMDExecutor*>(_executorPtr.get())->getApp();
+    SmallVector<StringRef> args(app.runArgs.begin(), app.runArgs.end());
+    _logger.trace("exec: {0}", app.runProgram);
+    _logger.trace("args: {0}", args);
+
+    const auto procErr = llvm::sys::ExecuteAndWait(app.runProgram, args,
+                                                   /*Env=*/std::nullopt, llvm::ArrayRef(redirects),
+                                                   checked_cast<uint32_t>(app.timeoutSec),
+                                                   /*MemoryLimit=*/0, &errMsg);
+    VPUX_THROW_WHEN(procErr != 0, "Failed to run InferenceManagerDemo ({0}) : {1}", procErr, errMsg);
 }
 
-void IMD::IMDInferRequest::readFromFile(const std::string& path, const MemoryBlob::Ptr& dataMemoryBlob) {
-    const auto mem = dataMemoryBlob->rwmap();
-    const auto ptr = mem.as<char*>();
-    VPUX_THROW_UNLESS(ptr != nullptr, "Blob was not allocated");
+void IMDInferRequest::read_from_file(const std::string& path, const std::shared_ptr<ov::ITensor>& tensor) {
+    VPUX_THROW_UNLESS(tensor->data() != nullptr, "Tensor was not allocated");
 
     std::ifstream file(path, std::ios_base::binary | std::ios_base::ate);
     VPUX_THROW_UNLESS(file.is_open(), "Can't open file '{0}' for reading", path);
 
+    const std::size_t tensorByteSize = tensor->get_byte_size();
     const auto fileSize = static_cast<size_t>(file.tellg());
     file.seekg(0, std::ios_base::beg);
-    VPUX_THROW_UNLESS(fileSize == dataMemoryBlob->byteSize(), "File '{0}' contains {1} bytes, but {2} expected", path,
-                      fileSize, dataMemoryBlob->byteSize());
+    VPUX_THROW_UNLESS(fileSize == tensorByteSize, "File '{0}' contains {1} bytes, but {2} expected", path, fileSize,
+                      tensorByteSize);
 
-    file.read(ptr, static_cast<std::streamsize>(dataMemoryBlob->byteSize()));
+    file.read(reinterpret_cast<char*>(tensor->data()), static_cast<std::streamsize>(tensorByteSize));
 }
 
-void IMD::IMDInferRequest::loadNetworkOutputs(StringRef workDir, const BlobMap& outputs) {
-    _logger.trace("Load the network outputs...");
+void IMDInferRequest::load_network_outputs() {
+    _logger.trace("Load the network outputs");
 
-    const auto& networkDescriptor = static_cast<ExecutorImpl*>(_executorPtr.get())->getNetworkDesc();
-    const auto& deviceOutputsInfo = networkDescriptor.getDeviceOutputsInfo();
+    for (const auto& name : _outputAndStateOutputNames) {
+        const std::shared_ptr<ov::ITensor>& outputTensor = _allTensors.at(name);
 
-    for (const auto& p : deviceOutputsInfo | indexed) {
-        const auto& blobName = p.value().first;
-        const auto& outputData = outputs.at(blobName);
-        const auto ind = p.index();
+        const auto outputFilePath = printToString("{0}/output-{1}.bin", _workDirectory.str(), _outputOrder.at(name));
+        read_from_file(outputFilePath, outputTensor);
 
-        const TensorDesc& outputDataAttributes = outputData->getTensorDesc();
-        const TensorDesc& deviceDataAttributes = p.value().second->getTensorDesc();
-        checkDataAttributesMatch(outputDataAttributes, deviceDataAttributes);
-
-        const auto outputFilePath = printToString("{0}/output-{1}.bin", workDir, ind);
-        const MemoryBlob::Ptr& dataMemoryBlob = as<MemoryBlob>(outputData);
-        readFromFile(outputFilePath, dataMemoryBlob);
-
-        _logger.nest().trace("{0} - {1}", blobName, outputFilePath);
+        _logger.nest().trace("{0} - {1}", name, outputFilePath);
     }
 
-    const auto& profOutputsInfo = networkDescriptor.getDeviceProfilingOutputsInfo();
-    if (profOutputsInfo.size()) {
-        _logger.warning("Load profiling output");
-        IE_ASSERT(profOutputsInfo.size() == 1);
-        const auto& devProfInfo = profOutputsInfo.begin()->second;
-        const auto& devProfMemoryBlob = as<MemoryBlob>(make_blob_with_precision(devProfInfo->getTensorDesc()));
-        devProfMemoryBlob->allocate();
-        readFromFile(printToString("{0}/profiling-0.bin", workDir), devProfMemoryBlob);
-        _rawProfilingData = devProfMemoryBlob;
+    const NetworkDescription& networkDescription = static_cast<IMDExecutor*>(_executorPtr.get())->getNetworkDesc();
+    const IONodeDescriptorMap& profilingOutputDescriptors = networkDescription.getProfilingOutputDescriptors();
+
+    if (profilingOutputDescriptors.size()) {
+        _logger.info("Load profiling output");
+        OPENVINO_ASSERT(profilingOutputDescriptors.size() == 1);
+
+        const IONodeDescriptor& profilingOutputDescriptor = profilingOutputDescriptors.begin()->second;
+        const std::shared_ptr<ov::ITensor>& profilingOutputTensor = ov::make_tensor(
+                profilingOutputDescriptor.precision, profilingOutputDescriptor.transposedShape.get_shape());
+        read_from_file(printToString("{0}/profiling-0.bin", _workDirectory.str()), profilingOutputTensor);
+        _rawProfilingData = profilingOutputTensor;
     }
 }
 
-//------------------------------------------------------------------------------
-IMD::IMDInferRequest::IMDInferRequest(const ie::InputsDataMap& networkInputs, const ie::OutputsDataMap& networkOutputs,
-                                      const Executor::Ptr& executor, const Config& config,
-                                      const std::string& /*netName*/,
-                                      const std::vector<std::shared_ptr<const ov::Node>>& parameters,
-                                      const std::vector<std::shared_ptr<const ov::Node>>& results,
-                                      const NetworkIOVector& networkStatesInfo,
-                                      const std::shared_ptr<InferenceEngine::IAllocator>& allocator)
-        : IInferRequest(networkInputs, networkOutputs),
-          _executorPtr(executor),
-          _config(config),
-          _logger("IMDInferRequest", config.get<LOG_LEVEL>()),
-          _allocator(allocator),
-          _statesInfo(networkStatesInfo) {
-    if (_networkOutputs.empty() || _networkInputs.empty()) {
-        IE_THROW() << "No information about network's output/input.";
-    }
-
-    _parameters = parameters;
-    _results = results;
-
-    for (const auto& networkInput : _networkInputs) {
-        const std::string& inputName = networkInput.first;
-        const ie::TensorDesc inputTensorDesc = networkInput.second->getTensorDesc();
-
-        _inputs[inputName] = allocateLocalBlob(inputTensorDesc, _allocator);
-    }
-
-    for (const auto& networkOutput : _networkOutputs) {
-        const std::string& outputName = networkOutput.first;
-        const ie::TensorDesc outputTensorDesc = networkOutput.second->getTensorDesc();
-
-        _outputs[outputName] = allocateLocalBlob(outputTensorDesc, _allocator);
+void IMDInferRequest::check_network_precision(const ov::element::Type_t precision) {
+    switch (precision) {
+    case ov::element::Type_t::f32:
+        break;
+    case ov::element::Type_t::f16:
+        break;
+    case ov::element::Type_t::u8:
+        break;
+    case ov::element::Type_t::i8:
+        break;
+    case ov::element::Type_t::u16:
+        break;
+    case ov::element::Type_t::i16:
+        break;
+    case ov::element::Type_t::u32:
+        break;
+    case ov::element::Type_t::i32:
+        break;
+    case ov::element::Type_t::u64:
+        break;
+    case ov::element::Type_t::i64:
+        break;
+    case ov::element::Type_t::boolean:
+        break;
+    default:
+        OPENVINO_THROW("Unsupported tensor precision: " + ov::element::Type(precision).get_type_name() +
+                       "! Supported precisions: FP32, FP16, U8, I8, U16, I16, U32, I32, U64, I64, BOOLEAN");
     }
 }
 
-void IMD::IMDInferRequest::pull(const BlobMap& inputs, BlobMap& outputs) {
-    _logger.info("Run inference using InferenceManagerDemo application...");
-    _logger = _logger.nest();
-    VPUX_SCOPE_EXIT {
-        _logger = _logger.unnest();
-    };
+std::vector<ov::ProfilingInfo> IMDInferRequest::get_profiling_info() const {
+    OPENVINO_ASSERT(_rawProfilingData->data() != nullptr);
 
-    const auto workDir = createTempWorkDir();
-    VPUX_SCOPE_EXIT {
-        _logger.trace("Remove the temporary working directory '{0}'...", workDir);
-        const auto errc = llvm::sys::fs::remove_directories(workDir);
-
-        if (errc) {
-            _logger.error("Failed to remove temporary working directory : {0}", errc.message());
-        }
-    };
-
-    storeNetworkBlob(workDir.str());
-    storeNetworkInputs(workDir.str(), inputs);
-    runApp(workDir.str());
-    loadNetworkOutputs(workDir.str(), outputs);
-}
-
-void IMD::IMDInferRequest::InferImpl() {
-    InferAsync();
-    GetResult();
-}
-
-void IMD::IMDInferRequest::InferAsync() {
-    _logger.debug("InferRequest::InferAsync started");
-    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "InferAsync");
-
-    execDataPreprocessing(_inputs);
-}
-
-IMD::LayerStatistics IMD::IMDInferRequest::GetPerformanceCounts() const {
-    const auto mem = _rawProfilingData->rmap();
-    const auto rawBytes = mem.as<const uint8_t*>();
-    IE_ASSERT(rawBytes != nullptr);
-    auto executorPtr = static_cast<ExecutorImpl*>(_executorPtr.get());
-    const auto& compiledBlob = executorPtr->getNetworkDesc().getCompiledNetwork();
-    return getLayerStatistics(rawBytes, _rawProfilingData->byteSize(), compiledBlob);
-}
-
-std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> IMD::IMDInferRequest::QueryState() {
-    for (auto& stateInfo : _statesInfo) {
-        const auto readValueName = READVALUE_PREFIX + stateInfo.first;
-
-        IE_ASSERT(1 == _networkInputs.count(readValueName));
-        IE_ASSERT(1 == _networkOutputs.count(ASSIGN_PREFIX + stateInfo.first));
-
-        _states.push_back(std::make_shared<VariableState>(stateInfo.first, this->GetBlob(readValueName)));
-    }
-    return _states;
-}
-
-void IMD::IMDInferRequest::GetResult() {
-    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "GetResult");
-    pull(_inputs, _outputs);
-    _logger.debug("InferRequest::GetResult finished");
+    auto executorPtr = static_cast<IMDExecutor*>(_executorPtr.get());
+    const auto& compiledModel = executorPtr->getNetworkDesc().getCompiledNetwork();
+    return profiling::getLayerStatistics(reinterpret_cast<const uint8_t*>(_rawProfilingData->data()),
+                                         _rawProfilingData->get_byte_size(), compiledModel);
 }
 
 }  // namespace vpux

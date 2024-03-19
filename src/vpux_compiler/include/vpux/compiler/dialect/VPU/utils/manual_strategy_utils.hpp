@@ -9,6 +9,10 @@ namespace vpux {
 
 constexpr StringLiteral multiClusterStrategy = "multiClusterStrategy";  // only be used for manual strategy utils
 constexpr StringLiteral tilingStrategy = "tilingStrategy";
-constexpr StringLiteral defaultNoStrategy = "NONE";
+constexpr StringLiteral defaultNoValue = "NONE";
+constexpr StringLiteral verticalFusion = "verticalFusion";  // only be used for manual strategy utils
+constexpr StringLiteral verticalFusionHash = "verticalFusionHash";
+constexpr StringLiteral layerTypeName = "layerType";
+constexpr StringLiteral updatedVFTiling = "updatedVFTiling";
 
 }  // namespace vpux

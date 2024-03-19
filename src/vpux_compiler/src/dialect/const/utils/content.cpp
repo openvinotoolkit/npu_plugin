@@ -40,8 +40,8 @@ Const::Content vpux::Const::Content::allocTempBuffer(vpux::NDTypeInterface type,
     const Bit tempElemBitSize = vpux::getElemTypeSize(storageElemType);
     const auto tempBufRawBitSize = alignMemSize(tempElemBitSize * tempBufSize, Byte(1));
 
-    content._tempBuf.reset(new char[Byte(tempBufRawBitSize).count()]);
-    content._data = makeArrayRef(content._tempBuf.get(), Byte(tempBufRawBitSize).count());
+    content._tempBuf = std::shared_ptr<char[]>(new char[Byte(tempBufRawBitSize).count()]);
+    content._data = ArrayRef(content._tempBuf.get(), Byte(tempBufRawBitSize).count());
 
     return content;
 }
@@ -54,8 +54,8 @@ Const::Content vpux::Const::Content::allocTempBuffer(vpux::NDTypeInterface type,
     content._storageElemType = storageElemType;
     content._isSplat = isSplat;
 
-    content._tempBuf.reset(new char[tempBufRawSize]);
-    content._data = makeArrayRef(content._tempBuf.get(), tempBufRawSize);
+    content._tempBuf = std::shared_ptr<char[]>(new char[tempBufRawSize]);
+    content._data = ArrayRef(content._tempBuf.get(), tempBufRawSize);
 
     return content;
 }
@@ -71,10 +71,33 @@ Const::Content vpux::Const::Content::moveBuffer(vpux::NDTypeInterface type, Cons
     content._isSplat = other._isSplat;
 
     content._data = other._data;
-    other._data = None;
+    other._data = std::nullopt;
 
     if (other._tempBuf != nullptr) {
         content._tempBuf = std::move(other._tempBuf);
+    }
+
+    return content;
+}
+
+// The Content object might not own the referred data. This function ensures the returned Content object owns the
+// referred data by copying it into a new buffer when needed
+Const::Content vpux::Const::Content::copyUnownedBuffer() {
+    if (_tempBuf != nullptr) {
+        return *this;
+    }
+
+    Const::Content content;
+    content._type = _type;
+    content._storageElemType = _storageElemType;
+    content._isSplat = _isSplat;
+    content._data = _data;
+
+    if (!_data.empty()) {
+        const auto dataSize = _data.size();
+        content._tempBuf = std::shared_ptr<char[]>(new char[dataSize]);
+        std::copy_n(_data.begin(), dataSize, content._tempBuf.get());
+        content._data = ArrayRef(content._tempBuf.get(), dataSize);
     }
 
     return content;
@@ -103,35 +126,84 @@ void fillBuf(const Range& range, MutableArrayRef<char> buf) {
 
 }  // namespace
 
-void vpux::Const::Content::copyTo(MutableArrayRef<char> buf) const {
-    const auto elemType = getType().getElementType();
-    const Bit elemSize = vpux::getElemTypeSize(elemType);
-    const bool isTrivialStorage = (elemType == _storageElemType);
-    const bool isSubByte = elemSize.count() < CHAR_BIT;
-    // Dispatch is required when:
-    // 1. The buffer is splat and expressed type doesn't match stored type (non-trivial).
-    // 2. The buffer is splat and elements are not packed (fillBuf doesn't work after bitPack).
-    // Otherwise, plain copy will do the trick.
-    if (!_isSplat && (isTrivialStorage || isSubByte)) {
-        VPUX_THROW_UNLESS(buf.size() >= _data.size(),
-                          "Byte sizes of the input buffer '{0}' is smaller then stored elements '{1}' ", buf.size(),
-                          _data.size());
-        std::memcpy(buf.data(), _data.data(), _data.size());
-    } else if (_isSplat && isSubByte) {
-        // dipatchByElemType does not handle subbyte types
+void vpux::Const::Content::copySubByteContent(MutableArrayRef<char> targetData, mlir::Type elemType) const {
+    if (_isSplat) {
+        const Bit elemSize = vpux::getElemTypeSize(elemType);
         const auto numShifts = CHAR_BIT / elemSize.count();
         uint8_t byteValue = 0;
-        const auto subByteValue = _data.front();
+        auto subByteValue = _data.front();
+
+        // Previously, in the case of a splat boolean tensor, the value "true" was interpreted as 0x01
+        // Now LLVM interprets the value as 0xff
+        // This change helps to preserve the logic of handling constants on our end
+        // More info here: https://reviews.llvm.org/D133743
+        if (_storageElemType.isInteger(1)) {
+            subByteValue &= 1;
+        }
+
         for (int64_t shift = 0; shift < numShifts; shift++) {
             byteValue = (byteValue << elemSize.count()) + subByteValue;
         }
-        std::fill(buf.begin(), buf.end(), byteValue);
-    } else {
-        dispatchByElemType<void>(elemType, [this, buf](auto dummy) {
-            using ElemT = std::decay_t<decltype(dummy)>;
-            fillBuf(this->getValues<ElemT>(), buf);
-        });
+        std::fill(targetData.begin(), targetData.end(), byteValue);
+        return;
     }
+
+    // The source data might be stored with each sub-byte element into an individual byte.
+    // This can happen when using the `ConvertElemType<i1>` transformation which does not alter the underlying data.
+    // If the target buffer for the copy is smaller than the source buffer, the data will be packed if that is possible.
+    // e.g. source data contains bytes with values 1 or 0 representing (i.e. boolean element type) while the target
+    // buffer contains 1/8th of elements - the source values will be packed into bytes in the target buffer
+    if (targetData.size() < _data.size()) {
+        VPUX_THROW_UNLESS(_data.size() % targetData.size() == 0,
+                          "Cannot pack sub-byte elements into buffer: source data size '{0}', target data size '{1}'",
+                          _data.size(), targetData.size());
+
+        auto sourceValues = getValues<int8_t>();
+        const auto elemPerByte = sourceValues.size() / targetData.size();
+        VPUX_THROW_UNLESS(elemPerByte <= CHAR_BIT && vpux::isPowerOfTwo(elemPerByte),
+                          "Invalid number of elements per byte '{0}'", elemPerByte);
+
+        const auto bits = CHAR_BIT / elemPerByte;
+        const char mask = checked_cast<uint8_t>(checked_cast<uint16_t>(std::pow(2, bits)) - 1);
+        for (size_t idx = 0; idx < sourceValues.size(); idx += elemPerByte) {
+            uint8_t byte = 0;
+            uint8_t shift = 0;
+            for (int64_t elemIdx = elemPerByte - 1; elemIdx >= 0; --elemIdx) {
+                byte |= (sourceValues[idx + elemIdx] & mask) << shift;
+                shift += bits;
+            }
+            targetData[idx / elemPerByte] = byte;
+        }
+
+        return;
+    }
+
+    std::memcpy(targetData.data(), _data.data(), _data.size());
+}
+
+void vpux::Const::Content::copyTo(MutableArrayRef<char> targetData) const {
+    const auto elemType = getType().getElementType();
+    const Bit elemSize = vpux::getElemTypeSize(elemType);
+    const auto isSubByte = elemSize.count() < CHAR_BIT;
+
+    if (isSubByte) {
+        copySubByteContent(targetData, elemType);
+        return;
+    }
+
+    const bool isTrivialStorage = (elemType == _storageElemType);
+    if (!_isSplat && isTrivialStorage) {
+        VPUX_THROW_UNLESS(targetData.size() >= _data.size(),
+                          "Byte sizes of the target buffer '{0}' is smaller then storage buffer '{1}' ",
+                          targetData.size(), _data.size());
+        std::memcpy(targetData.data(), _data.data(), _data.size());
+        return;
+    }
+
+    dispatchByElemType<void>(elemType, [this, targetData](auto dummy) {
+        using ElemT = std::decay_t<decltype(dummy)>;
+        fillBuf(this->getValues<ElemT>(), targetData);
+    });
 }
 
 //

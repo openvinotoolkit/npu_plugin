@@ -7,8 +7,8 @@
 
 #include <blob_factory.hpp>
 
-#include <ngraph/runtime/reference/power.hpp>
-#include "ngraph/runtime/reference/autobroadcast_binop.hpp"
+#include <openvino/reference/autobroadcast_binop.hpp>
+#include <openvino/reference/power.hpp>
 
 namespace {
 
@@ -16,7 +16,7 @@ BlobVector refPower(const TestNetwork::NodePtr& layer, const BlobVector& inputs,
     IE_ASSERT(layer != nullptr);
     IE_ASSERT(inputs.size() == 2);
 
-    const auto powerLayer = std::dynamic_pointer_cast<ngraph::op::v1::Power>(layer);
+    const auto powerLayer = std::dynamic_pointer_cast<ov::op::v1::Power>(layer);
     IE_ASSERT(powerLayer != nullptr);
 
     const auto input1 = inputs.at(0);
@@ -35,8 +35,8 @@ BlobVector refPower(const TestNetwork::NodePtr& layer, const BlobVector& inputs,
     IE_ASSERT(input2Ptr != nullptr);
     IE_ASSERT(outputPtr != nullptr);
 
-    ngraph::runtime::reference::power(input1Ptr, input2Ptr, outputPtr, layer->input(0).get_shape(),
-                                      layer->input(1).get_shape(), powerLayer->get_autob());
+    ov::reference::power(input1Ptr, input2Ptr, outputPtr, layer->input(0).get_shape(), layer->input(1).get_shape(),
+                         powerLayer->get_autob());
 
     return {output};
 };
@@ -44,8 +44,8 @@ BlobVector refPower(const TestNetwork::NodePtr& layer, const BlobVector& inputs,
 }  // namespace
 
 TestNetwork& PowerLayerDef::build() {
-    const auto node = std::make_shared<ngraph::op::v1::Power>(testNet.getPort(input1Port), testNet.getPort(input2Port),
-                                                              broadcastSpec);
+    const auto node = std::make_shared<ov::op::v1::Power>(testNet.getPort(input1Port), testNet.getPort(input2Port),
+                                                          broadcastSpec);
 
     return testNet.addLayer(name, node, refPower);
 }

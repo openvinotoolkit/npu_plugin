@@ -22,4 +22,20 @@ def UnrollClusterTiling : PassBase<"unroll-cluster-tiling", "vpux::FunctionPass"
     let constructor = "vpux::VPUIP::arch37xx::createUnrollClusterTilingPass()";
 }
 
+//
+// AddSwKernelCacheHandlingOps
+//
+
+def AddSwKernelCacheHandlingOps : PassBase<"add-sw-kernel-cache-handling-ops", "vpux::FunctionPass"> {
+    let summary = "Add cache-handling ops for SW Kernels";
+
+    let description = [{
+        This pass adds a CACHE_FLUSH_INVALIDATE SwKernel after each SwKernel that has at least
+        one input or output buffers located in DDR such that the ActSHAVE cache is both flushed
+        and invalidated right after an ActSHAVE Kernel reads/writes to DDR, through the cache.
+    }];
+
+    let constructor = "vpux::VPUIP::arch37xx::createAddSwKernelCacheHandlingOpsPass()";
+}
+
 #endif

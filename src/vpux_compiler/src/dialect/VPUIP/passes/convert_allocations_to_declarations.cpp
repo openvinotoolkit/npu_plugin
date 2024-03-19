@@ -5,9 +5,6 @@
 
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/dialect/const/ops.hpp"
-
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;

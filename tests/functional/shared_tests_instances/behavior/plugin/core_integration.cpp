@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2018-2020 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
@@ -6,11 +5,12 @@
 #include "behavior/plugin/core_integration.hpp"
 #include <functional_test_utils/skip_tests_config.hpp>
 #include "common/functions.h"
+#include "common/utils.hpp"
+#include "common/vpu_test_env_cfg.hpp"
 #include "common_test_utils/file_utils.hpp"
-#include "vpu_test_env_cfg.hpp"
+#include "vpux/properties.hpp"
 #include "vpux/utils/plugin/plugin_name.hpp"
-#include "vpux/vpux_metrics.hpp"
-#include "vpux_private_config.hpp"
+#include "vpux_private_properties.hpp"
 
 using namespace LayerTestsUtils;
 using namespace BehaviorTestsDefinitions;
@@ -19,25 +19,39 @@ using IEClassGetConfigTest_nightly = IEClassGetConfigTest;
 
 namespace {
 std::vector<std::string> devices = {
-        std::string(CommonTestUtils::DEVICE_KEEMBAY),
+        std::string(ov::test::utils::DEVICE_NPU),
 };
 
 std::pair<std::string, std::string> plugins[] = {
-        std::make_pair(std::string(vpux::VPUX_PLUGIN_LIB_NAME), std::string(CommonTestUtils::DEVICE_KEEMBAY)),
+        std::make_pair(std::string(vpux::VPUX_PLUGIN_LIB_NAME), std::string(ov::test::utils::DEVICE_NPU)),
 };
 
-static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
+namespace IEClassBasicTestName {
+static std::string getTestCaseName(testing::TestParamInfo<std::pair<std::string, std::string>> obj) {
     std::ostringstream result;
-    result << "targetDevice=" << LayerTestsUtils::getTestsPlatformFromEnvironmentOr(obj.param);
+    result << "OVClassBasicTestName_" << obj.param.first << "_" << obj.param.second;
+    result << "_targetDevice=" << LayerTestsUtils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
 
     return result.str();
 }
+}  // namespace IEClassBasicTestName
+
+namespace IETestName {
+static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
+    std::ostringstream result;
+    result << "OVClassNetworkTestName_" << obj.param;
+    result << "_targetDevice=" << LayerTestsUtils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
+
+    return result.str();
+}
+}  // namespace IETestName
 
 //
 // IE Class Common tests with <pluginName, deviceName params>
 //
 
-INSTANTIATE_TEST_SUITE_P(IEClassBasicTestP_smoke, IEClassBasicTestP, ::testing::ValuesIn(plugins));
+INSTANTIATE_TEST_SUITE_P(IEClassBasicTestP_smoke, IEClassBasicTestP, ::testing::ValuesIn(plugins),
+                         IEClassBasicTestName::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_IEClassNetworkTestP_smoke, IEClassNetworkTestP, ::testing::ValuesIn(devices));
 
@@ -67,7 +81,7 @@ TEST_P(IEClassNetworkTestP_VPU, smoke_ExportUsingFileNameImportFromStreamNoThrow
         ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualCnnNetwork, target_device));
         SKIP_IF_NOT_IMPLEMENTED(executableNetwork.Export(fileName));
     }
-    if (CommonTestUtils::fileExists(fileName)) {
+    if (ov::test::utils::fileExists(fileName)) {
         {
             std::ifstream strm(fileName);
             SKIP_IF_NOT_IMPLEMENTED(executableNetwork = ie.ImportNetwork(strm, target_device));
@@ -94,16 +108,16 @@ TEST_P(IEClassNetworkTestP_VPU_GetMetric, smoke_OptimizationCapabilitiesReturnsF
     ASSERT_EQ(optimizationCapabilities.front(), METRIC_VALUE(FP16));
 }
 
-using CanGetCorrectProperyValue_VPU = IEClassNetworkTestP_VPU;
-TEST_P(CanGetCorrectProperyValue_VPU, CanGetCorrectProperyValueCompileFirst) {
+using IEClassNetworkTestP_GetOptimalNumberOfInferRequests_VPU = IEClassNetworkTestP_VPU;
+TEST_P(IEClassNetworkTestP_GetOptimalNumberOfInferRequests_VPU, PluginValueAfterCompilationEqualToModelValue) {
     ov::Core ie;
     ie.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT));
     auto model = ngraph::builder::subgraph::makeConvPoolRelu();
 
-    ov::CompiledModel exeNetwork = ie.compile_model(model, "NPU");
+    ov::CompiledModel exeNetwork = ie.compile_model(model, target_device);
     auto getPropertyViaModel = exeNetwork.get_property(ov::optimal_number_of_infer_requests);
 
-    auto getPropertyViaCore = ie.get_property("NPU", ov::optimal_number_of_infer_requests);
+    auto getPropertyViaCore = ie.get_property(target_device, ov::optimal_number_of_infer_requests);
 
     std::cout << "ov::Core::get_property(ov::optimal_number_of_infer_requests) returned:\t = " << getPropertyViaCore
               << std::endl;
@@ -113,14 +127,14 @@ TEST_P(CanGetCorrectProperyValue_VPU, CanGetCorrectProperyValueCompileFirst) {
     ASSERT_EQ(getPropertyViaModel, getPropertyViaCore);
 }
 
-TEST_P(CanGetCorrectProperyValue_VPU, CanGetCorrectProperyValueCompileSecond) {
+TEST_P(IEClassNetworkTestP_GetOptimalNumberOfInferRequests_VPU, PluginValueBeforeCompilationEqualToModelValue) {
     ov::Core ie;
     ie.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT));
     auto model = ngraph::builder::subgraph::makeConvPoolRelu();
 
-    auto getPropertyViaCore = ie.get_property("NPU", ov::optimal_number_of_infer_requests);
+    auto getPropertyViaCore = ie.get_property(target_device, ov::optimal_number_of_infer_requests);
 
-    ov::CompiledModel exeNetwork = ie.compile_model(model, "NPU");
+    ov::CompiledModel exeNetwork = ie.compile_model(model, target_device);
     auto getPropertyViaModel = exeNetwork.get_property(ov::optimal_number_of_infer_requests);
 
     std::cout << "ov::Core::get_property(ov::optimal_number_of_infer_requests) returned:\t = " << getPropertyViaCore
@@ -131,20 +145,20 @@ TEST_P(CanGetCorrectProperyValue_VPU, CanGetCorrectProperyValueCompileSecond) {
     ASSERT_EQ(getPropertyViaModel, getPropertyViaCore);
 }
 
-INSTANTIATE_TEST_SUITE_P(OVClassGetMetricTest_VPU3720, CanGetCorrectProperyValue_VPU, ::testing::ValuesIn(devices));
-INSTANTIATE_TEST_SUITE_P(OVClassGetMetricTest_VPU3700, CanGetCorrectProperyValue_VPU, ::testing::ValuesIn(devices));
+INSTANTIATE_TEST_SUITE_P(OVClassGetMetricTest, IEClassNetworkTestP_GetOptimalNumberOfInferRequests_VPU,
+                         ::testing::ValuesIn(devices), IETestName::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_IEClassGetMetricP, IEClassNetworkTestP_VPU_GetMetric,
                          ::testing::ValuesIn(devices));
 
 // TODO: enable with HETERO
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_IEClassImportExportTestP, IEClassNetworkTestP_VPU,
-                         ::testing::Values(std::string(CommonTestUtils::DEVICE_KEEMBAY)));
+                         ::testing::Values(std::string(ov::test::utils::DEVICE_NPU)));
 
 #if defined(ENABLE_MKL_DNN) && ENABLE_MKL_DNN
 
 INSTANTIATE_TEST_SUITE_P(smoke_IEClassImportExportTestP_HETERO_CPU, IEClassNetworkTestP_VPU,
-                         ::testing::Values("HETERO:" + std::string(CommonTestUtils::DEVICE_KEEMBAY) + ",CPU"));
+                         ::testing::Values("HETERO:" + std::string(ov::test::utils::DEVICE_NPU) + ",CPU"));
 
 #endif
 
@@ -153,22 +167,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_IEClassImportExportTestP_HETERO_CPU, IEClassNetwo
 //
 
 INSTANTIATE_TEST_SUITE_P(IEClassGetMetricTest_nightly, IEClassGetMetricTest_ThrowUnsupported,
-                         ::testing::ValuesIn(devices));
+                         ::testing::ValuesIn(devices), IETestName::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(IEClassGetMetricTest_nightly, IEClassGetMetricTest_AVAILABLE_DEVICES,
-                         ::testing::ValuesIn(devices));
+                         ::testing::ValuesIn(devices), IETestName::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(IEClassGetMetricTest_nightly, IEClassGetMetricTest_SUPPORTED_METRICS,
-                         ::testing::ValuesIn(devices));
+                         ::testing::ValuesIn(devices), IETestName::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(IEClassGetMetricTest_nightly, IEClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
-                         ::testing::ValuesIn(devices));
+                         ::testing::ValuesIn(devices), IETestName::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(IEClassGetMetricTest_nightly, IEClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
-                         ::testing::ValuesIn(devices));
+                         ::testing::ValuesIn(devices), IETestName::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(IEClassGetMetricTest_nightly, IEClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
-                         ::testing::ValuesIn(devices));
+                         ::testing::ValuesIn(devices), IETestName::getTestCaseName);
 
 //
 // IE Class GetConfig
@@ -177,7 +191,7 @@ INSTANTIATE_TEST_SUITE_P(IEClassGetMetricTest_nightly, IEClassGetMetricTest_RANG
 INSTANTIATE_TEST_SUITE_P(DISABLED_IEClassGetConfigTest_nightly, IEClassGetConfigTest, ::testing::ValuesIn(devices));
 
 INSTANTIATE_TEST_SUITE_P(IEClassGetConfigTest_nightly, IEClassGetConfigTest_ThrowUnsupported,
-                         ::testing::ValuesIn(devices));
+                         ::testing::ValuesIn(devices), IETestName::getTestCaseName);
 
 // IE Class Query network
 
@@ -185,7 +199,7 @@ class IEClassQueryNetworkTest_VPU : public IEClassQueryNetworkTest {
 public:
     void SetUp() override {
         IEClassQueryNetworkTest::SetUp();
-        config[VPUX_CONFIG_KEY(PLATFORM)] = LayerTestsUtils::getTestsPlatformFromEnvironmentOr("3700");
+        config[ov::intel_vpux::platform.name()] = LayerTestsUtils::getTestsPlatformFromEnvironmentOr("3700");
     }
 
 protected:
@@ -206,22 +220,19 @@ TEST_P(IEClassQueryNetworkTest_VPU, QueryNetworkWithCorrectDeviceID) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(IEClassQueryNetworkTest_smoke, IEClassQueryNetworkTest_VPU, ::testing::ValuesIn(devices));
+INSTANTIATE_TEST_SUITE_P(IEClassQueryNetworkTest_smoke, IEClassQueryNetworkTest_VPU, ::testing::ValuesIn(devices),
+                         IETestName::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_IEClassQueryNetworkTest_smoke, IEClassQueryNetworkTest, ::testing::ValuesIn(devices));
 
 // IE Class Load network
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_IEClassLoadNetworkTest_smoke, IEClassLoadNetworkTest,
-                         ::testing::ValuesIn(devices));
+INSTANTIATE_TEST_SUITE_P(IEClassLoadNetworkTest_smoke, IEClassLoadNetworkTest, ::testing::ValuesIn(devices));
 
 TEST_P(IEClassLoadNetworkTest, checkBlobCachingSingleDevice) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    if (LayerTestsUtils::getTestsPlatformFromEnvironmentOr("3700").find("_EMU") != std::string::npos)
-        GTEST_SKIP() << "Test disabled for emulator platform.";
-
-    CommonTestUtils::removeFilesWithExt("cache", "blob");
-    CommonTestUtils::removeDir("cache");
+    ov::test::utils::removeFilesWithExt("cache", "blob");
+    ov::test::utils::removeDir("cache");
     InferenceEngine::Core ie;
 
     // [Track number: E#20961]
@@ -262,8 +273,8 @@ TEST_P(IEClassLoadNetworkTest, checkBlobCachingSingleDevice) {
         std::cout << "[TIME] First LoadNetwork time: " << first_time.count() << std::endl;
         std::cout << "[TIME] Second LoadNetwork time: " << second_time.count() << std::endl;
 
-        CommonTestUtils::removeFilesWithExt("cache", "blob");
-        CommonTestUtils::removeDir("cache");
+        ov::test::utils::removeFilesWithExt("cache", "blob");
+        ov::test::utils::removeDir("cache");
 
         ASSERT_GE(first_time.count(), second_time.count());
     } else {
@@ -324,7 +335,7 @@ TEST_P(IEClassGetMetricTest_DEVICE_ARCHITECTURE, GetAllArchitectures) {
 }
 
 INSTANTIATE_TEST_CASE_P(IEClassGetMetricTest_nightly, IEClassGetMetricTest_DEVICE_ARCHITECTURE,
-                        ::testing::ValuesIn(devices));
+                        ::testing::ValuesIn(devices), IETestName::getTestCaseName);
 
 // Testing private VPU Plugin metric "BACKEND_NAME"
 using IEClassGetMetricTest_BACKEND_NAME = BehaviorTestsUtils::IEClassBaseTestP;
@@ -333,9 +344,9 @@ TEST_P(IEClassGetMetricTest_BACKEND_NAME, GetBackendName) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     InferenceEngine::Core ie;
 
-    const std::unordered_set<std::string> availableBackends = {"LEVEL0", "EMULATOR"};
+    const std::unordered_set<std::string> availableBackends = {"LEVEL0"};
     const auto deviceIDs = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
-    const auto backendName = ie.GetMetric(target_device, VPUX_METRIC_KEY(BACKEND_NAME)).as<std::string>();
+    const auto backendName = ie.GetMetric(target_device, ov::intel_vpux::backend_name.name()).as<std::string>();
     std::cout << "Devices: " << deviceIDs.size() << std::endl;
     std::cout << "Backend name: " << backendName << std::endl;
     if (deviceIDs.empty()) {
@@ -345,7 +356,8 @@ TEST_P(IEClassGetMetricTest_BACKEND_NAME, GetBackendName) {
     }
 }
 
-INSTANTIATE_TEST_CASE_P(IEClassGetMetricTest_nightly, IEClassGetMetricTest_BACKEND_NAME, ::testing::ValuesIn(devices));
+INSTANTIATE_TEST_CASE_P(IEClassGetMetricTest_nightly, IEClassGetMetricTest_BACKEND_NAME, ::testing::ValuesIn(devices),
+                        IETestName::getTestCaseName);
 
 TEST_P(IEClassGetMetricTest_FULL_DEVICE_NAME, GetMetricForAllDevicesWithDeviceID) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
@@ -416,7 +428,7 @@ TEST_P(IEClassGetMetricTest_check_SUPPORTED_METRICS, GetMetricSupportedMetricsNo
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     InferenceEngine::Core ie;
     const auto supportedMetrics =
-            ie.GetMetric(CommonTestUtils::DEVICE_KEEMBAY, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
+            ie.GetMetric(ov::test::utils::DEVICE_NPU, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
     if (supportedMetrics.empty()) {
         GTEST_SKIP() << "No supported metrics available";
     }
@@ -424,10 +436,10 @@ TEST_P(IEClassGetMetricTest_check_SUPPORTED_METRICS, GetMetricSupportedMetricsNo
 }
 
 INSTANTIATE_TEST_CASE_P(IEClassGetMetricTest_nightly, IEClassGetMetricTest_FULL_DEVICE_NAME,
-                        ::testing::ValuesIn(devices), getTestCaseName);
+                        ::testing::ValuesIn(devices), IETestName::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(IEClassGetMetricTest_nightly, IEClassGetMetricTest_check_SUPPORTED_METRICS,
-                        ::testing::ValuesIn(devices));
+                        ::testing::ValuesIn(devices), IETestName::getTestCaseName);
 
 //
 // VPU specific metrics
@@ -439,12 +451,12 @@ TEST_P(IEClassGetMetricAndPrintNoThrow, VpuDeviceTotalMemSize) {
     InferenceEngine::Core ie;
     InferenceEngine::Parameter p;
 
-    ASSERT_NO_THROW(p = ie.GetMetric(target_device, VPUX_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)));
+    ASSERT_NO_THROW(p = ie.GetMetric(target_device, ov::intel_vpux::device_total_mem_size.name()));
     uint64_t t = p.as<uint64_t>();
 
     std::cout << "NPU device total memory size: " << t << std::endl;
 
-    ASSERT_METRIC_SUPPORTED_IE(VPUX_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
+    ASSERT_METRIC_SUPPORTED_IE(ov::intel_vpux::device_total_mem_size.name());
 }
 
 TEST_P(IEClassGetMetricAndPrintNoThrow, VpuDriverVersion) {
@@ -452,15 +464,15 @@ TEST_P(IEClassGetMetricAndPrintNoThrow, VpuDriverVersion) {
     InferenceEngine::Core ie;
     InferenceEngine::Parameter p;
 
-    ASSERT_NO_THROW(p = ie.GetMetric(target_device, VPUX_METRIC_KEY(DRIVER_VERSION)));
+    ASSERT_NO_THROW(p = ie.GetMetric(target_device, ov::intel_vpux::driver_version.name()));
     uint32_t t = p.as<uint32_t>();
 
     std::cout << "NPU driver version is " << t << std::endl;
 
-    ASSERT_METRIC_SUPPORTED_IE(VPUX_METRIC_KEY(DRIVER_VERSION));
+    ASSERT_METRIC_SUPPORTED_IE(ov::intel_vpux::driver_version.name());
 }
 
 INSTANTIATE_TEST_SUITE_P(nightly_IEClassGetMetricTest, IEClassGetMetricAndPrintNoThrow,
-                         ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY), getTestCaseName);
+                         ::testing::Values(ov::test::utils::DEVICE_NPU), IETestName::getTestCaseName);
 
 }  // namespace

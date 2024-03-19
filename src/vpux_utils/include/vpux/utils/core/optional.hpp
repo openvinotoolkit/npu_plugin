@@ -4,7 +4,7 @@
 //
 
 //
-// `std::optional` analogue.
+// `std::optional` header forwarding and format_provider.
 //
 
 #pragma once
@@ -12,30 +12,7 @@
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/hash.hpp"
 
-#include <llvm/ADT/None.h>
-#include <llvm/ADT/Optional.h>
-
-namespace vpux {
-
-using llvm::None;
-using llvm::Optional;
-
-}  // namespace vpux
-
-//
-// std::hash specialization
-//
-
-namespace std {
-
-template <typename T>
-struct hash<vpux::Optional<T>> final {
-    size_t operator()(const vpux::Optional<T>& opt) const {
-        return opt.has_value() ? vpux::getHash(opt.value()) : 0;
-    }
-};
-
-}  // namespace std
+#include <optional>
 
 //
 // llvm::format_provider specialization
@@ -44,10 +21,10 @@ struct hash<vpux::Optional<T>> final {
 namespace llvm {
 
 template <typename T>
-struct format_provider<Optional<T>> final {
-    static void format(const Optional<T>& opt, llvm::raw_ostream& stream, StringRef style) {
-        if (opt.hasValue()) {
-            llvm::detail::build_format_adapter(opt.getValue()).format(stream, style);
+struct format_provider<std::optional<T>> final {
+    static void format(const std::optional<T>& opt, llvm::raw_ostream& stream, StringRef style) {
+        if (opt.has_value()) {
+            llvm::detail::build_format_adapter(opt.value()).format(stream, style);
         } else {
             stream << "<NONE>";
         }

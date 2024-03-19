@@ -20,31 +20,6 @@
 using namespace vpux;
 
 //
-// LogLevel
-//
-
-StringLiteral vpux::stringifyEnum(LogLevel val) {
-    switch (val) {
-    case LogLevel::None:
-        return "None";
-    case LogLevel::Fatal:
-        return "Fatal";
-    case LogLevel::Error:
-        return "Error";
-    case LogLevel::Warning:
-        return "Warning";
-    case LogLevel::Info:
-        return "Info";
-    case LogLevel::Debug:
-        return "Debug";
-    case LogLevel::Trace:
-        return "Trace";
-    default:
-        return "<UNKNOWN>";
-    }
-}
-
-//
 // LogCb
 //
 
@@ -169,7 +144,7 @@ void vpux::Logger::addEntryPacked(LogLevel msgLevel, const formatv_object_base& 
     using namespace std::chrono;
     uint32_t ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() % 1000;
 
-    printTo(tempStream, "[{0}] {1}.{2,0+3} [{3}]", logLevelPrintout[static_cast<uint8_t>(msgLevel)], timeStr, ms,
+    printTo(tempStream, "[{0}] {1}.{2,0+3} [{3}] ", logLevelPrintout[static_cast<uint8_t>(msgLevel)], timeStr, ms,
             _name);
 
     for (size_t i = 0; i < _indentLevel; ++i)

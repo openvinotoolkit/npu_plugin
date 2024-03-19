@@ -12,8 +12,10 @@
 using namespace vpux;
 
 #ifdef ENABLE_BITCOMPACTOR
-std::vector<uint8_t> vpux::BitCompactorCodec::compress(std::vector<uint8_t>& data) const {
+mlir::FailureOr<std::vector<uint8_t>> vpux::BitCompactorCodec::compress(std::vector<uint8_t>& data,
+                                                                        CompressionMode mode, const Logger& log) const {
     VPUX_THROW_WHEN(data.empty(), "BitCompactorCodec::compress: Empty input data vector");
+    VPUX_THROW_WHEN(mode == CompressionMode::FP16, "BitCompactorCodec does not support FP16 compression");
 
     btc27::BitCompactor bitCompactor;
     btc27::BitCompactor::btcmpctr_compress_wrap_args_t btcArgs;
@@ -32,9 +34,15 @@ std::vector<uint8_t> vpux::BitCompactorCodec::compress(std::vector<uint8_t>& dat
 
     // sometimes even if the tensor is > 4KB it might not be compressible
     if (uncompressedDataSize <= compressedSize) {
-        return {};
+        log.nest().trace("BitCompactorCodec::compress: uncompressedDataSize <= compressedSize");
+        return mlir::failure();
     }
 
     return compressedDataBuffer;
 }
+
+bool vpux::BitCompactorCodec::supportsFP16compression() const {
+    return false;
+}
+
 #endif

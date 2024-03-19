@@ -7,16 +7,13 @@
 #include "vpux/compiler/dialect/VPUIP/dma_descriptor_generator.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
-#include "vpux/compiler/core/aliases_info.hpp"
-#include "vpux/compiler/core/cost_model_utils.hpp"
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
 #include "vpux/compiler/dialect/VPURT/attributes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
-#include <llvm/ADT/DenseMap.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
 #include <numeric>
@@ -80,16 +77,13 @@ void ExpandDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::E
                                                     VPUIP::DistributedBufferType distributedType,
                                                     VPUIP::ExpandDmaDescriptorGenerator dmaDescriptorGenerator,
                                                     mlir::PatternRewriter& rewriter) const {
-    const auto input = expandDmaOp.input();
-    const auto output = expandDmaOp.output_buff();
-    const auto inputType = input.getType().cast<vpux::NDTypeInterface>();
+    const auto input = expandDmaOp.getInput();
+    const auto output = expandDmaOp.getOutputBuff();
+    const auto inputType = input.getType().cast<NDTypeInterface>();
     const auto outputType = distributedType.getCompactType();
 
     const auto distributionAttr = distributedType.getDistribution();
     const auto numClusters = distributionAttr.getNumClusters().getInt();
-
-    auto cycleBeginAttr = vpurtTask->getAttr(cycleBegin);
-    auto cycleEndAttr = vpurtTask->getAttr(cycleEnd);
 
     const auto numTiles = parseIntArrayAttr<int64_t>(distributionAttr.getNumTiles());
     const auto originInShape = inputType.getShape().raw();
@@ -131,7 +125,7 @@ void ExpandDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::E
 
             return VPURT::createOp<VPURT::DeclareBufferOp>(rewriter, insertionPoint, loc, newCMXType,
                                                            VPURT::BufferSection::CMX_NN,
-                                                           getIntArrayAttr(_ctx, makeArrayRef({clusterId})),
+                                                           getIntArrayAttr(_ctx, ArrayRef({clusterId})),
                                                            declBuff.getByteOffset(), declBuff.getSwizzlingKeyAttr());
         }
 
@@ -175,23 +169,16 @@ void ExpandDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::E
         _log.trace("Insert new output buffer declaration: '{0}'", outBuffer);
 
         const auto newLoc = appendLoc(loc, "_cluster_{0}", clusterId);
-        auto dmaDescriptor = dmaDescriptorGenerator.generate(newInputType, newOutType, expandDmaOp.pads_beginAttr(),
-                                                             expandDmaOp.pads_endAttr(), elemTypeSize.count());
+        auto dmaDescriptor = dmaDescriptorGenerator.generate(newInputType, newOutType, expandDmaOp.getPadsBeginAttr(),
+                                                             expandDmaOp.getPadsEndAttr(), elemTypeSize.count());
         auto newDMAPort = clusterId % _dmaPortCount;
         auto newExpandDMAOp = VPURT::wrapIntoTaskOp<VPUIP::ExpandDMAOp>(
                 rewriter, vpurtTask.getWaitBarriers(), vpurtTask.getUpdateBarriers(), newLoc, inputBuffer, outBuffer,
-                expandDmaOp.pads_beginAttr(), expandDmaOp.pads_endAttr(), dmaDescriptor, getIntAttr(_ctx, newDMAPort),
-                expandDmaOp.channelTypeAttr(), expandDmaOp.is_out_of_orderAttr(), expandDmaOp.is_criticalAttr(),
-                expandDmaOp.dma_hwp_idAttr());
+                expandDmaOp.getPadsBeginAttr(), expandDmaOp.getPadsEndAttr(), dmaDescriptor,
+                getIntAttr(_ctx, newDMAPort), expandDmaOp.getIsOutOfOrderAttr(), expandDmaOp.getIsCriticalAttr(),
+                expandDmaOp.getDmaHwpIdAttr(), expandDmaOp.getProfilingMetadataAttr());
 
         _log.trace("Insert new Expand dma : '{0}'", newExpandDMAOp);
-        auto newTaskOp = newExpandDMAOp->getParentOfType<VPURT::TaskOp>();
-        if (cycleBeginAttr) {
-            newTaskOp->setAttr(cycleBegin, cycleBeginAttr);
-        }
-        if (cycleEndAttr) {
-            newTaskOp->setAttr(cycleEnd, cycleEndAttr);
-        }
     }
 }
 
@@ -199,8 +186,8 @@ void ExpandDMARewriter::unrollDuplicated(mlir::Location loc, VPUIP::ExpandDMAOp 
                                          VPUIP::DistributedBufferType distributedType,
                                          VPUIP::ExpandDmaDescriptorGenerator dmaDescriptorGenerator,
                                          mlir::PatternRewriter& rewriter) const {
-    const auto input = expandDmaOp.input();
-    const auto output = expandDmaOp.output_buff();
+    const auto input = expandDmaOp.getInput();
+    const auto output = expandDmaOp.getOutputBuff();
 
     const auto distributionAttr = distributedType.getDistribution();
     const auto numClusters = distributionAttr.getNumClusters().getInt();
@@ -217,41 +204,33 @@ void ExpandDMARewriter::unrollDuplicated(mlir::Location loc, VPUIP::ExpandDMAOp 
     _log.trace("Insert new CMX buffer declaration: '{0}'", newCMXBuffer);
 
     const auto newLoc = appendLoc(loc, "_broadcast_copy_to_CMX[{0},{1}]", clusters.front(), clusters.back());
-    auto expandInType = expandDmaOp.input().getType().dyn_cast<NDTypeInterface>();
-    auto expandOutType = expandDmaOp.output().getType().dyn_cast<NDTypeInterface>();
+    auto expandInType = expandDmaOp.getInput().getType().dyn_cast<NDTypeInterface>();
+    auto expandOutType = expandDmaOp.getOutput().getType().dyn_cast<NDTypeInterface>();
     Byte elemTypeSize = expandInType.getElemTypeSize();
-    auto dmaDescriptor = dmaDescriptorGenerator.generate(expandInType, expandOutType, expandDmaOp.pads_beginAttr(),
-                                                         expandDmaOp.pads_endAttr(), elemTypeSize.count());
+    auto dmaDescriptor = dmaDescriptorGenerator.generate(expandInType, expandOutType, expandDmaOp.getPadsBeginAttr(),
+                                                         expandDmaOp.getPadsEndAttr(), elemTypeSize.count());
     const auto newExpandDMA = VPURT::wrapIntoTaskOp<VPUIP::ExpandDMAOp>(
             rewriter, vpurtTask.getWaitBarriers(), vpurtTask.getUpdateBarriers(), newLoc, input, newCMXBuffer,
-            expandDmaOp.pads_beginAttr(), expandDmaOp.pads_endAttr(), dmaDescriptor,
-            /*port=*/vpux::getIntAttr(rewriter, 0), expandDmaOp.channelTypeAttr(), expandDmaOp.is_out_of_orderAttr(),
-            expandDmaOp.is_criticalAttr(), expandDmaOp.dma_hwp_idAttr());
+            expandDmaOp.getPadsBeginAttr(), expandDmaOp.getPadsEndAttr(), dmaDescriptor,
+            /*port=*/vpux::getIntAttr(rewriter, 0), expandDmaOp.getIsOutOfOrderAttr(), expandDmaOp.getIsCriticalAttr(),
+            expandDmaOp.getDmaHwpIdAttr(), expandDmaOp.getProfilingMetadataAttr());
     _log.trace("Insert new ExpandDMA op: '{0}'", newExpandDMA);
-
-    auto newVpurtTask = newExpandDMA->getParentOfType<VPURT::TaskOp>();
-    if (vpurtTask->getAttr(cycleBegin)) {
-        newVpurtTask->setAttr(cycleBegin, vpurtTask->getAttr(cycleBegin));
-    }
-    if (vpurtTask->getAttr(cycleEnd)) {
-        newVpurtTask->setAttr(cycleEnd, vpurtTask->getAttr(cycleEnd));
-    }
 }
 
 void ExpandDMARewriter::createTilesForLargeSize(VPUIP::ExpandDMAOp origOp,
                                                 VPUIP::ExpandDmaDescriptorGenerator dmaDescriptorGenerator,
                                                 mlir::PatternRewriter& rewriter) const {
     // Currently, tiling is implemented only for 4D shapes.
-    const auto origInputShape = getShape(origOp.input());
-    const auto origOutputShape = getShape(origOp.output());
+    const auto origInputShape = getShape(origOp.getInput());
+    const auto origOutputShape = getShape(origOp.getOutput());
     VPUX_THROW_UNLESS(origInputShape.size() == 4,
                       "ExpandDMAOpTiling: found shape {0} which is not supported yet (only 4D tensors are)",
                       origInputShape);
 
-    const auto fullCopySize = static_cast<Byte>(getCompactSize(origOp.input()));
+    const auto fullCopySize = static_cast<Byte>(getCompactSize(origOp.getInput()));
     // Always split by the first non-batch dimension, regardless the layout
     // NCHW - C, NHWC - H, NWHC - W
-    const auto inOrder = DimsOrder::fromValue(origOp.input());
+    const auto inOrder = DimsOrder::fromValue(origOp.getInput());
     const auto tileDim = inOrder.toDim(MemDim(Dims4D::Act::N.ind() + 1));
 
     // We cannot divide the fullCopySize by sizeLimit to get the number of tiles required
@@ -263,15 +242,15 @@ void ExpandDMARewriter::createTilesForLargeSize(VPUIP::ExpandDMAOp origOp,
     VPUX_THROW_UNLESS(numPlanesPerTile != 0,
                       "Couldn't split a ExpandDMAOp with single plane size greater than DMA_LIMIT");
 
-    auto inputDeclBuff = origOp.input().getDefiningOp<VPURT::DeclareBufferOp>();
-    auto outputDeclBuff = origOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>();
+    auto inputDeclBuff = origOp.getInput().getDefiningOp<VPURT::DeclareBufferOp>();
+    auto outputDeclBuff = origOp.getOutputBuff().getDefiningOp<VPURT::DeclareBufferOp>();
     VPUX_THROW_UNLESS(inputDeclBuff != nullptr && outputDeclBuff != nullptr,
                       "Can't get input or output buffer of ExpandDMAOp '{0}'", origOp->getLoc());
 
     Byte inputOffset{inputDeclBuff.getByteOffset()};
     Byte outputOffset{outputDeclBuff.getByteOffset()};
 
-    const auto expandInputType = origOp.input().getType().cast<NDTypeInterface>();
+    const auto expandInputType = origOp.getInput().getType().cast<NDTypeInterface>();
     const Byte elemTypeSize = expandInputType.getElemTypeSize();
 
     auto vpurtTask = origOp->getParentOfType<VPURT::TaskOp>();
@@ -280,8 +259,8 @@ void ExpandDMARewriter::createTilesForLargeSize(VPUIP::ExpandDMAOp origOp,
     auto currentTileInShape = Shape(origInputShape.raw());
     auto currentTileOutShape = Shape(origOutputShape.raw());
     auto planesLeftToCopy = numPlanesOfFullShape;
-    auto inputInsertionPoint = origOp.input().getDefiningOp();
-    auto outputInsertionPoint = origOp.output_buff().getDefiningOp();
+    auto inputInsertionPoint = origOp.getInput().getDefiningOp();
+    auto outputInsertionPoint = origOp.getOutputBuff().getDefiningOp();
     for (int64_t tileIdx = 0; planesLeftToCopy > 0; ++tileIdx) {
         // Get the proper shape and a new location for the tile
         const auto tileLoc = appendLoc(origOp->getLoc(), "tile {0}", tileIdx);
@@ -303,31 +282,23 @@ void ExpandDMARewriter::createTilesForLargeSize(VPUIP::ExpandDMAOp origOp,
         outputOffset += Byte(currentTileOutShape.totalSize() * elemTypeSize.count());
 
         // Create Descriptor
-        auto expandInType = origOp.input().getType().dyn_cast<NDTypeInterface>();
-        auto expandOutType = origOp.output().getType().dyn_cast<NDTypeInterface>();
-        auto dmaDescriptor =
-                dmaDescriptorGenerator.generate(expandInType.changeShape(currentTileInShape), expandOutType,
-                                                origOp.pads_beginAttr(), origOp.pads_endAttr(), elemTypeSize.count());
+        auto expandInType = origOp.getInput().getType().dyn_cast<NDTypeInterface>();
+        auto expandOutType = origOp.getOutput().getType().dyn_cast<NDTypeInterface>();
+        auto dmaDescriptor = dmaDescriptorGenerator.generate(expandInType.changeShape(currentTileInShape),
+                                                             expandOutType, origOp.getPadsBeginAttr(),
+                                                             origOp.getPadsEndAttr(), elemTypeSize.count());
 
         // Create tile ExpandDMAOp
         auto newDMAPort = tileIdx % _dmaPortCount;
         auto newExpandDMAOp = VPURT::wrapIntoTaskOp<VPUIP::ExpandDMAOp>(
                 rewriter, vpurtTask.getWaitBarriers(), vpurtTask.getUpdateBarriers(), tileLoc, inputNewBuffer,
-                outputNewBuffer, origOp.pads_beginAttr(), origOp.pads_endAttr(), dmaDescriptor,
-                getIntAttr(_ctx, newDMAPort), origOp.channelTypeAttr(), origOp.is_out_of_orderAttr(),
-                origOp.is_criticalAttr(), origOp.dma_hwp_idAttr());
+                outputNewBuffer, origOp.getPadsBeginAttr(), origOp.getPadsEndAttr(), dmaDescriptor,
+                getIntAttr(_ctx, newDMAPort), origOp.getIsOutOfOrderAttr(), origOp.getIsCriticalAttr(),
+                origOp.getDmaHwpIdAttr(), origOp.getProfilingMetadataAttr());
 
         _log.trace("New tile '{0}' Expand dma : '{1}'", tileIdx, newExpandDMAOp);
 
         planesLeftToCopy -= currentTileInShape[tileDim];
-
-        auto newVpurtTask = newExpandDMAOp->getParentOfType<VPURT::TaskOp>();
-        if (vpurtTask->getAttr(cycleBegin)) {
-            newVpurtTask->setAttr(cycleBegin, vpurtTask->getAttr(cycleBegin));
-        }
-        if (vpurtTask->getAttr(cycleEnd)) {
-            newVpurtTask->setAttr(cycleEnd, vpurtTask->getAttr(cycleEnd));
-        }
     }
 
     VPUX_THROW_UNLESS(planesLeftToCopy == 0,
@@ -340,25 +311,24 @@ mlir::LogicalResult ExpandDMARewriter::matchAndRewrite(VPUIP::ExpandDMAOp expand
                                                        mlir::PatternRewriter& rewriter) const {
     _log.trace("Process ExpandDMA op: {0}", expandDmaOp);
 
-    if (expandDmaOp.dma_descriptor().has_value()) {
+    if (expandDmaOp.getDmaDescriptor().has_value()) {
         return mlir::failure();
     }
 
     auto dmaDescriptorGenerator = VPUIP::ExpandDmaDescriptorGenerator(_ctx, _log);
 
-    const auto input = expandDmaOp.input();
-    const auto output = expandDmaOp.output_buff();
+    const auto input = expandDmaOp.getInput();
+    const auto output = expandDmaOp.getOutputBuff();
     const auto inputType = input.getType();
     const auto outputType = output.getType();
-    VPUX_THROW_WHEN(inputType.isa<VPUIP::DistributedBufferType>() && outputType.isa<VPUIP::DistributedBufferType>(),
-                    "Only one operand can have DistributedBuffer type");
+    VPUX_THROW_WHEN(inputType.isa<VPUIP::DistributedBufferType>(), "Cannot unroll input DistributedBuffer type.");
 
     const auto distributedType = outputType.dyn_cast<VPUIP::DistributedBufferType>();
 
     if (distributedType == nullptr) {
-        _log.trace("ExpandDMA's result is not a DistributedBufferType");
+        _log.trace("ExpandDMA's result is not DistributedBufferType");
 
-        const auto dmaSize = static_cast<Byte>(getCompactSize(expandDmaOp.input()));
+        const auto dmaSize = static_cast<Byte>(getCompactSize(expandDmaOp.getInput()));
         if (dmaSize > VPUIP::DMA_LIMIT) {
             _log.trace("ExpandDMA with input size '{0}' large than limitation '{1}' and need to tile", dmaSize,
                        VPUIP::DMA_LIMIT);
@@ -366,15 +336,17 @@ mlir::LogicalResult ExpandDMARewriter::matchAndRewrite(VPUIP::ExpandDMAOp expand
             return mlir::success();
         }
 
-        auto expandInType = expandDmaOp.input().getType().dyn_cast<NDTypeInterface>();
-        auto expandOutType = expandDmaOp.output().getType().dyn_cast<NDTypeInterface>();
+        auto expandInType = expandDmaOp.getInput().getType().dyn_cast<NDTypeInterface>();
+        auto expandOutType = expandDmaOp.getOutput().getType().dyn_cast<NDTypeInterface>();
         Byte elemTypeSize = expandInType.getElemTypeSize();
-        auto dmaDescriptor = dmaDescriptorGenerator.generate(expandInType, expandOutType, expandDmaOp.pads_beginAttr(),
-                                                             expandDmaOp.pads_endAttr(), elemTypeSize.count());
+        auto dmaDescriptor =
+                dmaDescriptorGenerator.generate(expandInType, expandOutType, expandDmaOp.getPadsBeginAttr(),
+                                                expandDmaOp.getPadsEndAttr(), elemTypeSize.count());
         rewriter.replaceOpWithNewOp<VPUIP::ExpandDMAOp>(
-                expandDmaOp, expandDmaOp.input(), expandDmaOp.output_buff(), expandDmaOp.pads_beginAttr(),
-                expandDmaOp.pads_endAttr(), dmaDescriptor, vpux::getIntAttr(rewriter, 0), expandDmaOp.channelTypeAttr(),
-                expandDmaOp.is_out_of_orderAttr(), expandDmaOp.is_criticalAttr(), expandDmaOp.dma_hwp_idAttr());
+                expandDmaOp, expandDmaOp.getInput(), expandDmaOp.getOutputBuff(), expandDmaOp.getPadsBeginAttr(),
+                expandDmaOp.getPadsEndAttr(), dmaDescriptor, vpux::getIntAttr(rewriter, 0),
+                expandDmaOp.getIsOutOfOrderAttr(), expandDmaOp.getIsCriticalAttr(), expandDmaOp.getDmaHwpIdAttr(),
+                expandDmaOp.getProfilingMetadataAttr());
 
         return mlir::success();
     }
@@ -421,7 +393,7 @@ void UnrollExpandDMAPass::safeRunOnFunc() {
     auto func = getOperation();
     auto module = func->getParentOfType<mlir::ModuleOp>();
     auto dmaOp = IE::getAvailableExecutor(module, VPU::ExecutorKind::DMA_NN);
-    auto dmaPortCount = dmaOp.count();
+    auto dmaPortCount = dmaOp.getCount();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<ExpandDMARewriter>(&ctx, dmaPortCount, _log);

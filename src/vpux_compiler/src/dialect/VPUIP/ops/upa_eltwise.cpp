@@ -7,8 +7,6 @@
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 
-#include <mlir/IR/BuiltinTypes.h>
-
 using namespace vpux;
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LogicalNotUPAOp::serialize(VPUIP::BlobWriter& writer) {
     VPUIP::BlobWriter::String type;
@@ -24,7 +22,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LogicalNotUPAOp::serialize(VPUIP::B
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EltwiseUPAOp::serialize(VPUIP::BlobWriter& writer) {
     VPUIP::BlobWriter::String type;
-    switch (this->task_type()) {
+    switch (this->getTaskType()) {
     case VPU::EltwiseType::ADD:
         type = writer.createString("sum");
         break;
@@ -42,6 +40,9 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EltwiseUPAOp::serialize(VPUIP::Blob
         break;
     case VPU::EltwiseType::FLOOR_MOD:
         type = writer.createString("floormod");
+        break;
+    case VPU::EltwiseType::MOD:
+        type = writer.createString("mod");
         break;
     case VPU::EltwiseType::MIN:
         type = writer.createString("min");
@@ -77,7 +78,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EltwiseUPAOp::serialize(VPUIP::Blob
         type = writer.createString("logicalxor");
         break;
     default:
-        VPUX_THROW("Unsupported EltwiseType {0}", this->task_type());
+        VPUX_THROW("Unsupported EltwiseType {0}", this->getTaskType());
     }
 
     MVCNN::EltwiseParamsBuilder builder(writer);
@@ -107,6 +108,8 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseEltwise(mlir::OpBuilder& builder,
         type = VPU::EltwiseType::POWER;
     } else if (strType == "floormod") {
         type = VPU::EltwiseType::FLOOR_MOD;
+    } else if (strType == "mod") {
+        type = VPU::EltwiseType::MOD;
     } else if (strType == "min") {
         type = VPU::EltwiseType::MIN;
     } else if (strType == "max") {

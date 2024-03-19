@@ -5,7 +5,11 @@
 
 #pragma once
 
-#include "vpux/compiler/conversion.hpp"
+#include "vpux/compiler/dialect/IE/dialect.hpp"
+#include "vpux/compiler/dialect/VPU/IR/dialect.hpp"
+
+#include "vpux/compiler/utils/passes.hpp"
+#include "vpux/utils/core/logger.hpp"
 
 namespace vpux {
 namespace arch37xx {
@@ -16,7 +20,7 @@ namespace arch37xx {
 
 struct PermuteQuantOptions : mlir::PassPipelineOptions<PermuteQuantOptions> {
     BoolOption useNCEPermute{*this, "use-nce-permute", llvm::cl::desc("Use nce permute operation"),
-                             llvm::cl::init(false)};
+                             llvm::cl::init(true)};
 
     PermuteQuantOptions() = default;
 
@@ -32,22 +36,23 @@ struct PermuteQuantOptions : mlir::PassPipelineOptions<PermuteQuantOptions> {
 // LowerIE2VPU
 //
 
-std::unique_ptr<mlir::Pass> createConvertIEToVPUNCEPass(bool useNCEPermute = false, Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertIEToVPUNCEPass(bool useNCEPermute = true, Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertLayers2VPUPass(Logger log = Logger::global());
 
 //
 // Pipelines
 //
 
-void buildLowerIE2VPUPipeline37XX(mlir::OpPassManager& pm, const PermuteQuantOptions& options,
-                                  Logger log = Logger::global());
+void buildLowerIE2VPUPipeline(mlir::OpPassManager& pm, const PermuteQuantOptions& options,
+                              Logger log = Logger::global());
 void buildLowerVPUIP2ELFPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
-void buildLowerVPU2VPUIP37XXPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
+void buildLowerVPU2VPUIPPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
 
 //
-// registerConversionPipeline37XX
+// registerConversionPipeline
 //
 
-void registerConversionPipeline37XX();
+void registerConversionPipeline();
 
 //
 // Generated

@@ -29,7 +29,7 @@ public:
     static IndexedSymbolAttr get(mlir::StringAttr name, size_t id);
 
 public:
-    Optional<IndexedSymbolAttr> getNestedReference() const;
+    std::optional<IndexedSymbolAttr> getNestedReference() const;
 
 public:
     mlir::FlatSymbolRefAttr getRootReference() const;
@@ -43,8 +43,8 @@ public:
     mlir::SymbolRefAttr getFullReference() const;
 
 public:
-    Optional<mlir::IntegerAttr> getIndexAttr() const;
-    Optional<int64_t> getIndex() const;
+    std::optional<mlir::IntegerAttr> getIndexAttr() const;
+    std::optional<int64_t> getIndex() const;
 };
 
 }  // namespace vpux

@@ -4,6 +4,8 @@
 //
 
 //
+
+//
 // Simple integer arithmetic to be used for the work sizes calculation.
 // Supported operations : +,-,*,/,%,(,)
 // no unary -,+
@@ -25,21 +27,21 @@
 namespace vpux {
 
 template <typename T>
-std::enable_if_t<std::is_integral<T>::value, Optional<T>> parseNumber(StringRef str) {
+std::enable_if_t<std::is_integral<T>::value, std::optional<T>> parseNumber(StringRef str) {
     T res = 0;
     if (str.getAsInteger(10, res)) {
         return res;
     }
-    return None;
+    return std::nullopt;
 }
 
 template <typename T>
-std::enable_if_t<std::is_floating_point<T>::value, Optional<T>> parseNumber(StringRef str) {
+std::enable_if_t<std::is_floating_point<T>::value, std::optional<T>> parseNumber(StringRef str) {
     double res = 0;
     if (str.getAsDouble(res)) {
         return static_cast<T>(res);
     }
-    return None;
+    return std::nullopt;
 }
 
 //

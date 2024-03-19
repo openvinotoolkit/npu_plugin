@@ -5,15 +5,11 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
-#include "vpux/compiler/dialect/IE/utils/groupconvolution_utils.hpp"
+#include "vpux/compiler/dialect/IE/utils/convolution_utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
-#include <ngraph/coordinate_diff.hpp>
-#include <ngraph/op/op.hpp>
-
-#include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
@@ -31,21 +27,22 @@ public:
     }
 
 public:
-    class GroupConvolutionOpConverter;
+    class GroupConvToSingleConvConverter;
+    class GroupConvToMultiConvConverter;
 
 private:
     void safeRunOnFunc() final;
 };
 
 //
-// GroupConvolutionOpConverter
+// GroupConvToSingleConvConverter
 //
 
-class ConvertGroupConvToConvPass::GroupConvolutionOpConverter final :
+class ConvertGroupConvToConvPass::GroupConvToSingleConvConverter final :
         public mlir::OpRewritePattern<IE::GroupConvolutionOp> {
 public:
-    GroupConvolutionOpConverter(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<IE::GroupConvolutionOp>(ctx), _log(log) {
+    GroupConvToSingleConvConverter(mlir::MLIRContext* ctx, mlir::PatternBenefit benefit, Logger log)
+            : mlir::OpRewritePattern<IE::GroupConvolutionOp>(ctx, benefit), _log(log) {
     }
 
 public:
@@ -55,17 +52,185 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult ConvertGroupConvToConvPass::GroupConvolutionOpConverter::matchAndRewrite(
+std::optional<int64_t> getZeroPoint(IE::FakeQuantizeOp fqOp) {
+    const auto realType = fqOp.getInput().getType().cast<vpux::NDTypeInterface>();
+    const auto realElemType = realType.getElementType().cast<mlir::FloatType>();
+    auto inLowConst = fqOp.getInputLow().getDefiningOp<Const::DeclareOp>();
+    auto inHighConst = fqOp.getInputHigh().getDefiningOp<Const::DeclareOp>();
+    VPUX_THROW_UNLESS(inLowConst != nullptr && inHighConst != nullptr,
+                      "Cannot get low and high constant of FakeQuantizeOp {0}", fqOp->getLoc());
+    const auto quantizeElemType =
+            getQuantizedType(inLowConst.getContentAttr(), inHighConst.getContentAttr(), fqOp.getLevels(), realElemType,
+                             VPU::hasNegativeValues(inLowConst.getContent()), fqOp.getLoc(), fqOp.getAutoBroadcast());
+
+    if (auto uniformQuantType = quantizeElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedType>()) {
+        return uniformQuantType.getZeroPoint();
+    } else if (auto uniformQuantPerAxisType =
+                       quantizeElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
+        auto zeroPoints = uniformQuantPerAxisType.getZeroPoints();
+        const auto isSameZeroPoint =
+                std::adjacent_find(zeroPoints.begin(), zeroPoints.end(), std::not_equal_to<>()) == zeroPoints.end();
+
+        if (isSameZeroPoint) {
+            return zeroPoints.front();
+        }
+    }
+
+    return std::nullopt;
+}
+
+mlir::Value createConstantOpForPadding(ShapeRef padShape, mlir::Type elemType, const int64_t padValue,
+                                       mlir::PatternRewriter& rewriter, mlir::Location loc) {
+    const auto dataStorageType = mlir::RankedTensorType::get(padShape.raw(), elemType);
+
+    auto getDenseElementsAttr = [&]() {
+        if (elemType.isF16()) {
+            return mlir::DenseElementsAttr::get(dataStorageType, static_cast<float16>(padValue));
+        } else if (elemType.isF32()) {
+            return mlir::DenseElementsAttr::get(dataStorageType, static_cast<float>(padValue));
+        }
+        VPUX_THROW("UnSupported element data type {0}", elemType);
+    };
+
+    return rewriter.create<Const::DeclareOp>(loc, dataStorageType, Const::ContentAttr::get(getDenseElementsAttr()));
+}
+
+mlir::LogicalResult ConvertGroupConvToConvPass::GroupConvToSingleConvConverter::matchAndRewrite(
         IE::GroupConvolutionOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Got GroupConvolutionOp layer at '{0}'", origOp->getLoc());
     VPUX_THROW_UNLESS(origOp.getType().getRank() == 4, "The pass currently can only support 4D input");
 
-    const auto input = origOp.input();
-    const auto inputShape = input.getType().cast<vpux::NDTypeInterface>().getShape();
-    const auto weights = origOp.filter();
+    const auto weights = origOp.getFilter();
     const auto weightsShape = weights.getType().cast<vpux::NDTypeInterface>().getShape();
-    const auto bias = origOp.bias();
-    const auto group = origOp.groups().value();
+    const auto groupNumb = origOp.getGroups().value();
+
+    const auto groupInSize = weightsShape[Dims4D::Filter::IC];
+    const auto groupOutSize = weightsShape[Dims4D::Filter::OC] / groupNumb;
+    const auto groupInChannel = getShape(origOp.getInput())[Dims4D::Act::C] / groupNumb;
+    const auto groupOutChannel = getShape(origOp.getOutput())[Dims4D::Act::C] / groupNumb;
+    VPUX_THROW_UNLESS(groupInSize == groupInChannel && groupOutSize == groupOutChannel,
+                      "groupInSize '{0}' not equal with input channel '{1}' or groupOutSize '{2}' not equal with "
+                      "output channel '{3}' ",
+                      groupInSize, groupInChannel, groupOutSize, groupOutChannel);
+
+    auto weightsCst = weights.getDefiningOp<Const::DeclareOp>();
+    auto weightsFQ = weights.getDefiningOp<IE::FakeQuantizeOp>();
+    auto isWeightsHasFQ = false;
+    int64_t padValue = 0;
+    if (weightsFQ) {
+        weightsCst = weightsFQ.getInput().getDefiningOp<Const::DeclareOp>();
+        isWeightsHasFQ = true;
+
+        auto potentialZeroPoint = getZeroPoint(weightsFQ);
+        if (!potentialZeroPoint.has_value()) {
+            _log.trace("Cannot get zero point or not all zero points are equal");
+            return mlir::failure();
+        }
+        padValue = potentialZeroPoint.value();
+    }
+
+    if (weightsCst == nullptr) {
+        _log.trace("Cannot get GroupConvolutionOp Weights at '{0}'", origOp->getLoc());
+        return mlir::failure();
+    }
+
+    const auto weightsElemType = weightsCst.getOutput().getType().cast<vpux::NDTypeInterface>().getElementType();
+    if (!weightsElemType.isF16() && !weightsElemType.isF32()) {
+        _log.trace("Weights constant output type should be float16 or float32, but got '{0}'", weightsElemType);
+        return mlir::failure();
+    }
+
+    const auto weightsContentAttr = weightsCst.getContentAttr();
+    auto reconstructGroupWeights = [&](const int64_t groupIdx) -> mlir::Value {
+        const auto subviewOffsets = Shape{(groupIdx - 1) * groupOutSize, 0, 0, 0};
+        const auto subviewStaticShape = Shape{groupOutSize, weightsShape[Dims4D::Filter::IC],
+                                              weightsShape[Dims4D::Filter::KY], weightsShape[Dims4D::Filter::KX]};
+        auto groupWeights = weightsContentAttr.subview(subviewOffsets, subviewStaticShape);
+
+        if (isWeightsHasFQ) {
+            SmallVector<mlir::Value> concatInputs;
+            if (groupIdx > 1) {
+                const auto padBefore = Shape{groupOutSize, (groupIdx - 1) * groupInSize,
+                                             weightsShape[Dims4D::Filter::KY], weightsShape[Dims4D::Filter::KX]};
+                concatInputs.push_back(createConstantOpForPadding(padBefore, weightsElemType, padValue, rewriter,
+                                                                  weightsCst.getLoc()));
+            }
+
+            concatInputs.push_back(
+                    rewriter.create<Const::DeclareOp>(weightsCst.getLoc(), groupWeights.getType(), groupWeights));
+
+            if (groupIdx < groupNumb) {
+                const auto padAfter = Shape{groupOutSize, (groupNumb - groupIdx) * groupInSize,
+                                            weightsShape[Dims4D::Filter::KY], weightsShape[Dims4D::Filter::KX]};
+                concatInputs.push_back(
+                        createConstantOpForPadding(padAfter, weightsElemType, padValue, rewriter, weightsCst.getLoc()));
+            }
+
+            return rewriter.create<IE::ConcatOp>(weightsCst.getLoc(), concatInputs, Dims4D::Filter::IC).getResult();
+        }
+
+        const auto paddingBefore = Shape{0, (groupIdx - 1) * groupInSize, 0, 0};
+        const auto paddingAfter = Shape{0, (groupNumb - groupIdx) * groupInSize, 0, 0};
+        auto newGroupWeights = groupWeights.padWithZero(paddingBefore, paddingAfter);
+
+        return rewriter.create<Const::DeclareOp>(weightsCst.getLoc(), newGroupWeights.getType(), newGroupWeights)
+                .getResult();
+    };
+
+    SmallVector<mlir::Value> concatInputs;
+    for (const auto& groupID : irange(groupNumb)) {
+        concatInputs.push_back(reconstructGroupWeights(groupID + 1));
+    }
+
+    auto weightsConcat = rewriter.createOrFold<IE::ConcatOp>(weightsCst.getLoc(), concatInputs, Dims4D::Filter::OC);
+
+    auto newWeights = weightsConcat;
+    if (isWeightsHasFQ) {
+        newWeights = rewriter.create<IE::FakeQuantizeOp>(weightsFQ.getLoc(), newWeights, weightsFQ.getInputLow(),
+                                                         weightsFQ.getInputHigh(), weightsFQ.getOutputLow(),
+                                                         weightsFQ.getOutputHigh(), weightsFQ.getLevels(),
+                                                         weightsFQ.getAutoBroadcast())
+                             .getResult();
+        weightsFQ.replaceAllUsesWith(newWeights);
+        weightsFQ.erase();
+    }
+
+    rewriter.replaceOpWithNewOp<IE::ConvolutionOp>(origOp, origOp.getInput(), newWeights, origOp.getBias(),
+                                                   origOp.getStrides(), origOp.getPadsBegin(), origOp.getPadsEnd(),
+                                                   origOp.getDilations(), nullptr, nullptr);
+
+    return mlir::success();
+}
+
+//
+// GroupConvToMultiConvConverter
+//
+
+class ConvertGroupConvToConvPass::GroupConvToMultiConvConverter final :
+        public mlir::OpRewritePattern<IE::GroupConvolutionOp> {
+public:
+    GroupConvToMultiConvConverter(mlir::MLIRContext* ctx, mlir::PatternBenefit benefit, Logger log)
+            : mlir::OpRewritePattern<IE::GroupConvolutionOp>(ctx, benefit), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::GroupConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ConvertGroupConvToConvPass::GroupConvToMultiConvConverter::matchAndRewrite(
+        IE::GroupConvolutionOp origOp, mlir::PatternRewriter& rewriter) const {
+    _log.trace("Got GroupConvolutionOp layer at '{0}'", origOp->getLoc());
+    VPUX_THROW_UNLESS(origOp.getType().getRank() == 4, "The pass currently can only support 4D input");
+
+    const auto input = origOp.getInput();
+    const auto inputShape = input.getType().cast<vpux::NDTypeInterface>().getShape();
+    const auto weights = origOp.getFilter();
+    const auto weightsShape = weights.getType().cast<vpux::NDTypeInterface>().getShape();
+    const auto bias = origOp.getBias();
+    const auto group = origOp.getGroups().value();
     const auto newInShape = Shape{inputShape[Dims4D::Act::N], inputShape[Dims4D::Act::C] / group,
                                   inputShape[Dims4D::Act::H], inputShape[Dims4D::Act::W]};
     const auto inputShapeAttr = getIntArrayAttr(getContext(), newInShape);
@@ -92,33 +257,33 @@ mlir::LogicalResult ConvertGroupConvToConvPass::GroupConvolutionOpConverter::mat
         if (fakeQuantizeOp != nullptr) {
             const auto newFakeQuantizeParamShape = Shape{weightsShape[Dims4D::Filter::OC] / group, 1, 1, 1};
             const auto fakeQuantizeParamShapeAttr = getIntArrayAttr(getContext(), newFakeQuantizeParamShape);
-            auto inputLow = fakeQuantizeOp.input_low();
-            auto inputHigh = fakeQuantizeOp.input_high();
-            auto outputLow = fakeQuantizeOp.output_low();
-            auto outputHigh = fakeQuantizeOp.output_high();
+            auto inputLow = fakeQuantizeOp.getInputLow();
+            auto inputHigh = fakeQuantizeOp.getInputHigh();
+            auto outputLow = fakeQuantizeOp.getOutputLow();
+            auto outputHigh = fakeQuantizeOp.getOutputHigh();
 
-            auto newInput = rewriter.createOrFold<IE::SliceOp>(fakeQuantizeOp->getLoc(), fakeQuantizeOp.input(),
+            auto newInput = rewriter.createOrFold<IE::SliceOp>(fakeQuantizeOp->getLoc(), fakeQuantizeOp.getInput(),
                                                                weightsOffsetsAttr, weightsShapeAttr);
             if (inputLow.getType().cast<vpux::NDTypeInterface>().getShape()[Dims4D::Filter::OC] != 1) {
-                inputLow = rewriter.createOrFold<IE::SliceOp>(fakeQuantizeOp->getLoc(), inputLow, weightsOffsetsAttr,
-                                                              fakeQuantizeParamShapeAttr);
+                inputLow = mlir::cast<mlir::TypedValue<mlir::RankedTensorType>>(rewriter.createOrFold<IE::SliceOp>(
+                        fakeQuantizeOp->getLoc(), inputLow, weightsOffsetsAttr, fakeQuantizeParamShapeAttr));
             }
             if (outputLow.getType().cast<vpux::NDTypeInterface>().getShape()[Dims4D::Filter::OC] != 1) {
-                outputLow = rewriter.createOrFold<IE::SliceOp>(fakeQuantizeOp->getLoc(), outputLow, weightsOffsetsAttr,
-                                                               fakeQuantizeParamShapeAttr);
+                outputLow = mlir::cast<mlir::TypedValue<mlir::RankedTensorType>>(rewriter.createOrFold<IE::SliceOp>(
+                        fakeQuantizeOp->getLoc(), outputLow, weightsOffsetsAttr, fakeQuantizeParamShapeAttr));
             }
             if (inputHigh.getType().cast<vpux::NDTypeInterface>().getShape()[Dims4D::Filter::OC] != 1) {
-                inputHigh = rewriter.createOrFold<IE::SliceOp>(fakeQuantizeOp->getLoc(), inputHigh, weightsOffsetsAttr,
-                                                               fakeQuantizeParamShapeAttr);
+                inputHigh = mlir::cast<mlir::TypedValue<mlir::RankedTensorType>>(rewriter.createOrFold<IE::SliceOp>(
+                        fakeQuantizeOp->getLoc(), inputHigh, weightsOffsetsAttr, fakeQuantizeParamShapeAttr));
             }
             if (outputHigh.getType().cast<vpux::NDTypeInterface>().getShape()[Dims4D::Filter::OC] != 1) {
-                outputHigh = rewriter.createOrFold<IE::SliceOp>(fakeQuantizeOp->getLoc(), outputHigh,
-                                                                weightsOffsetsAttr, fakeQuantizeParamShapeAttr);
+                outputHigh = mlir::cast<mlir::TypedValue<mlir::RankedTensorType>>(rewriter.createOrFold<IE::SliceOp>(
+                        fakeQuantizeOp->getLoc(), outputHigh, weightsOffsetsAttr, fakeQuantizeParamShapeAttr));
             }
 
             weightsSlice = rewriter.create<IE::FakeQuantizeOp>(fakeQuantizeOp.getLoc(), newInput, inputLow, inputHigh,
-                                                               outputLow, outputHigh, fakeQuantizeOp.levels(),
-                                                               fakeQuantizeOp.auto_broadcast());
+                                                               outputLow, outputHigh, fakeQuantizeOp.getLevels(),
+                                                               fakeQuantizeOp.getAutoBroadcast());
         } else {
             weightsSlice =
                     rewriter.createOrFold<IE::SliceOp>(origOp->getLoc(), weights, weightsOffsetsAttr, weightsShapeAttr);
@@ -140,9 +305,9 @@ mlir::LogicalResult ConvertGroupConvToConvPass::GroupConvolutionOpConverter::mat
 
         // New conv
         auto newConvLoc = appendLoc(origOp->getLoc(), "_ConvertGroupConv_{0}", sliceIdx);
-        auto convOp =
-                rewriter.create<IE::ConvolutionOp>(newConvLoc, inputSlice, weightsSlice, biasSlice, origOp.strides(),
-                                                   origOp.pads_begin(), origOp.pads_end(), origOp.dilations(), nullptr);
+        auto convOp = rewriter.create<IE::ConvolutionOp>(newConvLoc, inputSlice, weightsSlice, biasSlice,
+                                                         origOp.getStrides(), origOp.getPadsBegin(),
+                                                         origOp.getPadsEnd(), origOp.getDilations(), nullptr, nullptr);
 
         slices.push_back(convOp);
     }
@@ -171,7 +336,8 @@ void ConvertGroupConvToConvPass::safeRunOnFunc() {
     target.addLegalOp<IE::FakeQuantizeOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<GroupConvolutionOpConverter>(&ctx, _log);
+    patterns.add<GroupConvToSingleConvConverter>(&ctx, vpux::benefitHigh, _log);
+    patterns.add<GroupConvToMultiConvConverter>(&ctx, vpux::benefitLow, _log);
 
     auto func = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {

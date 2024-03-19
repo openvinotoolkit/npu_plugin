@@ -4,43 +4,43 @@
 //
 
 #include "vpux/passes/replace_onnx_pattern_to_reorg.hpp"
-#include <ngraph/op/reorg_yolo.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
+#include <openvino/core/rt_info.hpp>
+#include <openvino/op/reorg_yolo.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
 
 namespace vpux {
 namespace passes {
 
 OnnxReorgPatternToDarkNetReorg::OnnxReorgPatternToDarkNetReorg() {
-    const auto& input = ngraph::pattern::any_input();
+    const auto& input = ov::pass::pattern::any_input();
     const auto& reshape1 =
-            std::make_shared<ngraph::opset1::Reshape>(input, ngraph::pattern::wrap_type<ngraph::op::Constant>(), true);
+            std::make_shared<ov::opset1::Reshape>(input, ov::pass::pattern::wrap_type<ov::op::v0::Constant>(), true);
     const auto& transpose1 =
-            std::make_shared<ngraph::opset1::Transpose>(reshape1, ngraph::pattern::wrap_type<ngraph::op::Constant>());
-    const auto& reshape2 = std::make_shared<ngraph::opset1::Reshape>(
-            transpose1, ngraph::pattern::wrap_type<ngraph::op::Constant>(), true);
+            std::make_shared<ov::opset1::Transpose>(reshape1, ov::pass::pattern::wrap_type<ov::op::v0::Constant>());
+    const auto& reshape2 = std::make_shared<ov::opset1::Reshape>(
+            transpose1, ov::pass::pattern::wrap_type<ov::op::v0::Constant>(), true);
     const auto& transpose2 =
-            std::make_shared<ngraph::opset1::Transpose>(reshape2, ngraph::pattern::wrap_type<ngraph::op::Constant>());
-    const auto& reshape3 = std::make_shared<ngraph::opset1::Reshape>(
-            transpose2, ngraph::pattern::wrap_type<ngraph::op::Constant>(), true);
+            std::make_shared<ov::opset1::Transpose>(reshape2, ov::pass::pattern::wrap_type<ov::op::v0::Constant>());
+    const auto& reshape3 = std::make_shared<ov::opset1::Reshape>(
+            transpose2, ov::pass::pattern::wrap_type<ov::op::v0::Constant>(), true);
     const auto& transpose3 =
-            std::make_shared<ngraph::opset1::Transpose>(reshape3, ngraph::pattern::wrap_type<ngraph::op::Constant>());
-    const auto& reshape4 = std::make_shared<ngraph::opset1::Reshape>(
-            transpose3, ngraph::pattern::wrap_type<ngraph::op::Constant>(), true);
+            std::make_shared<ov::opset1::Transpose>(reshape3, ov::pass::pattern::wrap_type<ov::op::v0::Constant>());
+    const auto& reshape4 = std::make_shared<ov::opset1::Reshape>(
+            transpose3, ov::pass::pattern::wrap_type<ov::op::v0::Constant>(), true);
 
-    ngraph::graph_rewrite_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
+    ov::graph_rewrite_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto reorg_input = pattern_to_output.at(input);
 
-        auto first_reshape = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(
-                pattern_to_output.at(reshape1).get_node_shared_ptr());
+        auto first_reshape =
+                std::dynamic_pointer_cast<ov::opset1::Reshape>(pattern_to_output.at(reshape1).get_node_shared_ptr());
         if (first_reshape == nullptr) {
             return false;
         }
 
-        auto last_reshape = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(
-                pattern_to_output.at(reshape4).get_node_shared_ptr());
+        auto last_reshape =
+                std::dynamic_pointer_cast<ov::opset1::Reshape>(pattern_to_output.at(reshape4).get_node_shared_ptr());
         if (last_reshape == nullptr) {
             return false;
         }
@@ -57,10 +57,10 @@ OnnxReorgPatternToDarkNetReorg::OnnxReorgPatternToDarkNetReorg() {
             return false;
         }
 
-        auto reorgYolo = std::make_shared<ngraph::op::v0::ReorgYolo>(reorg_input, ngraph::Strides{2});
+        auto reorgYolo = std::make_shared<ov::op::v0::ReorgYolo>(reorg_input, ov::Strides{2});
 
         reorgYolo->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info(
+        ov::copy_runtime_info(
                 {
                         pattern_to_output.at(reshape1).get_node_shared_ptr(),
                         pattern_to_output.at(transpose1).get_node_shared_ptr(),
@@ -71,11 +71,11 @@ OnnxReorgPatternToDarkNetReorg::OnnxReorgPatternToDarkNetReorg() {
                         pattern_to_output.at(reshape4).get_node_shared_ptr(),
                 },
                 reorgYolo);
-        ngraph::replace_node(m.get_match_root(), reorgYolo);
+        ov::replace_node(m.get_match_root(), reorgYolo);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape4, "OnnxReorgPatternToDarkNetReorg");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(reshape4, "OnnxReorgPatternToDarkNetReorg");
     register_matcher(m, matcher_pass_callback);
 }
 

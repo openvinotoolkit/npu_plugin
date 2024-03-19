@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPU/IR/ops.hpp"
 
 namespace vpux {
 namespace VPU {
@@ -15,6 +15,7 @@ mlir::LogicalResult verifyOpLayout(mlir::Operation* op);
 //
 // SameInOutDefaultDimsOrder
 //
+mlir::LogicalResult verifySameInOutDimsOrder(mlir::Operation* op);
 
 mlir::LogicalResult verifySameInOutDefaultDimsOrder(mlir::Operation* op);
 void inferLayoutInfoSameInOutDefaultDimsOrder(IE::LayerLayoutInfo& info);
@@ -55,19 +56,22 @@ void inferSqueezeUnsqueezeLayoutInfo(mlir::Operation* op, IE::LayerLayoutInfo& i
 
 mlir::LogicalResult verifyNCEConvolutionLayoutInfo(mlir::Operation* op);
 mlir::LogicalResult verifyTopKLayoutInfo(mlir::Operation* op);
+mlir::LogicalResult verifyScatterNDUpdateLayoutInfo(mlir::Operation* op);
+mlir::LogicalResult verifyNCEPermuteLayoutInfo(mlir::Operation* op);
 
 template <class OrigOpType, class FallbackSWImplOpType, class FallbackHWImplOpType>
 class LayoutInfoOpModelForHW final :
         public IE::LayoutInfoOpInterface::ExternalModel<
                 LayoutInfoOpModelForHW<OrigOpType, FallbackSWImplOpType, FallbackHWImplOpType>, OrigOpType> {
 public:
-    void inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info, const bool seOpsEnabled) const {
-        if (!canBeExecutedOnNCE(origOp, seOpsEnabled)) {
-            FallbackSWImplOpType::inferLayoutInfo(origOp, info, seOpsEnabled);
+    void inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info, const bool seOpsEnabled,
+                         const bool seTransposedConvEnabled) const {
+        if (!canBeExecutedOnNCE(origOp, seOpsEnabled, seTransposedConvEnabled)) {
+            FallbackSWImplOpType::inferLayoutInfo(origOp, info, seOpsEnabled, seTransposedConvEnabled);
             return;
         }
 
-        FallbackHWImplOpType::inferLayoutInfo(origOp, info, seOpsEnabled);
+        FallbackHWImplOpType::inferLayoutInfo(origOp, info, seOpsEnabled, seTransposedConvEnabled);
     }
 
     mlir::LogicalResult verifyLayout(mlir::Operation* origOp) const {
@@ -75,13 +79,17 @@ public:
     }
 
 private:
-    static bool canBeExecutedOnNCE(mlir::Operation* op, const bool seOpsEnabled) {
+    static bool canBeExecutedOnNCE(mlir::Operation* op, const bool seOpsEnabled, const bool seTransposedConvEnabled) {
         if (VPU::getCompilationMode(op) == VPU::CompilationMode::ReferenceSW) {
             // We are in reference SW compilation mode
             return false;
         }
 
-        if (!seOpsEnabled && mlir::isa<IE::SEOpInterface>(op)) {
+        // TODO E#100360: remove custom flag for IE::TransposedConvolutionOp
+        if (!seTransposedConvEnabled && mlir::isa<IE::TransposedConvolutionOp>(op)) {
+            return false;
+        }
+        if (!seOpsEnabled && mlir::isa<IE::SEOpInterface>(op) && !mlir::isa<IE::TransposedConvolutionOp>(op)) {
             return false;
         }
 
@@ -100,7 +108,8 @@ private:
 
 class AnyDimsOrderOpModelForSW final : public IE::LayoutInfoOpInterface::FallbackModel<AnyDimsOrderOpModelForSW> {
 public:
-    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& /*info*/, const bool /*seOpsEnabled*/) {
+    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& /*info*/, const bool /*seOpsEnabled*/,
+                                const bool /*seTransposedConvEnabled*/) {
     }
 
     mlir::LogicalResult verifyLayout(mlir::Operation* origOp) const {
@@ -119,12 +128,35 @@ public:
 class SameAnyDimsOrderOpModelForSW final :
         public IE::LayoutInfoOpInterface::FallbackModel<SameAnyDimsOrderOpModelForSW> {
 public:
-    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/) {
+    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/,
+                                const bool /*seTransposedConvEnabled*/) {
         VPU::inferLayoutInfoSameAnyDimsOrder(info);
     }
 
     mlir::LogicalResult verifyLayout(mlir::Operation* origOp) const {
         return VPU::verifySameAnyDimsOrder(origOp);
+    }
+
+    IE::LayerLayoutInfo getLayoutInfo(mlir::Operation* origOp) const {
+        return IE::getLayoutInfo(origOp);
+    }
+};
+
+//
+// SameInOutAnyDimsOrderOpModelForSW
+//
+
+class SameInOutAnyDimsOrderOpModelForSW final :
+        public IE::LayoutInfoOpInterface::FallbackModel<SameInOutAnyDimsOrderOpModelForSW> {
+public:
+    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/,
+                                const bool /*seTransposedConvEnabled*/) {
+        const auto inOrder = info.getInput(0);
+        info.setOutput(0, inOrder);
+    }
+
+    mlir::LogicalResult verifyLayout(mlir::Operation* origOp) const {
+        return VPU::verifySameInOutDimsOrder(origOp);
     }
 
     IE::LayerLayoutInfo getLayoutInfo(mlir::Operation* origOp) const {
@@ -139,7 +171,8 @@ public:
 class SameInOutDefaultDimsOrderOpModelForSW final :
         public IE::LayoutInfoOpInterface::FallbackModel<SameInOutDefaultDimsOrderOpModelForSW> {
 public:
-    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/) {
+    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/,
+                                const bool /*seTransposedConvEnabled*/) {
         VPU::inferLayoutInfoSameInOutDefaultDimsOrder(info);
     }
 
@@ -159,7 +192,8 @@ public:
 class DefaultDimsOrderOpModelForSW final :
         public IE::LayoutInfoOpInterface::FallbackModel<DefaultDimsOrderOpModelForSW> {
 public:
-    static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/) {
+    static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/,
+                                const bool /*seTransposedConvEnabled*/) {
         VPU::inferLayoutInfoDefaultDimsOrder(info);
     }
 
@@ -179,7 +213,8 @@ public:
 class SameInOutDimsOrderOpModelForSW_CHW_HWC_NCHW_NHWC final :
         public IE::LayoutInfoOpInterface::FallbackModel<SameInOutDimsOrderOpModelForSW_CHW_HWC_NCHW_NHWC> {
 public:
-    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/) {
+    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/,
+                                const bool /*seTransposedConvEnabled*/) {
         VPU::inferLayoutInfoSameInOutSpecificDimsOrder(
                 info, {DimsOrder::CHW, DimsOrder::HWC, DimsOrder::NCHW, DimsOrder::NHWC});
     }
@@ -194,6 +229,25 @@ public:
     }
 };
 
+class SameInOutDimsOrderOpModelForSW_CHW_HWC_NCHW_NHWC_NCDHW_NDHWC final :
+        public IE::LayoutInfoOpInterface::FallbackModel<SameInOutDimsOrderOpModelForSW_CHW_HWC_NCHW_NHWC_NCDHW_NDHWC> {
+public:
+    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/,
+                                const bool /*seTransposedConvEnabled*/) {
+        VPU::inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::CHW, DimsOrder::HWC, DimsOrder::NCHW,
+                                                              DimsOrder::NHWC, DimsOrder::NCDHW, DimsOrder::NDHWC});
+    }
+
+    mlir::LogicalResult verifyLayout(mlir::Operation* origOp) const {
+        return VPU::verifySameInOutSpecificDimsOrder(origOp, {DimsOrder::CHW, DimsOrder::HWC, DimsOrder::NCHW,
+                                                              DimsOrder::NHWC, DimsOrder::NCDHW, DimsOrder::NDHWC});
+    }
+
+    IE::LayerLayoutInfo getLayoutInfo(mlir::Operation* origOp) const {
+        return IE::getLayoutInfo(origOp);
+    }
+};
+
 //
 // SameInOutDimsOrderOpModelForSW_NC_CHW_HWC_NCHW_NHWC
 //
@@ -201,7 +255,8 @@ public:
 class SameInOutDimsOrderOpModelForSW_NC_CHW_HWC_NCHW_NHWC final :
         public IE::LayoutInfoOpInterface::FallbackModel<SameInOutDimsOrderOpModelForSW_NC_CHW_HWC_NCHW_NHWC> {
 public:
-    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/) {
+    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/,
+                                const bool /*seTransposedConvEnabled*/) {
         VPU::inferLayoutInfoSameInOutSpecificDimsOrder(
                 info, {DimsOrder::NC, DimsOrder::CHW, DimsOrder::HWC, DimsOrder::NCHW, DimsOrder::NHWC});
     }
@@ -223,7 +278,8 @@ public:
 class SameInOutDimsOrderOpModelForSW_NCHW_NHWC final :
         public IE::LayoutInfoOpInterface::FallbackModel<SameInOutDimsOrderOpModelForSW_NCHW_NHWC> {
 public:
-    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/) {
+    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/,
+                                const bool /*seTransposedConvEnabled*/) {
         VPU::inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NCHW, DimsOrder::NHWC});
     }
 
@@ -243,7 +299,8 @@ public:
 class SameInOutDimsOrderOpModelForSW_NCHW final :
         public IE::LayoutInfoOpInterface::FallbackModel<SameInOutDimsOrderOpModelForSW_NCHW> {
 public:
-    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/) {
+    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/,
+                                const bool /*seTransposedConvEnabled*/) {
         VPU::inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NCHW});
     }
 
@@ -263,7 +320,8 @@ public:
 class SameInOutDimsOrderOpModelForSW_NCHW_NCWH_NHWC_NWHC final :
         public IE::LayoutInfoOpInterface::FallbackModel<SameInOutDimsOrderOpModelForSW_NCHW_NCWH_NHWC_NWHC> {
 public:
-    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/) {
+    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/,
+                                const bool /*seTransposedConvEnabled*/) {
         VPU::inferLayoutInfoSameInOutSpecificDimsOrder(
                 info, {DimsOrder::NCHW, DimsOrder::NCWH, DimsOrder::NHWC, DimsOrder::NWHC});
     }
@@ -285,7 +343,8 @@ public:
 class SameInOutDimsOrderOpModelForSW_NHWC final :
         public IE::LayoutInfoOpInterface::FallbackModel<SameInOutDimsOrderOpModelForSW_NHWC> {
 public:
-    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/) {
+    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/,
+                                const bool /*seTransposedConvEnabled*/) {
         VPU::inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NHWC});
     }
 
@@ -304,7 +363,8 @@ public:
 
 class ReduceDimsOrderOpModelForSW final : public IE::LayoutInfoOpInterface::FallbackModel<ReduceDimsOrderOpModelForSW> {
 public:
-    static void inferLayoutInfo(mlir::Operation* op, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/) {
+    static void inferLayoutInfo(mlir::Operation* op, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/,
+                                const bool /*seTransposedConvEnabled*/) {
         VPU::inferReduceLayoutInfo(op, info);
     }
 
@@ -324,7 +384,8 @@ public:
 class AffineReshapeDimsOrderOpModelForSW final :
         public IE::LayoutInfoOpInterface::FallbackModel<AffineReshapeDimsOrderOpModelForSW> {
 public:
-    static void inferLayoutInfo(mlir::Operation* op, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/) {
+    static void inferLayoutInfo(mlir::Operation* op, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/,
+                                const bool /*seTransposedConvEnabled*/) {
         VPU::inferAffineReshapeLayoutInfo(op, info);
     }
 
@@ -344,7 +405,8 @@ public:
 class QuantizeDimsOrderOpModelForSW final :
         public IE::LayoutInfoOpInterface::FallbackModel<QuantizeDimsOrderOpModelForSW> {
 public:
-    static void inferLayoutInfo(mlir::Operation* op, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/) {
+    static void inferLayoutInfo(mlir::Operation* op, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/,
+                                const bool /*seTransposedConvEnabled*/) {
         VPU::inferQuantizeLayoutInfo(op, info);
     }
 
@@ -364,7 +426,8 @@ public:
 class DequantizeDimsOrderOpModelForSW final :
         public IE::LayoutInfoOpInterface::FallbackModel<DequantizeDimsOrderOpModelForSW> {
 public:
-    static void inferLayoutInfo(mlir::Operation* op, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/) {
+    static void inferLayoutInfo(mlir::Operation* op, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/,
+                                const bool /*seTransposedConvEnabled*/) {
         VPU::inferDequantizeLayoutInfo(op, info);
     }
 
@@ -384,7 +447,8 @@ public:
 class SqueezeUnsqueezeDimsOrderOpModelForSW final :
         public IE::LayoutInfoOpInterface::FallbackModel<SqueezeUnsqueezeDimsOrderOpModelForSW> {
 public:
-    static void inferLayoutInfo(mlir::Operation* op, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/) {
+    static void inferLayoutInfo(mlir::Operation* op, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/,
+                                const bool /*seTransposedConvEnabled*/) {
         VPU::inferSqueezeUnsqueezeLayoutInfo(op, info);
     }
 
@@ -404,7 +468,8 @@ public:
 class RegionYoloDimsOrderOpModelForSW final :
         public IE::LayoutInfoOpInterface::FallbackModel<RegionYoloDimsOrderOpModelForSW> {
 public:
-    static void inferLayoutInfo(mlir::Operation* op, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/) {
+    static void inferLayoutInfo(mlir::Operation* op, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/,
+                                const bool /*seTransposedConvEnabled*/) {
         VPU::inferRegionYoloLayoutInfo(op, info);
     }
 
@@ -424,7 +489,8 @@ public:
 class InterpolateDimsOrderOpModelForSW final :
         public IE::LayoutInfoOpInterface::FallbackModel<InterpolateDimsOrderOpModelForSW> {
 public:
-    static void inferLayoutInfo(mlir::Operation* op, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/) {
+    static void inferLayoutInfo(mlir::Operation* op, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/,
+                                const bool /*seTransposedConvEnabled*/) {
         VPU::inferInterpolateLayoutInfo(op, info);
     }
 
@@ -444,7 +510,8 @@ public:
 class NCEConvolutionDimsOrderOpModelForHW final :
         public IE::LayoutInfoOpInterface::FallbackModel<NCEConvolutionDimsOrderOpModelForHW> {
 public:
-    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/) {
+    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/,
+                                const bool /*seTransposedConvEnabled*/) {
         info.setInput(0, DimsOrder::NHWC);
         info.setInput(1, DimsOrder::OYXI);
         info.setOutput(0, DimsOrder::NHWC);
@@ -466,7 +533,8 @@ public:
 class PermuteQuantizeDimsOrderOpModelForSW final :
         public IE::LayoutInfoOpInterface::FallbackModel<PermuteQuantizeDimsOrderOpModelForSW> {
 public:
-    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/) {
+    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/,
+                                const bool /*seTransposedConvEnabled*/) {
         info.setInput(0, DimsOrder::NHWC);
         info.setOutput(0, DimsOrder::NWCH);
     }
@@ -488,7 +556,8 @@ public:
 class SameMultipleInOutDimsOrderOpModelForHW_NHWC final :
         public IE::LayoutInfoOpInterface::FallbackModel<SameMultipleInOutDimsOrderOpModelForHW_NHWC> {
 public:
-    static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/) {
+    static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/,
+                                const bool /*seTransposedConvEnabled*/) {
         info.fill(DimsOrder::NHWC);
     }
 
@@ -508,7 +577,8 @@ public:
 class SameInOutDimsOrderOpModelForHW_NHWC final :
         public IE::LayoutInfoOpInterface::FallbackModel<SameInOutDimsOrderOpModelForHW_NHWC> {
 public:
-    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/) {
+    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/,
+                                const bool /*seTransposedConvEnabled*/) {
         info.fill(DimsOrder::NHWC);
     }
 
@@ -528,7 +598,8 @@ public:
 class TopKSameInOutDimsOrderOpModelForSW final :
         public IE::LayoutInfoOpInterface::FallbackModel<TopKSameInOutDimsOrderOpModelForSW> {
 public:
-    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/) {
+    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/,
+                                const bool /*seTransposedConvEnabled*/) {
         const auto inOrder = info.getInput(0);
 
         info.setInput(0, inOrder);
@@ -538,6 +609,28 @@ public:
 
     mlir::LogicalResult verifyLayout(mlir::Operation* op) const {
         return VPU::verifyTopKLayoutInfo(op);
+    }
+
+    IE::LayerLayoutInfo getLayoutInfo(mlir::Operation* origOp) const {
+        return IE::getLayoutInfo(origOp);
+    }
+};
+
+//
+// NCEPermuteDimsOrderOpModelForHW
+//
+
+class NCEPermuteDimsOrderOpModelForHW final :
+        public IE::LayoutInfoOpInterface::FallbackModel<NCEPermuteDimsOrderOpModelForHW> {
+public:
+    static void inferLayoutInfo(mlir::Operation* /*op*/, IE::LayerLayoutInfo& info, const bool /*seOpsEnabled*/,
+                                const bool /*seTransposedConvEnabled*/) {
+        info.setInput(0, DimsOrder::NCHW);
+        info.setOutput(0, DimsOrder::NHWC);
+    }
+
+    mlir::LogicalResult verifyLayout(mlir::Operation* op) const {
+        return VPU::verifyNCEPermuteLayoutInfo(op);
     }
 
     IE::LayerLayoutInfo getLayoutInfo(mlir::Operation* origOp) const {

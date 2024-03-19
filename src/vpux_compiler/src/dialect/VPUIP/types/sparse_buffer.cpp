@@ -4,7 +4,9 @@
 //
 
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
-#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
+#include "vpux/compiler/dialect/VPU/utils/distributed_tensor_utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_sparsity.hpp"
+#include "vpux/compiler/dialect/VPU/utils/sparsity_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/types.hpp"
 
 using namespace vpux;
@@ -175,12 +177,12 @@ mlir::LogicalResult VPUIP::SparseBufferType::verify(llvm::function_ref<::mlir::I
 //
 
 ShapeRef VPUIP::SparseBufferType::getShape() const {
-    const auto data = getEffectiveSparseOutputType(getData(), getStorageElementTable());
+    const auto data = VPU::getEffectiveSparseOutputType<VPUIP::SparseBufferType>(*this);
     return data.getShape();
 }
 
 MemShape VPUIP::SparseBufferType::getMemShape() const {
-    const auto data = getEffectiveSparseOutputType(getData(), getStorageElementTable());
+    const auto data = VPU::getEffectiveSparseOutputType<VPUIP::SparseBufferType>(*this);
     return data.getMemShape();
 }
 
@@ -198,12 +200,12 @@ int64_t VPUIP::SparseBufferType::getNumElements() const {
     if (getCompressionScheme() != nullptr) {
         return getCompressionScheme().getTotalNumElems();
     }
-    const auto data = getEffectiveSparseOutputType(getData(), getStorageElementTable());
+    const auto data = VPU::getEffectiveSparseOutputType<VPUIP::SparseBufferType>(*this);
     return data.getNumElements();
 }
 
 mlir::Type VPUIP::SparseBufferType::getElementType() const {
-    const auto data = getEffectiveSparseOutputType(getData(), getStorageElementTable());
+    const auto data = VPU::getEffectiveSparseOutputType<VPUIP::SparseBufferType>(*this);
     return data.getElementType();
 }
 
@@ -226,7 +228,7 @@ Strides VPUIP::SparseBufferType::getStrides() const {
     auto data = getData().cast<NDTypeInterface>();
     if (getSeAttr() != nullptr) {
         // If SEAttr is set then return effective shape, srides are compact
-        data = getEffectiveSparseOutputType(getData(), getStorageElementTable());
+        data = VPU::getEffectiveSparseOutputType<VPUIP::SparseBufferType>(*this);
     }
     return data.getStrides();
 }
@@ -235,7 +237,7 @@ MemStrides VPUIP::SparseBufferType::getMemStrides() const {
     auto data = getData().cast<NDTypeInterface>();
     if (getSeAttr() != nullptr) {
         // If SEAttr is set then return effective shape, srides are compact
-        data = getEffectiveSparseOutputType(getData(), getStorageElementTable());
+        data = VPU::getEffectiveSparseOutputType<VPUIP::SparseBufferType>(*this);
     }
     return data.getMemStrides();
 }
@@ -298,7 +300,7 @@ NDTypeInterface VPUIP::SparseBufferType::changeShapeElemType(ShapeRef shape, mli
     const auto ndData = getData().cast<NDTypeInterface>();
     Shape inputDataShape(shape.toValues());
     if (auto seAttr = getSeAttr()) {
-        inputDataShape = seAttr.backInferShape(shape);
+        inputDataShape = seAttr.backInferInputShape(shape);
     }
     const auto data = ndData.changeShapeElemType(inputDataShape, elemType);
 
@@ -373,7 +375,7 @@ NDTypeInterface VPUIP::SparseBufferType::changeStrides(StridesRef strides) const
         // non compact strides for now
         const auto compact = StrideReqs::compact(ndData.getRank());
         const auto effectiveData =
-                getEffectiveSparseOutputType(ndData, getStorageElementTable()).changeStrides(strides);
+                VPU::getEffectiveSparseOutputType<VPUIP::SparseBufferType>(*this).changeStrides(strides);
         VPUX_THROW_WHEN(compact.checkStrides(effectiveData) == false,
                         "If SEAttr is set then then only compact input supported, got {0}", effectiveData);
     } else {
@@ -391,7 +393,7 @@ NDTypeInterface VPUIP::SparseBufferType::changeTypeComponents(const vpux::TypeCo
 
     Shape newInputDataShape(shape);
     if (auto seAttr = getSeAttr()) {
-        newInputDataShape = seAttr.backInferShape(shape);
+        newInputDataShape = seAttr.backInferInputShape(shape);
     }
     TypeComponents dataTypeComponents(typeComponents);
     const auto newData = ndData.changeTypeComponents(dataTypeComponents.setShape(newInputDataShape));
@@ -450,7 +452,7 @@ NDTypeInterface VPUIP::SparseBufferType::extractDenseTile(ShapeRef tileOffsets, 
     auto storageElementTable = getStorageElementTable();
     if (storageElementTable != nullptr) {
         const auto ndStorageElementTable = storageElementTable.cast<NDTypeInterface>();
-        auto seTableTileOffsets = Shape(tileOffsets.size(), 1);
+        auto seTableTileOffsets = Shape(tileOffsets.size(), 0);
         seTableTileOffsets[Dims4D::Act::H] = tileOffsets[Dims4D::Act::H];
         seTableTileOffsets[Dims4D::Act::W] = tileOffsets[Dims4D::Act::W];
         auto seTableTileShape = Shape(ndStorageElementTable.getShape().raw());
@@ -496,7 +498,7 @@ NDTypeInterface VPUIP::SparseBufferType::extractViewTile(ShapeRef tileOffsets, S
     auto storageElementTable = getStorageElementTable();
     if (storageElementTable != nullptr) {
         const auto ndStorageElementTable = storageElementTable.cast<NDTypeInterface>();
-        auto seTableTileOffsets = Shape(tileOffsets.size(), 1);
+        auto seTableTileOffsets = Shape(tileOffsets.size(), 0);
         seTableTileOffsets[Dims4D::Act::H] = tileOffsets[Dims4D::Act::H];
         seTableTileOffsets[Dims4D::Act::W] = tileOffsets[Dims4D::Act::W];
         auto seTableTileShape = Shape(ndStorageElementTable.getShape().raw());
@@ -538,7 +540,7 @@ NDTypeInterface VPUIP::SparseBufferType::pad(ShapeRef padBefore, ShapeRef padAft
     Shape paddedOutputShape(data.getShape().toValues());
     if (auto seAttr = getSeAttr()) {
         paddedOutputShape = Shape(ndData.changeShape(getShape()).pad(padBefore, padAfter).getShape().raw());
-        data = data.changeShape(seAttr.backInferShape(paddedOutputShape));
+        data = data.changeShape(seAttr.backInferInputShape(paddedOutputShape));
     }
 
     auto sparsityMap = getSparsityMap();
@@ -586,4 +588,306 @@ SmallVector<mlir::Type> VPUIP::SparseBufferType::getDistributedTypes() const {
         distributedTypes.push_back(getStorageElementTable());
     }
     return distributedTypes;
+}
+
+// @brief Change the type's shapes when the DistributedType has an explicit DistributedTensorAttr.
+// Each type implementing this interface will decide the appropriate explicit DistributedTensorAttr
+// for its components, based on the one that was passed as an arg.
+NDTypeInterface VPUIP::SparseBufferType::changeShapeForExplicitDistribution(
+        ShapeRef shape, VPU::DistributedTensorAttr distributedAttr) const {
+    return changeShapeElemTypeForExplicitDistribution(shape, getElementType(), distributedAttr);
+}
+
+// @brief Change the type's shapes and elem type when the DistributedType has an explicit DistributedTensorAttr.
+// Each type implementing this interface will decide the appropriate explicit DistributedTensorAttr
+// for its components, based on the one that was passed as an arg.
+NDTypeInterface VPUIP::SparseBufferType::changeShapeElemTypeForExplicitDistribution(
+        ShapeRef shape, mlir::Type elemType, VPU::DistributedTensorAttr distributedAttr) const {
+    const auto distributedData = getData().dyn_cast<VPUIP::DistributedBufferType>();
+    VPUX_THROW_WHEN(distributedData == nullptr,
+                    "Calling changeShapeElemTypeForExplicitDistribution on SparseBuffer that does not have "
+                    "DistributedBuffer data, {0}",
+                    getData());
+    auto ctx = getContext();
+
+    Shape inputDataShape(shape.toValues());
+    if (auto seAttr = getSeAttr()) {
+        inputDataShape = seAttr.backInferInputShape(shape);
+    }
+    auto dataDistributedAttr =
+            VPU::getExplicitDistrAttrForSparseData(distributedAttr, inputDataShape, getSeAttr(), ctx);
+    const auto data =
+            distributedData.changeShapeElemTypeForExplicitDistribution(inputDataShape, elemType, dataDistributedAttr);
+
+    auto sparsityMap = getSparsityMap();
+    if (sparsityMap != nullptr) {
+        const auto distributedSparsityMap = sparsityMap.dyn_cast<VPUIP::DistributedBufferType>();
+        VPUX_THROW_WHEN(distributedSparsityMap == nullptr,
+                        "Calling changeShapeElemTypeForExplicitDistribution on SparseBuffer that does not have "
+                        "DistributedBuffer sparsity map, {0}",
+                        getSparsityMap());
+        auto newSMShape = shape;
+        if (getIsWeights() != nullptr) {
+            newSMShape = VPU::NCESparsity::inferWeightsSparsityMapShape(shape);
+        }
+
+        auto smDistributedAttr =
+                VPU::getExplicitDistrAttrForSparsityMap(distributedAttr, newSMShape, getIsWeights(), ctx);
+
+        sparsityMap = distributedSparsityMap.changeShapeForExplicitDistribution(newSMShape, smDistributedAttr);
+    }
+
+    auto storageElementTable = getStorageElementTable();
+    if (storageElementTable != nullptr) {
+        const auto distributedSETable = storageElementTable.dyn_cast<VPUIP::DistributedBufferType>();
+        VPUX_THROW_WHEN(distributedSETable == nullptr,
+                        "Calling changeShapeElemTypeForExplicitDistribution on SparseBuffer that does not have "
+                        "DistributedBuffer Storage Element Table, {0}",
+                        getStorageElementTable());
+
+        auto seTableShape = Shape(distributedSETable.getShape().raw());
+        seTableShape[Dims4D::Act::H] = shape[Dims4D::Act::H];
+        seTableShape[Dims4D::Act::W] = shape[Dims4D::Act::W];
+
+        const auto prevSeSize = getShape()[Dims4D::Act::C] / seTableShape[Dims4D::Act::C];
+        const auto newSeSize = shape[Dims4D::Act::C] / seTableShape[Dims4D::Act::C];
+
+        VPUX_THROW_WHEN(prevSeSize != newSeSize && seTableShape[Dims4D::Act::C] != 1,
+                        "After changeShapeElemTypeForExplicitDistribution, StorageElementTable does not have the same "
+                        "seSize: sparseBuffer = {0}, new shape = {1}",
+                        *this, shape);
+
+        auto seTableDistributedAttr = VPU::getExplicitDistrAttrForSETable(distributedAttr, newSeSize, ctx);
+        storageElementTable =
+                distributedSETable.changeShapeForExplicitDistribution(seTableShape, seTableDistributedAttr);
+    }
+
+    return VPUIP::SparseBufferType::get(data, sparsityMap, storageElementTable, getIsWeights(), getCompressionScheme(),
+                                        getSeAttr());
+}
+
+// @brief Change the type's components when the DistributedType has an explicit DistributedTensorAttr.
+// Each type implementing this interface will decide the appropriate explicit DistributedTensorAttr
+// for its components, based on the one that was passed as an arg.
+NDTypeInterface VPUIP::SparseBufferType::changeTypeComponentsForExplicitDistribution(
+        const TypeComponents& typeComponents, VPU::DistributedTensorAttr distributedAttr) const {
+    if (distributedAttr == nullptr) {
+        return changeTypeComponents(typeComponents);
+    }
+
+    auto ctx = getContext();
+
+    const auto shape = typeComponents.shape.value_or(Shape(getShape().toValues()));
+    const auto dimsOrder = typeComponents.dimsOrder.value_or(getDimsOrder());
+    const auto memSpace = typeComponents.memSpace.value_or(getMemSpace());
+
+    Shape newInputDataShape(shape);
+    if (auto seAttr = getSeAttr()) {
+        newInputDataShape = seAttr.backInferInputShape(shape);
+    }
+
+    auto dataDistributedAttr =
+            VPU::getExplicitDistrAttrForSparseData(distributedAttr, newInputDataShape, getSeAttr(), ctx);
+
+    TypeComponents dataTypeComponents(typeComponents);
+    const auto clusteredData = getData().cast<ClusterTypeInterface>();
+    const auto newData = clusteredData.changeTypeComponentsForExplicitDistribution(
+            dataTypeComponents.setShape(newInputDataShape), dataDistributedAttr);
+
+    auto sparsityMap = getSparsityMap();
+    if (sparsityMap != nullptr) {
+        const auto clusteredSparsityMap = sparsityMap.cast<ClusterTypeInterface>();
+        auto smTypeComponents = TypeComponents().setMemSpace(memSpace);
+
+        if (getIsWeights() == nullptr) {
+            smTypeComponents = smTypeComponents.setShape(shape).setDimsOrder(dimsOrder);
+        } else {
+            auto newSMShape = VPU::NCESparsity::inferWeightsSparsityMapShape(shape);
+            smTypeComponents = smTypeComponents.setShape(newSMShape);
+        }
+
+        auto smDistributedAttr = VPU::getExplicitDistrAttrForSparsityMap(
+                distributedAttr, smTypeComponents.shape.value(), getIsWeights(), ctx);
+        sparsityMap =
+                clusteredSparsityMap.changeTypeComponentsForExplicitDistribution(smTypeComponents, smDistributedAttr);
+    }
+
+    auto storageElementTable = getStorageElementTable();
+    if (storageElementTable != nullptr) {
+        const auto ndStorageElementTable = storageElementTable.cast<NDTypeInterface>();
+        auto seTableShape = Shape(ndStorageElementTable.getShape().raw());
+        seTableShape[Dims4D::Act::H] = shape[Dims4D::Act::H];
+        seTableShape[Dims4D::Act::W] = shape[Dims4D::Act::W];
+
+        const auto prevSeSize = getShape()[Dims4D::Act::C] / seTableShape[Dims4D::Act::C];
+        const auto newSeSize = shape[Dims4D::Act::C] / seTableShape[Dims4D::Act::C];
+
+        VPUX_THROW_WHEN(prevSeSize != newSeSize && seTableShape[Dims4D::Act::C] != 1,
+                        "After changeTypeComponentsForExplicitDistribution, StorageElementTable does not have the same "
+                        "seSize: sparseBuffer = {0}, new shape = {1}",
+                        *this, shape);
+
+        auto seTableDistributedAttr = VPU::getExplicitDistrAttrForSETable(distributedAttr, newSeSize, ctx);
+
+        const auto clusterSETable = storageElementTable.cast<ClusterTypeInterface>();
+        const auto SETComponents = TypeComponents().setShape(seTableShape).setMemSpace(memSpace);
+        storageElementTable =
+                clusterSETable.changeTypeComponentsForExplicitDistribution(SETComponents, seTableDistributedAttr);
+    }
+
+    return VPUIP::SparseBufferType::get(newData, sparsityMap, storageElementTable, getIsWeights(),
+                                        getCompressionScheme(), getSeAttr());
+}
+
+// @brief Extract a dense tile from a DistributedType with an explicit DistributedTensorAttr.
+// Each type implementing this interface will decide the appropriate explicit DistributedTensorAttr
+// for its components, based on the one that was passed as an arg.
+NDTypeInterface VPUIP::SparseBufferType::extractDenseTileForExplicitDistribution(
+        vpux::ShapeRef tileOffsets, vpux::ShapeRef tileShape, VPU::DistributedTensorAttr distributedAttr) const {
+    if (distributedAttr == nullptr) {
+        return extractDenseTile(tileOffsets, tileShape);
+    }
+
+    auto ctx = getContext();
+
+    const auto ndData = getData().cast<NDTypeInterface>();
+
+    Shape inputTileShape(tileShape.raw());
+    Shape inputTileStart(tileOffsets.raw());
+    auto seAttr = getSeAttr();
+    if (seAttr != nullptr) {
+        seAttr = seAttr.extractTile(tileOffsets, tileShape, ndData.getShape(), inputTileStart, inputTileShape);
+    }
+
+    auto dataDistributedAttr = VPU::getExplicitDistrAttrForSparseData(distributedAttr, inputTileShape, seAttr, ctx);
+
+    const auto data = ndData.cast<ClusterTypeInterface>().extractDenseTileForExplicitDistribution(
+            inputTileStart, inputTileShape, dataDistributedAttr);
+
+    auto sparsityMap = getSparsityMap();
+    if (sparsityMap != nullptr) {
+        const auto clusteredSparsityMap = sparsityMap.cast<ClusterTypeInterface>();
+
+        if (getIsWeights() != nullptr) {
+            auto newSMShape = VPU::NCESparsity::inferWeightsSparsityMapShape(tileShape);
+
+            auto smDistributedAttr =
+                    VPU::getExplicitDistrAttrForSparsityMap(distributedAttr, newSMShape, getIsWeights(), ctx);
+
+            sparsityMap = clusteredSparsityMap.changeShapeForExplicitDistribution(newSMShape, smDistributedAttr);
+        } else {
+            auto smDistributedAttr =
+                    VPU::getExplicitDistrAttrForSparsityMap(distributedAttr, tileShape, getIsWeights(), ctx);
+            sparsityMap = clusteredSparsityMap.extractDenseTileForExplicitDistribution(tileOffsets, tileShape,
+                                                                                       smDistributedAttr);
+        }
+    }
+
+    auto storageElementTable = getStorageElementTable();
+    if (storageElementTable != nullptr) {
+        const auto ndStorageElementTable = storageElementTable.cast<NDTypeInterface>();
+
+        auto seTableTileOffsets = Shape(tileOffsets.size(), 0);
+        seTableTileOffsets[Dims4D::Act::H] = tileOffsets[Dims4D::Act::H];
+        seTableTileOffsets[Dims4D::Act::W] = tileOffsets[Dims4D::Act::W];
+        auto seTableTileShape = Shape(ndStorageElementTable.getShape().raw());
+        seTableTileShape[Dims4D::Act::H] = tileShape[Dims4D::Act::H];
+        seTableTileShape[Dims4D::Act::W] = tileShape[Dims4D::Act::W];
+
+        const auto prevSeSize = getShape()[Dims4D::Act::C] / seTableTileShape[Dims4D::Act::C];
+        const auto newSeSize = tileShape[Dims4D::Act::C] / seTableTileShape[Dims4D::Act::C];
+
+        VPUX_THROW_WHEN(prevSeSize != newSeSize && seTableTileShape[Dims4D::Act::C] != 1,
+                        "After extractDenseTileForExplicitDistribution, StorageElementTable does not have the same "
+                        "seSize: sparseBuffer = {0}, new shape = {1}",
+                        *this, tileShape);
+
+        auto seTableDistributedAttr = VPU::getExplicitDistrAttrForSETable(distributedAttr, newSeSize, ctx);
+
+        storageElementTable =
+                ndStorageElementTable.cast<ClusterTypeInterface>().extractDenseTileForExplicitDistribution(
+                        seTableTileOffsets, seTableTileShape, seTableDistributedAttr);
+    }
+
+    const auto compressionScheme = VPUIP::tileCompressionScheme(getCompressionScheme(), tileOffsets, tileShape);
+
+    return VPUIP::SparseBufferType::get(data, sparsityMap, storageElementTable, getIsWeights(), compressionScheme,
+                                        seAttr);
+}
+
+NDTypeInterface VPUIP::SparseBufferType::extractViewTileForExplicitDistribution(
+        vpux::ShapeRef tileOffsets, vpux::ShapeRef tileShape, vpux::ShapeRef tileElemStrides,
+        VPU::DistributedTensorAttr distributedAttr) const {
+    if (distributedAttr == nullptr) {
+        return extractViewTile(tileOffsets, tileShape, tileElemStrides);
+    }
+
+    auto ctx = getContext();
+    const auto ndData = getData().cast<NDTypeInterface>();
+
+    Shape inputTileShape(tileShape.raw());
+    Shape inputTileStart(tileOffsets.raw());
+    auto seAttr = getSeAttr();
+    if (seAttr != nullptr) {
+        if (!tileElemStrides.empty()) {
+            const auto strided = std::any_of(tileElemStrides.begin(), tileElemStrides.begin(), [](auto val) {
+                return val != 1;
+            });
+            VPUX_THROW_WHEN(strided, "Extracting view tile with non dense strides is not supported if SEAttr is set");
+        }
+        seAttr = seAttr.extractTile(tileOffsets, tileShape, ndData.getShape(), inputTileStart, inputTileShape);
+    }
+
+    auto dataDistributedAttr = VPU::getExplicitDistrAttrForSparseData(distributedAttr, inputTileShape, seAttr, ctx);
+
+    const auto data = ndData.cast<ClusterTypeInterface>().extractViewTileForExplicitDistribution(
+            inputTileStart, inputTileShape, tileElemStrides, dataDistributedAttr);
+
+    auto sparsityMap = getSparsityMap();
+    if (sparsityMap != nullptr) {
+        const auto clusteredSparsityMap = sparsityMap.cast<ClusterTypeInterface>();
+
+        if (getIsWeights() != nullptr) {
+            auto newSMShape = VPU::NCESparsity::inferWeightsSparsityMapShape(tileShape);
+
+            auto smDistributedAttr =
+                    VPU::getExplicitDistrAttrForSparsityMap(distributedAttr, newSMShape, getIsWeights(), ctx);
+            sparsityMap = clusteredSparsityMap.changeShapeForExplicitDistribution(newSMShape, smDistributedAttr);
+        } else {
+            auto smDistributedAttr =
+                    VPU::getExplicitDistrAttrForSparsityMap(distributedAttr, tileShape, getIsWeights(), ctx);
+            sparsityMap = clusteredSparsityMap.extractViewTileForExplicitDistribution(
+                    tileOffsets, tileShape, tileElemStrides, smDistributedAttr);
+        }
+    }
+
+    auto storageElementTable = getStorageElementTable();
+    if (storageElementTable != nullptr) {
+        const auto ndStorageElementTable = storageElementTable.cast<NDTypeInterface>();
+        auto seTableTileOffsets = Shape(tileOffsets.size(), 0);
+        seTableTileOffsets[Dims4D::Act::H] = tileOffsets[Dims4D::Act::H];
+        seTableTileOffsets[Dims4D::Act::W] = tileOffsets[Dims4D::Act::W];
+        auto seTableTileShape = Shape(ndStorageElementTable.getShape().raw());
+        seTableTileShape[Dims4D::Act::H] = tileShape[Dims4D::Act::H];
+        seTableTileShape[Dims4D::Act::W] = tileShape[Dims4D::Act::W];
+
+        const auto prevSeSize = getShape()[Dims4D::Act::C] / seTableTileShape[Dims4D::Act::C];
+        const auto newSeSize = tileShape[Dims4D::Act::C] / seTableTileShape[Dims4D::Act::C];
+
+        VPUX_THROW_WHEN(prevSeSize != newSeSize && seTableTileShape[Dims4D::Act::C] != 1,
+                        "After extractViewTileForExplicitDistribution, StorageElementTable does not have the same "
+                        "seSize: sparseBuffer = {0}, new shape = {1}",
+                        *this, tileShape);
+
+        auto seTableDistributedAttr = VPU::getExplicitDistrAttrForSETable(distributedAttr, newSeSize, ctx);
+
+        storageElementTable =
+                ndStorageElementTable.cast<ClusterTypeInterface>().extractDenseTileForExplicitDistribution(
+                        seTableTileOffsets, seTableTileShape, seTableDistributedAttr);
+    }
+
+    const auto compressionScheme = VPUIP::tileCompressionScheme(getCompressionScheme(), tileOffsets, tileShape);
+
+    return VPUIP::SparseBufferType::get(data, sparsityMap, storageElementTable, getIsWeights(), compressionScheme,
+                                        seAttr);
 }

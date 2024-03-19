@@ -6,7 +6,6 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
 using namespace vpux;
@@ -49,7 +48,7 @@ void UseUserPrecisionPass::safeRunOnModule() {
         const auto ind = checked_cast<uint32_t>(p.index());
 
         const auto origType = p.value().cast<vpux::NDTypeInterface>();
-        const auto userType = userInputs[ind].userType().cast<vpux::NDTypeInterface>();
+        const auto userType = userInputs[ind].getUserType().cast<vpux::NDTypeInterface>();
 
         const auto newType = origType.changeElemType(userType.getElementType());
         newArgTypes[ind] = newType;
@@ -61,7 +60,7 @@ void UseUserPrecisionPass::safeRunOnModule() {
         const auto ind = checked_cast<uint32_t>(p.index());
 
         const auto origType = p.value().cast<vpux::NDTypeInterface>();
-        const auto userType = userOutputs[ind].userType().cast<vpux::NDTypeInterface>();
+        const auto userType = userOutputs[ind].getUserType().cast<vpux::NDTypeInterface>();
 
         const auto newType = origType.changeElemType(userType.getElementType());
         newResultTypes[ind] = newType;

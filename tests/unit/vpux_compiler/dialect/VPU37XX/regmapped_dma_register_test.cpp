@@ -5,9 +5,11 @@
 
 #include <gtest/gtest.h>
 
+#include <npu_37xx_nnrt.hpp>
 #include "common/utils.hpp"
-#include "vpux/compiler/dialect/VPU37XX/api/vpu_nnrt_api_37xx.h"
 #include "vpux/compiler/dialect/VPU37XX/types.hpp"
+
+using namespace npu37xx;
 
 struct Vpu37XXDMATask {
     nn_public::VpuDMATask DMA;
@@ -153,13 +155,13 @@ std::vector<std::pair<MappedRegValues, Vpu37XXDMATask>> valuesSetDMA = {
          // dma_barriers_sched
          CREATE_HW_DMA_DESC(DMA.transaction_.barriers.cons_mask, 0xFFFFFFFFFFFFFFFFull)},
         {{
-                 {"dma_barriers_sched", {{"dma_barriers_sched_start_after", 0xFFFF}}},
+                 {"dma_barriers_sched", {{"dma_barriers_sched_start_after", 0xFFFFFFFF}}},
          },
-         CREATE_HW_DMA_DESC(DMA.barriers_sched_.start_after_, 0xFFFF)},
+         CREATE_HW_DMA_DESC(DMA.barriers_sched_.start_after_, 0xFFFFFFFF)},
         {{
-                 {"dma_barriers_sched", {{"dma_barriers_sched_clean_after", 0xFFFF}}},
+                 {"dma_barriers_sched", {{"dma_barriers_sched_clean_after", 0xFFFFFFFF}}},
          },
-         CREATE_HW_DMA_DESC(DMA.barriers_sched_.clean_after_, 0xFFFF)},
+         CREATE_HW_DMA_DESC(DMA.barriers_sched_.clean_after_, 0xFFFFFFFF)},
 };
 
 INSTANTIATE_TEST_CASE_P(VPU37XX_MappedRegs, VPU37XX_DMARegisterTest, testing::ValuesIn(valuesSetDMA));

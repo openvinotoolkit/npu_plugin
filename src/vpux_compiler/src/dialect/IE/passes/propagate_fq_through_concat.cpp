@@ -6,12 +6,6 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/utils/quantization.hpp"
-#include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
-
-#include <mlir/Transforms/GreedyPatternRewriteDriver.h>
-
-#include <vpux/compiler/conversion.hpp>
 
 using namespace vpux;
 
@@ -60,14 +54,13 @@ bool isPerTensorFq(const mlir::Value in) {
         return false;
     }
 
-    const auto axis = IE::getFQAxisIndex(maybeFqOp);
-    return !axis.has_value();
+    return IE::isPerTensorFQ({maybeFqOp});
 }
 
 mlir::LogicalResult PropagateFqThroughConcat::ConcatOpConverter::matchAndRewrite(
         IE::ConcatOp origConcatOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}]: rewriting {1}", getDebugName(), origConcatOp->getLoc());
-    const auto concatInputList = origConcatOp.inputs();
+    const auto concatInputList = origConcatOp.getInputs();
     // Find FQ operation
     auto fqOutputIter = std::find_if(concatInputList.begin(), concatInputList.end(), isPerTensorFq);
     auto fqOp = (*fqOutputIter).getDefiningOp<IE::FakeQuantizeOp>();
@@ -77,9 +70,9 @@ mlir::LogicalResult PropagateFqThroughConcat::ConcatOpConverter::matchAndRewrite
         return mlir::isa<IE::FakeQuantizeOp>(*operation);
     };
     bool outHasFq = false;
-    auto outFq = std::find_if(origConcatOp.output().getUsers().begin(), origConcatOp.output().getUsers().end(),
+    auto outFq = std::find_if(origConcatOp.getOutput().getUsers().begin(), origConcatOp.getOutput().getUsers().end(),
                               isFakeQuantizeOp);
-    if (outFq != origConcatOp.output().getUsers().end()) {
+    if (outFq != origConcatOp.getOutput().getUsers().end()) {
         outHasFq = true;
         fqOp = mlir::dyn_cast<IE::FakeQuantizeOp>(*outFq);
     }
@@ -90,24 +83,25 @@ mlir::LogicalResult PropagateFqThroughConcat::ConcatOpConverter::matchAndRewrite
         if (isPerTensorFq(concatInput)) {
             newConcatInputs.push_back(concatInput);
         } else {
-            auto newFqOp = rewriter.create<IE::FakeQuantizeOp>(origConcatOp->getLoc(), concatInput, fqOp.input_low(),
-                                                               fqOp.input_high(), fqOp.output_low(), fqOp.output_high(),
-                                                               fqOp.levels(), fqOp.auto_broadcast());
+            auto newFqOp = rewriter.create<IE::FakeQuantizeOp>(
+                    origConcatOp->getLoc(), concatInput, fqOp.getInputLow(), fqOp.getInputHigh(), fqOp.getOutputLow(),
+                    fqOp.getOutputHigh(), fqOp.getLevels(), fqOp.getAutoBroadcast());
 
             _log.nest().trace("Inserted new FQ: {0}", newFqOp);
-            newConcatInputs.push_back(newFqOp.output());
+            newConcatInputs.push_back(newFqOp.getOutput());
         }
     }
 
-    auto newConcatOp = rewriter.create<IE::ConcatOp>(origConcatOp->getLoc(), newConcatInputs,
-                                                     origConcatOp.per_axisAttr(), origConcatOp.static_offsetsAttr());
+    auto newConcatOp =
+            rewriter.create<IE::ConcatOp>(origConcatOp->getLoc(), newConcatInputs, origConcatOp.getPerAxisAttr(),
+                                          origConcatOp.getStaticOffsetsAttr());
 
     if (outHasFq) {
-        rewriter.replaceOp(origConcatOp, newConcatOp.output());
+        rewriter.replaceOp(origConcatOp, newConcatOp.getOutput());
     } else {
-        rewriter.replaceOpWithNewOp<IE::FakeQuantizeOp>(origConcatOp, newConcatOp.output(), fqOp.input_low(),
-                                                        fqOp.input_high(), fqOp.output_low(), fqOp.output_high(),
-                                                        fqOp.levels(), fqOp.auto_broadcast());
+        rewriter.replaceOpWithNewOp<IE::FakeQuantizeOp>(origConcatOp, newConcatOp.getOutput(), fqOp.getInputLow(),
+                                                        fqOp.getInputHigh(), fqOp.getOutputLow(), fqOp.getOutputHigh(),
+                                                        fqOp.getLevels(), fqOp.getAutoBroadcast());
     }
     _log.nest().trace("ConcatOp conversion done");
 
@@ -118,7 +112,7 @@ void PropagateFqThroughConcat::safeRunOnFunc() {
     auto& ctx = getContext();
 
     const auto isLegalConcat = [](IE::ConcatOp concatOp) -> bool {
-        const auto concatInputList = concatOp.inputs();
+        const auto concatInputList = concatOp.getInputs();
         // Either all concat inputs must be quantized, or none of them.
         if (std::all_of(concatInputList.begin(), concatInputList.end(), isPerTensorFq)) {
             return true;

@@ -14,6 +14,6 @@ target_include_directories(${TARGET_NAME}
 
 link_system_libraries(${TARGET_NAME}
     INTERFACE
-        IE::inference_engine
-        IE::format_reader
+        openvino::runtime
+        openvino::format_reader
 )

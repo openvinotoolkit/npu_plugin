@@ -1,20 +1,16 @@
-//
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
-#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
-
-#include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::PSROIPoolingOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -23,10 +19,10 @@ mlir::LogicalResult vpux::IE::PSROIPoolingOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto outputDim = psroiPooling.output_dim();
-    const auto groupSize = psroiPooling.group_size();
-    const auto inTypeFeatureMap = psroiPooling.input().getType().cast<mlir::ShapedType>();
-    const auto inTypeCoord = psroiPooling.coords().getType().cast<mlir::ShapedType>();
+    const auto outputDim = psroiPooling.getOutputDim();
+    const auto groupSize = psroiPooling.getGroupSize();
+    const auto inTypeFeatureMap = psroiPooling.getInput().getType().cast<mlir::ShapedType>();
+    const auto inTypeCoord = psroiPooling.getCoords().getType().cast<mlir::ShapedType>();
     const auto inShapeCoord = inTypeCoord.getShape();
 
     if (outputDim <= 0) {

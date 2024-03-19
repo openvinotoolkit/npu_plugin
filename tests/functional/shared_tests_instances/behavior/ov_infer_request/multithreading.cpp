@@ -6,30 +6,51 @@
 #include <vector>
 
 #include "behavior/ov_infer_request/multithreading.hpp"
+#include "common/utils.hpp"
+#include "common/vpu_test_env_cfg.hpp"
 #include "ie/ie_plugin_config.hpp"
+#include "overload/ov_infer_request/multithreading.hpp"
 
 using namespace ov::test::behavior;
 
 namespace {
 const std::vector<ov::AnyMap> configs = {{}};
 
-const std::vector<ov::AnyMap> multiConfigs = {{{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), CommonTestUtils::DEVICE_KEEMBAY}}};
+const std::vector<ov::AnyMap> multiConfigs = {{{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), ov::test::utils::DEVICE_NPU}}};
 
-const std::vector<ov::AnyMap> autoConfigs = {{{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), CommonTestUtils::DEVICE_KEEMBAY}}};
+const std::vector<ov::AnyMap> autoConfigs = {{{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), ov::test::utils::DEVICE_NPU}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestMultithreadingTests,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configs)),
-                         OVInferRequestMultithreadingTests::getTestCaseName);
+                         InferRequestParamsAnyMapTestName::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestMultithreadingTests,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
                                             ::testing::ValuesIn(multiConfigs)),
-                         OVInferRequestMultithreadingTests::getTestCaseName);
+                         InferRequestParamsAnyMapTestName::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestMultithreadingTests,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_AUTO),
                                             ::testing::ValuesIn(autoConfigs)),
                          OVInferRequestMultithreadingTests::getTestCaseName);
+
+// Ticket: E-80555
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestMultithreadingTestsVpux,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(configs)),
+                         InferRequestParamsAnyMapTestName::getTestCaseName);
+
+// Ticket: E-80555
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestMultithreadingTestsVpux,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
+                                            ::testing::ValuesIn(multiConfigs)),
+                         InferRequestParamsAnyMapTestName::getTestCaseName);
+
+// Ticket: E-80555
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestMultithreadingTestsVpux,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_AUTO),
+                                            ::testing::ValuesIn(autoConfigs)),
+                         InferRequestParamsAnyMapTestName::getTestCaseName);
 
 }  // namespace

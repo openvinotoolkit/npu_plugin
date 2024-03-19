@@ -8,18 +8,17 @@
 #include "vpux/utils/core/numeric.hpp"
 
 #include <llvm/ADT/TypeSwitch.h>
-#include <mlir/Pass/PassManager.h>
 
 using namespace vpux;
 
 namespace {
 
 void checkSEPInterpolate(IE::InterpolateOp op, const Logger& log) {
-    if (op.attr() == nullptr) {
+    if (op.getAttr() == nullptr) {
         return;
     }
 
-    auto attr = op.attr();
+    auto attr = op.getAttr();
 
     // Antialias is not supported
     if (attr.getAntialias() != nullptr && attr.getAntialias().getValue() == true) {
@@ -29,13 +28,13 @@ void checkSEPInterpolate(IE::InterpolateOp op, const Logger& log) {
     // Only integer scales are supported
     SmallVector<double> scales;
     auto shapeCalcModeAttr = attr.getShapeCalcMode();
-    auto scalesAttr = op.scales_attr();
+    auto scalesAttr = op.getScalesAttr();
     if (shapeCalcModeAttr != nullptr && shapeCalcModeAttr.getValue() == IE::InterpolateCalcMode::SCALES &&
         scalesAttr.has_value()) {
         scales = parseFPArrayAttr<double>(scalesAttr.value());
     } else {
-        auto inputShape = op.input().getType().cast<vpux::NDTypeInterface>().getShape();
-        auto outputShape = op.output().getType().cast<vpux::NDTypeInterface>().getShape();
+        auto inputShape = op.getInput().getType().cast<vpux::NDTypeInterface>().getShape();
+        auto outputShape = op.getOutput().getType().cast<vpux::NDTypeInterface>().getShape();
         scales = {static_cast<double>(outputShape[Dims4D::Act::H]) / static_cast<double>(inputShape[Dims4D::Act::H]),
                   static_cast<double>(outputShape[Dims4D::Act::W]) / static_cast<double>(inputShape[Dims4D::Act::W])};
     }
@@ -82,15 +81,15 @@ void checkSEPInterpolate(IE::InterpolateOp op, const Logger& log) {
     }
 }
 
-void checkSEPDeconv(IE::DeconvolutionOp op, const Logger& log) {
-    log.info("Deconvolution at '{0}' can be optimized using SEP", op->getLoc());
+void checkSEPTransposedConv(IE::TransposedConvolutionOp op, const Logger& log) {
+    log.info("TransposedConvolution at '{0}' can be optimized using SEP", op->getLoc());
 }
 
 void checkSEPDilatedConv(IE::ConvolutionOp op, const Logger& log) {
-    if (op.dilations() == nullptr) {
+    if (op.getDilations() == nullptr) {
         return;
     }
-    const auto dilations = parseIntArrayAttr<int64_t>(op.dilations());
+    const auto dilations = parseIntArrayAttr<int64_t>(op.getDilations());
     const auto hasDilations = llvm::any_of(dilations, [](const int64_t d) {
         return d != 1;
     });
@@ -103,7 +102,7 @@ void checkSEPDilatedConv(IE::ConvolutionOp op, const Logger& log) {
 
 void checkSEPPad(IE::PadOp op, const Logger& log) {
     // Tensor has to be at least 3D so that it has spatial dimensions for padding
-    auto inputType = op.input().getType().cast<vpux::NDTypeInterface>();
+    auto inputType = op.getInput().getType().cast<vpux::NDTypeInterface>();
     if (inputType.getRank() < 3) {
         return;
     }
@@ -122,8 +121,8 @@ void checkSEPPad(IE::PadOp op, const Logger& log) {
         return {};
     };
 
-    const auto padsBegin = extractPads(op.pads_begin(), op.pads_begin_attrAttr());
-    const auto padsEnd = extractPads(op.pads_end(), op.pads_end_attrAttr());
+    const auto padsBegin = extractPads(op.getPadsBegin(), op.getPadsBeginAttrAttr());
+    const auto padsEnd = extractPads(op.getPadsEnd(), op.getPadsEndAttrAttr());
     if (padsBegin.empty() || padsEnd.empty()) {
         return;
     }
@@ -142,10 +141,10 @@ void checkSEPPad(IE::PadOp op, const Logger& log) {
 
     // In case the data is padded with a zero constant, the sparsity map can be used to achieve this padding. For
     // other values, it would be necessary to bring them to CMX with a DMA which can affect the performance.
-    Optional<double> constantPadValue = None;
-    if (op.mode() == IE::PadMode::CONSTANT) {
-        if (op.pad_value() != nullptr) {
-            auto padValueConst = op.pad_value().getDefiningOp<Const::DeclareOp>();
+    std::optional<double> constantPadValue = std::nullopt;
+    if (op.getMode() == IE::PadMode::CONSTANT) {
+        if (op.getPadValue() != nullptr) {
+            auto padValueConst = op.getPadValue().getDefiningOp<Const::DeclareOp>();
             if (padValueConst == nullptr) {
                 return;
             }
@@ -154,8 +153,8 @@ void checkSEPPad(IE::PadOp op, const Logger& log) {
                 return;
             }
             constantPadValue = padValueContent.getSplatValue<double>();
-        } else if (op.pad_value_attrAttr() != nullptr) {
-            const auto padValueAttr = op.pad_value_attr();
+        } else if (op.getPadValueAttrAttr() != nullptr) {
+            const auto padValueAttr = op.getPadValueAttr();
             if (!padValueAttr.has_value()) {
                 return;
             }
@@ -176,15 +175,15 @@ void checkSEPPad(IE::PadOp op, const Logger& log) {
 
 void checkSEPTile(IE::TileOp op, const Logger& log) {
     SmallVector<int64_t> repeats;
-    if (op.repeats() != nullptr) {
-        auto repeatsConst = op.repeats().getDefiningOp<Const::DeclareOp>();
+    if (op.getRepeats() != nullptr) {
+        auto repeatsConst = op.getRepeats().getDefiningOp<Const::DeclareOp>();
         if (repeatsConst == nullptr) {
             return;
         }
         const auto repeatsContent = repeatsConst.getContent();
         repeats = to_small_vector(repeatsContent.getValues<int64_t>());
-    } else if (op.repeats_valuesAttr() != nullptr) {
-        repeats = parseIntArrayAttr<int64_t>(op.repeats_valuesAttr());
+    } else if (op.getRepeatsValuesAttr() != nullptr) {
+        repeats = parseIntArrayAttr<int64_t>(op.getRepeatsValuesAttr());
     }
 
     if (repeats.empty()) {
@@ -193,7 +192,7 @@ void checkSEPTile(IE::TileOp op, const Logger& log) {
 
     // Align the number of dimensions in the repeats vector and input shape by padding left the smaller container
     // with 1
-    auto inputShape = to_small_vector(op.input().getType().cast<vpux::NDTypeInterface>().getShape());
+    auto inputShape = to_small_vector(op.getInput().getType().cast<vpux::NDTypeInterface>().getShape());
     if (repeats.size() < inputShape.size()) {
         const auto numElems = inputShape.size() - repeats.size();
         repeats.insert(repeats.begin(), numElems, 1);
@@ -251,8 +250,8 @@ void LogOpOptimizationsPass::safeRunOnFunc() {
                 .Case<IE::InterpolateOp>([&](IE::InterpolateOp interpOp) {
                     checkSEPInterpolate(interpOp, log);
                 })
-                .Case<IE::DeconvolutionOp>([&](IE::DeconvolutionOp deconvOp) {
-                    checkSEPDeconv(deconvOp, log);
+                .Case<IE::TransposedConvolutionOp>([&](IE::TransposedConvolutionOp transposedConvOp) {
+                    checkSEPTransposedConv(transposedConvOp, log);
                 })
                 .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp convOp) {
                     checkSEPDilatedConv(convOp, log);

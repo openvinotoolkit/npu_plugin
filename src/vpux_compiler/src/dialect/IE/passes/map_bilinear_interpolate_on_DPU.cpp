@@ -5,14 +5,9 @@
 
 #include "vpux/compiler/dialect/IE/passes/map_bilinear_interpolate_on_DPU.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
-#include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_invariant.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/utils/core/numeric.hpp"
-
-#include <mlir/Pass/PassManager.h>
-#include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
 
@@ -29,9 +24,9 @@ mlir::Value alignInputChannels(mlir::PatternRewriter& rewriter, mlir::Location l
     auto padBegin = mlir::SmallVector<int64_t>(inputShape.size(), 0);
     auto padEnd = mlir::SmallVector<int64_t>(inputShape.size(), 0);
     padEnd[vpux::Dims4D::Act::C.ind()] = alignedInputC - inputShape[Dims4D::Act::C.ind()];
-    auto inputExpandOp = rewriter.create<IE::ExpandOp>(loc, input, getIntArrayAttr(rewriter, makeArrayRef(padBegin)),
-                                                       getIntArrayAttr(rewriter, makeArrayRef(padEnd)));
-    return inputExpandOp.output();
+    auto inputExpandOp = rewriter.create<IE::ExpandOp>(loc, input, getIntArrayAttr(rewriter, ArrayRef(padBegin)),
+                                                       getIntArrayAttr(rewriter, ArrayRef(padEnd)));
+    return inputExpandOp.getOutput();
 }
 
 // Generates the weights for GroupConvolution tasks by
@@ -48,7 +43,7 @@ Const::DeclareOp createGroupConvWeightsForBilinearInterp(mlir::PatternRewriter& 
     }
     const auto elemType = input.getType().cast<vpux::NDTypeInterface>().getElementType();
     const auto weightsStorageType = mlir::RankedTensorType::get(to_small_vector(weightShape), elemType);
-    const auto weightsAttr = mlir::DenseElementsAttr::get(weightsStorageType, makeArrayRef(duplicatedWeights));
+    const auto weightsAttr = mlir::DenseElementsAttr::get(weightsStorageType, ArrayRef(duplicatedWeights));
     const auto weightsContentAttr = Const::ContentAttr::get(weightsAttr);
     return rewriter.create<Const::DeclareOp>(loc, weightsStorageType, weightsContentAttr);
 }
@@ -67,10 +62,10 @@ mlir::Value createGenericGroupConv(mlir::PatternRewriter& rewriter, mlir::Locati
     auto groupConvFilter = createGroupConvWeightsForBilinearInterp(rewriter, loc, input, bilinearCoeffs, index,
                                                                    weightShape, outputSize);
     auto weights = groupConvFilter.getOutput();
-    auto groupConvOp =
-            rewriter.create<IE::GroupConvolutionOp>(loc, input, weights, /*bias=*/nullptr, stridesAttr, padBeginAttr,
-                                                    padEndAttr, dilationsAttr, groupAttr, /*post_opAttr=*/nullptr);
-    return groupConvOp.output();
+    auto groupConvOp = rewriter.create<IE::GroupConvolutionOp>(loc, input, weights, /*bias=*/nullptr, stridesAttr,
+                                                               padBeginAttr, padEndAttr, dilationsAttr, groupAttr,
+                                                               /*post_opAttr=*/nullptr, /*clampAttr*/ nullptr);
+    return groupConvOp.getOutput();
 }
 
 //
@@ -109,9 +104,9 @@ mlir::Value IE::MapBilinearInterpolateOnDPUBaseRewriter::createIdentityPooling(m
     auto avgPoolOp = rewriter.create<IE::AvgPoolOp>(
             loc, input, getIntArrayAttr(rewriter, poolKernels), getIntArrayAttr(rewriter, poolStrides), padsAttr,
             padsAttr, vpux::IE::RoundingTypeAttr::get(rewriter.getContext(), vpux::IE::RoundingType::FLOOR),
-            mlir::UnitAttr::get(rewriter.getContext()), nullptr);
+            mlir::UnitAttr::get(rewriter.getContext()), nullptr, nullptr);
 
-    return avgPoolOp.output();
+    return avgPoolOp.getOutput();
 }
 
 // Function for performing the scaling on one axis
@@ -177,14 +172,13 @@ mlir::Value IE::MapBilinearInterpolateOnDPUBaseRewriter::scaleOnAxis(mlir::Patte
         mlir::SmallVector<int64_t> staticSizes = to_small_vector(scaleInputShape);
         staticSizes[axis.ind()] = 1;
         // Create Slice op with first line/column
-        auto beginSliceOp =
-                rewriter.create<IE::SliceOp>(loc, input, getIntArrayAttr(rewriter, makeArrayRef(staticOffsets)),
-                                             getIntArrayAttr(rewriter, makeArrayRef(staticSizes)));
+        auto beginSliceOp = rewriter.create<IE::SliceOp>(loc, input, getIntArrayAttr(rewriter, ArrayRef(staticOffsets)),
+                                                         getIntArrayAttr(rewriter, ArrayRef(staticSizes)));
         while (allInputSlicesOffsets[outputSliceIndex] < 0 && outputSliceIndex < checked_cast<size_t>(outputSize)) {
             // In order to benefit from some further optimizations it is needed that all the concat inputs to be NCE
             // operations. So some identity pooling operations are artificially inserted in order to make this
             // optimizations happen
-            auto identityOpResult = createIdentityPooling(rewriter, loc, beginSliceOp.result());
+            auto identityOpResult = createIdentityPooling(rewriter, loc, beginSliceOp.getResult());
             gatheredConcatInputs.push_back(identityOpResult);
             outputSliceIndex++;
         }
@@ -204,14 +198,14 @@ mlir::Value IE::MapBilinearInterpolateOnDPUBaseRewriter::scaleOnAxis(mlir::Patte
         staticSizes[axis.ind()] = 2;
         // Create Slice op with two consecutive lines/columns
         auto middleSliceOp =
-                rewriter.create<IE::SliceOp>(loc, input, getIntArrayAttr(rewriter, makeArrayRef(staticOffsets)),
-                                             getIntArrayAttr(rewriter, makeArrayRef(staticSizes)));
+                rewriter.create<IE::SliceOp>(loc, input, getIntArrayAttr(rewriter, ArrayRef(staticOffsets)),
+                                             getIntArrayAttr(rewriter, ArrayRef(staticSizes)));
         const auto currentOffset = allInputSlicesOffsets[outputSliceIndex];
         // Create all GroupConv that uses the uses the current slice
         while (allInputSlicesOffsets[outputSliceIndex] == currentOffset &&
                outputSliceIndex < checked_cast<size_t>(outputSize)) {
             auto groupConvResult =
-                    createGenericGroupConv(rewriter, loc, middleSliceOp.result(), allFractionCoefficients,
+                    createGenericGroupConv(rewriter, loc, middleSliceOp.getResult(), allFractionCoefficients,
                                            outputSliceIndex, groupConvWeightsShape, outputSize);
             gatheredConcatInputs.push_back(groupConvResult);
             outputSliceIndex++;
@@ -229,14 +223,13 @@ mlir::Value IE::MapBilinearInterpolateOnDPUBaseRewriter::scaleOnAxis(mlir::Patte
         mlir::SmallVector<int64_t> staticSizes = to_small_vector(scaleInputShape);
         staticSizes[axis.ind()] = 1;
         // Create Slice op with last line/column
-        auto endSliceOp =
-                rewriter.create<IE::SliceOp>(loc, input, getIntArrayAttr(rewriter, makeArrayRef(staticOffsets)),
-                                             getIntArrayAttr(rewriter, makeArrayRef(staticSizes)));
+        auto endSliceOp = rewriter.create<IE::SliceOp>(loc, input, getIntArrayAttr(rewriter, ArrayRef(staticOffsets)),
+                                                       getIntArrayAttr(rewriter, ArrayRef(staticSizes)));
         while (outputSliceIndex < checked_cast<size_t>(outputSize)) {
             // In order to benefit from some further optimizations implemented for Concat->Slice optimizations
             // it is needed that all the concat inputs to be NCE operations
             // So some identity pooling operations are artificially inserted in order to make this optimization happen
-            auto identityOpResult = createIdentityPooling(rewriter, loc, endSliceOp.result());
+            auto identityOpResult = createIdentityPooling(rewriter, loc, endSliceOp.getResult());
             gatheredConcatInputs.push_back(identityOpResult);
             outputSliceIndex++;
         }
@@ -246,26 +239,26 @@ mlir::Value IE::MapBilinearInterpolateOnDPUBaseRewriter::scaleOnAxis(mlir::Patte
     // Final Concat of all operations that do the scale
     //
     auto outputConcatOp = rewriter.create<IE::ConcatOp>(loc, gatheredConcatInputs, axis);
-    return outputConcatOp.output();
+    return outputConcatOp.getOutput();
 }
 
 mlir::LogicalResult IE::MapBilinearInterpolateOnDPUBaseRewriter::matchAndRewrite(
         IE::InterpolateOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Got '{1}' at '{2}'", origOp->getName(), origOp->getLoc());
 
-    const auto attrs = origOp.attr();
-    const auto axesValue = parseIntArrayAttr<int64_t>(origOp.axes_attrAttr());
+    const auto attrs = origOp.getAttr();
+    const auto axesValue = parseIntArrayAttr<int64_t>(origOp.getAxesAttrAttr());
     auto mapCoord = IE::getMapCoordMethod(attrs.getCoordMode().getValue());
 
     // Get input shape info
-    auto inputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
+    auto inputType = origOp.getInput().getType().cast<vpux::NDTypeInterface>();
     const auto inputShape = inputType.getShape().raw();
     auto inputW = inputShape[Dims4D::Act::W.ind()];
     auto inputH = inputShape[Dims4D::Act::H.ind()];
     auto inputC = inputShape[Dims4D::Act::C.ind()];
 
     // Get output shape info
-    auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
+    auto outputType = origOp.getOutput().getType().cast<vpux::NDTypeInterface>();
     const auto outputShape = outputType.getShape().raw();
     auto outputW = outputShape[Dims4D::Act::W.ind()];
     auto outputH = outputShape[Dims4D::Act::H.ind()];
@@ -273,9 +266,9 @@ mlir::LogicalResult IE::MapBilinearInterpolateOnDPUBaseRewriter::matchAndRewrite
     //
     // Alignment of input channels
     //
-    mlir::Value scaleInput = origOp.input();
+    mlir::Value scaleInput = origOp.getInput();
     if (inputC % VPU::NCEInvariant::VPU_CHANNEL_ALIGNMENT != 0) {
-        auto alignedInput = alignInputChannels(rewriter, origOp->getLoc(), origOp.input(), inputShape);
+        auto alignedInput = alignInputChannels(rewriter, origOp->getLoc(), origOp.getInput(), inputShape);
         scaleInput = alignedInput;
         _log.trace("The input channels needed alignment");
     }
@@ -304,9 +297,8 @@ mlir::LogicalResult IE::MapBilinearInterpolateOnDPUBaseRewriter::matchAndRewrite
     if (inputC % VPU::NCEInvariant::VPU_CHANNEL_ALIGNMENT != 0) {
         auto staticOffsets = mlir::SmallVector<int64_t>(inputShape.size(), 0);
         mlir::SmallVector<int64_t> staticSizes = to_small_vector(outputShape);
-        rewriter.replaceOpWithNewOp<IE::SliceOp>(origOp, scaleInput,
-                                                 getIntArrayAttr(rewriter, makeArrayRef(staticOffsets)),
-                                                 getIntArrayAttr(rewriter, makeArrayRef(staticSizes)));
+        rewriter.replaceOpWithNewOp<IE::SliceOp>(origOp, scaleInput, getIntArrayAttr(rewriter, ArrayRef(staticOffsets)),
+                                                 getIntArrayAttr(rewriter, ArrayRef(staticSizes)));
         _log.trace("Sliced back to original input channels.");
     } else {
         rewriter.replaceOp(origOp, scaleInput);
@@ -323,11 +315,11 @@ bool vpux::IE::isLegalInterpolateOp(IE::InterpolateOp op, bool interpolateAsSEOp
         }
     }
 
-    const auto attrs = op.attr();
+    const auto attrs = op.getAttr();
     const auto interpMode = attrs.getMode().getValue();
     const auto antiAlias = attrs.getAntialias().getValue();
-    const auto inputShape = getShape(op.input());
-    const auto outputShape = getShape(op.output());
+    const auto inputShape = getShape(op.getInput());
+    const auto outputShape = getShape(op.getOutput());
 
     if ((interpMode != IE::InterpolateMode::LINEAR_ONNX && interpMode != IE::InterpolateMode::LINEAR) || antiAlias) {
         return true;
@@ -339,7 +331,7 @@ bool vpux::IE::isLegalInterpolateOp(IE::InterpolateOp op, bool interpolateAsSEOp
     }
 
     // Only support interpolation on W and H axes
-    const auto axesValue = parseIntArrayAttr<int64_t>(op.axes_attrAttr());
+    const auto axesValue = parseIntArrayAttr<int64_t>(op.getAxesAttrAttr());
     for (size_t i = 0; i < axesValue.size(); i++) {
         if (axesValue[i] <= 1 && outputShape[Dim(axesValue[i])] != inputShape[Dim(axesValue[i])]) {
             return true;
@@ -352,9 +344,9 @@ bool vpux::IE::isLegalInterpolateOp(IE::InterpolateOp op, bool interpolateAsSEOp
     }
 
     // If the input and output of the interpolate fits in CMX then use run interpolate on Shave
-    auto inputType = op.input().getType().cast<vpux::NDTypeInterface>();
-    auto outputType = op.output().getType().cast<vpux::NDTypeInterface>();
-    Byte elemSizeBytes = inputType.getElemTypeSize();
+    auto inputType = op.getInput().getType().cast<vpux::NDTypeInterface>();
+    auto outputType = op.getOutput().getType().cast<vpux::NDTypeInterface>();
+    Byte elemSizeBytes = inputType.getElemTypeSize().to<Byte>();
     Byte requiredCMXSize = inputType.getTotalAllocSize() + outputType.getTotalAllocSize();
 
     Byte quantizedCMXSize = requiredCMXSize / elemSizeBytes.count();

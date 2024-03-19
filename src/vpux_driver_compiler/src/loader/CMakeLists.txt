@@ -3,14 +3,18 @@
 # SPDX-License-Identifier: Apache 2.0
 #
 
+if(ENABLE_NPU_MONO)
+    message(FATAL_ERROR "Remove VPUXLoader target after monorepo integration")
+endif()
+
 set(TARGET_NAME VPUXLoader)
 
 set(ELF_DIR "${InferenceEngineVPUXPlugin_SOURCE_DIR}/thirdparty/elf/vpux_elf/")
-set(LOADER_DIR_INC "${VPUX_ELF_SOURCE_DIR}/vpux_elf/loader/include/")
-set(LOADER_DIR_HPI_INC "${VPUX_ELF_SOURCE_DIR}/vpux_elf/hpi_component/include/")
-set(LOADER_DIR_HPI_SRC "${VPUX_ELF_SOURCE_DIR}/vpux_elf/hpi_component/src")
-set(LOADER_DIR_SRC "${VPUX_ELF_SOURCE_DIR}/vpux_elf/loader/src")
-set(LOADER_DIR "${VPUX_ELF_SOURCE_DIR}/vpux_elf/loader/")
+set(LOADER_DIR_INC "${InferenceEngineVPUXPlugin_SOURCE_DIR}/thirdparty/elf/vpux_elf/loader/include/")
+set(LOADER_DIR_HPI_INC "${InferenceEngineVPUXPlugin_SOURCE_DIR}/thirdparty/elf/vpux_elf/hpi_component/include/")
+set(LOADER_DIR_HPI_SRC "${InferenceEngineVPUXPlugin_SOURCE_DIR}/thirdparty/elf/vpux_elf/hpi_component/src")
+set(LOADER_DIR_SRC "${InferenceEngineVPUXPlugin_SOURCE_DIR}/thirdparty/elf/vpux_elf/loader/src")
+set(LOADER_DIR "${InferenceEngineVPUXPlugin_SOURCE_DIR}/thirdparty/elf/vpux_elf/loader/")
 
 if (WIN32)
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
@@ -50,8 +54,7 @@ add_library(${TARGET_NAME} STATIC ${Loader_Library_SRCS})
 
 target_link_libraries(${TARGET_NAME}
     PUBLIC
-        vpux_elf
-        npu_utils
+        npu_elf
 )
 
 target_include_directories(${TARGET_NAME}
@@ -63,12 +66,12 @@ target_include_directories(${TARGET_NAME}
         ${ELF_DIR}/core/src/
 )
 
-target_compile_definitions(vpux_elf PUBLIC HOST_BUILD)
+target_compile_definitions(npu_elf PUBLIC HOST_BUILD)
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 #--------------------------------------------------------------------------------------------
-# vpux_elf lib + loader lib
+# npu_elf lib + loader lib
 #--------------------------------------------------------------------------------------------
 #
 # loader folder | -> include/ | -> vpux_headers/ -> 1 hpp
@@ -104,7 +107,6 @@ install(DIRECTORY "${LOADER_DIR_SRC}/"
 #
 # hpi_component | src | common -> 1 cpp
 #               |     |  3720  -> 1 cpp
-
 
 install(DIRECTORY "${LOADER_DIR_HPI_SRC}/common"
         DESTINATION cid/vpux_elf/loader/src/
@@ -182,17 +184,17 @@ install(TARGETS VPUXLoader
         RUNTIME DESTINATION cid/vpux_elf/lib/RelWithDebInfo COMPONENT ${CID_COMPONENT})
 
 # elf lib
-install(TARGETS vpux_elf
+install(TARGETS npu_elf
         CONFIGURATIONS Release
         LIBRARY DESTINATION cid/vpux_elf/lib/Release COMPONENT ${CID_COMPONENT}
         ARCHIVE DESTINATION cid/vpux_elf/lib/Release COMPONENT ${CID_COMPONENT}
         RUNTIME DESTINATION cid/vpux_elf/lib/Release COMPONENT ${CID_COMPONENT})
-install(TARGETS vpux_elf
+install(TARGETS npu_elf
         CONFIGURATIONS Debug
         LIBRARY DESTINATION cid/vpux_elf/lib/Debug COMPONENT ${CID_COMPONENT}
         ARCHIVE DESTINATION cid/vpux_elf/lib/Debug COMPONENT ${CID_COMPONENT}
         RUNTIME DESTINATION cid/vpux_elf/lib/Debug COMPONENT ${CID_COMPONENT})
-install(TARGETS vpux_elf
+install(TARGETS npu_elf
         CONFIGURATIONS RelWithDebInfo
         LIBRARY DESTINATION cid/vpux_elf/lib/RelWithDebInfo COMPONENT ${CID_COMPONENT}
         ARCHIVE DESTINATION cid/vpux_elf/lib/RelWithDebInfo COMPONENT ${CID_COMPONENT}

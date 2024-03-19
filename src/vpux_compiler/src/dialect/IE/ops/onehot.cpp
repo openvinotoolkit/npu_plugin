@@ -6,8 +6,6 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
-#include "vpux/compiler/utils/error.hpp"
-
 using namespace vpux;
 
 //
@@ -25,15 +23,15 @@ mlir::LogicalResult vpux::IE::OneHotOp::verify() {
         return numElements == 1;
     };
 
-    if (!checkNumElements(depth())) {
+    if (!checkNumElements(getDepth())) {
         return errorAt(*this, "Depth should have only 1 element, while it has {0}", numElements);
     }
 
-    if (!checkNumElements(on_value())) {
+    if (!checkNumElements(getOnValue())) {
         return errorAt(*this, "on_value should have only 1 element, while it has {0}", numElements);
     }
 
-    if (!checkNumElements(off_value())) {
+    if (!checkNumElements(getOffValue())) {
         return errorAt(*this, "off_value should have only 1 element, while it has {0}", numElements);
     }
 
@@ -59,8 +57,8 @@ mlir::FailureOr<int64_t> extractDepth(mlir::Location loc, const mlir::Value& dep
 }
 
 mlir::LogicalResult vpux::IE::OneHotOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
     IE::OneHotOpAdaptor oneHot(operands, attrs);
@@ -69,12 +67,12 @@ mlir::LogicalResult vpux::IE::OneHotOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = oneHot.input().getType().cast<mlir::ShapedType>();
-    const auto outElemType = oneHot.outElemType();
+    const auto inType = oneHot.getInput().getType().cast<mlir::ShapedType>();
+    const auto outElemType = oneHot.getOutputType();
 
     auto outShape = to_small_vector(inType.getShape());
-    const auto axis = oneHot.axis_attr();
-    auto depth = extractDepth(loc, oneHot.depth(), oneHot.depth_attrAttr());
+    const auto axis = oneHot.getAxisAttr();
+    auto depth = extractDepth(loc, oneHot.getDepth(), oneHot.getDepthAttrAttr());
     if (mlir::failed(depth)) {
         return mlir::failure();
     }
@@ -105,9 +103,9 @@ public:
 };
 
 mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::OneHotOp oneHotOp, mlir::PatternRewriter& rewriter) const {
-    auto depth = oneHotOp.depth();
-    auto onValue = oneHotOp.on_value();
-    auto offValue = oneHotOp.off_value();
+    auto depth = oneHotOp.getDepth();
+    auto onValue = oneHotOp.getOnValue();
+    auto offValue = oneHotOp.getOffValue();
 
     if ((depth == nullptr) || (onValue == nullptr) || (offValue == nullptr)) {
         return mlir::failure();
@@ -134,9 +132,9 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::OneHotOp oneHotOp, m
     const auto offValueAttrValue = offValueContent.getSplatValue<float>();
 
     rewriter.replaceOpWithNewOp<IE::OneHotOp>(
-            oneHotOp, oneHotOp.getType(), oneHotOp.input(), nullptr, nullptr, nullptr,
+            oneHotOp, oneHotOp.getType(), oneHotOp.getInput(), nullptr, nullptr, nullptr,
             rewriter.getI64IntegerAttr(depthAttrValue), rewriter.getF64FloatAttr(onValueAttrValue),
-            rewriter.getF64FloatAttr(offValueAttrValue), oneHotOp.axis_attr(), oneHotOp.outElemType());
+            rewriter.getF64FloatAttr(offValueAttrValue), oneHotOp.getAxisAttr(), oneHotOp.getOutputType());
 
     return mlir::success();
 }

@@ -1,4 +1,3 @@
-//
 // Copyright (C) Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
@@ -6,7 +5,7 @@
 #pragma once
 
 #include "base/ov_behavior_test_utils.hpp"
-#include "vpu_test_env_cfg.hpp"
+#include "common/vpu_test_env_cfg.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
@@ -21,7 +20,7 @@ class VpuxDriverCompilerAdapterDowngradeInterpolate11Test :
 protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
-    std::shared_ptr<ov::Model> function;
+    std::shared_ptr<ov::Model> ov_model;
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<CompilationParams> obj) {
@@ -31,7 +30,8 @@ public:
         std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
 
         std::ostringstream result;
-        result << "targetDevice=" << LayerTestsUtils::getDeviceNameTestCase(targetDevice) << "_";
+        result << "targetDevice=" << targetDevice << "_";
+        result << "targetPlatform=" << LayerTestsUtils::getTestsPlatformFromEnvironmentOr(targetDevice) << "_";
         result << "model="
                << "Interpolate11Model"
                << "_";
@@ -47,7 +47,7 @@ public:
     void SetUp() override {
         std::tie(target_device, configuration) = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        function = createInterpolate11Model();
+        ov_model = createInterpolate11Model();
         OVPluginTestBase::SetUp();
     }
 
@@ -59,7 +59,7 @@ public:
     }
 
 private:
-    std::shared_ptr<ngraph::Function> createInterpolate11Model() {
+    std::shared_ptr<ov::Model> createInterpolate11Model() {
         using InterpolateAttrs = op::v11::Interpolate::InterpolateAttrs;
         using InterpolateMode = op::v11::Interpolate::InterpolateMode;
         using ShapeCalcMode = op::v11::Interpolate::ShapeCalcMode;
@@ -85,7 +85,7 @@ private:
 };
 
 TEST_P(VpuxDriverCompilerAdapterDowngradeInterpolate11Test, CheckOpsetVersion) {
-    EXPECT_NO_THROW(auto compiledModel = core->compile_model(function, target_device, configuration););
+    EXPECT_NO_THROW(auto compiledModel = core->compile_model(ov_model, target_device, configuration););
 }
 
 }  // namespace behavior

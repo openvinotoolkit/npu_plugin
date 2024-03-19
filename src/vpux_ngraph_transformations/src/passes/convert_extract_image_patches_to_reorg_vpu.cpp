@@ -6,20 +6,20 @@
 #include "vpux/passes/convert_extract_image_patches_to_reorg_vpu.hpp"
 #include <memory>
 
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
+#include <openvino/core/rt_info.hpp>
+#include <openvino/opsets/opset3.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
 
 namespace vpux {
 namespace passes {
 
 ConvertExtractImagePatchesToReorgYoloVPU::ConvertExtractImagePatchesToReorgYoloVPU() {
-    auto image = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::f32, ngraph::Shape{1, 1, 1, 1});
-    auto eip = std::make_shared<ngraph::opset3::ExtractImagePatches>(image, ngraph::Shape{1, 1}, ngraph::Strides{1, 1},
-                                                                     ngraph::Shape{1, 1}, ngraph::op::PadType::VALID);
+    auto image = std::make_shared<ov::pass::pattern::op::Label>(ov::element::f32, ov::Shape{1, 1, 1, 1});
+    auto eip = std::make_shared<ov::opset3::ExtractImagePatches>(image, ov::Shape{1, 1}, ov::Strides{1, 1},
+                                                                 ov::Shape{1, 1}, ov::op::PadType::VALID);
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        auto extract_image_patches = std::dynamic_pointer_cast<ngraph::opset3::ExtractImagePatches>(m.get_match_root());
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+        auto extract_image_patches = std::dynamic_pointer_cast<ov::opset3::ExtractImagePatches>(m.get_match_root());
 
         /*
          * In this transformation we replace ExtractImagePatches operation to ReorgYolo operation
@@ -70,17 +70,16 @@ ConvertExtractImagePatchesToReorgYoloVPU::ConvertExtractImagePatchesToReorgYoloV
             return false;
         }
 
-        auto reorg_yolo =
-                std::make_shared<ngraph::opset3::ReorgYolo>(extract_image_patches->input(0).get_source_output(),
-                                                            ngraph::Strides{extract_image_patches->get_strides()});
+        auto reorg_yolo = std::make_shared<ov::opset3::ReorgYolo>(extract_image_patches->input(0).get_source_output(),
+                                                                  ov::Strides{extract_image_patches->get_strides()});
 
         reorg_yolo->set_friendly_name(extract_image_patches->get_friendly_name());
-        ngraph::copy_runtime_info(extract_image_patches, reorg_yolo);
-        ngraph::replace_node(extract_image_patches, reorg_yolo);
+        ov::copy_runtime_info(extract_image_patches, reorg_yolo);
+        ov::replace_node(extract_image_patches, reorg_yolo);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(eip, "ConvertExtractImagePatchesToReorgYolo");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(eip, "ConvertExtractImagePatchesToReorgYolo");
     register_matcher(m, callback);
 }
 

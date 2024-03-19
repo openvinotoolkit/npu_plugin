@@ -1,7 +1,6 @@
 //
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
-//
 
 #ifndef COMMON_TYPES_H_
 #define COMMON_TYPES_H_
@@ -47,6 +46,29 @@ enum DataType : uint32_t {
 typedef uint64_t NDOrder;
 // clang-format off
 typedef enum : uint64_t {
+// These are the layouts values ​​that the compiler produces.
+    NHWC = 0x2431,
+    NHCW = 0x4231,
+    NCHW = 0x4321,
+    NCWH = 0x3421,
+    NWHC = 0x2341,
+    NWCH = 0x3241,
+    HWC  = 0x132,
+    CHW  = 0x321,
+    WHC  = 0x123,
+    HCW  = 0x312,
+    WCH  = 0x213,
+    CWH  = 0x231,
+    NC   = 0x21,
+    CN   = 0x12,
+    C    = 0x1,
+    H    = 0x1,
+    W    = 0x1,
+    FULL_ORDER = 0xFEDCBA987654321,
+    FULL_NHWC = 0xFEDCBA987652431,
+
+// These ND_ layouts are used in kernels just for jtag tests.
+// A  clean up will be done in this ticket:E#39088.
     ND_NHWC = 0x1342,
     ND_NHCW = 0x1324,
     ND_NCHW = 0x1234,
@@ -64,7 +86,6 @@ typedef enum : uint64_t {
     ND_C    = 0x1,
     ND_H    = 0x1,
     ND_W    = 0x1,
-
     FULL_ND_ORDER = 0x123456789ABCDEF,
     FULL_ND_NHWC = 0x123456789ABCEFD
 } NDFrequentlyUsedOrders;
@@ -116,6 +137,31 @@ static inline uint32_t getNumElem(const struct MemRefData& buff) {
         n *= pDims[i];
     }
     return n;
+}
+
+static inline uint32_t getBpp(uint32_t type) {
+    uint32_t bpp = 0;
+    switch (type) {
+    case NN_INT16:
+    case NN_FP16:
+    case NN_BF16:
+        bpp = 2;
+        break;
+    case NN_U8:
+    case NN_I8:
+        bpp = 1;
+        break;
+    case NN_INT32:
+    case NN_FP32:
+        bpp = 4;
+        break;
+    case NN_UNDEFINED:
+    default:
+        bpp = 0;
+        break;
+    }
+
+    return bpp;
 }
 #endif
 

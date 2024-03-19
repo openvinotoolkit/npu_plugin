@@ -17,31 +17,10 @@
 using namespace vpux;
 
 //
-// DequantizeAttr::walkImmediateSubElements
-//
-
-void vpux::Const::DequantizeAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)>,
-                                                           llvm::function_ref<void(mlir::Type)>) const {
-}
-
-//
-// DequantizeAttr::replaceImmediateSubElements
-//
-
-mlir::Attribute vpux::Const::DequantizeAttr::replaceImmediateSubElements(ArrayRef<mlir::Attribute>,
-                                                                         ArrayRef<mlir::Type>) const {
-    return DequantizeAttr();
-}
-
-//
 // DequantizeAttr::inferOutputType
 //
 
 vpux::NDTypeInterface vpux::Const::DequantizeAttr::inferOutputType(vpux::NDTypeInterface input) const {
-    const Bit typeSizeInBits = input.getElemTypeSize();
-    VPUX_THROW_UNLESS(typeSizeInBits.count() >= CHAR_BIT, "Got sub-byte input '{0}' in DequantizeAttr",
-                      input.getElementType());
-
     const auto qElemType = input.getElementType().dyn_cast<mlir::quant::QuantizedType>();
     VPUX_THROW_UNLESS(qElemType != nullptr, "Got non quantized type '{0}' in 'DequantizeAttr'");
 
@@ -119,5 +98,6 @@ Const::Content vpux::Const::DequantizeAttr::transform(vpux::Const::Content& inpu
 //
 
 Const::ContentAttr vpux::Const::ContentAttr::dequantize() const {
-    return get(*this, Const::DequantizeAttr::get(getContext()).cast<Const::TransformAttrInterface>());
+    return ContentAttr::addTransformation(
+            *this, Const::DequantizeAttr::get(getContext()).cast<Const::TransformAttrInterface>());
 }

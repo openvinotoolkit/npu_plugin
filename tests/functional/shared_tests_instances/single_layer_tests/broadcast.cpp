@@ -10,18 +10,18 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXBroadcastLayerTest : public BroadcastLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
+class BroadcastLayerTestCommon : public BroadcastLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
-class VPUXBroadcastLayerTest_VPU3700 : public VPUXBroadcastLayerTest {};
-class VPUXBroadcastLayerTest_VPU3720 : public VPUXBroadcastLayerTest {};
+class BroadcastLayerTest_NPU3700 : public BroadcastLayerTestCommon {};
+class BroadcastLayerTest_NPU3720 : public BroadcastLayerTestCommon {};
 
-TEST_P(VPUXBroadcastLayerTest_VPU3700, HW) {
+TEST_P(BroadcastLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXBroadcastLayerTest_VPU3720, SW) {
+TEST_P(BroadcastLayerTest_NPU3720, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
@@ -47,16 +47,10 @@ const auto numpyBroadcastParams1 = ::testing::Combine(
         ::testing::Values(ngraph::op::BroadcastType::NUMPY), ::testing::Values(inShapesNumpy[0]),
         ::testing::ValuesIn(inputPrecision), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_CASE_P(smoke_NumpyBroadcastCheck1, VPUXBroadcastLayerTest_VPU3700, numpyBroadcastParams1,
-                        VPUXBroadcastLayerTest_VPU3700::getTestCaseName);
-
 const auto numpyBroadcastParams2 = ::testing::Combine(
         ::testing::Values(targetShapesNumpy[1]), ::testing::Values(ngraph::AxisSet{}),
         ::testing::Values(ngraph::op::BroadcastType::NUMPY), ::testing::Values(inShapesNumpy[1]),
         ::testing::ValuesIn(inputPrecision), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
-
-INSTANTIATE_TEST_CASE_P(smoke_NumpyBroadcastCheck2, VPUXBroadcastLayerTest_VPU3700, numpyBroadcastParams2,
-                        VPUXBroadcastLayerTest_VPU3700::getTestCaseName);
 
 // BIDIRECTIONAL MODE
 
@@ -69,24 +63,15 @@ const auto bidirectionalBroadcastParams1 = ::testing::Combine(
         ::testing::Values(ngraph::op::BroadcastType::BIDIRECTIONAL), ::testing::Values(inShapesBidi[0]),
         ::testing::ValuesIn(inputPrecision), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_CASE_P(smoke_BidirectionalBroadcastCheck1, VPUXBroadcastLayerTest_VPU3700,
-                        bidirectionalBroadcastParams1, VPUXBroadcastLayerTest_VPU3700::getTestCaseName);
-
 const auto bidirectionalBroadcastParams2 = ::testing::Combine(
         ::testing::Values(targetShapesBidi[1]), ::testing::Values(ngraph::AxisSet{}),
         ::testing::Values(ngraph::op::BroadcastType::BIDIRECTIONAL), ::testing::Values(inShapesBidi[1]),
         ::testing::ValuesIn(inputPrecision), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_CASE_P(smoke_BidirectionalBroadcastCheck2, VPUXBroadcastLayerTest_VPU3700,
-                        bidirectionalBroadcastParams2, VPUXBroadcastLayerTest_VPU3700::getTestCaseName);
-
 const auto bidirectionalBroadcastParams3 = ::testing::Combine(
         ::testing::Values(targetShapesBidi[2]), ::testing::Values(ngraph::AxisSet{}),
         ::testing::Values(ngraph::op::BroadcastType::BIDIRECTIONAL), ::testing::Values(inShapesBidi[2]),
         ::testing::ValuesIn(inputPrecision), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
-
-INSTANTIATE_TEST_CASE_P(smoke_BidirectionalBroadcastCheck3, VPUXBroadcastLayerTest_VPU3700,
-                        bidirectionalBroadcastParams3, VPUXBroadcastLayerTest_VPU3700::getTestCaseName);
 
 // EXPLICIT MODE
 
@@ -101,38 +86,47 @@ const auto explicitBroadcastParams1 = ::testing::Combine(
         ::testing::Values(ngraph::op::BroadcastType::EXPLICIT), ::testing::Values(inShapesExplicit[0]),
         ::testing::ValuesIn(inputPrecision), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_CASE_P(smoke_ExplicitBroadcastCheck1, VPUXBroadcastLayerTest_VPU3700, explicitBroadcastParams1,
-                        VPUXBroadcastLayerTest_VPU3700::getTestCaseName);
-
 const auto explicitBroadcastParams2 = ::testing::Combine(
         ::testing::Values(targetShapesExplicit[1]), ::testing::Values(axes[1]),
         ::testing::Values(ngraph::op::BroadcastType::EXPLICIT), ::testing::Values(inShapesExplicit[1]),
         ::testing::ValuesIn(inputPrecision), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_CASE_P(smoke_ExplicitBroadcastCheck2, VPUXBroadcastLayerTest_VPU3700, explicitBroadcastParams2,
-                        VPUXBroadcastLayerTest_VPU3700::getTestCaseName);
+// ------ NPU3700 ------
 
-// VPU3720 instantiation
+INSTANTIATE_TEST_CASE_P(smoke_NumpyBroadcastCheck1, BroadcastLayerTest_NPU3700, numpyBroadcastParams1,
+                        BroadcastLayerTest_NPU3700::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_NumpyBroadcastCheck2, BroadcastLayerTest_NPU3700, numpyBroadcastParams2,
+                        BroadcastLayerTest_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_precommit_NumpyBroadcastCheck1_VPU3720, VPUXBroadcastLayerTest_VPU3720,
-                        numpyBroadcastParams1, VPUXBroadcastLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_BidirectionalBroadcastCheck1, BroadcastLayerTest_NPU3700, bidirectionalBroadcastParams1,
+                        BroadcastLayerTest_NPU3700::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_BidirectionalBroadcastCheck2, BroadcastLayerTest_NPU3700, bidirectionalBroadcastParams2,
+                        BroadcastLayerTest_NPU3700::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_BidirectionalBroadcastCheck3, BroadcastLayerTest_NPU3700, bidirectionalBroadcastParams3,
+                        BroadcastLayerTest_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_precommit_ExplicitBroadcastCheck1_VPU3720, VPUXBroadcastLayerTest_VPU3720,
-                        explicitBroadcastParams1, VPUXBroadcastLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_ExplicitBroadcastCheck1, BroadcastLayerTest_NPU3700, explicitBroadcastParams1,
+                        BroadcastLayerTest_NPU3700::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_ExplicitBroadcastCheck2, BroadcastLayerTest_NPU3700, explicitBroadcastParams2,
+                        BroadcastLayerTest_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_precommit_BidirectionalBroadcastCheck1_VPU3720, VPUXBroadcastLayerTest_VPU3720,
-                        bidirectionalBroadcastParams1, VPUXBroadcastLayerTest_VPU3720::getTestCaseName);
+// ------ NPU3720 ------
 
-INSTANTIATE_TEST_CASE_P(smoke_NumpyBroadcastCheck2_VPU3720, VPUXBroadcastLayerTest_VPU3720, numpyBroadcastParams2,
-                        VPUXBroadcastLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_precommit_NumpyBroadcastCheck1, BroadcastLayerTest_NPU3720, numpyBroadcastParams1,
+                        BroadcastLayerTest_NPU3720::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_NumpyBroadcastCheck2, BroadcastLayerTest_NPU3720, numpyBroadcastParams2,
+                        BroadcastLayerTest_NPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ExplicitBroadcastCheck2_VPU3720, VPUXBroadcastLayerTest_VPU3720, explicitBroadcastParams2,
-                        VPUXBroadcastLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_precommit_BidirectionalBroadcastCheck1, BroadcastLayerTest_NPU3720,
+                        bidirectionalBroadcastParams1, BroadcastLayerTest_NPU3720::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_BidirectionalBroadcastCheck2, BroadcastLayerTest_NPU3720, bidirectionalBroadcastParams2,
+                        BroadcastLayerTest_NPU3720::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_BidirectionalBroadcastCheck3, BroadcastLayerTest_NPU3720, bidirectionalBroadcastParams3,
+                        BroadcastLayerTest_NPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BidirectionalBroadcastCheck2_VPU3720, VPUXBroadcastLayerTest_VPU3720,
-                        bidirectionalBroadcastParams2, VPUXBroadcastLayerTest_VPU3720::getTestCaseName);
-
-INSTANTIATE_TEST_CASE_P(smoke_BidirectionalBroadcastCheck3_VPU3720, VPUXBroadcastLayerTest_VPU3720,
-                        bidirectionalBroadcastParams3, VPUXBroadcastLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_precommit_ExplicitBroadcastCheck1, BroadcastLayerTest_NPU3720, explicitBroadcastParams1,
+                        BroadcastLayerTest_NPU3720::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_ExplicitBroadcastCheck2, BroadcastLayerTest_NPU3720, explicitBroadcastParams2,
+                        BroadcastLayerTest_NPU3720::getTestCaseName);
 
 }  // namespace

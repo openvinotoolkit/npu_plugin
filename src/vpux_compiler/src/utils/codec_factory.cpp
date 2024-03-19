@@ -30,4 +30,20 @@ std::unique_ptr<ICodec> makeCodec(const ICodec::CompressionAlgorithm algo, VPU::
     VPUX_THROW("vpux::makeCodec: unsupported compression algorithm");
 }
 
+bool ICodec::supportsFP16compression() const {
+    return false;
+}
+
+std::string ICodec::compressionModeToStr(ICodec::CompressionMode mode) {
+    switch (mode) {
+    case CompressionMode::UINT8:
+        return "U8";
+    case CompressionMode::FP16:
+        return "FP16";
+    default:
+        VPUX_THROW("Unsupported compression mode");
+        break;
+    }
+}
+
 }  // namespace vpux

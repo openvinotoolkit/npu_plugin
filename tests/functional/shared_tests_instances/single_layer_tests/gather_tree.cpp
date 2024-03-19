@@ -1,4 +1,3 @@
-//
 // Copyright (C) Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
@@ -9,7 +8,7 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXGatherTreeLayerTest : public GatherTreeLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
+class GatherTreeLayerTestCommon : public GatherTreeLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void SkipBeforeLoad() override {
         InferenceEngine::Precision netPrecision;
         ngraph::helpers::InputLayerType secondaryInputType;
@@ -29,9 +28,9 @@ class VPUXGatherTreeLayerTest : public GatherTreeLayerTest, virtual public Layer
     }
 };
 
-class VPUXGatherTreeLayerTest_VPU3720 : public VPUXGatherTreeLayerTest {};
+class GatherTreeLayerTest_NPU3720 : public GatherTreeLayerTestCommon {};
 
-TEST_P(VPUXGatherTreeLayerTest_VPU3720, HW) {
+TEST_P(GatherTreeLayerTest_NPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -65,7 +64,7 @@ const auto gatherTreeArgsSubsetPrecommit = testing::Combine(
         testing::ValuesIn(precision), testing::ValuesIn(precision), testing::ValuesIn(layouts),
         testing::ValuesIn(layouts), testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_SUITE_P(precommit_gather_tree_VPU3720, VPUXGatherTreeLayerTest_VPU3720, gatherTreeArgsSubsetPrecommit,
+INSTANTIATE_TEST_SUITE_P(precommit_gather_tree, GatherTreeLayerTest_NPU3720, gatherTreeArgsSubsetPrecommit,
                          GatherTreeLayerTest::getTestCaseName);
 
 }  // namespace

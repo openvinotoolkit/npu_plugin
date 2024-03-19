@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "image_quality_helper.hpp"
-#include "semantic_segmentation_helpers.hpp"
-#include "vpux/utils/IE/blob.hpp"
-#include "yolo_helpers.hpp"
+#include "vpux/utils/models/blob.hpp"
+#include "vpux/utils/models/image_quality_helper.hpp"
+#include "vpux/utils/models/semantic_segmentation_helpers.hpp"
+#include "vpux/utils/models/yolo_helpers.hpp"
 
 #include <file_utils.h>
 #include <precision_utils.h>
@@ -64,6 +64,7 @@ DEFINE_double(prob_tolerance, 1e-4, "Probability tolerance for 'classification/s
 DEFINE_double(raw_tolerance, 1e-4, "Tolerance for 'raw' mode (absolute diff)");
 DEFINE_double(cosim_threshold, 0.90, "Threshold for 'cosim' mode");
 DEFINE_double(rrmse_loss_threshold, std::numeric_limits<double>::max(), "Threshold for 'rrmse' mode");
+DEFINE_double(nrmse_loss_threshold, 1.0, "Threshold for 'nrmse' mode");
 DEFINE_double(confidence_threshold, 1e-4, "Confidence threshold for Detection mode");
 DEFINE_double(box_tolerance, 1e-4, "Box tolerance for 'detection' mode");
 
@@ -150,15 +151,15 @@ void parseCommandLine(int argc, char* argv[]) {
             std::cout << "    Tolerance:        " << FLAGS_raw_tolerance << std::endl;
         } else if (strEq(FLAGS_mode, "cosim")) {
             std::cout << "    Threshold:        " << FLAGS_cosim_threshold << std::endl;
-        }
-        if (strEq(FLAGS_mode, "psnr")) {
+        } else if (strEq(FLAGS_mode, "psnr")) {
             std::cout << "    Reference:        " << FLAGS_psnr_reference << std::endl;
             std::cout << "    Tolerance:        " << FLAGS_psnr_tolerance << std::endl;
             std::cout << "    Scale_border:     " << FLAGS_scale_border << std::endl;
             std::cout << "    Normalized_image: " << FLAGS_normalized_image << std::endl;
-        }
-        if (strEq(FLAGS_mode, "rrmse")) {
+        } else if (strEq(FLAGS_mode, "rrmse")) {
             std::cout << "    Threshold:        " << FLAGS_rrmse_loss_threshold << std::endl;
+        } else if (strEq(FLAGS_mode, "nrmse")) {
+            std::cout << "    Threshold:        " << FLAGS_nrmse_loss_threshold << std::endl;
         }
     }
     std::cout << "    Log level:                        " << FLAGS_log_level << std::endl;
@@ -413,7 +414,7 @@ void adjustDataLayout(const std::shared_ptr<ie::Data>& inputMetadata, const std:
  * @param network The compiled model represented in the legacy manner on which the layout metadata changes
  * will be applied.
  * @param inputLayoutStringRepresentation String indicating the desired layout of the inputs.
- * @see E#70453
+ * @see Jira issue E#70453
  */
 void adjustInputLayout(ie::ExecutableNetwork& network, const std::string& layoutStringRepresentation) {
     const ie::ConstInputsDataMap& inputsInfo = network.GetInputsInfo();
@@ -429,6 +430,12 @@ void adjustInputLayout(ie::ExecutableNetwork& network, const std::string& layout
 //
 // File utils
 //
+bool hasLoadableExt(const std::string& network_path) {
+    static const std::array<const char*, 5> ext_support_table{"xml", "onnx", "pdmodel", "pb", "tflite"};
+    return std::any_of(ext_support_table.begin(), ext_support_table.end(), [&network_path](const char* ext) {
+        return strEq(FileUtils::fileExt(network_path), ext);
+    });
+}
 
 std::string cleanName(std::string&& name) {
     std::replace_if(
@@ -909,8 +916,6 @@ bool testSSDDetection(const ie::BlobMap& outputs, const ie::BlobMap& refOutputs,
     IE_ASSERT(outputs.size() == 1 && refOutputs.size() == 1);
     const auto& outBlob = outputs.begin()->second;
     const auto& refOutBlob = refOutputs.begin()->second;
-    IE_ASSERT(refOutBlob->getTensorDesc().getPrecision() == ie::Precision::FP32);
-    IE_ASSERT(outBlob->getTensorDesc().getPrecision() == ie::Precision::FP32);
     IE_ASSERT(!inputsDesc.empty());
 
     const auto& inputDesc = inputsDesc.begin()->second->getTensorDesc();
@@ -1177,24 +1182,19 @@ bool computeRRMSE(const ie::MemoryBlob::Ptr actOutput, const ie::MemoryBlob::Ptr
         error += (diff * diff);
     }
 
-    if (error <= std::numeric_limits<double>::epsilon()) {
-        std::cout << "There results perfectly match." << std::endl;
-        return true;
-    }
-
     if (sum == 0) {
-        std::cout << "Div by ZERO. Cannot compute RRMSE loss." << std::endl;
+        if (error <= std::numeric_limits<double>::epsilon()) {
+            std::cout << "The results perfectly match (error = 0). RRMSE loss could not be computed" << std::endl;
+            return true;
+        }
+
+        std::cout << "Div by ZERO (Actual is the Zero Tensor). Cannot compute RRMSE loss" << std::endl;
         return false;
     }
 
     double rrmseLoss = sqrt(error / sum);
 
-    if (rrmseLoss < 0.0) {
-        std::cout << "Invalid result RMMSE loss value " << rrmseLoss << " (valid range [0 ; infinity))" << std::endl;
-        return false;
-    }
-
-    std::cout << "RRMSE loss : " << rrmseLoss << std::endl;
+    std::cout << "RRMSE loss : " << rrmseLoss << "   RRMSE threshold : " << FLAGS_rrmse_loss_threshold << std::endl;
     return rrmseLoss <= FLAGS_rrmse_loss_threshold;
 }
 
@@ -1210,6 +1210,73 @@ bool testRRMSE(const ie::BlobMap& actOutputs, const ie::BlobMap& refOutputs) {
 
         std::cout << "Compare " << actualBlob.first << " with reference" << std::endl;
         if (!computeRRMSE(ie::as<ie::MemoryBlob>(actualBlob.second), ie::as<ie::MemoryBlob>(ref_it->second))) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+//
+// Normalized Mean Squared Error mode
+// (using 'nrmse_loss_threshold' flag, with expected value in range [0.0 -> infinity))
+// e.g. '--mode nrmse --nrmse_loss_threshold 0.01'
+//
+
+bool computeNRMSE(const ie::MemoryBlob::Ptr actOutput, const ie::MemoryBlob::Ptr refOutput) {
+    const auto& actDesc = actOutput->getTensorDesc();
+    const auto& refDesc = refOutput->getTensorDesc();
+
+    if (actDesc.getBlockingDesc().getBlockDims() != refDesc.getBlockingDesc().getBlockDims()) {
+        std::cout << "Actual and reference blobs has different shape" << std::endl;
+        return false;
+    }
+
+    const auto size = refOutput->size();
+
+    if (size == 0) {
+        std::cout << "Empty actual and reference outputs, NRMSE loss set to 0" << std::endl;
+        return true;
+    }
+
+    const auto actFP32 = vpux::toFP32(vpux::toDefLayout(actOutput));
+    const auto refFP32 = vpux::toFP32(vpux::toDefLayout(refOutput));
+
+    const auto actMem = actFP32->rmap();
+    const auto refMem = refFP32->rmap();
+
+    const auto act = actMem.as<const float*>();
+    const auto ref = refMem.as<const float*>();
+
+    double error = 0;
+    float maxAct = 0, maxRef = 0, minAct = 0, minRef = 0;
+    for (size_t i = 0; i < size; ++i) {
+        const auto diff = act[i] - ref[i];
+        error += diff * diff;
+        maxAct = std::max(act[i], maxAct);
+        maxRef = std::max(ref[i], maxRef);
+        minAct = std::min(act[i], minAct);
+        minRef = std::min(ref[i], minRef);
+    }
+
+    double nrmseLoss = sqrt(error / size) / std::max(0.001f, std::max(maxAct - minAct, maxRef - minRef));
+
+    std::cout << "NRMSE loss : " << nrmseLoss << "   NRMSE threshold : " << FLAGS_nrmse_loss_threshold << std::endl;
+    return nrmseLoss <= FLAGS_nrmse_loss_threshold;
+}
+
+bool testNRMSE(const ie::BlobMap& actOutputs, const ie::BlobMap& refOutputs) {
+    if (actOutputs.size() != refOutputs.size()) {
+        std::cout << "Actual and reference has different number of output blobs" << std::endl;
+        return false;
+    }
+
+    for (const auto& actualBlob : actOutputs) {
+        auto ref_it = refOutputs.find(actualBlob.first);
+        IE_ASSERT(ref_it != refOutputs.end());
+
+        std::cout << "Compare " << actualBlob.first << " with reference" << std::endl;
+        if (!computeNRMSE(ie::as<ie::MemoryBlob>(actualBlob.second), ie::as<ie::MemoryBlob>(ref_it->second))) {
             return false;
         }
     }
@@ -1330,8 +1397,8 @@ bool testPSNR(const ie::BlobMap& actBlobs, const ie::BlobMap& refBlobs, const in
     int scaleBorder = FLAGS_scale_border;
     bool normalizedImage = FLAGS_normalized_image;
 
-    auto refOutput = utils::parseBlobAsFP32(refBlobs);
-    auto actOutput = utils::parseBlobAsFP32(actBlobs);
+    auto refOutput = vpux::parseBlobAsFP32(refBlobs);
+    auto actOutput = vpux::parseBlobAsFP32(actBlobs);
 
     auto result = utils::runPSNRMetric(actOutput, refOutput, dstHeight, dstWidth, scaleBorder, normalizedImage);
 
@@ -1486,7 +1553,7 @@ static int runSingleImageTestOV10() {
 
         ie::ExecutableNetwork exeNet;
 
-        if (strEq(FileUtils::fileExt(FLAGS_network), "xml")) {
+        if (hasLoadableExt(FLAGS_network)) {
             std::cout << "Load network " << FLAGS_network << std::endl;
 
             auto cnnNet = ieCoreShared->ReadNetwork(FLAGS_network);
@@ -1720,6 +1787,13 @@ static int runSingleImageTestOV10() {
                         std::cout << "FAILED" << std::endl;
                         return EXIT_FAILURE;
                     }
+                } else if (strEq(FLAGS_mode, "nrmse")) {
+                    if (testNRMSE(outputs, refOutputs)) {
+                        std::cout << "PASSED" << std::endl;
+                    } else {
+                        std::cout << "FAILED" << std::endl;
+                        return EXIT_FAILURE;
+                    }
                 } else if (strEq(FLAGS_mode, "ssd")) {
                     if (testSSDDetection(outputs, refOutputs, inputsInfo)) {
                         std::cout << "PASSED" << std::endl;
@@ -1902,6 +1976,37 @@ static ie::SizeVector toIE(const ov::Shape& shape, const ov::Layout& layout) {
     return ie::SizeVector(shape);
 }
 
+void boundDynamicShape(std::shared_ptr<ov::Model>& model) {
+    for (auto&& item : model->get_parameters()) {
+        auto shape = item->get_partial_shape();
+        if (shape.is_static()) {
+            continue;
+        }
+        auto rank = shape.rank();
+        if (rank.is_dynamic()) {
+            throw std::logic_error("Rank \"" + rank.to_string() + "\" of the shape \"" + shape.to_string() +
+                                   "\" is dynamic which is not supported by SIT");
+        }
+        auto layout = item->get_layout();
+        if (!ov::layout::has_batch(layout)) {
+            item->set_layout(ov::Layout(layout.to_string().insert(1, "N,")));
+            layout = item->get_layout();
+        }
+        if (shape[ov::layout::batch_idx(layout)].is_dynamic()) {
+            std::cout << "WARNING: Shape \"" + shape.to_string() + "\"" +
+                                 " has dynamic batch size which is not supported by SIT\n"
+                                 "         Setting batch to 1 forcibly"
+                      << std::endl;
+            ov::set_batch(model, 1);
+        }
+        shape = item->get_partial_shape();
+        if (shape.is_dynamic()) {
+            throw std::logic_error("Model's input shape \"" + shape.to_string() + "\"" +
+                                   " is dynamic which is not supported by SIT");
+        }
+    }
+}
+
 // FIXME: User must provide layout explicitly.
 // No "default" layout for IRv11 models.
 static ov::Layout getLayoutByRank(const int rank) {
@@ -1941,8 +2046,6 @@ bool testSSDDetection(const ie::BlobMap& outputs, const ie::BlobMap& refOutputs,
     IE_ASSERT(outputs.size() == 1 && refOutputs.size() == 1);
     const auto& outBlob = outputs.begin()->second;
     const auto& refOutBlob = refOutputs.begin()->second;
-    IE_ASSERT(refOutBlob->getTensorDesc().getPrecision() == ie::Precision::FP32);
-    IE_ASSERT(outBlob->getTensorDesc().getPrecision() == ie::Precision::FP32);
     IE_ASSERT(!inputsDesc.empty());
 
     const auto& inputDesc = inputsDesc.begin()->second;
@@ -2160,10 +2263,16 @@ static int runSingleImageTestOV20() {
         setupOVCore(core);
 
         ov::CompiledModel compiledModel;
-        if (strEq(FileUtils::fileExt(FLAGS_network), "xml")) {
+        if (hasLoadableExt(FLAGS_network)) {
             std::cout << "Load network " << FLAGS_network << std::endl;
 
             auto model = core.read_model(FLAGS_network);
+
+            if (FLAGS_device.find("NPU") != std::string::npos ||
+                // FIXME: SIT on CPU also requires to bound dynamic shapes
+                FLAGS_device.find("CPU") != std::string::npos) {
+                boundDynamicShape(model);
+            }
 
             ov::preprocess::PrePostProcessor ppp(model);
 
@@ -2430,6 +2539,13 @@ static int runSingleImageTestOV20() {
                     }
                 } else if (strEq(FLAGS_mode, "rrmse")) {
                     if (testRRMSE(outputs, refOutputs)) {
+                        std::cout << "PASSED" << std::endl;
+                    } else {
+                        std::cout << "FAILED" << std::endl;
+                        return EXIT_FAILURE;
+                    }
+                } else if (strEq(FLAGS_mode, "nrmse")) {
+                    if (testNRMSE(outputs, refOutputs)) {
                         std::cout << "PASSED" << std::endl;
                     } else {
                         std::cout << "FAILED" << std::endl;

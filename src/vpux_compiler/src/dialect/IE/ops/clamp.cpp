@@ -4,10 +4,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/IE/utils/propagate_quantize_dequantize_utils.hpp"
 #include "vpux/compiler/utils/error.hpp"
-
-#include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
 
@@ -16,7 +13,7 @@ using namespace vpux;
 //
 
 mlir::LogicalResult vpux::IE::ClampOp::verify() {
-    auto inElemType = input().getType().cast<vpux::NDTypeInterface>().getElementType();
+    auto inElemType = getInput().getType().cast<vpux::NDTypeInterface>().getElementType();
     if (inElemType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
         return errorAt(*this, "Per-axis quantized type is not supported. Got: {0}", inElemType);
     }
@@ -29,8 +26,8 @@ mlir::LogicalResult vpux::IE::ClampOp::verify() {
 //
 
 mlir::LogicalResult vpux::IE::ClampOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -39,31 +36,52 @@ mlir::LogicalResult vpux::IE::ClampOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = clamp.input().getType().cast<mlir::ShapedType>();
+    const auto inType = clamp.getInput().getType().cast<mlir::ShapedType>();
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
 
     return mlir::success();
 }
 
+namespace {
+
 //
-// inferElemTypeInfo
+// Convert Attr to FP16
 //
 
-void vpux::IE::ClampOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
-    propagateElementTypeDown(info);
-}
+class ConvertAttrToFP16 final : public mlir::OpRewritePattern<IE::ClampOp> {
+public:
+    using mlir::OpRewritePattern<IE::ClampOp>::OpRewritePattern;
 
-void vpux::IE::ClampOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
-    propagateElementTypeUp(info);
+public:
+    mlir::LogicalResult matchAndRewrite(IE::ClampOp origOp, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult ConvertAttrToFP16::matchAndRewrite(IE::ClampOp origOp, mlir::PatternRewriter& rewriter) const {
+    const auto minVal = origOp.getMinAttr().getValueAsDouble();
+    const auto maxVal = origOp.getMaxAttr().getValueAsDouble();
+
+    // There is a case when a Clamp operation has default min or max values.
+    // They are set to the numeric limits for FP32. But the NPU only supports FP16 precision.
+    const auto isOutOfFP16Range = [](double value) {
+        return std::abs(value) > std::numeric_limits<float16>::max();
+    };
+    if (!isOutOfFP16Range(minVal) && !isOutOfFP16Range(maxVal)) {
+        return mlir::failure();
+    }
+
+    const auto newMin = std::max(minVal, checked_cast<double>(std::numeric_limits<float16>::lowest()));
+    const auto newMax = std::min(maxVal, checked_cast<double>(std::numeric_limits<float16>::max()));
+    const auto minAttr = getFPAttr(origOp.getContext(), newMin);
+    const auto maxAttr = getFPAttr(origOp.getContext(), newMax);
+
+    rewriter.replaceOpWithNewOp<IE::ClampOp>(origOp, origOp.getInput(), minAttr, maxAttr);
+    return mlir::success();
 }
 
 //
 // Fuse Clamps
 //
 
-namespace {
 class FuseClamps final : public mlir::OpRewritePattern<IE::ClampOp> {
 public:
     using mlir::OpRewritePattern<IE::ClampOp>::OpRewritePattern;
@@ -73,7 +91,7 @@ public:
 };
 
 mlir::LogicalResult FuseClamps::matchAndRewrite(IE::ClampOp origOp, mlir::PatternRewriter& rewriter) const {
-    auto parentOp = origOp.input().getDefiningOp<IE::ClampOp>();
+    auto parentOp = origOp.getInput().getDefiningOp<IE::ClampOp>();
     if (parentOp == nullptr) {
         return mlir::failure();
     }
@@ -82,15 +100,15 @@ mlir::LogicalResult FuseClamps::matchAndRewrite(IE::ClampOp origOp, mlir::Patter
         return mlir::failure();
     }
 
-    const auto minParentOp = parentOp.minAttr().getValueAsDouble();
-    const auto minOrigOp = origOp.minAttr().getValueAsDouble();
-    const auto maxParentOp = parentOp.maxAttr().getValueAsDouble();
-    const auto maxOrigOp = origOp.maxAttr().getValueAsDouble();
+    const auto minParentOp = parentOp.getMinAttr().getValueAsDouble();
+    const auto minOrigOp = origOp.getMinAttr().getValueAsDouble();
+    const auto maxParentOp = parentOp.getMaxAttr().getValueAsDouble();
+    const auto maxOrigOp = origOp.getMaxAttr().getValueAsDouble();
 
     const auto newMin = std::max(minParentOp, minOrigOp);
     const auto newMax = std::min(maxParentOp, maxOrigOp);
 
-    rewriter.replaceOpWithNewOp<IE::ClampOp>(origOp, parentOp.input(), getFPAttr(rewriter, newMin),
+    rewriter.replaceOpWithNewOp<IE::ClampOp>(origOp, parentOp.getInput(), getFPAttr(rewriter, newMin),
                                              getFPAttr(rewriter, newMax));
     return mlir::success();
 }
@@ -103,4 +121,5 @@ mlir::LogicalResult FuseClamps::matchAndRewrite(IE::ClampOp origOp, mlir::Patter
 
 void vpux::IE::ClampOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* ctx) {
     patterns.add<FuseClamps>(ctx);
+    patterns.add<ConvertAttrToFP16>(ctx);
 }

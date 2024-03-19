@@ -4,22 +4,19 @@
 //
 
 #include "vpux/compiler/dialect/IE/utils/handle_kernels_utils.hpp"
-#include "vpux/compiler/conversion.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_invariant.hpp"
 
 using namespace vpux;
 
-Optional<IE::KernelsInfo> vpux::IE::calculateKernelsInfo(ShapeRef origKernel, Logger log) {
+std::optional<IE::KernelsInfo> vpux::IE::calculateKernelsInfo(ShapeRef origKernel, Logger log) {
     const auto KY = origKernel[Dims4D::Kernel::Y];
     const auto KX = origKernel[Dims4D::Kernel::X];
 
-    const auto getPerAxisFactorsInfo = [&](const auto kernelSize, Dim kernelDim) -> llvm::Optional<FactorsInfo> {
+    const auto getPerAxisFactorsInfo = [&](const auto kernelSize, Dim kernelDim) -> std::optional<FactorsInfo> {
         auto factorsResult = vpux::IE::getFactors(kernelSize);
         if (!factorsResult.has_value()) {
             log.trace("Cannot get '{0}' FactorsInfo", kernelDim);
-            return None;
+            return std::nullopt;
         }
 
         const auto factorsInfo = factorsResult.value();
@@ -50,7 +47,7 @@ Optional<IE::KernelsInfo> vpux::IE::calculateKernelsInfo(ShapeRef origKernel, Lo
     const auto factorsInfoAtX = getPerAxisFactorsInfo(KX, Dims4D::Kernel::X);
 
     if (!factorsInfoAtX.has_value() || !factorsInfoAtY.has_value()) {
-        return None;
+        return std::nullopt;
     }
 
     const auto factorsInfoAtXVal = factorsInfoAtX.value();
@@ -73,7 +70,7 @@ bool vpux::IE::checkFactors(const Factors& factors, int64_t kernelSize) {
     return !(hasZeroFactors || factorLessThanKernelSize || isIllegalFirstFactor || hasBadFactors);
 }
 
-Optional<Factors> vpux::IE::getFactorsWithLimitation(int64_t val, int64_t limit) {
+std::optional<Factors> vpux::IE::getFactorsWithLimitation(int64_t val, int64_t limit) {
     if (val <= limit) {
         return Factors(val, 1);
     }
@@ -83,14 +80,14 @@ Optional<Factors> vpux::IE::getFactorsWithLimitation(int64_t val, int64_t limit)
             return Factors(factor, val / factor);
         }
     }
-    return None;
+    return std::nullopt;
 }
 
-Optional<Factors> vpux::IE::getFactorsAroundWithLimitation(int64_t val, int64_t aroundVal, int64_t limit) {
+std::optional<Factors> vpux::IE::getFactorsAroundWithLimitation(int64_t val, int64_t aroundVal, int64_t limit) {
     return getFactorsWithLimitation(val + aroundVal, limit);
 }
 
-Optional<IE::FactorsInfo> vpux::IE::getFactors(const int64_t kernelSize) {
+std::optional<IE::FactorsInfo> vpux::IE::getFactors(const int64_t kernelSize) {
     // Set limit value with the smaller one of MAX_KERNEL_SIZE and MAX_STRIDE
     const auto limit = std::min(VPU::NCEInvariant::MAX_KERNEL_SIZE, VPU::NCEInvariant::MAX_STRIDE);
 
@@ -114,7 +111,7 @@ Optional<IE::FactorsInfo> vpux::IE::getFactors(const int64_t kernelSize) {
         padValue++;
     }
 
-    return None;
+    return std::nullopt;
 }
 
 bool vpux::IE::hasSupportedKernels(ShapeRef kernelSize) {

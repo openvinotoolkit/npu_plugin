@@ -11,14 +11,14 @@
 using namespace vpux;
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ROIAlignUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const float spatial_scale_val = static_cast<float>(spatial_scale().convertToDouble());
+    const float spatial_scale_val = static_cast<float>(getSpatialScale().convertToDouble());
 
     MVCNN::ROIAlignParamsBuilder builder(writer);
     builder.add_spatial_scale(spatial_scale_val);
-    builder.add_method(convertVPUXROIAlignMethod2MVCNN(poolingMode()));
-    builder.add_sampling_ratio(checked_cast<uint32_t>(sampling_ratio()));
-    builder.add_pooled_h(checked_cast<uint32_t>(pooled_h()));
-    builder.add_pooled_w(checked_cast<uint32_t>(pooled_w()));
+    builder.add_method(convertVPUXROIAlignMethod2MVCNN(getPoolingMode()));
+    builder.add_sampling_ratio(checked_cast<uint32_t>(getSamplingRatio()));
+    builder.add_pooled_h(checked_cast<uint32_t>(getPooledH()));
+    builder.add_pooled_w(checked_cast<uint32_t>(getPooledW()));
     builder.add_roi_align_step(MVCNN::ROIAlignStep_roi_align);
     const auto paramsOff = builder.Finish();
 

@@ -156,4 +156,87 @@ Protopipe has the following `CLI` options to configure the execution behaviour.
 `--cfg <path>` - Path to configuration file that describes workload.       
 `--drop_frames`- Drop frames if they come earlier than stream is completed. E.g if `stream` works with `target_fps: 10` (~`100ms` latency) but stream iteration takes `150ms` - the next iteration will be triggered only in `50ms` if option is enabled.           
 `--pipeline` - Enable pipelined execution for all streams.                      
-`--ov_api_1_0`- Use obsolete OpenVINO 1.0 API.                    
+`--ov_api_1_0`- Use obsolete OpenVINO 1.0 API.   
+`--niter <value>` - Number of iterations. If specified overwrites termination criterion for all streams in configuration file.             
+`--t <value>` - Time in seconds. If specified overwrites termination criterion for all streams in configuration file.       
+
+
+## Accuracy validation
+
+Let's consider the scenario with two models running in parallel from different threads described in `scenario.yaml`.
+
+#### Step 1: Generate the reference.
+Let's generate inputs and calculate reference outputs for `10` iterations on `CPU`.
+
+`scenario.yaml` content:
+```
+model_dir:
+  local: /models/
+device_name: CPU
+multi_inference:
+  - input_stream_list:
+    -  network:
+         - { name: mobilenet-v2.xml, input_data: data/net_0/ins, output_data: data/net_0/outs}
+       iteration_count: 10
+    -  network:
+         - { name: age-gender-recognition-retail-0013.xml, input_data: data/net_1/ins, output_data: data/net_1/outs }
+       iteration_count: 10
+```
+Run the tool in `reference` mode:
+```
+./protopipe --cfg scenario.yaml --mode reference
+```
+After tool run is finished the `data` folder will be created and consist of i/o data for every network in scenario.
+The successful run should produce the following results:
+```
+stream 0: Reference data has been generated for 10 iteration(s)
+stream 1: Reference data has been generated for 10 iteration(s)
+```
+#### Step 2: Validate accuracy.
+Change `scenario.yaml` file by adding:
+- One of the supported accuracy metrics:
+    - `cosine`, requires `threshold: <float>` to be specified. Fail if cosine similarity is lower than `threshold`.
+    - `norm`, requires `tolerance: <float>` to be specified. Fail if norm is higher than `tolerance`.
+- The target device that should be used for inference.
+- The stop criterion for every stream.
+
+For the current example `NPU` will be compared against `CPU` by using `cosine` metric during `30` seconds.
+`scenario.yaml` content:
+```
+model_dir:
+  local: /models/
+device_name: NPU
+accuracy_metric: { name: cosine, threshold: 0.99 } # If similarity less than 0.99 - Fail.
+save_validation_outputs: actual-outputs/ # If specified, dump per iteration outputs for validation mode
+multi_inference:
+  - input_stream_list:
+    -  network:
+         - { name: mobilenet-v2.xml, input_data: data/net_0/ins, output_data: data/net_0/outs}
+       exec_time_in_sec: 30
+    -  network:
+         - { name: age-gender-recognition-retail-0013.xml, input_data: data/net_1/ins, output_data: data/net_1/outs }
+       exec_time_in_secs: 30
+```
+
+Run tool in `validation` mode:
+```
+./protopipe --cfg scenario.yaml --mode validation
+```
+Successful run should produce the output in the following format:
+```
+stream 0: Validation has passed for <number> iteration(s)
+stream 1: Validation has passed for <number> iteration(s)
+```
+
+#### Step 3: Measure the performance statistics.
+Once the scenario is validated it might be benchmarked by using `performance` mode.
+
+If `input_data` is specified for particular network it will be loaded and used as input for every iteration otherwise the small amount of data will be pre-generated randomly and used as input.
+**Note**: `output_data` and `accuracy_metric` are ignored for this mode.
+```
+./protopipe --cfg scenario.yaml --mode performance
+```
+Successful run should produce the output in the following format:
+```
+stream 0: throughput: <number> FPS, latency: min: <number> ms, avg: <number> ms, max: <number> ms, frames dropped: <number>/<number>
+stream 1: throughput: <number> FPS, latency: min: <number> ms, avg: <number> ms, max: <number> ms, frames dropped: <number>/<number>

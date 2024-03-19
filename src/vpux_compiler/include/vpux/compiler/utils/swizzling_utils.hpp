@@ -7,7 +7,8 @@
 
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/Types.h>
-#include "vpux/compiler/dialect/VPU/types.hpp"
+#include "vpux/compiler/dialect/VPU/IR/types.hpp"
+#include "vpux/compiler/dialect/VPUIP/types.hpp"
 #include "vpux/compiler/utils/hw_settings.hpp"
 #include "vpux/utils/core/mem_size.hpp"
 
@@ -30,14 +31,12 @@ int64_t getSizeAlignmentForSwizzling(VPU::ArchKind arch);
 /// @param swizzlingKey
 /// @param archKind
 /// @return alignment [bytes]
-int64_t getAddressAlignmentForSwizzling(int64_t swizzlingKey, VPU::ArchKind archKind);
+int64_t getAddressAlignmentForSwizzling(int64_t swizzlingKey);
 
 VPUIP::SwizzlingSchemeAttr createSwizzlingSchemeAttr(mlir::MLIRContext* ctx, VPU::ArchKind archKind,
                                                      int64_t swizzlingKey);
 
 // For swizzling buffer size needs to be aligned to 512/1024 as dictated by arch
-int64_t alignSizeForSwizzling(int64_t size, VPU::ArchKind archKind);
-
 int64_t alignSizeForSwizzling(int64_t size, int64_t sizeAlignment);
 
 /// @brief calculate size of buffers with requested initial memory allocation offset and fixed minimal allocation
@@ -61,5 +60,10 @@ int64_t getSwizzlingKey(mlir::Type type);
 mlir::Type setSwizzlingKey(mlir::Type type, mlir::IntegerAttr swizzlingKeyAttr, VPU::ArchKind archKind);
 
 mlir::Type setSwizzlingKey(mlir::Type type, int64_t swizzlingKey, VPU::ArchKind archKind);
+
+SmallVector<int64_t> getPerClusterBytesAddedForSwizzling(VPUIP::DistributedBufferType distributedBuffer);
+
+vpux::NDTypeInterface updateSwizzlingSchemeBasedOnDistributedType(VPUIP::DistributedBufferType inputType,
+                                                                  vpux::NDTypeInterface newType);
 
 }  // namespace vpux

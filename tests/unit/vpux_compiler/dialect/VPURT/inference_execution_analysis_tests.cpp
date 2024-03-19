@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
+#include "vpux/compiler/core/cycle_cost_info.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/inference_execution_simulator.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
@@ -19,8 +20,8 @@ using namespace vpux;
 
 using MLIR_InferenceExecutionAnalysis = MLIR_UnitBase;
 
-void verifyCorrectCycles(SmallVector<vpux::VPURT::TaskConfig>& tasks,
-                         SmallVector<std::pair<int64_t, int64_t>>& cycleBeginEndPairs) {
+void verifyCorrectCycles(SmallVector<vpux::VPURT::TaskConfig, 1>& tasks,
+                         SmallVector<std::pair<size_t, size_t>>& cycleBeginEndPairs) {
     for (size_t i = 0; i < tasks.size(); i++) {
         auto cycleBegin = tasks[i].cycleStart;
         auto cycleEnd = tasks[i].cycleStart + tasks[i].cycleCost;
@@ -49,7 +50,7 @@ TEST_F(MLIR_InferenceExecutionAnalysis, CheckCycleUpdateOnMultiQueueIR) {
     // ACT C1_1:                         [----------------]
     constexpr StringLiteral inputIR = R"(
         module @test attributes {VPU.arch = #VPU.arch_kind<VPUX37XX>, VPU.compilationMode = #VPU.compilation_mode<DefaultHW>} {
-            IE.ExecutorResource 6 of @NCE at 1.700000e+03 MHz {
+            IE.TileResource 6 of @NCE at 1.700000e+03 MHz {
                 IE.MemoryResource 1327104 bytes of @CMX_NN_FragmentationAware
                 IE.MemoryResource 1474560 bytes of @CMX_NN {VPU.bandwidth = 64 : i64, VPU.derateFactor = 1.000000e+00 : f64}
                 IE.ExecutorResource 2 of @SHAVE_ACT
@@ -73,18 +74,18 @@ TEST_F(MLIR_InferenceExecutionAnalysis, CheckCycleUpdateOnMultiQueueIR) {
 
                 %cst_WT = const.Declare memref<16x1x1x4xsi32> = dense<2> : tensor<16x1x1x4xsi32>
                 %cst_AW = const.Declare memref<1x1x1x16xui8> = dense<1> : tensor<1x1x1x16xui8>
-                
+
                 %netin = VPURT.DeclareBuffer <NetworkInput> [0] <0> -> memref<1x16x24x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, @DDR>
                 %buf_ddr_0 = VPURT.DeclareBuffer <DDR> <0> -> memref<1x16x24x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, @DDR>
                 %buf_ddr_1 = VPURT.DeclareBuffer <DDR> <32768> -> memref<1x16x24x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, @DDR>
-                %buf_cmx0_0 = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x16x24x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]> 
+                %buf_cmx0_0 = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x16x24x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]>
                 %buf_cmx1_0 = VPURT.DeclareBuffer <CMX_NN> [1] <0> -> memref<1x16x24x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 1]>
-                %buf_cmx0_WT = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<16x1x1x4xsi32, [@CMX_NN, 0]> 
+                %buf_cmx0_WT = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<16x1x1x4xsi32, [@CMX_NN, 0]>
                 %buf_cmx1_WT = VPURT.DeclareBuffer <CMX_NN> [1] <0> -> memref<16x1x1x4xsi32, [@CMX_NN, 1]>
-                %buf_cmx0_AW = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x1x1x16xui8, [@CMX_NN, 0]> 
+                %buf_cmx0_AW = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x1x1x16xui8, [@CMX_NN, 0]>
                 %buf_cmx1_AW = VPURT.DeclareBuffer <CMX_NN> [1] <0> -> memref<1x1x1x16xui8, [@CMX_NN, 1]>
 
-                %buf_cmx0_1 = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x16x24x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]> 
+                %buf_cmx0_1 = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x16x24x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]>
                 %buf_cmx1_1 = VPURT.DeclareBuffer <CMX_NN> [1] <0> -> memref<1x16x24x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 1]>
 
                 %buf_cmx0_1_Part0 = VPURT.DeclareBuffer <CMX_NN> [0] <0> -> memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]>
@@ -99,39 +100,39 @@ TEST_F(MLIR_InferenceExecutionAnalysis, CheckCycleUpdateOnMultiQueueIR) {
                 %buf_cmx1_2_Part0 = VPURT.DeclareBuffer <CMX_NN> [1] <0> -> memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 1]>
                 %buf_cmx1_2_Part1 = VPURT.DeclareBuffer <CMX_NN> [1] <0> -> memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 1]>
 
-                VPURT.Task attributes {isTrailingSWLayer = false} {
+                VPURT.Task {
                     %0 = VPUIP.NNDMA {port = 0 : i64} inputs(%netin : memref<1x16x24x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, @DDR>) outputs(%buf_ddr_0 : memref<1x16x24x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, @DDR>) -> memref<1x16x24x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, @DDR>
                 }
 
-                VPURT.Task attributes {isTrailingSWLayer = false} {
+                VPURT.Task {
                     %0 = VPUIP.NNDMA {port = 1 : i64} inputs(%netin : memref<1x16x24x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, @DDR>) outputs(%buf_ddr_1 : memref<1x16x24x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, @DDR>) -> memref<1x16x24x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, @DDR>
                 }
 
-                VPURT.Task attributes {isTrailingSWLayer = false} {
+                VPURT.Task {
                     %0 = VPUIP.NNDMA {port = 0 : i64} inputs(%cst_WT : memref<16x1x1x4xsi32>) outputs(%buf_cmx0_WT : memref<16x1x1x4xsi32, [@CMX_NN, 0]>) -> memref<16x1x1x4xsi32, [@CMX_NN, 0]>
                 }
 
-                VPURT.Task attributes {isTrailingSWLayer = false} {
+                VPURT.Task {
                     %0 = VPUIP.NNDMA {port = 1 : i64} inputs(%cst_WT : memref<16x1x1x4xsi32>) outputs(%buf_cmx1_WT : memref<16x1x1x4xsi32, [@CMX_NN, 1]>) -> memref<16x1x1x4xsi32, [@CMX_NN, 1]>
                 }
 
-                VPURT.Task attributes {isTrailingSWLayer = false} {
+                VPURT.Task {
                     %0 = VPUIP.NNDMA {port = 0 : i64} inputs(%cst_AW : memref<1x1x1x16xui8>) outputs(%buf_cmx0_AW : memref<1x1x1x16xui8, [@CMX_NN, 0]>) -> memref<1x1x1x16xui8, [@CMX_NN, 0]>
                 }
 
-                VPURT.Task attributes {isTrailingSWLayer = false} {
+                VPURT.Task {
                     %0 = VPUIP.NNDMA {port = 1 : i64} inputs(%cst_AW : memref<1x1x1x16xui8>) outputs(%buf_cmx1_AW : memref<1x1x1x16xui8, [@CMX_NN, 1]>) -> memref<1x1x1x16xui8, [@CMX_NN, 1]>
                 }
 
-                VPURT.Task updates(%bar0 : !VPURT.Barrier) attributes {isTrailingSWLayer = false} {
+                VPURT.Task updates(%bar0 : !VPURT.Barrier) {
                     %0 = VPUIP.NNDMA {port = 0 : i64} inputs(%buf_ddr_0 : memref<1x16x24x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, @DDR>) outputs(%buf_cmx0_0 : memref<1x16x24x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]>) -> memref<1x16x24x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]>
                 }
 
-                VPURT.Task updates(%bar1 : !VPURT.Barrier) attributes {isTrailingSWLayer = false} {
+                VPURT.Task updates(%bar1 : !VPURT.Barrier) {
                     %0 = VPUIP.NNDMA {port = 1 : i64} inputs(%buf_ddr_1 : memref<1x16x24x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, @DDR>) outputs(%buf_cmx1_0 : memref<1x16x24x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 1]>) -> memref<1x16x24x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 1]>
                 }
 
-                VPURT.Task waits(%bar0 : !VPURT.Barrier) updates(%bar2 : !VPURT.Barrier) attributes {isTrailingSWLayer = false} {
+                VPURT.Task waits(%bar0 : !VPURT.Barrier) updates(%bar2 : !VPURT.Barrier) {
                     %0 = VPUIP.NCEClusterTask {activation_window_channel_length = 4 : i64, kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, kernel_size = [1, 1], kernel_strides = [1, 1], task_type = #VPUIP.nce_task_type<MAXPOOL>}
                     input(%buf_cmx0_0 : memref<1x16x24x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]>)
                     weight_table(%buf_cmx0_WT : memref<16x1x1x4xsi32, [@CMX_NN, 0]>)
@@ -144,7 +145,7 @@ TEST_F(MLIR_InferenceExecutionAnalysis, CheckCycleUpdateOnMultiQueueIR) {
                     }
                 }
 
-                VPURT.Task waits(%bar1 : !VPURT.Barrier) updates(%bar3 : !VPURT.Barrier) attributes {isTrailingSWLayer = false} {
+                VPURT.Task waits(%bar1 : !VPURT.Barrier) updates(%bar3 : !VPURT.Barrier) {
                     %0 = VPUIP.NCEClusterTask {activation_window_channel_length = 4 : i64, kernel_padding = #VPU.Padding<left = 0 : i64, right = 0 : i64, top = 0 : i64, bottom = 0 : i64>, kernel_size = [1, 1], kernel_strides = [1, 1], task_type = #VPUIP.nce_task_type<MAXPOOL>}
                     input(%buf_cmx1_0 : memref<1x16x24x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 1]>)
                     weight_table(%buf_cmx1_WT : memref<16x1x1x4xsi32, [@CMX_NN, 1]>)
@@ -157,26 +158,26 @@ TEST_F(MLIR_InferenceExecutionAnalysis, CheckCycleUpdateOnMultiQueueIR) {
                     }
                 }
 
-                VPURT.Task waits(%bar2 : !VPURT.Barrier) attributes {isTrailingSWLayer = false} {
-                    %results = VPUIP.SW.Kernel {result_segment_sizes = dense<[1, 0]> : vector<2xi32>} @VPU.SW::@builtin_TanhOp inputs(%buf_cmx0_1_Part0 as %arg2: memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]>) outputs(%buf_cmx0_2_Part0 as %arg3: memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]>) on tile 0 -> memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]>{
+                VPURT.Task waits(%bar2 : !VPURT.Barrier) {
+                    %results = VPUIP.SW.Kernel {resultSegmentSizes = array<i32: 1, 0>} @VPU.SW::@builtin_TanhOp inputs(%buf_cmx0_1_Part0 as %arg2: memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]>) outputs(%buf_cmx0_2_Part0 as %arg3: memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]>) on tile 0 -> memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]>{
                     VPUIP.SW.Kernel.run {attrs = [false, true, 1.0013580322265625E-5]}(%arg2, %arg3) : memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]>, memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]>
                     }
                 }
 
-                VPURT.Task waits(%bar2 : !VPURT.Barrier) attributes {isTrailingSWLayer = false} {
-                    %results = VPUIP.SW.Kernel {result_segment_sizes = dense<[1, 0]> : vector<2xi32>} @VPU.SW::@builtin_TanhOp inputs(%buf_cmx0_1_Part1 as %arg2: memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]>) outputs(%buf_cmx0_2_Part1 as %arg3: memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]>) on tile 0 -> memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]>{
+                VPURT.Task waits(%bar2 : !VPURT.Barrier) {
+                    %results = VPUIP.SW.Kernel {resultSegmentSizes = array<i32: 1, 0>} @VPU.SW::@builtin_TanhOp inputs(%buf_cmx0_1_Part1 as %arg2: memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]>) outputs(%buf_cmx0_2_Part1 as %arg3: memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]>) on tile 0 -> memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]>{
                     VPUIP.SW.Kernel.run {attrs = [false, true, 1.0013580322265625E-5]}(%arg2, %arg3) : memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]>, memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]>
                     }
                 }
 
-                VPURT.Task waits(%bar3 : !VPURT.Barrier) attributes {isTrailingSWLayer = false} {
-                    %results = VPUIP.SW.Kernel {result_segment_sizes = dense<[1, 0]> : vector<2xi32>} @VPU.SW::@builtin_TanhOp inputs(%buf_cmx1_1_Part0 as %arg2: memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 1]>) outputs(%buf_cmx1_2_Part0 as %arg3: memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 1]>) on tile 1 -> memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 1]>{
+                VPURT.Task waits(%bar3 : !VPURT.Barrier) {
+                    %results = VPUIP.SW.Kernel {resultSegmentSizes = array<i32: 1, 0>} @VPU.SW::@builtin_TanhOp inputs(%buf_cmx1_1_Part0 as %arg2: memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 1]>) outputs(%buf_cmx1_2_Part0 as %arg3: memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 1]>) on tile 1 -> memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 1]>{
                     VPUIP.SW.Kernel.run {attrs = [false, true, 1.0013580322265625E-5]}(%arg2, %arg3) : memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 1]>, memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 1]>
                     }
                 }
 
-                VPURT.Task waits(%bar3 : !VPURT.Barrier) attributes {isTrailingSWLayer = false} {
-                    %results = VPUIP.SW.Kernel {result_segment_sizes = dense<[1, 0]> : vector<2xi32>} @VPU.SW::@builtin_TanhOp inputs(%buf_cmx1_1_Part1 as %arg2: memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 1]>) outputs(%buf_cmx1_2_Part1 as %arg3: memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 1]>) on tile 1 -> memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 1]>{
+                VPURT.Task waits(%bar3 : !VPURT.Barrier) {
+                    %results = VPUIP.SW.Kernel {resultSegmentSizes = array<i32: 1, 0>} @VPU.SW::@builtin_TanhOp inputs(%buf_cmx1_1_Part1 as %arg2: memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 1]>) outputs(%buf_cmx1_2_Part1 as %arg3: memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 1]>) on tile 1 -> memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 1]>{
                     VPUIP.SW.Kernel.run {attrs = [false, true, 1.0013580322265625E-5]}(%arg2, %arg3) : memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 1]>, memref<1x16x12x24xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 1]>
                     }
                 }
@@ -194,17 +195,18 @@ TEST_F(MLIR_InferenceExecutionAnalysis, CheckCycleUpdateOnMultiQueueIR) {
     auto funcOp = module.get().lookupSymbol<mlir::func::FuncOp>("main");
     ASSERT_TRUE(funcOp != nullptr);
 
-    VPURT::InferenceExecutionSimulator infSim(log, funcOp);
+    CycleCostInfo cycleCostInfo(funcOp);
+    VPURT::InferenceExecutionSimulator infSim(log, funcOp, cycleCostInfo);
 
     infSim.runSim();
 
-    SmallVector<int64_t> tasksCostDmaP0;
-    SmallVector<int64_t> tasksCostDmaP1;
-    SmallVector<int64_t> tasksCostNce;
-    SmallVector<int64_t> tasksCostSwKernel;
+    SmallVector<size_t> tasksCostDmaP0;
+    SmallVector<size_t> tasksCostDmaP1;
+    SmallVector<size_t> tasksCostNce;
+    SmallVector<size_t> tasksCostSwKernel;
 
     for (auto taskOp : funcOp.getOps<VPURT::TaskOp>()) {
-        auto cost = infSim.getTaskCycleCost(taskOp);
+        auto cost = cycleCostInfo.getCycleCost(taskOp);
 
         auto* op = taskOp.getInnerTaskOp();
         if (auto dmaOp = mlir::dyn_cast<VPUIP::DMATypeOpInterface>(op)) {
@@ -237,10 +239,10 @@ TEST_F(MLIR_InferenceExecutionAnalysis, CheckCycleUpdateOnMultiQueueIR) {
     // Prepare expected cycleBegin/End based on operations cost and their
     // placement in the schedule
 
-    auto updateDmaExpectedCycleBeginEndPairs = [](SmallVector<std::pair<int64_t, int64_t>>& tasksCycleBeginEndPairs,
-                                                  SmallVector<int64_t>& tasksCost) {
+    auto updateDmaExpectedCycleBeginEndPairs = [](SmallVector<std::pair<size_t, size_t>>& tasksCycleBeginEndPairs,
+                                                  SmallVector<size_t>& tasksCost) {
         for (size_t i = 0; i < tasksCost.size(); i++) {
-            int64_t prevTaskCycleEnd = 0;
+            size_t prevTaskCycleEnd = 0;
             if (i > 0) {
                 prevTaskCycleEnd = tasksCycleBeginEndPairs.back().second;
             }
@@ -248,26 +250,26 @@ TEST_F(MLIR_InferenceExecutionAnalysis, CheckCycleUpdateOnMultiQueueIR) {
         }
     };
 
-    SmallVector<std::pair<int64_t, int64_t>> dmaTasksCycleBeginEndPairs;
+    SmallVector<std::pair<size_t, size_t>> dmaTasksCycleBeginEndPairs;
 
     updateDmaExpectedCycleBeginEndPairs(dmaTasksCycleBeginEndPairs, tasksCostDmaP0);
     updateDmaExpectedCycleBeginEndPairs(dmaTasksCycleBeginEndPairs, tasksCostDmaP1);
 
     auto nceCycleBegin = dmaTasksCycleBeginEndPairs.back().second;
 
-    SmallVector<std::pair<int64_t, int64_t>> nceTasksCycleBeginEndPairs = {
+    SmallVector<std::pair<size_t, size_t>> nceTasksCycleBeginEndPairs = {
             {nceCycleBegin, nceCycleBegin + tasksCostNce[0]},
             {nceCycleBegin, nceCycleBegin + tasksCostNce[1]}};
 
     auto actShaveCycleBegin = nceTasksCycleBeginEndPairs.back().second;
-    SmallVector<std::pair<int64_t, int64_t>> actShaveTasksCycleBeginEndPairs = {
+    SmallVector<std::pair<size_t, size_t>> actShaveTasksCycleBeginEndPairs = {
             {actShaveCycleBegin, actShaveCycleBegin + tasksCostSwKernel[0]},
             {actShaveCycleBegin, actShaveCycleBegin + tasksCostSwKernel[1]},
             {actShaveCycleBegin, actShaveCycleBegin + tasksCostSwKernel[2]},
             {actShaveCycleBegin, actShaveCycleBegin + tasksCostSwKernel[3]}};
 
     auto dmaTasks = infSim.getTaskCycleConfig(VPU::ExecutorKind::DMA_NN);
-    auto nceTasks = infSim.getTaskCycleConfig(VPU::ExecutorKind::NCE);
+    auto nceTasks = infSim.getTaskCycleConfig(VPU::ExecutorKind::DPU);
     auto actShaveTasks = infSim.getTaskCycleConfig(VPU::ExecutorKind::SHAVE_ACT);
 
     ASSERT_EQ(dmaTasks.size(), dmaTasksCycleBeginEndPairs.size());
@@ -293,4 +295,34 @@ TEST_F(MLIR_InferenceExecutionAnalysis, CheckBarrierConfigClass) {
     // After decrementing producer count is 0 and barrier is released
     EXPECT_EQ(barrierConf.getReleaseCycle(), 10);
     EXPECT_TRUE(barrierConf.isReleased());
+}
+
+TEST_F(MLIR_InferenceExecutionAnalysis, CheckSubTaskStartTimesQueueCount1) {
+    size_t startTime = 5;
+    SmallVector<size_t> subTasksCost = {10, 10, 10, 10};
+    size_t queueCount = 1;
+
+    auto subTasksStartTime = VPURT::getSubTasksStartTime(subTasksCost, startTime, queueCount);
+
+    ASSERT_EQ(subTasksStartTime.size(), subTasksCost.size());
+
+    EXPECT_EQ(subTasksStartTime[0], 5);
+    EXPECT_EQ(subTasksStartTime[1], 15);
+    EXPECT_EQ(subTasksStartTime[2], 25);
+    EXPECT_EQ(subTasksStartTime[3], 35);
+}
+
+TEST_F(MLIR_InferenceExecutionAnalysis, CheckSubTaskStartTimesQueueCount2) {
+    size_t startTime = 5;
+    SmallVector<size_t> subTasksCost = {10, 10, 10, 10};
+    size_t queueCount = 2;
+
+    auto subTasksStartTime = VPURT::getSubTasksStartTime(subTasksCost, startTime, queueCount);
+
+    ASSERT_EQ(subTasksStartTime.size(), subTasksCost.size());
+
+    EXPECT_EQ(subTasksStartTime[0], 5);
+    EXPECT_EQ(subTasksStartTime[1], 5);
+    EXPECT_EQ(subTasksStartTime[2], 15);
+    EXPECT_EQ(subTasksStartTime[3], 15);
 }

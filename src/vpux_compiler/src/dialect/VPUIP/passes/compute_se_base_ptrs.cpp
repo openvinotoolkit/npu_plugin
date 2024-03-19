@@ -5,81 +5,43 @@
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
+#include "vpux/utils/IE/loop.hpp"
 
 #include <mlir/IR/BuiltinAttributes.h>
-#include <mlir/Pass/PassManager.h>
-
-#include <llvm/ADT/TypeSwitch.h>
 
 using namespace vpux;
 
 namespace {
 
-VPUIP::StorageElementTableOp findSETableOp(mlir::Value value) {
-    auto parentOp = value.getDefiningOp();
-    return llvm::TypeSwitch<mlir::Operation*, VPUIP::StorageElementTableOp>(parentOp)
-            .Case<VPUIP::StorageElementTableOp>([](VPUIP::StorageElementTableOp seTableOp) {
-                return seTableOp;
-            })
-            .Case<VPUIP::ConcatViewOp>([&](VPUIP::ConcatViewOp) -> VPUIP::StorageElementTableOp {
-                VPUX_THROW("Concatenated storage element table operations are not supported");
-            })
-            .Case<VPUIP::GroupSparseBufferOp>([](VPUIP::GroupSparseBufferOp groupOp) {
-                VPUX_THROW_UNLESS(groupOp->getNumOperands() == 3,
-                                  "Expected three operands for grouping operation at '{0}', got '{1}'",
-                                  groupOp->getLoc(), groupOp->getNumOperands());
-                return findSETableOp(groupOp->getOperand(2));
-            })
-            .Case<VPUIP::NCEClusterTilingOp>([](VPUIP::NCEClusterTilingOp nceClusterTilingOp) {
-                auto taskOp = nceClusterTilingOp.getInnerTaskOpOfType<VPUIP::CopyOp>();
-                VPUX_THROW_UNLESS(taskOp != nullptr, "Unexpected NCE parent operation at '{0}'",
-                                  nceClusterTilingOp->getLoc());
-                return findSETableOp(nceClusterTilingOp->getOperand(0));
-            })
-            .Case<VPUIP::CopyOp>([](VPUIP::CopyOp copyOp) {
-                return findSETableOp(copyOp.input());
-            })
-            .Case<mlir::ViewLikeOpInterface>([](mlir::ViewLikeOpInterface viewOp) {
-                return findSETableOp(viewOp.getViewSource());
-            })
-            .Case<MultiViewOpInterface>([&](vpux::MultiViewOpInterface viewOp) {
-                if (auto nceClusterOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(parentOp)) {
-                    auto taskOp = nceClusterOp.getInnerTaskOp();
-                    VPUX_THROW_UNLESS(mlir::isa<VPUIP::CopyOp>(taskOp), "Expected copy operation, got '{0}' at '{1}'",
-                                      taskOp->getName(), taskOp->getLoc());
-                }
-                auto opResult = value.dyn_cast<mlir::OpResult>();
-                VPUX_THROW_WHEN(opResult == nullptr, "Value '{0}' cannot be converted to an op result", value);
-                const auto source = viewOp.getViewSource(opResult.getResultNumber());
-                return findSETableOp(source);
-            })
-            .Default([](mlir::Operation* op) -> VPUIP::StorageElementTableOp {
-                VPUX_THROW("Unexpected operation '{0}' at '{1}'", op->getName(), op->getLoc());
-            });
-}
-
-void computeBasePtrs(VPUIP::StorageElementTableOp seTableOp, VPUIP::DistributedBufferType inputDistType,
-                     const Logger& log) {
+void computeBasePtrs(VPUIP::StorageElementTableOp seTableOp, vpux::NDTypeInterface inputType, const Logger& log) {
     log.trace("Computing base pointers for '{0}' at '{1}'", seTableOp->getName(), seTableOp->getLoc());
 
-    if (seTableOp.basePtrs().has_value()) {
+    if (seTableOp.getBasePtrs().has_value()) {
         log.nest().trace("Operation already has base pointers computed. Skipping");
         return;
     }
 
-    const auto seDataShape = parseIntArrayAttr<int64_t>(seTableOp.dataShape());
-    const auto inputShape = to_small_vector(inputDistType.getShape());
+    const auto seDataShape = parseIntArrayAttr<int64_t>(seTableOp.getDataShape());
+    const auto inputShape = to_small_vector(inputType.getShape());
     VPUX_THROW_UNLESS(seDataShape == inputShape,
                       "Mismatch between storage element table's data shape '{0}' and input shape '{1}'", seDataShape,
                       inputShape);
 
-    auto perClusterOffsets = inputDistType.getPerClusterMemoryShapeOffsets();
-    auto perClusterShapes = inputDistType.getPerClusterMemoryShapes();
-    VPUX_THROW_UNLESS(perClusterOffsets.size() == perClusterShapes.size(),
-                      "Mismatch between per cluster offsets '{0}' and shapes '{1}", perClusterOffsets.size(),
-                      perClusterShapes.size());
+    SmallVector<Shape> perClusterOffsets{};
+    SmallVector<Shape> perClusterShapes{};
+    if (auto inputDistType = inputType.dyn_cast<VPUIP::DistributedBufferType>()) {
+        perClusterOffsets = inputDistType.getPerClusterMemoryShapeOffsets();
+        perClusterShapes = inputDistType.getPerClusterMemoryShapes();
+        VPUX_THROW_UNLESS(perClusterOffsets.size() == perClusterShapes.size(),
+                          "Mismatch between per cluster offsets '{0}' and shapes '{1}", perClusterOffsets.size(),
+                          perClusterShapes.size());
+    }
 
     const auto findCluster = [&](const int64_t h, const int64_t w) -> int32_t {
+        if (perClusterOffsets.empty() || perClusterShapes.empty()) {
+            return static_cast<int32_t>(0);
+        }
         for (auto p : zip(perClusterOffsets, perClusterShapes) | indexed) {
             const auto offsets = std::get<0>(p.value());
             const auto shape = std::get<1>(p.value());
@@ -97,30 +59,34 @@ void computeBasePtrs(VPUIP::StorageElementTableOp seTableOp, VPUIP::DistributedB
     const auto outputH = outputShape[Dims4D::Act::H];
     const auto outputW = outputShape[Dims4D::Act::W];
 
-    const auto seAttr = seTableOp.seAttr().value_or(nullptr);
-    const auto seSize = seTableOp.seSize();
-    const auto seDepth = seTableOp.seDepth();
+    const auto seAttr = seTableOp.getSeAttr().value_or(nullptr);
+    const auto seSize = seTableOp.getSeSize();
+    const auto seDepth = seTableOp.getSeDepth();
 
     const auto numElements = outputNDType.getNumElements();
     std::vector<int32_t> basePtrs(numElements, 0);
 
-    for (int64_t h = 0; h < outputH; ++h) {
-        for (int64_t w = 0; w < outputW; ++w) {
-            for (int64_t se = 0; se < seDepth; ++se) {
-                const Shape outputOffsets{0, se * seSize, h, w};
-                auto inputOffsets =
-                        (seAttr != nullptr) ? seAttr.backInferCoord(outputOffsets, Shape(inputShape)) : outputOffsets;
-                const auto seSpatialOffset = (h * outputW + w) * seDepth;
-                basePtrs[seSpatialOffset + se] =
-                        findCluster(inputOffsets[Dims4D::Act::H], inputOffsets[Dims4D::Act::W]);
-            }
+    SmallVector<int64_t> outputOffsets{0, 0, 0, 0};
+    if (seAttr != nullptr) {
+        if (auto tileInfo = seAttr.getTileInfo(); tileInfo.has_value() && tileInfo->offsets != nullptr) {
+            outputOffsets = parseIntArrayAttr<int64_t>(tileInfo->offsets);
         }
     }
+
+    loop_3d(LoopExecPolicy::Parallel, outputH, outputW, seDepth, [&](int64_t h, int64_t w, int64_t se) {
+        const Shape outputCoord{outputOffsets[Dims4D::Act::N.ind()] + 0,
+                                outputOffsets[Dims4D::Act::C.ind()] + se * seSize,
+                                outputOffsets[Dims4D::Act::H.ind()] + h, outputOffsets[Dims4D::Act::W.ind()] + w};
+        auto inputCoord =
+                (seAttr != nullptr) ? seAttr.backInferInputCoord(outputCoord, Shape(inputShape)) : outputCoord;
+        const auto seSpatialOffset = (h * outputW + w) * seDepth;
+        basePtrs[seSpatialOffset + se] = findCluster(inputCoord[Dims4D::Act::H], inputCoord[Dims4D::Act::W]);
+    });
 
     const auto basePtrType =
             mlir::RankedTensorType::get({static_cast<int64_t>(basePtrs.size())}, getInt32Type(seTableOp.getContext()));
     const auto basePtrsElems = mlir::DenseIntElementsAttr::get(basePtrType, basePtrs);
-    seTableOp.basePtrsAttr(basePtrsElems);
+    seTableOp.setBasePtrsAttr(basePtrsElems);
 }
 
 //
@@ -141,36 +107,37 @@ void ComputeSEBasePtrsPass::safeRunOnFunc() {
     auto func = getOperation();
 
     func.walk([&](VPUIP::NCEClusterTaskOp nceOp) {
-        if (nceOp.input_storage_element_table() == nullptr) {
+        if (nceOp.getInputStorageElementTable() == nullptr) {
             return;
         }
 
-        VPUX_THROW_WHEN(nceOp.task_type() == VPUIP::NCETaskType::ELTWISE,
+        _log.trace("Found NCE operation with an input SE table at '{0}'", nceOp->getLoc());
+
+        VPUX_THROW_WHEN(nceOp.getTaskType() == VPUIP::NCETaskType::ELTWISE,
                         "Eltwise operations with input storage element tables are not yet supported");
 
-        auto parentTilingOp = nceOp->getParentOfType<VPUIP::NCEClusterTilingOp>();
-        if (parentTilingOp == nullptr) {
+        auto inputOperand = nceOp.getInput();
+        auto seTableOperand = nceOp.getInputStorageElementTable();
+        if (auto parentTilingOp = nceOp->getParentOfType<VPUIP::NCEClusterTilingOp>()) {
+            auto inputArg = nceOp.getInput().dyn_cast<mlir::BlockArgument>();
+            VPUX_THROW_WHEN(inputArg == nullptr, "Input is not a block argument");
+            inputOperand = parentTilingOp.getOperand(inputArg.getArgNumber());
+
+            auto seTableBlockArg = nceOp.getInputStorageElementTable().dyn_cast<mlir::BlockArgument>();
+            VPUX_THROW_WHEN(seTableBlockArg == nullptr, "Input storage element table is not a block argument");
+            seTableOperand = parentTilingOp.getOperand(seTableBlockArg.getArgNumber());
+        }
+
+        auto seTable = VPUIP::findSETableOp(seTableOperand);
+        VPUX_THROW_WHEN(seTable == nullptr, "Unable to find the storage element table");
+        if (mlir::isa<Const::DeclareOp>(seTable)) {
+            _log.nest().trace("Storage element table was already converted to a constant");
             return;
         }
 
-        auto inputArg = nceOp.input().dyn_cast<mlir::BlockArgument>();
-        VPUX_THROW_WHEN(inputArg == nullptr, "Input is not a block argument");
-        auto outerInput = parentTilingOp.getOperand(inputArg.getArgNumber());
-
-        if (!outerInput.getType().isa<VPUIP::DistributedBufferType>()) {
-            return;
-        }
-
-        _log.trace("Found NCE operation at '{0}'", nceOp->getLoc());
-
-        auto inputDistType = outerInput.getType().cast<VPUIP::DistributedBufferType>();
-
-        auto seTableBlockArg = nceOp.input_storage_element_table().dyn_cast<mlir::BlockArgument>();
-        VPUX_THROW_WHEN(seTableBlockArg == nullptr, "Input storage element table is not a block argument");
-        auto outerSeTable = parentTilingOp.getOperand(seTableBlockArg.getArgNumber());
-        auto seTableOp = findSETableOp(outerSeTable);
-
-        computeBasePtrs(seTableOp, inputDistType, _log);
+        auto seTableOp = mlir::cast<VPUIP::StorageElementTableOp>(seTable);
+        auto inputType = inputOperand.getType().cast<vpux::NDTypeInterface>();
+        computeBasePtrs(seTableOp, inputType, _log);
     });
 }
 

@@ -10,8 +10,6 @@
 #include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
-#include <mlir/IR/BuiltinTypes.h>
-
 using namespace vpux;
 
 //
@@ -45,8 +43,8 @@ static mlir::LogicalResult verifyPostOp(mlir::Operation* op) {
 //
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ClampUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const float min_val = static_cast<float>(min().convertToDouble());
-    const float max_val = static_cast<float>(max().convertToDouble());
+    const float min_val = static_cast<float>(getMin().convertToDouble());
+    const float max_val = static_cast<float>(getMax().convertToDouble());
 
     const auto clamp = MVCNN::CreateClampParams(writer, min_val, max_val);
 
@@ -67,7 +65,7 @@ mlir::LogicalResult vpux::VPUIP::ClampUPAOp::verify() {
 //
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EluUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const float x_val = static_cast<float>(x().convertToDouble());
+    const float x_val = static_cast<float>(getX().convertToDouble());
 
     const auto elu = MVCNN::CreateEluParams(writer, x_val);
 
@@ -126,7 +124,7 @@ mlir::LogicalResult vpux::VPUIP::FloorUPAOp::verify() {
 //
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::RoundUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto roundMode = VPUIP::convertVPUXRoundMode2MVCNN(mode());
+    const auto roundMode = VPUIP::convertVPUXRoundMode2MVCNN(getMode());
     const auto round = MVCNN::CreateRoundParams(writer, roundMode);
 
     MVCNN::PostOpsParamsBuilder builder(writer);
@@ -488,8 +486,8 @@ mlir::LogicalResult vpux::VPUIP::LogUPAOp::verify() {
 //
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SeluUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto alpha = alphaValueAttr().getValueAsDouble();
-    const auto lambda = lambdaValueAttr().getValueAsDouble();
+    const auto alpha = getAlphaValueAttr().getValueAsDouble();
+    const auto lambda = getLambdaValueAttr().getValueAsDouble();
 
     const auto selu = MVCNN::CreateSeluParams(writer, checked_cast<float>(alpha), checked_cast<float>(lambda));
 
@@ -612,7 +610,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PReluUPAOp::serialize(VPUIP::BlobWr
 //
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LeakyReluUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const float negative_slope_val = static_cast<float>(negative_slope().convertToDouble());
+    const float negative_slope_val = static_cast<float>(getNegativeSlope().convertToDouble());
 
     const auto leaky_relu = MVCNN::CreateLeakyReluParams(writer, negative_slope_val);
 
@@ -629,7 +627,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LeakyReluUPAOp::serialize(VPUIP::Bl
 //
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SwishUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto beta = beta_valueAttr().getValueAsDouble();
+    const auto beta = getBetaValueAttr().getValueAsDouble();
 
     const auto swish = MVCNN::CreateSwishParams(writer, checked_cast<float>(beta));
 
@@ -649,11 +647,11 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ScaleShiftUPAOp::serialize(VPUIP::B
     const auto scaleShift = MVCNN::CreateScaleShiftParams(writer);
 
     MVCNN::PostOpsNestedParams opType{};
-    if (weights() != nullptr && biases() != nullptr) {
+    if (getWeights() != nullptr && getBiases() != nullptr) {
         opType = MVCNN::PostOpsNestedParams_ScaleShiftParams;
-    } else if (weights() != nullptr) {
+    } else if (getWeights() != nullptr) {
         opType = MVCNN::PostOpsNestedParams_ScaleParams;
-    } else if (biases() != nullptr) {
+    } else if (getBiases() != nullptr) {
         opType = MVCNN::PostOpsNestedParams_BiasParams;
     } else {
         VPUX_THROW("ScaleShift must have weights or biases");
@@ -714,8 +712,8 @@ mlir::LogicalResult vpux::VPUIP::SoftPlusUPAOp::verify() {
 //
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::HardSigmoidUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto alpha = alpha_valueAttr().getValueAsDouble();
-    const auto beta = beta_valueAttr().getValueAsDouble();
+    const auto alpha = getAlphaValueAttr().getValueAsDouble();
+    const auto beta = getBetaValueAttr().getValueAsDouble();
     const auto hardSigmoid =
             MVCNN::CreateHardSigmoidParams(writer, checked_cast<float>(alpha), checked_cast<float>(beta));
 

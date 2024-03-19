@@ -56,10 +56,6 @@ unsigned TraceEventTimeOrderedDistribution::getThreadId(double taskStartTime, do
     return thId;
 }
 
-void TraceEventTimeOrderedDistribution::setThreadIdOffset(unsigned offset) {
-    _startThreadId = offset;
-}
-
 std::vector<unsigned> TraceEventTimeOrderedDistribution::getThreadIds() const {
     return _threadId;
 }

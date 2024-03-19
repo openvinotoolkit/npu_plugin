@@ -8,10 +8,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
-#include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
@@ -63,10 +60,10 @@ mlir::LogicalResult ConvertDepth2SpaceLayerPass::Depth2SpaceLayerConverter::matc
         IE::DepthToSpaceOp origOp, mlir::PatternRewriter& rewriter) const {
     const auto ctx = rewriter.getContext();
 
-    const auto inputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
+    const auto inputType = origOp.getInput().getType().cast<vpux::NDTypeInterface>();
     const auto inputShape = inputType.getShape();
-    const auto blockSize = origOp.block_size();
-    const auto mode = origOp.mode();
+    const auto blockSize = origOp.getBlockSize();
+    const auto mode = origOp.getMode();
 
     // Check input shape must be 4d out of caution
     // TODO: Can I make sure INPUT format is [N, C, D1, D2, ..., DK] for me ?
@@ -119,19 +116,19 @@ mlir::LogicalResult ConvertDepth2SpaceLayerPass::Depth2SpaceLayerConverter::matc
         shapeEnd.push_back(blockSize * inputShape[Dim(2 + i)]);
     }
     // Check output shape
-    const auto outShape = to_small_vector(getShape(origOp.output()));
+    const auto outShape = to_small_vector(getShape(origOp.getOutput()));
     VPUX_THROW_UNLESS(
             outShape.size() == shapeEnd.size() && std::equal(shapeEnd.begin(), shapeEnd.end(), outShape.begin()),
             "Replacing failed: output shape mismatched");
 
-    auto reshapeBegin = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), origOp.input(), nullptr, false,
+    auto reshapeBegin = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), origOp.getInput(), nullptr, false,
                                                        getIntArrayAttr(ctx, shapeBegin));
     auto transpose =
-            rewriter.create<IE::TransposeOp>(origOp->getLoc(), reshapeBegin.output(), nullptr,
+            rewriter.create<IE::TransposeOp>(origOp->getLoc(), reshapeBegin.getOutput(), nullptr,
                                              mlir::AffineMapAttr::get(mlir::AffineMap::getPermutationMap(order, ctx)));
-    auto reshapeEnd = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), transpose.output(), nullptr, false,
+    auto reshapeEnd = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), transpose.getOutput(), nullptr, false,
                                                      getIntArrayAttr(ctx, shapeEnd));
-    rewriter.replaceOp(origOp, reshapeEnd.output());
+    rewriter.replaceOp(origOp, reshapeEnd.getOutput());
 
     return mlir::success();
 }

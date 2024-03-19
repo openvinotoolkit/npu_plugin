@@ -4,8 +4,7 @@
 //
 
 #include "vpux/compiler/core/aliases_info.hpp"
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
@@ -13,7 +12,6 @@
 #include "vpux/compiler/utils/constant_fusion.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
-#include "vpux/compiler/utils/logging.hpp"
 #include "vpux/utils/core/range.hpp"
 
 using namespace vpux;
@@ -39,19 +37,19 @@ private:
                                                          VPUIP::CompressionSchemeAttr weightsCompression);
 };
 
-Const::DeclareOp createPatchedDeclareOp(std::vector<uint8_t>& patchedValuesBuf, uint32_t totalSize,
-                                        Const::DeclareOp& weightsTable, Const::SwizzleConstantAttr swizzleConstAttr) {
+Const::DeclareOp createPatchedDeclareOp(const ArrayRef<char>& patchedValuesArr, uint32_t totalSize,
+                                        Const::DeclareOp& weightsTable, Const::SwizzleConstantAttr swizzleConstAttr,
+                                        const mlir::Type patchedConstType) {
     mlir::OpBuilder builder(weightsTable);
-    SmallVector<int64_t> patchedConstShape({1, 1, 1, totalSize});
-    auto patchedConstElemType = getUInt8Type(builder.getContext());
+    uint32_t elementSizeBytes = patchedConstType.getIntOrFloatBitWidth() / CHAR_BIT;
+    VPUX_THROW_WHEN(totalSize % elementSizeBytes != 0,
+                    "createPatchedDeclareOp: totalSize {0}, should be integer multiplicity of patchedValuesBuf element "
+                    "size {1} ",
+                    totalSize, elementSizeBytes);
+    SmallVector<int64_t> patchedConstShape({1, 1, 1, totalSize / elementSizeBytes});
 
-    // create type
-    const auto patchedTensorType = mlir::RankedTensorType::get(patchedConstShape, patchedConstElemType);
-
-    auto rawWeights = reinterpret_cast<char*>(patchedValuesBuf.data());
-    const auto rawWeightsBuffer = makeArrayRef(rawWeights, patchedValuesBuf.size() * sizeof(uint8_t));
-
-    mlir::ElementsAttr value = mlir::DenseElementsAttr::getFromRawBuffer(patchedTensorType, rawWeightsBuffer);
+    mlir::RankedTensorType tensorType = mlir::RankedTensorType::get(patchedConstShape, patchedConstType);
+    mlir::ElementsAttr value = mlir::DenseElementsAttr::getFromRawBuffer(tensorType, patchedValuesArr);
 
     auto contentAttr = Const::ContentAttr::get(value);
     if (swizzleConstAttr) {
@@ -64,9 +62,8 @@ Const::DeclareOp createPatchedDeclareOp(std::vector<uint8_t>& patchedValuesBuf, 
 std::vector<int32_t> PatchFusedConstants::patchWeightTableInFusedConstant(
         uint32_t baseOffset, int32_t weightsOffset, int32_t sparsityOffset, Const::Content& wtContent, bool hasSparsity,
         int64_t weightsElemByteSize, VPUIP::CompressionSchemeAttr weightsCompression) {
-    int32_t totalSize, numWTEntries, weightPtrStep = 0, sparsityPtrStep = 0, sparsityPtr;
+    int32_t numWTEntries, weightPtrStep = 0, sparsityPtrStep = 0, sparsityPtr;
     constexpr int32_t numElemPerOC = static_cast<size_t>(VPU::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC);
-    std::vector<int32_t> wtValuesI32;
 
     // TODO: Set the correct offsets for Multi-Cluster E#42447
     SmallVector<int32_t> offsets{0};
@@ -79,16 +76,10 @@ std::vector<int32_t> PatchFusedConstants::patchWeightTableInFusedConstant(
         sparsityPtr = VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARSITY;
     }
 
-    auto wtValues = wtContent.getValues<uint8_t>();
-    totalSize = static_cast<int32_t>(wtValues.size());
+    auto totalSizeBytes = static_cast<uint32_t>(wtContent.getType().getTotalAllocSize().count());
 
-    // Convert Original Values to i32 (This will convert fused constant to i32)
-    const auto wtSizeI32 = wtValues.size() / 4;
-    std::vector<int32_t> wtValuesI32Patched(wtSizeI32);
-    wtValuesI32.reserve(wtSizeI32);
-
-    // convert U8 to I32 for patching
-    vpux::ConstantFusing::convertInputToI32(wtValues, wtValuesI32);
+    // Convert original content to i32 for patching WT Entries
+    std::vector<int32_t> wtValuesI32Patched = wtContent.vec<int32_t>();
 
     //
     // Since the order of fusion is constant it can be thought as a contiguous array with
@@ -111,22 +102,30 @@ std::vector<int32_t> PatchFusedConstants::patchWeightTableInFusedConstant(
         numWTEntries = (weightsPtr - baseOffset) / sizeof(int32_t);
     }
     // When only activation is present i.e. Op is MaxPool
-    // Numbe rof WT entries is base address of activation window minus base address of fused const
+    // Number of WT entries is base address of activation window minus base address of fused const
     else if (sparsityPtr > 0) {
         numWTEntries = (sparsityPtr - baseOffset) / sizeof(int32_t);
     }
     // When only WT is present
     else {
-        numWTEntries = totalSize / sizeof(int32_t);
+        numWTEntries = totalSizeBytes / sizeof(int32_t);
     }
 
     if (numWTEntries >= numElemPerOC * 2) {
-        weightPtrStep = wtValuesI32[1 * numElemPerOC + 0] - wtValuesI32[0 * numElemPerOC + 0];
-        sparsityPtrStep = wtValuesI32[1 * numElemPerOC + 1] - wtValuesI32[0 * numElemPerOC + 1];
+        weightPtrStep = wtValuesI32Patched[1 * numElemPerOC + 0] - wtValuesI32Patched[0 * numElemPerOC + 0];
+        sparsityPtrStep = wtValuesI32Patched[1 * numElemPerOC + 1] - wtValuesI32Patched[0 * numElemPerOC + 1];
     }
 
     const int64_t OC = checked_cast<int64_t>(numWTEntries / numElemPerOC);
     const int64_t numClusters = checked_cast<int64_t>(offsets.size());
+
+    // In case all clusters have the same channel offsets, the weights are not segmented
+    const auto areWeightsSegmented =
+            std::adjacent_find(offsets.begin(), offsets.end(), std::not_equal_to<>()) != offsets.end();
+
+    const auto isNewCluster = [&](const int64_t oc, const int64_t currentClusterIdx) -> bool {
+        return areWeightsSegmented && (currentClusterIdx + 1) < numClusters && oc >= offsets[currentClusterIdx + 1];
+    };
 
     SmallVector<int64_t> weightsPtrSteps(OC);
     if (weightsCompression != nullptr) {
@@ -139,7 +138,7 @@ std::vector<int32_t> PatchFusedConstants::patchWeightTableInFusedConstant(
 
         int64_t weightsPtrOffset = 0;
         for (int64_t oc = 0, clusterIdx = 0; oc < OC; ++oc) {
-            if ((clusterIdx + 1) < numClusters && oc >= offsets[clusterIdx + 1]) {
+            if (isNewCluster(oc, clusterIdx)) {
                 clusterIdx++;
                 weightsPtrOffset = 0;
             }
@@ -149,7 +148,7 @@ std::vector<int32_t> PatchFusedConstants::patchWeightTableInFusedConstant(
         }
     } else {
         for (int64_t oc = 0, clusterIdx = 0; oc < OC; ++oc) {
-            if ((clusterIdx + 1) < numClusters && oc >= offsets[clusterIdx + 1]) {
+            if (isNewCluster(oc, clusterIdx)) {
                 clusterIdx++;
             }
             weightsPtrSteps[oc] = weightPtrStep * (oc - offsets[clusterIdx]);
@@ -157,25 +156,17 @@ std::vector<int32_t> PatchFusedConstants::patchWeightTableInFusedConstant(
     }
 
     for (int64_t oc = 0, clusterIdx = 0; oc < OC; ++oc) {
-        if ((clusterIdx + 1) < numClusters && oc >= offsets[clusterIdx + 1]) {
+        if (isNewCluster(oc, clusterIdx)) {
             clusterIdx++;
         }
         const auto wtInd = oc * numElemPerOC;
 
         wtValuesI32Patched[wtInd + 0] = checked_cast<int32_t>(weightsPtr + weightsPtrSteps[oc]);
 
-        wtValuesI32Patched[wtInd + 1] = wtValuesI32[wtInd + 1];
-        if (wtValuesI32[wtInd + 1] != VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARSITY) {
+        if (wtValuesI32Patched[wtInd + 1] != VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARSITY) {
             wtValuesI32Patched[wtInd + 1] =
                     checked_cast<int32_t>(sparsityPtr + (oc - offsets[clusterIdx]) * sparsityPtrStep);
         }
-
-        wtValuesI32Patched[wtInd + 2] = wtValuesI32[wtInd + 2];
-        wtValuesI32Patched[wtInd + 3] = wtValuesI32[wtInd + 3];
-    }
-    // Fill in the remaing values as is (For activation and weights if present)
-    for (auto i = numWTEntries; i < (int32_t)wtValuesI32.size(); ++i) {
-        wtValuesI32Patched[i] = wtValuesI32[i];
     }
 
     return wtValuesI32Patched;
@@ -187,7 +178,6 @@ std::vector<int32_t> PatchFusedConstants::patchWeightTableInFusedConstant(
 
 void PatchFusedConstants::safeRunOnFunc() {
     auto funcOp = getOperation();
-    auto& aliasInfo = getAnalysis<AliasesInfo>();
 
     funcOp.walk([&](vpux::VPUIP::NCEClusterTaskOp nceOp) {
         if (!nceOp->hasAttr(vpux::ConstantFusing::constantsFused)) {
@@ -195,19 +185,25 @@ void PatchFusedConstants::safeRunOnFunc() {
         }
         _log.trace("Patch fused constant for NCEOp - '{0}'", nceOp->getLoc());
 
-        VPUIP::CopyOp constCopyOp;
+        VPUIP::NNDMAOp constDmaOp;
         VPUIP::StaticAllocOp staticAllocOp;
-        std::vector<uint8_t> wtValuesU8;
 
-        auto weights = nceOp.weights();
-        auto weightsSM = nceOp.weights_sparsity_map();
-        auto activationWindow = nceOp.activation_window();
+        auto weights = nceOp.getWeights();
+        auto weightsSM = nceOp.getWeightsSparsityMap();
+        auto activationWindow = nceOp.getActivationWindow();
         bool hasSparsity = (weightsSM != nullptr) || (activationWindow != nullptr);
-        auto weightTable = VPUIP::getTopBufferOfNCEClusterTiling(nceOp, nceOp.weight_table());
+        auto weightTable = nceOp.getWeightTable();
 
-        uint32_t weightsOffset = vpux::ConstantFusing::getOffsetForConstant(nceOp, weights);
-        uint32_t weightsSMOffset = vpux::ConstantFusing::getOffsetForConstant(nceOp, weightsSM);
-        uint32_t actOffset = vpux::ConstantFusing::getOffsetForConstant(nceOp, activationWindow);
+        mlir::Type fusedConstantElementType =
+                weightTable.getDefiningOp()->getOperand(0).getType().cast<vpux::NDTypeInterface>().getElementType();
+        unsigned fusedConstantElementSizeBytes = fusedConstantElementType.getIntOrFloatBitWidth() / CHAR_BIT;
+
+        uint32_t weightsOffset =
+                vpux::ConstantFusing::getOffsetForConstant(nceOp, weights) * fusedConstantElementSizeBytes;
+        uint32_t weightsSMOffset =
+                vpux::ConstantFusing::getOffsetForConstant(nceOp, weightsSM) * fusedConstantElementSizeBytes;
+        uint32_t actOffset =
+                vpux::ConstantFusing::getOffsetForConstant(nceOp, activationWindow) * fusedConstantElementSizeBytes;
         uint32_t sparsityOffset = (weightsSM != nullptr) ? weightsSMOffset : actOffset;
 
         int64_t weightsElemByteSize = 1;
@@ -216,21 +212,15 @@ void PatchFusedConstants::safeRunOnFunc() {
             weightsElemByteSize = getElemTypeSize(weights.getType()).to<Byte>().count();
             weightsCompression = VPUIP::getCompressionSchemeAttr(weights.getType());
         }
-        auto weightsTable = vpux::ConstantFusing::getConstAndCopyOp(nceOp, weightTable, constCopyOp);
+        mlir::Operation* op = nullptr;
+        auto weightsTable = vpux::ConstantFusing::getConstAndDma(nceOp, weightTable, &op);
+        constDmaOp = mlir::dyn_cast_or_null<VPUIP::NNDMAOp>(op);
         VPUX_THROW_UNLESS(weightsTable != nullptr, "Couldn't find Weight Table Declare Op");
+        VPUX_THROW_UNLESS(constDmaOp != nullptr, "Couldn't find Dma Op for Weight Table");
 
         auto contentAttr = weightsTable.getContentAttr();
 
-        Const::ContentAttr newContentAttr;
-        auto baseContent = contentAttr.getBaseContent();
-
-        if (auto denseBaseAttr = baseContent.dyn_cast<mlir::DenseElementsAttr>()) {
-            newContentAttr = Const::ContentAttr::get(denseBaseAttr);
-        } else if (auto opaqueBaseAttr = baseContent.dyn_cast<Const::OpaqueElementsAttr>()) {
-            newContentAttr = Const::ContentAttr::get(opaqueBaseAttr);
-        } else {
-            VPUX_THROW("Got unsupported 'baseContent' in 'ContentAttr'");
-        }
+        Const::ContentAttr newContentAttr = Const::ContentAttr::get(contentAttr.getBaseContent());
 
         // Check if constant had swizzling transformation. If yes then patching should be applied
         // without swizzling. Swizzling transformation will be reattached after patching of
@@ -246,22 +236,20 @@ void PatchFusedConstants::safeRunOnFunc() {
         }
 
         Const::Content wtContent = newContentAttr.fold();
-        auto wtValues = wtContent.getValues<uint8_t>();
-        auto totalSize = static_cast<uint32_t>(wtValues.size());
-
-        VPUX_THROW_UNLESS(constCopyOp != nullptr, "Couldn't find Copy Op for Weight Table");
+        auto totalSize = static_cast<uint32_t>(wtContent.getType().getTotalAllocSize().count());
 
         // Locate root buffer that will be a place where fused constant is allocated
         // Address of this buffer is the offset that should be used for patching
         // weights table content, no matter if such constant was previously spilled or not
         // as only final location in CMX matters
-        const auto rootBuffers = aliasInfo.getRoots(weightTable);
+        vpux::ValueSourceInfo aliasInfo(weightTable);
+        auto rootBuffers = aliasInfo.getRoots(weightTable);
         VPUX_THROW_UNLESS(rootBuffers.size() == 1, "Value expected to have only one root. Got {1}", rootBuffers.size());
         const auto rootBuffer = *rootBuffers.begin();
 
         uint32_t baseOffset = 0;
         if (auto staticAllocOp = rootBuffer.getDefiningOp<VPUIP::StaticAllocOp>()) {
-            baseOffset = static_cast<uint32_t>(staticAllocOp.offset());
+            baseOffset = static_cast<uint32_t>(staticAllocOp.getOffset());
         } else if (auto declareBuffer = rootBuffer.getDefiningOp<VPURT::DeclareBufferOp>()) {
             baseOffset = static_cast<uint32_t>(declareBuffer.getByteOffset());
         } else {
@@ -271,17 +259,13 @@ void PatchFusedConstants::safeRunOnFunc() {
         auto wtValuesI32Patched = patchWeightTableInFusedConstant(baseOffset, weightsOffset, sparsityOffset, wtContent,
                                                                   hasSparsity, weightsElemByteSize, weightsCompression);
 
-        for (auto i : wtValuesI32Patched) {
-            vpux::ConstantFusing::convertToU8<int32_t>(i, wtValuesU8);
-        }
+        auto wtValuesI32PatchedArr =
+                ArrayRef(reinterpret_cast<char*>(wtValuesI32Patched.data()), wtValuesI32Patched.size() * 4);
 
-        auto newOp = createPatchedDeclareOp(wtValuesU8, totalSize, weightsTable, swizzleConstAttr);
+        Const::DeclareOp newOp = createPatchedDeclareOp(wtValuesI32PatchedArr, totalSize, weightsTable,
+                                                        swizzleConstAttr, fusedConstantElementType);
 
-        if (auto tilingOp = constCopyOp->getParentOfType<VPUIP::NCEClusterTilingOp>()) {
-            tilingOp.setOperand(0, newOp);
-        } else {
-            constCopyOp.setOperand(0, newOp);
-        }
+        constDmaOp.setOperand(0, newOp);
 
         if (weightsTable->getUses().empty()) {
             weightsTable.erase();

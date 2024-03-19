@@ -15,10 +15,10 @@ using namespace vpux;
 namespace {
 
 mlir::FailureOr<int64_t> extractAxis(mlir::Location loc, IE::GatherOpAdaptor gather) {
-    if (gather.axis() != nullptr) {
-        auto reshapeAxis = gather.axis().getDefiningOp<IE::ReshapeOp>();
-        auto axisConst = (reshapeAxis != nullptr) ? reshapeAxis.input().getDefiningOp<Const::DeclareOp>()
-                                                  : gather.axis().getDefiningOp<Const::DeclareOp>();
+    if (gather.getAxis() != nullptr) {
+        auto reshapeAxis = gather.getAxis().getDefiningOp<IE::ReshapeOp>();
+        auto axisConst = (reshapeAxis != nullptr) ? reshapeAxis.getInput().getDefiningOp<Const::DeclareOp>()
+                                                  : gather.getAxis().getDefiningOp<Const::DeclareOp>();
         if (axisConst == nullptr) {
             return errorAt(loc, "Only constant input is supported for axis");
         }
@@ -31,15 +31,15 @@ mlir::FailureOr<int64_t> extractAxis(mlir::Location loc, IE::GatherOpAdaptor gat
         int64_t axisInd = axisContent.getSplatValue<int64_t>();
 
         if (axisInd < 0) {
-            const auto inType = gather.input().getType().cast<mlir::ShapedType>();
+            const auto inType = gather.getInput().getType().cast<mlir::ShapedType>();
             const auto inRank = inType.getRank();
             axisInd += inRank;
             VPUX_THROW_UNLESS(axisInd >= 0 && axisInd < inRank, "Wrong Gather axis {0}", axisInd);
         }
 
         return axisInd;
-    } else if (gather.axis_value().has_value()) {
-        return gather.axis_value().value();
+    } else if (gather.getAxisValue().has_value()) {
+        return gather.getAxisValue().value();
     } else {
         return errorAt(loc, "Axis was not provided");
     }
@@ -48,8 +48,8 @@ mlir::FailureOr<int64_t> extractAxis(mlir::Location loc, IE::GatherOpAdaptor gat
 }  // namespace
 
 mlir::LogicalResult vpux::IE::GatherOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -58,9 +58,9 @@ mlir::LogicalResult vpux::IE::GatherOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = gather.input().getType().cast<mlir::ShapedType>();
+    const auto inType = gather.getInput().getType().cast<mlir::ShapedType>();
     const auto inputShape = inType.getShape();
-    const auto indicesShape = gather.indices().getType().cast<mlir::ShapedType>().getShape();
+    const auto indicesShape = gather.getIndices().getType().cast<mlir::ShapedType>().getShape();
 
     const auto axis = extractAxis(loc, gather);
     if (mlir::failed(axis)) {
@@ -70,7 +70,7 @@ mlir::LogicalResult vpux::IE::GatherOp::inferReturnTypeComponents(
     SmallVector<int64_t> outShape;
 
     // calculate output shape
-    int64_t batchDims = gather.batch_dims();
+    int64_t batchDims = gather.getBatchDims();
     int64_t axisVal = checked_cast<int64_t>(*axis);
     int64_t outRank = inputShape.size() + indicesShape.size() - 1 - batchDims;
     int64_t indicesRank = indicesShape.size();
@@ -88,7 +88,10 @@ mlir::LogicalResult vpux::IE::GatherOp::inferReturnTypeComponents(
     for (; i < outRank; i++) {
         outShape.push_back(inputShape[batchDims + 1 - indicesRank + i]);
     }
-
+    // To avoid outShap size 0 error, set the shape 1.
+    if (outShape.size() == 0) {
+        outShape.push_back(1);
+    }
     inferredReturnShapes.emplace_back(outShape, inType.getElementType());
 
     return mlir::success();
@@ -109,12 +112,12 @@ public:
 };
 
 mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::GatherOp gatherOp, mlir::PatternRewriter& rewriter) const {
-    auto axis = gatherOp.axis();
+    auto axis = gatherOp.getAxis();
     if (axis == nullptr) {
         return mlir::failure();
     }
 
-    auto axisConst = gatherOp.axis().getDefiningOp<Const::DeclareOp>();
+    auto axisConst = gatherOp.getAxis().getDefiningOp<Const::DeclareOp>();
     if (axisConst == nullptr) {
         return mlir::failure();
     }
@@ -124,9 +127,9 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::GatherOp gatherOp, m
         return mlir::failure();
     }
 
-    rewriter.replaceOpWithNewOp<IE::GatherOp>(gatherOp, gatherOp.getType(), gatherOp.input(), gatherOp.indices(),
+    rewriter.replaceOpWithNewOp<IE::GatherOp>(gatherOp, gatherOp.getType(), gatherOp.getInput(), gatherOp.getIndices(),
                                               nullptr, rewriter.getI64IntegerAttr(axisContent.getSplatValue<int64_t>()),
-                                              gatherOp.batch_dims());
+                                              gatherOp.getBatchDims());
     return mlir::success();
 }
 

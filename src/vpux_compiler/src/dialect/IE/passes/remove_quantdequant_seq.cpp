@@ -68,7 +68,7 @@ void RemoveQuantDequantSeqPass::safeRunOnFunc() {
 
             //[Quantize]->[ElemTypeInfoOpInterface] ... ->[Dequantize] pattern is captured
             // Rewrite the sub-graph.
-            targetOps.front()->getOpOperand(0).set(quantizeOp.input());
+            targetOps.front()->getOpOperand(0).set(quantizeOp.getInput());
             for (auto op : targetOps) {
                 inferReturnTypes(op, InferShapedTypeMode::ELEM_TYPE);
             }
@@ -78,7 +78,7 @@ void RemoveQuantDequantSeqPass::safeRunOnFunc() {
             quantizeOp.erase();
         } else {
             //[Quantize]->[Dequantize] pattern, remove it directly
-            dequantizeOp.replaceAllUsesWith(quantizeOp.input());
+            dequantizeOp.replaceAllUsesWith(quantizeOp.getInput());
         }
     });
 }  // namespace

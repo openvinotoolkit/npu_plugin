@@ -8,8 +8,8 @@
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::EmbeddingBagPackedSumOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
     IE::EmbeddingBagPackedSumOpAdaptor embeddingBag(operands, attrs);
@@ -17,9 +17,9 @@ mlir::LogicalResult vpux::IE::EmbeddingBagPackedSumOp::inferReturnTypeComponents
         return mlir::failure();
     }
 
-    const auto embTableType = embeddingBag.emb_table().getType().cast<mlir::ShapedType>();
+    const auto embTableType = embeddingBag.getEmbTable().getType().cast<mlir::ShapedType>();
     const auto embTableShape = embTableType.getShape();
-    const auto indicesShape = embeddingBag.indices().getType().cast<mlir::ShapedType>().getShape();
+    const auto indicesShape = embeddingBag.getIndices().getType().cast<mlir::ShapedType>().getShape();
     int64_t batchSize = indicesShape[0];
 
     SmallVector<int64_t> outShape;

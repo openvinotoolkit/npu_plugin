@@ -5,6 +5,8 @@
 
 #include "vcl_tests_common.h"
 
+#include <llvm/Support/JSON.h>
+
 #include <regex>
 
 namespace VCLTestsUtils {
@@ -91,29 +93,28 @@ vcl_result_t VCLTestsCommon::initModelData(const char* netName, const char* weig
     return VCL_RESULT_SUCCESS;
 }
 
-std::shared_ptr<ngraph::Function> VCLTestsCommon::createSimpleFunction() {
+std::shared_ptr<ov::Model> VCLTestsCommon::createSimpleModel() {
     /**
-     * This example shows how to create ngraph::Function
+     * This example shows how to create ov::Model
      * Parameter--->Multiply--->Add--->Result
      *     Constant---'          /
      *              Constant---'
      */
 
     /// Create opset3::Parameter operation with static shape
-    auto data = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f16, ngraph::Shape{3, 2});
+    auto data = std::make_shared<ov::opset3::Parameter>(ov::element::f16, ov::Shape{3, 2});
 
-    auto mul_constant = ngraph::opset3::Constant::create(ngraph::element::f16, ngraph::Shape{1}, {1.5});
-    auto mul = std::make_shared<ngraph::opset3::Multiply>(data, mul_constant);
+    auto mul_constant = ov::opset3::Constant::create(ov::element::f16, ov::Shape{1}, {1.5});
+    auto mul = std::make_shared<ov::opset3::Multiply>(data, mul_constant);
 
-    auto add_constant = ngraph::opset3::Constant::create(ngraph::element::f16, ngraph::Shape{1}, {0.5});
-    auto add = std::make_shared<ngraph::opset3::Add>(mul, add_constant);
+    auto add_constant = ov::opset3::Constant::create(ov::element::f16, ov::Shape{1}, {0.5});
+    auto add = std::make_shared<ov::opset3::Add>(mul, add_constant);
 
     /// Create opset3::Result operation
-    auto res = std::make_shared<ngraph::opset3::Result>(mul);
+    auto res = std::make_shared<ov::opset3::Result>(mul);
 
-    /// Create nGraph function
-    return std::make_shared<ngraph::Function>(ngraph::ResultVector{std::move(res)},
-                                              ngraph::ParameterVector{std::move(data)});
+    /// Create the OpenVINO model
+    return std::make_shared<ov::Model>(ov::ResultVector{std::move(res)}, ov::ParameterVector{std::move(data)});
 }
 
 std::string VCLTestsCommon::getTestModelsBasePath() {
@@ -142,12 +143,32 @@ IRInfoTestType VCLTestsCommon::readJson2Vec(std::string fileName) {
     /// The map that contains model name and it configuration
     IRInfoTestType irInfos;
     std::ifstream configFile(fileName);
+    if (!configFile.good()) {
+        std::cerr << "File with models configuration is not opened correctly!" << std::endl;
+        return irInfos;
+    }
     std::string line;
+    std::size_t lineNo{};
     while (std::getline(configFile, line)) {
         std::unordered_map<std::string, std::string> irInfo;
-        auto res = VCLTestsUtils::Json::parse(line);
+        auto expectedRes = llvm::json::parse(line);
+        llvm::json::Object res{};
+        if (!expectedRes) {
+            std::cerr << "Provided config contains error in JSON syntax! File: " << fileName << ", line: " << lineNo
+                      << std::endl;
+            return irInfos;
+        } else {
+            auto resValue = expectedRes.get();
+            if (resValue.getAsObject() == nullptr) {
+                std::cerr << "Provided config contains error in a line: " << lineNo
+                          << ". Test expects JSON object here." << std::endl;
+                return irInfos;
+            }
+            res = *resValue.getAsObject();
+        }
+
         for (auto it = res.begin(); it != res.end(); ++it) {
-            irInfo.emplace(it.key(), it.value());
+            irInfo.emplace(it->first.str(), it->second.getAsString().value());
         }
 
         /// If the test config is enabled
@@ -168,6 +189,8 @@ IRInfoTestType VCLTestsCommon::readJson2Vec(std::string fileName) {
             /// Only add a config to test if we enable it in config file
             irInfos.push_back(irInfo);
         }
+
+        ++lineNo;
     }
     return irInfos;
 }
@@ -204,16 +227,13 @@ void VCLTestsCommon::SetUp() {
 
         EXPECT_EQ(initModelData(netName.c_str(), weightName.c_str()), VCL_RESULT_SUCCESS);
     } else {
-        auto function = createSimpleFunction();
-        InferenceEngine::CNNNetwork cnnSimpleNet(function);
-        auto inputs = cnnSimpleNet.getInputsInfo();
-        auto outputs = cnnSimpleNet.getOutputsInfo();
+        std::shared_ptr<ov::Model> model = createSimpleModel();
 
         // Get input/output names dynamically.
-        // In VCLTestsCommon::createSimpleFunction, the created simple network only has one
+        // In VCLTestsCommon::createSimpleModel, the created simple network only has one
         // input/output, so no need to iterate through iterators.
-        std::string inputName = inputs.begin()->first;
-        std::string outputName = outputs.begin()->first;
+        std::string inputName = model->get_parameters().at(0)->get_friendly_name();
+        std::string outputName = model->get_results().at(0)->get_input_node_ptr(0)->get_friendly_name();
 
         // Update netOptions by replacing input/output placeholders with dynamic names.
         netOptions = std::regex_replace(netOptions, std::regex("SIMPLE_IN_PLACEHOLDER"), inputName);
@@ -222,9 +242,9 @@ void VCLTestsCommon::SetUp() {
         std::string mOutXmlPath = "./simple_func_multiple.xml";
         std::string mOutBinPath = "./simple_func_multiple.bin";
 
-        ngraph::pass::Manager passManager;
-        passManager.register_pass<ngraph::pass::Serialize>(mOutXmlPath, mOutBinPath);
-        passManager.run_passes(std::move(function));
+        ov::pass::Manager passManager;
+        passManager.register_pass<ov::pass::Serialize>(mOutXmlPath, mOutBinPath);
+        passManager.run_passes(std::move(model));
 
         EXPECT_EQ(initModelData(mOutXmlPath.c_str(), mOutBinPath.c_str()), VCL_RESULT_SUCCESS);
 

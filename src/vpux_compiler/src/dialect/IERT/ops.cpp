@@ -6,7 +6,7 @@
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/IERT/types.hpp"
 
-#include "vpux/compiler/dialect/VPUIP/attributes.hpp"
+#include "vpux/compiler/core/attributes/memref_attr.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -139,7 +139,7 @@ void vpux::IERT::ExtendedCallOp::getCalleeType(mlir::LLVM::LLVMFunctionType& res
 
 void IERT::IERTDialect::setupExtraInterfaces(mlir::DialectRegistry& registry) {
     registry.addExtension(+[](mlir::MLIRContext* ctx, mlir::BuiltinDialect*) {
-        VPUIP::MemRefAttr::attachInterface<VPUIP::MemRefAttrLayout>(*ctx);
+        vpux::MemRefAttr::attachInterface<vpux::MemRefAttrLayout>(*ctx);
     });
 }
 

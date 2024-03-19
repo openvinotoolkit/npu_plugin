@@ -10,7 +10,6 @@
 #include "vpux/compiler/utils/error.hpp"
 
 #include <mlir/IR/TensorEncoding.h>
-#include <mlir/Interfaces/DecodeAttributesInterfaces.h>
 
 using namespace vpux;
 
@@ -36,8 +35,8 @@ IEAsmHooks::AliasResult IEAsmHooks::getAlias(mlir::Attribute attr, llvm::raw_ost
         if (map.isPermutation()) {
             const auto dimsOrder = DimsOrder::fromAffineMap(map);
 
-            if (const auto name = dimsOrder.getCanonicalName()) {
-                os << name.value();
+            if (const auto name = dimsOrder.getCanonicalName(); !name.empty()) {
+                os << name;
                 return AliasResult::FinalAlias;
             }
         }

@@ -17,3 +17,18 @@
 
 #define GET_OP_CLASSES
 #include <vpux/compiler/dialect/VPURT/ops.hpp.inc>
+
+//
+// Template methods
+//
+
+namespace vpux {
+namespace VPURT {
+
+template <typename T>
+T vpux::VPURT::TaskOp::getInnerTaskOpOfType() {
+    return mlir::dyn_cast<T>(&getBody().front().front());
+}
+
+}  // namespace VPURT
+}  // namespace vpux

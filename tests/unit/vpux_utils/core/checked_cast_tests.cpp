@@ -51,7 +51,7 @@ TEST(MLIR_CheckedCast, ValidCases) {
 }
 
 TEST(MLIR_CheckedCast, InvalidThrowsException) {
-    using Exception = InferenceEngine::Exception;
+    using Exception = vpux::Exception;
 
     const int8_t valI8 = -10;
     const int16_t valI16 = -10;

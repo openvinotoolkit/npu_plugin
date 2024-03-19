@@ -1,64 +1,59 @@
-//
 // Copyright (C) Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpu_ov1_layer_test.hpp"
-
-#include <ngraph_functions/builders.hpp>
-#include <ngraph_functions/utils/ngraph_helpers.hpp>
+#include <ov_models/builders.hpp>
+#include <ov_models/utils/ov_helpers.hpp>
 #include <shared_test_classes/base/layer_test_utils.hpp>
+#include <vpu_ov2_layer_test.hpp>
 
-namespace {
+namespace ov::test {
 
-class VPUXAddWithTransposeTest_VPU3720 :
-        public LayerTestsUtils::VpuOv1LayerTestsCommon,
-        public testing::WithParamInterface<std::vector<int64_t>> {
+class AddWithTransposeTest_NPU3720 : public testing::WithParamInterface<std::vector<int64_t>>, public VpuOv2LayerTest {
     void SetUp() override {
-        targetDevice = LayerTestsUtils::testPlatformTargetDevice();
         const auto transposeOrder = GetParam();
-        const InferenceEngine::SizeVector lhsInputShape = {1, 8, 4, 16};
-        const InferenceEngine::SizeVector rhsInputShape = {1, 8, 4, 16};
-        const auto params = ngraph::builder::makeParams(ngraph::element::f32, {lhsInputShape, rhsInputShape});
-        const auto paramOuts =
-                ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-        const auto lhsTranspose = buildTranspose(paramOuts.at(0), transposeOrder);
-        const auto rhsTranspose = buildTranspose(paramOuts.at(1), transposeOrder);
+        const ov::Shape lhsInputShape = {1, 8, 4, 16};
+        const ov::Shape rhsInputShape = {1, 8, 4, 16};
+
+        init_input_shapes(static_shapes_to_test_representation({lhsInputShape, rhsInputShape}));
+
+        ov::ParameterVector params;
+        for (const auto& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape));
+        }
+        const auto lhsTranspose = buildTranspose(params.at(0), transposeOrder);
+        const auto rhsTranspose = buildTranspose(params.at(1), transposeOrder);
         const auto add = buildAdd(lhsTranspose->output(0), rhsTranspose->output(0));
 
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset7::Result>(add)};
+        const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(add)};
 
-        function = std::make_shared<ngraph::Function>(results, params, "VPUXTransposeEltwise");
-
-        threshold = 0.5f;
+        function = std::make_shared<ov::Model>(results, params, "TransposeEltwise");
+        rel_threshold = 0.5f;
     }
 
     std::shared_ptr<ov::Node> buildTranspose(const ov::Output<ov::Node>& param, const std::vector<int64_t>& dimsOrder) {
-        auto order = ngraph::opset8::Constant::create(ngraph::element::i64, {dimsOrder.size()}, dimsOrder);
-        return std::make_shared<ngraph::opset7::Transpose>(param, order);
+        auto order = ov::op::v0::Constant::create(ov::element::i64, {dimsOrder.size()}, dimsOrder);
+        return std::make_shared<ov::op::v1::Transpose>(param, order);
     }
-
     std::shared_ptr<ov::Node> buildAdd(const ov::Output<ov::Node>& lhs, const ov::Output<ov::Node>& rhs) {
-        return std::make_shared<ngraph::opset7::Add>(lhs, rhs);
+        return std::make_shared<ov::op::v1::Add>(lhs, rhs);
     }
 };
 
-TEST_P(VPUXAddWithTransposeTest_VPU3720, SW) {
-    setPlatformVPU3720();
-    setReferenceSoftwareModeMLIR();
-    Run();
+TEST_P(AddWithTransposeTest_NPU3720, SW) {
+    setReferenceSoftwareMode();
+    run(VPUXPlatform::VPU3720);
 }
 
-TEST_P(VPUXAddWithTransposeTest_VPU3720, HW) {
-    setPlatformVPU3720();
-    setDefaultHardwareModeMLIR();
-    Run();
+TEST_P(AddWithTransposeTest_NPU3720, HW) {
+    setDefaultHardwareMode();
+    run(VPUXPlatform::VPU3720);
 }
 
 const std::vector<std::vector<int64_t>> transposes = {
         {0, 1, 2, 3}, {0, 1, 3, 2}, {0, 2, 1, 3}, {0, 2, 3, 1}, {0, 3, 1, 2}, {0, 3, 2, 1},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_transpose_add, VPUXAddWithTransposeTest_VPU3720, ::testing::ValuesIn(transposes));
+INSTANTIATE_TEST_SUITE_P(smoke_transpose_add, AddWithTransposeTest_NPU3720, ::testing::ValuesIn(transposes));
 
-}  // namespace
+}  // namespace ov::test

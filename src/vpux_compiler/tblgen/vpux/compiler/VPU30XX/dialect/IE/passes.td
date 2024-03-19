@@ -182,6 +182,11 @@ def ExpandActivationChannels : PassBase<"expand-activation-channels", "vpux::Fun
             "seOpsEnabled", "se-ops-enabled",
             "bool", "false",
             "Flag to identify whether operations that can be executed using the Storage Element hardware feature are enabled"
+        >,
+        Option<
+            "seTransposedConvEnabled", "se-transposed-conv-enabled",
+            "bool", "false",
+            "(Experimental) Flag to identify whether Transposed Convolutions can be executed using the Storage Element hardware feature"
         >
     ];
 }
@@ -203,6 +208,25 @@ def UnrollBatch : PassBase<"unroll-batch", "vpux::FunctionPass"> {
     }];
 
     let constructor = "vpux::IE::arch30xx::createUnrollBatchPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// ConvertToMixPrecision
+//
+
+def ConvertToMixedPrecision: PassBase<"convert-to-mixed-precision", "vpux::FunctionPass"> {
+    let summary = "Convert DPU task without fake quantize behind to mixed-precision operation";
+
+    let description = [{
+        The pass is a part of `LowPrecision` pipeline.
+        Converts DPU task to mixed-precision operation where there is no quantize operation for the output of a DPU task
+    }];
+
+    let constructor = "vpux::IE::arch30xx::createConvertToMixedPrecision()";
 
     let dependentDialects = [
         "vpux::IE::IEDialect"

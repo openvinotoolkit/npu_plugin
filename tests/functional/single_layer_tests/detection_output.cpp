@@ -14,11 +14,11 @@
 #include <vpu_ov2_layer_test.hpp>
 
 #include "common/random_generator.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "pretty_test_arguments.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-namespace ov::test::subgraph {
+namespace ov::test {
 
 enum class CodeType { CENTER_SIZE, CORNER_SIZE, CORNER };
 
@@ -108,7 +108,7 @@ public:
 #undef str
 #undef BUILD_PARAM
 
-    ngraph::op::DetectionOutputAttrs build() {
+    ov::op::v0::DetectionOutput::Attributes build() {
         VPUX_THROW_UNLESS(filled.size() == 16, "Not all DetectionOutput attributes were set");
         filled.clear();
         return params;
@@ -116,7 +116,7 @@ public:
 
 private:
     std::set<std::string> filled;
-    ngraph::op::DetectionOutputAttrs params;
+    ov::op::v0::DetectionOutput::Attributes params;
 };
 
 struct NormalizedBox {
@@ -569,9 +569,11 @@ using MetaParams = std::tuple<NumDetectedClasses, NumDetectionsPerClass>;
 using DetectionOutputParams = std::tuple<NormalizationParams, TensorShapeParams, DetectionOutputAttributes,
                                          AdditionalInputsParams, MetaParams, Device>;
 
-class VPUXDetectionOutputLayerTest : public testing::WithParamInterface<DetectionOutputParams>, public VpuOv2LayerTest {
+class DetectionOutputLayerTestCommon :
+        public testing::WithParamInterface<DetectionOutputParams>,
+        public VpuOv2LayerTest {
 public:
-    void generate_inputs(const std::vector<ngraph::Shape>& inputShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& inputShapes) override {
         const auto& funcInputs = function->inputs();
         VPUX_THROW_UNLESS(funcInputs.size() == 3, "Only 3 inputs are supported");
 
@@ -744,16 +746,19 @@ public:
 
         init_input_shapes({boxLogitsShape, classConfidenceShape, priorBoxesShape});
 
-        auto params = ngraph::builder::makeDynamicParams(ngraph::element::f32, inputDynamicShapes);
-        auto paramOuts = ngraph::helpers::convert2OutputVector(
-                ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
+        ov::ParameterVector params;
+        for (const auto& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape));
+        }
+        auto paramOuts =
+                ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
         auto detOut = ngraph::builder::makeDetectionOutput(paramOuts, attrs);
-        auto results = ngraph::ResultVector{std::make_shared<ngraph::opset3::Result>(detOut)};
-        function = std::make_shared<ngraph::Function>(results, params, "DetectionOutput");
+        auto results = ov::ResultVector{std::make_shared<ov::op::v0::Result>(detOut)};
+        function = std::make_shared<ov::Model>(results, params, "DetectionOutput");
     }
 
 private:
-    ngraph::op::DetectionOutputAttrs attrs;
+    ov::op::v0::DetectionOutput::Attributes attrs;
 };
 
 //
@@ -804,7 +809,7 @@ const auto metaParams = std::vector<MetaParams>{{NumDetectedClasses(5), NumDetec
 // Platform test definition
 //
 
-TEST_P(VPUXDetectionOutputLayerTest, VPU3720_HW) {
+TEST_P(DetectionOutputLayerTestCommon, NPU3720_HW) {
     setDefaultHardwareMode();
     run(VPUXPlatform::VPU3720);
 }
@@ -813,11 +818,12 @@ TEST_P(VPUXDetectionOutputLayerTest, VPU3720_HW) {
 // 3 Inputs tests, all permutations
 //
 
-const auto detectionOutputParams = ::testing::Combine(
-        ::testing::ValuesIn(normalizationParams), ::testing::ValuesIn(tensorShapeParams), detectionOutputAttributes,
-        ::testing::ValuesIn(additionalInputsParams), ::testing::ValuesIn(metaParams), ::testing::Values(targetDevice));
+const auto detectionOutputParams =
+        ::testing::Combine(::testing::ValuesIn(normalizationParams), ::testing::ValuesIn(tensorShapeParams),
+                           detectionOutputAttributes, ::testing::ValuesIn(additionalInputsParams),
+                           ::testing::ValuesIn(metaParams), ::testing::Values(ov::test::utils::DEVICE_NPU));
 
-INSTANTIATE_TEST_SUITE_P(smoke_DetectionOutput, VPUXDetectionOutputLayerTest, detectionOutputParams,
+INSTANTIATE_TEST_SUITE_P(smoke_DetectionOutput, DetectionOutputLayerTestCommon, detectionOutputParams,
                          PrintTestCaseName());
 
 //
@@ -845,17 +851,15 @@ const auto ssdliteMobilenetV2Attributes = ::testing::Combine(  //
 const auto ssdliteMobilenetV2Params = ::testing::Combine(
         ::testing::Values(normalizedWithNonEncodedVariance), ::testing::Values(ssdliteMobilenetV2ShapeParams),
         ssdliteMobilenetV2Attributes, ::testing::ValuesIn(additionalInputsParams), ::testing::ValuesIn(metaParams),
-        ::testing::Values(targetDevice));
+        ::testing::Values(ov::test::utils::DEVICE_NPU));
 
-INSTANTIATE_TEST_SUITE_P(precommit_smoke_DetectionOutput_ssdlite_mobilenet_v2, VPUXDetectionOutputLayerTest,
+INSTANTIATE_TEST_SUITE_P(precommit_smoke_DetectionOutput_ssdlite_mobilenet_v2, DetectionOutputLayerTestCommon,
                          ssdliteMobilenetV2Params, PrintTestCaseName());
 
 //
 // efficientdet-d0
 //
 
-// [Track number: E#84757]
-#ifndef _WIN32
 const auto efficientdetD0ShapeParams = TensorShapeParams{NumPriors(49104), NumClasses(90), NumBatches(1),
                                                          PriorBatchSizeOne(true), BackgroundLabelId(91)};
 
@@ -874,9 +878,9 @@ const auto efficientdetD0Attributes = ::testing::Combine(    //
 const auto efficientdetD0Params = ::testing::Combine(
         ::testing::Values(normalizedWithNonEncodedVariance), ::testing::Values(efficientdetD0ShapeParams),
         efficientdetD0Attributes, ::testing::ValuesIn(additionalInputsParams), ::testing::ValuesIn(metaParams),
-        ::testing::Values(targetDevice));
+        ::testing::Values(ov::test::utils::DEVICE_NPU));
 
-INSTANTIATE_TEST_SUITE_P(precommit_smoke_DetectionOutput_efficientdet_d0, VPUXDetectionOutputLayerTest,
+INSTANTIATE_TEST_SUITE_P(precommit_smoke_DetectionOutput_efficientdet_d0, DetectionOutputLayerTestCommon,
                          efficientdetD0Params, PrintTestCaseName());
 
 //
@@ -889,11 +893,10 @@ const auto efficientdetD1ShapeParams = TensorShapeParams{NumPriors(76725), NumCl
 const auto efficientdetD1Params = ::testing::Combine(
         ::testing::Values(normalizedWithNonEncodedVariance), ::testing::Values(efficientdetD1ShapeParams),
         efficientdetD0Attributes, ::testing::ValuesIn(additionalInputsParams), ::testing::ValuesIn(metaParams),
-        ::testing::Values(targetDevice));
+        ::testing::Values(ov::test::utils::DEVICE_NPU));
 
-INSTANTIATE_TEST_SUITE_P(precommit_smoke_DetectionOutput_efficientdet_d1, VPUXDetectionOutputLayerTest,
+INSTANTIATE_TEST_SUITE_P(precommit_smoke_DetectionOutput_efficientdet_d1, DetectionOutputLayerTestCommon,
                          efficientdetD1Params, PrintTestCaseName());
-#endif
 
 //
 // faster_rcnn_inception_resnet_v2_atrous_oid_v4
@@ -920,9 +923,9 @@ const auto fasterRcnnAttributes = ::testing::Combine(        //
 const auto fasterRcnnParams =
         ::testing::Combine(::testing::Values(normalizedWithEncodedVariance), ::testing::Values(fasterRcnnShapeParams),
                            fasterRcnnAttributes, ::testing::ValuesIn(additionalInputsParams),
-                           ::testing::ValuesIn(metaParams), ::testing::Values(targetDevice));
+                           ::testing::ValuesIn(metaParams), ::testing::Values(ov::test::utils::DEVICE_NPU));
 
-INSTANTIATE_TEST_SUITE_P(precommit_smoke_DetectionOutput_faster_rcnn, VPUXDetectionOutputLayerTest, fasterRcnnParams,
+INSTANTIATE_TEST_SUITE_P(precommit_smoke_DetectionOutput_faster_rcnn, DetectionOutputLayerTestCommon, fasterRcnnParams,
                          PrintTestCaseName());
 
 // ssd-resnet101-fpn-oid
@@ -942,14 +945,14 @@ const auto ssdResnet101Attributes = ::testing::Combine(      //
         ::testing::Values(DecreaseLabelId(false))            //
 );
 
-const auto ssdResnet101Params = ::testing::Combine(::testing::Values(normalizedWithNonEncodedVariance),
-                                                   ::testing::Values(ssdResnet101ShapeParams), ssdResnet101Attributes,
-                                                   ::testing::ValuesIn(additionalInputsParams),
-                                                   ::testing::ValuesIn(metaParams), ::testing::Values(targetDevice));
+const auto ssdResnet101Params = ::testing::Combine(
+        ::testing::Values(normalizedWithNonEncodedVariance), ::testing::Values(ssdResnet101ShapeParams),
+        ssdResnet101Attributes, ::testing::ValuesIn(additionalInputsParams), ::testing::ValuesIn(metaParams),
+        ::testing::Values(ov::test::utils::DEVICE_NPU));
 
 // Unexpected application crash with code: 14
 // Inputs: {1, 524160}, {1, 78886080}, {1, 2, 524160}
-INSTANTIATE_TEST_SUITE_P(DISABLED_precommit_smoke_DetectionOutput_ssd_resnet101, VPUXDetectionOutputLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_precommit_smoke_DetectionOutput_ssd_resnet101, DetectionOutputLayerTestCommon,
                          ssdResnet101Params, PrintTestCaseName());
 
-}  // namespace ov::test::subgraph
+}  // namespace ov::test

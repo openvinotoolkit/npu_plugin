@@ -7,7 +7,7 @@
 
 #include "vpux/compiler/core/aliases_info.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
-#include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPU/IR/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
@@ -19,7 +19,7 @@
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/range.hpp"
 
-#include <mlir/IR/BlockAndValueMapping.h>
+#include <mlir/IR/IRMapping.h>
 
 using namespace vpux;
 
@@ -53,15 +53,15 @@ mlir::LogicalResult NCEClusterTilingRewriter::matchAndRewrite(VPU::NCEClusterTil
     auto* typeConverter = getTypeConverter();
     VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
 
-    SmallVector<mlir::Value> inputOperands = newArgs.operands();
+    SmallVector<mlir::Value> inputOperands = newArgs.getOperands();
     SmallVector<VPU::DistributedTypeInterface> outputDistTypes;
-    for (const auto& result : origOp.results()) {
+    for (const auto& result : origOp.getResults()) {
         const auto clusterTilingBufferType = typeConverter->convertType(result.getType());
         auto outputDistType = clusterTilingBufferType.dyn_cast<VPU::DistributedTypeInterface>();
         outputDistTypes.push_back(outputDistType);
     }
 
-    auto& origOpBodyBlock = origOp.body().front();
+    auto& origOpBodyBlock = origOp.getBody().front();
 
     rewriter.setInsertionPoint(origOp);
 
@@ -142,7 +142,7 @@ mlir::LogicalResult NCEClusterTilingRewriter::matchAndRewrite(VPU::NCEClusterTil
             auto outerValueCast = rewriter.create<mlir::UnrealizedConversionCastOp>(
                     op->getLoc(), mlir::TypeRange{outerType}, mlir::ValueRange{outerArg});
 
-            mlir::BlockAndValueMapping mapper;
+            mlir::IRMapping mapper;
             mapper.map(operand, outerValueCast.getResult(0));
             auto newOp = rewriter.clone(*op, mapper);
             vpux::inferReturnTypes(newOp, vpux::InferShapedTypeMode::ALL);
@@ -159,7 +159,7 @@ mlir::LogicalResult NCEClusterTilingRewriter::matchAndRewrite(VPU::NCEClusterTil
             }
             _log.nest().trace("Cloning grouping op '{0}' at '{1}", op->getName(), op->getLoc());
 
-            mlir::BlockAndValueMapping mapper;
+            mlir::IRMapping mapper;
             for (auto operand : op->getOperands()) {
                 mapper.map(operand, innerOuterOpValueMapping[operand]);
             }
@@ -168,7 +168,7 @@ mlir::LogicalResult NCEClusterTilingRewriter::matchAndRewrite(VPU::NCEClusterTil
             newGroupOps.push_back(newOp);
             innerOuterOpValueMapping[op->getResult(0)] = newOp->getResult(0);
         } else if (VPUIP::isPureViewOp(op)) {
-            mlir::BlockAndValueMapping mapper;
+            mlir::IRMapping mapper;
             auto operand = op->getOperands().front();
             auto unrealizedConversCastOp = operand.getDefiningOp<mlir::UnrealizedConversionCastOp>();
             auto inputBlockArg = unrealizedConversCastOp.getInputs().front().dyn_cast<mlir::BlockArgument>();
@@ -246,7 +246,7 @@ mlir::LogicalResult NCEClusterTilingRewriter::matchAndRewrite(VPU::NCEClusterTil
             if (auto blockArg = skipProducerCast(operand).dyn_cast<mlir::BlockArgument>()) {
                 innerOpOperandMapping[operand] = operandsIdxMapping[blockArg.getArgNumber()].front();
             } else if (auto ungroupOp = operand.getDefiningOp<VPUIP::UngroupSparseBufferOp>()) {
-                auto ungroupInput = skipProducerCast(ungroupOp.input());
+                auto ungroupInput = skipProducerCast(ungroupOp.getInput());
                 auto blockArg = ungroupInput.dyn_cast<mlir::BlockArgument>();
                 VPUX_THROW_UNLESS(blockArg != nullptr, "Unexpected operand for ungrouping operation");
                 auto resultIt = llvm::find(ungroupOp->getResults(), operand);
@@ -281,7 +281,7 @@ mlir::LogicalResult NCEClusterTilingRewriter::matchAndRewrite(VPU::NCEClusterTil
 
             _log.nest().trace("Cloning op '{0}' at '{1}", op.getName(), op.getLoc());
 
-            mlir::BlockAndValueMapping mapper;
+            mlir::IRMapping mapper;
             for (auto operand : op.getOperands()) {
                 auto it = innerOpOperandMapping.find(operand);
                 VPUX_THROW_UNLESS(it != innerOpOperandMapping.end(), "No mapping found for operand of inner op");
@@ -293,7 +293,7 @@ mlir::LogicalResult NCEClusterTilingRewriter::matchAndRewrite(VPU::NCEClusterTil
     auto clusterTilingOp = rewriter.create<VPUIP::NCEClusterTilingOp>(origOp->getLoc(), newClusterTilingResultTypes,
                                                                       newOperands, bodyBuilder);
 
-    auto outputResults = clusterTilingOp.results();
+    auto outputResults = clusterTilingOp.getResults();
 
     // Add an output grouping operation if the original cluster tiling operation returned a grouped result
     mlir::Operation* outputGroupingOp = nullptr;
@@ -343,7 +343,7 @@ void ConvertNCEClusterTilingToVPUIPPass::safeRunOnFunc() {
     target.addLegalDialect<VPUIP::VPUIPDialect>();
     target.addLegalDialect<VPURT::VPURTDialect>();
     target.addIllegalOp<VPU::NCEClusterTilingOp>();
-    target.addLegalOp<mlir::func::FuncOp, mlir::func::ReturnOp>();
+    target.addLegalOp<mlir::func::FuncOp, mlir::func::ReturnOp, mlir::func::CallOp>();
     target.addLegalOp<mlir::memref::AllocOp>();
     vpux::populateBufferizeMaterializationLegality(target);
 

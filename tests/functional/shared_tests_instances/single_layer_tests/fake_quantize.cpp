@@ -10,14 +10,14 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXFakeQuantizeLayerTest :
+class FakeQuantizeLayerTestCommon :
         public FakeQuantizeLayerTest,
         virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
-class VPUXFakeQuantizeLayerTest_SW_VPU3700 : public VPUXFakeQuantizeLayerTest {};
-class VPUXFakeQuantizeLayerTest_HW_VPU3700 : public VPUXFakeQuantizeLayerTest {};
+class FakeQuantizeLayerTest_SW_NPU3700 : public FakeQuantizeLayerTestCommon {};
+class FakeQuantizeLayerTest_HW_NPU3700 : public FakeQuantizeLayerTestCommon {};
 
-class VPUXFakeQuantizeLayerTest_SW_VPU3720 : public VPUXFakeQuantizeLayerTest {
+class FakeQuantizeLayerTest_SW_NPU3720 : public FakeQuantizeLayerTestCommon {
     // Use realistic float inputs (default generator produces int data)
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
         const auto& specificParams = std::get<0>(GetParam());
@@ -47,22 +47,24 @@ class VPUXFakeQuantizeLayerTest_SW_VPU3720 : public VPUXFakeQuantizeLayerTest {
     }
 };
 
-class VPUXFakeQuantizeLayerTest_HW_VPU3720 : public VPUXFakeQuantizeLayerTest {};
+class FakeQuantizeLayerTest_HW_NPU3720 : public FakeQuantizeLayerTestCommon {};
 
-TEST_P(VPUXFakeQuantizeLayerTest_SW_VPU3700, SW) {
+// ------ NPU3700 ------
+TEST_P(FakeQuantizeLayerTest_SW_NPU3700, SW) {
     setPlatformVPU3700();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXFakeQuantizeLayerTest_HW_VPU3700, HW) {
+TEST_P(FakeQuantizeLayerTest_HW_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXFakeQuantizeLayerTest_SW_VPU3720, SW) {
-    const auto tol = 1.6;               // To cope with cpu/vpu 'limits' diffs
+// ------ NPU3720 ------
+TEST_P(FakeQuantizeLayerTest_SW_NPU3720, SW) {
+    const auto tol = 1.6;               // To cope with cpu/npu 'limits' diffs
     threshold = fabs(threshold) * tol;  // E#77437
     abs_threshold = threshold;          // Rely on absolute value check
     setPlatformVPU3720();
@@ -70,7 +72,7 @@ TEST_P(VPUXFakeQuantizeLayerTest_SW_VPU3720, SW) {
     Run();
 }
 
-TEST_P(VPUXFakeQuantizeLayerTest_HW_VPU3720, HW) {
+TEST_P(FakeQuantizeLayerTest_HW_NPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -103,7 +105,7 @@ const auto fqParamsND =
         ::testing::Combine(::testing::ValuesIn(levels), ::testing::ValuesIn(constShapesND), ::testing::Values(fqArgs),
                            ::testing::Values(inputParams), ::testing::Values(ngraph::op::AutoBroadcastType::NUMPY));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_FakeQuantize, VPUXFakeQuantizeLayerTest_SW_VPU3700,
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize, FakeQuantizeLayerTest_SW_NPU3700,
                          ::testing::Combine(fqParams, ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -112,9 +114,9 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_FakeQuantize, VPUXFakeQuantizeLayerT
                                             ::testing::ValuesIn(inputShapes),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(config)),
-                         VPUXFakeQuantizeLayerTest_SW_VPU3700::getTestCaseName);
+                         FakeQuantizeLayerTest_SW_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_ND, VPUXFakeQuantizeLayerTest_SW_VPU3700,
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_ND, FakeQuantizeLayerTest_SW_NPU3700,
                          ::testing::Combine(fqParamsND, ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -123,7 +125,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_ND, VPUXFakeQuantizeLayerTest_SW_VPU
                                             ::testing::ValuesIn(inputShapesND),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(config)),
-                         VPUXFakeQuantizeLayerTest_SW_VPU3700::getTestCaseName);
+                         FakeQuantizeLayerTest_SW_NPU3700::getTestCaseName);
 
 // TODO: support levels=16
 // "Can't convert 12 Bit to Byte" while working u4 precision (!quant.uniform<u4:f16, 0.5:128>)
@@ -136,7 +138,9 @@ const auto hw_fqParamsND = ::testing::Combine(::testing::ValuesIn(hw_levels), ::
                                               ::testing::Values(fqArgs), ::testing::Values(inputParams),
                                               ::testing::Values(ngraph::op::AutoBroadcastType::NUMPY));
 
-INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize, VPUXFakeQuantizeLayerTest_HW_VPU3700,
+/* ================================= NPU3700 ================================= */
+
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize, FakeQuantizeLayerTest_HW_NPU3700,
                          ::testing::Combine(hw_fqParams, ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -145,9 +149,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize, VPUXFakeQuantizeLayerTest_HW_VPU370
                                             ::testing::ValuesIn(inputShapes),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(config)),
-                         VPUXFakeQuantizeLayerTest_HW_VPU3700::getTestCaseName);
+                         FakeQuantizeLayerTest_HW_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_ND, VPUXFakeQuantizeLayerTest_HW_VPU3700,
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_ND, FakeQuantizeLayerTest_HW_NPU3700,
                          ::testing::Combine(hw_fqParamsND, ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -156,9 +160,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_ND, VPUXFakeQuantizeLayerTest_HW_VPU
                                             ::testing::ValuesIn(inputShapesND),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(config)),
-                         VPUXFakeQuantizeLayerTest_HW_VPU3700::getTestCaseName);
+                         FakeQuantizeLayerTest_HW_NPU3700::getTestCaseName);
 
-// VPU3720 Per-Tensor
+/* ================================= NPU3720 ================================= */
+// Per-Tensor
 const std::vector<size_t> u8qLevels = {256};
 
 const std::vector<std::vector<size_t>> inShapes3720 = {
@@ -182,24 +187,22 @@ const auto fqParamsU = ::testing::Combine(::testing::ValuesIn(u8qLevels), ::test
                                           ::testing::ValuesIn(fqLimits), ::testing::Values(inParams),
                                           ::testing::Values(ngraph::op::AutoBroadcastType::NUMPY));
 
-INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_PerTensor_VPU3720, VPUXFakeQuantizeLayerTest_SW_VPU3720,
-                         ::testing::Combine(fqParamsU, ::testing::Values(InferenceEngine::Precision::FP16),
-                                            ::testing::Values(InferenceEngine::Precision::FP16),
-                                            ::testing::Values(InferenceEngine::Precision::FP16),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::ValuesIn(inShapes3720),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
-                                            ::testing::Values(config)),
-                         VPUXFakeQuantizeLayerTest_SW_VPU3720::getTestCaseName);
+const auto perTensorCfg = ::testing::Combine(
+        fqParamsU, ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(inShapes3720), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
+        ::testing::Values(config));
 
-// VPU3720 Per-Tensor Tiling
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_PerTensor, FakeQuantizeLayerTest_SW_NPU3720, perTensorCfg,
+                         FakeQuantizeLayerTest_SW_NPU3720::getTestCaseName);
 
+// NPU3720 Per-Tensor Tiling
 const auto fqParamsT = ::testing::Combine(::testing::ValuesIn(u8qLevels), ::testing::Values(constShapes[0]),
                                           ::testing::Values(fqLimits[0]), ::testing::Values(inParams),
                                           ::testing::Values(ngraph::op::AutoBroadcastType::NUMPY));
 
-INSTANTIATE_TEST_SUITE_P(smoke_tiling_FakeQuantize_PerTensor_VPU3720, VPUXFakeQuantizeLayerTest_SW_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_tiling_FakeQuantize_PerTensor, FakeQuantizeLayerTest_SW_NPU3720,
                          ::testing::Combine(fqParamsT, ::testing::Values(InferenceEngine::Precision::FP16),
                                             ::testing::Values(InferenceEngine::Precision::FP16),
                                             ::testing::Values(InferenceEngine::Precision::FP16),
@@ -208,9 +211,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_tiling_FakeQuantize_PerTensor_VPU3720, VPUXFakeQu
                                             ::testing::Values(tilingShapes3720[2]),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(config)),
-                         VPUXFakeQuantizeLayerTest_SW_VPU3720::getTestCaseName);
+                         FakeQuantizeLayerTest_SW_NPU3720::getTestCaseName);
 
-// VPU3720 Per-Channel (different lo/hi limits per channel)
+// NPU3720 Per-Channel (different lo/hi limits per channel)
 
 // Helper to keep 'input' and 'limits' shapes aligned
 const auto perChParams(std::vector<size_t> inShape) {
@@ -230,30 +233,30 @@ const auto perChParams(std::vector<size_t> inShape) {
             ::testing::Values(config));
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_FakeQuantize_PerCh_a_VPU3720, VPUXFakeQuantizeLayerTest_SW_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_FakeQuantize_PerCh_a, FakeQuantizeLayerTest_SW_NPU3720,
                          perChParams(std::vector<size_t>{1, 3, 10, 10}),
-                         VPUXFakeQuantizeLayerTest_SW_VPU3720::getTestCaseName);
+                         FakeQuantizeLayerTest_SW_NPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_PerCh_b_VPU3720, VPUXFakeQuantizeLayerTest_SW_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_PerCh_b, FakeQuantizeLayerTest_SW_NPU3720,
                          perChParams(std::vector<size_t>{1, 8, 9, 9}),
-                         VPUXFakeQuantizeLayerTest_SW_VPU3720::getTestCaseName);
+                         FakeQuantizeLayerTest_SW_NPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_PerCh_c_VPU3720, VPUXFakeQuantizeLayerTest_SW_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_PerCh_c, FakeQuantizeLayerTest_SW_NPU3720,
                          perChParams(std::vector<size_t>{1, 17, 5, 2}),
-                         VPUXFakeQuantizeLayerTest_SW_VPU3720::getTestCaseName);
+                         FakeQuantizeLayerTest_SW_NPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_PerCh_d_VPU3720, VPUXFakeQuantizeLayerTest_SW_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_PerCh_d, FakeQuantizeLayerTest_SW_NPU3720,
                          perChParams(std::vector<size_t>{1, 32, 3, 3}),
-                         VPUXFakeQuantizeLayerTest_SW_VPU3720::getTestCaseName);
+                         FakeQuantizeLayerTest_SW_NPU3720::getTestCaseName);
 
-// VPU3720 Per-Channel Tiling tests
-INSTANTIATE_TEST_SUITE_P(smoke_tiling_FakeQuantize_PerCh_a_VPU3720, VPUXFakeQuantizeLayerTest_SW_VPU3720,
-                         perChParams(tilingShapes3720[0]), VPUXFakeQuantizeLayerTest_SW_VPU3720::getTestCaseName);
+// NPU3720 Per-Channel Tiling tests
+INSTANTIATE_TEST_SUITE_P(smoke_tiling_FakeQuantize_PerCh_a, FakeQuantizeLayerTest_SW_NPU3720,
+                         perChParams(tilingShapes3720[0]), FakeQuantizeLayerTest_SW_NPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_tiling_FakeQuantize_PerCh_b_VPU3720, VPUXFakeQuantizeLayerTest_SW_VPU3720,
-                         perChParams(tilingShapes3720[1]), VPUXFakeQuantizeLayerTest_SW_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_tiling_FakeQuantize_PerCh_b, FakeQuantizeLayerTest_SW_NPU3720,
+                         perChParams(tilingShapes3720[1]), FakeQuantizeLayerTest_SW_NPU3720::getTestCaseName);
 
-// VPU3720 Fp32 input
+// NPU3720 Fp32 input
 const std::vector<size_t> levels3720 = {256};
 const std::vector<std::vector<size_t>> constShapes3720 = {{1}};
 const std::vector<float> fqArgs3720 = {0, 0.631348, 0, 0.631348};
@@ -266,7 +269,7 @@ const auto params3720 = ::testing::Combine(::testing::ValuesIn(levels3720), ::te
                                            ::testing::Values(fqArgs3720), ::testing::Values(inputParams3720),
                                            ::testing::Values(ngraph::op::AutoBroadcastType::NUMPY));
 
-INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_3720_ND, VPUXFakeQuantizeLayerTest_HW_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_ND, FakeQuantizeLayerTest_HW_NPU3720,
                          ::testing::Combine(params3720, ::testing::ValuesIn(netPrecisions3720),
                                             ::testing::Values(InferenceEngine::Precision::FP32),
                                             ::testing::Values(InferenceEngine::Precision::FP16),
@@ -275,9 +278,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_3720_ND, VPUXFakeQuantizeLayerTest_H
                                             ::testing::ValuesIn(inputShapes3720nd),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(config)),
-                         VPUXFakeQuantizeLayerTest::getTestCaseName);
+                         FakeQuantizeLayerTest_HW_NPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_3720_4D, VPUXFakeQuantizeLayerTest_HW_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_4D, FakeQuantizeLayerTest_HW_NPU3720,
                          ::testing::Combine(params3720, ::testing::ValuesIn(netPrecisions3720),
                                             ::testing::Values(InferenceEngine::Precision::FP32),
                                             ::testing::Values(InferenceEngine::Precision::FP16),
@@ -286,6 +289,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_3720_4D, VPUXFakeQuantizeLayerTest_H
                                             ::testing::ValuesIn(inputShapes37204d),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()),
                                             ::testing::Values(config)),
-                         VPUXFakeQuantizeLayerTest::getTestCaseName);
+                         FakeQuantizeLayerTest_HW_NPU3720::getTestCaseName);
 
 }  // namespace

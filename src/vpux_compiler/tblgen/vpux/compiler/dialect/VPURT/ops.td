@@ -13,7 +13,8 @@ include "vpux/compiler/dialect/VPURT/attributes.td"
 include "vpux/compiler/dialect/VPURT/types.td"
 include "vpux/compiler/dialect/VPURT/dialect.td"
 include "vpux/compiler/dialect/VPURT/ops_interfaces.td"
-include "vpux/compiler/dialect/ELF/ops_interfaces.td"
+include "vpux/compiler/dialect/ELFNPU37XX/ops_interfaces.td"
+include "vpux/compiler/dialect/VPUIP/ops_interfaces.td"
 
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
@@ -68,8 +69,8 @@ def VPURT_DeclareBufferOp :
         VPURT_Op<
             "DeclareBuffer",
             [
-                DeclareOpInterfaceMethods<ELF_BinaryOpInterface>,
-                NoSideEffect,
+                DeclareOpInterfaceMethods<ELFNPU37XX_BinaryOpInterface>,
+                Pure,
                 DeclarationOp,
                 DotInterface
             ]
@@ -127,10 +128,14 @@ def VPURT_DeclareVirtualBarrierOp :
         VPURT_Op<
             "DeclareVirtualBarrier",
             [
-                NoSideEffect,
+                Pure,
                 DeclarationOp
             ]
         > {
+    let arguments = (ins
+                      UnitAttr:$isFinalBarrier
+                    );
+
     let summary = "VPURT virtual Barrier declaration";
 
     let results = (outs
@@ -157,7 +162,8 @@ def VPURT_ConfigureBarrierOp :
     let summary = "A task to configure the setup for a barrier";
 
     let arguments = (ins
-        IntAttr:$id
+        IntAttr:$id,
+        UnitAttr:$isFinalBarrier
     );
 
     let results = (outs
@@ -178,6 +184,8 @@ def VPURT_ConfigureBarrierOp :
     let assemblyFormat = [{
         `<` $id `>` attr-dict `->` type(results)
     }];
+
+    let hasVerifier = 1;
 }
 
 //
@@ -187,7 +195,8 @@ def VPURT_ConfigureBarrierOp :
 def VPURT_TaskOp :
     VPURT_Op<"Task",
             [
-                RecursiveSideEffects,
+                RecursiveMemoryEffects,
+                DeclareOpInterfaceMethods<VPUIP_CycleCostInterface>,
                 MemoryEffectsOpInterface,
                 AttrSizedOperandSegments,
                 DeclareOpInterfaceMethods<VPURT_SerializeInterface>,
@@ -224,6 +233,9 @@ def VPURT_TaskOp :
         void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
         vpux::VPU::ExecutorKind getExecutorKind();
+
+        template <typename T>
+        T getInnerTaskOpOfType();        
     }];
 
     let assemblyFormat = [{

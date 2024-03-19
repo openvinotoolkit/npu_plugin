@@ -9,10 +9,10 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXCumSumLayerTest : public CumSumLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
-class VPUXCumSumLayerTest_VPU3720 : public VPUXCumSumLayerTest {};
+class CumSumLayerTestCommon : public CumSumLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
+class CumSumLayerTest_NPU3720 : public CumSumLayerTestCommon {};
 
-TEST_P(VPUXCumSumLayerTest_VPU3720, HW) {
+TEST_P(CumSumLayerTest_NPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -64,14 +64,14 @@ const auto testCasePrecommit =
                          testing::Values(negativeAxes[0]), testing::Values(exclusive[0]), testing::Values(reverse[0]),
                          testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-// ------ VPU3720 ------
-INSTANTIATE_TEST_SUITE_P(smoke_CumSum_axis_0, VPUXCumSumLayerTest_VPU3720, testCaseAxis_0,
-                         VPUXCumSumLayerTest_VPU3720::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_CumSum_negative_axis, VPUXCumSumLayerTest_VPU3720, testCasesNegativeAxis,
-                         VPUXCumSumLayerTest_VPU3720::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_CumSum_real_net, VPUXCumSumLayerTest_VPU3720, testCasesRealNet,
-                         VPUXCumSumLayerTest_VPU3720::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_CumSum, VPUXCumSumLayerTest_VPU3720, testCasePrecommit,
-                         VPUXCumSumLayerTest_VPU3720::getTestCaseName);
+// ------ NPU3720 ------
+INSTANTIATE_TEST_SUITE_P(smoke_CumSum_axis_0, CumSumLayerTest_NPU3720, testCaseAxis_0,
+                         CumSumLayerTest_NPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CumSum_negative_axis, CumSumLayerTest_NPU3720, testCasesNegativeAxis,
+                         CumSumLayerTest_NPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CumSum_real_net, CumSumLayerTest_NPU3720, testCasesRealNet,
+                         CumSumLayerTest_NPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_CumSum, CumSumLayerTest_NPU3720, testCasePrecommit,
+                         CumSumLayerTest_NPU3720::getTestCaseName);
 
 }  // namespace

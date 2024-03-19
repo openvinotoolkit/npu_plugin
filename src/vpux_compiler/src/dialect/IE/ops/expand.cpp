@@ -4,26 +4,23 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/IE/utils/propagate_quantize_dequantize_utils.hpp"
 
 #include "vpux/compiler/dialect/IE/utils/expand_utils.hpp"
-#include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/quantization.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
 
 void vpux::IE::ExpandOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                               Optional<ShapeRef> pads_begin, Optional<ShapeRef> pads_end) {
+                               std::optional<ShapeRef> pads_begin, std::optional<ShapeRef> pads_end) {
     VPUX_THROW_UNLESS(pads_begin.has_value() || pads_end.has_value(),
                       "pads_begin and/or pads_end must be provided for IE::ExpandOp");
 
     const auto origShape = getShape(input);
 
-    const auto getPadsAttr = [&](Optional<ShapeRef> pads) {
+    const auto getPadsAttr = [&](std::optional<ShapeRef> pads) {
         if (pads.has_value()) {
             return getIntArrayAttr(builder.getContext(), pads.value());
         }
@@ -36,8 +33,8 @@ void vpux::IE::ExpandOp::build(mlir::OpBuilder& builder, mlir::OperationState& s
 }
 
 mlir::LogicalResult vpux::IE::ExpandOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -46,10 +43,10 @@ mlir::LogicalResult vpux::IE::ExpandOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto padBegin = parseIntArrayAttr<int64_t>(expand.pads_begin());
-    const auto padEnd = parseIntArrayAttr<int64_t>(expand.pads_end());
+    const auto padBegin = parseIntArrayAttr<int64_t>(expand.getPadsBegin());
+    const auto padEnd = parseIntArrayAttr<int64_t>(expand.getPadsEnd());
 
-    const auto inType = expand.input().getType().cast<vpux::NDTypeInterface>();
+    const auto inType = expand.getInput().getType().cast<vpux::NDTypeInterface>();
     if (!inType) {
         return mlir::failure();
     }
@@ -63,51 +60,41 @@ mlir::LogicalResult vpux::IE::ExpandOp::inferReturnTypeComponents(
 }
 
 //
-// inferElemTypeInfo
-//
-
-void vpux::IE::ExpandOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
-    propagateElementTypeDown(info);
-}
-
-void vpux::IE::ExpandOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
-    propagateElementTypeUp(info);
-}
-
-//
 // fold
 //
 
-mlir::OpFoldResult vpux::IE::ExpandOp::fold(ArrayRef<mlir::Attribute> operands) {
-    if (input().getType() == output().getType()) {
-        return input();
+mlir::OpFoldResult vpux::IE::ExpandOp::fold(FoldAdaptor adaptor) {
+    auto operands = adaptor.getOperands();
+    if (getInput().getType() == getOutput().getType()) {
+        return getInput();
     }
 
     // Check for Slice->Expand pair which can be optimized if ExpandOp
     // output is same as SliceOp input
-    if (auto sliceOp = input().getDefiningOp<IE::SliceOp>()) {
+    if (auto sliceOp = getInput().getDefiningOp<IE::SliceOp>()) {
         // If we got multiple eltwise ops in a chain, for example:
         //       Expand->Add->(Slice->Expand)->Add->Slice
         // We will want to keep the Expand between the 2 Adds instead of folding with Slice.
         // So that we can utilize AdjustInputShapeForEltwise pass to optimize the 2nd Add.
         if (this->getResult().hasOneUse()) {
-            auto childOp = *output().getUsers().begin();
-            auto unExpandedShape = input().getType().cast<vpux::NDTypeInterface>().getShape().toValues();
-            auto expandedShape = output().getType().cast<vpux::NDTypeInterface>().getShape().toValues();
+            auto childOp = *getOutput().getUsers().begin();
+            auto unExpandedShape = getInput().getType().cast<vpux::NDTypeInterface>().getShape().toValues();
+            auto expandedShape = getOutput().getType().cast<vpux::NDTypeInterface>().getShape().toValues();
             if (beneficialToKeepExpand(unExpandedShape, expandedShape, childOp)) {
                 return nullptr;
             }
         }
-        if (sliceOp.source().getType() == output().getType()) {
-            return sliceOp.source();
+
+        const auto sliceOffsets = parseIntArrayAttr<int64_t>(sliceOp.getStaticOffsets());
+        const auto expandPadsBegin = parseIntArrayAttr<int64_t>(getPadsBegin());
+        if (sliceOp.getSource().getType() == getOutput().getType() && sliceOffsets == expandPadsBegin) {
+            return sliceOp.getSource();
         }
     }
 
     if (const auto attr = operands[0].dyn_cast_or_null<Const::ContentAttr>()) {
-        const auto padsBefore = Shape(parseIntArrayAttr<int64_t>(pads_begin()));
-        const auto padsAfter = Shape(parseIntArrayAttr<int64_t>(pads_end()));
+        const auto padsBefore = Shape(parseIntArrayAttr<int64_t>(getPadsBegin()));
+        const auto padsAfter = Shape(parseIntArrayAttr<int64_t>(getPadsEnd()));
         return attr.padWithZero(padsBefore, padsAfter);
     }
 
@@ -120,16 +107,16 @@ mlir::OpFoldResult vpux::IE::ExpandOp::fold(ArrayRef<mlir::Attribute> operands) 
 
 mlir::LogicalResult vpux::IE::ExpandOp::verify() {
     const auto op = getOperation();
-    if (input().getDefiningOp() != nullptr && mlir::isa<Const::DeclareOp>(input().getDefiningOp())) {
+    if (getInput().getDefiningOp() != nullptr && mlir::isa<Const::DeclareOp>(getInput().getDefiningOp())) {
         // Limitations below are not applicable to constants.
         return mlir::success();
     }
     const auto nonZeroPadPredicate = [](const int64_t dim) -> bool {
         return dim > 0;
     };
-    const auto padsEnd = parseIntArrayAttr<int64_t>(pads_end());
+    const auto padsEnd = parseIntArrayAttr<int64_t>(getPadsEnd());
     const auto nonZeroPadsEnd = std::count_if(padsEnd.begin(), padsEnd.end(), nonZeroPadPredicate);
-    const auto padsBegin = parseIntArrayAttr<int64_t>(pads_begin());
+    const auto padsBegin = parseIntArrayAttr<int64_t>(getPadsBegin());
     const auto nonZeroPadsBegin = std::count_if(padsBegin.begin(), padsBegin.end(), nonZeroPadPredicate);
     if (nonZeroPadsEnd == 0 && nonZeroPadsBegin == 0) {
         // Such pad configuration is foldable.
@@ -147,11 +134,11 @@ mlir::LogicalResult vpux::IE::ExpandOp::verify() {
     const auto padBeginAxisIter = std::find_if(padsBegin.begin(), padsBegin.end(), nonZeroPadPredicate);
     if (padBeginAxisIter != padsBegin.end()) {
         const auto padAxis = std::distance(padsBegin.begin(), padBeginAxisIter);
-        const auto inShape = getShape(input());
+        const auto inShape = getShape(getInput());
         if (padAxis >= checked_cast<int64_t>(inShape.size())) {
             return errorAt(op, "pads_begin axis {0} exceeds input rank {1}", padAxis, inShape.size());
         }
-        const auto outShape = getShape(output());
+        const auto outShape = getShape(getOutput());
         if (padAxis >= checked_cast<int64_t>(outShape.size())) {
             return errorAt(op, "pads_begin axis {0} exceeds output rank {1}", padAxis, inShape.size());
         }
@@ -160,11 +147,11 @@ mlir::LogicalResult vpux::IE::ExpandOp::verify() {
     const auto padEndAxisIter = std::find_if(padsEnd.begin(), padsEnd.end(), nonZeroPadPredicate);
     if (padEndAxisIter != padsEnd.end()) {
         const auto padAxis = std::distance(padsEnd.begin(), padEndAxisIter);
-        const auto inShape = getShape(input());
+        const auto inShape = getShape(getInput());
         if (padAxis >= checked_cast<int64_t>(inShape.size())) {
             return errorAt(op, "pads_end axis {0} exceeds input rank {1}", padAxis, inShape.size());
         }
-        const auto outShape = getShape(output());
+        const auto outShape = getShape(getOutput());
         if (padAxis >= checked_cast<int64_t>(outShape.size())) {
             return errorAt(op, "pads_end axis {0} exceeds output rank {1}", padAxis, inShape.size());
         }

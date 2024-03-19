@@ -4,82 +4,66 @@
 //
 
 //
+
+//
 // Extra helpers for STL type_traits (partially from C++17 and above)
 //
 
 #pragma once
 
+#include <string>
 #include <type_traits>
 
 namespace vpux {
 
 //
-// remove_* & decay
-//
-
-template <typename T>
-using remove_reference_t = typename std::remove_reference<T>::type;
-
-template <typename T>
-using remove_pointer_t = typename std::remove_pointer<T>::type;
-
-template <typename T>
-using remove_const_t = typename std::remove_const<T>::type;
-
-template <typename T>
-using decay_t = typename std::decay<T>::type;
-
-//
 // Bool logic
 //
 
-template <bool value>
-using bool_c = std::integral_constant<bool, value>;
-
 template <typename T>
-using not_ = bool_c<!T::value>;
+using not_ = std::negation<T>;
 
-template <typename...>
-struct or_;
+template <typename... Ts>
+using or_ = std::disjunction<Ts...>;
 
-template <>
-struct or_<> final : std::true_type {};
-
-template <typename T>
-struct or_<T> final : T {};
-
-template <typename T0, typename T1>
-struct or_<T0, T1> : bool_c<T0::value || T1::value> {};
-
-template <typename T0, typename... T>
-struct or_<T0, T...> final : or_<T0, or_<T...>> {};
-
-template <typename...>
-struct and_;
-
-template <>
-struct and_<> final : std::true_type {};
-
-template <typename T>
-struct and_<T> final : T {};
-
-template <typename T0, typename T1>
-struct and_<T0, T1> : bool_c<T0::value && T1::value> {};
-
-template <typename T0, typename... T>
-struct and_<T0, T...> final : and_<T0, and_<T...>> {};
+template <typename... Ts>
+using and_ = std::conjunction<Ts...>;
 
 //
 // enable_if
 //
 
-template <bool B, typename T = void>
-using enable_if_t = typename std::enable_if<B, T>::type;
-
 template <typename T, typename... Args>
-using enable_t = enable_if_t<and_<Args...>::value, T>;
+using enable_t = std::enable_if_t<(Args::value && ...), T>;
 
 template <typename... Args>
 using require_t = enable_t<void, Args...>;
 
+template <class T>
+struct TypePrinter {
+    static constexpr bool hasName() {
+        return false;
+    }
+    static constexpr const char* name();
+};
+
+#define TYPE_PRINTER(type)                    \
+    template <>                               \
+    struct TypePrinter<type> {                \
+        static constexpr bool hasName() {     \
+            return true;                      \
+        }                                     \
+        static constexpr const char* name() { \
+            return #type;                     \
+        }                                     \
+    };
+
+TYPE_PRINTER(bool)
+TYPE_PRINTER(char)
+TYPE_PRINTER(char*)
+TYPE_PRINTER(int)
+TYPE_PRINTER(unsigned int)
+TYPE_PRINTER(int64_t)
+TYPE_PRINTER(double)
+TYPE_PRINTER(std::string)
 }  // namespace vpux

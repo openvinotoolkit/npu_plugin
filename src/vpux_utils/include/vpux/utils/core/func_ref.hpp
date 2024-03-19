@@ -1,6 +1,8 @@
 //
-// Copyright (C) 2022 Intel Corporation.
+// Copyright (C) 2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
+//
+
 //
 
 //
@@ -12,7 +14,7 @@
 
 #pragma once
 
-#include <llvm/ADT/STLExtras.h>
+#include <llvm/ADT/STLFunctionalExtras.h>
 
 namespace vpux {
 

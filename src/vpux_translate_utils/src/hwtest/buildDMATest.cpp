@@ -9,10 +9,11 @@
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/Support/DebugStringHelper.h>
 
-#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
-#include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -22,10 +23,41 @@
 namespace vpux {
 namespace hwtest {
 
+/*DMA builder config, depending on input/output configuration:
+
+                 DMAop                            DMAop                             DMAop
+DDR(FuncInput) --------> DDR(FuncOutput) / CMX* --------> DDR(FuncOutput) / CMX* --------> DDR(FunOutput)
+                        stop execution |                 stop execution |                stop execution |
+
+*CMX data can be stored either on tile 0 or tile 1
+
+
+Testing Memory Side Cache, (initial pipeline remains valid, for accuracy check):
+At least one from inputMSC/outputMSC buffers must be in DDR
+
+DDR(FuncInput) \+                                                                      ----> ... (Initial pipepile)
+                \ DMAop                                                               /
+                 \                                                                   /
+              inputMSC(DDRHeap/CMX)          inputMSC(DDRHeap/CMX)                  /
+                            \                 /         \           ...
+                             \ DMAop         /DMAop      \ Dmaop    /     .......
+                              \             /             \        /
+                          outputMSC(DDRHeap/CMX)           ........
+                           transaction1                  transaction2  ----> transactionN
+
+For non-trashing tests, the buffers are located at the same address.
+For trashing tests, the input buffer of the previous DMAOp changes address before another DMAOp, so caching wouldn't
+be possible:
+
+    inputMSC(DDRHeap/CMX)    inputMSC(DDRHeap/CMX)
+             \                 /                   \ offset(outputMSC)++
+              \ DmaOp         / DMAop               \ DMAop
+               \             / offset(inputMSC)++    \..
+            outputMSC(DDRHeap/CMX)                   ....
+*/
+
 void buildDMA(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder, Logger& log,
               mlir::Type inputType, mlir::Type outputType) {
-    auto* ctx = builder.getContext();
-
     auto input = testDesc.getInputLayerList().front();
     auto dmaParams = testDesc.getDMAparams();
     auto output = testDesc.getOutputLayers().front();
@@ -50,13 +82,13 @@ void buildDMA(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
     auto outputParamType = getMemRefType(VPURT::BufferSection::NetworkOutput, outShape, outputType, DimsOrder::NHWC);
     inputTypes.push_back(outputParamType);
 
-    const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
+    const auto funcType = builder.getFunctionType(ArrayRef(inputTypes), outputParamType);
 
     auto func = builder.create<mlir::func::FuncOp>(
             builder.getUnknownLoc(),
             printToString("dma_from_{0}_{1}_to_{2}_{3}", nb::to_string(dmaParams.srcLocation), inputType,
                           nb::to_string(dmaParams.dstLocation), outputType),
-            funcType, builder.getStringAttr("private"));
+            funcType, builder.getStringAttr("private"), /*arg_attrs=*/nullptr, /*res_attrs=*/nullptr);
 
     auto funcbuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());
 
@@ -68,9 +100,9 @@ void buildDMA(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
 
     llvm::SmallVector<mlir::Value> waitBarriers;
     mlir::Value DMAinput;
-    size_t CMX0_AVIABLE_OFFSET = 0;
-    size_t CMX1_AVIABLE_OFFSET = 0;
-    int barrierNumber = 0;
+    size_t CMX0_AVAILABLE_OFFSET = 0;
+    size_t CMX1_AVAILABLE_OFFSET = 0;
+    VPURT::DeclareVirtualBarrierOp DMAtaskBarrier;
     if (dmaParams.srcLocation == nb::MemoryLocation::DDR) {
         DMAinput = funcInput0;
     } else if (dmaParams.srcLocation == nb::MemoryLocation::CMX0 || dmaParams.srcLocation == nb::MemoryLocation::CMX1) {
@@ -79,23 +111,148 @@ void buildDMA(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
                 getMemRefType(VPURT::BufferSection::CMX_NN, sectionIdx, inShape, inputType, DimsOrder::NHWC);
         auto inputCMX = createDeclareTensorOp(
                 funcbuilder, inputCMXtype, VPURT::BufferSection::CMX_NN, sectionIdx,
-                dmaParams.srcLocation == nb::MemoryLocation::CMX0 ? CMX0_AVIABLE_OFFSET : CMX1_AVIABLE_OFFSET);
+                dmaParams.srcLocation == nb::MemoryLocation::CMX0 ? CMX0_AVAILABLE_OFFSET : CMX1_AVAILABLE_OFFSET);
         if (dmaParams.srcLocation == nb::MemoryLocation::CMX0) {
-            CMX0_AVIABLE_OFFSET += inputTotalSize;
+            CMX0_AVAILABLE_OFFSET += inputTotalSize;
         } else {
-            CMX1_AVIABLE_OFFSET += inputTotalSize;
+            CMX1_AVAILABLE_OFFSET += inputTotalSize;
         }
-        auto barrier = funcbuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), barrierNumber++);
 
-        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier.getBarrier()),
-                                              builder.getUnknownLoc(), funcInput0,
-                                              inputCMX.getOperation()->getResult(0));
+        DMAtaskBarrier = funcbuilder.create<VPURT::DeclareVirtualBarrierOp>(builder.getUnknownLoc());
 
-        waitBarriers.emplace_back(barrier.getBarrier());
+        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(),
+                                              mlir::ValueRange(DMAtaskBarrier.getBarrier()), builder.getUnknownLoc(),
+                                              funcInput0, inputCMX.getOperation()->getResult(0), dmaParams.engine);
+
+        waitBarriers.emplace_back(DMAtaskBarrier.getBarrier());
         DMAinput = inputCMX.getOperation()->getResult(0);
     } else {
         VPUX_THROW("Unsupported src memory location {0}", nb::to_string(dmaParams.srcLocation));
     }
+
+    // test memory side cache -> 1000 DMA circular transactions
+    if (dmaParams.testMemSideCache) {
+        size_t srcOffset = 0;
+        size_t dstOffset = 0;
+        size_t DDR_AVAILABLE_OFFSET = 0;
+        auto srcSectionIdx = 0;
+        auto dstSectionIdx = 0;
+        VPURT::BufferSection srcBufferSection, dstBufferSection;
+        mlir::MemRefType inputMSCBufferType, outputMSCBufferType;
+        vpux::VPURT::DeclareBufferOp inputMSC, outputMSC;
+
+        auto waitBarrier = DMAtaskBarrier;
+        DMAtaskBarrier = funcbuilder.create<VPURT::DeclareVirtualBarrierOp>(builder.getUnknownLoc());
+
+        // setup input/output buffers
+        if (dmaParams.srcLocation == nb::MemoryLocation::DDR) {
+            srcBufferSection = VPURT::BufferSection::DDR;
+            srcOffset = DDR_AVAILABLE_OFFSET;
+            DDR_AVAILABLE_OFFSET += inputTotalSize;
+
+            inputMSCBufferType = getMemRefType(srcBufferSection, inShape, inputType, DimsOrder::NHWC);
+            inputMSC = createDeclareTensorOp(funcbuilder, inputMSCBufferType, srcBufferSection, srcOffset);
+        } else {
+            srcBufferSection = VPURT::BufferSection::CMX_NN;
+            if (dmaParams.srcLocation == nb::MemoryLocation::CMX0) {
+                srcOffset = CMX0_AVAILABLE_OFFSET;
+                CMX0_AVAILABLE_OFFSET += inputTotalSize;
+                srcSectionIdx = 0;
+            } else {
+                srcOffset = CMX1_AVAILABLE_OFFSET;
+                CMX1_AVAILABLE_OFFSET += inputTotalSize;
+                srcSectionIdx = 1;
+            }
+
+            inputMSCBufferType = getMemRefType(srcBufferSection, srcSectionIdx, inShape, inputType, DimsOrder::NHWC);
+            inputMSC =
+                    createDeclareTensorOp(funcbuilder, inputMSCBufferType, srcBufferSection, srcSectionIdx, srcOffset);
+        }
+
+        if (dmaParams.dstLocation == nb::MemoryLocation::DDR) {
+            dstBufferSection = VPURT::BufferSection::DDR;
+            dstOffset = DDR_AVAILABLE_OFFSET;
+            DDR_AVAILABLE_OFFSET += inputTotalSize;
+
+            outputMSCBufferType = getMemRefType(dstBufferSection, inShape, inputType, DimsOrder::NHWC);
+            outputMSC = createDeclareTensorOp(funcbuilder, outputMSCBufferType, dstBufferSection, dstOffset);
+        } else {
+            dstBufferSection = VPURT::BufferSection::CMX_NN;
+            if (dmaParams.dstLocation == nb::MemoryLocation::CMX0) {
+                dstOffset = CMX0_AVAILABLE_OFFSET;
+                CMX0_AVAILABLE_OFFSET += inputTotalSize;
+                dstSectionIdx = 0;
+            } else {
+                dstOffset = CMX1_AVAILABLE_OFFSET;
+                CMX1_AVAILABLE_OFFSET += inputTotalSize;
+                dstSectionIdx = 1;
+            }
+
+            outputMSCBufferType = getMemRefType(dstBufferSection, dstSectionIdx, inShape, inputType, DimsOrder::NHWC);
+            outputMSC =
+                    createDeclareTensorOp(funcbuilder, outputMSCBufferType, dstBufferSection, dstSectionIdx, dstOffset);
+        }
+
+        mlir::Value inputBufferMSC;
+        mlir::Value outputBufferMSC;
+
+        // setup input as function inputs
+        if (dmaParams.srcLocation == nb::MemoryLocation::DDR) {
+            inputBufferMSC = inputMSC;
+            VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(),
+                                                  mlir::ValueRange(DMAtaskBarrier.getBarrier()),
+                                                  builder.getUnknownLoc(), DMAinput, inputBufferMSC, dmaParams.engine);
+
+        } else {
+            inputBufferMSC = inputMSC.getOperation()->getResult(0);
+            VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(waitBarrier.getBarrier()),
+                                                  mlir::ValueRange(DMAtaskBarrier.getBarrier()),
+                                                  builder.getUnknownLoc(), DMAinput, inputBufferMSC, dmaParams.engine);
+        }
+
+        if (dmaParams.dstLocation == nb::MemoryLocation::DDR) {
+            outputBufferMSC = outputMSC;
+        } else {
+            outputBufferMSC = outputMSC.getOperation()->getResult(0);
+        }
+
+        for (auto dmaTransactionCount = 0; dmaTransactionCount < 10; ++dmaTransactionCount) {
+            waitBarrier = DMAtaskBarrier;
+            DMAtaskBarrier = funcbuilder.create<VPURT::DeclareVirtualBarrierOp>(builder.getUnknownLoc());
+
+            VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(waitBarrier.getBarrier()),
+                                                  mlir::ValueRange(DMAtaskBarrier.getBarrier()),
+                                                  builder.getUnknownLoc(), inputBufferMSC, outputBufferMSC,
+                                                  dmaParams.engine);
+            waitBarrier = DMAtaskBarrier;
+            DMAtaskBarrier = funcbuilder.create<VPURT::DeclareVirtualBarrierOp>(builder.getUnknownLoc());
+
+            if (dmaParams.cacheTrashing) {
+                if (dmaParams.srcLocation == nb::MemoryLocation::DDR) {
+                    inputBufferMSC = createDeclareTensorOp(funcbuilder, inputMSCBufferType, srcBufferSection,
+                                                           DDR_AVAILABLE_OFFSET);
+
+                    DDR_AVAILABLE_OFFSET =
+                            DDR_AVAILABLE_OFFSET > 4 * inputTotalSize ? 0 : DDR_AVAILABLE_OFFSET + inputTotalSize;
+                }
+            }
+
+            VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(waitBarrier.getBarrier()),
+                                                  mlir::ValueRange(DMAtaskBarrier.getBarrier()),
+                                                  builder.getUnknownLoc(), outputBufferMSC, inputBufferMSC,
+                                                  dmaParams.engine);
+
+            if (dmaParams.cacheTrashing) {
+                if (dmaParams.dstLocation == nb::MemoryLocation::DDR) {
+                    outputBufferMSC = createDeclareTensorOp(funcbuilder, outputMSCBufferType, dstBufferSection,
+                                                            DDR_AVAILABLE_OFFSET);
+                    DDR_AVAILABLE_OFFSET =
+                            DDR_AVAILABLE_OFFSET > 4 * inputTotalSize ? 0 : DDR_AVAILABLE_OFFSET + inputTotalSize;
+                }
+            }
+        }
+    }
+
     mlir::Value DMAoutput;
     if (dmaParams.dstLocation == nb::MemoryLocation::DDR) {
         DMAoutput = funcOutput;
@@ -105,20 +262,22 @@ void buildDMA(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
                 getMemRefType(VPURT::BufferSection::CMX_NN, sectionIdx, outShape, outputType, DimsOrder::NHWC);
         auto outputCMX = createDeclareTensorOp(
                 funcbuilder, outputCMXtype, VPURT::BufferSection::CMX_NN, sectionIdx,
-                dmaParams.dstLocation == nb::MemoryLocation::CMX0 ? CMX0_AVIABLE_OFFSET : CMX1_AVIABLE_OFFSET);
+                dmaParams.dstLocation == nb::MemoryLocation::CMX0 ? CMX0_AVAILABLE_OFFSET : CMX1_AVAILABLE_OFFSET);
         if (dmaParams.dstLocation == nb::MemoryLocation::CMX0) {
-            CMX0_AVIABLE_OFFSET += outputTotalSize;
+            CMX0_AVAILABLE_OFFSET += outputTotalSize;
         } else {
-            CMX1_AVIABLE_OFFSET += outputTotalSize;
+            CMX1_AVAILABLE_OFFSET += outputTotalSize;
         }
         DMAoutput = outputCMX.getOperation()->getResult(0);
     } else {
         VPUX_THROW("Unsupported dst memory location {0}", nb::to_string(dmaParams.dstLocation));
     }
 
-    VPURT::ConfigureBarrierOp DMAtaskBarrier;
     if (dmaParams.dstLocation == nb::MemoryLocation::CMX0 || dmaParams.dstLocation == nb::MemoryLocation::CMX1) {
-        DMAtaskBarrier = funcbuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), barrierNumber++);
+        if (dmaParams.testMemSideCache) {
+            waitBarriers.emplace_back(DMAtaskBarrier.getBarrier());
+        }
+        DMAtaskBarrier = funcbuilder.create<VPURT::DeclareVirtualBarrierOp>(builder.getUnknownLoc());
     }
 
     if (!dmaParams.doConvert) {
@@ -137,14 +296,20 @@ void buildDMA(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
 
     if (dmaParams.dstLocation == nb::MemoryLocation::CMX0 || dmaParams.dstLocation == nb::MemoryLocation::CMX1) {
         VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(DMAtaskBarrier.getBarrier()),
-                                              mlir::ValueRange(), builder.getUnknownLoc(), DMAoutput, funcOutput);
+                                              mlir::ValueRange(), builder.getUnknownLoc(), DMAoutput, funcOutput,
+                                              dmaParams.engine);
     }
 
     funcbuilder.create<mlir::func::ReturnOp>(builder.getUnknownLoc(), funcOutput);
     // set runtime resources
-    mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    Optional<int> numTiles = None;
-    pm.addPass(VPU::createInitCompilerPass(testArchitecture, VPU::CompilationMode::DefaultHW, numTiles, None, log));
+    mlir::PassManager pm(module->getName(), mlir::OpPassManager::Nesting::Implicit);
+    std::optional<int> numTiles = std::nullopt;
+    pm.addPass(VPU::createInitCompilerPass(testArchitecture, VPU::CompilationMode::DefaultHW, numTiles, std::nullopt,
+                                           log));
+
+    // assign physical barriers instead of virtual barriers
+    pm.addPass(VPURT::createAssignPhysicalBarriersPass(log));
+    pm.addPass(VPURT::createBarrierSimulationPass(log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
     // IE.CNNNetwork

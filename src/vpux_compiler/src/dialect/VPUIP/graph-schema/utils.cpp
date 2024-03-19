@@ -4,11 +4,12 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/performance_metrics.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/layers.hpp"
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
 #include "vpux/compiler/dialect/VPURT/attributes.hpp"
 
 using namespace vpux;
@@ -312,40 +313,23 @@ MVCNN::PhysicalProcessor VPUIP::createPhysicalProcessor(VPU::ExecutorKind execKi
     }
 }
 
-namespace {
-
-void setActivityFactor(VPU::ExecutorKind execKind, MVCNN::ProcessorMappingBuilder& builder, mlir::ModuleOp module) {
-    // TODO: calc this value during compilation
-    static const float activityFactor = 0.6f;
-    const auto arch = VPU::getArch(module);
-    if (arch == VPU::ArchKind::VPUX30XX) {
-        if (execKind == VPU::ExecutorKind::NCE || execKind == VPU::ExecutorKind::SHAVE_UPA) {
-            builder.add_activity_factor(activityFactor);
-        }
-    } else if (arch == VPU::ArchKind::VPUX37XX) {
-        if (execKind == VPU::ExecutorKind::NCE || execKind == VPU::ExecutorKind::SHAVE_NN) {
-            builder.add_activity_factor(activityFactor);
-        }
-    }
-}
-
-}  // namespace
-
 flatbuffers::Offset<MVCNN::ProcessorMapping> VPUIP::createProcessorMapping(flatbuffers::FlatBufferBuilder& fbb,
-                                                                           IE::ExecutorResourceOp res,
+                                                                           IERT::ComputeResourceOpInterface res,
                                                                            mlir::ModuleOp module) {
-    const auto execKind = VPU::getKindValue<VPU::ExecutorKind>(res);
+    const auto execKind =
+            VPU::getKindValue<VPU::ExecutorKind>(mlir::cast<IERT::ResourceOpInterface>(res.getOperation()));
     MVCNN::ProcessorMappingBuilder builder(fbb);
     builder.add_item(createPhysicalProcessor(execKind));
-    builder.add_number(checked_cast<double>(res.count()));
+    builder.add_number(checked_cast<double>(res.getCountAttr().getValue().getSExtValue()));
     builder.add_is_bitmask(false);
-    setActivityFactor(execKind, builder, module);
+    builder.add_activity_factor(VPU::getActivityFactor(execKind, module, res));
     return builder.Finish();
 }
 
 flatbuffers::Offset<MVCNN::ProcessorMapping> VPUIP::createProcessorFreqMapping(flatbuffers::FlatBufferBuilder& fbb,
-                                                                               IE::ExecutorResourceOp res) {
+                                                                               IE::TileResourceOp res) {
     const auto execKind = VPU::getKindValue<VPU::ExecutorKind>(res);
+
     MVCNN::ProcessorMappingBuilder builder(fbb);
     builder.add_item(createPhysicalProcessor(execKind));
     builder.add_number(res.getProcessorFrequency().getValueAsDouble());
@@ -388,6 +372,6 @@ flatbuffers::Offset<MVCNN::MemoryMapping> VPUIP::createMemoryMapping(flatbuffers
 
     MVCNN::MemoryMappingBuilder builder(fbb);
     builder.add_item(createPhysicalMem(memKind));
-    builder.add_number(checked_cast<double>(res.byteSize()));
+    builder.add_number(checked_cast<double>(res.getByteSize()));
     return builder.Finish();
 }

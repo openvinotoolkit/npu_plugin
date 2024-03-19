@@ -5,104 +5,104 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/utils/const_attributes.hpp"
-#include "vpux/compiler/dialect/IE/utils/groupconvolution_utils.hpp"
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
+#include "vpux/compiler/dialect/IE/utils/convolution_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/layers.hpp"
+#include "vpux/compiler/utils/adjust_layout_utils.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/empty_node.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
-#include "vpux/utils/core/error.hpp"
 
-#include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/IR/PatternMatch.h>
 
-#include <ngraph/coordinate.hpp>
-#include <ngraph/op/max_pool.hpp>
-#include <ngraph/validation_util.hpp>
+#include <openvino/core/validation_util.hpp>
 
 using namespace vpux;
 
 //
-// FuseConvAndBias
+// FuseConvAndSlice
 //
 
 namespace {
 
-class FuseConvAndBias final : public mlir::OpRewritePattern<IE::ScaleShiftOp> {
+class FuseConvAndSlice final : public mlir::OpRewritePattern<IE::ConvolutionOp> {
 public:
-    using mlir::OpRewritePattern<IE::ScaleShiftOp>::OpRewritePattern;
+    using mlir::OpRewritePattern<IE::ConvolutionOp>::OpRewritePattern;
 
     void initialize() {
-        setDebugName("FuseConvAndBias");
+        setDebugName("FuseConvAndSlice");
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(IE::ScaleShiftOp biasOp, mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(IE::ConvolutionOp convOp, mlir::PatternRewriter& rewriter) const final;
 };
 
-mlir::LogicalResult FuseConvAndBias::matchAndRewrite(IE::ScaleShiftOp biasOp, mlir::PatternRewriter& rewriter) const {
-    if (biasOp.weights() != nullptr) {
-        return matchFailed(rewriter, biasOp, "ScaleShift has scales operand");
+//
+//     SliceOp
+//        |           =>    ConvolutionOp
+//    ConvolutionOp
+//
+// Only support the Slice on DimC
+//
+mlir::LogicalResult FuseConvAndSlice::matchAndRewrite(IE::ConvolutionOp convOp, mlir::PatternRewriter& rewriter) const {
+    auto sliceOp = convOp.getInput().getDefiningOp<IE::SliceOp>();
+    if (sliceOp == nullptr) {
+        return matchFailed(rewriter, convOp, "Convolution doesn't have Slice input");
     }
-    if (!biasOp.input().hasOneUse()) {
-        return matchFailed(rewriter, biasOp, "ScaleShift is not the only user of its operand");
+    auto sliceOffset = parseIntArrayAttr<int64_t>(sliceOp.getStaticOffsets());
+    auto sliceSize = parseIntArrayAttr<int64_t>(sliceOp.getStaticSizes());
+    auto outNDInterface = convOp.getOutput().getType().dyn_cast<vpux::NDTypeInterface>();
+    auto outDimOrder = outNDInterface.getDimsOrder();
+    auto inNDInterface = convOp.getInput().getType().dyn_cast<vpux::NDTypeInterface>();
+    auto inDimOrder = inNDInterface.getDimsOrder();
+    if (inNDInterface.getElementType() != outNDInterface.getElementType() || !inNDInterface.getElementType().isF16()) {
+        return matchFailed(rewriter, convOp, "Only handle FP16 case");
     }
-    if (biasOp.biases() == nullptr || mlir::failed(IE::getConstParentOp(biasOp.biases()))) {
-        return matchFailed(rewriter, biasOp, "ScaleShift has non constant biases");
+    // The channel align interface will return 1 if layout is NCHW
+    // Add this condition to promise the channel align interface get valid value
+    if (outDimOrder != DimsOrder::NHWC || inDimOrder != DimsOrder::NHWC) {
+        return matchFailed(rewriter, convOp, "Only handle NHWC layout");
     }
 
-    auto* op = biasOp.input().getDefiningOp();
-    if (op == nullptr || !mlir::isa<IE::ConvolutionOp, IE::GroupConvolutionOp>(op)) {
-        return matchFailed(rewriter, biasOp, "ScaleShift producer is not a Convolution layer");
-    }
-
-    // For those Convolutions/GroupConvolutions cannot convert to NCE task should not fuse ScaleShift as Bias.
-    // Because SW kernel will not support any Post Ops.
-    if (auto convOp = mlir::dyn_cast<IE::ConvolutionOp>(op)) {
-        if (VPUIP::NCEInvariant::verifyKernel(convOp).failed()) {
-            return matchFailed(rewriter, convOp, "Conv cannot convert to NCE, not fuse ScaleShift");
+    auto sliceInput = sliceOp.getSource();
+    auto sliceInputShape = vpux::getShape(sliceInput);
+    for (size_t index = 0; index < sliceSize.size(); index++) {
+        if (static_cast<int64_t>(index) != Dims4D::Act::C.ind() && (sliceSize[index] != sliceInputShape[Dim(index)])) {
+            return matchFailed(rewriter, sliceOp, "Only support slice from DimC");
         }
     }
-    if (auto grConvOp = mlir::dyn_cast<IE::GroupConvolutionOp>(op)) {
-        if (VPUIP::NCEInvariant::verifyKernel(grConvOp).failed() &&
-            mlir::failed(IE::canConvertGroupConvToConv(grConvOp))) {
-            return matchFailed(rewriter, grConvOp, "GroupConv cannot convert to NCE, not fuse ScaleShift");
-        }
+
+    auto filter = convOp.getFilter();
+    auto filterCst = filter.getDefiningOp<Const::DeclareOp>();
+    if (filterCst == nullptr) {
+        return mlir::failure();
     }
 
-    if (op->getNumOperands() != 2) {
-        return matchFailed(rewriter, biasOp, "ScaleShift producer already has fused biases");
+    auto filterShape = vpux::getShape(filter);
+    auto iface = mlir::cast<IE::AlignedChannelsOpInterface>(convOp.getOperation());
+    const int64_t alignedChannel = iface.getInputChannelAlignment();
+    auto expandSize = vpux::alignValUp(filterShape[Dims4D::Filter::IC], alignedChannel);
+    if (sliceInputShape[Dims4D::Act::C] > expandSize) {
+        return matchFailed(rewriter, convOp, "Folding cost greater than expand");
     }
 
-    const auto convOutShape = getShape(op->getOpResult(0));
-    const auto biasShape = getShape(biasOp.biases());
+    auto cstContentAttrFilter = filterCst.getContentAttr();
+    auto dimCPaddingEnd =
+            sliceInputShape[Dims4D::Act::C] - filterShape[Dims4D::Filter::IC] - sliceOffset[Dims4D::Act::C.ind()];
+    Shape cstPadBegin = {0, sliceOffset[Dims4D::Act::C.ind()], 0, 0};
+    Shape cstPadEnd = {0, dimCPaddingEnd, 0, 0};
+    auto newCstContent = cstContentAttrFilter.padWithZero(cstPadBegin, cstPadEnd);
+    auto newFilterConst = rewriter.create<Const::DeclareOp>(convOp.getLoc(), newCstContent.getType(), newCstContent);
+    auto newConvOp = rewriter.create<IE::ConvolutionOp>(
+            convOp.getLoc(), outNDInterface, sliceInput, newFilterConst, convOp.getBias(), convOp.getStridesAttr(),
+            convOp.getPadsBeginAttr(), convOp.getPadsEndAttr(), convOp.getDilationsAttr(), convOp.getPostOpAttr(),
+            convOp.getClampAttr());
 
-    if (biasShape.size() != 4) {
-        return matchFailed(rewriter, biasOp, "ScaleShift 'shift' operand shape doesn't match bias restrictions");
-    }
-    if (biasShape[Dims4D::Act::N] != 1) {
-        return matchFailed(rewriter, biasOp, "ScaleShift 'shift' operand shape doesn't match bias restrictions");
-    }
-    if (biasShape[Dims4D::Act::C] != convOutShape[Dims4D::Act::C]) {
-        return matchFailed(rewriter, biasOp, "ScaleShift 'shift' operand shape doesn't match bias restrictions");
-    }
-    if (biasShape[Dims4D::Act::H] != 1) {
-        return matchFailed(rewriter, biasOp, "ScaleShift 'shift' operand shape doesn't match bias restrictions");
-    }
-    if (biasShape[Dims4D::Act::W] != 1) {
-        return matchFailed(rewriter, biasOp, "ScaleShift 'shift' operand shape doesn't match bias restrictions");
-    }
-
-    auto* newConv = rewriter.clone(*op);
-    newConv->insertOperands(newConv->getNumOperands(), biasOp.biases());
-
-    rewriter.replaceOp(biasOp, newConv->getOpResults());
+    rewriter.replaceOp(convOp, newConvOp->getOpResults());
 
     return mlir::success();
 }
@@ -114,8 +114,8 @@ mlir::LogicalResult FuseConvAndBias::matchAndRewrite(IE::ScaleShiftOp biasOp, ml
 //
 
 mlir::LogicalResult vpux::IE::ConvolutionOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -124,14 +124,14 @@ mlir::LogicalResult vpux::IE::ConvolutionOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inShape = conv.input().getType().cast<mlir::ShapedType>().getShape();
-    const auto inType = conv.input().getType().cast<mlir::ShapedType>().getElementType();
-    const auto filterShape = conv.filter().getType().cast<mlir::ShapedType>().getShape();
+    const auto inShape = conv.getInput().getType().cast<mlir::ShapedType>().getShape();
+    const auto inType = conv.getInput().getType().cast<mlir::ShapedType>().getElementType();
+    const auto filterShape = conv.getFilter().getType().cast<mlir::ShapedType>().getShape();
 
-    const auto dataPaddingBelow = parseIntArrayAttr<int64_t>(conv.pads_end());
-    const auto dataPaddingAbove = parseIntArrayAttr<int64_t>(conv.pads_begin());
-    const auto windowStrides = parseIntArrayAttr<int64_t>(conv.strides());
-    const auto windowDilations = parseIntArrayAttr<int64_t>(conv.dilations());
+    const auto dataPaddingBelow = parseIntArrayAttr<int64_t>(conv.getPadsEnd());
+    const auto dataPaddingAbove = parseIntArrayAttr<int64_t>(conv.getPadsBegin());
+    const auto windowStrides = parseIntArrayAttr<int64_t>(conv.getStrides());
+    const auto windowDilations = parseIntArrayAttr<int64_t>(conv.getDilations());
 
     static const auto ChanDim = Dim(1);
     if (inShape[ChanDim.ind()] != filterShape[ChanDim.ind()]) {
@@ -139,14 +139,13 @@ mlir::LogicalResult vpux::IE::ConvolutionOp::inferReturnTypeComponents(
                        inShape[ChanDim.ind()], filterShape[ChanDim.ind()]);
     }
 
-    const auto outputShape =
-            ngraph::infer_convolution_forward(EmptyNode::instance(), ngraph::Shape(inShape.begin(), inShape.end()),
-                                              ngraph::Strides(windowStrides.size(), 1),  // dummy data dilations
-                                              ngraph::CoordinateDiff(dataPaddingBelow.begin(), dataPaddingBelow.end()),
-                                              ngraph::CoordinateDiff(dataPaddingAbove.begin(), dataPaddingAbove.end()),
-                                              ngraph::Shape(filterShape.begin(), filterShape.end()),
-                                              ngraph::Strides(windowStrides.begin(), windowStrides.end()),
-                                              ngraph::Strides(windowDilations.begin(), windowDilations.end()));
+    const auto outputShape = ov::infer_convolution_forward(
+            EmptyNode::instance(), ov::Shape(inShape.begin(), inShape.end()),
+            ov::Strides(windowStrides.size(), 1),  // dummy data dilations
+            ov::CoordinateDiff(dataPaddingBelow.begin(), dataPaddingBelow.end()),
+            ov::CoordinateDiff(dataPaddingAbove.begin(), dataPaddingAbove.end()),
+            ov::Shape(filterShape.begin(), filterShape.end()), ov::Strides(windowStrides.begin(), windowStrides.end()),
+            ov::Strides(windowDilations.begin(), windowDilations.end()));
 
     const auto shapeI64 = to_small_vector(outputShape.get_shape() | transformed([](size_t val) {
                                               return checked_cast<int64_t>(val);
@@ -159,6 +158,7 @@ mlir::LogicalResult vpux::IE::ConvolutionOp::inferReturnTypeComponents(
 void vpux::IE::ConvolutionOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns,
                                                           mlir::MLIRContext* context) {
     patterns.add<FuseConvAndBias>(context);
+    patterns.add<FuseConvAndSlice>(context);
 }
 
 //
@@ -166,8 +166,8 @@ void vpux::IE::ConvolutionOp::getCanonicalizationPatterns(mlir::RewritePatternSe
 //
 
 mlir::LogicalResult vpux::IE::GroupConvolutionOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -176,23 +176,23 @@ mlir::LogicalResult vpux::IE::GroupConvolutionOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    auto inShape = to_small_vector(conv.input().getType().cast<mlir::ShapedType>().getShape());
-    const auto inType = conv.input().getType().cast<mlir::ShapedType>().getElementType();
-    auto filterShape = to_small_vector(conv.filter().getType().cast<mlir::ShapedType>().getShape());
+    auto inShape = to_small_vector(conv.getInput().getType().cast<mlir::ShapedType>().getShape());
+    const auto inType = conv.getInput().getType().cast<mlir::ShapedType>().getElementType();
+    auto filterShape = to_small_vector(conv.getFilter().getType().cast<mlir::ShapedType>().getShape());
 
-    const auto dataPaddingBelow = parseIntArrayAttr<int64_t>(conv.pads_end());
-    const auto dataPaddingAbove = parseIntArrayAttr<int64_t>(conv.pads_begin());
-    const auto windowStrides = parseIntArrayAttr<int64_t>(conv.strides());
-    const auto windowDilations = parseIntArrayAttr<int64_t>(conv.dilations());
+    const auto dataPaddingBelow = parseIntArrayAttr<int64_t>(conv.getPadsEnd());
+    const auto dataPaddingAbove = parseIntArrayAttr<int64_t>(conv.getPadsBegin());
+    const auto windowStrides = parseIntArrayAttr<int64_t>(conv.getStrides());
+    const auto windowDilations = parseIntArrayAttr<int64_t>(conv.getDilations());
 
     int64_t groups = 0;
-    if (conv.groups().value_or(0) != 0) {
+    if (conv.getGroups().value_or(0) != 0) {
         if (filterShape.size() != inShape.size()) {
             return errorAt(loc, "Input size '{0}' does not match filter size '{1}'. (groups != 0)", inShape.size(),
                            filterShape.size());
         }
 
-        groups = conv.groups().value();
+        groups = conv.getGroups().value();
     } else {
         if (filterShape.size() != inShape.size() + 1) {
             return errorAt(loc, "Input size '{0}' does not match filter size '{1}'. (groups == 0)", inShape.size() + 1,
@@ -208,14 +208,13 @@ mlir::LogicalResult vpux::IE::GroupConvolutionOp::inferReturnTypeComponents(
 
     inShape[1] /= groups;
 
-    const auto outputShape =
-            ngraph::infer_convolution_forward(EmptyNode::instance(), ngraph::Shape(inShape.begin(), inShape.end()),
-                                              ngraph::Strides(windowStrides.size(), 1),  // dummy data dilations
-                                              ngraph::CoordinateDiff(dataPaddingBelow.begin(), dataPaddingBelow.end()),
-                                              ngraph::CoordinateDiff(dataPaddingAbove.begin(), dataPaddingAbove.end()),
-                                              ngraph::Shape(filterShape.begin(), filterShape.end()),
-                                              ngraph::Strides(windowStrides.begin(), windowStrides.end()),
-                                              ngraph::Strides(windowDilations.begin(), windowDilations.end()));
+    const auto outputShape = ov::infer_convolution_forward(
+            EmptyNode::instance(), ov::Shape(inShape.begin(), inShape.end()),
+            ov::Strides(windowStrides.size(), 1),  // dummy data dilations
+            ov::CoordinateDiff(dataPaddingBelow.begin(), dataPaddingBelow.end()),
+            ov::CoordinateDiff(dataPaddingAbove.begin(), dataPaddingAbove.end()),
+            ov::Shape(filterShape.begin(), filterShape.end()), ov::Strides(windowStrides.begin(), windowStrides.end()),
+            ov::Strides(windowDilations.begin(), windowDilations.end()));
 
     const auto shapeI64 = to_small_vector(outputShape.get_shape() | transformed([](size_t val) {
                                               return checked_cast<int64_t>(val);
@@ -237,11 +236,11 @@ public:
 
 mlir::LogicalResult GroupsToAttr::matchAndRewrite(IE::GroupConvolutionOp convOp,
                                                   mlir::PatternRewriter& rewriter) const {
-    if (convOp.groups().has_value()) {
+    if (convOp.getGroups().has_value()) {
         return mlir::failure();
     }
 
-    auto filterShape = to_small_vector(convOp.filter().getType().cast<mlir::ShapedType>().getShape());
+    auto filterShape = to_small_vector(convOp.getFilter().getType().cast<mlir::ShapedType>().getShape());
 
     const auto groups = filterShape[0];
 
@@ -250,12 +249,13 @@ mlir::LogicalResult GroupsToAttr::matchAndRewrite(IE::GroupConvolutionOp convOp,
     filterShape.erase(filterShape.begin());
 
     const auto filterShapeAttr = getIntArrayAttr(getContext(), filterShape);
-    auto newFilter = rewriter.create<IE::ReshapeOp>(convOp->getLoc(), convOp.filter(), nullptr, false, filterShapeAttr);
+    auto newFilter =
+            rewriter.create<IE::ReshapeOp>(convOp->getLoc(), convOp.getFilter(), nullptr, false, filterShapeAttr);
 
-    rewriter.replaceOpWithNewOp<IE::GroupConvolutionOp>(convOp, convOp.input(), newFilter.output(), convOp.bias(),
-                                                        convOp.stridesAttr(), convOp.pads_beginAttr(),
-                                                        convOp.pads_endAttr(), convOp.dilationsAttr(),
-                                                        getIntAttr(convOp.getContext(), groups), convOp.post_opAttr());
+    rewriter.replaceOpWithNewOp<IE::GroupConvolutionOp>(
+            convOp, convOp.getInput(), newFilter.getOutput(), convOp.getBias(), convOp.getStridesAttr(),
+            convOp.getPadsBeginAttr(), convOp.getPadsEndAttr(), convOp.getDilationsAttr(),
+            getIntAttr(convOp.getContext(), groups), convOp.getPostOpAttr(), convOp.getClampAttr());
 
     return mlir::success();
 }

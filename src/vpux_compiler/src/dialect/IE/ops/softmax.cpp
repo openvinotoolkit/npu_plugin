@@ -10,8 +10,8 @@
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::SoftMaxOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -20,18 +20,18 @@ mlir::LogicalResult vpux::IE::SoftMaxOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = softMax.input().getType().cast<mlir::ShapedType>();
+    const auto inType = softMax.getInput().getType().cast<mlir::ShapedType>();
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
 
     return mlir::success();
 }
 
-mlir::OpFoldResult vpux::IE::SoftMaxOp::fold(ArrayRef<mlir::Attribute>) {
-    const auto inType = input().getType().cast<mlir::ShapedType>();
+mlir::OpFoldResult vpux::IE::SoftMaxOp::fold(FoldAdaptor) {
+    const auto inType = getInput().getType().cast<mlir::ShapedType>();
     const auto inShape = inType.getShape();
     const auto inRank = inType.getRank();
 
-    auto axis = checked_cast<int64_t>(axisInd());
+    auto axis = checked_cast<int64_t>(getAxisInd());
 
     if (axis < 0) {
         axis += inRank;
@@ -46,7 +46,7 @@ mlir::OpFoldResult vpux::IE::SoftMaxOp::fold(ArrayRef<mlir::Attribute>) {
     const auto valueType = mlir::RankedTensorType::get(inShape, mlir::Float32Type::get(getContext()));
     const auto baseContent = Const::ContentAttr::get(mlir::DenseElementsAttr::get(valueType, 1.0f));
 
-    return baseContent.convertElemType(output().getType().cast<mlir::ShapedType>().getElementType());
+    return baseContent.convertElemType(getOutput().getType().cast<mlir::ShapedType>().getElementType());
 }
 
 //
@@ -64,17 +64,17 @@ public:
 };
 
 mlir::LogicalResult LegalizeAxisInd::matchAndRewrite(IE::SoftMaxOp softmaxOp, mlir::PatternRewriter& rewriter) const {
-    auto inputType = softmaxOp.input().getType().cast<vpux::NDTypeInterface>();
-    int64_t axis = softmaxOp.axisInd();
+    auto inputType = softmaxOp.getInput().getType().cast<vpux::NDTypeInterface>();
+    int64_t axis = softmaxOp.getAxisInd();
 
     if (axis >= 0) {
         return mlir::failure();
     }
 
-    int64_t legalizeAxis = vpux::getPositiveAxisInd(softmaxOp.axisIndAttr(), inputType.getRank());
+    int64_t legalizeAxis = vpux::getPositiveAxisInd(softmaxOp.getAxisIndAttr(), inputType.getRank());
     const auto legalizeAxisAttr = getIntAttr(rewriter.getContext(), legalizeAxis);
 
-    rewriter.replaceOpWithNewOp<IE::SoftMaxOp>(softmaxOp, softmaxOp.input(), legalizeAxisAttr, nullptr);
+    rewriter.replaceOpWithNewOp<IE::SoftMaxOp>(softmaxOp, softmaxOp.getInput(), legalizeAxisAttr, nullptr);
     return mlir::success();
 }
 

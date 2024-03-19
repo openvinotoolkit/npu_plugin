@@ -6,14 +6,8 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
-#include <ngraph/coordinate_diff.hpp>
-#include <ngraph/op/op.hpp>
-
-#include <mlir/IR/BlockAndValueMapping.h>
-#include <mlir/Pass/PassManager.h>
+#include <mlir/IR/IRMapping.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
@@ -48,7 +42,7 @@ mlir::LogicalResult convertGeneric(mlir::Operation* origOp, mlir::ValueRange ope
     const auto origOperands = origOp->getOperands();
     VPUX_THROW_UNLESS(origOperands.size() == operands.size(), "Wrong operands size : {0}", operands.size());
 
-    mlir::BlockAndValueMapping mapper;
+    mlir::IRMapping mapper;
     mapper.map(origOperands, operands);
 
     auto* newOp = rewriter.clone(*origOp, mapper);
@@ -102,26 +96,27 @@ mlir::LogicalResult ConvertScalarToTensorPass::GatherScalarConverter::matchAndRe
     _log.trace("Got '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
 
     vpux::IE::GatherOp newOp;
-    if ((origOp.axis() != nullptr) && (origOp.axis().getType().cast<vpux::NDTypeInterface>().getRank() == 0)) {
+    if ((origOp.getAxis() != nullptr) && (origOp.getAxis().getType().cast<vpux::NDTypeInterface>().getRank() == 0)) {
         const std::array<int64_t, 1> tensorShape = {1};
         const auto shapeAttr = getIntArrayAttr(getContext(), tensorShape);
 
-        _log.nest().trace("New axis type '{0}'", newArgs.axis().getType());
+        _log.nest().trace("New axis type '{0}'", newArgs.getAxis().getType());
 
-        auto axisReshape = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), newArgs.axis().getType(), origOp.axis(),
-                                                          nullptr, true, shapeAttr);
-        newOp = rewriter.create<IE::GatherOp>(origOp.getLoc(), origOp.input(), newArgs.indices(), axisReshape.output(),
-                                              origOp.axis_valueAttr(), origOp.batch_dims());
+        auto axisReshape = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), newArgs.getAxis().getType(),
+                                                          origOp.getAxis(), nullptr, true, shapeAttr);
+        newOp = rewriter.create<IE::GatherOp>(origOp.getLoc(), origOp.getInput(), newArgs.getIndices(),
+                                              axisReshape.getOutput(), origOp.getAxisValueAttr(),
+                                              origOp.getBatchDims());
     } else {
-        newOp = rewriter.create<IE::GatherOp>(origOp.getLoc(), origOp.input(), newArgs.indices(), nullptr,
-                                              origOp.axis_valueAttr(), origOp.batch_dims());
+        newOp = rewriter.create<IE::GatherOp>(origOp.getLoc(), origOp.getInput(), newArgs.getIndices(), nullptr,
+                                              origOp.getAxisValueAttr(), origOp.getBatchDims());
     }
-    _log.nest().trace("New indices type '{0}'", newArgs.indices().getType());
+    _log.nest().trace("New indices type '{0}'", newArgs.getIndices().getType());
 
-    const auto origShapeAttr = getIntArrayAttr(origOp->getContext(), getShape(origOp.output()));
-    auto reshapeOp = rewriter.create<IE::ReshapeOp>(origOp.getLoc(), origOp.getType(), newOp.output(), nullptr, nullptr,
-                                                    origShapeAttr);
-    rewriter.replaceOp(origOp, reshapeOp.output());
+    const auto origShapeAttr = getIntArrayAttr(origOp->getContext(), getShape(origOp.getOutput()));
+    auto reshapeOp = rewriter.create<IE::ReshapeOp>(origOp.getLoc(), origOp.getType(), newOp.getOutput(), nullptr,
+                                                    nullptr, origShapeAttr);
+    rewriter.replaceOp(origOp, reshapeOp.getOutput());
 
     return mlir::success();
 }

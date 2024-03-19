@@ -55,6 +55,8 @@ public:
         for (const auto& gap : _p.gaps()) {
             assert(!Partitioner::intersects(addr, size, gap.begin, gap.size()));
         }
+#else
+        VPUX_UNUSED(_p);
 #endif
     }
 

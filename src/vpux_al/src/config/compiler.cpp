@@ -25,7 +25,7 @@ void vpux::registerCompilerOptions(OptionsDesc& desc) {
 // COMPILER_TYPE
 //
 
-StringLiteral InferenceEngine::VPUXConfigParams::stringifyEnum(InferenceEngine::VPUXConfigParams::CompilerType val) {
+std::string_view InferenceEngine::VPUXConfigParams::stringifyEnum(InferenceEngine::VPUXConfigParams::CompilerType val) {
     switch (val) {
     case InferenceEngine::VPUXConfigParams::CompilerType::MLIR:
         return "MLIR";
@@ -36,7 +36,7 @@ StringLiteral InferenceEngine::VPUXConfigParams::stringifyEnum(InferenceEngine::
     }
 }
 
-InferenceEngine::VPUXConfigParams::CompilerType vpux::COMPILER_TYPE::parse(StringRef val) {
+InferenceEngine::VPUXConfigParams::CompilerType vpux::COMPILER_TYPE::parse(std::string_view val) {
     if (val == stringifyEnum(InferenceEngine::VPUXConfigParams::CompilerType::MLIR)) {
         return InferenceEngine::VPUXConfigParams::CompilerType::MLIR;
     } else if (val == stringifyEnum(InferenceEngine::VPUXConfigParams::CompilerType::DRIVER)) {
@@ -46,11 +46,24 @@ InferenceEngine::VPUXConfigParams::CompilerType vpux::COMPILER_TYPE::parse(Strin
     VPUX_THROW("Value '{0}' is not a valid COMPILER_TYPE option", val);
 }
 
+std::string vpux::COMPILER_TYPE::toString(const InferenceEngine::VPUXConfigParams::CompilerType& val) {
+    std::stringstream strStream;
+    if (val == InferenceEngine::VPUXConfigParams::CompilerType::MLIR) {
+        strStream << "MLIR";
+    } else if (val == InferenceEngine::VPUXConfigParams::CompilerType::DRIVER) {
+        strStream << "DRIVER";
+    } else {
+        OPENVINO_THROW("No valid string for current LOG_LEVEL option");
+    }
+
+    return strStream.str();
+}
+
 //
 // USE_ELF_COMPILER_BACKEND
 //
 
-StringLiteral InferenceEngine::VPUXConfigParams::stringifyEnum(
+std::string_view InferenceEngine::VPUXConfigParams::stringifyEnum(
         InferenceEngine::VPUXConfigParams::ElfCompilerBackend val) {
     switch (val) {
     case InferenceEngine::VPUXConfigParams::ElfCompilerBackend::AUTO:
@@ -64,7 +77,7 @@ StringLiteral InferenceEngine::VPUXConfigParams::stringifyEnum(
     }
 }
 
-InferenceEngine::VPUXConfigParams::ElfCompilerBackend vpux::USE_ELF_COMPILER_BACKEND::parse(StringRef val) {
+InferenceEngine::VPUXConfigParams::ElfCompilerBackend vpux::USE_ELF_COMPILER_BACKEND::parse(std::string_view val) {
     if (val == stringifyEnum(InferenceEngine::VPUXConfigParams::ElfCompilerBackend::AUTO)) {
         return InferenceEngine::VPUXConfigParams::ElfCompilerBackend::AUTO;
     } else if (val == stringifyEnum(InferenceEngine::VPUXConfigParams::ElfCompilerBackend::NO)) {
@@ -74,4 +87,19 @@ InferenceEngine::VPUXConfigParams::ElfCompilerBackend vpux::USE_ELF_COMPILER_BAC
     }
 
     VPUX_THROW("Value '{0}' is not a valid USE_ELF_COMPILER_BACKEND option", val);
+}
+
+std::string vpux::USE_ELF_COMPILER_BACKEND::toString(const InferenceEngine::VPUXConfigParams::ElfCompilerBackend& val) {
+    std::stringstream strStream;
+    if (val == InferenceEngine::VPUXConfigParams::ElfCompilerBackend::AUTO) {
+        strStream << "AUTO";
+    } else if (val == InferenceEngine::VPUXConfigParams::ElfCompilerBackend::NO) {
+        strStream << "NO";
+    } else if (val == InferenceEngine::VPUXConfigParams::ElfCompilerBackend::YES) {
+        strStream << "YES";
+    } else {
+        OPENVINO_THROW("No valid string for current USE_ELF_COMPILER_BACKEND option");
+    }
+
+    return strStream.str();
 }

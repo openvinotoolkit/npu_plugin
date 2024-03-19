@@ -1,90 +1,82 @@
 //
-// Copyright (C) 2022 Intel Corporation.
+// Copyright (C) 2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
 #include "vpux/compiler/utils/constant_fusion.hpp"
+#include "vpux/compiler/dialect/VPU/utils/explicit_distribution_utils.hpp"
 #include "vpux/utils/IE/float16.hpp"
 
 using namespace vpux;
 
-void ConstantFusing::convertInputToI32(Const::details::ContentRange<uint8_t>& inValues,
-                                       std::vector<int32_t>& outValues) {
-    auto size = inValues.size();
-    VPUX_THROW_UNLESS(size % 4 == 0, "size of inValues expected to be multiple of 4 but found {0}", size);
-    for (auto i = 0; i < static_cast<int>(size); i += 4) {
-        const uint32_t i32 =
-                (inValues[i + 0] << 0) | (inValues[i + 1] << 8) | (inValues[i + 2] << 16) | (inValues[i + 3] << 24);
-        outValues.push_back(i32);
-    }
-}
-
-// This function is a recursive helper implementation of getConstAndCopyOp
+// This function is a recursive helper implementation of getConstAndDma
 // It keeps on parsing the parent op and looks for the DeclareOp
-// Once found stores the copyOp and returns the delcare Op
-Const::DeclareOp getConstAndCopyOpRecImpl(mlir::BlockArgument arg, mlir::async::ExecuteOp execParentOp,
-                                          VPUIP::CopyOp& constCopyOp) {
+// Once found stores the Op and returns the delcare Op
+Const::DeclareOp getConstAndDmaRecImpl(mlir::BlockArgument arg, mlir::async::ExecuteOp execParentOp,
+                                       mlir::Operation** constOp) {
     if (arg == nullptr || execParentOp == nullptr) {
         return nullptr;
     }
 
     // Adjust the index by adding dependencies size
-    auto dependenciesSize = execParentOp.dependencies().size();
+    auto dependenciesSize = execParentOp.getDependencies().size();
     auto indexOfFusedConstant = arg.getArgNumber() + static_cast<int32_t>(dependenciesSize);
 
     // GoTo parent of the arg
     auto tempExecOp = execParentOp->getOperand(indexOfFusedConstant).getDefiningOp<mlir::async::ExecuteOp>();
-    auto* tempBodyBlock = &tempExecOp.body().front();
+    auto* tempBodyBlock = tempExecOp.getBody();
     for (auto& tempOp : tempBodyBlock->getOperations()) {
         auto tilingOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(tempOp);
-        auto copyOp = tilingOp ? mlir::dyn_cast<VPUIP::CopyOp>(tilingOp.getInnerTaskOp())
-                               : mlir::dyn_cast<VPUIP::CopyOp>(tempOp);
-        if (copyOp == nullptr) {
+        auto* op = tilingOp ? tilingOp.getInnerTaskOp() : &tempOp;
+        if (!mlir::isa<VPUIP::CopyOp, VPUIP::NNDMAOp>(op)) {
             continue;
         }
 
-        auto type = copyOp.getType();
+        auto type = op->getResult(0).getType();
         if (auto ndType = type.cast<vpux::NDTypeInterface>()) {
-            // For constant fusion this should always be U8
-            if (!ndType.getElementType().isUnsignedInteger(8)) {
+            // For constant fusion this should always be U8 or F16
+            if (!ndType.getElementType().isUnsignedInteger(8) && !ndType.getElementType().isF16()) {
                 continue;
             }
 
-            auto cstValue = copyOp.input();
+            auto cstValue = mlir::dyn_cast<VPUIP::LayerOpInterface>(op).getInputs()[0];
             if (tilingOp) {
-                auto blkArg = copyOp.input().cast<mlir::BlockArgument>();
+                auto blkArg = mlir::dyn_cast<VPUIP::LayerOpInterface>(op).getInputs()[0].cast<mlir::BlockArgument>();
                 cstValue = tilingOp->getOperand(blkArg.getArgNumber());
             }
 
             if (auto constDeclareOp = cstValue.getDefiningOp<Const::DeclareOp>()) {
-                constCopyOp = copyOp;
+                *constOp = op;
                 return constDeclareOp;
             }
 
-            // CopyOp is produced by other operation. By checking other users of this buffer
-            // identify the one with const as input which would be the initial copyOp loading searched constant
-            auto lookUp = tilingOp ? tilingOp.getOperand(0) : copyOp.input();
+            // Op is produced by other operation. By checking other users of this buffer
+            // identify the one with const as input which would be the initial op loading searched constant
+            auto lookUp =
+                    tilingOp ? tilingOp.getOperand(0) : mlir::dyn_cast<VPUIP::LayerOpInterface>(op).getInputs()[0];
             for (auto user : lookUp.getUsers()) {
                 if (auto userTilingOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(user)) {
                     auto newDecOp = userTilingOp.getOperand(0).getDefiningOp<Const::DeclareOp>();
                     if (newDecOp != nullptr) {
-                        constCopyOp = mlir::dyn_cast<VPUIP::CopyOp>(userTilingOp.getInnerTaskOp());
+                        *constOp = userTilingOp.getInnerTaskOp();
                         return newDecOp;
                     }
                 }
-                if (auto iCopyOp = mlir::dyn_cast<VPUIP::CopyOp>(user)) {
-                    if (auto newDecOp = iCopyOp.input().getDefiningOp<Const::DeclareOp>()) {
-                        constCopyOp = iCopyOp;
+                if (mlir::isa<VPUIP::CopyOp, VPUIP::NNDMAOp>(user)) {
+                    if (auto newDecOp = mlir::dyn_cast<VPUIP::LayerOpInterface>(user)
+                                                .getInputs()[0]
+                                                .getDefiningOp<Const::DeclareOp>()) {
+                        *constOp = user;
                         return newDecOp;
                     }
                 }
             }
 
-            // CopyOp wrapped in async.execute has input but not found in this block
+            // Op wrapped in async.execute has input but not found in this block
             // continue traversing by checking producer/parent of this argument
-            arg = copyOp.input().dyn_cast<mlir::BlockArgument>();
-            execParentOp = copyOp->getParentOfType<mlir::async::ExecuteOp>();
-            return getConstAndCopyOpRecImpl(arg, execParentOp, constCopyOp);
+            arg = mlir::dyn_cast<VPUIP::LayerOpInterface>(op).getInputs()[0].dyn_cast<mlir::BlockArgument>();
+            execParentOp = op->getParentOfType<mlir::async::ExecuteOp>();
+            return getConstAndDmaRecImpl(arg, execParentOp, constOp);
         }
     }
     return nullptr;
@@ -92,8 +84,8 @@ Const::DeclareOp getConstAndCopyOpRecImpl(mlir::BlockArgument arg, mlir::async::
 
 // Get the underlying Declare and Copy Op for the constant passed
 // If not found on the first level recursively parse the parents of the Op until a DeclareOp is found
-Const::DeclareOp ConstantFusing::getConstAndCopyOp(VPUIP::NCEClusterTaskOp nceOp, mlir::Value constant,
-                                                   VPUIP::CopyOp& constCopyOp) {
+Const::DeclareOp ConstantFusing::getConstAndDma(VPUIP::NCEClusterTaskOp nceOp, mlir::Value constant,
+                                                mlir::Operation** constOp) {
     Const::DeclareOp constDeclareOp = nullptr;
     VPUIP::ViewOp viewOp = nullptr;
 
@@ -111,20 +103,20 @@ Const::DeclareOp ConstantFusing::getConstAndCopyOp(VPUIP::NCEClusterTaskOp nceOp
         VPUX_THROW_UNLESS(viewOp != nullptr, "Constant found without a ViewOp");
     }
 
-    auto subViewOp = viewOp.source().getDefiningOp<VPUIP::SubViewOp>();
+    auto subViewOp = viewOp.getSource().getDefiningOp<VPUIP::SubViewOp>();
     VPUX_THROW_UNLESS(subViewOp != nullptr, "SubViewOp expected as source for ViewOp for tensor fusion");
-    mlir::Value source = subViewOp.source();
+    mlir::Value source = subViewOp.getSource();
 
     if (mlir::BlockArgument arg = source.dyn_cast<mlir::BlockArgument>()) {
-        // CopyOp wrapped in async.execute has input continue traversing by checking producer of this argument
+        // Op wrapped in async.execute has input continue traversing by checking producer of this argument
         auto execParentOp = subViewOp->getParentOfType<mlir::async::ExecuteOp>();
-        return getConstAndCopyOpRecImpl(arg, execParentOp, constCopyOp);
+        return getConstAndDmaRecImpl(arg, execParentOp, constOp);
     }
 
     if (auto declareBuffer = source.getDefiningOp<VPURT::DeclareBufferOp>()) {
         for (auto user : declareBuffer->getUsers()) {
             if (auto clusterOp = mlir::dyn_cast_or_null<VPUIP::NCEClusterTilingOp>(user)) {
-                constCopyOp = clusterOp.getInnerTaskOpOfType<VPUIP::CopyOp>();
+                *constOp = clusterOp.getInnerTaskOp();
                 constDeclareOp = clusterOp.getOperand(0).getDefiningOp<Const::DeclareOp>();
                 break;
             }
@@ -134,38 +126,40 @@ Const::DeclareOp ConstantFusing::getConstAndCopyOp(VPUIP::NCEClusterTaskOp nceOp
     if (auto allocDistributed = source.getDefiningOp<VPURT::AllocDistributed>()) {
         for (auto user : allocDistributed->getUsers()) {
             if (auto clusterOp = mlir::dyn_cast_or_null<VPUIP::NCEClusterTilingOp>(user)) {
-                constCopyOp = clusterOp.getInnerTaskOpOfType<VPUIP::CopyOp>();
+                *constOp = clusterOp.getInnerTaskOp();
                 constDeclareOp = clusterOp.getOperand(0).getDefiningOp<Const::DeclareOp>();
                 break;
             }
         }
     }
 
-    if (auto copyOp = source.getDefiningOp<VPUIP::CopyOp>()) {
-        constDeclareOp = copyOp.input().getDefiningOp<Const::DeclareOp>();
+    if (auto* op = source.getDefiningOp()) {
+        constDeclareOp = mlir::dyn_cast<VPUIP::LayerOpInterface>(op).getInputs()[0].getDefiningOp<Const::DeclareOp>();
 
         while (constDeclareOp == nullptr) {
-            copyOp = copyOp.input().getDefiningOp<VPUIP::CopyOp>();
-            VPUX_THROW_UNLESS(copyOp != nullptr, "Next CopyOp as source operation expected");
+            op = mlir::dyn_cast<VPUIP::LayerOpInterface>(op).getInputs()[0].getDefiningOp();
+            VPUX_THROW_UNLESS(op != nullptr, "Next CopyOp or NNDMAOp as source operation expected");
 
-            constDeclareOp = copyOp.input().getDefiningOp<Const::DeclareOp>();
+            constDeclareOp =
+                    mlir::dyn_cast<VPUIP::LayerOpInterface>(op).getInputs()[0].getDefiningOp<Const::DeclareOp>();
         }
-        constCopyOp = copyOp;
+        *constOp = op;
     }
 
     if (auto clusterOp = source.getDefiningOp<VPUIP::NCEClusterTilingOp>()) {
-        VPUX_THROW_WHEN(clusterOp.inputs().empty(), "NCEClusterTiling op has no inputs - '{0}'", clusterOp->getLoc());
-        constDeclareOp = clusterOp.inputs()[0].getDefiningOp<Const::DeclareOp>();
+        VPUX_THROW_WHEN(clusterOp.getInputs().empty(), "NCEClusterTiling op has no inputs - '{0}'",
+                        clusterOp->getLoc());
+        constDeclareOp = clusterOp.getInputs()[0].getDefiningOp<Const::DeclareOp>();
 
         while (constDeclareOp == nullptr) {
-            clusterOp = clusterOp.inputs()[0].getDefiningOp<VPUIP::NCEClusterTilingOp>();
+            clusterOp = clusterOp.getInputs()[0].getDefiningOp<VPUIP::NCEClusterTilingOp>();
             VPUX_THROW_UNLESS(clusterOp != nullptr, "Next NCEClusterTiling as source operation expected");
 
-            VPUX_THROW_WHEN(clusterOp.inputs().empty(), "NCEClusterTiling op has no inputs - '{0}'",
+            VPUX_THROW_WHEN(clusterOp.getInputs().empty(), "NCEClusterTiling op has no inputs - '{0}'",
                             clusterOp->getLoc());
-            constDeclareOp = clusterOp.inputs()[0].getDefiningOp<Const::DeclareOp>();
+            constDeclareOp = clusterOp.getInputs()[0].getDefiningOp<Const::DeclareOp>();
         }
-        constCopyOp = clusterOp.getInnerTaskOpOfType<VPUIP::CopyOp>();
+        *constOp = clusterOp.getInnerTaskOp();
     }
     return constDeclareOp;
 }
@@ -187,10 +181,10 @@ int32_t ConstantFusing::getOffsetForConstant(VPUIP::NCEClusterTaskOp& nceOp, mli
         VPUX_THROW_UNLESS(viewOp != nullptr, "Getting Offset: Constant found without a ViewOp");
     }
 
-    auto subViewOp = viewOp.source().getDefiningOp<VPUIP::SubViewOp>();
+    auto subViewOp = viewOp.getSource().getDefiningOp<VPUIP::SubViewOp>();
     VPUX_THROW_UNLESS(subViewOp != nullptr, "SubViewOp expected as source for ViewOp for tensor fusion");
 
-    auto offsets = subViewOp.static_offsets();
+    auto offsets = subViewOp.getStaticOffsets();
     return parseIntArrayAttr<int32_t>(offsets).back();
 }
 
@@ -203,21 +197,36 @@ VPUIP::DistributedBufferType ConstantFusing::getDistributedBufferType(VPUIP::Dis
     const auto order = typeInterface.getDimsOrder();
     const auto orderAttr = mlir::AffineMapAttr::get(order.toAffineMap(ctx));
     const auto strides = typeInterface.getStrides();
-    const auto elemSize = typeInterface.getElemTypeSize();
+    const Bit elemSize = typeInterface.getElemTypeSize();
 
     const auto elemStrides = to_small_vector(strides | transformed([&](Bit stride) {
                                                  return stride.count() / elemSize.count();
                                              }));
 
     const auto stridesAttr = getIntArrayAttr(ctx, elemStrides);
-    const auto layoutAttr = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr,
-                                                   /*allocSize=*/nullptr, ctx);
+    const auto layoutAttr = vpux::MemRefAttr::get(orderAttr, stridesAttr,
+                                                  /*allocSize=*/nullptr, ctx);
 
     vpux::IndexedSymbolAttr memKindAttr =
             IndexedSymbolAttr::get(rewriter.getContext(), stringifyEnum(VPU::MemoryKind::CMX_NN));
 
     // Create updated distributedTensorAttr, remove alignment as the fused buffer is a flat buffer
     auto origDistributedTensorAttr = origDistType.getDistribution();
+
+    if (VPU::isDistributedAttrWithExplicitShapesAndOffsets(origDistributedTensorAttr)) {
+        VPUX_THROW_WHEN(origDistributedTensorAttr.getMode().getValue() != VPU::DistributionMode::DUPLICATED,
+                        "DistributedBuffer for fused constant has mode different from DUPLICATED, type = {0}",
+                        origDistType);
+
+        auto newDistribution =
+                VPU::getNonOverlappedDistributedAttr(typeInterface.getShape(), origDistributedTensorAttr.getMode(),
+                                                     nullptr, origDistributedTensorAttr.getNumClusters(), nullptr,
+                                                     origDistributedTensorAttr.getUniformDistributedSegments(), ctx);
+
+        return VPUIP::DistributedBufferType::get(ctx, typeInterface.getShape().raw(), typeInterface.getElementType(),
+                                                 layoutAttr, memKindAttr, newDistribution);
+    }
+
     auto distributedTensorAttr = VPU::DistributedTensorAttr::get(
             ctx, origDistributedTensorAttr.getMode(), origDistributedTensorAttr.getNumTiles(), nullptr, nullptr,
             nullptr, origDistributedTensorAttr.getNumClusters(), nullptr,
@@ -250,11 +259,11 @@ void ConstantFusing::getCopyAndDeclareOpForFusion(VPUIP::NCEClusterTaskOp& nceOp
         }
 
         // Get distribution mode
-        foundAllocDistributed = tilingOp.output_buffs()[0].getDefiningOp<VPURT::AllocDistributed>();
+        foundAllocDistributed = tilingOp.getOutputBuffs()[0].getDefiningOp<VPURT::AllocDistributed>();
         auto inputType = foundAllocDistributed.getType().dyn_cast<VPUIP::DistributedBufferType>();
         auto isDuplicated = inputType.getDistribution().getMode().getValue() == VPU::DistributionMode::DUPLICATED;
 
-        // Only Fuse if the constants are broadcasted/duplcicated
+        // Only Fuse if the constants are broadcasted/duplicated
         if (isDuplicated) {
             copyOp = tilingOp.getInnerTaskOpOfType<VPUIP::CopyOp>();
             declareOp = tilingOp.getOperand(0).getDefiningOp<Const::DeclareOp>();
@@ -264,18 +273,17 @@ void ConstantFusing::getCopyAndDeclareOpForFusion(VPUIP::NCEClusterTaskOp& nceOp
         auto tempCopyOp = constant.getDefiningOp<VPUIP::CopyOp>();
         if (tempCopyOp != nullptr) {
             copyOp = tempCopyOp;
-            declareOp = copyOp.input().getDefiningOp<Const::DeclareOp>();
+            declareOp = copyOp.getInput().getDefiningOp<Const::DeclareOp>();
 
             while (declareOp == nullptr) {
+                copyOp = copyOp.getInput().getDefiningOp<VPUIP::CopyOp>();
                 // If this is the case then the constant is not spilled, To be handled with E#45105
-                if (VPUIP::isPureViewOp(copyOp.input().getDefiningOp())) {
+                if (copyOp == nullptr) {
                     // Return nullptr, will skip fusion for this layer
                     break;
                 }
-                copyOp = copyOp.input().getDefiningOp<VPUIP::CopyOp>();
-                VPUX_THROW_UNLESS(copyOp != nullptr, "Next CopyOp as source operation expected");
 
-                declareOp = copyOp.input().getDefiningOp<Const::DeclareOp>();
+                declareOp = copyOp.getInput().getDefiningOp<Const::DeclareOp>();
             }
         }
     }

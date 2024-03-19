@@ -5,9 +5,9 @@
 
 #pragma once
 
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/dialect/VPU/ops.hpp"
-#include "vpux/compiler/dialect/VPU/vertical_fusion_storage.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/ops.hpp"
+#include "vpux/compiler/dialect/VPU/utils/vertical_fusion_storage.hpp"
 
 namespace vpux {
 namespace VPU {
@@ -15,6 +15,10 @@ namespace VPU {
 // for now there is restriction for number of operations
 // which might need bigger input size
 constexpr int64_t MAXIMUM_VF_LENGTH = 3;
+
+// the length of VF pipelining pattern
+// should match the pattern DPU-SW-DPU for now
+constexpr int64_t VF_PIPELINE_LENGTH = 3;
 
 // min length of tensor by tiled axis. It limits number of tiles
 // which we may increase in order to fit in CMX
@@ -48,13 +52,50 @@ mlir::FailureOr<TilingStorage> calculateTilingRegions(VPU::VerticalFusionOp vfOp
 // function builds connection between block arguments and tiles
 // in case TilingOperationStorage pointer was passed, it filles in connection between each operation and
 // its input and output tiles
-mlir::FailureOr<TilingStorage> calculateTilingRegions(VPU::TilingBuilderOpInterface tilingBuilderOp,
-                                                      const OutputTiling& tiles, Logger log,
+mlir::FailureOr<TilingStorage> calculateTilingRegions(mlir::Operation* operation, const OutputTiling& tiles, Logger log,
                                                       const TilingOperationStorage::UPtr& opStorage = nullptr,
-                                                      mlir::Optional<size_t> numTile = None);
+                                                      std::optional<size_t> numTile = std::nullopt);
 
 // calculate limit for number of tiles for set of operations
 int64_t getTilingLimit(Dim axis, ArrayRef<mlir::Operation*> operations);
+
+// get the maximal valid tiling strategy for VF block between the given range of tiling strategy
+mlir::FailureOr<SmallVector<int64_t>> getMaximalValidTilingStrategyFromRange(
+        VPU::VerticalFusionOp op, ArrayRef<int64_t> lowerTilingStrategy, ArrayRef<int64_t> upperTilingStrategy,
+        Dim tilingAxis, TilingOperationStorage::UPtr& opStorage, Logger log);
+
+// get the minimal valid tiling strategy for VF block between the given range of tiling strategy
+mlir::FailureOr<SmallVector<int64_t>> getMinimalValidTilingStrategyFromRange(
+        VPU::VerticalFusionOp op, ArrayRef<int64_t> lowerTilingStrategy, ArrayRef<int64_t> upperTilingStrategy,
+        Dim tilingAxis, TilingOperationStorage::UPtr& opStorage, Logger log);
+
+// get the tiling dimension according to the tiling strategy
+// return nullopt if there is no tiling
+std::optional<Dim> getVFTilingDim(ArrayRef<int64_t> tilingStrategy);
+
+// get dim for tiling from strategy. in case there is no particular dimension,
+// get it from available dimensions of all operations in the subgraph
+mlir::FailureOr<Dim> getVFTilingDim(ArrayRef<int64_t> tilingStrategy, ArrayRef<mlir::Operation*> operations);
+
+// get allowed dims for tiling
+DimArr getAllowedDims(ArrayRef<mlir::Operation*> operations, Logger log);
+
+// get operations list from VF subgraph
+SmallVector<mlir::Operation*> getVFOperations(VPU::VerticalFusionOp op);
+
+// calculate limit for number of tiles that can be supported by all operations in the VF block and all operations can
+// fit into CMX with it
+mlir::FailureOr<int64_t> getValidTilingLimit(VPU::VerticalFusionOp op, const Dim axis, Logger log);
+
+// get the operation that consumes the largest memory in the VF block
+mlir::Operation* getLargestOp(VPU::VerticalFusionOp op);
+
+// check if the VF subgraph matches the VF pipeline pattern DPU-SW-DPU
+bool isVFPipelinePattern(VPU::VerticalFusionOp op);
+
+// function merges operations to VF
+void fuseOpsInBlock(mlir::PatternRewriter& rewriter, VPU::VerticalFusionOp vfOp, mlir::Operation* prevOp,
+                    mlir::ArrayAttr tilingInfo = nullptr);
 
 }  // namespace VPU
 }  // namespace vpux

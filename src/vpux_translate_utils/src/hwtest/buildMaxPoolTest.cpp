@@ -9,8 +9,9 @@
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/Support/DebugStringHelper.h>
 
-#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
-#include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/IE/utils/resources.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
@@ -18,6 +19,7 @@
 #include "vpux/compiler/utils/types.hpp"
 #include "vpux/hwtest/hwtest_utils.hpp"
 #include "vpux/utils/core/error.hpp"
+#include "vpux/utils/core/numeric.hpp"
 
 namespace vpux {
 namespace hwtest {
@@ -26,176 +28,351 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
                   Logger& log, mlir::Type inputType, mlir::Type outputType) {
     auto* ctx = builder.getContext();
 
+    const auto arch = testDesc.getArchitecture();
+    auto profilingParams = testDesc.getProfilingParams();
     auto input = testDesc.getInputLayerList().front();
-    auto pool_op = testDesc.getPoolLayer();
+    auto poolOp = testDesc.getPoolLayer();
     auto output = testDesc.getOutputLayers().front();
 
-    SmallVector<int64_t> in_shape(input.shape.begin(), input.shape.end());
-    SmallVector<int64_t> out_shape(output.shape.begin(), output.shape.end());
+    SmallVector<int64_t> inputShape(input.shape.begin(), input.shape.end());
+    SmallVector<int64_t> outputShape(output.shape.begin(), output.shape.end());
 
-    VPUX_THROW_UNLESS(in_shape.size() >= 4, "buildMaxPool: Input rank is less than 4");
-    VPUX_THROW_UNLESS(out_shape.size() >= 4, "buildMaxPool: Output rank is less than 4");
+    // Allocate a buffer to store N DMA HW profiling entries
+    const size_t HWP_DMA_BUFFER_SIZE = 4;
 
-    std::vector<int64_t> filter_size{pool_op.kernel_shape.at(0), pool_op.kernel_shape.at(1)};
-    std::vector<int64_t> stride_vec(pool_op.stride.begin(), pool_op.stride.end());
-    std::vector<int64_t> padding_vec = convertNBPadtoNCETaskPad(pool_op.pad);
+    int64_t dmaProfilingBufferSizeBytes = 0;
+    int64_t dpuProfilingBufferSizeBytes = 0;
+    int64_t workpointProfilingBufferSizeBytes = 0;
+    int64_t totalProfilingBufferSizeBytes = 0;
+    if (profilingParams.dpuProfilingEnabled) {
+        dpuProfilingBufferSizeBytes = HWP_DPU_BYTES_PER_ENTRY;
+        totalProfilingBufferSizeBytes += dpuProfilingBufferSizeBytes;
+    }
+    if (profilingParams.dmaProfilingEnabled) {
+        totalProfilingBufferSizeBytes =
+                vpux::alignValUp(totalProfilingBufferSizeBytes, Byte(HWP_DMA_BYTES_PER_ENTRY).count());
+        dmaProfilingBufferSizeBytes = HWP_DMA_BYTES_PER_ENTRY * (HWP_DMA_BUFFER_SIZE + 1);
+        totalProfilingBufferSizeBytes += dmaProfilingBufferSizeBytes;
+    }
+    if (profilingParams.workpointEnabled) {
+        totalProfilingBufferSizeBytes =
+                vpux::alignValUp(totalProfilingBufferSizeBytes, Byte(HWP_PLL_WORKPOINT_BYTES_PER_ENTRY).count());
+        workpointProfilingBufferSizeBytes = HWP_PLL_WORKPOINT_BYTES_PER_ENTRY;
+        totalProfilingBufferSizeBytes += workpointProfilingBufferSizeBytes;
+    }
 
-    auto input_totalsize = totalTensorSize(in_shape, inputType);
-    auto output_totalsize = totalTensorSize(out_shape, outputType);
+    SmallVector<int64_t> dpuProfShapeUI64{dpuProfilingBufferSizeBytes / 8};
+    SmallVector<int64_t> dmaProfShapeUI64{dmaProfilingBufferSizeBytes / 8};
+    SmallVector<int64_t> workpointProfShapeUI64{workpointProfilingBufferSizeBytes / 8};
+
+    SmallVector<int64_t> profilingOutputShapeUI64{totalProfilingBufferSizeBytes / 8};
+
+    VPUX_THROW_UNLESS(inputShape.size() >= 4, "buildMaxPool: Input rank is less than 4");
+    VPUX_THROW_UNLESS(outputShape.size() >= 4, "buildMaxPool: Output rank is less than 4");
+
+    std::vector<int64_t> filterSize{poolOp.kernel_shape.at(0), poolOp.kernel_shape.at(1)};
+    std::vector<int64_t> strideVec(poolOp.stride.begin(), poolOp.stride.end());
+    std::vector<int64_t> paddingVec = convertNBPadtoNCETaskPad(poolOp.pad);
+
+    auto inputTotalSize = totalTensorSize(inputShape, inputType);
+    auto outputTotalSize = totalTensorSize(outputShape, outputType);
+    auto profOutputTotalSize = totalTensorSize(profilingOutputShapeUI64, getUInt64Type(ctx));
 
     const auto OUTPUT_CMX_OFFSET = 0;
-    const auto INPUT0_CMX_OFFSET = OUTPUT_CMX_OFFSET + output_totalsize;
-    const auto ACTIVATIONWINDOW_CMX_OFFSET = INPUT0_CMX_OFFSET + input_totalsize;
+    const auto INPUT0_CMX_OFFSET = OUTPUT_CMX_OFFSET + outputTotalSize;
+    const auto PROF_OUTPUT_CMX_OFFSET = INPUT0_CMX_OFFSET + inputTotalSize;
+    const auto ACTIVATIONWINDOW_CMX_OFFSET = PROF_OUTPUT_CMX_OFFSET + profOutputTotalSize;
 
-    SmallVector<mlir::Type> inputTypes;
-    inputTypes.push_back(getMemRefType(VPURT::BufferSection::NetworkInput, in_shape, inputType, DimsOrder::NHWC));
+    auto inputParamType = getMemRefType(VPURT::BufferSection::NetworkInput, inputShape, inputType, DimsOrder::NHWC);
+    auto outputParamType = getMemRefType(VPURT::BufferSection::NetworkOutput, outputShape, outputType, DimsOrder::NHWC);
+    auto profOutputParamType = getMemRefType(VPURT::BufferSection::ProfilingOutput, profilingOutputShapeUI64,
+                                             getUInt64Type(ctx), DimsOrder::C);
+    int32_t dmaHwpId = 0;
 
-    auto outputParamType = getMemRefType(VPURT::BufferSection::NetworkOutput, out_shape, outputType, DimsOrder::NHWC);
-    inputTypes.push_back(outputParamType);
+    SmallVector<mlir::Type> inputTypes{inputParamType, outputParamType};
+    SmallVector<mlir::Type> outputTypes{outputParamType};
+    if (profilingParams.profilingEnabled()) {
+        inputTypes.push_back(profOutputParamType);
+        outputTypes.push_back(profOutputParamType);
+    }
 
-    const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
+    const auto funcType = builder.getFunctionType(ArrayRef(inputTypes), ArrayRef(outputTypes));
 
-    auto func = builder.create<mlir::func::FuncOp>(builder.getUnknownLoc(),
-                                                   printToString("maxpool_{0}_{1}", inputType, outputType), funcType,
-                                                   builder.getStringAttr("private"));
+    auto func = builder.create<mlir::func::FuncOp>(
+            builder.getUnknownLoc(), printToString("maxpool_{0}_{1}", inputType, outputType), funcType,
+            builder.getStringAttr("private"), /*arg_attrs=*/nullptr, /*res_attrs=*/nullptr);
 
-    auto funcbuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());
+    auto funcBuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());
 
     // Build VPUIP ops
-    auto funcinput0 = func.getArgument(0);
-    auto funcoutput = func.getArgument(1);
+    auto funcInput0 = func.getArgument(0);
+    auto funcOutput = func.getArgument(1);
+    auto funcProfOutput = profilingParams.profilingEnabled() ? func.getArgument(2) : nullptr;
 
     // input - output cmx tensors
-    auto input0cmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, 0, in_shape, inputType, DimsOrder::NHWC);
-    auto input0cmx =
-            createDeclareTensorOp(funcbuilder, input0cmx_type, VPURT::BufferSection::CMX_NN, 0, INPUT0_CMX_OFFSET);
+    auto input0CmxType = getMemRefType(VPURT::BufferSection::CMX_NN, 0, inputShape, inputType, DimsOrder::NHWC);
+    auto input0Cmx =
+            createDeclareTensorOp(funcBuilder, input0CmxType, VPURT::BufferSection::CMX_NN, 0, INPUT0_CMX_OFFSET);
 
-    auto outputcmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, 0, out_shape, outputType, DimsOrder::NHWC);
-    auto outputcmx =
-            createDeclareTensorOp(funcbuilder, outputcmx_type, VPURT::BufferSection::CMX_NN, 0, OUTPUT_CMX_OFFSET);
+    auto output0CmxType = getMemRefType(VPURT::BufferSection::CMX_NN, 0, outputShape, outputType, DimsOrder::NHWC);
+    auto output0Cmx =
+            createDeclareTensorOp(funcBuilder, output0CmxType, VPURT::BufferSection::CMX_NN, 0, OUTPUT_CMX_OFFSET);
 
-    auto parent_input0cmx =
-            createDeclareTensorOp(funcbuilder, input0cmx_type, VPURT::BufferSection::CMX_NN, 0, INPUT0_CMX_OFFSET);
-    auto parent_outputcmx =
-            createDeclareTensorOp(funcbuilder, outputcmx_type, VPURT::BufferSection::CMX_NN, 0, OUTPUT_CMX_OFFSET);
+    auto parentInput0Cmx =
+            createDeclareTensorOp(funcBuilder, input0CmxType, VPURT::BufferSection::CMX_NN, 0, INPUT0_CMX_OFFSET);
+    auto parentOutput0Cmx =
+            createDeclareTensorOp(funcBuilder, output0CmxType, VPURT::BufferSection::CMX_NN, 0, OUTPUT_CMX_OFFSET);
 
+    VPURT::DeclareBufferOp dpuProfOutput0Cmx;
+    VPURT::DeclareBufferOp dpuProfOutput0Ddr;
+    VPURT::DeclareBufferOp dmaProfOutput0Ddr;
+
+    if (profilingParams.profilingEnabled()) {
+        size_t offset = 0;
+        if (profilingParams.dpuProfilingEnabled) {
+            auto dpuProfOutput0CmxType =
+                    getMemRefType(VPURT::BufferSection::CMX_NN, 0, dpuProfShapeUI64, getUInt64Type(ctx), DimsOrder::C);
+            dpuProfOutput0Cmx = createDeclareTensorOp(funcBuilder, dpuProfOutput0CmxType, VPURT::BufferSection::CMX_NN,
+                                                      0, PROF_OUTPUT_CMX_OFFSET);
+            dpuProfOutput0Ddr = createDeclareTensorOp(funcBuilder,
+                                                      getMemRefType(VPURT::BufferSection::ProfilingOutput,
+                                                                    dpuProfShapeUI64, getUInt64Type(ctx), DimsOrder::C),
+                                                      VPURT::BufferSection::ProfilingOutput, 0, offset);
+            offset += dpuProfilingBufferSizeBytes;
+        }
+        if (profilingParams.dmaProfilingEnabled) {
+            offset = vpux::alignValUp(offset, HWP_DMA_BYTES_PER_ENTRY);
+            dmaProfOutput0Ddr = createDeclareTensorOp(funcBuilder,
+                                                      getMemRefType(VPURT::BufferSection::ProfilingOutput,
+                                                                    dmaProfShapeUI64, getUInt64Type(ctx), DimsOrder::C),
+                                                      VPURT::BufferSection::ProfilingOutput, 0, offset);
+            offset += dmaProfilingBufferSizeBytes;
+        }
+        if (profilingParams.workpointEnabled) {
+            offset = vpux::alignValUp(offset, HWP_PLL_WORKPOINT_BYTES_PER_ENTRY);
+            createDeclareTensorOp(funcBuilder,
+                                  getMemRefType(VPURT::BufferSection::ProfilingOutput, workpointProfShapeUI64,
+                                                getUInt64Type(ctx), DimsOrder::C),
+                                  VPURT::BufferSection::ProfilingOutput, 0, offset);
+            offset += workpointProfilingBufferSizeBytes;
+        }
+    }
     // barrier config
-    auto barrier0 = funcbuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 0);
-    auto barrier1 = funcbuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 1);
+    auto barrier0 = funcBuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 0);
+    auto barrier1 = funcBuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 1);
 
     // DMA input-->cmx
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
-                                          builder.getUnknownLoc(), funcinput0, input0cmx.getOperation()->getResult(0));
+    auto nndmaOp = VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
+            funcBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
+            mlir::NameLoc::get(mlir::StringAttr::get(ctx, "maxpool?t_MaxPool/cluster_0")), funcInput0,
+            input0Cmx.getOperation()->getResult(0), 0);
+
+    if (profilingParams.dmaProfilingEnabled) {
+        dmaHwpId++;
+        nndmaOp.setDmaHwpIdAttr(
+                mlir::IntegerAttr::get(mlir::IntegerType::get(ctx, 32, mlir::IntegerType::Signed), dmaHwpId));
+        nndmaOp.setProfilingMetadataAttr(
+                VPUIP::DmaProfilingMetadataAttr::get(ctx, getIntAttr(ctx, dmaHwpId), /*profBegin=*/nullptr));
+    }
 
     mlir::Type uderlyingInputType = inputType.isa<mlir::quant::QuantizedType>()
                                             ? inputType.cast<mlir::quant::QuantizedType>().getStorageType()
                                             : inputType;
     // Generate activation window
 
-    const auto bitPatternSize = VPU::NCESparsity::getBitPatternSize(VPU::NCESparsity::Mode::POOL, ShapeRef(filter_size),
-                                                                    stride_vec[1], uderlyingInputType, in_shape[1]);
-    mlir::IntegerAttr actChannelLength = funcbuilder.getI32IntegerAttr(checked_cast<int32_t>(bitPatternSize));
+    const auto bitPatternSize = VPU::NCESparsity::getBitPatternSize(VPU::NCESparsity::Mode::POOL, ShapeRef(filterSize),
+                                                                    strideVec[1], uderlyingInputType, inputShape[1]);
+    mlir::IntegerAttr actChannelLength = funcBuilder.getI32IntegerAttr(checked_cast<int32_t>(bitPatternSize));
 
-    const auto fakeSparsity = VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::POOL, ShapeRef(filter_size),
-                                                                stride_vec[1], uderlyingInputType, in_shape[1]);
+    const auto fakeSparsity = VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::POOL, ShapeRef(filterSize),
+                                                                strideVec[1], uderlyingInputType, inputShape[1]);
 
     const auto elemType = getUInt8Type(ctx);
-    SmallVector<int64_t> sparsity_shape{1, 1, 1, static_cast<int64_t>(fakeSparsity.size())};
+    SmallVector<int64_t> sparsityShape{1, 1, 1, static_cast<int64_t>(fakeSparsity.size())};
 
-    const auto dataStorageType = mlir::RankedTensorType::get(sparsity_shape, elemType);
-    const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(fakeSparsity));
+    const auto dataStorageType = mlir::RankedTensorType::get(sparsityShape, elemType);
+    const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, ArrayRef(fakeSparsity));
 
-    const auto dataType = getMemRefType(VPURT::BufferSection::DDR, sparsity_shape, elemType, DimsOrder::NHWC);
+    const auto dataType = getMemRefType(VPURT::BufferSection::DDR, sparsityShape, elemType, DimsOrder::NHWC);
 
-    auto dataConstOp = funcbuilder.create<Const::DeclareOp>(builder.getUnknownLoc(), dataType,
+    auto dataConstOp = funcBuilder.create<Const::DeclareOp>(builder.getUnknownLoc(), dataType,
                                                             Const::ContentAttr::get(dataAttr).reorder(DimsOrder::NHWC));
 
-    auto activationwindow_totalsize = totalTensorSize(sparsity_shape, elemType);
-    auto activationwindow_totalsize_bytes = activationwindow_totalsize * elemType.getIntOrFloatBitWidth() / CHAR_BIT;
+    auto activationWindowTotalSize = totalTensorSize(sparsityShape, elemType);
+    auto activationWindowTotalSizeBytes = activationWindowTotalSize * elemType.getIntOrFloatBitWidth() / CHAR_BIT;
 
     // Activation Window cmx
-    auto actWindow_cmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, 0, sparsity_shape, elemType, DimsOrder::NHWC);
-    auto actWindow_cmx = createDeclareTensorOp(funcbuilder, actWindow_cmx_type, VPURT::BufferSection::CMX_NN, 0,
+    auto actWindow0CmxType = getMemRefType(VPURT::BufferSection::CMX_NN, 0, sparsityShape, elemType, DimsOrder::NHWC);
+    auto actWindow0Cmx = createDeclareTensorOp(funcBuilder, actWindow0CmxType, VPURT::BufferSection::CMX_NN, 0,
                                                ACTIVATIONWINDOW_CMX_OFFSET);
 
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
-                                          builder.getUnknownLoc(), dataConstOp.getOperation()->getResult(0),
-                                          actWindow_cmx.getOperation()->getResult(0));
-    // weights table ddr tensor
-    SmallVector<int64_t> wtTbl_data_shape{output.shape[1], 1, 1, 4};
-    auto weightTblData_ddr_type = getMemRefType(VPURT::BufferSection::DDR, wtTbl_data_shape,
-                                                builder.getIntegerType(32, true), DimsOrder::NHWC);
-    const auto wtTblData_ddr_valueType =
-            mlir::RankedTensorType::get(wtTbl_data_shape, builder.getIntegerType(32, /*isSigned=*/true));
+    auto actWindowDma = VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
+            funcBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
+            mlir::NameLoc::get(mlir::StringAttr::get(ctx, "maxpool?t_MaxPool/cluster_0")),
+            dataConstOp.getOperation()->getResult(0), actWindow0Cmx.getOperation()->getResult(0), 0);
 
-    const std::vector<int32_t> wtTbl_data_values_vec =
-            VPU::NCESparsity::getWeightsTable(inputType, outputType, static_cast<int32_t>(0), static_cast<int32_t>(0),
-                                              static_cast<int32_t>(ACTIVATIONWINDOW_CMX_OFFSET),
-                                              static_cast<int32_t>(0), testDesc.getArchitecture(), output.shape[1]);
+    if (profilingParams.dmaProfilingEnabled) {
+        dmaHwpId++;
+        actWindowDma.setDmaHwpIdAttr(
+                mlir::IntegerAttr::get(mlir::IntegerType::get(ctx, 32, mlir::IntegerType::Signed), dmaHwpId));
+        actWindowDma.setProfilingMetadataAttr(
+                VPUIP::DmaProfilingMetadataAttr::get(ctx, getIntAttr(ctx, dmaHwpId), /*profBegin=*/nullptr));
+    }
 
-    auto wtTbl_data_values = makeArrayRef<int32_t>(wtTbl_data_values_vec);
-    auto wtTbl_data_vals = mlir::DenseElementsAttr::get(wtTblData_ddr_valueType, wtTbl_data_values);
-    auto weightTbl_data_ddr =
-            funcbuilder.create<Const::DeclareOp>(builder.getUnknownLoc(), weightTblData_ddr_type,
-                                                 Const::ContentAttr::get(wtTbl_data_vals).reorder(DimsOrder::NHWC));
+    mlir::Value wtTblValue;
+    if (outputType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
+        // weights table ddr tensor
+        SmallVector<int64_t> wtTblDataShape{output.shape[1], 1, 1, 4};
+        auto wtTblDataDdrType = getMemRefType(VPURT::BufferSection::DDR, wtTblDataShape,
+                                              builder.getIntegerType(32, true), DimsOrder::NHWC);
+        const auto wtTblDataDdrValueType =
+                mlir::RankedTensorType::get(wtTblDataShape, builder.getIntegerType(32, /*isSigned=*/true));
 
-    // weights table cmx tensor
+        const std::vector<int32_t> wtTblDataValuesVec = VPU::NCESparsity::getWeightsTable(
+                inputType, outputType, /*weightsPtrs*/ std::nullopt, static_cast<int32_t>(0),
+                static_cast<int32_t>(ACTIVATIONWINDOW_CMX_OFFSET), static_cast<int32_t>(0), arch, output.shape[1]);
 
-    const auto WEIGHTSTABLE_CMX_OFFSET = ACTIVATIONWINDOW_CMX_OFFSET + activationwindow_totalsize_bytes;
-    auto wtTbl_cmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, 0, wtTbl_data_shape,
-                                        builder.getIntegerType(32, true), DimsOrder::NHWC);
-    auto wtTbl_cmx = createDeclareTensorOp(funcbuilder, wtTbl_cmx_type, VPURT::BufferSection::CMX_NN, 0,
-                                           WEIGHTSTABLE_CMX_OFFSET);
+        auto wtTblDataValues = ArrayRef<int32_t>(wtTblDataValuesVec);
+        auto wtTblDataVals = mlir::DenseElementsAttr::get(wtTblDataDdrValueType, wtTblDataValues);
+        auto wtTblDataDdr =
+                funcBuilder.create<Const::DeclareOp>(builder.getUnknownLoc(), wtTblDataDdrType,
+                                                     Const::ContentAttr::get(wtTblDataVals).reorder(DimsOrder::NHWC));
 
-    // weights table dma ddr->cmx
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
-                                          builder.getUnknownLoc(), weightTbl_data_ddr.getOperation()->getResult(0),
-                                          wtTbl_cmx.getOperation()->getResult(0));
+        // weights table cmx tensor
+
+        const auto WEIGHTSTABLE_CMX_OFFSET = ACTIVATIONWINDOW_CMX_OFFSET + activationWindowTotalSizeBytes;
+        auto wtTblCmxType = getMemRefType(VPURT::BufferSection::CMX_NN, 0, wtTblDataShape,
+                                          builder.getIntegerType(32, true), DimsOrder::NHWC);
+        auto wtTblCmx = createDeclareTensorOp(funcBuilder, wtTblCmxType, VPURT::BufferSection::CMX_NN, 0,
+                                              WEIGHTSTABLE_CMX_OFFSET);
+        wtTblValue = wtTblCmx.getOperation()->getResult(0);
+
+        // weights table dma ddr->cmx
+        auto weightsTableDma = VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
+                funcBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
+                mlir::NameLoc::get(mlir::StringAttr::get(ctx, "maxpool?t_MaxPool/cluster_0")),
+                wtTblDataDdr.getOperation()->getResult(0), wtTblCmx.getOperation()->getResult(0), 0);
+
+        if (profilingParams.dmaProfilingEnabled) {
+            dmaHwpId++;
+            weightsTableDma.setDmaHwpIdAttr(
+                    mlir::IntegerAttr::get(mlir::IntegerType::get(ctx, 32, mlir::IntegerType::Signed), dmaHwpId));
+            weightsTableDma.setProfilingMetadataAttr(
+                    VPUIP::DmaProfilingMetadataAttr::get(ctx, getIntAttr(ctx, dmaHwpId), /*profBegin=*/nullptr));
+        }
+    }
 
     // NCE Task
-    auto filtersize = getIntArrayAttr(builder, filter_size);
-    auto strides = getIntArrayAttr(builder, stride_vec);
-    auto kernel_padding = VPU::getPaddingAttr(ctx, padding_vec[PAD_NCETASK_LEFT], padding_vec[PAD_NCETASK_RIGHT],
-                                              padding_vec[PAD_NCETASK_TOP], padding_vec[PAD_NCETASK_BOTTOM]);
+    auto filtersize = getIntArrayAttr(builder, filterSize);
+    auto strides = getIntArrayAttr(builder, strideVec);
+    auto kernelPadding = VPU::getPaddingAttr(ctx, paddingVec[PAD_NCETASK_LEFT], paddingVec[PAD_NCETASK_RIGHT],
+                                             paddingVec[PAD_NCETASK_TOP], paddingVec[PAD_NCETASK_BOTTOM]);
+
+    const auto taskName = "maxpool?t_MaxPool/cluster_0";
 
     auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
-            funcbuilder, mlir::ValueRange(barrier0.getBarrier()), mlir::ValueRange(barrier1.getBarrier()),
-            builder.getUnknownLoc(), outputcmx_type, input0cmx.getOperation()->getResult(0), mlir::Value(),
-            wtTbl_cmx.getOperation()->getResult(0), /*instruction_table_list*/ nullptr,
-            actWindow_cmx.getOperation()->getResult(0), parent_input0cmx.getOperation()->getResult(0),
-            parent_outputcmx.getOperation()->getResult(0), outputcmx.getOperation()->getResult(0),
-            VPUIP::NCETaskType::MAXPOOL, filtersize, strides, kernel_padding, actChannelLength, nullptr,
-            /*sp_pattern*/ nullptr);
+            funcBuilder, mlir::ValueRange(barrier0.getBarrier()), mlir::ValueRange(barrier1.getBarrier()),
+            mlir::NameLoc::get(mlir::StringAttr::get(ctx, taskName)), input0Cmx.getOperation()->getResult(0),
+            mlir::Value(), wtTblValue,
+            /*instruction_table_list*/ nullptr, actWindow0Cmx.getOperation()->getResult(0),
+            parentInput0Cmx.getOperation()->getResult(0), parentOutput0Cmx.getOperation()->getResult(0),
+            output0Cmx.getOperation()->getResult(0),
+            profilingParams.dpuProfilingEnabled ? dpuProfOutput0Cmx.getOperation()->getResult(0) : nullptr,
+            VPUIP::NCETaskType::MAXPOOL, filtersize, strides, kernelPadding, actChannelLength,
+            /*is_continued*/ nullptr, /*sp_pattern*/ nullptr, /*is_segmented*/ nullptr,
+            /*out_channel_offset*/ nullptr, /*input_channels_compression*/ nullptr, /*is_superdense*/ nullptr,
+            /*is_inplace*/ nullptr, /*input_se_size*/ nullptr, /*output_se_size*/ nullptr,
+            /*is_permute_quantize*/ nullptr, /*is_small_kernel_optimized*/ nullptr);
+    if (profilingParams.dpuProfilingEnabled) {
+        auto profAttr = VPUIP::DpuProfilingMetadataAttr::get(
+                ctx, /*bufferId*/ getIntAttr(ctx, 0),
+                /*taskId*/ getIntAttr(ctx, 1), /*maxVariants*/ getIntAttr(ctx, 1),
+                /*numVariants*/ getIntAttr(ctx, 1), /*clusterId*/ getIntAttr(ctx, 0));
+        nceTask.setProfilingMetadataAttr(profAttr);
+    }
 
     int64_t clampLow = std::numeric_limits<int32_t>::min();
     int64_t clampHigh = std::numeric_limits<int32_t>::max();
-    int64_t bypassMult = 1;
-    int64_t bypassShift = 0;
-
     if (auto outElemQType = outputType.template dyn_cast<mlir::quant::QuantizedType>()) {
         const auto zps = extractScalesAndZeroPoints(outputType).second;
 
         clampLow = outElemQType.getStorageTypeMin() - zps.front();
         clampHigh = outElemQType.getStorageTypeMax() - zps.front();
     }
-    nceTask.addPPETask(funcbuilder, VPU::PPEMode::NOOP, clampLow, clampHigh, bypassMult, bypassShift);
+    int64_t bypassMult = 1;
+    int64_t bypassShift = 0;
+    nceTask.addPPETask(funcBuilder, VPU::PPEMode::NOOP, clampLow, clampHigh, bypassMult, bypassShift);
 
     // Create DPU task for NCE task
-    auto variantbuilder = mlir::OpBuilder::atBlockBegin(&nceTask.variants().front(), builder.getListener());
-    createDPUTaskOp(funcbuilder, variantbuilder, out_shape, in_shape, padding_vec, VPU::MPEMode::CUBOID_16x16);
+    auto variantbuilder = mlir::OpBuilder::atBlockBegin(&nceTask.getVariants().front(), builder.getListener());
+    auto dpuTask = createDPUTaskOp(funcBuilder, variantbuilder, outputShape, inputShape, paddingVec,
+                                   VPU::MPEMode::CUBOID_16x16, /* clusterId */ 0);
 
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.getBarrier()), mlir::ValueRange(),
-                                          builder.getUnknownLoc(), outputcmx.getOperation()->getResult(0), funcoutput);
+    // copy NCE task output to function output
+    auto outputDma = VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
+            funcBuilder, mlir::ValueRange(barrier1.getBarrier()), mlir::ValueRange(),
+            mlir::NameLoc::get(mlir::StringAttr::get(ctx, "maxpool?t_MaxPool/cluster_0")),
+            output0Cmx.getOperation()->getResult(0), funcOutput, 0);
 
-    funcbuilder.create<mlir::func::ReturnOp>(builder.getUnknownLoc(), funcoutput);
+    if (profilingParams.dmaProfilingEnabled) {
+        dmaHwpId++;
+        outputDma.setDmaHwpIdAttr(
+                mlir::IntegerAttr::get(mlir::IntegerType::get(ctx, 32, mlir::IntegerType::Signed), dmaHwpId));
+        outputDma.setProfilingMetadataAttr(
+                VPUIP::DmaProfilingMetadataAttr::get(ctx, getIntAttr(ctx, dmaHwpId), /*profBegin=*/nullptr));
+    }
+
+    if (profilingParams.dpuProfilingEnabled) {
+        // align DPU HWP buffer to HWP_DPU_BYTES_PER_ENTRY bytes
+        dpuTask.setWorkloadIdAttr(vpux::getIntAttr(ctx, PROF_OUTPUT_CMX_OFFSET / HWP_DPU_BYTES_PER_ENTRY));
+
+        // copy NCE task profiling data into DDR
+        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(barrier1.getBarrier()), mlir::ValueRange(),
+                                              builder.getUnknownLoc(), dpuProfOutput0Cmx.getOperation()->getResult(0),
+                                              dpuProfOutput0Ddr.getOperation()->getResult(0), 0);
+    }
+
+    // create ReturnOp
+    mlir::SmallVector<mlir::Value> funcOutputs;
+    funcOutputs.push_back(funcOutput);
+    if (profilingParams.profilingEnabled()) {
+        funcOutputs.push_back(funcProfOutput);
+    }
+    funcBuilder.create<mlir::func::ReturnOp>(builder.getUnknownLoc(), funcOutputs);
+
     // set runtime resources
-    mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, log));
+    mlir::PassManager pm(module->getName(), mlir::OpPassManager::Nesting::Implicit);
+    pm.addPass(VPU::createInitCompilerPass(arch, VPU::CompilationMode::DefaultHW, 1, 1, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
+
     // IE.CNNNetwork
-    buildCNNOp(builder, func.getName(), {getTensorType(ShapeRef(in_shape), inputType, DimsOrder::NHWC, nullptr)},
-               {getTensorType(ShapeRef(out_shape), outputType, DimsOrder::NHWC, nullptr)});
+    mlir::SmallVector<ProfilingDataSection> profilingDataSections;
+    size_t offset = 0;
+    if (profilingParams.dpuProfilingEnabled) {
+        profilingDataSections.push_back({HWP_DPU_SECTION_EXEC_TYPE, offset, dpuProfilingBufferSizeBytes});
+        offset += dpuProfilingBufferSizeBytes;
+    }
+    if (profilingParams.dmaProfilingEnabled) {
+        VPUX_THROW_WHEN(static_cast<size_t>(dmaHwpId) > HWP_DMA_BUFFER_SIZE,
+                        "Only {0} entries are reserved for DMA profiling (while {1} "
+                        "are profiled), HWP_DMA_BUFFER_SIZE needs to be increased",
+                        HWP_DMA_BUFFER_SIZE, dmaHwpId);
+        offset = vpux::alignValUp(offset, HWP_DMA_BYTES_PER_ENTRY);
+        profilingDataSections.push_back({HWP_DMA_SECTION_EXEC_TYPE, offset, dmaProfilingBufferSizeBytes});
+        offset += dmaProfilingBufferSizeBytes;
+    }
+    if (profilingParams.workpointEnabled) {
+        offset = vpux::alignValUp(offset, HWP_DMA_BYTES_PER_ENTRY);
+        profilingDataSections.push_back({HWP_WORKPOINT_SECTION_EXEC_TYPE, offset, workpointProfilingBufferSizeBytes});
+        offset += workpointProfilingBufferSizeBytes;
+    }
+    if (profilingParams.profilingEnabled()) {
+        auto memSpaceAttr = mlir::SymbolRefAttr::get(ctx, stringifyEnum(VPU::MemoryKind::CMX_NN));
+        IE::setDmaProfilingReservedMemory(module, memSpaceAttr, HWP_DMA_PROFILING_MAX_BUFFER_SIZE);
+    }
+    buildCNNOp(builder, func.getName(), {getTensorType(ShapeRef(inputShape), inputType, DimsOrder::NHWC, nullptr)},
+               {getTensorType(ShapeRef(outputShape), outputType, DimsOrder::NHWC, nullptr)}, profilingDataSections);
 }
 
 }  // namespace hwtest

@@ -10,7 +10,7 @@
 #include <vpux_elf/accessor.hpp>
 #include <vpux_elf/reader.hpp>
 #include "vpux/compiler/act_kernels/shave_binary_resources.h"
-#include "vpux/compiler/dialect/ELF/utils.hpp"
+#include "vpux/compiler/dialect/ELFNPU37XX/utils.hpp"
 #include "vpux/compiler/dialect/VPUMI37XX/ops.hpp"
 #include "vpux/utils/core/scope_exit.hpp"
 
@@ -24,7 +24,7 @@ uint32_t vpux::VPUMI37XX::DeclareKernelEntryOp::getKernelEntry() {
     auto kernel = getKernelPath();
 
     const auto& kernelInfo = ShaveBinaryResources::getInstance();
-    const SmallString arch = ELF::getSwKernelArchString(VPU::getArch(this->getOperation()));
+    const SmallString arch = ELFNPU37XX::getSwKernelArchString(VPU::getArch(this->getOperation()));
 
     const auto elfBlob = kernelInfo.getElf(kernel, arch).vec();
 

@@ -3,39 +3,36 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "common/functions.h"
-#include "vpu_ov1_layer_test.hpp"
-
-#include <ngraph_functions/builders.hpp>
-#include <ngraph_functions/utils/ngraph_helpers.hpp>
 #include <shared_test_classes/base/layer_test_utils.hpp>
+#include <vpu_ov2_layer_test.hpp>
+#include "common/functions.h"
 
-namespace {
+namespace ov::test::subgraph {
 
-typedef std::tuple<InferenceEngine::Precision, InferenceEngine::Precision, InferenceEngine::SizeVector> SwishTestParams;
-class VPUXSwishSingleInputTest_VPU3700 :
-        public LayerTestsUtils::VpuOv1LayerTestsCommon,
+typedef std::tuple<ov::element::Type, ov::element::Type, std::vector<ov::test::InputShape>,
+                   LayerTestsUtils::TargetDevice>
+        SwishTestParams;
+class SwishSingleInputTest_NPU3700 :
+        virtual public VpuOv2LayerTest,
         public testing::WithParamInterface<SwishTestParams> {
     void SetUp() override {
-        auto prms = GetParam();
+        std::vector<ov::test::InputShape> inputShape;
 
-        InferenceEngine::SizeVector inputShape;
+        std::tie(inType, outType, inputShape, targetDevice) = GetParam();
 
-        std::tie(inPrc, outPrc, inputShape) = prms;
+        init_input_shapes(inputShape);
 
-        inLayout = InferenceEngine::Layout::NCHW;
+        ov::ParameterVector param;
+        for (const auto& shape : inputDynamicShapes) {
+            param.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f16, shape));
+        }
 
-        const auto params = ngraph::builder::makeParams(ngraph::element::f16, {inputShape});
-        const auto paramOuts =
-                ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+        const auto swish = std::make_shared<ov::op::v4::Swish>(param[0]);
 
-        const auto swish = std::make_shared<ngraph::op::v4::Swish>(paramOuts[0]);
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(swish)};
+        function = std::make_shared<ov::Model>(results, ov::ParameterVector{param}, "SwishSingleInputTest");
 
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(swish)};
-        function = std::make_shared<ngraph::Function>(swish, params, "VPUXSwishSingleInputTest");
-
-        targetDevice = LayerTestsUtils::testPlatformTargetDevice();
-        threshold = 0.1f;
+        rel_threshold = 0.1f;
     }
 
     template <typename T>
@@ -58,37 +55,35 @@ public:
     static std::string getTestCaseName(::testing::TestParamInfo<SwishTestParams> obj) {
         auto params = obj.param;
 
-        InferenceEngine::Precision ip, op;
-        InferenceEngine::SizeVector inputShape;
+        ov::element::Type ip, op;
+        std::vector<ov::test::InputShape> inputShape;
 
-        std::tie(ip, op, inputShape) = params;
+        std::tie(ip, op, inputShape, std::ignore) = params;
 
         const std::string sep = "_";
         std::ostringstream result;
 
         result << "InputPrec=" << ip << sep;
         result << "OutputPrec=" << op << sep;
-        result << "InShape=" << VectorToString(inputShape) << sep;
+        result << "InShape=" << VectorToString(inputShape[0].second) << sep;
 
         return result.str();
     }
 };
 
-TEST_P(VPUXSwishSingleInputTest_VPU3700, HW) {
-    setPlatformVPU3700();
-    setDefaultHardwareModeMLIR();
-    Run();
+TEST_P(SwishSingleInputTest_NPU3700, HW) {
+    setDefaultHardwareMode();
+    run(VPUXPlatform::VPU3700);
 }
+const std::vector<ov::element::Type> netPrecision = {ov::element::undefined};
 
-const std::vector<InferenceEngine::Precision> in_prec = {InferenceEngine::Precision::UNSPECIFIED};
+const std::vector<std::vector<ov::Shape>> inputShapes{{{1, 3, 32, 32}}, {{1, 3, 200, 200}}};
 
-const std::vector<InferenceEngine::Precision> out_prec = {InferenceEngine::Precision::UNSPECIFIED};
+INSTANTIATE_TEST_CASE_P(
+        smoke_SwishSingleInputTest, SwishSingleInputTest_NPU3700,
+        ::testing::Combine(::testing::ValuesIn(netPrecision), ::testing::ValuesIn(netPrecision),
+                           ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes)),
+                           ::testing::Values(ov::test::utils::DEVICE_NPU)),
+        SwishSingleInputTest_NPU3700::getTestCaseName);
 
-const std::vector<InferenceEngine::SizeVector> inputShapes{{1, 3, 32, 32}, {1, 3, 200, 200}};
-
-INSTANTIATE_TEST_CASE_P(smoke_SwishSingleInputTest, VPUXSwishSingleInputTest_VPU3700,
-                        ::testing::Combine(::testing::ValuesIn(in_prec), ::testing::ValuesIn(out_prec),
-                                           ::testing::ValuesIn(inputShapes)),
-                        VPUXSwishSingleInputTest_VPU3700::getTestCaseName);
-
-}  // namespace
+}  // namespace ov::test::subgraph

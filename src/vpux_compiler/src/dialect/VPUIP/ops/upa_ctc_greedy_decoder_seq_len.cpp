@@ -6,13 +6,12 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
-#include "vpux/compiler/utils/subspaces.hpp"
 
 using namespace vpux;
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::CTCGreedyDecoderSeqLenUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::CTCGreedyDecoderSeqLenParamsBuilder builder(writer);
-    builder.add_mergeRepeated(mergeRepeated());
+    builder.add_mergeRepeated(getMergeRepeated());
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this,

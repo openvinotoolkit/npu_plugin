@@ -5,10 +5,9 @@
 
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
-#include "vpux/compiler/core/aliases_info.hpp"
-#include "vpux/compiler/core/cost_model_utils.hpp"
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/explicit_distribution_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/convert_to_dma_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/dma_descriptor_generator.hpp"
 #include "vpux/compiler/dialect/VPURT/attributes.hpp"
@@ -17,7 +16,6 @@
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
-#include <llvm/ADT/DenseMap.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
 #include <numeric>
@@ -72,11 +70,11 @@ mlir::LogicalResult PerAxisTileDMARewriter::matchAndRewrite(VPUIP::PerAxisTileDM
                                                             mlir::PatternRewriter& rewriter) const {
     _log.trace("Process PerAxisTileDMAOp: {0}", perAxisTileDMAOp);
 
-    if (perAxisTileDMAOp.tilesAttr() == nullptr && perAxisTileDMAOp.axisAttr() == nullptr) {
+    if (perAxisTileDMAOp.getTilesAttr() == nullptr && perAxisTileDMAOp.getAxisAttr() == nullptr) {
         return mlir::failure();
     }
 
-    const auto output = perAxisTileDMAOp.output();
+    const auto output = perAxisTileDMAOp.getOutput();
     const auto outputType = output.getType().cast<vpux::NDTypeInterface>();
     const auto distributedType = outputType.dyn_cast<VPUIP::DistributedBufferType>();
 
@@ -85,12 +83,15 @@ mlir::LogicalResult PerAxisTileDMARewriter::matchAndRewrite(VPUIP::PerAxisTileDM
     if (distributedType != nullptr) {
         _log.trace("PerAxisTile Op with distributed type at {0}", perAxisTileDMAOp);
 
+        VPUX_THROW_WHEN(mlir::isa<VPUIP::DistributedBufferType>(perAxisTileDMAOp.getInput().getType()),
+                        "Input buffer of PerAxisTileDMAOp cannot be Distributed");
+
         const auto distributionAttr = distributedType.getDistribution();
         const auto mode = distributionAttr.getMode().getValue();
         if (mode == VPU::DistributionMode::SEGMENTED || mode == VPU::DistributionMode::OVERLAPPED) {
             return unrollSegmentedOrOverlapped(perAxisTileDMAOp, distributedType, rewriter);
-        } else if (VPU::bitEnumContains(mode, VPU::DistributionMode::DUPLICATED) ||
-                   VPU::bitEnumContains(mode, VPU::DistributionMode::MULTICASTED)) {
+        } else if (VPU::bitEnumContainsAny(mode, VPU::DistributionMode::DUPLICATED) ||
+                   VPU::bitEnumContainsAny(mode, VPU::DistributionMode::MULTICASTED)) {
             return unrollDuplicated(perAxisTileDMAOp, distributedType, rewriter);
         } else {
             VPUX_THROW("Unsupported distributed mode");
@@ -108,12 +109,12 @@ mlir::LogicalResult PerAxisTileDMARewriter::unrollPerAxisTile(VPUIP::PerAxisTile
     VPUX_THROW_UNLESS(vpurtTask != nullptr, "Can't get VPURT task operation");
     rewriter.setInsertionPointAfter(vpurtTask);
 
-    auto inType = perAxisTileDMAOp.input().getType().cast<vpux::NDTypeInterface>();
-    auto outType = perAxisTileDMAOp.output().getType().cast<vpux::NDTypeInterface>();
+    auto inType = perAxisTileDMAOp.getInput().getType().cast<vpux::NDTypeInterface>();
+    auto outType = perAxisTileDMAOp.getOutput().getType().cast<vpux::NDTypeInterface>();
     Byte elemTypeSize = inType.getElemTypeSize();
 
-    auto srcDeclBuff = perAxisTileDMAOp.input().getDefiningOp<VPURT::DeclareBufferOp>();
-    auto dstDeclBuff = perAxisTileDMAOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>();
+    auto srcDeclBuff = perAxisTileDMAOp.getInput().getDefiningOp<VPURT::DeclareBufferOp>();
+    auto dstDeclBuff = perAxisTileDMAOp.getOutputBuff().getDefiningOp<VPURT::DeclareBufferOp>();
     auto srcType = srcDeclBuff.getType().cast<vpux::NDTypeInterface>();
     auto dstType = dstDeclBuff.getType().cast<vpux::NDTypeInterface>();
 
@@ -147,7 +148,16 @@ mlir::LogicalResult PerAxisTileDMARewriter::unrollPerAxisTile(VPUIP::PerAxisTile
 
         mlir::Type newDstType;
         if (auto dstDistributedType = dstType.dyn_cast<VPUIP::DistributedBufferType>()) {
-            const auto distributionAttr = dstDistributedType.getDistribution();
+            auto distributionAttr = dstDistributedType.getDistribution();
+            VPUX_THROW_WHEN(
+                    distributionAttr.getMode().getValue() != VPU::DistributionMode::DUPLICATED,
+                    "Issues with unrolling PerAxiTileDMA; Buffer has distributed type != DUPLICATED after unroll");
+            if (VPU::isDistributedAttrWithExplicitShapesAndOffsets(distributionAttr)) {
+                distributionAttr = VPU::getNonOverlappedDistributedAttr(
+                        subOutShape, distributionAttr.getMode(), nullptr, distributionAttr.getNumClusters(), nullptr,
+                        distributionAttr.getUniformDistributedSegments(), dstDeclBuff.getContext());
+            }
+
             const auto layout = mlir::AffineMapAttr::get(dimOrder.toAffineMap(ctx));
             newDstType = VPUIP::DistributedBufferType::get(ctx, subOutShape.raw(), dstType.getElementType(), layout,
                                                            dstType.getMemSpace(), distributionAttr);
@@ -174,27 +184,20 @@ mlir::LogicalResult PerAxisTileDMARewriter::unrollPerAxisTile(VPUIP::PerAxisTile
         _log.trace("Creating Sub-PerAxisTileDMAOp with inShape: {0} outShape: {1}, SrcMemory at {2}, DstMemory at {3}",
                    subInShape, subOutShape, newSrcBuff.getSection(), newDstBuff.getSection());
 
-        auto newPerAxisTileDmaOp = VPURT::wrapIntoTaskOp<VPUIP::PerAxisTileDMAOp>(
+        VPURT::wrapIntoTaskOp<VPUIP::PerAxisTileDMAOp>(
                 rewriter, vpurtTask.getWaitBarriers(), vpurtTask.getUpdateBarriers(), vpurtTask.getLoc(), newSrcBuff,
-                newDstBuff, vpux::getIntAttr(rewriter, port), perAxisTileDMAOp.channelTypeAttr(), nullptr, nullptr,
-                dmaDescriptor, perAxisTileDMAOp.dma_hwp_idAttr());
-
-        auto newVpurtTask = newPerAxisTileDmaOp->getParentOfType<VPURT::TaskOp>();
-        if (auto cycleBeginAttr = vpurtTask->getAttr(cycleBegin)) {
-            newVpurtTask->setAttr(cycleBegin, cycleBeginAttr);
-        }
-        if (auto cycleEndAttr = vpurtTask->getAttr(cycleEnd)) {
-            newVpurtTask->setAttr(cycleEnd, cycleEndAttr);
-        }
+                newDstBuff, vpux::getIntAttr(rewriter, port), nullptr, nullptr, dmaDescriptor,
+                perAxisTileDMAOp.getIsOutOfOrderAttr(), perAxisTileDMAOp.getIsCriticalAttr(),
+                perAxisTileDMAOp.getDmaHwpIdAttr(), perAxisTileDMAOp.getProfilingMetadataAttr());
     };
 
     _log.trace("Unroll PerAxisTileDMAOp {0}", perAxisTileDMAOp->getLoc());
 
-    auto axis = perAxisTileDMAOp.axis();
-    auto tiles = perAxisTileDMAOp.tiles();
+    auto axis = perAxisTileDMAOp.getAxis();
+    auto tiles = perAxisTileDMAOp.getTiles();
     VPUX_THROW_UNLESS(axis.has_value() && tiles.has_value(), "Cannot get PerAxisTile attribution");
     auto mergedShapes = VPUIP::getPerAxisTileDMAMergedShape(inType, outType, axis.value(), tiles.value());
-    auto dmaDescriptorAttr = perAxisTileDMAOp.dma_descriptorAttr();
+    auto dmaDescriptorAttr = perAxisTileDMAOp.getDmaDescriptorAttr();
     auto portIsAlreadyAssigned = true;
     if (dmaDescriptorAttr == nullptr) {
         auto dmaDescriptorGenerator = VPUIP::PerAxisTileDmaDescriptorGenerator(ctx, _log);
@@ -214,7 +217,7 @@ mlir::LogicalResult PerAxisTileDMARewriter::unrollPerAxisTile(VPUIP::PerAxisTile
     for (size_t idx = 0; idx < subInputShapes.size(); idx++) {
         auto dmaPort = idx % _dmaPortCount;
 
-        auto newDmaPort = portIsAlreadyAssigned ? perAxisTileDMAOp.port() : dmaPort;
+        auto newDmaPort = portIsAlreadyAssigned ? perAxisTileDMAOp.getPort().value() : dmaPort;
         auto newDMADescriptorAttr = VPUIP::updateNumPlanes(dmaDescriptorAttr, subInputShapes[idx][Dim(0)]);
         createSubPerAxisTileDMAOp(subInputShapes[idx], subOutputShapes[idx], srcOffset, dstOffset, newDMADescriptorAttr,
                                   newDmaPort);
@@ -240,8 +243,8 @@ mlir::LogicalResult PerAxisTileDMARewriter::unrollSegmentedOrOverlapped(VPUIP::P
     VPUX_THROW_WHEN(vpurtTask == nullptr, "Can't get VPURT.TaskOp for {0}", perAxisTileDMAOp);
     rewriter.setInsertionPointAfter(vpurtTask);
 
-    const auto input = perAxisTileDMAOp.input();
-    const auto output = perAxisTileDMAOp.output_buff();
+    const auto input = perAxisTileDMAOp.getInput();
+    const auto output = perAxisTileDMAOp.getOutputBuff();
     const auto inputType = input.getType().cast<vpux::NDTypeInterface>();
     const auto outputType = distributedType.getCompactType();
     const auto numTiles = parseIntArrayAttr<int64_t>(distributionAttr.getNumTiles());
@@ -281,7 +284,7 @@ mlir::LogicalResult PerAxisTileDMARewriter::unrollSegmentedOrOverlapped(VPUIP::P
 
             return VPURT::createOp<VPURT::DeclareBufferOp>(rewriter, insertionPoint, loc, newCMXType,
                                                            VPURT::BufferSection::CMX_NN,
-                                                           getIntArrayAttr(ctx, makeArrayRef({clusterId})),
+                                                           getIntArrayAttr(ctx, ArrayRef({clusterId})),
                                                            declBuff.getByteOffset(), declBuff.getSwizzlingKeyAttr());
         }
 
@@ -304,8 +307,8 @@ mlir::LogicalResult PerAxisTileDMARewriter::unrollSegmentedOrOverlapped(VPUIP::P
                                                        ddrOffset.count());
     };
 
-    auto padAxis = perAxisTileDMAOp.axis();
-    auto padTiles = perAxisTileDMAOp.tiles();
+    auto padAxis = perAxisTileDMAOp.getAxis();
+    auto padTiles = perAxisTileDMAOp.getTiles();
     VPUX_THROW_UNLESS(padAxis.has_value() && padTiles.has_value(), "Cannot get PerAxisTile attribute");
     VPUX_THROW_UNLESS(padAxis.value() != tilingAxis,
                       "TilePerAxis expand axis '{0}' should not be the same as tiling axis '{1}'", padAxis.value(),
@@ -348,18 +351,11 @@ mlir::LogicalResult PerAxisTileDMARewriter::unrollSegmentedOrOverlapped(VPUIP::P
         auto newDMAPort = clusterId % _dmaPortCount;
         auto newPerAxisTileDMAOp = VPURT::wrapIntoTaskOp<VPUIP::PerAxisTileDMAOp>(
                 rewriter, vpurtTask.getWaitBarriers(), vpurtTask.getUpdateBarriers(), newLoc, inputBuffer, outBuffer,
-                vpux::getIntAttr(rewriter, newDMAPort), perAxisTileDMAOp.channelTypeAttr(), perAxisTileDMAOp.axisAttr(),
-                perAxisTileDMAOp.tilesAttr(), dmaDescriptorAttr, perAxisTileDMAOp.dma_hwp_idAttr());
+                vpux::getIntAttr(rewriter, newDMAPort), perAxisTileDMAOp.getAxisAttr(), perAxisTileDMAOp.getTilesAttr(),
+                dmaDescriptorAttr, perAxisTileDMAOp.getIsOutOfOrderAttr(), perAxisTileDMAOp.getIsCriticalAttr(),
+                perAxisTileDMAOp.getDmaHwpIdAttr(), perAxisTileDMAOp.getProfilingMetadataAttr());
 
         _log.trace("Insert new PerAxisTile dma : '{0}'", newPerAxisTileDMAOp);
-
-        auto newTaskOp = newPerAxisTileDMAOp->getParentOfType<VPURT::TaskOp>();
-        if (auto cycleBeginAttr = vpurtTask->getAttr(cycleBegin)) {
-            newTaskOp->setAttr(cycleBegin, cycleBeginAttr);
-        }
-        if (auto cycleEndAttr = vpurtTask->getAttr(cycleEnd)) {
-            newTaskOp->setAttr(cycleEnd, cycleEndAttr);
-        }
 
         newOps.push_back(newPerAxisTileDMAOp);
     }
@@ -381,8 +377,8 @@ mlir::LogicalResult PerAxisTileDMARewriter::unrollDuplicated(VPUIP::PerAxisTileD
     auto loc = perAxisTileDMAOp->getLoc();
     auto ctx = perAxisTileDMAOp->getContext();
 
-    const auto input = perAxisTileDMAOp.input();
-    const auto output = perAxisTileDMAOp.output_buff();
+    const auto input = perAxisTileDMAOp.getInput();
+    const auto output = perAxisTileDMAOp.getOutputBuff();
 
     const auto inputType = input.getType().cast<vpux::NDTypeInterface>();
     const auto outputType = output.getType().cast<vpux::NDTypeInterface>();
@@ -407,8 +403,8 @@ mlir::LogicalResult PerAxisTileDMARewriter::unrollDuplicated(VPUIP::PerAxisTileD
 
     _log.trace("Insert new CMX buffer declaration: '{0}'", cmxBuffer);
 
-    auto axis = perAxisTileDMAOp.axis();
-    auto tiles = perAxisTileDMAOp.tiles();
+    auto axis = perAxisTileDMAOp.getAxis();
+    auto tiles = perAxisTileDMAOp.getTiles();
     VPUX_THROW_UNLESS(axis.has_value() && tiles.has_value(), "Cannot get PerAxisTile attributes");
     auto elemTypeSize = Byte(inputType.getElemTypeSize());
 
@@ -420,18 +416,12 @@ mlir::LogicalResult PerAxisTileDMARewriter::unrollDuplicated(VPUIP::PerAxisTileD
     const auto newLoc = appendLoc(loc, "_broadcast_copy_to_CMX[{0},{1}]", clusters.front(), clusters.back());
     const auto newPerAxisTileDMA = VPURT::wrapIntoTaskOp<VPUIP::PerAxisTileDMAOp>(
             rewriter, vpurtTask.getWaitBarriers(), vpurtTask.getUpdateBarriers(), newLoc, input, cmxBuffer,
-            vpux::getIntAttr(rewriter, 0), perAxisTileDMAOp.channelTypeAttr(), perAxisTileDMAOp.axisAttr(),
-            perAxisTileDMAOp.tilesAttr(), dmaDescriptor, perAxisTileDMAOp.dma_hwp_idAttr());
+            vpux::getIntAttr(rewriter, 0), perAxisTileDMAOp.getAxisAttr(), perAxisTileDMAOp.getTilesAttr(),
+            dmaDescriptor, perAxisTileDMAOp.getIsOutOfOrderAttr(), perAxisTileDMAOp.getIsCriticalAttr(),
+            perAxisTileDMAOp.getDmaHwpIdAttr(), perAxisTileDMAOp.getProfilingMetadataAttr());
 
     _log.trace("Insert new PerAxisTileDMA op: '{0}'", newPerAxisTileDMA);
 
-    auto newVpurtTask = newPerAxisTileDMA->getParentOfType<VPURT::TaskOp>();
-    if (auto cycleBeginAttr = vpurtTask->getAttr(cycleBegin)) {
-        newVpurtTask->setAttr(cycleBegin, cycleBeginAttr);
-    }
-    if (auto cycleEndAttr = vpurtTask->getAttr(cycleEnd)) {
-        newVpurtTask->setAttr(cycleEnd, cycleEndAttr);
-    }
     rewriter.eraseOp(vpurtTask);
 
     // unrolling per cluster tiling is done, now unroll per axis/tile
@@ -458,7 +448,7 @@ void UnrollPerAxisTileDMAPass::safeRunOnFunc() {
     auto func = getOperation();
     auto module = func->getParentOfType<mlir::ModuleOp>();
     auto dmaOp = IE::getAvailableExecutor(module, VPU::ExecutorKind::DMA_NN);
-    auto dmaPortCount = dmaOp.count();
+    auto dmaPortCount = dmaOp.getCount();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<PerAxisTileDMARewriter>(&ctx, dmaPortCount, _log);

@@ -10,17 +10,27 @@
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/strings.hpp"
 #include "vpux/utils/core/func_ref.hpp"
-
 #include "vpux/utils/core/profiling.hpp"
-#include "vpux/utils/plugin/profiling_parser.hpp"
 
 namespace vpux {
 
 VPUIP::DpuProfilingMetadataAttr getDpuProfilingMetaAttr(mlir::MLIRContext* ctx, unsigned bufferId, unsigned taskId,
-                                                        unsigned maxVariants, llvm::Optional<unsigned> numVariants,
-                                                        llvm::Optional<unsigned> clusterId);
+                                                        unsigned maxVariants, std::optional<unsigned> numVariants,
+                                                        std::optional<unsigned> clusterId);
 
 vpux::profiling::ExecutorType convertDataInfoNameToExecType(StringRef name);
+
+VPUIP::DmaProfilingMetadataAttr getDmaProfilingMetaAttrBegin(mlir::MLIRContext* ctx);
+
+VPUIP::DmaProfilingMetadataAttr getDmaProfilingMetaAttr(mlir::MLIRContext* ctx, unsigned index);
+
+VPUIP::SwProfilingMetadataAttr getSwProfilingMetaAttr(mlir::MLIRContext* ctx, size_t bufferId, size_t bufferOffset,
+                                                      size_t clusterSize, size_t dataIndex,
+                                                      std::optional<size_t> tileId, std::optional<size_t> clusterId);
+
+void attachSwProfilingMetadataToUpa(mlir::Operation* op, VPUIP::SwProfilingMetadataAttr attr);
+
+VPUIP::SwProfilingMetadataAttr getSwProfilingMetadataFromUpa(mlir::Operation* op);
 
 // Post processing of profiling is relay on uniqueness of locations, but this may be violated. To ensure that all names
 // are unique this class is used
@@ -31,7 +41,7 @@ public:
 
     mlir::Location getUniqueLoc(mlir::Location baseLoc) {
         VPUX_THROW_WHEN(baseLoc.isa<mlir::UnknownLoc>(), "Unknown location");
-        std::string strLoc = stringifyLocation(baseLoc);
+        std::string strLoc = stringifyPrimaryLocation(baseLoc);
         if (_counter.count(strLoc) == 0) {
             _counter[strLoc] = 1;
             return baseLoc;
@@ -54,8 +64,8 @@ struct TaskSignature {
     SmallVector<unsigned> _subTasksAtCluster;
 
     VPUIP::DpuProfilingMetadataAttr dpuSignature(mlir::MLIRContext* ctx, unsigned bufferId, unsigned taskId) const {
-        llvm::Optional<unsigned> numVariants;
-        llvm::Optional<unsigned> clusterId;
+        std::optional<unsigned> numVariants;
+        std::optional<unsigned> clusterId;
         // Setting clusterId for single-cluster case. Unroll-Nce-Tiling pass won't handle this case, so doing this now
         if (_subTasksAtCluster.size() == 1) {
             numVariants = _subTasksAtCluster.front();
@@ -82,21 +92,20 @@ bool isProfiledDmaTask(VPURT::TaskOp taskOp);
  * @param dmaHwpId - HWP id value. Set to 0 to ignore the profiling entry.
  */
 void setDmaHwpIdAttribute(mlir::MLIRContext* ctx, VPUIP::DMATypeOpInterface& op, int32_t dmaHwpId);
+
 /**
- * @brief check whether HWP argument was used in any profiled DMA operation
- * dma_hwp_id attribute set
+ * @brief check whether CNNNetworkOp defines profiling outputs
  *
- * @return true if at least one profiled DMA operation has dma_hwp_id argument set, false otherwise.
- */
-bool isDmaHwpUsedInVPURT(mlir::func::FuncOp& func);
-/**
- * @brief check whether HWP argument was used in any profiled DMA operation
- * dma_hwp_id attribute set
- *
- * @return false for architectures <= VPUX37XX.
- * For other architectures true if at least one profiled DMA operation has dma_hwp_id argument set,
- * false otherwise.
+ * @return true, if there are profiling outputs defined, false - otherwise
  *
  */
-bool isDmaHwpUsedInVPURT(mlir::ModuleOp& module);
+bool isProfilingEnabled(IE::CNNNetworkOp netOp);
+
+/**
+ * @brief return profiling section of specific type extracted from module's DataInfoOps
+ *
+ * @return profiling section of type secType, if found, otherwise - empty value.
+ *
+ */
+std::optional<VPUIP::ProfilingSectionOp> getProfilingSection(mlir::ModuleOp module, profiling::ExecutorType secType);
 }  // namespace vpux

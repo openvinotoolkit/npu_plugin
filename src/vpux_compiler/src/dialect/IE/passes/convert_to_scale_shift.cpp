@@ -7,12 +7,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/utils/const_attributes.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
-
-#include <mlir/Pass/PassManager.h>
-#include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
 
@@ -112,8 +107,8 @@ template <typename BiasTypeOp>
 mlir::LogicalResult ConvertBiasToScaleShift<BiasTypeOp>::matchAndRewrite(BiasTypeOp biasOp,
                                                                          mlir::PatternRewriter& rewriter) const {
     _log.trace("Got op {0} at {1}", biasOp->getName(), biasOp->getLoc());
-    auto inElemType = biasOp.input2().getType().template cast<vpux::NDTypeInterface>().getElementType();
-    auto outElemType = biasOp.output().getType().template cast<vpux::NDTypeInterface>().getElementType();
+    auto inElemType = biasOp.getInput2().getType().template cast<vpux::NDTypeInterface>().getElementType();
+    auto outElemType = biasOp.getOutput().getType().template cast<vpux::NDTypeInterface>().getElementType();
 
     // from the ops defination, scale shift can only support F16 FP32
     if (!(inElemType.isF16() || inElemType.isF32())) {
@@ -126,12 +121,12 @@ mlir::LogicalResult ConvertBiasToScaleShift<BiasTypeOp>::matchAndRewrite(BiasTyp
         return mlir::failure();
     }
 
-    const auto lhsType = biasOp.input1().getType().template cast<vpux::NDTypeInterface>();
-    const auto outShapeRes = biasOp.output().getType().template cast<vpux::NDTypeInterface>();
+    const auto lhsType = biasOp.getInput1().getType().template cast<vpux::NDTypeInterface>();
+    const auto outShapeRes = biasOp.getOutput().getType().template cast<vpux::NDTypeInterface>();
 
     bool lhsIsActivation = (lhsType == outShapeRes);
-    auto activationInput = lhsIsActivation ? biasOp.input1() : biasOp.input2();
-    auto biasInput = lhsIsActivation ? biasOp.input2() : biasOp.input1();
+    auto activationInput = lhsIsActivation ? biasOp.getInput1() : biasOp.getInput2();
+    auto biasInput = lhsIsActivation ? biasOp.getInput2() : biasOp.getInput1();
 
     auto findBiasConst = IE::getConstParentOp(biasInput);
     if (mlir::failed(findBiasConst)) {
@@ -139,7 +134,7 @@ mlir::LogicalResult ConvertBiasToScaleShift<BiasTypeOp>::matchAndRewrite(BiasTyp
         return mlir::failure();
     }
 
-    auto mulOutShape = getShape(biasOp.output());
+    auto mulOutShape = getShape(biasOp.getOutput());
     auto biasesShape = getShape(biasInput);
 
     if (verifyAndBroadcastInput(biasOp.getLoc(), biasInput, biasesShape, mulOutShape, rewriter).failed()) {
@@ -209,8 +204,8 @@ private:
 mlir::LogicalResult ConvertMultiplyToScaleShift::matchAndRewrite(IE::MultiplyOp mulOp,
                                                                  mlir::PatternRewriter& rewriter) const {
     _log.trace("Got op {0} at {1}", mulOp->getName(), mulOp->getLoc());
-    const auto lhsType = mulOp.input1().getType().cast<mlir::ShapedType>();
-    const auto outShapeRes = mulOp.output().getType().cast<mlir::ShapedType>();
+    const auto lhsType = mulOp.getInput1().getType().cast<mlir::ShapedType>();
+    const auto outShapeRes = mulOp.getOutput().getType().cast<mlir::ShapedType>();
 
     // from the ops defination, scale shift can only support F16 FP32
     const auto lhsEltmentType = lhsType.getElementType();
@@ -220,10 +215,10 @@ mlir::LogicalResult ConvertMultiplyToScaleShift::matchAndRewrite(IE::MultiplyOp 
     }
 
     bool lhsIsActivation = (lhsType == outShapeRes);
-    auto activationInput = lhsIsActivation ? mulOp.input1() : mulOp.input2();
-    auto weightsInput = lhsIsActivation ? mulOp.input2() : mulOp.input1();
+    auto activationInput = lhsIsActivation ? mulOp.getInput1() : mulOp.getInput2();
+    auto weightsInput = lhsIsActivation ? mulOp.getInput2() : mulOp.getInput1();
 
-    auto mulOutShape = getShape(mulOp.output());
+    auto mulOutShape = getShape(mulOp.getOutput());
     auto weightsShape = getShape(weightsInput);
 
     // Activation shape and scaleShift output shape should be consistent

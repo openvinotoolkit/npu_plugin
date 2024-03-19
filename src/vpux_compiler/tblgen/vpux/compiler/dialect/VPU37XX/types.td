@@ -346,21 +346,29 @@ def bf_BarrierMask : VPU37XX_RegFieldWrapper<"mask_", 8, 8>;
 def reg_BarrierGroupMask : VPU37XX_RegisterWrapper<"barriers_group_mask_", 64, 0x118, ["group_", "mask_"]>;
 
 // barriers_sched_
-def bf_StartAfter : VPU37XX_RegFieldWrapper<"start_after_", 16, 0>;
-def bf_CleanAfter : VPU37XX_RegFieldWrapper<"clean_after_", 16, 16>;
-def reg_BarriersSchedulingCfg : VPU37XX_RegisterWrapper<"barriers_sched_", 32, 0x120, ["start_after_", "clean_after_"]>;
+def bf_StartAfter : VPU37XX_RegFieldWrapper<"start_after_", 32, 0>;
+def bf_CleanAfter : VPU37XX_RegFieldWrapper<"clean_after_", 32, 32>;
+def reg_BarriersSchedulingCfg : VPU37XX_RegisterWrapper<"barriers_sched_", 64, 0x120, ["start_after_", "clean_after_"]>;
 
 // variant_count_
 def bf_VariantCnt : VPU37XX_RegFieldWrapper<"variant_count_", 16, 0>;
-def reg_VariantCnt : VPU37XX_RegisterWrapper<"variant_count_", 16, 0x124, ["variant_count_"]>;
+def reg_VariantCnt : VPU37XX_RegisterWrapper<"variant_count_", 16, 0x128, ["variant_count_"]>;
 
 // cluster_
 def bf_Cluster : VPU37XX_RegFieldWrapper<"cluster_", 8, 0>;
-def reg_ClusterInvariant : VPU37XX_RegisterWrapper<"cluster_invariant_", 8, 0x126, ["cluster_"]>;
+def reg_ClusterInvariant : VPU37XX_RegisterWrapper<"cluster_invariant_", 8, 0x12A, ["cluster_"]>;
 
 // is_cont_conv_
 def bf_IsContConv : VPU37XX_RegFieldWrapper<"is_cont_conv_", 8, 0>;
-def reg_IsContConv : VPU37XX_RegisterWrapper<"is_cont_conv_", 8, 0x127, ["is_cont_conv_"]>;
+def reg_IsContConv : VPU37XX_RegisterWrapper<"is_cont_conv_", 8, 0x12B, ["is_cont_conv_"]>;
+
+// dpu_prof_mode_
+def bf_dpuProfMode : VPU37XX_RegFieldWrapper<"dpu_prof_mode_", 8, 0>;
+def reg_dpuProfMode : VPU37XX_RegisterWrapper<"dpu_prof_mode_", 8, 0x12C, ["dpu_prof_mode_"]>;
+
+// pad_[3]
+def bf_invPad3 : VPU37XX_RegFieldWrapper<"inv_pad_3", 24, 0>;
+def reg_invPad3 : VPU37XX_RegisterWrapper<"inv_pad_3", 24, 0x12D, ["inv_pad_3"]>;
 
 // DPUInvariantRegister
 def reg_mapped_DpuInvariantRegister : VPU37XX_RegMappedWrapper<"DpuInvariantRegister",
@@ -397,8 +405,9 @@ def reg_mapped_DpuInvariantRegister : VPU37XX_RegMappedWrapper<"DpuInvariantRegi
     "ppe_misc",
     "ppe_fp_bias", "ppe_fp_scale", "ppe_fp_prelu", "ppe_fp_cfg",
     "hwp_cmx_base_offset_",
-     "barriers_wait_mask_", "barriers_post_mask_", "barriers_group_mask_",
-     "barriers_sched_", "variant_count_", "cluster_invariant_", "is_cont_conv_"
+    "barriers_wait_mask_", "barriers_post_mask_", "barriers_group_mask_",
+    "barriers_sched_", "variant_count_", "cluster_invariant_", "is_cont_conv_",
+    "dpu_prof_mode_", "inv_pad_3"
     ]>;
 
 //
@@ -619,22 +628,21 @@ def reg_dma_barriers_cons_mask : VPU37XX_RegisterWrapper<"dma_barriers_cons_mask
 //  VpuTaskSchedulingBarrierConfig
 //
 
-def bf_dma_barriers_sched_start_after : VPU37XX_RegFieldWrapper<"dma_barriers_sched_start_after", 16, 0>;
-def bf_dma_barriers_sched_clean_after : VPU37XX_RegFieldWrapper<"dma_barriers_sched_clean_after", 16, 16>;
-def reg_VpuTaskSchedulingBarrierConfig : VPU37XX_RegisterWrapper<"dma_barriers_sched", 32, 0x50,
+def bf_dma_barriers_sched_start_after : VPU37XX_RegFieldWrapper<"dma_barriers_sched_start_after", 32, 0>;
+def bf_dma_barriers_sched_clean_after : VPU37XX_RegFieldWrapper<"dma_barriers_sched_clean_after", 32, 32>;
+def reg_VpuTaskSchedulingBarrierConfig : VPU37XX_RegisterWrapper<"dma_barriers_sched", 64, 0x50,
     ["dma_barriers_sched_start_after", "dma_barriers_sched_clean_after"]>;
 
 //
 //  Pads
 //
 
-//def reg_dma_pad : VPU37XX_RegisterWrapper<"dma_pad_0", 352, 0x54, []>;
-def reg_dma_pad_0 : VPU37XX_RegisterWrapper<"dma_pad_0", 32, 0x54, []>;
-def reg_dma_pad_1 : VPU37XX_RegisterWrapper<"dma_pad_1", 64, 0x58, []>;
-def reg_dma_pad_2 : VPU37XX_RegisterWrapper<"dma_pad_2", 64, 0x60, []>;
-def reg_dma_pad_3 : VPU37XX_RegisterWrapper<"dma_pad_3", 64, 0x68, []>;
-def reg_dma_pad_4 : VPU37XX_RegisterWrapper<"dma_pad_4", 64, 0x70, []>;
-def reg_dma_pad_5 : VPU37XX_RegisterWrapper<"dma_pad_5", 64, 0x78, []>;
+def reg_dma_pad_0 : VPU37XX_RegisterWrapper<"dma_pad_0", 64, 0x58, []>;
+def reg_dma_pad_1 : VPU37XX_RegisterWrapper<"dma_pad_1", 64, 0x60, []>;
+def reg_dma_pad_2 : VPU37XX_RegisterWrapper<"dma_pad_2", 64, 0x68, []>;
+def reg_dma_pad_3 : VPU37XX_RegisterWrapper<"dma_pad_3", 64, 0x70, []>;
+def reg_dma_pad_4 : VPU37XX_RegisterWrapper<"dma_pad_4", 64, 0x78, []>;
+
 
 // DMA descriptor
 
@@ -653,8 +661,7 @@ def reg_mapped_DMARegister : VPU37XX_RegMappedWrapper<"DMARegister",
     "dma_pad_1",
     "dma_pad_2",
     "dma_pad_3",
-    "dma_pad_4",
-    "dma_pad_5"
+    "dma_pad_4"
     ]>;
 
 //
@@ -709,44 +716,49 @@ def bf_BarrierGroupAct : VPU37XX_RegFieldWrapper<"group_act", 8, 0>;
 def bf_BarrierMaskAct : VPU37XX_RegFieldWrapper<"mask_act", 8, 8>;
 def reg_BarrierGroupMaskAct : VPU37XX_RegisterWrapper<"barriers_group_mask_act", 64, 0x20, ["group_act", "mask_act"]>;
 
-def bf_ActInvoBarriersSchedStartAfter : VPU37XX_RegFieldWrapper<"act_invo_barriers_sched_start_after", 16, 0>;
-def bf_ActInvoBarriersSchedCleanAfter : VPU37XX_RegFieldWrapper<"act_invo_barriers_sched_clean_after", 16, 16>;
-def reg_SchedulingBarrierConfig : VPU37XX_RegisterWrapper<"act_invo_barriers_sched", 32, 0x28, ["act_invo_barriers_sched_start_after", "act_invo_barriers_sched_clean_after"]>;
+def bf_ActInvoBarriersSchedStartAfter : VPU37XX_RegFieldWrapper<"act_invo_barriers_sched_start_after", 32, 0>;
+def bf_ActInvoBarriersSchedCleanAfter : VPU37XX_RegFieldWrapper<"act_invo_barriers_sched_clean_after", 32, 32>;
+def reg_SchedulingBarrierConfig : VPU37XX_RegisterWrapper<"act_invo_barriers_sched", 64, 0x28, ["act_invo_barriers_sched_start_after", "act_invo_barriers_sched_clean_after"]>;
 
 def bf_InvoIndex : VPU37XX_RegFieldWrapper<"invo_index", 32, 0>;
-def reg_InvoIndex : VPU37XX_RegisterWrapper<"invo_index", 32, 0x2C, ["invo_index"]>;
+def reg_InvoIndex : VPU37XX_RegisterWrapper<"invo_index", 32, 0x30, ["invo_index"]>;
 
 def bf_InvoTile : VPU37XX_RegFieldWrapper<"invo_tile", 32, 0>;
-def reg_InvoTile : VPU37XX_RegisterWrapper<"invo_tile", 32, 0x30, ["invo_tile"]>;
+def reg_InvoTile : VPU37XX_RegisterWrapper<"invo_tile", 32, 0x34, ["invo_tile"]>;
 
 def bf_KernelRangeIndex : VPU37XX_RegFieldWrapper<"kernel_range_index", 32, 0>;
-def reg_KernelRangeIndex : VPU37XX_RegisterWrapper<"kernel_range_index", 32, 0x34, ["kernel_range_index"]>;
+def reg_KernelRangeIndex : VPU37XX_RegisterWrapper<"kernel_range_index", 32, 0x38, ["kernel_range_index"]>;
+
+def bf_ActInvoPad4 : VPU37XX_RegFieldWrapper<"actinvo_pad_4", 32, 0>;
+def reg_ActInfoPad4 : VPU37XX_RegisterWrapper<"actinvo_pad_4", 32, 0x3C, ["actinvo_pad_4"]>;
 
 // ActKernelInvocation descriptor
 def reg_mapped_ActKernelInvocationDescriptor : VPU37XX_RegMappedWrapper<"VpuActKernelInvocation",
     ["range", "kernel_args", "data_window_base", "perf_packet_out",
     "barriers_wait_mask_act", "barriers_post_mask_act", "barriers_group_mask_act",
-    "act_invo_barriers_sched", "invo_index", "invo_tile", "kernel_range_index"]>;
+    "act_invo_barriers_sched", "invo_index", "invo_tile", "kernel_range_index", "actinvo_pad_4"]>;
 
 //
 //  BarrierCfg registers
 //
 
-def bf_NextSameId : VPU37XX_RegFieldWrapper<"next_same_id_", 16, 0, "SINT">;
-def reg_NextSameId : VPU37XX_RegisterWrapper<"next_same_id_", 16, 0x0, ["next_same_id_"]>;
+def bf_NextSameId : VPU37XX_RegFieldWrapper<"next_same_id_", 32, 0, "UINT">;
+def reg_NextSameId : VPU37XX_RegisterWrapper<"next_same_id_", 32, 0x0, ["next_same_id_"]>;
 
 def bf_ProducerCount: VPU37XX_RegFieldWrapper<"producer_count_", 16, 0>;
-def reg_ProducerCount : VPU37XX_RegisterWrapper<"producer_count_", 16, 0x2, ["producer_count_"]>;
+def reg_ProducerCount : VPU37XX_RegisterWrapper<"producer_count_", 16, 0x4, ["producer_count_"]>;
 
 def bf_ConsumerCount : VPU37XX_RegFieldWrapper<"consumer_count_", 16, 0>;
-def reg_ConsumerCount : VPU37XX_RegisterWrapper<"consumer_count_", 16, 0x4, ["consumer_count_"]>;
+def reg_ConsumerCount : VPU37XX_RegisterWrapper<"consumer_count_", 16, 0x6, ["consumer_count_"]>;
 
 def bf_BarrierId : VPU37XX_RegFieldWrapper<"real_id_", 8, 0>;
-def reg_BarrierId : VPU37XX_RegisterWrapper<"real_id_", 16, 0x6, ["real_id_"]>;
+def reg_BarrierId : VPU37XX_RegisterWrapper<"real_id_", 8, 0x8, ["real_id_"]>;
 
+def bf_BarCfg_Pad3 : VPU37XX_RegFieldWrapper<"barcfg_pad_3", 24, 0>;
+def reg_BarCfg_Pad3 : VPU37XX_RegisterWrapper<"barcfg_pad_3", 24, 0x9, ["barcfg_pad_3"]>;
 
 // BarrierCfg descriptor
 def reg_mapped_BarrierDescriptor : VPU37XX_RegMappedWrapper<"VpuBarrierCountConfig",
-    ["next_same_id_", "producer_count_", "consumer_count_", "real_id_"]>;
+    ["next_same_id_", "producer_count_", "consumer_count_", "real_id_", "barcfg_pad_3"]>;
 
 #endif

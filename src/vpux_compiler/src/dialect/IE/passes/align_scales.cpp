@@ -2,34 +2,51 @@
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
-#include "vpux/compiler/dialect/IE/utils/const_attributes.hpp"
+#include "vpux/compiler/dialect/IE/utils/elem_type_info_utils.hpp"
 #include "vpux/compiler/dialect/IE/utils/quantization.hpp"
-#include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
 #include "vpux/utils/core/numeric.hpp"
 
-#include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
 #include <algorithm>
-#include <vector>
 
 using namespace vpux;
 
 namespace {
+class AlignConcatScalesRewriter final : public mlir::OpRewritePattern<IE::ConcatOp> {
+public:
+    AlignConcatScalesRewriter(mlir::MLIRContext* ctx, Logger log, bool seOpsEnabled)
+            : mlir::OpRewritePattern<IE::ConcatOp>(ctx, benefitLow), _log(log), _seOpsEnabled(seOpsEnabled) {
+        setDebugName("AlignConcatScalesRewriter");
+    }
 
-bool isFQAgnostic(mlir::Operation* op) {
-    // TODO: #18651 replace with mlir::isa<IE::ElemTypeInfoOpInterface>(op);
-    return (mlir::isa<IE::ConcatOp, IE::ReshapeOp, IE::SplitOp, IE::TileOp, IE::MaxPoolOp, IE::ReduceMaxOp, IE::SliceOp,
-                      IE::TransposeOp>(op));
+public:
+    mlir::LogicalResult matchAndRewrite(IE::ConcatOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    void gatherFQs(mlir::Operation* currentOp, SmallVector<IE::FakeQuantizeOp>& fqOpsToAlign,
+                   SmallVector<mlir::Operation*>& visitedFQAgnosticOps) const;
+    SmallVector<mlir::Operation*> gatherNodesAround(mlir::Operation* op) const;
+    bool isFQAgnostic(mlir::Operation* op) const;
+
+    Logger _log;
+    bool _seOpsEnabled;
+};
+
+bool AlignConcatScalesRewriter::isFQAgnostic(mlir::Operation* op) const {
+    const auto logCb = [&](const formatv_object_base& msg) {
+        _log.trace("{0}", msg.str());
+    };
+
+    return vpux::IE::isSupportedElemTypeInfoCase(op, _seOpsEnabled, logCb);
 }
 
-SmallVector<mlir::Operation*> gatherNodesAround(mlir::Operation* op) {
+SmallVector<mlir::Operation*> AlignConcatScalesRewriter::gatherNodesAround(mlir::Operation* op) const {
     auto aroundOps = SmallVector<mlir::Operation*>();
 
     for (const auto& operand : op->getOperands()) {
@@ -46,8 +63,38 @@ SmallVector<mlir::Operation*> gatherNodesAround(mlir::Operation* op) {
     return aroundOps;
 }
 
-void gatherFQs(mlir::Operation* currentOp, SmallVector<IE::FakeQuantizeOp>& fqOpsToAlign,
-               SmallVector<mlir::Operation*>& visitedFQAgnosticOps) {
+bool fqHasSameInOutRange(IE::FakeQuantizeOp fqOps) {
+    const auto inputLowVals = IE::getConst(fqOps.getInputLow().getDefiningOp<Const::DeclareOp>());
+    const auto inputHighVals = IE::getConst(fqOps.getInputHigh().getDefiningOp<Const::DeclareOp>());
+    const auto outLowVals = IE::getConst(fqOps.getOutputLow().getDefiningOp<Const::DeclareOp>());
+    const auto outHighVals = IE::getConst(fqOps.getOutputHigh().getDefiningOp<Const::DeclareOp>());
+
+    auto fqInValsCount = inputLowVals.size();
+
+    if (fqInValsCount != inputHighVals.size()) {
+        return false;
+    }
+
+    auto fqOutValsCount = outLowVals.size();
+    if (fqOutValsCount != outHighVals.size()) {
+        return false;
+    }
+
+    if (fqInValsCount != fqOutValsCount) {
+        return false;
+    }
+
+    for (size_t i = 0; i < fqInValsCount; i++) {
+        if (!isFloatEqual(inputLowVals[i], outLowVals[i]) || !isFloatEqual(inputHighVals[i], outHighVals[i])) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void AlignConcatScalesRewriter::gatherFQs(mlir::Operation* currentOp, SmallVector<IE::FakeQuantizeOp>& fqOpsToAlign,
+                                          SmallVector<mlir::Operation*>& visitedFQAgnosticOps) const {
     // Mark current operation as visited
     visitedFQAgnosticOps.push_back(currentOp);
     for (const auto& operand : currentOp->getOperands()) {
@@ -66,6 +113,11 @@ void gatherFQs(mlir::Operation* currentOp, SmallVector<IE::FakeQuantizeOp>& fqOp
         }
 
         fqOpsToAlign.push_back(fqOpToAlign);
+
+        // if fq has different InOut range, no need to gather node around.
+        if (!fqHasSameInOutRange(fqOpToAlign)) {
+            continue;
+        }
 
         auto opsAround = gatherNodesAround(fqOpToAlign.getOperation());
         for (auto opAround : opsAround) {
@@ -96,6 +148,12 @@ void gatherFQs(mlir::Operation* currentOp, SmallVector<IE::FakeQuantizeOp>& fqOp
             }
 
             fqOpsToAlign.push_back(fqOpToAlign);
+
+            // if fq has different InOut range, no need to gather node around.
+            if (!fqHasSameInOutRange(fqOpToAlign)) {
+                continue;
+            }
+
             auto opsAround = gatherNodesAround(user);
             for (auto opAround : opsAround) {
                 if (!isFQAgnostic(opAround) ||
@@ -108,62 +166,34 @@ void gatherFQs(mlir::Operation* currentOp, SmallVector<IE::FakeQuantizeOp>& fqOp
     }
 }
 
-bool isPerTensorFQ(ArrayRef<IE::FakeQuantizeOp> fqOpsToAlign) {
-    for (const auto& fqOpToAlign : fqOpsToAlign) {
-        const auto axis = IE::getFQAxisIndex(fqOpToAlign);
-        if (axis != None && axis.has_value()) {
+bool allFqsHaveSameIOParamsExceptConcatInputs(MutableArrayRef<IE::FakeQuantizeOp> fqOpsToAlign, IE::ConcatOp origOp) {
+    for (auto& fqOpToAlign : fqOpsToAlign) {
+        // no need to check in out range is equal or not, for we will handle unequal case in alignFQRanges()
+        auto concatIsOneUser = llvm::any_of(fqOpToAlign.getOutput().getUsers(), [&](auto userOp) {
+            return userOp == origOp;
+        });
+        if (concatIsOneUser) {
+            continue;
+        }
+
+        if (!fqHasSameInOutRange(fqOpToAlign)) {
             return false;
         }
     }
-    return true;
-}
 
-Const::details::ContentRange<float> getConst(Const::DeclareOp declOp) {
-    const auto content = declOp.getContentAttr().fold();
-    return content.getValues<float>();
-}
-
-bool allFqsHaveSameIOParams(MutableArrayRef<IE::FakeQuantizeOp> fqOpsToAlign) {
-    for (auto fqOpToAlign : fqOpsToAlign) {
-        const auto inputLowVals = getConst(fqOpToAlign.input_low().getDefiningOp<Const::DeclareOp>());
-        const auto inputHighVals = getConst(fqOpToAlign.input_high().getDefiningOp<Const::DeclareOp>());
-        const auto outLowVals = getConst(fqOpToAlign.output_low().getDefiningOp<Const::DeclareOp>());
-        const auto outHighVals = getConst(fqOpToAlign.output_high().getDefiningOp<Const::DeclareOp>());
-
-        auto fqInValsCount = inputLowVals.size();
-
-        if (fqInValsCount != inputHighVals.size()) {
-            return false;
-        }
-
-        auto fqOutValsCount = outLowVals.size();
-        if (fqOutValsCount != outHighVals.size()) {
-            return false;
-        }
-
-        if (fqInValsCount != fqOutValsCount) {
-            return false;
-        }
-
-        for (size_t i = 0; i < fqInValsCount; i++) {
-            if (!isFloatEqual(inputLowVals[i], outLowVals[i]) || !isFloatEqual(inputHighVals[i], outHighVals[i])) {
-                return false;
-            }
-        }
-    }
     return true;
 }
 
 bool allFqsHaveTheSameRange(MutableArrayRef<IE::FakeQuantizeOp> fqOpsToAlign) {
-    const auto firstFQInLowVals = getConst(fqOpsToAlign[0].input_low().getDefiningOp<Const::DeclareOp>());
-    const auto firstFQInHighVals = getConst(fqOpsToAlign[0].input_high().getDefiningOp<Const::DeclareOp>());
+    const auto firstFQOutLowVals = IE::getConst(fqOpsToAlign[0].getOutputLow().getDefiningOp<Const::DeclareOp>());
+    const auto firstFQOutHighVals = IE::getConst(fqOpsToAlign[0].getOutputHigh().getDefiningOp<Const::DeclareOp>());
 
     for (auto fqOpToAlign : fqOpsToAlign) {
-        const auto inFQLowVals = getConst(fqOpToAlign.input_low().getDefiningOp<Const::DeclareOp>());
-        const auto inFQHighVals = getConst(fqOpToAlign.input_high().getDefiningOp<Const::DeclareOp>());
+        const auto outFQLowVals = IE::getConst(fqOpToAlign.getOutputLow().getDefiningOp<Const::DeclareOp>());
+        const auto outFQHighVals = IE::getConst(fqOpToAlign.getOutputHigh().getDefiningOp<Const::DeclareOp>());
 
-        if (!isFloatEqual(firstFQInLowVals[0], inFQLowVals[0]) ||
-            !isFloatEqual(firstFQInHighVals[0], inFQHighVals[0])) {
+        if (!isFloatEqual(firstFQOutLowVals[0], outFQLowVals[0]) ||
+            !isFloatEqual(firstFQOutHighVals[0], outFQHighVals[0])) {
             return false;
         }
     }
@@ -196,32 +226,22 @@ void alignZP(float& min, float& max, int maxLevels, mlir::IntegerType type) {
     max = static_cast<float>(scale * (maxLevels - 1.0 - zp));
 }
 
-Const::DeclareOp createFQConst(mlir::MLIRContext* ctx, mlir::Location loc, float val, mlir::RankedTensorType argType,
-                               mlir::PatternRewriter& rewriter) {
-    const auto denseElementVal = wrapData(mlir::RankedTensorType::get({1, 1, 1, 1}, mlir::Float32Type::get(ctx)), val);
-    VPUX_THROW_UNLESS(denseElementVal != nullptr, "Failed to generate the denseElementVal.");
-    Const::ContentAttr cstAttr = Const::ContentAttr::get(denseElementVal)
-                                         .convertElemType(argType.cast<vpux::NDTypeInterface>().getElementType());
-    return rewriter.create<Const::DeclareOp>(loc, argType, cstAttr);
-}
-
 SmallVector<IE::FakeQuantizeOp> selectFqsToAlign(ArrayRef<IE::FakeQuantizeOp> fqOpsToAlign) {
     auto minRange = std::numeric_limits<float>::max();
     SmallVector<IE::FakeQuantizeOp> filteredFQOpsToAlign;
-    const float maxFqRangeRatio = 5.0;
 
     for (auto fqOpToAlign : fqOpsToAlign) {
-        const auto inputLowVals = getConst(fqOpToAlign.input_low().getDefiningOp<Const::DeclareOp>());
-        const auto inputHighVals = getConst(fqOpToAlign.input_high().getDefiningOp<Const::DeclareOp>());
+        const auto outputLowVals = IE::getConst(fqOpToAlign.getOutputLow().getDefiningOp<Const::DeclareOp>());
+        const auto outputHighVals = IE::getConst(fqOpToAlign.getOutputHigh().getDefiningOp<Const::DeclareOp>());
 
-        minRange = std::min(minRange, inputHighVals[0] - inputLowVals[0]);
+        minRange = std::min(minRange, outputHighVals[0] - outputLowVals[0]);
     }
 
     for (auto fqOpToAlign : fqOpsToAlign) {
-        const auto inputLowVals = getConst(fqOpToAlign.input_low().getDefiningOp<Const::DeclareOp>());
-        const auto inputHighVals = getConst(fqOpToAlign.input_high().getDefiningOp<Const::DeclareOp>());
+        const auto outputLowVals = IE::getConst(fqOpToAlign.getOutputLow().getDefiningOp<Const::DeclareOp>());
+        const auto outputHighVals = IE::getConst(fqOpToAlign.getOutputHigh().getDefiningOp<Const::DeclareOp>());
 
-        if (inputHighVals[0] - inputLowVals[0] >= maxFqRangeRatio * minRange) {
+        if (outputHighVals[0] - outputLowVals[0] >= IE::QUANT_RANGE_RATIO * minRange) {
             continue;
         }
         filteredFQOpsToAlign.push_back(fqOpToAlign);
@@ -232,15 +252,15 @@ SmallVector<IE::FakeQuantizeOp> selectFqsToAlign(ArrayRef<IE::FakeQuantizeOp> fq
 void findMinMax(MutableArrayRef<IE::FakeQuantizeOp> fqOpsToAlign, float& min, float& max, float& range,
                 int& maxLevels) {
     for (auto fqOpToAlign : fqOpsToAlign) {
-        const auto inputLowVals = getConst(fqOpToAlign.input_low().getDefiningOp<Const::DeclareOp>());
-        const auto inputHighVals = getConst(fqOpToAlign.input_high().getDefiningOp<Const::DeclareOp>());
+        const auto outputLowVals = IE::getConst(fqOpToAlign.getOutputLow().getDefiningOp<Const::DeclareOp>());
+        const auto outputHighVals = IE::getConst(fqOpToAlign.getOutputHigh().getDefiningOp<Const::DeclareOp>());
 
-        maxLevels = std::max(maxLevels, static_cast<int>(fqOpToAlign.levels()));
+        maxLevels = std::max(maxLevels, static_cast<int>(fqOpToAlign.getLevels()));
 
-        for (size_t i = 0; i < inputLowVals.size(); i++) {
-            min = std::min(min, inputLowVals[i]);
-            max = std::max(max, inputHighVals[i]);
-            range = std::min(range, inputHighVals[i] - inputLowVals[i]);
+        for (size_t i = 0; i < outputLowVals.size(); i++) {
+            min = std::min(min, outputLowVals[i]);
+            max = std::max(max, outputHighVals[i]);
+            range = std::min(range, outputHighVals[i] - outputLowVals[i]);
         }
     }
 }
@@ -260,61 +280,70 @@ void alignFQRanges(IE::ConcatOp origOp, MutableArrayRef<IE::FakeQuantizeOp> fqOp
     log.trace("Set insertion point for common constants at {0}", theUppestFQOp->getLoc());
     rewriter.setInsertionPoint(theUppestFQOp);
     // Create the input/output low/high constants and level attribute that will be used to align the FQ ranges
-    const auto elemType = fqOpsToAlign[0].input().getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto elemType = fqOpsToAlign[0].getInput().getType().cast<vpux::NDTypeInterface>().getElementType();
     const auto fqArgType = mlir::RankedTensorType::get({1, 1, 1, 1}, elemType);
-    auto commonInputLow = createFQConst(ctx, origOp->getLoc(), min, fqArgType, rewriter);
-    auto commonInputHigh = createFQConst(ctx, origOp->getLoc(), max, fqArgType, rewriter);
+    auto commonInputLow = IE::createFQConst(ctx, origOp->getLoc(), min, fqArgType, rewriter);
+    auto commonInputHigh = IE::createFQConst(ctx, origOp->getLoc(), max, fqArgType, rewriter);
     auto commonLevels = getIntAttr(rewriter, maxLevels);
     log.trace("Created common constants for input/output low/high constants and level attribute.");
 
-    // Search for the constants containing the min and max of the FQ range from the list of FQs in order to not create
-    // them again
+    // Search for the constants containing the min and max of the FQ range from the list of FQs in order to not
+    // create them again
     for (size_t i = 0; i < fqOpsToAlign.size(); i++) {
-        const auto inputLowVals = getConst(fqOpsToAlign[i].input_low().getDefiningOp<Const::DeclareOp>());
-        const auto inputHighVals = getConst(fqOpsToAlign[i].input_high().getDefiningOp<Const::DeclareOp>());
-        auto fqHasMaxRanges = [min, max, maxLevels, inputLowVals, inputHighVals](IE::FakeQuantizeOp fqOp) -> bool {
-            return (static_cast<int>(fqOp.levels()) == maxLevels && isFloatEqual(min, inputLowVals[0]) &&
-                    isFloatEqual(max, inputHighVals[0]));
+        const auto outputLowVals = IE::getConst(fqOpsToAlign[i].getOutputLow().getDefiningOp<Const::DeclareOp>());
+        const auto outputHighVals = IE::getConst(fqOpsToAlign[i].getOutputHigh().getDefiningOp<Const::DeclareOp>());
+        auto fqHasMaxRanges = [min, max, maxLevels, outputLowVals, outputHighVals](IE::FakeQuantizeOp fqOp) -> bool {
+            return (static_cast<int>(fqOp.getLevels()) == maxLevels && isFloatEqual(min, outputLowVals[0]) &&
+                    isFloatEqual(max, outputHighVals[0]));
         };
 
-        if (fqHasMaxRanges(fqOpsToAlign[i])) {
+        if (fqHasMaxRanges(fqOpsToAlign[i]) && fqHasSameInOutRange(fqOpsToAlign[i])) {
             continue;
         }
 
         log.trace("Align ranges of FQ at {0}", fqOpsToAlign[i]->getLoc());
 
-        const auto inputLowAttr = getFPAttr(ctx, inputLowVals[0]);
-        const auto inputHighAttr = getFPAttr(ctx, inputHighVals[0]);
+        const auto inputLowAttr = getFPAttr(ctx, outputLowVals[0]);
+        const auto inputHighAttr = getFPAttr(ctx, outputHighVals[0]);
 
-        // Set insertion point at the FQ that will be rewritten
-        rewriter.setInsertionPoint(fqOpsToAlign[i]);
-        // Replace the old FQ operation with the FQ with new ranges + Clamp operation that preserves the original
-        // range interval
-        auto newFQOp = rewriter.create<IE::FakeQuantizeOp>(origOp->getLoc(), fqOpsToAlign[i].input(), commonInputLow,
-                                                           commonInputHigh, commonInputLow, commonInputHigh,
-                                                           commonLevels, fqOpsToAlign[i].auto_broadcastAttr());
-        log.trace("Created new FQ op at {0}", newFQOp->getLoc());
+        if (fqHasSameInOutRange(fqOpsToAlign[i])) {
+            // Set insertion point at the FQ that will be rewritten
+            rewriter.setInsertionPoint(fqOpsToAlign[i]);
+            // Replace the old FQ operation with the FQ with new ranges + Clamp operation that preserves the original
+            // range interval
+            auto newFQOp = rewriter.create<IE::FakeQuantizeOp>(
+                    origOp->getLoc(), fqOpsToAlign[i].getInput(), commonInputLow, commonInputHigh, commonInputLow,
+                    commonInputHigh, commonLevels, fqOpsToAlign[i].getAutoBroadcastAttr());
+            log.trace("Created new FQ op at {0}", newFQOp->getLoc());
 
-        // Replace old FQ with new Clamp that preserve the old FQ's quantization ranges
-        auto clampOp = rewriter.replaceOpWithNewOp<IE::ClampOp>(fqOpsToAlign[i], newFQOp.output(), inputLowAttr,
-                                                                inputHighAttr);
-        log.trace("Created new Clamp op at {0}", clampOp->getLoc());
+            // Replace old FQ with new Clamp that preserve the old FQ's quantization ranges
+            auto clampOp = rewriter.replaceOpWithNewOp<IE::ClampOp>(fqOpsToAlign[i], newFQOp.getOutput(), inputLowAttr,
+                                                                    inputHighAttr);
+            log.trace("Created new Clamp op at {0}", clampOp->getLoc());
+        } else {
+            // if the in out range is different, insert a new range FQ then clamp back to old range.
+            rewriter.setInsertionPointAfter(fqOpsToAlign[i]);
+            auto newFQOp = rewriter.create<IE::FakeQuantizeOp>(
+                    origOp->getLoc(), fqOpsToAlign[i].getOutput(), commonInputLow, commonInputHigh, commonInputLow,
+                    commonInputHigh, commonLevels, fqOpsToAlign[i].getAutoBroadcastAttr());
+            log.trace("Created new FQ op at {0} for different in out range case", newFQOp->getLoc());
+
+            mlir::Value output;
+            if (fqHasMaxRanges(fqOpsToAlign[i])) {
+                output = newFQOp.getOutput();
+            } else {
+                auto clampOp = rewriter.create<IE::ClampOp>(origOp->getLoc(), newFQOp.getOutput(), inputLowAttr,
+                                                            inputHighAttr);
+                log.trace("Created new Clamp op at {0} for different in out range case", clampOp->getLoc());
+                output = clampOp.getOutput();
+            }
+
+            fqOpsToAlign[i].getOutput().replaceUsesWithIf(output, [&](mlir::OpOperand& opOperand) {
+                return opOperand.getOwner() == origOp;
+            });
+        }
     }
 }
-
-class AlignConcatScalesRewriter final : public mlir::OpRewritePattern<IE::ConcatOp> {
-public:
-    AlignConcatScalesRewriter(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<IE::ConcatOp>(ctx, benefitLow), _log(log) {
-        setDebugName("AlignConcatScalesRewriter");
-    }
-
-public:
-    mlir::LogicalResult matchAndRewrite(IE::ConcatOp origOp, mlir::PatternRewriter& rewriter) const final;
-
-private:
-    Logger _log;
-};
 
 mlir::LogicalResult AlignConcatScalesRewriter::matchAndRewrite(IE::ConcatOp origOp,
                                                                mlir::PatternRewriter& rewriter) const {
@@ -330,7 +359,7 @@ mlir::LogicalResult AlignConcatScalesRewriter::matchAndRewrite(IE::ConcatOp orig
     _log.trace("Gather {0} FQs to align.", fqOpsToAlign.size());
 
     // 1. Check if is per tensor FQ
-    if (!isPerTensorFQ(fqOpsToAlign)) {
+    if (!IE::isPerTensorFQ(fqOpsToAlign)) {
         _log.trace("Failed to align FQ ranges due to per channel FQ");
         return mlir::failure();
     }
@@ -341,8 +370,8 @@ mlir::LogicalResult AlignConcatScalesRewriter::matchAndRewrite(IE::ConcatOp orig
         return mlir::failure();
     }
 
-    // 3. Check that input and output ranges are equal for each FQ
-    if (!allFqsHaveSameIOParams(fqOpsToAlign)) {
+    // 3. Check that input and output ranges are equal for each FQ except concat's user
+    if (!allFqsHaveSameIOParamsExceptConcatInputs(fqOpsToAlign, origOp)) {
         _log.trace("Failed because the FQs have different ranges between input and output.");
         return mlir::failure();
     }
@@ -375,27 +404,144 @@ mlir::LogicalResult AlignConcatScalesRewriter::matchAndRewrite(IE::ConcatOp orig
     return mlir::success();
 }
 
-class AlignScalesPass final : public IE::AlignScalesBase<AlignScalesPass> {
+class AlignSliceRewriter final : public mlir::OpRewritePattern<IE::FakeQuantizeOp> {
 public:
-    explicit AlignScalesPass(Logger log): _log(log) {
-        _log.setName(Base::getArgumentName());
+    AlignSliceRewriter(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IE::FakeQuantizeOp>(ctx, benefitLow), _log(log) {
+        setDebugName("AlignSliceRewriter");
     }
 
-private:
-    void safeRunOnFunc() final;
+public:
+    mlir::LogicalResult matchAndRewrite(IE::FakeQuantizeOp fqOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
+mlir::LogicalResult AlignSliceRewriter::matchAndRewrite(IE::FakeQuantizeOp fqOp,
+                                                        mlir::PatternRewriter& rewriter) const {
+    _log.trace("Got '{1}' at '{2}'", fqOp->getName(), fqOp->getLoc());
+    mlir::MLIRContext* ctx = fqOp->getContext();
+
+    auto sliceOp = fqOp.getInput().getDefiningOp<IE::SliceOp>();
+    if (sliceOp == nullptr) {
+        return mlir::failure();
+    }
+    auto parentFqOp = sliceOp->getOperand(0).getDefiningOp<IE::FakeQuantizeOp>();
+    if (parentFqOp == nullptr) {
+        return mlir::failure();
+    }
+
+    if (!IE::isPerTensorFQ(fqOp) || !IE::isPerTensorFQ(parentFqOp)) {
+        _log.trace("Failed to align slice due to per channel FQ");
+        return mlir::failure();
+    }
+    if (!fqHasSameInOutRange(fqOp) || !fqHasSameInOutRange(parentFqOp)) {
+        _log.trace("Failed to align slice due to in out range is not same");
+        return mlir::failure();
+    }
+
+    const auto fqOutputLowVal = IE::getConst(fqOp.getOutputLow().getDefiningOp<Const::DeclareOp>())[0];
+    const auto fqOutputHighVal = IE::getConst(fqOp.getOutputHigh().getDefiningOp<Const::DeclareOp>())[0];
+
+    const auto parentFqOutputLowVal = IE::getConst(parentFqOp.getOutputLow().getDefiningOp<Const::DeclareOp>())[0];
+    const auto parentFqOutputHighVal = IE::getConst(parentFqOp.getOutputHigh().getDefiningOp<Const::DeclareOp>())[0];
+
+    auto fqsAreTheSame = [&]() {
+        return fqOutputLowVal == parentFqOutputLowVal && fqOutputHighVal == parentFqOutputHighVal;
+    };
+    auto haveAbnormalFqs = [&]() {
+        return fqOutputLowVal >= fqOutputHighVal || parentFqOutputLowVal >= parentFqOutputHighVal;
+    };
+    auto fqsRangeNoOverlap = [&]() {
+        return fqOutputHighVal <= parentFqOutputLowVal || parentFqOutputHighVal <= fqOutputLowVal;
+    };
+
+    if (fqsAreTheSame()) {
+        _log.trace("Fqs are the same, no need to align");
+        return mlir::failure();
+    }
+
+    if (haveAbnormalFqs()) {
+        _log.trace("Failed to align slice due to abnormal fqs");
+        return mlir::failure();
+    }
+
+    if (fqsRangeNoOverlap()) {
+        _log.trace("Failed to align slice due to fqs no overlap");
+        return mlir::failure();
+    }
+
+    const auto minRange = std::min(fqOutputHighVal - fqOutputLowVal, parentFqOutputHighVal - parentFqOutputLowVal);
+    const auto maxRange = std::max(fqOutputHighVal - fqOutputLowVal, parentFqOutputHighVal - parentFqOutputLowVal);
+
+    if (minRange * IE::QUANT_RANGE_RATIO <= maxRange) {
+        _log.trace("Failed to align slice due to range has big difference");
+        return mlir::failure();
+    }
+
+    auto newFQOp = rewriter.create<IE::FakeQuantizeOp>(
+            fqOp->getLoc(), sliceOp->getResult(0), parentFqOp.getInputLow(), parentFqOp.getInputHigh(),
+            parentFqOp.getOutputLow(), parentFqOp.getOutputHigh(), fqOp.getLevelsAttr(), fqOp.getAutoBroadcastAttr());
+
+    if (fqOutputLowVal > parentFqOutputLowVal || fqOutputHighVal < parentFqOutputHighVal) {
+        const auto inputLowAttr = getFPAttr(ctx, fqOutputLowVal);
+        const auto inputHighAttr = getFPAttr(ctx, fqOutputHighVal);
+        auto clampOp = rewriter.create<IE::ClampOp>(fqOp->getLoc(), newFQOp.getOutput(), inputLowAttr, inputHighAttr);
+        rewriter.replaceOp(fqOp, clampOp.getOutput());
+    } else {
+        rewriter.replaceOp(fqOp, newFQOp.getOutput());
+    }
+
+    return mlir::success();
+}
+
+class AlignScalesPass final : public IE::AlignScalesBase<AlignScalesPass> {
+public:
+    explicit AlignScalesPass(const bool seOpsEnabled, Logger log): _seOpsEnabled(seOpsEnabled), _log(log) {
+        _log.setName(Base::getArgumentName());
+    }
+    mlir::LogicalResult initialize(mlir::MLIRContext* ctx) final;
+
+private:
+    void safeRunOnFunc() final;
+
+public:
+    bool _seOpsEnabled;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult AlignScalesPass::initialize(mlir::MLIRContext* ctx) {
+    if (mlir::failed(Base::initialize(ctx))) {
+        return mlir::failure();
+    }
+
+    // When this parameter has a value, it probably comes from LIT test.
+    // Override the default
+    if (seOpsEnabled.hasValue()) {
+        _seOpsEnabled = seOpsEnabled.getValue();
+    }
+
+    return mlir::success();
+}
+
 void AlignScalesPass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getOperation();
 
-    mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<AlignConcatScalesRewriter>(&ctx, _log);
+    mlir::RewritePatternSet concatPatterns(&ctx);
+    concatPatterns.add<AlignConcatScalesRewriter>(&ctx, _log, _seOpsEnabled);
 
-    if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
+    if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(concatPatterns), getDefaultGreedyRewriteConfig()))) {
+        signalPassFailure();
+    }
+
+    mlir::RewritePatternSet slicePatterns(&ctx);
+    slicePatterns.add<AlignSliceRewriter>(&ctx, _log);
+
+    if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(slicePatterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }
 }
@@ -405,6 +551,6 @@ void AlignScalesPass::safeRunOnFunc() {
 //
 // createAlignScalesPass
 //
-std::unique_ptr<mlir::Pass> vpux::IE::createAlignScalesPass(Logger log) {
-    return std::make_unique<AlignScalesPass>(log);
+std::unique_ptr<mlir::Pass> vpux::IE::createAlignScalesPass(const bool seOpsEnabled, Logger log) {
+    return std::make_unique<AlignScalesPass>(seOpsEnabled, log);
 }

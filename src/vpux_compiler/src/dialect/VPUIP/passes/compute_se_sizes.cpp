@@ -3,15 +3,11 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/core/aliases_info.hpp"
+#include "vpux/compiler/dialect/VPU/utils/sparsity_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
-#include "vpux/utils/core/numeric.hpp"
-
-#include <mlir/IR/BuiltinAttributes.h>
-#include <mlir/Pass/PassManager.h>
-
 #include <llvm/ADT/TypeSwitch.h>
+#include <mlir/IR/BuiltinAttributes.h>
 
 using namespace vpux;
 
@@ -28,13 +24,13 @@ SmallVector<VPUIP::NCEClusterTaskOp> findProducerOps(mlir::Value value) {
 
     if (auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(taskOp)) {
         producerNCEOps.push_back(nceOp);
-    } else if (mlir::isa<VPUIP::CopyOp>(taskOp)) {
+    } else if (mlir::isa<VPUIP::CopyOp, VPUIP::NNDMAOp>(taskOp)) {
         const auto ops = findProducerOps(producerOp->getOperand(0));
         producerNCEOps.append(ops);
     } else if (VPUIP::isPureViewOp(producerOp)) {
         llvm::TypeSwitch<mlir::Operation*, void>(producerOp)
                 .Case<VPUIP::ConcatViewOp>([&](VPUIP::ConcatViewOp concatOp) {
-                    for (auto input : concatOp.inputs()) {
+                    for (auto input : concatOp.getInputs()) {
                         const auto ops = findProducerOps(input);
                         producerNCEOps.append(ops);
                     }
@@ -61,13 +57,18 @@ SmallVector<VPUIP::NCEClusterTaskOp> findProducerOps(mlir::Value value) {
     return producerNCEOps;
 }
 
-// Get the number of channels produced by the operation's variants. Each variant must produce the same
-// number of channels in order for the sparse output to be valid.
+// Get the number of channels produced by the operation's variants. Except of the last one, Each variant must produce
+// the same number of channels in order for the sparse output to be valid.
 int64_t getVariantsNumChannels(VPUIP::NCEClusterTaskOp nceOp) {
-    Optional<int64_t> numChannels = None;
-    for (auto dpuTaskOp : nceOp.variants().getOps<VPUIP::DPUTaskOp>()) {
-        const auto outStart = parseIntArrayAttr<int64_t>(dpuTaskOp.outStart());
-        const auto outEnd = parseIntArrayAttr<int64_t>(dpuTaskOp.outEnd());
+    std::optional<int64_t> numChannels = std::nullopt;
+    auto variants = to_small_vector(nceOp.getVariants().getOps<VPUIP::DPUTaskOp>());
+    if (variants.size() > 1) {
+        variants.pop_back();
+    }
+
+    for (auto dpuTaskOp : variants) {
+        const auto outStart = parseIntArrayAttr<int64_t>(dpuTaskOp.getOutStart());
+        const auto outEnd = parseIntArrayAttr<int64_t>(dpuTaskOp.getOutEnd());
         VPUX_THROW_UNLESS(outStart.size() >= 3 && outEnd.size() >= 3,
                           "Invalid variant shape, expected at least three dimensions, got '{0}'", outStart.size());
         const auto variantNumChannels = outEnd[2] - outStart[2] + 1;
@@ -81,7 +82,7 @@ int64_t getVariantsNumChannels(VPUIP::NCEClusterTaskOp nceOp) {
     return numChannels.value();
 }
 
-mlir::IntegerAttr getInputSESizeForConcatOverC(VPUIP::NCEClusterTaskOp nceOp, mlir::Value operand) {
+std::optional<int64_t> getInputSESizeForConcatOverC(VPUIP::NCEClusterTaskOp nceOp, mlir::Value operand) {
     auto blockArg = operand.dyn_cast<mlir::BlockArgument>();
     auto parentTilingOp = nceOp->getParentOfType<VPUIP::NCEClusterTilingOp>();
     if (blockArg != nullptr && parentTilingOp != nullptr) {
@@ -103,9 +104,9 @@ mlir::IntegerAttr getInputSESizeForConcatOverC(VPUIP::NCEClusterTaskOp nceOp, ml
     const auto producerChannels = producerOpsNumChannels.front();
     const auto consumerChannels = operand.getType().cast<vpux::NDTypeInterface>().getShape()[Dims4D::Act::C];
     if (producerChannels != consumerChannels) {
-        return getIntAttr(nceOp.getContext(), producerChannels);
+        return producerChannels;
     }
-    return nullptr;
+    return std::nullopt;
 }
 
 //
@@ -114,7 +115,7 @@ mlir::IntegerAttr getInputSESizeForConcatOverC(VPUIP::NCEClusterTaskOp nceOp, ml
 
 class ComputeSESizesPass final : public VPUIP::ComputeSESizesBase<ComputeSESizesPass> {
 public:
-    explicit ComputeSESizesPass(Optional<bool> onlyInputsConcatOverC, Logger log)
+    explicit ComputeSESizesPass(std::optional<bool> onlyInputsConcatOverC, Logger log)
             : _onlyInputsConcatOverC(onlyInputsConcatOverC) {
         Base::initLogger(log, Base::getArgumentName());
     }
@@ -124,7 +125,7 @@ public:
 private:
     void safeRunOnFunc() final;
 
-    Optional<bool> _onlyInputsConcatOverC;
+    std::optional<bool> _onlyInputsConcatOverC;
 };
 
 mlir::LogicalResult ComputeSESizesPass::initialize(mlir::MLIRContext* ctx) {
@@ -142,6 +143,9 @@ void ComputeSESizesPass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getOperation();
 
+    auto arch = VPU::getArch(func);
+    auto constraint = VPU::getSparsityConstraint(arch);
+
     // Set the storage element size attributes only for the input operand in case the sparse data is concatenated
     // over channels. This is necessary since sparse activations are sparsified individually by each DPU producer
     // and must be desparsified in the same way.
@@ -153,7 +157,7 @@ void ComputeSESizesPass::safeRunOnFunc() {
         _log.trace("Setting storage element sizes only for inputs concatenated over channels");
 
         func.walk([&](VPUIP::NCEClusterTaskOp nceOp) {
-            if (nceOp.input_storage_element_table() != nullptr) {
+            if (nceOp.getInputStorageElementTable() != nullptr) {
                 _log.trace("Skipping operation '{0}' at '{1}' which has a storage element table", nceOp->getName(),
                            nceOp->getLoc());
                 return;
@@ -161,22 +165,26 @@ void ComputeSESizesPass::safeRunOnFunc() {
 
             _log.trace("Handling operation '{0}' at '{1}'", nceOp->getName(), nceOp->getLoc());
 
-            if (nceOp.input_sparsity_map() != nullptr) {
-                if (auto seSizeAttr = getInputSESizeForConcatOverC(nceOp, nceOp.input())) {
-                    VPUX_THROW_UNLESS(isPowerOfTwo(seSizeAttr.getInt()),
-                                      "Value '{0}' for concatenated input is not a power of 2", seSizeAttr);
+            if (nceOp.getInputSparsityMap() != nullptr) {
+                auto producerChannels = getInputSESizeForConcatOverC(nceOp, nceOp.getInput());
+                if (producerChannels.has_value()) {
+                    VPUX_THROW_UNLESS(
+                            constraint.areChannelsFitForSESize(nceOp.getInput().getType(), producerChannels.value()),
+                            "Invalid number of channels '{0}' for concatenated input", producerChannels.value());
+                    auto seSizeAttr = getIntAttr(&ctx, producerChannels.value());
                     _log.nest().trace("Setting input_se_size to '{0}'", seSizeAttr);
-                    nceOp.input_se_sizeAttr(seSizeAttr);
+                    nceOp.setInputSeSizeAttr(seSizeAttr);
                 }
             }
 
-            if (nceOp.task_type() == VPUIP::NCETaskType::ELTWISE && nceOp.weights_sparsity_map() != nullptr) {
-                if (auto seSizeAttr = getInputSESizeForConcatOverC(nceOp, nceOp.weights())) {
-                    const auto inputSeSize = nceOp.input_se_size().value_or(seSizeAttr.getInt());
+            if (nceOp.getTaskType() == VPUIP::NCETaskType::ELTWISE && nceOp.getWeightsSparsityMap() != nullptr) {
+                auto producerChannels = getInputSESizeForConcatOverC(nceOp, nceOp.getWeights());
+                if (producerChannels.has_value()) {
+                    const auto inputSeSize = nceOp.getInputSeSize().value_or(producerChannels.value());
                     VPUX_THROW_UNLESS(
-                            inputSeSize == seSizeAttr.getInt(),
+                            inputSeSize == producerChannels.value(),
                             "Different storage element sizes expected for the two Eltwise inputs: {0} and {1} at '{2}'",
-                            inputSeSize, seSizeAttr.getInt(), nceOp->getLoc());
+                            inputSeSize, producerChannels.value(), nceOp->getLoc());
                 }
             }
         });
@@ -190,29 +198,33 @@ void ComputeSESizesPass::safeRunOnFunc() {
     func.walk([&](VPUIP::NCEClusterTaskOp nceOp) {
         _log.trace("Handling operation '{0}' at '{1}'", nceOp->getName(), nceOp->getLoc());
 
-        if (nceOp.input_se_sizeAttr() == nullptr) {
-            if (nceOp.input_storage_element_table() != nullptr) {
-                VPUX_THROW_WHEN(nceOp.task_type() == VPUIP::NCETaskType::ELTWISE,
+        if (nceOp.getInputSeSizeAttr() == nullptr) {
+            if (nceOp.getInputStorageElementTable() != nullptr) {
+                VPUX_THROW_WHEN(nceOp.getTaskType() == VPUIP::NCETaskType::ELTWISE,
                                 "Explicit SETable for Eltwise operations is not yet supported");
 
-                auto inputType = nceOp.input().getType().cast<vpux::NDTypeInterface>();
-                auto seTableType = nceOp.input_storage_element_table().getType().cast<vpux::NDTypeInterface>();
+                auto inputType = nceOp.getInput().getType().cast<vpux::NDTypeInterface>();
+                auto seTableType = nceOp.getInputStorageElementTable().getType().cast<vpux::NDTypeInterface>();
                 const auto numChannels = inputType.getShape()[Dims4D::Act::C];
                 const auto seDepth = seTableType.getShape()[Dims4D::Act::C];
                 VPUX_THROW_WHEN(numChannels % seDepth != 0, "Storage element size is not an integer");
                 const auto seSize = numChannels / seDepth;
+                VPUX_THROW_UNLESS(constraint.areChannelsFitForSESize(seSize),
+                                  "Invalid storage element size '{0}' for input", seSize);
 
                 _log.nest().trace("Setting input_se_size to '{0}' [SE]", seSize);
-                nceOp.input_se_sizeAttr(getIntAttr(&ctx, seSize));
-            } else if (nceOp.input_sparsity_map() != nullptr) {
-                auto numChannels = nceOp.input().getType().cast<vpux::NDTypeInterface>().getShape()[Dims4D::Act::C];
-                VPUX_THROW_UNLESS(isPowerOfTwo(numChannels), "Value '{0}' for input is not a power of 2", numChannels);
+                nceOp.setInputSeSizeAttr(getIntAttr(&ctx, seSize));
+            } else if (nceOp.getInputSparsityMap() != nullptr) {
+                auto inputType = nceOp.getInput().getType().cast<vpux::NDTypeInterface>();
+                auto numChannels = inputType.getShape()[Dims4D::Act::C];
+                VPUX_THROW_UNLESS(constraint.areChannelsFitForSESize(inputType, numChannels),
+                                  "Invalid number of channels '{0}' for input", numChannels);
                 _log.nest().trace("Setting input_se_size to '{0}' [SM]", numChannels);
-                nceOp.input_se_sizeAttr(getIntAttr(&ctx, numChannels));
+                nceOp.setInputSeSizeAttr(getIntAttr(&ctx, numChannels));
 
-                if (nceOp.task_type() == VPUIP::NCETaskType::ELTWISE) {
+                if (nceOp.getTaskType() == VPUIP::NCETaskType::ELTWISE) {
                     auto numChannelsInput2 =
-                            nceOp.weights().getType().cast<vpux::NDTypeInterface>().getShape()[Dims4D::Act::C];
+                            nceOp.getWeights().getType().cast<vpux::NDTypeInterface>().getShape()[Dims4D::Act::C];
                     VPUX_THROW_UNLESS(
                             numChannels == numChannelsInput2,
                             "Different storage element sizes expected for the two Eltwise inputs: {0} and {1}",
@@ -221,11 +233,12 @@ void ComputeSESizesPass::safeRunOnFunc() {
             }
         }
 
-        if (nceOp.output_sparsity_map_buff() != nullptr && nceOp.output_se_sizeAttr() == nullptr) {
+        if (nceOp.getOutputSparsityMapBuff() != nullptr && nceOp.getOutputSeSizeAttr() == nullptr) {
             auto numChannels = getVariantsNumChannels(nceOp);
-            VPUX_THROW_UNLESS(isPowerOfTwo(numChannels), "Value '{0}' for output is not a power of 2", numChannels);
+            VPUX_THROW_UNLESS(constraint.areChannelsFitForSESize(numChannels),
+                              "Invalid number of channels '{0}' for output", numChannels);
             _log.nest().trace("Setting output_se_size to '{0}'", numChannels);
-            nceOp.output_se_sizeAttr(getIntAttr(&ctx, numChannels));
+            nceOp.setOutputSeSizeAttr(getIntAttr(&ctx, numChannels));
         }
     });
 }
@@ -236,6 +249,7 @@ void ComputeSESizesPass::safeRunOnFunc() {
 // createComputeSESizesPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::VPUIP::createComputeSESizesPass(Optional<bool> onlyInputsConcatOverC, Logger log) {
+std::unique_ptr<mlir::Pass> vpux::VPUIP::createComputeSESizesPass(std::optional<bool> onlyInputsConcatOverC,
+                                                                  Logger log) {
     return std::make_unique<ComputeSESizesPass>(onlyInputsConcatOverC, log);
 }

@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "vpux/compiler/conversion.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
 
 #include <mlir/Transforms/DialectConversion.h>
 
@@ -124,7 +124,7 @@ public:
         // that a parameter pack can be expanded in c++11.
         // FIXME: In c++17 this can be simplified by using 'fold expressions'.
         (void)std::initializer_list<int>{
-                0, (addImpl<Ts, typename Ts::BaseOpT>(/*debugLabels=*/llvm::None, arg, args...), 0)...};
+                0, (addImpl<Ts, typename Ts::BaseOpT>(/*debugLabels=*/std::nullopt, arg, args...), 0)...};
         return *this;
     }
     /// An overload of the above `add` method that allows for attaching a set

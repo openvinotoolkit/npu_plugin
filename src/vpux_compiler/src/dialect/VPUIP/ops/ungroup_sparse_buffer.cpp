@@ -21,8 +21,8 @@ void VPUIP::UngroupSparseBufferOp::build(mlir::OpBuilder& builder, mlir::Operati
     if (storageElementTable) {
         state.addTypes(storageElementTable);
     }
-    state.addAttribute(result_segment_sizesAttrName(state.name),
-                       builder.getI32VectorAttr({1, (sparsityMap ? 1 : 0), (storageElementTable ? 1 : 0)}));
+    state.addAttribute(getResultSegmentSizesAttrName(state.name),
+                       builder.getDenseI32ArrayAttr({1, (sparsityMap ? 1 : 0), (storageElementTable ? 1 : 0)}));
 }
 
 void VPUIP::UngroupSparseBufferOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input) {
@@ -31,6 +31,7 @@ void VPUIP::UngroupSparseBufferOp::build(mlir::OpBuilder& builder, mlir::Operati
     SmallVector<mlir::Type, 2> inferredReturnTypes;
     if (mlir::succeeded(UngroupSparseBufferOp::inferReturnTypes(builder.getContext(), state.location, state.operands,
                                                                 state.attributes.getDictionary(state.getContext()),
+                                                                state.getRawProperties(),
                                                                 /*regions=*/{}, inferredReturnTypes))) {
         state.addTypes(inferredReturnTypes);
     } else {
@@ -41,8 +42,8 @@ void VPUIP::UngroupSparseBufferOp::build(mlir::OpBuilder& builder, mlir::Operati
     VPUX_THROW_WHEN(sparseInput == nullptr, "Input type ({0}) is not a sparse buffer", input.getType());
     const int32_t sparsityMapAttrVal = (sparseInput.getSparsityMap() != nullptr) ? 1 : 0;
     const int32_t seTableAttrVal = (sparseInput.getStorageElementTable() != nullptr) ? 1 : 0;
-    state.addAttribute(result_segment_sizesAttrName(state.name),
-                       builder.getI32VectorAttr({1, sparsityMapAttrVal, seTableAttrVal}));
+    state.addAttribute(getResultSegmentSizesAttrName(state.name),
+                       builder.getDenseI32ArrayAttr({1, sparsityMapAttrVal, seTableAttrVal}));
 }
 
 //
@@ -50,17 +51,17 @@ void VPUIP::UngroupSparseBufferOp::build(mlir::OpBuilder& builder, mlir::Operati
 //
 
 mlir::Value VPUIP::UngroupSparseBufferOp::getViewSource(ptrdiff_t /*resultInd*/) {
-    return input();
+    return getInput();
 }
 
 //
 // inferReturnTypes
 //
 
-mlir::LogicalResult VPUIP::UngroupSparseBufferOp::inferReturnTypes(mlir::MLIRContext*, Optional<mlir::Location>,
+mlir::LogicalResult VPUIP::UngroupSparseBufferOp::inferReturnTypes(mlir::MLIRContext*, std::optional<mlir::Location>,
                                                                    mlir::ValueRange operands,
                                                                    mlir::DictionaryAttr /*attrs*/,
-                                                                   mlir::RegionRange /*ranges*/,
+                                                                   mlir::OpaqueProperties, mlir::RegionRange /*ranges*/,
                                                                    SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
     VPUX_THROW_UNLESS(operands[0].getType().isa<VPUIP::SparseBufferType>(),
                       "Operand of type {0} is not a sparse buffer", operands[0].getType());

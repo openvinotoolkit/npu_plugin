@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/schema.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
@@ -23,8 +23,8 @@ enum class CaseType {
     SparseZMajorConvolution,
     DepthWiseConv,
     DoubleZMajorConvolution,
-    EltwiseAdd,
-    EltwiseMult,
+    EltwiseDense,
+    EltwiseMultDW,
     EltwiseSparse,
     MaxPool,
     AvgPool,
@@ -46,6 +46,7 @@ enum class CaseType {
     StorageElementTableDPU,
     DualChannelDMA,
     DMAcompressAct,
+    GenerateScaleTable,
     Unknown
 };
 
@@ -55,9 +56,9 @@ CaseType to_case(llvm::StringRef str);
 enum class CompilerBackend { Flatbuffer, ELF };
 
 std::string to_string(CompilerBackend compilerBackend);
-llvm::Optional<nb::CompilerBackend> to_compiler_backend(llvm::StringRef str);
+std::optional<nb::CompilerBackend> to_compiler_backend(llvm::StringRef str);
 
-enum class DType { U1, U4, I4, U8, I8, I32, FP8, FP16, FP32, BF16, UNK };
+enum class DType { U1, U4, I4, U8, I8, I32, BF8, HF8, FP16, FP32, BF16, UNK };
 
 enum class MemoryLocation { CMX0, CMX1, DDR, Unknown };
 MemoryLocation to_memory_location(llvm::StringRef str);
@@ -68,7 +69,7 @@ std::string to_string(DType dtype);
 MVCNN::Permutation to_odu_permutation(llvm::StringRef str);
 struct QuantParams {
     bool present = false;
-    double scale = 0.;
+    std::vector<double> scale;
     std::int64_t zeropoint = 0;
     std::int64_t low_range = 0;
     std::int64_t high_range = 0;
@@ -111,6 +112,9 @@ struct DMAparams {
     int64_t engine = 0;
     bool actCompressDenseMode = false;
     bool doConvert = false;
+    bool testMemSideCache = false;
+    bool cacheTrashing = false;
+    bool cacheEnabled = false;
 };
 
 struct ConvLayer {
@@ -123,8 +127,12 @@ struct ConvLayer {
     vpux::VPU::MPEMode cube_mode = vpux::VPU::MPEMode::CUBOID_16x16;
 };
 
+// IDU_CMX_MUX_MODE
+enum class ICM_MODE { DEFAULT = 0, MODE_0 = 1, MODE_1 = 2, MODE_2 = 3 };
 struct EltwiseLayer {
     std::int64_t seSize = 0;
+    vpux::VPU::PPEMode mode = vpux::VPU::PPEMode::ADD;
+    ICM_MODE iduCmxMuxMode = ICM_MODE::DEFAULT;
 };
 
 struct PoolLayer {
@@ -174,20 +182,8 @@ enum class ActivationType {
     HSwish,
     Sigmoid,
     Softmax,
-    vau_sigm,
-    vau_sqrt,
-    vau_tanh,
-    vau_log,
-    vau_exp,
-    lsu_b16,
-    lsu_b16_vec,
-    vau_dp4,
-    vau_dp4a,
-    vau_dp4m,
-    sau_dp4,
-    sau_dp4a,
-    sau_dp4m,
-
+    round_trip_b8h8_to_fp16,
+    PopulateWeightTable,
     Unknown
 };
 
@@ -199,10 +195,28 @@ struct ActivationLayer {
     double alpha = 0.;
     double maximum = 0;
     size_t axis = 0;
+    std::optional<int64_t> weightsOffset = std::nullopt;
+    std::optional<int64_t> weightsPtrStep = std::nullopt;
     // TODO: add support for activation functions that take parameters
 };
 
 enum class SETablePattern { SwitchLines, OriginalInput };
+
+struct SETableParams {
+    bool seOnlyEn = false;
+    SETablePattern seTablePattern = SETablePattern::SwitchLines;
+};
+
+struct ProfilingParams {
+    bool dpuProfilingEnabled = false;
+    bool dmaProfilingEnabled = false;
+    bool swProfilingEnabled = false;
+    bool workpointEnabled = false;
+
+    bool profilingEnabled() const {
+        return dpuProfilingEnabled || dmaProfilingEnabled || swProfilingEnabled || workpointEnabled;
+    }
+};
 
 class TestCaseJsonDescriptor {
 public:
@@ -278,8 +292,8 @@ public:
     SwizzlingKey getActivationSwizzlingKey() const {
         return activationSwizzlingKey_;
     }
-    SETablePattern getSETablePattern() const {
-        return seTablePattern_;
+    SETableParams getSETableParams() const {
+        return seTableParams_;
     }
     std::shared_ptr<TestCaseJsonDescriptor> getUnderlyingOp() const {
         return underlyingOp_;
@@ -291,6 +305,10 @@ public:
 
     CompilerBackend getCompilerBackend() const {
         return compilerBackend_;
+    }
+
+    ProfilingParams getProfilingParams() const {
+        return profilingParams_;
     }
 
 private:
@@ -312,8 +330,9 @@ private:
     std::size_t loadIterationCount(llvm::json::Object* obj);
     std::size_t loadClusterNumber(llvm::json::Object* obj);
     std::size_t loadNumClusters(llvm::json::Object* obj);
-    SETablePattern loadSETablePattern(llvm::json::Object* obj);
+    SETableParams loadSETableParams(llvm::json::Object* obj);
     SwizzlingKey loadSwizzlingKey(llvm::json::Object* obj, std::string keyType);
+    ProfilingParams loadProfilingParams(llvm::json::Object* obj);
 
     CaseType caseType_ = CaseType::Unknown;
     DMAparams DMAparams_;
@@ -339,9 +358,10 @@ private:
     RaceConditionParams raceConditionParams_;
     DPUTaskParams DPUTaskParams_;
     MultiClusterDPUParams multiClusterDPUParams_;
-    SETablePattern seTablePattern_ = SETablePattern::SwitchLines;
+    SETableParams seTableParams_;
     vpux::VPU::ArchKind architecture_ = vpux::VPU::ArchKind::UNKNOWN;
     CompilerBackend compilerBackend_ = CompilerBackend::Flatbuffer;
+    ProfilingParams profilingParams_;
 };
 
 }  // namespace nb

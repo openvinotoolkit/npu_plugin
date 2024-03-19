@@ -8,8 +8,8 @@
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
-#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
-#include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
@@ -210,11 +210,11 @@ void buildDoubleConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
     const auto inputTypes = SmallVector<mlir::Type, 2>(
             {getMemRefType(VPURT::BufferSection::NetworkInput, inputShape, inputType, DimsOrder::NHWC), ndOutputType});
 
-    const auto funcType = builder.getFunctionType(llvm::makeArrayRef(inputTypes), ndOutputType);
+    const auto funcType = builder.getFunctionType(llvm::ArrayRef(inputTypes), ndOutputType);
 
     auto function = builder.create<mlir::func::FuncOp>(
             builder.getUnknownLoc(), printToString("zmajor_conv_{0}_{1}_{2}", inputType, weightsType, outputType),
-            funcType, builder.getStringAttr("private"));
+            funcType, builder.getStringAttr("private"), /*arg_attrs=*/nullptr, /*res_attrs=*/nullptr);
 
     auto functionBuilder = mlir::OpBuilder::atBlockBegin(function.addEntryBlock(), builder.getListener());
 
@@ -269,6 +269,13 @@ void buildDoubleConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
                 inputStrides[vpux::Dims4D::Act::C] * (isCompressedFormatEnabled ? subLineLength : alignmentRequirement);
         inputStrides[vpux::Dims4D::Act::H] = inputStrides[vpux::Dims4D::Act::W] * inputShape[inputWidthIndex];
         inputStrides[vpux::Dims4D::Act::N] = inputStrides[vpux::Dims4D::Act::H] * inputShape[inputHeightIndex];
+    }
+
+    if (weightsOutputChannelsStrideInBits0.count() / CHAR_BIT < alignment) {
+        weightsOutputChannelsStrideInBits0 = vpux::Bit(alignment * CHAR_BIT);
+    }
+    if (weightsOutputChannelsStrideInBits1.count() / CHAR_BIT < alignment) {
+        weightsOutputChannelsStrideInBits1 = vpux::Bit(alignment * CHAR_BIT);
     }
 
     // Tensors - NCE_0
@@ -333,7 +340,7 @@ void buildDoubleConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
         const auto weightsTableDDRMemRef =
                 getMemRefType(VPURT::BufferSection::Constant, weightsTableShape, int32, DimsOrder::NHWC);
         const auto weightsTableValues =
-                mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::makeArrayRef<std::int32_t>(weightsTable));
+                mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::ArrayRef<std::int32_t>(weightsTable));
         auto weightsTableContentAttr = vpux::Const::ContentAttr::get(weightsTableValues).reorder(vpux::DimsOrder::NHWC);
         auto weightsTableDDR = functionBuilder.create<vpux::Const::DeclareOp>(
                 builder.getUnknownLoc(), weightsTableDDRMemRef, weightsTableContentAttr);
@@ -357,23 +364,23 @@ void buildDoubleConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
     auto barrier2 = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), 2);
 
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
-                                          builder.getUnknownLoc(), functionInput,
-                                          inputCMX.getOperation()->getResult(0));
+                                          builder.getUnknownLoc(), functionInput, inputCMX.getOperation()->getResult(0),
+                                          0);
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
                                           builder.getUnknownLoc(), weightsDDR0.getOperation()->getResult(0),
-                                          weights0CMX.getOperation()->getResult(0));
+                                          weights0CMX.getOperation()->getResult(0), 0);
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier1.getBarrier()),
                                           builder.getUnknownLoc(), weightsDDR1.getOperation()->getResult(0),
-                                          weights1CMX.getOperation()->getResult(0));
+                                          weights1CMX.getOperation()->getResult(0), 0);
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()),
                                           builder.getUnknownLoc(), weights0TableDDR.getOperation()->getResult(0),
-                                          weights0TableCMX.getOperation()->getResult(0));
+                                          weights0TableCMX.getOperation()->getResult(0), 0);
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), mlir::ValueRange(barrier1.getBarrier()),
                                           builder.getUnknownLoc(), weights1TableDDR.getOperation()->getResult(0),
-                                          weights1TableCMX.getOperation()->getResult(0));
+                                          weights1TableCMX.getOperation()->getResult(0), 0);
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(barrier2.getBarrier()), mlir::ValueRange(),
                                           builder.getUnknownLoc(), output1CMX.getOperation()->getResult(0),
-                                          functionOutput);
+                                          functionOutput, 0);
 
     const auto strides = getIntArrayAttr(ctx, conv.stride);
     const auto kernelPaddings = VPU::getPaddingAttr(ctx, paddings[PAD_NCETASK_LEFT], paddings[PAD_NCETASK_RIGHT],
@@ -465,8 +472,9 @@ void buildDoubleConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
 
     module.dump();
 
-    mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, log));
+    mlir::PassManager pm(module->getName(), mlir::OpPassManager::Nesting::Implicit);
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, std::nullopt,
+                                           log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsBTCPass(log));
     }

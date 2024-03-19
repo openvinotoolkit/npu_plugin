@@ -5,15 +5,10 @@
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
-#include "vpux/compiler/dialect/IE/utils/quantization.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
-
-#include <llvm/ADT/TypeSwitch.h>
-#include <vpux/compiler/conversion.hpp>
 
 using namespace vpux;
 
@@ -89,7 +84,7 @@ void updateConcatAttributes(IE::ConcatAttr& axisAttr, mlir::ArrayAttr& staticOff
             newOffsets.push_back(newOffset);
         }
 
-        staticOffsets = getIntArrayOfArray(staticOffsets.getContext(), makeArrayRef(newOffsets));
+        staticOffsets = getIntArrayOfArray(staticOffsets.getContext(), ArrayRef(newOffsets));
     } else {
         VPUX_THROW("Incorrect Concat parameters");
     }
@@ -97,7 +92,7 @@ void updateConcatAttributes(IE::ConcatAttr& axisAttr, mlir::ArrayAttr& staticOff
 
 mlir::LogicalResult SwapTransposeConcat::ConcatConverter::matchAndRewrite(IE::ConcatOp origOp,
                                                                           mlir::PatternRewriter& rewriter) const {
-    const auto inputs = origOp.inputs();
+    const auto inputs = origOp.getInputs();
     SmallVector<mlir::Value> newInputs;
     newInputs.reserve(inputs.size());
 
@@ -113,20 +108,20 @@ mlir::LogicalResult SwapTransposeConcat::ConcatConverter::matchAndRewrite(IE::Co
         }
 
         if (orderAttr != nullptr) {
-            if (orderAttr != transpose.order_valueAttr()) {
+            if (orderAttr != transpose.getOrderValueAttr()) {
                 return mlir::failure();
             }
         } else {
-            orderAttr = transpose.order_valueAttr();
+            orderAttr = transpose.getOrderValueAttr();
         }
 
-        newInputs.push_back(transpose.input());
+        newInputs.push_back(transpose.getInput());
     }
 
     VPUX_THROW_WHEN(orderAttr == nullptr, "Cannot get order from transposes");
 
-    auto perAxisAttr = origOp.per_axisAttr();
-    auto staticOffsets = origOp.static_offsetsAttr();
+    auto perAxisAttr = origOp.getPerAxisAttr();
+    auto staticOffsets = origOp.getStaticOffsetsAttr();
 
     const auto origPermuteInputOrder = DimsOrder::fromValue(newInputs.front());
 
@@ -144,6 +139,7 @@ void SwapTransposeConcat::safeRunOnFunc() {
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<SwapTransposeConcat::ConcatConverter>(&ctx, _log);
+    IE::TransposeOp::getCanonicalizationPatterns(patterns, &ctx);
 
     auto func = getOperation();
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {

@@ -6,25 +6,22 @@
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/subspaces.hpp"
-
-#include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::VPUIP::YuvToRgbUPAOp::verify() {
     const auto op = getOperation();
-    if ((inFmt() != IE::ColorFmt::NV12) && (inFmt() != IE::ColorFmt::I420))
-        return errorAt(op, "Invalid INPUT format '{0}'", inFmt());
-    if ((outFmt() != IE::ColorFmt::RGB) && (outFmt() != IE::ColorFmt::BGR))
-        return errorAt(op, "Invalid OUTPUT format '{0}'", outFmt());
+    if ((getInFmt() != IE::ColorFmt::NV12) && (getInFmt() != IE::ColorFmt::I420))
+        return errorAt(op, "Invalid INPUT format '{0}'", getInFmt());
+    if ((getOutFmt() != IE::ColorFmt::RGB) && (getOutFmt() != IE::ColorFmt::BGR))
+        return errorAt(op, "Invalid OUTPUT format '{0}'", getOutFmt());
     return mlir::success();
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::YuvToRgbUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    if (inFmt() == IE::ColorFmt::NV12) {
+    if (getInFmt() == IE::ColorFmt::NV12) {
         MVCNN::ConvertColorNV12ToRGBParamsBuilder builder(writer);
-        if (outFmt() == IE::ColorFmt::RGB) {
+        if (getOutFmt() == IE::ColorFmt::RGB) {
             builder.add_colorFormat(MVCNN::RgbFormat::RgbFormat_RGB);
         } else {
             builder.add_colorFormat(MVCNN::RgbFormat::RgbFormat_BGR);
@@ -32,9 +29,9 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::YuvToRgbUPAOp::serialize(VPUIP::Blo
         const auto paramsOff = builder.Finish();
         return writer.createUPALayerTask(*this,
                                          {paramsOff.Union(), MVCNN::SoftwareLayerParams_ConvertColorNV12ToRGBParams});
-    } else if (inFmt() == IE::ColorFmt::I420) {
+    } else if (getInFmt() == IE::ColorFmt::I420) {
         MVCNN::ConvertColorI420ToRGBParamsBuilder builder(writer);
-        if (outFmt() == IE::ColorFmt::RGB) {
+        if (getOutFmt() == IE::ColorFmt::RGB) {
             builder.add_colorFormat(MVCNN::RgbFormat::RgbFormat_RGB);
         } else {
             builder.add_colorFormat(MVCNN::RgbFormat::RgbFormat_BGR);
@@ -43,7 +40,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::YuvToRgbUPAOp::serialize(VPUIP::Blo
         return writer.createUPALayerTask(*this,
                                          {paramsOff.Union(), MVCNN::SoftwareLayerParams_ConvertColorI420ToRGBParams});
     }
-    VPUX_THROW("Invalid color conversion '{0}' -> '{1}'", inFmt(), outFmt());
+    VPUX_THROW("Invalid color conversion '{0}' -> '{1}'", getInFmt(), getOutFmt());
 }
 
 mlir::Operation* vpux::VPUIP::BlobReader::parseYuvToRgb(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,

@@ -26,17 +26,41 @@ public:
         IMPLICIT_SPILL_WRITE_OP = 5,
         IMPLICIT_SPILL_WRITE_FRAG_OP = 6
     };
-    // Operation state
-    enum class EOpState { ACTIVE = 0, SPILLED = 1, CONSUMED = 2 };
-    // Core struct in the feasible memory scheduler
+    // QueueType represents independent execution queue identified by
+    // executor kind and abstract ID that allows to differentiate
+    // different FIFOs on same executor (e.g. 2 separate DMA channels on single
+    // DMA engine)
+    struct QueueType {
+        VPU::ExecutorKind execKind;
+        uint8_t id = 0;
+
+        bool operator<(const QueueType& other) const {
+            if (execKind == other.execKind) {
+                return id < other.id;
+            }
+            return execKind < other.execKind;
+        }
+        bool operator==(const QueueType& other) const {
+            return execKind == other.execKind && id == other.id;
+        }
+        bool operator!=(const QueueType& other) const {
+            return !(*this == other);
+        }
+    };
+    struct QueueAndCycleType {
+        QueueType queueType;
+        llvm::BitVector execMask;
+        size_t cycle;
+    };
+    // Core struct in feasible memory scheduler
     struct HeapElement {
-        explicit HeapElement(operationIdxType op = 0UL, llvm::BitVector executorInstanceMask = {},
-                             size_t cycleBegin = 0UL, size_t cycleEnd = 0UL, EOpType op_type = EOpType::ORIGINAL_OP,
-                             mlir::Value spillBuffer = nullptr)
-                : op_(op),
-                  executorInstanceMask_(std::move(executorInstanceMask)),
-                  cycleBegin_(cycleBegin),
-                  cycleEnd_(cycleEnd),
+        explicit HeapElement(operationIdxType opIdx, const QueueAndCycleType& queueAndCycle, size_t cycleCost = 1UL,
+                             EOpType op_type = EOpType::ORIGINAL_OP, mlir::Value spillBuffer = nullptr)
+                : op_(opIdx),
+                  executorInstanceMask_(queueAndCycle.execMask),
+                  queueType_(queueAndCycle.queueType),
+                  cycleBegin_(queueAndCycle.cycle),
+                  cycleEnd_(queueAndCycle.cycle + cycleCost),
                   opType_(op_type),
                   spillBuffer_(spillBuffer) {
         }
@@ -59,22 +83,13 @@ public:
             return isSpillWriteOp() || isSpillReadOp();
         }
         operationIdxType op_;
-        // Mask identyfing indexes of given executor type to be used for running this operation
+        // Mask identifying indexes of given executor type to be used for running this operation
         llvm::BitVector executorInstanceMask_;
+        QueueType queueType_;
         size_t cycleBegin_;
         size_t cycleEnd_;
         EOpType opType_;
         mlir::Value spillBuffer_;
-    };
-
-    // Sort heap by earliest begin cycle
-    struct CycleBeginMinHeapOrdering {
-        bool operator()(const HeapElement& a, const HeapElement& b);
-    };
-
-    // Sort heap by earliest end cycle
-    struct CycleEndMinHeapOrdering {
-        bool operator()(const HeapElement& a, const HeapElement& b);
     };
 
     // Sort pair by the second arg - operation index (=async-deps-index) which is aligned with order in IR
@@ -84,48 +99,13 @@ public:
             return op1 < op2;
         }
     };
-    // Struct used during scheduling, containing op info
-    struct OpOutputInfo {
-        explicit OpOutputInfo(EOpState state = EOpState::CONSUMED, size_t outstanding_consumers = 0UL)
-                : state_(state), outstandingConsumers_(outstanding_consumers) {
-        }
-        bool active() const {
-            return state_ == EOpState::ACTIVE;
-        }
-        bool spilled() const {
-            return state_ == EOpState::SPILLED;
-        }
-        bool consumed() const {
-            return state_ == EOpState::CONSUMED;
-        }
-        bool hasSingleOutstandingConsumer() const {
-            return outstandingConsumers_ == 1UL;
-        }
-        void changeStateToActive() {
-            state_ = EOpState::ACTIVE;
-        }
-        void changeStateToConsumed() {
-            state_ = EOpState::CONSUMED;
-        }
-        void changeStateToSpilled() {
-            state_ = EOpState::SPILLED;
-        }
-        void decrementConsumers() {
-            VPUX_THROW_UNLESS(outstandingConsumers_ > 0UL, "Invalid number of consumers");
-            --outstandingConsumers_;
-            if (!outstandingConsumers_) {
-                state_ = EOpState::CONSUMED;
-            }
-        }
-        void incrementConsumers() {
-            if (!outstandingConsumers_) {
-                state_ = EOpState::SPILLED;
-            }
-            ++outstandingConsumers_;
-        }
-        EOpState state_;
-        size_t outstandingConsumers_;
-        mlir::DenseSet<size_t> spillIdx_;
+    // Sort heap by earliest begin cycle
+    struct CycleBeginMinHeapOrdering {
+        bool operator()(const HeapElement& a, const HeapElement& b) const;
+    };
+    // Sort heap by earliest end cycle
+    struct CycleEndMinHeapOrdering {
+        bool operator()(const HeapElement& a, const HeapElement& b) const;
     };
     // Struct storing CMX address space
     struct IntervalInfo {
@@ -160,9 +140,9 @@ public:
         bool operator==(const ScheduledOpInfo& other) const {
             return (other.op_ == op_) && (other.opType_ == opType_);
         }
-        ScheduledOpInfo& operator=(const HeapElement& helement) {
-            op_ = helement.op_;
-            opType_ = helement.opType_;
+        ScheduledOpInfo& operator=(const HeapElement& hElement) {
+            op_ = hElement.op_;
+            opType_ = hElement.opType_;
             return *this;
         }
         bool isOriginalOp() const {
@@ -273,7 +253,7 @@ public:
         SmallVector<IntervalInfo> outputResourceInfo_;
         SmallVector<IntervalInfo> inputResourceInfo_;
         size_t cycleEnd_{};
-        VPU::ExecutorKind executor{VPU::ExecutorKind::DMA_NN};
+        QueueType queueType{VPU::ExecutorKind::DMA_NN, 0};
         llvm::BitVector executorInstanceMask;
         bool isNonComputeChain{false};
     };
@@ -281,31 +261,26 @@ public:
 
     // Struct storing buffer info for allocation order
     struct BufferOrder {
-        BufferOrder(mlir::Value buffer, vpux::AddressType size, size_t outDegree,
-                    size_t level = std::numeric_limits<size_t>::min(), bool highAllocationPriority = false)
-                : buffer(buffer),
-                  size(size),
-                  outDegree(outDegree),
-                  level(level),
-                  highAllocationPriority(highAllocationPriority) {
+        BufferOrder(mlir::Value buffer, vpux::AddressType size, size_t outDegree)
+                : buffer(buffer), size(size), outDegree(outDegree) {
         }
         mlir::Value buffer;
         vpux::AddressType size;
         size_t outDegree;
-        size_t level;
-        bool highAllocationPriority;
     };
     // Struct storing eviction policy info for buffers
     struct EvictionCandidate {
-        EvictionCandidate(size_t priority, size_t size, operationIdxType bufferWriterIdx, size_t outputIdx,
-                          mlir::Value buffer)
+        EvictionCandidate(size_t priority, size_t earliestConsumerIdx, size_t size, operationIdxType bufferWriterIdx,
+                          size_t outputIdx, mlir::Value buffer)
                 : priority_(priority),
+                  earliestConsumerIdx_(earliestConsumerIdx),
                   size_(size),
                   bufferWriterIdx_(bufferWriterIdx),
                   outputIdx_(outputIdx),
                   buffer_(buffer) {
         }
         size_t priority_;
+        operationIdxType earliestConsumerIdx_;
         size_t size_;
         operationIdxType bufferWriterIdx_;
         size_t outputIdx_;
@@ -314,158 +289,129 @@ public:
     // Eviction priority policy for buffers
     struct EvictionPriority {
         bool operator()(const EvictionCandidate& ec1, const EvictionCandidate& ec2) const {
-            // first - higher eviction priority
+            // higher eviction priority
             if (ec1.priority_ != ec2.priority_) {
                 return ec1.priority_ > ec2.priority_;
             }
 
-            // second - smaller size
+            // last first consumer
+            if (ec1.earliestConsumerIdx_ != ec2.earliestConsumerIdx_) {
+                return ec1.earliestConsumerIdx_ > ec2.earliestConsumerIdx_;
+            }
+
+            // smaller size
             if (ec1.size_ != ec2.size_) {
                 return ec1.size_ < ec2.size_;
             }
 
-            // third - async deps index (unique with single output)
+            // place in IR
             if (ec1.bufferWriterIdx_ != ec2.bufferWriterIdx_) {
-                return ec1.bufferWriterIdx_ < ec2.bufferWriterIdx_;
+                return ec1.bufferWriterIdx_ > ec2.bufferWriterIdx_;
             }
 
-            // fourth - same index, multiple outputs, check idx
+            // same index, multiple outputs, check idx
             return ec1.outputIdx_ > ec2.outputIdx_;
         }
     };
-    // Struct storing info for prefetch DMAs
-    struct PrefetchDMA {
-        PrefetchDMA(operationIdxType opIdx, size_t level, size_t outDegree = 0, mlir::Value buffer = nullptr)
-                : opIdx_(opIdx), level_(level), buffer_(buffer), outDegree_(outDegree) {
-        }
-        operationIdxType opIdx_;
-        size_t level_;
-        mlir::Value buffer_;
-        size_t outDegree_;
-    };
-    // Sort prefetchSet based on PrefetchDMA level
-    struct LevelSort {
-        bool operator()(const PrefetchDMA& op1, const PrefetchDMA& op2) const {
-            if (op1.level_ == op2.level_) {
-                if (op1.outDegree_ != op2.outDegree_) {
-                    return op1.outDegree_ > op2.outDegree_;
-                }
-                return op1.opIdx_ < op2.opIdx_;
-            }
-
-            // if level is equal sort based on IR order
-            return op1.level_ < op2.level_;
-        }
-    };
-    // Store DMA idx along with DMA level
-    using prefetchSet = std::set<PrefetchDMA, LevelSort>;
-    // Store DPU with DMAs which should ideally execute during this DPU
-    struct OverlappedSchedule {
-        OverlappedSchedule(operationIdxType computeOpIdx, size_t computeOpLevel, prefetchSet dataOps,
-                           bool activationSpill = false)
-                : computeOpIdx(computeOpIdx),
-                  computeOpLevel(computeOpLevel),
-                  dataOps(std::move(dataOps)),
-                  activationSpill(activationSpill) {
-        }
-
-        operationIdxType computeOpIdx;
-        size_t computeOpLevel;
-        prefetchSet dataOps;
-        bool activationSpill;
-        // DMAs which also can be prefetched
-        SmallVector<EvictionCandidate> spilledOps;
-    };
-
-    using scheduleWithPrefetch = std::list<OverlappedSchedule>;
-
-    struct ExecutorAndCycleType {
-        VPU::ExecutorKind execType;
-        llvm::BitVector execMask;
-        size_t cycle;
-    };
 
 public:
-    FeasibleMemoryScheduler(VPU::MemoryKind memSpace, MemLiveRangeInfo& liveRangeInfo, AsyncDepsInfo& depsInfo,
-                            AliasesInfo& aliasInfo, Logger log, LinearScan<mlir::Value, LinearScanHandler>& scan,
+    FeasibleMemoryScheduler(VPU::MemoryKind memKind, VPU::MemoryKind secondLvlMemKind, MemLiveRangeInfo& liveRangeInfo,
+                            AsyncDepsInfo& depsInfo, Logger log, LinearScan<mlir::Value, LinearScanHandler>& scan,
                             VPU::ArchKind arch, std::shared_ptr<VPUNN::VPUCostModel> costModel, int64_t nceClusterCount,
-                            int64_t dmaCount, bool enableScheduleStatistics);
+                            int64_t dmaCount, bool enableScheduleStatistics, bool optimizeFragmentation);
 
 public:
-    ScheduledOpInfoVec generateSchedule(const scheduleWithPrefetch& prefetchSchedule = {});
+    ScheduledOpInfoVec generateSchedule();
+    void cleanUpAndLogSchedule(ScheduledOpInfoVec& scheduledOps);
 
 private:
     bool init();
     void clearLists();
     void schedulingLoop();
     void initializeReadyLists();
+
+    // DAG maintenance
     SmallVector<operationIdxType> reduceInDegreeOfAdjacentOperations(operationIdxType opIdx);
-    bool isReadyComputeOperationSchedulable(operationIdxType opIdx);
-    bool hasBuffersInTargetMemoryKind(operationIdxType opIdx);
-    SmallVector<mlir::Value> getNonAliveBuffersUsedByOperation(operationIdxType opIdx);
-    SmallVector<mlir::Value> sortUsedBuffers(mlir::DenseSet<mlir::Value>& operationBuffers);
-    mlir::DenseSet<operationIdxType> getNonEmptyOpDemandList(operationIdxType opIdx,
-                                                             llvm::ArrayRef<mlir::Value> neededBuffers);
-    size_t scheduleInputOpForComputeOp(operationIdxType inputIdx);
-    size_t schedulePrefetchOp(operationIdxType inputIdx);
-    size_t scheduleSpilledOpBuffer(operationIdxType inputIdx, mlir::Value* buffer);
-    size_t getOperationEndCycle(operationIdxType opIdx, size_t nextScheduleCycle);
-    size_t getEarliestComputeBeginCycle(operationIdxType opIdx);
-    size_t allocateBuffersAndInputOps(operationIdxType opIdx,
-                                      Partitioner::Direction allocDir = Partitioner::Direction::Up);
-    void allocatePrefetchOps(operationIdxType opIdx, size_t earliestComputeBeginCycle,
-                             mlir::DenseSet<mlir::Value>& buffersNeedingAllocation);
-    size_t scheduleComputeOp(operationIdxType opIdx);
-    void scheduleAllPossibleReadyOpsAndUpdate();
+    SmallVector<operationIdxType> unlockNewReadyOps(const HeapElement& hElement);
+    void distributeReadyOps(llvm::ArrayRef<operationIdxType> readyOps);
+
+    // heap maintenance
     void pushToCycleBeginHeap(const HeapElement& elem);
-    void pushToCycleEndHeap(const HeapElement& elem);
-    HeapElement popFromCycleBeginHeap();
-    HeapElement popFromCycleEndHeap();
-    HeapElement const* topElementGen(ArrayRef<HeapElement> heap) const;
-    VPU::ExecutorKind getExecutorType(operationIdxType opIdx);
-    size_t getCurrentCycle(operationIdxType opIdx, bool spilled = false);
-    // Based on operation/buffer properties determine how many executor instances are needed
-    // to run given operation
-    size_t getOpDemandForExecutorsInstances(operationIdxType opIdx, VPU::ExecutorKind executorType);
-    size_t getBufferDemandForExecutorsInstances(mlir::Value buffer, VPU::ExecutorKind executorType);
-    // Return mask of executor instances specyfing on which executor indexes given operation
-    // is to be executed on
-    llvm::BitVector getExecutorInstanceMask(size_t numOfNeededInstances, VPU::ExecutorKind executorType);
-    llvm::BitVector getExecutorInstanceMaskForOp(operationIdxType opIdx, VPU::ExecutorKind executorType);
-    llvm::BitVector getExecutorInstanceMaskForBuffer(mlir::Value buffer, VPU::ExecutorKind executorType);
-    ExecutorAndCycleType getCurrentCycleAndExecutorInstanceMask(operationIdxType opIdx);
-    ExecutorAndCycleType getCurrentCycleAndExecutorInstanceMaskForSpill(mlir::Value buffer);
-    size_t spilledOperationCycleCost(mlir::Value spilledBuffer);
-    size_t operationCycleCost(operationIdxType opIdx);
-    void updateCurrentCycleForExecutor(VPU::ExecutorKind executor, llvm::BitVector executorInstanceMask,
-                                       size_t newCycle);
-    void alignExecutors(size_t nextAvailableCycle);
+    bool unscheduledOpsOnQueue(const QueueType& queueType);
+    void moveFromCycleBeginToCycleEndHeap();
+    size_t findMinScheduledQueueCycle();
+
+    // scheduling type utils
     bool isDataOp(operationIdxType opIdx);
     bool isNonComputeChainOp(operationIdxType opIdx);
-    bool isCopyOutOp(operationIdxType opIdx);
-    void unscheduleOp(const HeapElement& helement);
-    void distributeReadyOps(llvm::ArrayRef<operationIdxType> readyOps);
+
+    // cycle and executor utils
+    VPU::ExecutorKind getExecutorType(operationIdxType opIdx);
+    QueueType getQueueType(operationIdxType opIdx);
+    size_t getCurrentCycle(operationIdxType opIdx, bool spilled = false);
+    void insertInOpIdxCycleEndMap(const operationIdxType& opIdx, const size_t& endCycle);
+    size_t getEarliestComputeBeginCycle(operationIdxType opIdx);
+    // Based on operation/buffer properties determine how many executor instances are needed
+    // to run given operation
+    size_t getOpDemandForExecutorsInstances(operationIdxType opIdx, QueueType queueType);
+    size_t getBufferDemandForExecutorsInstances(mlir::Value buffer, QueueType queueType);
+    // Return mask of executor instances specifying on which executor indexes given operation
+    // is to be executed on
+    llvm::BitVector getExecutorInstanceMask(size_t numOfNeededInstances, QueueType queueType);
+    llvm::BitVector getExecutorInstanceMaskForOp(operationIdxType opIdx, QueueType queueType);
+    llvm::BitVector getExecutorInstanceMaskForBuffer(mlir::Value buffer, QueueType queueType);
+    QueueAndCycleType getCurrentCycleAndExecutorInstanceMask(operationIdxType opIdx, size_t depEndCycle = 0);
+    QueueAndCycleType getCurrentCycleAndExecutorInstanceMaskForSpill(mlir::Value buffer, EOpType spillType,
+                                                                     size_t depEndCycle = 0);
+    size_t spilledOperationCycleCost(mlir::Value spilledBuffer);
+    size_t operationCycleCost(operationIdxType opIdx);
+    void alignExecutors(size_t nextAvailableCycle);
+    void updateCurrentCycleForExecutor(QueueType queueType, llvm::BitVector executorInstanceMask, size_t newCycle);
+
+    // scheduling various operation types
+    size_t scheduleSpilledOpBuffer(operationIdxType opIdx, mlir::Value* buffer);
+    size_t scheduleDependencies(operationIdxType opIdx);
+    size_t scheduleOp(operationIdxType opIdx, EOpType opType = EOpType::ORIGINAL_OP);
+    bool freeMemoryResources(const HeapElement& hElement);
+
+    // handling buffers
+    mlir::DenseSet<mlir::Value> getBuffersToAllocateForOp(operationIdxType opIdx);
+    bool canAllocBuffers(mlir::DenseSet<mlir::Value>& buffersToAllocate);
+    void sortAndAllocateBuffers(mlir::DenseSet<mlir::Value>& buffersToAllocate);
+    SmallVector<mlir::Value> getNonAliveBuffersUsedByOperation(operationIdxType opIdx);
+    SmallVector<mlir::Value> sortUsedBuffers(mlir::DenseSet<mlir::Value>& operationBuffers);
+    void updateBufferCycleUseAndProducer(size_t opIdx, size_t opCycleEnd, const mlir::Value buffer,
+                                         bool isNewProducer = false);
+    void createBufferAsyncIdxMap();
+
+    // scheduling loops
     void unscheduleAllCompletingOps();
-    void populateScheduledOps(HeapElement& scheduledOp);
+    size_t getOperationLevel(operationIdxType opIdx, bool isSpilled = false);
+    void prefetchOps(ArrayRef<std::pair<operationIdxType, size_t>> scheduledOps,
+                     mlir::DenseSet<mlir::Value>& buffersToAllocate);
+    void scheduleNonComputeOps();
+    void scheduleComputeOps();
+
+    // eviction utility
     void evictActiveOp(EvictionCandidate evictionCandidate);
     size_t evictionPriority(operationIdxType writerOpIdx, mlir::Value buffer);
-    VPUIP::LayerOpInterface retrieveBufferWriter(mlir::Value buffer);
     EvictionCandidate chooseCandidateForEviction(const mlir::DenseSet<mlir::Value>& aliveBuffers);
     void forceScheduleActiveOpEviction();
     size_t getOpBufferOutputIdx(operationIdxType opIdx, mlir::Value buffer);
-    void cleanUpAndLogSchedule();
-    void createBufferAsyncIdxMap();
+
+    // reporting and schedule generation
+    void populateScheduledOps(const HeapElement& scheduledOp);
 
 private:
     Logger _log;
     // memory space, which will be allocated
     VPU::MemoryKind _memKind;
+    // second level mem space, used as source of data or destination for spilling
+    VPU::MemoryKind _secondLvlMemKind;
     // information about op buffers
     MemLiveRangeInfo& _liveRangeInfo;
     // dependencies of ops
     AsyncDepsInfo& _depsInfo;
-    // aliases information for buffers
-    AliasesInfo& _aliasInfo;
     // allocator class
     LinearScan<mlir::Value, LinearScanHandler>& _scan;
     // architecture kind
@@ -476,16 +422,26 @@ private:
     int64_t _nceClusterCount;
     // Flag for enabling additional statistic related logic
     bool _enableScheduleStatistics;
+    // Flag for enabling fragmentation optimization
+    bool _optimizeFragmentation;
     // there are 8 barriers per cluster
-    int64_t _barrierPerCluster = 8;
-    // heap with earliest operation start cycle
-    SmallVector<HeapElement> _cycleBeginHeap;
+    // TODO: E93149 update barrier usage
+    const int64_t _barrierPerCluster = 8;
+    // TODO: E106645 issue with heap order, fix ordering issue and convert back to a heap
+    // heap with earliest operation begin cycle
+    std::set<HeapElement, CycleBeginMinHeapOrdering> _cycleBeginHeap;
     // heap with earliest operation end cycle
-    SmallVector<HeapElement> _cycleEndHeap;
-    // compute operations with 0 in-degree
+    std::set<HeapElement, CycleEndMinHeapOrdering> _cycleEndHeap;
+    // compute operations with 0 in-degree, optimal to schedule, that strictly preserve IR order
     std::set<operationIdxType, operationIdxSort> _readyComputeOps;
+    // compute DMA operations with 0 in-degree, that do not necessarily preserve IR order
+    std::set<operationIdxType, operationIdxSort> _readyDMAOps;
     // data operations with 0 in-degree
     std::set<operationIdxType, operationIdxSort> _readyDataOps;
+    // spilled operation which are ready to be rescheduled
+    mlir::DenseMap<mlir::Value, operationIdxType> _readySpilledOps;
+    // store operation spilled buffers
+    llvm::DenseMap<operationIdxType, llvm::DenseSet<mlir::Value>> _spillBufferMap;
     // operations which do not belong to main compute chain for activations from network
     // input to output. Such operations need to be distinguished from other ops as scheduler
     // is focused on scheduling ops along compute chain. Such operation will only be considered
@@ -495,35 +451,40 @@ private:
     std::unordered_map<operationIdxType, size_t> _inDegreeTable;
     // operation out-degree, number of outgoing edges
     std::unordered_map<operationIdxType, size_t> _outDegreeTable;
-    // map storing prefetch edges
-    scheduleWithPrefetch _prefetchSchedule;
     // level of DMAs corresponding to how many DPUs will execute before this DMA is needed
     mlir::DenseMap<operationIdxType, size_t> _dataOpLevels;
-    // level of buffers corresponding to how many DPUs will execute before this buffer is needed
-    mlir::DenseMap<mlir::Value, size_t> _bufferLevels;
-    // contains scheduled ops along with their status/type
-    std::unordered_map<operationIdxType, OpOutputInfo> _opOutputTable;
     // contains the operation writing to the buffer
-    mlir::DenseMap<mlir::Value, operationIdxType> _opIdxWritingToBuffer;
+    mlir::DenseMap<mlir::Value, operationIdxType> _bufferProducer;
+    // contains last used cycle of buffer
+    mlir::DenseMap<mlir::Value, size_t> _bufferLastCycleUse;
     // container for the schedule output
     ScheduledOpInfoVec _scheduledOps;
     // outputs of the graph
     llvm::DenseSet<operationIdxType> _outputOps;
+    // operation level map
+    mlir::DenseMap<operationIdxType, size_t> _opLevelMap;
+    // order for compute ops from IR
+    std::map<QueueType, SmallVector<operationIdxType>> _computeOpOrder;
     // cycle pipeline for every executor. Vector element type is to support multiple instances of
     // same executor type in case where scheduler needs to be aware of it
     // TODO: Currently scheduler supports only multiple DMA executors (ports)
-    llvm::DenseMap<VPU::ExecutorKind, SmallVector<size_t>> _executorPipelines = {
-            {VPU::ExecutorKind::DMA_NN, {1}}, {VPU::ExecutorKind::DPU, {1}},      {VPU::ExecutorKind::SHAVE_UPA, {1}},
-            {VPU::ExecutorKind::NCE, {1}},    {VPU::ExecutorKind::SHAVE_NN, {1}}, {VPU::ExecutorKind::SHAVE_ACT, {1}},
-    };
+    std::map<QueueType, SmallVector<size_t>> _executorPipelines = {
+            {{VPU::ExecutorKind::DMA_NN}, {1}},    {{VPU::ExecutorKind::DPU}, {1}},
+            {{VPU::ExecutorKind::SHAVE_UPA}, {1}}, {{VPU::ExecutorKind::NCE}, {1}},
+            {{VPU::ExecutorKind::SHAVE_NN}, {1}},  {{VPU::ExecutorKind::SHAVE_ACT}, {1}}};
+
     // spilled operation cycle cost
     mlir::DenseMap<mlir::Value, size_t> _spillBufferCycleCost;
 
     // Map of root buffers and vector of operations (operationIdx) writing to this buffer
-    // This is used to sort the shared buffers based on their outdegree using the _outDegreeTable
+    // This is used to sort the shared buffers based on their out-degree using the _outDegreeTable
     // so that we can prefetch them at the start in the CMX not somewhere in the middle to get a contigious CMX
     // space
     mlir::DenseMap<mlir::Value, SmallVector<operationIdxType>> _bufferOpIdxMap;
+
+    std::unordered_map<operationIdxType, size_t> _opIdxEndCycleMap;
+
+    std::set<EvictionCandidate, EvictionPriority> _evictionCandidatesCache;
 };
 
 }  // namespace vpux

@@ -4,13 +4,11 @@
 //
 
 #include <mlir/IR/BuiltinTypes.h>
-#include "vpux/compiler/dialect/ELF/utils.hpp"
+#include "vpux/compiler/dialect/ELFNPU37XX/utils.hpp"
 #include "vpux/compiler/dialect/VPUMI37XX/ops.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 
 #include <kernels/inc/common_types.h>
-
-#include <vpu_nnrt_api_37xx.h>
 
 using namespace vpux;
 
@@ -80,16 +78,16 @@ size_t vpux::VPUMI37XX::KernelParamsOp::getBinarySize() {
     const auto inputMemrefVals = getInputs();
     const auto outputMemrefVals = getOutputs();
 
-    auto inputDimsSize = 0;
-    auto inputStridesSize = 0;
+    size_t inputDimsSize = 0;
+    size_t inputStridesSize = 0;
 
     for (const auto inputMemrefVal : inputMemrefVals) {
         inputDimsSize += sizeof(int32_t) * getShape(inputMemrefVal).size();
         inputStridesSize += sizeof(int64_t) * getMemStrides(inputMemrefVal).size();
     }
 
-    auto outputDimsSize = 0;
-    auto outputStridesSize = 0;
+    size_t outputDimsSize = 0;
+    size_t outputStridesSize = 0;
 
     for (const auto outputMemrefVal : outputMemrefVals) {
         outputDimsSize += sizeof(int32_t) * getShape(outputMemrefVal).size();
@@ -126,17 +124,17 @@ mlir::FailureOr<uint64_t> vpux::VPUMI37XX::KernelParamsOp::getOffsetOfWithinOper
 
 // The parameter structs for the sw layers must be 64Byte aligned as an ActShave requirement
 size_t vpux::VPUMI37XX::KernelParamsOp::getAlignmentRequirements() {
-    return ELF::VPUX_SHAVE_ALIGNMENT;
+    return ELFNPU37XX::VPUX_SHAVE_ALIGNMENT;
 }
 
 vpux::VPURT::BufferSection vpux::VPUMI37XX::KernelParamsOp::getMemorySpace() {
     return vpux::VPURT::BufferSection::DDR;
 }
 
-vpux::ELF::SectionFlagsAttr vpux::VPUMI37XX::KernelParamsOp::getAccessingProcs() {
-    return (ELF::SectionFlagsAttr::VPU_SHF_PROC_SHAVE);
+vpux::ELFNPU37XX::SectionFlagsAttr vpux::VPUMI37XX::KernelParamsOp::getAccessingProcs() {
+    return (ELFNPU37XX::SectionFlagsAttr::VPU_SHF_PROC_SHAVE);
 }
 
-vpux::ELF::SectionFlagsAttr vpux::VPUMI37XX::KernelParamsOp::getUserProcs() {
-    return (ELF::SectionFlagsAttr::SHF_NONE);
+vpux::ELFNPU37XX::SectionFlagsAttr vpux::VPUMI37XX::KernelParamsOp::getUserProcs() {
+    return (ELFNPU37XX::SectionFlagsAttr::SHF_NONE);
 }

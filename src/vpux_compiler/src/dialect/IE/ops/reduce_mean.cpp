@@ -6,7 +6,6 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/dialect/IE/utils/reduce_infer.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
@@ -14,8 +13,8 @@
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::ReduceMeanOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -23,14 +22,14 @@ mlir::LogicalResult vpux::IE::ReduceMeanOp::inferReturnTypeComponents(
     if (mlir::failed(reduceMean.verify(loc))) {
         return mlir::failure();
     }
-    if (reduceMean.axes() != nullptr && reduceMean.axes_value().has_value()) {
+    if (reduceMean.getAxes() != nullptr && reduceMean.getAxesValue().has_value()) {
         return errorAt(loc, "Ambiguous axes representation");
-    } else if (reduceMean.axes() == nullptr && !reduceMean.axes_value().has_value()) {
+    } else if (reduceMean.getAxes() == nullptr && !reduceMean.getAxesValue().has_value()) {
         return errorAt(loc, "Axes was not provided properly");
     }
 
-    const auto input = reduceMean.input();
-    const auto keepDims = reduceMean.keep_dims();
+    const auto input = reduceMean.getInput();
+    const auto keepDims = reduceMean.getKeepDims();
 
     auto axesValue = IE::extractAxes(loc, reduceMean);
 
@@ -41,9 +40,9 @@ mlir::LogicalResult vpux::IE::ReduceMeanOp::inferReturnTypeComponents(
 // fold
 //
 
-mlir::OpFoldResult vpux::IE::ReduceMeanOp::fold(ArrayRef<mlir::Attribute>) {
-    if (input().getType() == output().getType()) {
-        return input();
+mlir::OpFoldResult vpux::IE::ReduceMeanOp::fold(FoldAdaptor) {
+    if (getInput().getType() == getOutput().getType()) {
+        return getInput();
     }
 
     return nullptr;

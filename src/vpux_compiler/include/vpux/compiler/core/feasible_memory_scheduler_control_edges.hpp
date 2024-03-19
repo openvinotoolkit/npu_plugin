@@ -56,6 +56,16 @@ private:
     LinearScan<mlir::Value, LinearScanHandler>& _scan;
 };
 
+void updateScheduledOpsResourcesForControlEdgeBasic(std::list<ScheduledOpOneResource>& scheduledOpsResources,
+                                                    LinearScan<mlir::Value, LinearScanHandler>& scan, size_t opIndex,
+                                                    const ValueOrderedSet& inputBuffers,
+                                                    const ValueOrderedSet& outputBuffers, Logger& log);
+
+void updateScheduledOpsResourcesForControlEdge(std::list<ScheduledOpOneResource>& scheduledOpsResources,
+                                               AliasesInfo& aliasInfo, LinearScan<mlir::Value, LinearScanHandler>& scan,
+                                               VPU::MemoryKind memKind, size_t opIndex, mlir::async::ExecuteOp execOp,
+                                               Logger& log);
+
 // Apply dependencies from controlEdges set into depsInfo.
 void updateControlEdgesInDepsInfo(AsyncDepsInfo& depsInfo, ControlEdgeSet& controlEdges, Logger& log);
 

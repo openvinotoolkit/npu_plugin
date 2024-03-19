@@ -6,14 +6,12 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/dialect/const/ops.hpp"
-#include "vpux/compiler/utils/error.hpp"
-#include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::ScatterUpdateOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -22,7 +20,7 @@ mlir::LogicalResult vpux::IE::ScatterUpdateOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = scatterUpdate.input().getType().cast<mlir::ShapedType>();
+    const auto inType = scatterUpdate.getInput().getType().cast<mlir::ShapedType>();
 
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
 
@@ -46,12 +44,12 @@ public:
 
 mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::ScatterUpdateOp scatterUpdateOp,
                                                         mlir::PatternRewriter& rewriter) const {
-    auto axis = scatterUpdateOp.axis();
+    auto axis = scatterUpdateOp.getAxis();
     if (axis == nullptr) {
         return mlir::failure();
     }
 
-    auto axisConst = scatterUpdateOp.axis().getDefiningOp<Const::DeclareOp>();
+    auto axisConst = scatterUpdateOp.getAxis().getDefiningOp<Const::DeclareOp>();
     VPUX_THROW_UNLESS(axis != nullptr, "Only support constant axis");
 
     const auto axisContent = axisConst.getContent();
@@ -60,8 +58,8 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::ScatterUpdateOp scat
     }
 
     rewriter.replaceOpWithNewOp<IE::ScatterUpdateOp>(
-            scatterUpdateOp, scatterUpdateOp.getType(), scatterUpdateOp.input(), scatterUpdateOp.indices(),
-            scatterUpdateOp.updates(), nullptr, rewriter.getI64IntegerAttr(axisContent.getSplatValue<int64_t>()));
+            scatterUpdateOp, scatterUpdateOp.getType(), scatterUpdateOp.getInput(), scatterUpdateOp.getIndices(),
+            scatterUpdateOp.getUpdates(), nullptr, rewriter.getI64IntegerAttr(axisContent.getSplatValue<int64_t>()));
     return mlir::success();
 }
 

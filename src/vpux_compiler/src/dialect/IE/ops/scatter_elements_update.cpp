@@ -5,7 +5,6 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
-#include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
 
@@ -14,18 +13,18 @@ using namespace vpux;
 //
 
 mlir::LogicalResult vpux::IE::ScatterElementsUpdateOp::verify() {
-    if (axis() != nullptr) {
-        auto axisNumElements = axis().getType().cast<vpux::NDTypeInterface>().getNumElements();
+    if (getAxis() != nullptr) {
+        auto axisNumElements = getAxis().getType().cast<vpux::NDTypeInterface>().getNumElements();
         if (axisNumElements != 1) {
             return errorAt(*this, "Axis should have only 1 element, while it has {0}", axisNumElements);
         }
 
-        if (axis_value().has_value()) {
+        if (getAxisValue().has_value()) {
             return errorAt(*this, "Ambiguous axis representation");
         }
     }
 
-    if (axis() == nullptr && !axis_value().has_value()) {
+    if (getAxis() == nullptr && !getAxisValue().has_value()) {
         return errorAt(*this, "Axis was not provided");
     }
 
@@ -33,8 +32,8 @@ mlir::LogicalResult vpux::IE::ScatterElementsUpdateOp::verify() {
 }
 
 mlir::LogicalResult vpux::IE::ScatterElementsUpdateOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -43,7 +42,7 @@ mlir::LogicalResult vpux::IE::ScatterElementsUpdateOp::inferReturnTypeComponents
         return mlir::failure();
     }
 
-    const auto inType = scatterElementsUpdate.input().getType().cast<mlir::ShapedType>();
+    const auto inType = scatterElementsUpdate.getInput().getType().cast<mlir::ShapedType>();
 
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
 
@@ -67,7 +66,7 @@ public:
 
 mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::ScatterElementsUpdateOp scatterElementsUpdateOp,
                                                         mlir::PatternRewriter& rewriter) const {
-    auto axis = scatterElementsUpdateOp.axis();
+    auto axis = scatterElementsUpdateOp.getAxis();
     if (axis == nullptr) {
         return mlir::failure();
     }
@@ -84,8 +83,8 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::ScatterElementsUpdat
 
     const auto axisValue = static_cast<int64_t>(axisContent.getSplatValue<int32_t>());
     rewriter.replaceOpWithNewOp<IE::ScatterElementsUpdateOp>(
-            scatterElementsUpdateOp, scatterElementsUpdateOp.getType(), scatterElementsUpdateOp.input(),
-            scatterElementsUpdateOp.indices(), scatterElementsUpdateOp.updates(), nullptr,
+            scatterElementsUpdateOp, scatterElementsUpdateOp.getType(), scatterElementsUpdateOp.getInput(),
+            scatterElementsUpdateOp.getIndices(), scatterElementsUpdateOp.getUpdates(), nullptr,
             rewriter.getI64IntegerAttr(axisValue));
     return mlir::success();
 }

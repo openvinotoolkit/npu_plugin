@@ -5,10 +5,9 @@
 
 #include "vpux/compiler/dialect/VPU/utils/conv_utils.hpp"
 
-#include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
-#include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPU/IR/ops.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_invariant.hpp"
 #include "vpux/compiler/utils/error.hpp"
-#include "vpux/utils/core/numeric.hpp"
 
 using namespace vpux;
 using namespace VPU;
@@ -62,7 +61,10 @@ bool vpux::VPU::isNCEConvSupported(VPU::ArchKind arch, NDTypeInterface inputType
             logCb(formatv("Unsupported filter layout '{0}'", filterOrder));
             return false;
         }
-        if (arch != VPU::ArchKind::VPUX37XX && outputOrder != DimsOrder::NHWC) {
+        const std::set<VPU::ArchKind> compatibleTargets = {
+                VPU::ArchKind::VPUX37XX,
+        };
+        if (compatibleTargets.count(arch) <= 0 && outputOrder != DimsOrder::NHWC) {
             logCb(formatv("Unsupported output layout '{0}'", outputOrder));
             return false;
         }
@@ -75,24 +77,174 @@ bool vpux::VPU::isSupportedConv(IE::ConvolutionOp op, LogCb logCb, bool checkLay
                                 bool supportsInputActCompression) {
     const auto arch = getArch(op);
 
-    const auto dilations = parseIntArrayAttr<int64_t>(op.dilations());
+    const auto dilations = parseIntArrayAttr<int64_t>(op.getDilations());
 
-    const auto filterShape = getShape(op.filter());
+    const auto filterShape = getShape(op.getFilter());
     const auto KY = filterShape[Dims4D::Filter::KY];
     const auto KX = filterShape[Dims4D::Filter::KX];
 
-    const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(op.strides()));
+    const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(op.getStrides()));
     const auto SY = kernelStrides[Dims4D::Strides::Y];
     const auto SX = kernelStrides[Dims4D::Strides::X];
 
-    const auto pads = PadInfo(op.pads_begin(), op.pads_end());
+    const auto pads = PadInfo(op.getPadsBegin(), op.getPadsEnd());
 
-    const auto inputType = op.input().getType().cast<NDTypeInterface>();
-    const auto filterType = op.filter().getType().cast<NDTypeInterface>();
-    const auto outputType = op.output().getType().cast<NDTypeInterface>();
+    const auto inputType = op.getInput().getType().cast<NDTypeInterface>();
+    const auto filterType = op.getFilter().getType().cast<NDTypeInterface>();
+    const auto outputType = op.getOutput().getType().cast<NDTypeInterface>();
 
     return VPU::isNCEConvSupported(arch, inputType, filterType, outputType, dilations, KY, KX, SY, SX, pads,
                                    checkLayout, checkChannelAlignment, logCb, supportsInputActCompression);
+}
+
+namespace {
+
+bool isFilterConst(mlir::Value filter) {
+    // While adjusting the layout, an intermediate Reorder operation can be introduced, before it gets fused into the
+    // filter constant
+    if (auto reorderOp = filter.getDefiningOp<IE::ReorderOp>()) {
+        filter = reorderOp.getInput();
+    }
+
+    auto constOp = filter.getDefiningOp<Const::DeclareOp>();
+    if (auto fqOp = filter.getDefiningOp<IE::FakeQuantizeOp>()) {
+        constOp = fqOp.getInput().getDefiningOp<Const::DeclareOp>();
+    }
+
+    if (auto dequantOp = filter.getDefiningOp<IE::DequantizeOp>()) {
+        constOp = dequantOp.getInput().getDefiningOp<Const::DeclareOp>();
+    }
+
+    return constOp != nullptr;
+}
+
+bool isSupportedSEPTransposedConvImpl(VPU::ArchKind arch, NDTypeInterface inputType, NDTypeInterface filterType,
+                                      NDTypeInterface outputType, mlir::ArrayAttr kernelStridesAttr,
+                                      mlir::ArrayAttr dilationsAttr, mlir::ArrayAttr padsBeginAttr,
+                                      mlir::ArrayAttr padsEndAttr, mlir::ArrayAttr outputPaddingAttr, LogCb logCb,
+                                      bool checkLayout, bool checkChannelAlignment, bool supportsInputActCompression) {
+    const auto dilations = parseIntArrayAttr<int64_t>(dilationsAttr);
+    if (dilations[Dims4D::Dilation::X.ind()] > 1 || dilations[Dims4D::Dilation::Y.ind()] > 1) {
+        logCb(formatv("Dilated transposed convolution is not supported"));
+        return false;
+    }
+
+    const auto origKernelStrides = Shape(parseIntArrayAttr<int64_t>(kernelStridesAttr));
+    const auto stridesY = origKernelStrides[Dims4D::Strides::Y];
+    const auto stridesX = origKernelStrides[Dims4D::Strides::X];
+    const auto origPads = PadInfo(padsBeginAttr, padsEndAttr);
+    if (origPads.left > (stridesX - 1) || origPads.top > (stridesY - 1) || origPads.right > (stridesX - 1) ||
+        origPads.bottom > (stridesY - 1)) {
+        logCb(formatv("Padding larger than strides are not supported"));
+        return false;
+    }
+
+    const auto filterShape = filterType.getShape().raw();
+    const auto KY = filterShape[filterShape.size() - 2];
+    const auto KX = filterShape[filterShape.size() - 1];
+
+    const auto outputPadding = Shape(parseIntArrayAttr<int64_t>(outputPaddingAttr));
+
+    const auto inputShape = inputType.getShape();
+    const auto zerosY = origKernelStrides[Dims4D::Strides::Y] - 1;
+    const auto zerosX = origKernelStrides[Dims4D::Strides::X] - 1;
+    const auto newPadTop = KY - 1;
+    const auto newPadBottom = KY - 1 + outputPadding[Dims4D::PadsOutput::Y];
+    const auto newPadLeft = KX - 1;
+    const auto newPadRight = KX - 1 + outputPadding[Dims4D::PadsOutput::X];
+    const auto newY = inputShape[Dims4D::Act::H] + zerosY * (inputShape[Dims4D::Act::H] - 1) + newPadTop + newPadBottom;
+    const auto newX = inputShape[Dims4D::Act::W] + zerosX * (inputShape[Dims4D::Act::W] - 1) + newPadLeft + newPadRight;
+    const Shape newInputShape{inputShape[Dims4D::Act::N], inputShape[Dims4D::Act::C], newY, newX};
+    inputType = inputType.changeShape(newInputShape);
+
+    const int64_t SY = 1;
+    const int64_t SX = 1;
+
+    PadInfo pads(0, 0, 0, 0);
+
+    return VPU::isNCEConvSupported(arch, inputType, filterType, outputType, dilations, KY, KX, SY, SX, pads,
+                                   checkLayout, checkChannelAlignment, logCb, supportsInputActCompression);
+}
+
+}  // namespace
+
+bool VPU::isSupportedSEPTransposedConv(IE::TransposedConvolutionOp op, LogCb logCb, bool checkLayout,
+                                       bool checkChannelAlignment, bool supportsInputActCompression) {
+    if (!isFilterConst(op.getFilter())) {
+        logCb(formatv("The filter is not a constant"));
+        return false;
+    }
+    auto inputType = op.getInput().getType().cast<NDTypeInterface>();
+    auto filterType = op.getFilter().getType().cast<NDTypeInterface>();
+    auto outputType = op.getOutput().getType().cast<NDTypeInterface>();
+    if (inputType.getShape().size() != 4) {
+        logCb(formatv("Only 4D inputs are supported, got {0} dimensions", inputType.getShape().size()));
+        return false;
+    }
+    if (filterType.getShape().size() != 4) {
+        logCb(formatv("Only 4D filters are supported, got {0} dimensions", filterType.getShape().size()));
+        return false;
+    }
+    if (outputType.getShape().size() != 4) {
+        logCb(formatv("Only 4D outputs are supported, got {0} dimensions", outputType.getShape().size()));
+        return false;
+    }
+    return isSupportedSEPTransposedConvImpl(getArch(op), inputType, filterType, outputType, op.getStrides(),
+                                            op.getDilations(), op.getPadsBegin(), op.getPadsEnd(),
+                                            op.getOutputPadding(), logCb, checkLayout, checkChannelAlignment,
+                                            supportsInputActCompression);
+}
+
+bool VPU::isSupportedSEPTransposedConv(IE::GroupTransposedConvolutionOp op, LogCb logCb, bool checkLayout,
+                                       bool checkChannelAlignment, bool supportsInputActCompression) {
+    if (!isFilterConst(op.getFilter())) {
+        return false;
+    }
+    auto inputType = op.getInput().getType().cast<NDTypeInterface>();
+    auto filterType = op.getFilter().getType().cast<NDTypeInterface>();
+    auto outputType = op.getOutput().getType().cast<NDTypeInterface>();
+    if (inputType.getShape().size() != 4) {
+        logCb(formatv("Only 4D inputs are supported, got {0} dimensions", inputType.getShape().size()));
+        return false;
+    }
+    if (filterType.getShape().size() != 5) {
+        logCb(formatv("Only 5D filters are supported, got {0} dimensions", filterType.getShape().size()));
+        return false;
+    }
+    if (outputType.getShape().size() != 4) {
+        logCb(formatv("Only 4D outputs are supported, got {0} dimensions", outputType.getShape().size()));
+        return false;
+    }
+    return isSupportedSEPTransposedConvImpl(getArch(op), inputType, filterType, outputType, op.getStrides(),
+                                            op.getDilations(), op.getPadsBegin(), op.getPadsEnd(),
+                                            op.getOutputPadding(), logCb, checkLayout, checkChannelAlignment,
+                                            supportsInputActCompression);
+}
+
+bool VPU::isSupportedSEPTransposedConv(VPU::TransposedConvolutionOp op, LogCb logCb, bool checkLayout,
+                                       bool checkChannelAlignment, bool supportsInputActCompression) {
+    if (!isFilterConst(op.getFilter())) {
+        return false;
+    }
+    auto inputType = op.getInput().getType().cast<NDTypeInterface>();
+    auto filterType = op.getFilter().getType().cast<NDTypeInterface>();
+    auto outputType = op.getOutput().getType().cast<NDTypeInterface>();
+    if (inputType.getShape().size() != 4) {
+        logCb(formatv("Only 4D inputs are supported, got {0} dimensions", inputType.getShape().size()));
+        return false;
+    }
+    if (filterType.getShape().size() != 4) {
+        logCb(formatv("Only 4D filters are supported, got {0} dimensions", filterType.getShape().size()));
+        return false;
+    }
+    if (outputType.getShape().size() != 4) {
+        logCb(formatv("Only 4D outputs are supported, got {0} dimensions", outputType.getShape().size()));
+        return false;
+    }
+    return isSupportedSEPTransposedConvImpl(getArch(op), inputType, filterType, outputType, op.getStrides(),
+                                            op.getDilations(), op.getPadsBegin(), op.getPadsEnd(),
+                                            op.getOutputPadding(), logCb, checkLayout, checkChannelAlignment,
+                                            supportsInputActCompression);
 }
 
 mlir::LogicalResult vpux::VPU::verifyConvUtil(mlir::Location loc, VPU::ArchKind arch, Shape filterShape,

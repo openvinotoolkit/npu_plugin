@@ -15,25 +15,6 @@
 using namespace vpux;
 
 //
-// ReshapeAttr::walkImmediateSubElements
-//
-
-void vpux::Const::ReshapeAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)> walkAttrsFn,
-                                                        llvm::function_ref<void(mlir::Type)>) const {
-    walkAttrsFn(getShape());
-}
-
-//
-// ReshapeAttr::replaceImmediateSubElements
-//
-
-mlir::Attribute vpux::Const::ReshapeAttr::replaceImmediateSubElements(ArrayRef<mlir::Attribute> replAttrs,
-                                                                      ArrayRef<mlir::Type>) const {
-    VPUX_THROW_WHEN(replAttrs.size() < 1, "Replace attrs array is too short: '{0}'", replAttrs.size());
-    return get(replAttrs[0].dyn_cast_or_null<mlir::ArrayAttr>());
-}
-
-//
 // ReshapeAttr::verify
 //
 
@@ -91,9 +72,6 @@ mlir::Attribute vpux::Const::ReshapeAttr::parse(mlir::AsmParser& parser, mlir::T
 //
 
 vpux::NDTypeInterface vpux::Const::ReshapeAttr::inferOutputType(vpux::NDTypeInterface input) const {
-    const Bit typeSizeInBits = input.getElemTypeSize();
-    VPUX_THROW_UNLESS(typeSizeInBits.count() >= CHAR_BIT, "Got sub-byte input '{0}' in ReshapeAttr", typeSizeInBits);
-
     const auto newShape = parseIntArrayAttr<int64_t>(getShape());
     return input.changeShape(ShapeRef(newShape));
 }
@@ -111,6 +89,7 @@ Const::Content vpux::Const::ReshapeAttr::transform(vpux::Const::Content& input) 
 //
 
 Const::ContentAttr vpux::Const::ContentAttr::reshape(ShapeRef newShape) const {
-    return get(*this,
-               Const::ReshapeAttr::get(getIntArrayAttr(getContext(), newShape)).cast<Const::TransformAttrInterface>());
+    return ContentAttr::addTransformation(
+            *this,
+            Const::ReshapeAttr::get(getIntArrayAttr(getContext(), newShape)).cast<Const::TransformAttrInterface>());
 }

@@ -6,7 +6,7 @@
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPU/IR/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
@@ -14,8 +14,8 @@
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/range.hpp"
 
-#include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/IR/BuiltinTypes.h>
+#include <mlir/IR/IRMapping.h>
 #include <vpux/compiler/dialect/VPU/utils/distributed_tensor_utils.hpp>
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 
@@ -62,11 +62,11 @@ mlir::LogicalResult vpux::IE::verifyLayer(mlir::Operation* op) {
 }
 
 mlir::LogicalResult vpux::IE::inferTensorTypes(InferTypeComponentsCb componentsCb, mlir::MLIRContext* ctx,
-                                               Optional<mlir::Location> loc, mlir::ValueRange operands,
-                                               mlir::DictionaryAttr attrs, mlir::RegionRange regions,
-                                               SmallVectorImpl<mlir::Type>& inferredTypes) {
+                                               std::optional<mlir::Location> loc, mlir::ValueRange operands,
+                                               mlir::DictionaryAttr attrs, mlir::OpaqueProperties props,
+                                               mlir::RegionRange regions, SmallVectorImpl<mlir::Type>& inferredTypes) {
     SmallVector<mlir::ShapedTypeComponents> components;
-    if (mlir::failed(componentsCb(ctx, loc, operands, attrs, regions, components))) {
+    if (mlir::failed(componentsCb(ctx, loc, operands, attrs, props, regions, components))) {
         return mlir::failure();
     }
 

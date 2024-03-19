@@ -5,12 +5,9 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
-#include "vpux/compiler/dialect/IE/utils/propagate_quantize_dequantize_utils.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
-
-#include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
 
@@ -21,12 +18,12 @@ using namespace vpux;
 namespace {
 
 Dim normalizeAxis(IE::SplitOpAdaptor split) {
-    VPUX_THROW_UNLESS(split.axis_value().has_value(), "Got non constant axis");
+    VPUX_THROW_UNLESS(split.getAxisValue().has_value(), "Got non constant axis");
 
-    const auto inType = split.input().getType().cast<mlir::ShapedType>();
+    const auto inType = split.getInput().getType().cast<mlir::ShapedType>();
     const auto inRank = inType.getRank();
 
-    auto axisInd = split.axis_value().value();
+    auto axisInd = split.getAxisValue().value();
 
     // Negative value means counting dimension from the end
     if (axisInd < 0) {
@@ -40,8 +37,8 @@ Dim normalizeAxis(IE::SplitOpAdaptor split) {
 }
 
 mlir::FailureOr<Dim> extractAxis(mlir::Location loc, IE::SplitOpAdaptor split) {
-    if (split.axis() != nullptr) {
-        auto axisConst = split.axis().getDefiningOp<Const::DeclareOp>();
+    if (split.getAxis() != nullptr) {
+        auto axisConst = split.getAxis().getDefiningOp<Const::DeclareOp>();
         if (axisConst == nullptr) {
             return errorAt(loc, "Only constant input is supported for axis");
         }
@@ -51,7 +48,7 @@ mlir::FailureOr<Dim> extractAxis(mlir::Location loc, IE::SplitOpAdaptor split) {
             return errorAt(loc, "Axis value must be a scalar");
         }
 
-        const auto inType = split.input().getType().cast<mlir::ShapedType>();
+        const auto inType = split.getInput().getType().cast<mlir::ShapedType>();
         const auto inRank = inType.getRank();
 
         auto axisInd = axisContent.getSplatValue<int64_t>();
@@ -65,7 +62,7 @@ mlir::FailureOr<Dim> extractAxis(mlir::Location loc, IE::SplitOpAdaptor split) {
                           inRank);
 
         return Dim(axisInd);
-    } else if (split.axis_value().has_value()) {
+    } else if (split.getAxisValue().has_value()) {
         return normalizeAxis(split);
     } else {
         return errorAt(loc, "Axis was not provided");
@@ -75,8 +72,8 @@ mlir::FailureOr<Dim> extractAxis(mlir::Location loc, IE::SplitOpAdaptor split) {
 }  // namespace
 
 mlir::LogicalResult vpux::IE::SplitOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -85,14 +82,14 @@ mlir::LogicalResult vpux::IE::SplitOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = split.input().getType().cast<mlir::RankedTensorType>();
+    const auto inType = split.getInput().getType().cast<mlir::RankedTensorType>();
 
     const auto axis = extractAxis(loc, split);
     if (mlir::failed(axis)) {
         return mlir::failure();
     }
 
-    const auto num_splits = split.num_splits();
+    const auto num_splits = split.getNumSplits();
 
     auto outShape = inType.cast<vpux::NDTypeInterface>().getShape().toValues();
     if ((outShape[*axis] < num_splits) || (outShape[*axis] % num_splits != 0)) {
@@ -125,7 +122,7 @@ public:
 };
 
 mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::SplitOp splitOp, mlir::PatternRewriter& rewriter) const {
-    if (splitOp.axis_value().has_value()) {
+    if (splitOp.getAxisValue().has_value()) {
         return mlir::failure();
     }
 
@@ -135,7 +132,8 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::SplitOp splitOp, mli
     }
 
     const auto axisAttr = getIntAttr(splitOp.getContext(), axis->ind());
-    rewriter.replaceOpWithNewOp<IE::SplitOp>(splitOp, splitOp.input(), nullptr, splitOp.num_splitsAttr(), axisAttr);
+    rewriter.replaceOpWithNewOp<IE::SplitOp>(splitOp, splitOp.getInput(), nullptr, splitOp.getNumSplitsAttr(),
+                                             axisAttr);
 
     return mlir::success();
 }
@@ -148,18 +146,4 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::SplitOp splitOp, mli
 
 void vpux::IE::SplitOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* context) {
     patterns.add<ConvertConstToAttr>(context);
-}
-
-//
-// inferElemTypeInfo
-//
-
-void vpux::IE::SplitOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
-    propagateElementTypeDown(info);
-}
-
-void vpux::IE::SplitOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
-    // E#84659: implement propagate type up for per channel, currently it leads to failures in later passes.
-    propagateElementTypeUp(info);
 }

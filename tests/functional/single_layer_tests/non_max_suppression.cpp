@@ -14,129 +14,125 @@ using namespace ngraph;
 using namespace InferenceEngine;
 using namespace FuncTestUtils::PrecisionUtils;
 
-class VPUXNmsLayerTest : public NmsLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
-private:
-    void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
-                 const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) override;
-
-protected:
-    void SetUp() override;
-};
-
-class VPUXNmsLayerTest_VPU3700 : public VPUXNmsLayerTest {};
-class VPUXNmsLayerTest_VPU3720 : public VPUXNmsLayerTest {};
-
-void VPUXNmsLayerTest::SetUp() {
-    InputShapeParams inShapeParams;
-    InputPrecisions inPrecisions;
-    size_t maxOutBoxesPerClass;
-    float iouThr, scoreThr, softNmsSigma;
-    op::v5::NonMaxSuppression::BoxEncodingType boxEncoding;
-    bool sortResDescend;
-    element::Type outType;
-    std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, iouThr, scoreThr, softNmsSigma, boxEncoding,
-             sortResDescend, outType, targetDevice) = this->GetParam();
-
-    size_t numBatches, numBoxes, numClasses;
-    std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
-
-    Precision paramsPrec, maxBoxPrec, thrPrec;
-    std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
-
-    const std::vector<size_t> boxesShape{numBatches, numBoxes, 4}, scoresShape{numBatches, numClasses, numBoxes};
-    auto ngPrc = convertIE2nGraphPrc(paramsPrec);
-    auto params = builder::makeParams(ngPrc, {boxesShape, scoresShape});
-    auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
-
-    auto nms = builder::makeNms(paramOuts[0], paramOuts[1], convertIE2nGraphPrc(maxBoxPrec),
-                                convertIE2nGraphPrc(thrPrec), maxOutBoxesPerClass, iouThr, scoreThr, softNmsSigma,
-                                boxEncoding == ov::op::v5::NonMaxSuppression::BoxEncodingType::CENTER, sortResDescend,
-                                outType, ngraph::builder::NmsVersion::NmsVersion9);
-    function = std::make_shared<Function>(nms, params, "NMS");
-}
-
-void VPUXNmsLayerTest::Compare(
-        const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
-        const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) {
-    for (int outputIndex = static_cast<int>(expectedOutputs.size()) - 1; outputIndex >= 0; outputIndex--) {
-        const auto& expected = expectedOutputs[outputIndex];
-        const auto& actual = actualOutputs[outputIndex];
-
-        const auto& expectedBuffer = expected.second.data();
-        auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
-        IE_ASSERT(memory);
-        const auto lockedMemory = memory->wmap();
-        const auto actualBuffer = lockedMemory.as<const uint8_t*>();
-
-        auto k = static_cast<float>(expected.first.size()) / actual->getTensorDesc().getPrecision().size();
-        // W/A for int4, uint4
-        if (expected.first == ngraph::element::Type_t::u4 || expected.first == ngraph::element::Type_t::i4) {
-            k /= 2;
-        }
-        if (outputIndex == 2) {
-            if (expected.second.size() != k * actual->byteSize())
-                throw std::runtime_error("Expected and actual size 3rd output have different size");
-        }
-
-        const auto& precision = actual->getTensorDesc().getPrecision();
-        size_t size = expected.second.size() / (k * actual->getTensorDesc().getPrecision().size());
-        switch (precision) {
-        case InferenceEngine::Precision::FP32: {
-            switch (expected.first) {
-            case ngraph::element::Type_t::f32:
-                LayerTestsUtils::LayerTestsCommon::Compare(reinterpret_cast<const float*>(expectedBuffer),
-                                                           reinterpret_cast<const float*>(actualBuffer), size,
-                                                           threshold);
-                break;
-            case ngraph::element::Type_t::f64:
-                LayerTestsUtils::LayerTestsCommon::Compare(reinterpret_cast<const double*>(expectedBuffer),
-                                                           reinterpret_cast<const float*>(actualBuffer), size,
-                                                           threshold);
-                break;
-            default:
-                break;
+class NmsLayerTestCommon : public NmsLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
+public:
+    void GenerateInputs() override {
+        size_t it = 0;
+        for (const auto& input : cnnNetwork.getInputsInfo()) {
+            const auto& info = input.second;
+            Blob::Ptr blob;
+            if ((it == 0) || (it == 1)) {
+                blob = make_blob_with_precision(info->getTensorDesc());
+                blob->allocate();
+                uint32_t range = 1;
+                uint32_t resolution = 1000;
+                if (it == 0) {  // default GenerateInput parameters
+                    range = 10;
+                    resolution = 1;
+                }
+                if (info->getTensorDesc().getPrecision() == Precision::FP32) {
+                    fillDataRandomFloatWithFp16Precision(blob, range, 0, resolution);
+                } else {
+                    ov::test::utils::fill_data_random_float<InferenceEngine::Precision::FP16>(blob, range, 0,
+                                                                                              resolution);
+                }
+                if (it == 0) {
+                    sortCorner(blob);
+                }
+            } else {
+                blob = GenerateInput(*info);
             }
-
-            const auto fBuffer = lockedMemory.as<const float*>();
-            for (int i = size; i < actual->size(); i++) {
-                ASSERT_TRUE(fBuffer[i] == -1.f) << "Invalid default value: " << fBuffer[i] << " at index: " << i;
-            }
-            break;
-        }
-        case InferenceEngine::Precision::I32: {
-            switch (expected.first) {
-            case ngraph::element::Type_t::i32:
-                LayerTestsUtils::LayerTestsCommon::Compare(reinterpret_cast<const int32_t*>(expectedBuffer),
-                                                           reinterpret_cast<const int32_t*>(actualBuffer), size, 0);
-                break;
-            case ngraph::element::Type_t::i64:
-                LayerTestsUtils::LayerTestsCommon::Compare(reinterpret_cast<const int64_t*>(expectedBuffer),
-                                                           reinterpret_cast<const int32_t*>(actualBuffer), size, 0);
-                break;
-            default:
-                break;
-            }
-
-            const auto iBuffer = lockedMemory.as<const int*>();
-            for (int i = size; i < actual->size(); i++) {
-                ASSERT_TRUE(iBuffer[i] == -1) << "Invalid default value: " << iBuffer[i] << " at index: " << i;
-            }
-            break;
-        }
-        default:
-            FAIL() << "Comparator for " << precision << " precision isn't supported";
+            inputs.push_back(blob);
+            it++;
         }
     }
-}
 
-TEST_P(VPUXNmsLayerTest_VPU3720, HW) {
-    setPlatformVPU3720();
+    void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
+                 const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) override {
+        //  convert back to int32 if was changed to fp32. Change requested by change inside vpu_ov1_layer_test.cpp "//
+        //  TODO: Remove after C#-101214 convertDataToFP32(actualOutputs);"
+        auto actualOutputsConvBack = actualOutputs;
+        actualOutputsConvBack[0] =
+                FuncTestUtils::copyBlobWithCast<InferenceEngine::Precision::I32>(actualOutputsConvBack[0]);
+        NmsLayerTest::Compare(expectedOutputs, actualOutputsConvBack);
+    }
+
+private:
+    void fillDataRandomFloatWithFp16Precision(InferenceEngine::Blob::Ptr& blob, const uint32_t range,
+                                              int32_t start_from, const int32_t k) {
+        std::default_random_engine random(1);
+        std::uniform_int_distribution<int32_t> distribution(k * start_from, k * (start_from + range));
+        auto* rawBlobDataPtr = blob->buffer().as<float*>();
+        for (size_t i = 0; i < blob->size(); i++) {
+            auto value = static_cast<float>(distribution(random));
+            value /= static_cast<float>(k);
+            ngraph::float16 fp16Val = ngraph::float16(value);
+            rawBlobDataPtr[i] = static_cast<float>(fp16Val);
+        }
+    }
+    void sortCorner(InferenceEngine::Blob::Ptr& blob) {
+        auto* rawBlobDataPtr = blob->buffer().as<float*>();
+        for (size_t i = 0; i < blob->size(); i += 4) {
+            float y1 = rawBlobDataPtr[i + 0];
+            float x1 = rawBlobDataPtr[i + 1];
+            float y2 = rawBlobDataPtr[i + 2];
+            float x2 = rawBlobDataPtr[i + 3];
+
+            float ymin = std::min(y1, y2);
+            float ymax = std::max(y1, y2);
+            float xmin = std::min(x1, x2);
+            float xmax = std::max(x1, x2);
+
+            rawBlobDataPtr[i + 0] = ymin;
+            rawBlobDataPtr[i + 1] = xmin;
+            rawBlobDataPtr[i + 2] = ymax;
+            rawBlobDataPtr[i + 3] = xmax;
+        }
+    }
+
+protected:
+    void SetUp() override {
+        InputPrecisions inPrecisions;
+        size_t maxOutBoxesPerClass;
+        float iouThr, scoreThr, softNmsSigma;
+        op::v5::NonMaxSuppression::BoxEncodingType boxEncoding;
+        bool sortResDescend;
+        element::Type outType;
+        std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, iouThr, scoreThr, softNmsSigma, boxEncoding,
+                 sortResDescend, outType, targetDevice) = this->GetParam();
+
+        size_t numBatches, numBoxes, numClasses;
+        std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
+
+        Precision paramsPrec, maxBoxPrec, thrPrec;
+        std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
+
+        const std::vector<size_t> boxesShape{numBatches, numBoxes, 4}, scoresShape{numBatches, numClasses, numBoxes};
+        auto ngPrc = convertIE2nGraphPrc(paramsPrec);
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(boxesShape)),
+                                   std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(scoresShape))};
+
+        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
+
+        auto nms = builder::makeNms(paramOuts[0], paramOuts[1], convertIE2nGraphPrc(maxBoxPrec),
+                                    convertIE2nGraphPrc(thrPrec), maxOutBoxesPerClass, iouThr, scoreThr, softNmsSigma,
+                                    boxEncoding == ov::op::v5::NonMaxSuppression::BoxEncodingType::CENTER,
+                                    sortResDescend, outType, ngraph::builder::NmsVersion::NmsVersion9);
+        function = std::make_shared<Function>(nms, params, "NMS");
+    }
+};
+
+class NmsLayerTest_NPU3700 : public NmsLayerTestCommon {};
+class NmsLayerTest_NPU3720 : public NmsLayerTestCommon {};
+
+TEST_P(NmsLayerTest_NPU3700, HW) {
+    setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXNmsLayerTest_VPU3700, HW) {
-    setPlatformVPU3700();
+TEST_P(NmsLayerTest_NPU3720, HW) {
+    setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
 }
@@ -150,20 +146,20 @@ using namespace ngraph::helpers;
 using namespace LayerTestsDefinitions;
 
 const std::vector<InputShapeParams> inShapeParams = {
-        InputShapeParams{3, 100, 5},
-        InputShapeParams{1, 10, 50},
-        InputShapeParams{2, 50, 50},
+        InputShapeParams{1, 80, 1},   // standard params usage 90% of conformance tests
+        InputShapeParams{1, 40, 20},  // 1 usage style
+        InputShapeParams{3, 30, 18},  // for check remain posibility
 };
 
-const std::vector<int32_t> maxOutBoxPerClass = {5, 20};
+const std::vector<int32_t> maxOutBoxPerClass = {5, 15};
 const std::vector<float> iouThreshold = {0.3f, 0.7f};
 const std::vector<float> scoreThreshold = {0.3f, 0.7f};
-const std::vector<float> sigmaThreshold = {0.0f};
+const std::vector<float> sigmaThreshold = {0.0f, 0.5f};
 const std::vector<op::v5::NonMaxSuppression::BoxEncodingType> encodType = {
         op::v5::NonMaxSuppression::BoxEncodingType::CENTER,
         op::v5::NonMaxSuppression::BoxEncodingType::CORNER,
 };
-const std::vector<bool> sortResDesc = {false};
+const std::vector<bool> sortResDesc = {false, true};
 const std::vector<element::Type> outType = {element::i32};
 std::vector<InferenceEngine::Precision> paramsPrec = {
         InferenceEngine::Precision::FP32,
@@ -175,6 +171,7 @@ std::vector<InferenceEngine::Precision> thrPrec = {
         InferenceEngine::Precision::FP16,
 };
 
+// ------- NPU3700/3720 full scope -------
 const auto nmsParams = ::testing::Combine(
         ::testing::ValuesIn(inShapeParams),
         ::testing::Combine(::testing::ValuesIn(paramsPrec), ::testing::ValuesIn(maxBoxPrec),
@@ -183,25 +180,27 @@ const auto nmsParams = ::testing::Combine(
         ::testing::ValuesIn(sigmaThreshold), ::testing::ValuesIn(encodType), ::testing::ValuesIn(sortResDesc),
         ::testing::ValuesIn(outType), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_NmsLayerTest, VPUXNmsLayerTest_VPU3700, nmsParams,
-                        NmsLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_NmsLayerTest, VPUXNmsLayerTest_VPU3720, nmsParams,
+INSTANTIATE_TEST_CASE_P(smoke_NmsLayerTest, NmsLayerTest_NPU3700, nmsParams, NmsLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_NmsLayerTest, NmsLayerTest_NPU3720, nmsParams,
                         NmsLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
-        smoke_precommit_NmsLayerTest, VPUXNmsLayerTest_VPU3720,
-        testing::Combine(
-                testing::ValuesIn(std::vector<InputShapeParams>{InputShapeParams{2, 9, 12}}),
-                testing::Combine(
-                        testing::ValuesIn(std::vector<InferenceEngine::Precision>{InferenceEngine::Precision::FP32}),
-                        testing::ValuesIn(std::vector<InferenceEngine::Precision>{InferenceEngine::Precision::I32}),
-                        testing::ValuesIn(std::vector<InferenceEngine::Precision>{InferenceEngine::Precision::FP16})),
-                testing::ValuesIn(std::vector<int32_t>{5}), testing::ValuesIn(std::vector<float>{0.3f}),
-                testing::ValuesIn(std::vector<float>{0.3f}), testing::ValuesIn(std::vector<float>{0.0f}),
-                testing::ValuesIn(std::vector<op::v5::NonMaxSuppression::BoxEncodingType>{
-                        op::v5::NonMaxSuppression::BoxEncodingType::CORNER}),
-                testing::ValuesIn(std::vector<bool>{false}),
-                testing::ValuesIn(std::vector<element::Type>{element::i32}),
-                testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-        NmsLayerTest::getTestCaseName);
+// --------- NPU3720 precommit scope ---------
+const std::vector<InputShapeParams> inShapeParamsSmoke = {InputShapeParams{2, 9, 12}};
+const std::vector<int32_t> maxOutBoxPerClassSmoke = {5};
+const std::vector<float> iouThresholdSmoke = {0.3f};
+const std::vector<float> scoreThresholdSmoke = {0.3f};
+const std::vector<float> sigmaThresholdSmoke = {0.0f, 0.5f};
+const std::vector<op::v5::NonMaxSuppression::BoxEncodingType> encodTypeSmoke = {
+        op::v5::NonMaxSuppression::BoxEncodingType::CORNER};
+const auto nmsParamsSmoke =
+        testing::Combine(testing::ValuesIn(inShapeParamsSmoke),
+                         ::testing::Combine(::testing::ValuesIn(paramsPrec), ::testing::ValuesIn(maxBoxPrec),
+                                            ::testing::ValuesIn(thrPrec)),
+                         ::testing::ValuesIn(maxOutBoxPerClassSmoke), ::testing::ValuesIn(iouThresholdSmoke),
+                         ::testing::ValuesIn(scoreThresholdSmoke), ::testing::ValuesIn(sigmaThresholdSmoke),
+                         ::testing::ValuesIn(encodTypeSmoke), ::testing::ValuesIn(sortResDesc),
+                         ::testing::ValuesIn(outType), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
+
+INSTANTIATE_TEST_CASE_P(smoke_precommit_NmsLayerTest, NmsLayerTest_NPU3720, nmsParamsSmoke,
+                        NmsLayerTest::getTestCaseName);
 }  // namespace

@@ -5,12 +5,12 @@
 
 #include "vpux/compiler/dialect/const/utils/transformations.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
+#include "vpux/compiler/dialect/const/utils/const_logger.hpp"
+#include "vpux/compiler/dialect/const/utils/mem_permute_optimized.hpp"
 
-#include "vpux/utils/IE/blob.hpp"
 #include "vpux/utils/IE/loop.hpp"
 #include "vpux/utils/core/hash.hpp"
 
-#include <blob_transform.hpp>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -32,42 +32,19 @@ Const::Content Const::details::memPermuteTransformation(vpux::Const::Content& in
     if (input.isSplat() || memPerm.isIdentity()) {
         return Const::Content::moveBuffer(outType, std::move(input));
     } else {
-        const Byte elemSize = getElemTypeSize(input.getStorageElemType());
-        const auto inShape = input.getType().getShape();
-        const auto inMemShape = inOrder.toMemoryOrder(inShape);
-
-        static const std::unordered_set<DimsOrder> optimizedCases = {
-                {DimsOrder::NHWC},
-                {DimsOrder::NDHWC},
-        };
-
-        static const std::unordered_map<size_t, InferenceEngine::Precision> elemSizeToPrecision = {
-                {sizeof(uint8_t), InferenceEngine::Precision::U8},
-                {sizeof(uint16_t), InferenceEngine::Precision::U16},
-                {sizeof(uint32_t), InferenceEngine::Precision::U32},
-                // U64 is not supported by blob_copy
-                // {sizeof(uint64_t), InferenceEngine::Precision::U64},
-        };
-
-        const auto precision = elemSizeToPrecision.find(checked_cast<size_t>(elemSize.count()));
         auto output = Const::Content::allocTempBuffer(outType, input.getStorageElemType(), input.isSplat());
         auto outBuf = output.getRawTempBuf();
         const auto inBuf = input.getRawStorageBuf();
         VPUX_THROW_UNLESS(outBuf.size() == inBuf.size(), "Storage buffer size mismatch in 'memPermuteTransformation'");
 
-        if (optimizedCases.count(permOrder) != 0 && precision != elemSizeToPrecision.end()) {
-            // Use optimized algorithm from IE core
+        const Byte elemSize = getElemTypeSize(input.getStorageElemType());
+        const auto inShape = input.getType().getShape();
+        const auto inMemShape = inOrder.toMemoryOrder(inShape);
 
-            const InferenceEngine::SizeVector ieShape(inMemShape.begin(), inMemShape.end());
-
-            const InferenceEngine::TensorDesc inDesc(precision->second, ieShape,
-                                                     InferenceEngine::TensorDesc::getLayoutByDims(ieShape));
-            const InferenceEngine::TensorDesc outDesc(precision->second, ieShape, permOrder.toIE());
-
-            const auto inBlob = makeBlob(inDesc, nullptr, const_cast<char*>(inBuf.data()));
-            const auto outBlob = makeBlob(outDesc, nullptr, outBuf.data());
-
-            blob_copy(inBlob, outBlob);
+        // Check capability to use specific solution. Most transforms are between NCHW and NHWC layouts, so they
+        // implemented separatly
+        if (Const::details::isOptimizedTransformationSupported(input, outType)) {
+            Const::details::memPermuteTransformationOptimized(input, output);
         } else {
             // Use generic algorithm
             const auto outShape = outType.getShape();

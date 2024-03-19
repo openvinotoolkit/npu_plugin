@@ -1,16 +1,16 @@
-//
 // Copyright (C) Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
 #include <common/utils.hpp>
-#include "vpu_ov1_layer_test.hpp"
+#include <vpu_ov2_layer_test.hpp>
 
-#include <ngraph_functions/builders.hpp>
-#include <ngraph_functions/utils/ngraph_helpers.hpp>
+#include <ov_models/builders.hpp>
+#include <ov_models/utils/ov_helpers.hpp>
 #include <shared_test_classes/base/layer_test_utils.hpp>
-#include "vpux_private_config.hpp"
+#include "vpux_private_properties.hpp"
 
+using namespace ov::test;
 namespace {
 
 // MLIR detects pattern quant.dcast -> op -> quant.qcast and converts it into single quantized Op
@@ -26,112 +26,112 @@ namespace {
 //      (quantize)
 //
 
-using QuantizedSEInterpTestParams = std::tuple<InferenceEngine::Precision,   // inPrc
-                                               InferenceEngine::Precision,   // outPrc
-                                               std::vector<float>,           // fqRanges
-                                               InferenceEngine::SizeVector,  // inputShape
-                                               std::vector<float>,           // scales
-                                               LayerTestsUtils::TargetDevice>;
-class VPUXQuantizedSEInterpSubGraphTest :
-        public LayerTestsUtils::VpuOv1LayerTestsCommon,
+using QuantizedSEInterpTestParams = std::tuple<ov::element::Type,                  // inPrc
+                                               ov::element::Type,                  // outPrc
+                                               std::vector<float>,                 // fqRanges
+                                               std::vector<ov::test::InputShape>,  // inputShape
+                                               std::vector<float>                  // scales
+                                               >;
+class QuantizedSEInterpSubGraphTestCommon :
+        public VpuOv2LayerTest,
         public testing::WithParamInterface<QuantizedSEInterpTestParams> {
+    void configure_model() override {
+        configuration[ov::intel_vpux::compilation_mode_params.name()] = "enable-se-ptrs-operations=true";
+    }
     void SetUp() override {
         std::vector<float> dataFQRanges;
-        InferenceEngine::SizeVector inputShape;
+        std::vector<ov::test::InputShape> inputShape;
         std::vector<float> interpScales;
-        std::tie(inPrc, outPrc, dataFQRanges, inputShape, interpScales, targetDevice) = GetParam();
-        threshold = 0.1f;
+        std::tie(inType, outType, dataFQRanges, inputShape, interpScales) = GetParam();
+        rel_threshold = 0.1f;
 
-        const auto params = ngraph::builder::makeParams(ngraph::element::f32, {inputShape});
-        const auto paramOuts =
-                ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+        init_input_shapes(inputShape);
+
+        ov::ParameterVector params;
+        for (const auto& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape));
+        }
 
         const size_t dataLevels = 256;
         const std::vector<float> dataInLow = {dataFQRanges.at(0)};
         const std::vector<float> dataInHigh = {dataFQRanges.at(1)};
         const std::vector<float> dataOutLow = {dataFQRanges.at(2)};
         const std::vector<float> dataOutHigh = {dataFQRanges.at(3)};
-        const auto dataFq = ngraph::builder::makeFakeQuantize(paramOuts[0], ngraph::element::f32, dataLevels, {},
-                                                              dataInLow, dataInHigh, dataOutLow, dataOutHigh);
+        const auto dataFq = ngraph::builder::makeFakeQuantize(params[0], ov::element::f32, dataLevels, {}, dataInLow,
+                                                              dataInHigh, dataOutLow, dataOutHigh);
 
-        auto default_out_shape_node =
-                ngraph::opset8::Constant::create(ngraph::element::i32, ngraph::Shape{4}, {0, 0, 0, 0});
-        auto axes_node = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 1, 2, 3});
-        auto scales_node = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{4}, interpScales);
+        auto default_out_shape_node = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 0, 0, 0});
+        auto axes_node = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 2, 3});
+        auto scales_node = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, interpScales);
 
-        auto interpolate4_attr = ngraph::opset4::Interpolate::InterpolateAttrs(
-                ngraph::opset4::Interpolate::InterpolateMode::NEAREST,
-                ngraph::opset4::Interpolate::ShapeCalcMode::SCALES, std::vector<size_t>{0, 0, 0, 0},
-                std::vector<size_t>{0, 0, 0, 0}, ngraph::opset4::Interpolate::CoordinateTransformMode::ASYMMETRIC,
-                ngraph::opset4::Interpolate::NearestMode::FLOOR, false, -0.75);
+        auto interpolate4_attr = ov::op::v4::Interpolate::InterpolateAttrs(
+                ov::op::v4::Interpolate::InterpolateMode::NEAREST, ov::op::v4::Interpolate::ShapeCalcMode::SCALES,
+                std::vector<size_t>{0, 0, 0, 0}, std::vector<size_t>{0, 0, 0, 0},
+                ov::op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC,
+                ov::op::v4::Interpolate::NearestMode::FLOOR, false, -0.75);
 
-        auto interp = std::make_shared<ngraph::opset4::Interpolate>(dataFq, default_out_shape_node, scales_node,
-                                                                    axes_node, interpolate4_attr);
+        auto interp = std::make_shared<ov::op::v4::Interpolate>(dataFq, default_out_shape_node, scales_node, axes_node,
+                                                                interpolate4_attr);
 
         const std::vector<float> outDataLow = {0.0f};
         const std::vector<float> outDataHigh = {255.0f};
-        const auto outFq = ngraph::builder::makeFakeQuantize(interp, ngraph::element::f32, dataLevels, {}, outDataLow,
+        const auto outFq = ngraph::builder::makeFakeQuantize(interp, ov::element::f32, dataLevels, {}, outDataLow,
                                                              outDataHigh, outDataLow, outDataHigh);
 
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(outFq)};
-        function = std::make_shared<ngraph::Function>(results, params, "VPUXQuantizedInterp");
+        const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(outFq)};
+        function = std::make_shared<ov::Model>(results, params, "QuantizedInterp");
     }
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<QuantizedSEInterpTestParams> obj) {
-        InferenceEngine::Precision ip;
-        InferenceEngine::Precision op;
+        ov::element::Type ip;
+        ov::element::Type op;
         std::vector<float> fqRanges;
-        InferenceEngine::SizeVector inputShape;
+        std::vector<ov::test::InputShape> inputShape;
         std::vector<float> interpScales;
-        std::string targetDevice;
-        std::tie(ip, op, fqRanges, inputShape, interpScales, targetDevice) = obj.param;
+        std::tie(ip, op, fqRanges, inputShape, interpScales) = obj.param;
 
         std::ostringstream result;
-        result << "InputPrec=" << ip.name() << "_";
-        result << "OutputPrec=" << op.name() << "_";
+        result << "InputPrec=" << ip << "_";
+        result << "OutputPrec=" << op << "_";
         result << "FQ=" << vectorToString(fqRanges) << "_";
-        result << "InputShape=" << vectorToString(inputShape) << "_";
+        result << "InputShape=" << inputShape[0].second[0] << "_";
         result << "InterpScales=" << vectorToString(interpScales) << "_";
-        result << "targetDevice=" << targetDevice;
         return result.str();
     }
 };
 
-class VPUXQuantizedSEInterpSubGraphTest_VPU3720 : public VPUXQuantizedSEInterpSubGraphTest {
-    void ConfigureNetwork() override {
-        configuration[VPUX_CONFIG_KEY(COMPILATION_MODE_PARAMS)] = "enable-se-ptrs-operations=true";
-    }
-};
+class QuantizedSEInterpSubGraphTest_NPU3720_HW : public QuantizedSEInterpSubGraphTestCommon {};
+class QuantizedSEInterpSubGraphTest_NPU3720_SW : public QuantizedSEInterpSubGraphTestCommon {};
 
-TEST_P(VPUXQuantizedSEInterpSubGraphTest_VPU3720, HW) {
-    setPlatformVPU3720();
-    setDefaultHardwareModeMLIR();
-    Run();
+TEST_P(QuantizedSEInterpSubGraphTest_NPU3720_HW, HW) {
+    setDefaultHardwareMode();
+    run(VPUXPlatform::VPU3720);
 }
 
-TEST_P(VPUXQuantizedSEInterpSubGraphTest_VPU3720, SW) {
-    setPlatformVPU3720();
-    setReferenceSoftwareModeMLIR();
-    Run();
+TEST_P(QuantizedSEInterpSubGraphTest_NPU3720_SW, SW) {
+    setReferenceSoftwareMode();
+    run(VPUXPlatform::VPU3720);
 }
 
 std::vector<std::vector<float>> fqRanges = {{0.0f, 255.0f, 0.0f, 255.0f}};
 
-std::vector<InferenceEngine::SizeVector> inputShapes = {{1, 16, 16, 16}, {1, 48, 40, 40}};
+std::vector<std::vector<ov::Shape>> inputShapes = {{{1, 16, 16, 16}}, {{1, 48, 40, 40}}};
 
 std::vector<std::vector<float>> interpScales = {{1.0f, 1.0f, 2.0f, 2.0f}, {1.0f, 1.0f, 3.0f, 3.0f}};
 
-const std::vector<InferenceEngine::Precision> netInPrecisions = {InferenceEngine::Precision::FP16};
+const std::vector<ov::element::Type> netInPrecisions = {ov::element::f16};
 
-const std::vector<InferenceEngine::Precision> netOutputPrecisions = {InferenceEngine::Precision::FP16};
+const std::vector<ov::element::Type> netOutputPrecisions = {ov::element::f16};
 
-const auto basicCases = ::testing::Combine(::testing::ValuesIn(netInPrecisions),
-                                           ::testing::ValuesIn(netOutputPrecisions), ::testing::ValuesIn(fqRanges),
-                                           ::testing::ValuesIn(inputShapes), ::testing::ValuesIn(interpScales),
-                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
+const auto basicCases = ::testing::Combine(
+        ::testing::ValuesIn(netInPrecisions), ::testing::ValuesIn(netOutputPrecisions), ::testing::ValuesIn(fqRanges),
+        ::testing::ValuesIn(static_shapes_to_test_representation(inputShapes)), ::testing::ValuesIn(interpScales));
 
-INSTANTIATE_TEST_SUITE_P(smoke_QuantizedInterp, VPUXQuantizedSEInterpSubGraphTest_VPU3720, basicCases,
-                         VPUXQuantizedSEInterpSubGraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_QuantizedInterp_HW, QuantizedSEInterpSubGraphTest_NPU3720_HW, basicCases,
+                         QuantizedSEInterpSubGraphTest_NPU3720_HW::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_QuantizedInterp_SW, QuantizedSEInterpSubGraphTest_NPU3720_SW, basicCases,
+                         QuantizedSEInterpSubGraphTest_NPU3720_SW::getTestCaseName);
 
 }  // namespace

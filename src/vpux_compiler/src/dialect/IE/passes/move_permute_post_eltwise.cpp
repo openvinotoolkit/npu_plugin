@@ -5,20 +5,23 @@
 
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 #include "vpux/compiler/dialect/IE/passes.hpp"
+#include "vpux/compiler/dialect/IE/utils/pooling_utils.hpp"
 #include "vpux/compiler/dialect/VPU/utils/generate_tiling.hpp"
-#include "vpux/compiler/utils/permute_utils.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
 using namespace vpux;
 using namespace IE;
+
 namespace {
+
+using VerifyCb = FuncRef<bool(mlir::Operation*)>;
 
 //
 // MovePermutePostEltwisePass
 //
 
 bool isEltwiseGroupConvolution(IE::GroupConvolutionOp groupConvOp) {
-    const auto kernelSize = getShape(groupConvOp.filter());
+    const auto kernelSize = getShape(groupConvOp.getFilter());
     if (kernelSize[Dims4D::Filter::KX] != 1 || kernelSize[Dims4D::Filter::KY] != 1) {
         return false;
     }
@@ -30,22 +33,22 @@ bool isEltwiseGroupConvolution(IE::GroupConvolutionOp groupConvOp) {
         return val != 0;
     };
 
-    const auto strides = parseIntArrayAttr<int64_t>(groupConvOp.strides());
+    const auto strides = parseIntArrayAttr<int64_t>(groupConvOp.getStrides());
     if (std::any_of(strides.begin(), strides.end(), hasLargeDim)) {
         return false;
     }
 
-    const auto dilations = parseIntArrayAttr<int64_t>(groupConvOp.dilations());
+    const auto dilations = parseIntArrayAttr<int64_t>(groupConvOp.getDilations());
     if (std::any_of(dilations.begin(), dilations.end(), hasLargeDim)) {
         return false;
     }
 
-    const auto padsBegin = parseIntArrayAttr<int64_t>(groupConvOp.pads_begin());
+    const auto padsBegin = parseIntArrayAttr<int64_t>(groupConvOp.getPadsBegin());
     if (std::any_of(padsBegin.begin(), padsBegin.end(), hasPadding)) {
         return false;
     }
 
-    const auto padsEnd = parseIntArrayAttr<int64_t>(groupConvOp.pads_end());
+    const auto padsEnd = parseIntArrayAttr<int64_t>(groupConvOp.getPadsEnd());
     return !std::any_of(padsEnd.begin(), padsEnd.end(), hasPadding);
 }
 
@@ -66,7 +69,8 @@ private:
 template <class EltwiseOp>
 class PermuteEltwiseRewriter final : public mlir::OpRewritePattern<EltwiseOp> {
 public:
-    PermuteEltwiseRewriter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<EltwiseOp>(ctx), _log(log) {
+    PermuteEltwiseRewriter(mlir::MLIRContext* ctx, VerifyCb verifyFunc, size_t numInputs, Logger log)
+            : mlir::OpRewritePattern<EltwiseOp>(ctx), _verifyFunc(verifyFunc), _numInputs(numInputs), _log(log) {
         this->setDebugName("PermuteEltwiseRewriter");
     }
 
@@ -74,6 +78,8 @@ public:
     mlir::LogicalResult matchAndRewrite(EltwiseOp eltwiseOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
+    VerifyCb _verifyFunc;
+    size_t _numInputs;
     Logger _log;
 };
 
@@ -102,10 +108,10 @@ mlir::Operation* getEltwiseInputPermute(mlir::Value eltwiseInput) {
         if (auto parentPermute = mlir::dyn_cast<IE::MemPermuteOp>(parentOp)) {
             // Case when there is a MemPermute and the processing of EltWise above adds another MemPermute
             // Skipping now, as canonicalizer takes care of optimizing both MemPermutes
-            auto grandParentOp = parentPermute.input().getDefiningOp();
+            auto grandParentOp = parentPermute.getInput().getDefiningOp();
             if (mlir::isa_and_nonnull<IE::MemPermuteOp>(grandParentOp)) {
                 auto grandParentPermute = mlir::cast<IE::MemPermuteOp>(grandParentOp);
-                if (parentPermute.dst_order() == grandParentPermute.dst_order()) {
+                if (parentPermute.getDstOrder() == grandParentPermute.getDstOrder()) {
                     return nullptr;
                 }
             }
@@ -113,25 +119,34 @@ mlir::Operation* getEltwiseInputPermute(mlir::Value eltwiseInput) {
         } else if (auto parentPermute = mlir::dyn_cast<IE::PermuteQuantizeOp>(parentOp)) {
             // Case when there is a PermuteQuantize and the processing of EltWise above adds another PermuteQuantize
             // Skipping now, as canonicalizer takes care of optimizing both PermuteQuantizes
-            auto grandParentOp = parentPermute.input().getDefiningOp();
+            auto grandParentOp = parentPermute.getInput().getDefiningOp();
             if (mlir::isa_and_nonnull<IE::PermuteQuantizeOp>(grandParentOp)) {
                 auto grandParentPermute = mlir::cast<IE::PermuteQuantizeOp>(grandParentOp);
-                if (parentPermute.dst_order() == grandParentPermute.dst_order()) {
+                if (parentPermute.getDstOrder() == grandParentPermute.getDstOrder()) {
                     return nullptr;
                 }
+            }
+            // Skipping PermuteQuantize which also performs padding for next NCE Eltwise
+            const auto isZero = [](const int64_t val) -> bool {
+                return val == 0;
+            };
+            const auto padsBegin = parseIntArrayAttr<int64_t>(parentPermute.getPadsBegin());
+            const auto padsEnd = parseIntArrayAttr<int64_t>(parentPermute.getPadsEnd());
+            if (!(llvm::all_of(padsBegin, isZero) && llvm::all_of(padsEnd, isZero))) {
+                return nullptr;
             }
             return parentPermute.getOperation();
         } else if (auto parentQuantizeCast = mlir::dyn_cast<IE::QuantizeCastOp>(parentOp)) {
             if (VPU::hasMultiBranches(parentQuantizeCast.getOperation())) {
                 return nullptr;
             }
-            parentOp = parentQuantizeCast.input().getDefiningOp();
+            parentOp = parentQuantizeCast.getInput().getDefiningOp();
             continue;
         } else if (auto parentShapeCast = mlir::dyn_cast<IE::ShapeCastOp>(parentOp)) {
             if (VPU::hasMultiBranches(parentShapeCast.getOperation())) {
                 return nullptr;
             }
-            parentOp = parentShapeCast.source().getDefiningOp();
+            parentOp = parentShapeCast.getSource().getDefiningOp();
             continue;
         } else {
             return nullptr;
@@ -197,32 +212,12 @@ mlir::LogicalResult PermuteEltwiseRewriter<EltwiseOp>::matchAndRewrite(EltwiseOp
     _log.trace("[{0}] Got '{1}' at '{2}'", this->getDebugName(), eltwiseOp->getName(), eltwiseOp->getLoc());
     auto ctx = this->getContext();
     const auto hasEltwiseTrait = eltwiseOp->template hasTrait<IE::EltwiseOp>();
-    const auto isGroupConv = mlir::isa<IE::GroupConvolutionOp>(eltwiseOp);
-    if (!hasEltwiseTrait && !isGroupConv) {
+    if (!(hasEltwiseTrait || (_verifyFunc && _verifyFunc(eltwiseOp.getOperation())))) {
         return mlir::failure();
     }
 
-    if (isGroupConv) {
-        auto groupConvOp = mlir::dyn_cast<IE::GroupConvolutionOp>(*eltwiseOp);
-        if (!isEltwiseGroupConvolution(groupConvOp)) {
-            return mlir::failure();
-        }
-        mlir::SmallVector<Const::DeclareOp> constInputOps;
-        // Skip the first operand, check only weights and biases.
-        for (unsigned operandIdx = 1; operandIdx < eltwiseOp->getNumOperands(); operandIdx++) {
-            const mlir::Value operand = eltwiseOp->getOperand(operandIdx);
-            Const::DeclareOp declareOp = operand.getDefiningOp<Const::DeclareOp>();
-            constInputOps.push_back(declareOp);
-        }
-        const auto supportedGroupConvConst = llvm::all_of(constInputOps, isSplatConstant);
-        if (!supportedGroupConvConst) {
-            return mlir::failure();
-        }
-    }
-
     SmallVector<mlir::Operation*> inputPermutes;
-    const unsigned numInputs = isGroupConv ? 1 : 2;
-    for (unsigned inIdx = 0; inIdx < numInputs; inIdx++) {
+    for (size_t inIdx = 0; inIdx < _numInputs; inIdx++) {
         inputPermutes.push_back(getEltwiseInputPermute(eltwiseOp->getOperand(inIdx)));
     }
     const auto isPermute = [](const mlir::Operation* op) -> bool {
@@ -247,9 +242,9 @@ mlir::LogicalResult PermuteEltwiseRewriter<EltwiseOp>::matchAndRewrite(EltwiseOp
     SmallVector<DimsOrder> permuteMemPermLayouts;
     const auto getMemPermLayout = [](mlir::Operation* op) -> DimsOrder {
         if (auto permute = mlir::dyn_cast<IE::MemPermuteOp>(op)) {
-            return DimsOrder::fromAffineMap(permute.mem_permAttr().getValue());
+            return DimsOrder::fromAffineMap(permute.getMemPermAttr().getValue());
         } else if (auto permute = mlir::dyn_cast<IE::PermuteQuantizeOp>(op)) {
-            return DimsOrder::fromAffineMap(permute.mem_permAttr().getValue());
+            return DimsOrder::fromAffineMap(permute.getMemPermAttr().getValue());
         } else {
             VPUX_THROW("Unsupported operation type, got {0}", op->getLoc());
         }
@@ -257,7 +252,7 @@ mlir::LogicalResult PermuteEltwiseRewriter<EltwiseOp>::matchAndRewrite(EltwiseOp
     std::transform(inputPermutes.begin(), inputPermutes.end(), std::back_inserter(permuteMemPermLayouts),
                    getMemPermLayout);
 
-    auto eltwiseOutElemType = eltwiseOp.output().getType().template cast<vpux::NDTypeInterface>().getElementType();
+    auto eltwiseOutElemType = eltwiseOp.getOutput().getType().template cast<vpux::NDTypeInterface>().getElementType();
     SmallVector<bool> isPermuteElemTypeEquals;
     const auto getElemTypeEqual = [eltwiseOutElemType](mlir::Operation* op) -> bool {
         if (mlir::isa<IE::MemPermuteOp>(op)) {
@@ -273,8 +268,9 @@ mlir::LogicalResult PermuteEltwiseRewriter<EltwiseOp>::matchAndRewrite(EltwiseOp
     auto eltwiseInput1Type = eltwiseOp->getOperand(0).getType().template cast<vpux::NDTypeInterface>();
     auto eltwiseInputLayout = eltwiseInput1Type.getDimsOrder();
     auto eltwiseInputShape = eltwiseInput1Type.getShape();
-    auto eltwiseOutputLayout = eltwiseOp.output().getType().template cast<vpux::NDTypeInterface>().getDimsOrder();
-    auto patternCanBeConverted = [&]() -> bool {
+    auto eltwiseOutputLayout = eltwiseOp.getOutput().getType().template cast<vpux::NDTypeInterface>().getDimsOrder();
+
+    const auto patternCanBeConverted = [&]() -> bool {
         const auto firstInputLayout = permuteInputLayouts[0];
         const auto isSameLayout = [firstInputLayout](const DimsOrder layout) -> bool {
             return firstInputLayout == layout;
@@ -303,7 +299,7 @@ mlir::LogicalResult PermuteEltwiseRewriter<EltwiseOp>::matchAndRewrite(EltwiseOp
             return false;
         }
 
-        auto output = eltwiseOp.output();
+        auto output = eltwiseOp.getOutput();
         // When elementwise operation has two consumers with at least one IE.ShapeCast, skip such case.
         // Such branching leads to compilation failure.
         const auto isShapeCast = [](mlir::Operation* op) -> bool {
@@ -316,6 +312,31 @@ mlir::LogicalResult PermuteEltwiseRewriter<EltwiseOp>::matchAndRewrite(EltwiseOp
 
         return true;
     };
+
+    auto alignIface = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(eltwiseOp.getOperation());
+    const auto channelAlignment = alignIface != nullptr ? alignIface.getInputChannelAlignment() : 1;
+    const auto isChannelAligned = [&](ShapeRef shape) {
+        return shape[Dims4D::Act::C] % channelAlignment == 0;
+    };
+
+    const auto patternCanAvoidShapeCast = [&](ShapeRef mappedShape) {
+        if (auto groupConvOp = mlir::dyn_cast<IE::GroupConvolutionOp>(*eltwiseOp)) {
+            if (getShape(groupConvOp.getFilter()).totalSize() != 1) {
+                return false;
+            }
+        }
+        const auto isParentOfThisEltwise = [&](mlir::Operation* op) -> bool {
+            return !VPU::hasMultiBranches(op) && *(op->getUsers().begin()) == eltwiseOp;
+        };
+        if (!llvm::all_of(inputPermutes, isParentOfThisEltwise)) {
+            return false;
+        }
+        if (eltwiseOp->hasOneUse() && mlir::isa<IE::ShapeCastOp>(*(eltwiseOp->getUsers().begin()))) {
+            return false;
+        }
+        return isChannelAligned(mappedShape);
+    };
+
     if (!patternCanBeConverted()) {
         return mlir::failure();
     }
@@ -331,38 +352,43 @@ mlir::LogicalResult PermuteEltwiseRewriter<EltwiseOp>::matchAndRewrite(EltwiseOp
         }
         return ownerOp;
     };
+
     auto mappedShape = getMappedShape(permuteInputLayouts[0], eltwiseInputLayout, permuteMemPermLayouts[0],
                                       getShape(inputPermutes[0]->getOperand(0)));
+    auto canAvoidShapeCast = patternCanAvoidShapeCast(mappedShape);
+
     for (auto curPermute : permutesToMove) {
         _log.nest().trace("Processing permute {0} {1}", curPermute->getName(), curPermute->getLoc());
         auto permuteOutputType = curPermute->getResult(0).getType().template cast<vpux::NDTypeInterface>();
         const auto dstOrder = mlir::AffineMapAttr::get(eltwiseInputLayout.toAffineMap(ctx));
         rewriter.setInsertionPoint(curPermute);
+        mlir::Value outputVal;
         if (permuteInputLayouts[0] != eltwiseInputLayout) {
             auto permuteCast = rewriter.template create<IE::PermuteCastOp>(
                     curPermute->getLoc(), curPermute->getOperand(0), dstOrder, neutralMemPerm);
-            auto newPermuteCastOutputType = permuteCast.output().getType().template cast<vpux::NDTypeInterface>();
+            auto newPermuteCastOutputType = permuteCast.getOutput().getType().template cast<vpux::NDTypeInterface>();
             mappedShape = newPermuteCastOutputType.getShape().toValues();
-            auto shapeCast = rewriter.template create<IE::ShapeCastOp>(
-                    curPermute->getLoc(), newPermuteCastOutputType.changeShape(eltwiseInputShape), permuteCast.output(),
-                    getIntArrayAttr(ctx, eltwiseInputShape.raw()));
-            curPermute->getResult(0).replaceUsesWithIf(shapeCast.result(), [&](mlir::OpOperand& opOperand) {
-                return getOwnerIgnoreCasts(opOperand) == eltwiseOp;
-            });
+            canAvoidShapeCast = canAvoidShapeCast && isChannelAligned(mappedShape);
+            outputVal = permuteCast.getResult();
+            if (!canAvoidShapeCast) {
+                outputVal = rewriter.template create<IE::ShapeCastOp>(
+                        curPermute->getLoc(), newPermuteCastOutputType.changeShape(eltwiseInputShape),
+                        permuteCast.getOutput(), getIntArrayAttr(ctx, eltwiseInputShape.raw()));
+            }
         } else {
-            auto shapeCast = rewriter.template create<IE::ShapeCastOp>(
+            outputVal = rewriter.template create<IE::ShapeCastOp>(
                     curPermute->getLoc(), permuteOutputType.changeShape(eltwiseInputShape), curPermute->getOperand(0),
                     getIntArrayAttr(ctx, eltwiseInputShape.raw()));
-            curPermute->getResult(0).replaceUsesWithIf(shapeCast.result(), [&](mlir::OpOperand& opOperand) {
-                return getOwnerIgnoreCasts(opOperand) == eltwiseOp;
-            });
         }
+        curPermute->getResult(0).replaceUsesWithIf(outputVal, [&](mlir::OpOperand& opOperand) {
+            return getOwnerIgnoreCasts(opOperand) == eltwiseOp;
+        });
     }
 
     // Get the output value of the last QuantizeCast op
     // or the output value of the Eltwise op if no QuantizeCast op exists
     auto getInsertPoint = [&]() -> mlir::Value {
-        auto output = eltwiseOp.output();
+        auto output = eltwiseOp.getOutput();
         if (output.getUsers().empty()) {
             return output;
         }
@@ -371,19 +397,19 @@ mlir::LogicalResult PermuteEltwiseRewriter<EltwiseOp>::matchAndRewrite(EltwiseOp
             return output;
         }
         if (auto quantizeCastOp = mlir::dyn_cast<IE::QuantizeCastOp>(*output.getUsers().begin())) {
-            return quantizeCastOp.output();
+            return quantizeCastOp.getOutput();
         }
         if (auto shapeCastOp = mlir::dyn_cast<IE::ShapeCastOp>(*output.getUsers().begin())) {
             // Same here, when IE.ShapeCast has several consumers, bail out.
-            if (!shapeCastOp.result().hasOneUse()) {
-                return shapeCastOp.result();
+            if (!shapeCastOp.getResult().hasOneUse()) {
+                return shapeCastOp.getResult();
             }
             // In case IE.Add -> IE.ShapeCast -> IE.QuantizeCast, return QuantizeCast.
-            if (auto quantizeCastOp = mlir::dyn_cast<IE::QuantizeCastOp>(*shapeCastOp.result().getUsers().begin())) {
-                return quantizeCastOp.output();
+            if (auto quantizeCastOp = mlir::dyn_cast<IE::QuantizeCastOp>(*shapeCastOp.getResult().getUsers().begin())) {
+                return quantizeCastOp.getOutput();
             }
 
-            return shapeCastOp.result();
+            return shapeCastOp.getResult();
         }
         return output;
     };
@@ -396,27 +422,58 @@ mlir::LogicalResult PermuteEltwiseRewriter<EltwiseOp>::matchAndRewrite(EltwiseOp
                                 const mlir::Value inputValue) -> mlir::FailureOr<mlir::Operation*> {
         if (auto memPermute = mlir::dyn_cast<IE::MemPermuteOp>(op)) {
             return rewriter
-                    .template create<IE::MemPermuteOp>(eltwiseOp->getLoc(), inputValue, memPermute.dst_orderAttr(),
-                                                       memPermute.mem_permAttr())
+                    .template create<IE::MemPermuteOp>(eltwiseOp->getLoc(), inputValue, memPermute.getDstOrderAttr(),
+                                                       memPermute.getMemPermAttr())
                     .getOperation();
         } else if (auto permuteQuantize = mlir::dyn_cast<IE::PermuteQuantizeOp>(op)) {
-            return rewriter
-                    .template create<IE::PermuteQuantizeOp>(
-                            eltwiseOp->getLoc(), inputValue, permuteQuantize.dst_orderAttr(),
-                            permuteQuantize.mem_permAttr(), permuteQuantize.dstElemTypeAttr(),
-                            permuteQuantize.pads_beginAttr(), permuteQuantize.pads_endAttr())
-                    .getOperation();
+            auto dstElemType = permuteQuantize.getDstElemType();
+            if (canAvoidShapeCast && (dstElemType.isF16() || dstElemType.isF32())) {
+                // if no extra shape cast needed and output permuteQuantize is actually a pure memPermute,
+                // create memPermute here so later it can be fused into ODU of the eltwise
+                return rewriter
+                        .template create<IE::MemPermuteOp>(eltwiseOp->getLoc(), inputValue,
+                                                           permuteQuantize.getDstOrderAttr(),
+                                                           permuteQuantize.getMemPermAttr())
+                        .getOperation();
+            } else {
+                return rewriter
+                        .template create<IE::PermuteQuantizeOp>(
+                                eltwiseOp->getLoc(), inputValue, permuteQuantize.getDstOrderAttr(),
+                                permuteQuantize.getMemPermAttr(), permuteQuantize.getDstElemTypeAttr(),
+                                permuteQuantize.getPadsBeginAttr(), permuteQuantize.getPadsEndAttr())
+                        .getOperation();
+            }
         } else {
             VPUX_THROW("Unsupported operation, operation should be MemPermuteOp or PermuteQuantizeOp!");
         }
     };
+
     if (permuteInputLayouts[0] != eltwiseInputLayout) {
+        if (canAvoidShapeCast) {
+            // Set output shape of all ops (here actually only QuantizeCastOp) between EltwiseOp(included)
+            // and output PermuteOp to mapped shape.
+            // For example, for a case like "MemPermuteOp -> EltwiseOp -> QuantizeCastOp -> ...", if we want to
+            // move the MemPermuteOp after QuantizeCastOp without adding ShapeCast after EltwiseOp, we need to
+            // set the mapped shape to output of both EltwiseOp and QuantizeCastOp.
+            auto currOutput = outputValue;
+            while (true) {
+                const auto currOutputType = currOutput.getType().template cast<vpux::NDTypeInterface>();
+                const auto newOutputType = currOutputType.changeShape(mappedShape);
+                currOutput.setType(newOutputType);
+                auto parentOp = currOutput.getDefiningOp();
+                VPUX_THROW_WHEN(parentOp == nullptr, "The connections were broken");
+                if (parentOp == eltwiseOp) {
+                    break;
+                }
+                currOutput = parentOp->getOperand(0);
+            }
+        }
         auto outputShapeCast = rewriter.template create<IE::ShapeCastOp>(
                 eltwiseOp->getLoc(), newOutputShapeCastType, outputValue, getIntArrayAttr(ctx, mappedShape.raw()));
         const auto outputDstOrder = mlir::AffineMapAttr::get(permuteInputLayouts[0].toAffineMap(ctx));
         auto outputPermuteCast = rewriter.template create<IE::PermuteCastOp>(
-                eltwiseOp->getLoc(), outputShapeCast.result(), outputDstOrder, neutralMemPerm);
-        auto permuteOrFailure = getOutputPermute(inputPermutes[0], outputPermuteCast.output());
+                eltwiseOp->getLoc(), outputShapeCast.getResult(), outputDstOrder, neutralMemPerm);
+        auto permuteOrFailure = getOutputPermute(inputPermutes[0], outputPermuteCast.getOutput());
         if (mlir::failed(permuteOrFailure)) {
             return mlir::failure();
         }
@@ -471,7 +528,7 @@ mlir::LogicalResult PermuteEltwiseRewriter<EltwiseOp>::matchAndRewrite(EltwiseOp
         auto outputShapeCast = rewriter.template create<IE::ShapeCastOp>(
                 eltwiseOp->getLoc(), newOutputShapeCastType.changeShape(permuteInputTypes[0].getShape()), outputValue,
                 getIntArrayAttr(ctx, permuteInputTypes[0].getShape().raw()));
-        auto permuteOrFailure = getOutputPermute(inputPermutes[0], outputShapeCast.result());
+        auto permuteOrFailure = getOutputPermute(inputPermutes[0], outputShapeCast.getResult());
         if (mlir::failed(permuteOrFailure)) {
             return mlir::failure();
         }
@@ -492,9 +549,32 @@ mlir::LogicalResult PermuteEltwiseRewriter<EltwiseOp>::matchAndRewrite(EltwiseOp
 void MovePermutePostEltwisePass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getOperation();
+
+    const auto verifyGroupConv = [](mlir::Operation* op) {
+        auto groupConvOp = mlir::cast<IE::GroupConvolutionOp>(op);
+        if (!isEltwiseGroupConvolution(groupConvOp)) {
+            return false;
+        }
+        mlir::SmallVector<Const::DeclareOp> constInputOps;
+        // Skip the first operand, check only weights and biases.
+        for (unsigned operandIdx = 1; operandIdx < op->getNumOperands(); operandIdx++) {
+            const mlir::Value operand = op->getOperand(operandIdx);
+            Const::DeclareOp declareOp = operand.getDefiningOp<Const::DeclareOp>();
+            constInputOps.push_back(declareOp);
+        }
+        return llvm::all_of(constInputOps, isSplatConstant);
+    };
+
+    const auto verifyAvgPool = [](mlir::Operation* op) {
+        auto avgPoolOp = mlir::cast<IE::AvgPoolOp>(op);
+        return isEltwisePooling<IE::AvgPoolOp>(avgPoolOp);
+    };
+
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<PermuteEltwiseRewriter<IE::AddOp>>(&ctx, _log);
-    patterns.add<PermuteEltwiseRewriter<IE::GroupConvolutionOp>>(&ctx, _log);
+    patterns.add<PermuteEltwiseRewriter<IE::AddOp>>(&ctx, nullptr, 2, _log);
+    patterns.add<PermuteEltwiseRewriter<IE::GroupConvolutionOp>>(&ctx, verifyGroupConv, 1, _log);
+    patterns.add<PermuteEltwiseRewriter<IE::AvgPoolOp>>(&ctx, verifyAvgPool, 1, _log);
+
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
         return;

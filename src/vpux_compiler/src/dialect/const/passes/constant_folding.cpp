@@ -3,16 +3,8 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/dialect/const/passes.hpp"
-
 #include "vpux/compiler/dialect/const/ops.hpp"
-#include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/types.hpp"
-#include "vpux/utils/core/numeric.hpp"
-
-#include <mlir/IR/DialectImplementation.h>
-#include <mlir/Pass/PassManager.h>
-#include <mlir/Transforms/GreedyPatternRewriteDriver.h>
+#include "vpux/compiler/dialect/const/passes.hpp"
 
 using namespace vpux;
 
@@ -46,19 +38,38 @@ void ConstantFoldingPass::safeRunOnFunc() {
 
         const auto bufSize = checked_cast<size_t>(contentType.getTotalAllocSize().count());
         std::vector<char> tempBuf(bufSize);
-        content.copyTo(makeMutableArrayRef(tempBuf.data(), bufSize));
+        content.copyTo(MutableArrayRef(tempBuf.data(), bufSize));
 
         auto rankedTensorType = contentType.cast<mlir::RankedTensorType>();
 
-        if (auto qtype = contentElemType.dyn_cast<mlir::quant::QuantizedType>()) {
+        const auto elemTypeBitSize = contentType.getElemTypeSize().count();
+        // As of now sub byte types are not supported as DenseElementsAttr storage, I1 is exception
+        const auto isUnsupportedSubByteStorageType = elemTypeBitSize < CHAR_BIT && elemTypeBitSize > 1;
+        if (isUnsupportedSubByteStorageType) {
+            rankedTensorType = contentType
+                                       .changeShapeElemType(Shape({1, 1, 1, checked_cast<int32_t>(bufSize)}),
+                                                            getUInt8Type(contentType.getContext()))
+                                       .cast<mlir::RankedTensorType>();
+        } else if (auto qtype = contentElemType.dyn_cast<mlir::quant::QuantizedType>()) {
             rankedTensorType =
                     contentType.changeElemType(normalizeQuantStorageType(qtype)).cast<mlir::RankedTensorType>();
         }
 
         const auto denseAttr = mlir::DenseElementsAttr::getFromRawBuffer(rankedTensorType, tempBuf);
-
-        const auto newOp =
-                builder.create<Const::DeclareOp>(origOp.getLoc(), origOp.getType(), Const::ContentAttr::get(denseAttr));
+        auto origType = origOp.getType().cast<NDTypeInterface>();
+        mlir::Value newOp;
+        if (isUnsupportedSubByteStorageType) {
+            // Temporary fix to enable compilation.
+            // Final design to also include a mechanism to FREEZE constants
+            // from accepting future transformations due to the fact of packed
+            // sub byte values stored, which would require an unpacking and a repacking
+            newOp = builder.create<Const::DeclareOp>(origOp.getLoc(), origOp.getType(),
+                                                     Const::ContentAttr::get(denseAttr).changeShapeAndElemType(
+                                                             origType.getShape(), origType.getElementType()));
+        } else {
+            newOp = builder.create<Const::DeclareOp>(origOp.getLoc(), origOp.getType(),
+                                                     Const::ContentAttr::get(denseAttr));
+        }
         origOp.replaceAllUsesWith(newOp);
 
         origOp.erase();

@@ -2,15 +2,12 @@
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
+#include "vpux/compiler/dialect/IE/utils/permute_quantize_utils.hpp"
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 #include "vpux/compiler/utils/permute_utils.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-
-#include "vpux/utils/IE/loop.hpp"
-#include "vpux/utils/core/enums.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/PatternMatch.h>
@@ -19,20 +16,18 @@
 using namespace vpux;
 
 namespace {
-
-// ======================================================================================
-// FusePermuteQuantizeRewrite
-//   FusePermuteQuantizeRewrite -> [Reorder -> Add -> QuantizeCastOp] -> PermuteQuantize
-
-class FusePermuteQuantizeRewrite final : public mlir::OpRewritePattern<IE::QuantizeCastOp> {
+class FusePermuteQuantizeBase : public mlir::OpRewritePattern<IE::ReorderOp> {
 public:
-    FusePermuteQuantizeRewrite(mlir::MLIRContext* ctx, const bool dpuOnly, Logger log)
-            : mlir::OpRewritePattern<IE::QuantizeCastOp>(ctx, benefitHigh), _dpuOnly(dpuOnly), _log(log) {
+    FusePermuteQuantizeBase(mlir::MLIRContext* ctx, const bool dpuOnly, Logger log)
+            : mlir::OpRewritePattern<IE::ReorderOp>(ctx, benefitHigh), _dpuOnly(dpuOnly), _log(log) {
         setDebugName("FusePermuteQuantizeRewrite");
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(IE::QuantizeCastOp origOp, mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(IE::ReorderOp origOp, mlir::PatternRewriter& rewriter) const final;
+    virtual bool isLegalPattern(IE::ReorderOp origOp) const = 0;
+    virtual void replaceByNewOp(mlir::Operation* opNce, mlir::Value input, mlir::PatternRewriter& rewriter) const = 0;
+    virtual mlir::Type getNceOutType(mlir::Operation* opNce) const = 0;
 
 private:
     bool isCompatibleWithDPU(mlir::Type addInput, mlir::Type addOutput) const;
@@ -40,36 +35,21 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult FusePermuteQuantizeRewrite::matchAndRewrite(IE::QuantizeCastOp origOp,
-                                                                mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult FusePermuteQuantizeBase::matchAndRewrite(IE::ReorderOp origOp,
+                                                             mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got '{1}' at '{2}'", getDebugName(), origOp->getName(), origOp->getLoc());
-
-    // check patern
-    auto opAdd = origOp.input().getDefiningOp<IE::AddOp>();
-    if (opAdd == nullptr) {
-        return mlir::failure();
-    }
-    auto opReorder = opAdd.input1().getDefiningOp<IE::ReorderOp>();
-    if (opReorder == nullptr) {
+    if (origOp.getOutput().use_empty()) {
         return mlir::failure();
     }
 
-    // check just 1 child for linked patern
-    for (auto user : llvm::make_early_inc_range(opReorder.getResult().getUsers())) {
-        if (user != opAdd) {
-            return mlir::failure();
-        }
-    }
-    if (!opAdd.getResult().hasOneUse()) {
+    // check reorder and nce pattern
+    if (!isLegalPattern(origOp)) {
         return mlir::failure();
     }
 
-    // check if Add is used for quantize
-    if (opAdd.input1() != opAdd.input2()) {
-        return mlir::failure();
-    }
-    const auto inType = opAdd.input1().getType().cast<vpux::NDTypeInterface>().getElementType();
-    const auto outType = opAdd.output().getType().cast<vpux::NDTypeInterface>().getElementType();
+    auto opNce = *origOp.getOutput().getUsers().begin();
+    const auto inType = opNce->getOperand(0).getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto outType = opNce->getResult(0).getType().cast<vpux::NDTypeInterface>().getElementType();
     if (!(inType.isF16() && outType.isa<mlir::quant::QuantizedType>())) {
         return mlir::failure();
     }
@@ -81,8 +61,8 @@ mlir::LogicalResult FusePermuteQuantizeRewrite::matchAndRewrite(IE::QuantizeCast
     }
 
     // check if reorder will not be removed
-    auto inOrder = DimsOrder::fromValue(opReorder.input());
-    auto outOrder = DimsOrder::fromValue(opReorder.output());
+    auto inOrder = DimsOrder::fromValue(origOp.getInput());
+    auto outOrder = DimsOrder::fromValue(origOp.getOutput());
     if (inOrder == outOrder) {
         return mlir::failure();
     }
@@ -92,8 +72,8 @@ mlir::LogicalResult FusePermuteQuantizeRewrite::matchAndRewrite(IE::QuantizeCast
     }
 
     //
-    const auto iExpType = opReorder.input().getType().cast<vpux::NDTypeInterface>();
-    const auto oExpType = origOp.output().getType().cast<vpux::NDTypeInterface>();
+    const auto iExpType = origOp.getInput().getType().cast<vpux::NDTypeInterface>();
+    const auto oExpType = opNce->getResult(0).getType().cast<vpux::NDTypeInterface>();
     if (!((iExpType.getRank() == 4) && (oExpType.getRank() == 4))) {
         return mlir::failure();
     }
@@ -112,29 +92,62 @@ mlir::LogicalResult FusePermuteQuantizeRewrite::matchAndRewrite(IE::QuantizeCast
     // conversion to SpaceToDepth->MemPermute(Reorder)->NCEEltwise(Quantize) which
     // later will be fused as SpaceToDepthDMA->NCEEltwise(Quantize).
     // In this case, disable fuse of Reorder and Add as PermuteQuantize here.
-    if (auto s2dOp = opReorder.input().getDefiningOp<IE::SpaceToDepthOp>()) {
+    if (auto s2dOp = origOp.getInput().getDefiningOp<IE::SpaceToDepthOp>()) {
         return mlir::failure();
     }
 
-    if (_dpuOnly && !isCompatibleWithDPU(opAdd.input1().getType(), opAdd.output().getType())) {
+    if (_dpuOnly && !isCompatibleWithDPU(opNce->getOperand(0).getType(), opNce->getResult(0).getType())) {
         return mlir::failure();
     }
 
     auto memPermAttr = mlir::AffineMapAttr::get(getPermutationFromOrders(inOrder, outOrder, origOp->getContext()));
     SmallVector<int64_t> noPadBeginEnd(inOrder.numDims(), 0);
     const auto& ctx = origOp.getContext();
-    // Get target quant type from IE.Add, not from IE.QuantizeCast.
-    // QuantizeToAddRewriter multiplies output scale by 2. It is necessary to cancel out this factor.
-    const auto permQuantOutType = rescaleUniformQuantizedType(opAdd.output().getType(), 0.5);
+
+    auto permQuantOutType = getNceOutType(opNce);
     const auto permQuantElemType = permQuantOutType.cast<vpux::NDTypeInterface>().getElementType();
     const auto dstElemTypeAttr = mlir::TypeAttr::get(permQuantElemType);
     const auto permQuantLoc = appendLoc(origOp->getLoc(), "PermuteQuantize");
     auto permuteQuantizeOp = rewriter.create<IE::PermuteQuantizeOp>(
-            permQuantLoc, permQuantOutType, opReorder.input(), opReorder.dstOrderAttr(), memPermAttr, dstElemTypeAttr,
+            permQuantLoc, permQuantOutType, origOp.getInput(), origOp.getDstOrderAttr(), memPermAttr, dstElemTypeAttr,
             getIntArrayAttr(ctx, noPadBeginEnd), getIntArrayAttr(ctx, noPadBeginEnd));
 
+    replaceByNewOp(opNce, permuteQuantizeOp.getOutput(), rewriter);
+
+    return mlir::success();
+}
+
+// ======================================================================================
+// FusePermuteQuantizeForAdd
+//   FusePermuteQuantizeForAdd -> [Reorder -> Add -> QuantizeCastOp] -> [PermuteQuantize
+//   -> QuantizeCastOp]
+
+class FusePermuteQuantizeForAdd final : public FusePermuteQuantizeBase {
+public:
+    FusePermuteQuantizeForAdd(mlir::MLIRContext* ctx, const bool dpuOnly, Logger log)
+            : FusePermuteQuantizeBase(ctx, dpuOnly, log) {
+    }
+
+public:
+    bool isLegalPattern(IE::ReorderOp origOp) const override;
+    void replaceByNewOp(mlir::Operation* opNce, mlir::Value input, mlir::PatternRewriter& rewriter) const override;
+    mlir::Type getNceOutType(mlir::Operation* opNce) const override;
+};
+
+bool FusePermuteQuantizeForAdd::isLegalPattern(IE::ReorderOp origOp) const {
+    return IE::isLegalReorderAddPattern(origOp);
+}
+
+mlir::Type FusePermuteQuantizeForAdd::getNceOutType(mlir::Operation* opNce) const {
+    // QuantizeToAddRewriter multiplies output scale by 2. It is necessary to cancel out this factor.
+    return rescaleUniformQuantizedType(opNce->getResult(0).getType(), 0.5);
+}
+
+void FusePermuteQuantizeForAdd::replaceByNewOp(mlir::Operation* opNce, mlir::Value input,
+                                               mlir::PatternRewriter& rewriter) const {
     // IE.PermuteQuantize must have quantization parameters from the original IE.Quantize operation.
-    // In some cases IE.QuantizeCast which follows IE.Add can contain dstElemType which differs from that IE.Quantize.
+    // In some cases IE.QuantizeCast which follows IE.Add can contain dstElemType which differs from that
+    // IE.Quantize.
     // For example, one IE.QuantizeCast may appear after IE.FakeQuantize gets split into:
     // IE.Quantize qType1 -> IE.QuantizeCast qType2 -> IE.Dequantize
     // Another IE.QuantizeCast will be inserted into graph after QuantizeToAddRewriter:
@@ -144,15 +157,42 @@ mlir::LogicalResult FusePermuteQuantizeRewrite::matchAndRewrite(IE::QuantizeCast
     // In that case, qType1 must be set for IE.PermuteQuantize.
     // IE.QuantizeCast to qType2 must remain in the graph to maintain the integrity:
     // IE.PermuteQuantize qType1 -> IE.QuantizeCast qType2 -> IE.Dequantize
+    auto orginalQuantizeCast = mlir::dyn_cast<IE::QuantizeCastOp>(*opNce->getResult(0).getUsers().begin());
     auto quantCast =
-            rewriter.create<IE::QuantizeCastOp>(origOp->getLoc(), permuteQuantizeOp.output(), origOp.dstElemTypeAttr());
-
-    rewriter.replaceOp(origOp, quantCast.output());
-
-    return mlir::success();
+            rewriter.create<IE::QuantizeCastOp>(opNce->getLoc(), input, orginalQuantizeCast.getDstElemTypeAttr());
+    rewriter.replaceOp(orginalQuantizeCast, quantCast.getOutput());
 }
 
-bool FusePermuteQuantizeRewrite::isCompatibleWithDPU(mlir::Type addInput, mlir::Type addOutput) const {
+// ======================================================================================
+// FusePermuteQuantizeForAvgPool
+//   FusePermuteQuantizeForAvgPool -> [Expand -> Reorder -> AvgPool] -> [PermuteQuantize]
+
+class FusePermuteQuantizeForAvgPool final : public FusePermuteQuantizeBase {
+public:
+    FusePermuteQuantizeForAvgPool(mlir::MLIRContext* ctx, const bool dpuOnly, Logger log)
+            : FusePermuteQuantizeBase(ctx, dpuOnly, log) {
+    }
+
+public:
+    bool isLegalPattern(IE::ReorderOp origOp) const override;
+    void replaceByNewOp(mlir::Operation* opNce, mlir::Value input, mlir::PatternRewriter& rewriter) const override;
+    mlir::Type getNceOutType(mlir::Operation* opNce) const override;
+};
+
+bool FusePermuteQuantizeForAvgPool::isLegalPattern(IE::ReorderOp origOp) const {
+    return IE::isLegalReorderAvgPoolPattern(origOp);
+}
+
+mlir::Type FusePermuteQuantizeForAvgPool::getNceOutType(mlir::Operation* opNce) const {
+    return opNce->getResult(0).getType();
+}
+
+void FusePermuteQuantizeForAvgPool::replaceByNewOp(mlir::Operation* opNce, mlir::Value input,
+                                                   mlir::PatternRewriter& rewriter) const {
+    rewriter.replaceOp(opNce, input);
+}
+
+bool FusePermuteQuantizeBase::isCompatibleWithDPU(mlir::Type addInput, mlir::Type addOutput) const {
     auto inType = addInput.cast<vpux::NDTypeInterface>();
     auto outType = addOutput.cast<vpux::NDTypeInterface>();
     const auto inElemType = inType.getElementType();
@@ -223,7 +263,8 @@ void FusePermuteQuantizePass::safeRunOnFunc() {
     // 1. Only NCHW to NHWC permutation is supported
     // 2. Only float16 inputs and quantized outputs are supported.
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<FusePermuteQuantizeRewrite>(&ctx, _dpuOnly, _log);
+    patterns.add<FusePermuteQuantizeForAvgPool>(&ctx, _dpuOnly, _log);
+    patterns.add<FusePermuteQuantizeForAdd>(&ctx, _dpuOnly, _log);
 
     mlir::ConversionTarget target(ctx);
 

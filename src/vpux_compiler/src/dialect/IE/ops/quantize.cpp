@@ -9,8 +9,8 @@
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::QuantizeOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -19,8 +19,8 @@ mlir::LogicalResult vpux::IE::QuantizeOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = quantize.input().getType().cast<mlir::ShapedType>();
-    const auto dstElemType = quantize.dstElemType();
+    const auto inType = quantize.getInput().getType().cast<mlir::ShapedType>();
+    const auto dstElemType = quantize.getDstElemType();
 
     inferredReturnShapes.emplace_back(inType.getShape(), dstElemType);
     return mlir::success();
@@ -41,16 +41,17 @@ mlir::quant::QuantizedType extractQuantizedType(mlir::Value operand) {
 
 }  // namespace
 
-mlir::OpFoldResult vpux::IE::QuantizeOp::fold(ArrayRef<mlir::Attribute> operands) {
+mlir::OpFoldResult vpux::IE::QuantizeOp::fold(FoldAdaptor adaptor) {
+    auto operands = adaptor.getOperands();
     if (const auto cst = operands[0].dyn_cast_or_null<Const::ContentAttr>()) {
-        const auto quantType = extractQuantizedType(output());
+        const auto quantType = extractQuantizedType(getOutput());
         const auto quantStorageType = normalizeQuantStorageType(quantType);
         return cst.convertElemType(quantStorageType).quantCast(quantType);
     }
 
-    if (auto dequantize = input().getDefiningOp<IE::DequantizeOp>()) {
-        if (dequantize.input().getType() == output().getType()) {
-            return dequantize.input();
+    if (auto dequantize = getInput().getDefiningOp<IE::DequantizeOp>()) {
+        if (dequantize.getInput().getType() == getOutput().getType()) {
+            return dequantize.getInput();
         }
     }
 

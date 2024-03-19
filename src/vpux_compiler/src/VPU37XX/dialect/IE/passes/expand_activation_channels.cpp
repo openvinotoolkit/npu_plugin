@@ -7,7 +7,6 @@
 #include "vpux/compiler/VPU37XX/dialect/IE/passes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
-#include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
 using namespace vpux;
@@ -39,12 +38,13 @@ mlir::LogicalResult AveragePoolRewriter::matchAndRewrite(IE::AvgPoolOp origOp, m
         const auto ndType = origOp.getType().cast<vpux::NDTypeInterface>();
         const auto newOutputType = ndType.pad(outPadBefore, outPadAfter);
 
-        return rewriter.create<IE::AvgPoolOp>(origOp.getLoc(), newOutputType, expandedInput, origOp.kernel_size(),
-                                              origOp.strides(), origOp.pads_begin(), origOp.pads_end(),
-                                              origOp.rounding_type(), origOp.exclude_pads(), origOp.post_opAttr());
+        return rewriter.create<IE::AvgPoolOp>(origOp.getLoc(), newOutputType, expandedInput, origOp.getKernelSize(),
+                                              origOp.getStrides(), origOp.getPadsBegin(), origOp.getPadsEnd(),
+                                              origOp.getRoundingType(), origOp.getExcludePads(), origOp.getPostOpAttr(),
+                                              origOp.getClampAttr());
     };
 
-    return generalRewrite(origOp, rewriter, opCreator, _log.nest());
+    return generalRewrite(origOp, rewriter, opCreator, extractMeaningfulOutput, _log.nest());
 }
 
 namespace {
@@ -56,7 +56,8 @@ namespace {
 class ExpandActivationChannelsPass final :
         public IE::arch37xx::ExpandActivationChannelsBase<ExpandActivationChannelsPass> {
 public:
-    explicit ExpandActivationChannelsPass(const bool seOpsEnabled, Logger log): _seOpsEnabled(seOpsEnabled) {
+    explicit ExpandActivationChannelsPass(const bool seOpsEnabled, const bool seTransposedConvEnabled, Logger log)
+            : _seOpsEnabled(seOpsEnabled), _seTransposedConvEnabled(seTransposedConvEnabled) {
         Base::initLogger(log, Base::getArgumentName());
     }
 
@@ -67,6 +68,7 @@ private:
 
 private:
     bool _seOpsEnabled;
+    bool _seTransposedConvEnabled;
 };
 
 mlir::LogicalResult ExpandActivationChannelsPass::initialize(mlir::MLIRContext* ctx) {
@@ -79,6 +81,9 @@ mlir::LogicalResult ExpandActivationChannelsPass::initialize(mlir::MLIRContext* 
     if (seOpsEnabled.hasValue()) {
         _seOpsEnabled = seOpsEnabled.getValue();
     }
+    if (seTransposedConvEnabled.hasValue()) {
+        _seTransposedConvEnabled = seTransposedConvEnabled.getValue();
+    }
 
     return mlir::success();
 }
@@ -88,7 +93,11 @@ void ExpandActivationChannelsPass::safeRunOnFunc() {
     auto func = getOperation();
 
     const auto isLegal = [&](mlir::Operation* op) {
-        if (!_seOpsEnabled && mlir::isa<IE::SEOpInterface>(op)) {
+        // TODO E#100360: remove custom flag for IE::TransposedConvolutionOp
+        if (!_seTransposedConvEnabled && mlir::isa<IE::TransposedConvolutionOp>(op)) {
+            return true;
+        }
+        if (!_seOpsEnabled && mlir::isa<IE::SEOpInterface>(op) && !mlir::isa<IE::TransposedConvolutionOp>(op)) {
             return true;
         }
         if (auto iface = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(op)) {
@@ -114,6 +123,9 @@ void ExpandActivationChannelsPass::safeRunOnFunc() {
     if (_seOpsEnabled) {
         patterns.add<IE::InterpolateRewriter>(&ctx, _log);
     }
+    if (_seTransposedConvEnabled) {
+        patterns.add<IE::TransposedConvolutionRewriter>(&ctx, _log);
+    }
 
     if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
@@ -127,6 +139,7 @@ void ExpandActivationChannelsPass::safeRunOnFunc() {
 //
 
 std::unique_ptr<mlir::Pass> vpux::IE::arch37xx::createExpandActivationChannelsPass(const bool seOpsEnabled,
+                                                                                   const bool seTransposedConvEnabled,
                                                                                    Logger log) {
-    return std::make_unique<ExpandActivationChannelsPass>(seOpsEnabled, log);
+    return std::make_unique<ExpandActivationChannelsPass>(seOpsEnabled, seTransposedConvEnabled, log);
 }

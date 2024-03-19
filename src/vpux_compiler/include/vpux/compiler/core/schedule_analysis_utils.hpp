@@ -16,7 +16,7 @@ namespace vpux {
 // Vector of stalls: pair {cycleStart, cycleEnd}
 using StallCycles = SmallVector<std::pair<size_t, size_t>>;
 // Map: Key: pair {executorKind, executorInstance}, Value: StallCycles
-using ExecutorStallCycles = DenseMap<std::pair<VPU::ExecutorKind, size_t>, StallCycles>;
+using ExecutorStallCycles = std::map<std::pair<FeasibleMemoryScheduler::QueueType, size_t>, StallCycles>;
 using ScheduledOpInfo = FeasibleMemoryScheduler::ScheduledOpInfo;
 using ScheduledOpInfoVec = FeasibleMemoryScheduler::ScheduledOpInfoVec;
 

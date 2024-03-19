@@ -6,14 +6,11 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 
-#include "vpux/utils/core/checked_cast.hpp"
-#include "vpux/utils/core/small_vector.hpp"
-
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::SubtractOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -22,11 +19,11 @@ mlir::LogicalResult vpux::IE::SubtractOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto in1Type = subtract.input1().getType().cast<mlir::ShapedType>();
-    const auto in2Type = subtract.input2().getType().cast<mlir::ShapedType>();
+    const auto in1Type = subtract.getInput1().getType().cast<mlir::ShapedType>();
+    const auto in2Type = subtract.getInput2().getType().cast<mlir::ShapedType>();
 
     const auto outShapeRes =
-            IE::broadcastEltwiseShape(in1Type.getShape(), in2Type.getShape(), subtract.auto_broadcast(), loc);
+            IE::broadcastEltwiseShape(in1Type.getShape(), in2Type.getShape(), subtract.getAutoBroadcast(), loc);
     if (mlir::succeeded(outShapeRes)) {
         inferredReturnShapes.emplace_back(outShapeRes.value(), in1Type.getElementType());
     }
@@ -34,13 +31,14 @@ mlir::LogicalResult vpux::IE::SubtractOp::inferReturnTypeComponents(
     return outShapeRes;
 }
 
-mlir::OpFoldResult vpux::IE::SubtractOp::fold(ArrayRef<mlir::Attribute> operands) {
+mlir::OpFoldResult vpux::IE::SubtractOp::fold(FoldAdaptor adaptor) {
+    auto operands = adaptor.getOperands();
     VPUX_THROW_UNLESS(operands.size() == 2, "Wrong number of operands : {0}", operands.size());
 
     if (const auto attr = operands[1].dyn_cast_or_null<Const::ContentAttr>()) {
         const auto content = attr.fold();
         if (content.isSplat() && content.getSplatValue<float>() == 0.0f) {
-            return input1();
+            return getInput1();
         }
     }
 

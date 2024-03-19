@@ -7,13 +7,11 @@
 
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 
-#include "vpux/utils/core/checked_cast.hpp"
-
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::FakeQuantizeOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -22,12 +20,12 @@ mlir::LogicalResult vpux::IE::FakeQuantizeOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inputType = quantize.input().getType().cast<mlir::ShapedType>();
-    const auto inputLowType = quantize.input_low().getType().cast<mlir::ShapedType>();
-    const auto inputHighType = quantize.input_high().getType().cast<mlir::ShapedType>();
-    const auto outputLowType = quantize.output_low().getType().cast<mlir::ShapedType>();
-    const auto outputHighType = quantize.output_high().getType().cast<mlir::ShapedType>();
-    const auto autob = quantize.auto_broadcast();
+    const auto inputType = quantize.getInput().getType().cast<mlir::ShapedType>();
+    const auto inputLowType = quantize.getInputLow().getType().cast<mlir::ShapedType>();
+    const auto inputHighType = quantize.getInputHigh().getType().cast<mlir::ShapedType>();
+    const auto outputLowType = quantize.getOutputLow().getType().cast<mlir::ShapedType>();
+    const auto outputHighType = quantize.getOutputHigh().getType().cast<mlir::ShapedType>();
+    const auto autob = quantize.getAutoBroadcast();
 
     const auto outShapeOrResult =
             IE::broadcastEltwiseShape({inputType.getShape(), inputLowType.getShape(), inputHighType.getShape(),
@@ -41,19 +39,19 @@ mlir::LogicalResult vpux::IE::FakeQuantizeOp::inferReturnTypeComponents(
     return outShapeOrResult;
 }
 
-mlir::OpFoldResult vpux::IE::FakeQuantizeOp::fold(ArrayRef<mlir::Attribute> /*operands*/) {
-    if (auto fakeQuantize = input().getDefiningOp<IE::FakeQuantizeOp>()) {
-        const auto cstMinInSecondFQ = input_low();
-        const auto cstMaxInSecondFQ = input_high();
-        const auto cstMinOutSecondFQ = output_low();
-        const auto cstMaxOutSecondFQ = output_high();
-        const auto cstMinInFirstFQ = fakeQuantize.input_low();
-        const auto cstMaxInFirstFQ = fakeQuantize.input_high();
-        const auto cstMinOutFirstFQ = fakeQuantize.output_low();
-        const auto cstMaxOutFirstFQ = fakeQuantize.output_high();
+mlir::OpFoldResult vpux::IE::FakeQuantizeOp::fold(FoldAdaptor) {
+    if (auto fakeQuantize = getInput().getDefiningOp<IE::FakeQuantizeOp>()) {
+        const auto cstMinInSecondFQ = getInputLow();
+        const auto cstMaxInSecondFQ = getInputHigh();
+        const auto cstMinOutSecondFQ = getOutputLow();
+        const auto cstMaxOutSecondFQ = getOutputHigh();
+        const auto cstMinInFirstFQ = fakeQuantize.getInputLow();
+        const auto cstMaxInFirstFQ = fakeQuantize.getInputHigh();
+        const auto cstMinOutFirstFQ = fakeQuantize.getOutputLow();
+        const auto cstMaxOutFirstFQ = fakeQuantize.getOutputHigh();
         if (cstMinInSecondFQ == cstMinInFirstFQ && cstMaxInSecondFQ == cstMaxInFirstFQ &&
             cstMinOutSecondFQ == cstMinOutFirstFQ && cstMaxOutSecondFQ == cstMaxOutFirstFQ) {
-            return input();
+            return getInput();
         }
     }
 

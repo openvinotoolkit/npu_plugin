@@ -8,7 +8,6 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
-#include "vpux/compiler/utils/constant_fusion.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 
 #include "vpux/compiler/utils/types.hpp"
@@ -23,22 +22,13 @@ constexpr StringLiteral constantsFused = "constantsFused";
 constexpr int8_t numberOfConstantsToFuse = 4;
 
 ///
-/// \brief Converts U8 to I32 Datatype
-/// \param [in] inValues - U8 Input value Content Range
-/// \param [out] outValues - Vector of I32 converted Values
-/// \return void
-///
-
-void convertInputToI32(Const::details::ContentRange<uint8_t>& inValues, std::vector<int32_t>& outValues);
-
-///
 /// \brief Converts the passed constant to U8 and store in passed vector
 /// \param [in] inValue - T input value
 /// \param [out] outValues - Vector of U8 converted Values
 /// \return void
 ///
 
-template <typename T, enable_if_t<or_<std::is_same<float16, T>, std::is_same<int32_t, T>>::value, bool> = true>
+template <typename T, std::enable_if_t<or_<std::is_same<float16, T>, std::is_same<int32_t, T>>::value, bool> = true>
 void convertToU8(const T& inValue, std::vector<uint8_t>& outValues) {
     const auto inputU8 = reinterpret_cast<const uint8_t*>(&inValue);
     for (size_t i = 0; i < sizeof(inValue); ++i)
@@ -46,13 +36,13 @@ void convertToU8(const T& inValue, std::vector<uint8_t>& outValues) {
 }
 
 ///
-/// \brief Get underlying DeclareOp and CopyOp for passed constant
-/// \param [in] constant - Constant to get DeclareOp and CopyOp for
-/// \param [out] constCopyOp - copyOp if the DeclareOp is found
+/// \brief Get underlying DeclareOp and Op for passed constant
+/// \param [in] constant - Constant to get DeclareOp and Op for
+/// \param [out] constOp - Op if the DeclareOp is found
 /// \return Const::DeclareOp when found
 ///
 
-Const::DeclareOp getConstAndCopyOp(VPUIP::NCEClusterTaskOp nceOp, mlir::Value constant, VPUIP::CopyOp& constCopyOp);
+Const::DeclareOp getConstAndDma(VPUIP::NCEClusterTaskOp nceOp, mlir::Value constant, mlir::Operation** constOp);
 
 ///
 /// \brief Get static offset for the constant

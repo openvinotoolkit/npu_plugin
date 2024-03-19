@@ -5,13 +5,6 @@
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
-#include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
-
-#include <mlir/Transforms/GreedyPatternRewriteDriver.h>
-
-#include <vpux/compiler/conversion.hpp>
-
 using namespace vpux;
 
 namespace {
@@ -68,7 +61,7 @@ private:
 
 mlir::LogicalResult InsertReorderBetweenLayerAndConcat::ConcatOpConverter::matchAndRewrite(
         IE::ConcatOp origOp, mlir::PatternRewriter& rewriter) const {
-    const auto concatInputList = origOp.inputs();
+    const auto concatInputList = origOp.getInputs();
     VPUX_THROW_UNLESS(concatInputList.size() == 2, "ConcatOpConverter: must have two inputs");
     const auto nhwcOrder = DimsOrder::NHWC;
     const auto nhwcOrderMap = nhwcOrder.toAffineMap(rewriter.getContext());
@@ -78,14 +71,14 @@ mlir::LogicalResult InsertReorderBetweenLayerAndConcat::ConcatOpConverter::match
         newConcatInputs.push_back(nhwcReorderOp);
     }
 
-    const auto axis = deduceAxis(newConcatInputs[0], origOp.output());
+    const auto axis = deduceAxis(newConcatInputs[0], origOp.getOutput());
     VPUX_THROW_UNLESS(axis != -1, "ConcatOpConverter: failed to deduce axis");
     const auto axisAttr = getIntAttr(rewriter.getContext(), axis);
 
     auto newConcat = rewriter.create<IE::ConcatOp>(origOp->getLoc(), newConcatInputs, axisAttr);
     const auto nchwOrder = DimsOrder::NCHW;
     const auto nchwOrderMap = nchwOrder.toAffineMap(rewriter.getContext());
-    rewriter.replaceOpWithNewOp<IE::ReorderOp>(origOp, newConcat.output(), nchwOrderMap);
+    rewriter.replaceOpWithNewOp<IE::ReorderOp>(origOp, newConcat.getOutput(), nchwOrderMap);
     return mlir::success();
 }
 
@@ -93,16 +86,16 @@ void InsertReorderBetweenLayerAndConcat::safeRunOnFunc() {
     auto& ctx = getContext();
 
     const auto checkPatternInput = [](IE::ConcatOp op) -> bool {
-        const auto concatInputList = op.inputs();
+        const auto concatInputList = op.getInputs();
         if (concatInputList.size() != 2) {
             return true;
         }
 
-        if (op.per_axis().has_value() && op.per_axisAttr().getOffset()) {
+        if (op.getPerAxis().has_value() && op.getPerAxisAttr().getOffset()) {
             return true;
         }
 
-        if (op.per_axis().has_value() && op.per_axisAttr().getStride()) {
+        if (op.getPerAxis().has_value() && op.getPerAxisAttr().getStride()) {
             return true;
         }
 

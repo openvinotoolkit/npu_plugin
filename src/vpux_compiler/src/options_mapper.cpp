@@ -6,6 +6,7 @@
 #include "vpux/al/config/common.hpp"
 #include "vpux/al/config/compiler.hpp"
 
+#include "vpux/compiler/compiler.hpp"
 #include "vpux/compiler/options_mapper.hpp"
 
 #include <device_helpers.hpp>
@@ -18,13 +19,9 @@ using namespace vpux;
 
 VPU::ArchKind vpux::getArchKind(const Config& config) {
     auto platform = config.get<PLATFORM>();
-    if (platform == InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR) {
-        platform = utils::getPlatformByEMUDeviceName(config.get<DEVICE_ID>());
-    }
 
     switch (platform) {
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO_DETECT:
-    case InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR:
         return VPU::ArchKind::UNKNOWN;
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700:
         return VPU::ArchKind::VPUX30XX;
@@ -53,7 +50,7 @@ VPU::CompilationMode vpux::getCompilationMode(const Config& config) {
 // getNumberOfDPUGroups
 //
 
-Optional<int> vpux::getNumberOfDPUGroups(const Config& config) {
+std::optional<int> vpux::getNumberOfDPUGroups(const Config& config) {
     if (config.has<DPU_GROUPS>()) {
         return checked_cast<int>(config.get<DPU_GROUPS>());
     }
@@ -87,7 +84,7 @@ Optional<int> vpux::getNumberOfDPUGroups(const Config& config) {
 // getNumberOfDMAEngines
 //
 
-Optional<int> vpux::getNumberOfDMAEngines(const Config& config) {
+std::optional<int> vpux::getNumberOfDMAEngines(const Config& config) {
     if (config.has<DMA_ENGINES>()) {
         return checked_cast<int>(config.get<DMA_ENGINES>());
     }
@@ -96,6 +93,10 @@ Optional<int> vpux::getNumberOfDMAEngines(const Config& config) {
     auto numOfDpuGroups = getNumberOfDPUGroups(config);
     int maxDmaPorts = VPU::getMaxDMAPorts(archKind);
 
+    auto getNumOfDmaPortsWithDpuCountLimit = [&]() {
+        return std::min(maxDmaPorts, numOfDpuGroups.value_or(maxDmaPorts));
+    };
+
     switch (config.get<PLATFORM>()) {
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720: {
         switch (config.get<PERFORMANCE_HINT>()) {
@@ -103,12 +104,7 @@ Optional<int> vpux::getNumberOfDMAEngines(const Config& config) {
         case ov::hint::PerformanceMode::UNDEFINED:
         case ov::hint::PerformanceMode::LATENCY:
         default:
-            auto numOfDmaPorts = maxDmaPorts;
-            if (numOfDpuGroups.has_value()) {
-                numOfDmaPorts = std::min(numOfDmaPorts, numOfDpuGroups.value());
-            }
-
-            return numOfDmaPorts;
+            return getNumOfDmaPortsWithDpuCountLimit();
         }
         break;
     }

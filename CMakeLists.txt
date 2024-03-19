@@ -10,7 +10,13 @@
 set(CMAKE_POLICY_DEFAULT_CMP0115 NEW)
 set(CMAKE_POLICY_DEFAULT_CMP0116 OLD)
 
-cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
+if(ENABLE_PREBUILT_LLVM_MLIR_LIBS)
+    cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
+else()
+    # LLVM17 requires CMake >= 3.20 so the users wishing to build the LLVM from
+    # sources have to upgrade accordingly.
+    cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
+endif()
 
 # Honor <LANG>_VISIBILITY_PRESET for all target types (including static libraries).
 cmake_policy(SET CMP0063 NEW)
@@ -26,7 +32,10 @@ project(InferenceEngineVPUXPlugin)
 
 set(NPU_DEVICE_NAME "NPU")
 string(TOLOWER "${NPU_DEVICE_NAME}" VPUX_PLUGIN_COMPONENT)
+set(VPUX_INTERNAL_COMPONENT "${VPUX_PLUGIN_COMPONENT}_internal")
 set(VPUX_TESTS_COMPONENT "${VPUX_PLUGIN_COMPONENT}_tests")
+
+set(NPU_CPACK_COMPONENTS_ALL ${VPUX_PLUGIN_COMPONENT} ${VPUX_INTERNAL_COMPONENT})
 
 set(IE_MAIN_VPUX_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -48,7 +57,16 @@ endif()
 
 include(FetchContent)
 
-find_package(InferenceEngineDeveloperPackage REQUIRED)
+# TODO remove after migration
+option(ENABLE_NPU_MONO "Please turn it on if you work under `npu_mono` environment" OFF)
+if (ENABLE_NPU_MONO)
+    message(AUTHOR_WARNING "Experimental option ENABLE_NPU_MONO enabled")
+    set (NPU_MONO_ROOT ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/..)
+endif()
+
+find_package(OpenVINODeveloperPackage REQUIRED
+             PATHS "${InferenceEngineDeveloperPackage_DIR}")
+
 get_directory_property(defs DIRECTORY ${CMAKE_SOURCE_DIR} COMPILE_DEFINITIONS)
 set(IE_BUILD_POSTFIX_VAR)
 foreach(def ${defs})
@@ -82,7 +100,7 @@ print_enabled_kmb_features()
 # Build configuration
 #
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(UNIX)
@@ -96,6 +114,25 @@ endif()
 #
 # Sub-directories
 #
+if(ENABLE_PREBUILT_LLVM_MLIR_LIBS)
+    message(STATUS "Include LLVM by pre-built binary")
+    # Include MLIRConfig.cmake dir of pre-built binary
+    # LLVM_ENABLE_RTTI should be enabled for MLIR
+    list(APPEND CMAKE_PREFIX_PATH ${MLIR_BINARY_PKG_DIR}/lib/cmake/mlir)
+else()
+    message(STATUS "Include LLVM by source files")
+    # When vpux-plugin is built independently, MLIRConfig.cmake is under this dir
+    list(APPEND CMAKE_PREFIX_PATH ${PROJECT_BINARY_DIR}/lib/cmake/mlir)
+    # When vpux-plugin is added as IE_EXTRA_MODULES, MLIRConfig.cmake is under this dir
+    list(APPEND CMAKE_PREFIX_PATH ${OpenVINO_BINARY_DIR}/lib/cmake/mlir)
+    # When vpux-plugin is added in monorepo, MLIRConfig.cmake is under this dir
+    if(ENABLE_NPU_MONO)
+        if(NOT DEFINED NPU_MONO_BUILD_DIR)
+            message(FATAL_ERROR "Cannot find `npu_mono` build directory")
+        endif()
+        list(APPEND CMAKE_PREFIX_PATH ${NPU_MONO_BUILD_DIR}/lib/cmake/mlir)
+    endif()
+endif()
 
 add_subdirectory(thirdparty EXCLUDE_FROM_ALL)
 
@@ -119,7 +156,6 @@ add_subdirectory(src)
 
 if(ENABLE_TESTS)
     include(cmake/lit_tests.cmake)
-
     add_subdirectory(tests)
 endif()
 
@@ -140,23 +176,23 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
 if(NOT BUILD_SHARED_LIBS)
     if(TARGET ze_loader)
         install(TARGETS ze_loader EXPORT OpenVINOTargets
-                RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
-                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
-                LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
+                RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+                ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+                LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${VPUX_PLUGIN_COMPONENT})
     endif()
 
     if(TARGET flatbuffers)
         install(TARGETS flatbuffers EXPORT OpenVINOTargets
-                RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
-                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
-                LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
+                RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+                ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+                LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${VPUX_PLUGIN_COMPONENT})
     endif()
 
-    if(TARGET vpux_elf)
-        install(TARGETS vpux_elf EXPORT OpenVINOTargets
-                RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
-                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
-                LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
+    if(TARGET npu_elf)
+        install(TARGETS npu_elf EXPORT OpenVINOTargets
+                RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+                ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+                LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${VPUX_PLUGIN_COMPONENT})
     endif()
 endif()
 
@@ -164,4 +200,4 @@ endif()
 # CPack
 #
 
-ie_cpack(${VPUX_PLUGIN_COMPONENT})
+ie_cpack(${NPU_CPACK_COMPONENTS_ALL})

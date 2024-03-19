@@ -11,7 +11,7 @@ using namespace vpux;
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::GRNUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::GRNParamsBuilder builder(writer);
-    builder.add_bias(static_cast<float>(bias().convertToDouble()));
+    builder.add_bias(static_cast<float>(getBias().convertToDouble()));
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_GRNParams});

@@ -9,8 +9,8 @@
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::ReverseSequenceOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -19,14 +19,14 @@ mlir::LogicalResult vpux::IE::ReverseSequenceOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto dataType = rev.data().getType().cast<mlir::ShapedType>();
+    const auto dataType = rev.getData().getType().cast<mlir::ShapedType>();
     const auto dataShape = dataType.getShape();
 
     if (dataShape.size() < 2) {
         return errorAt(loc, "First input tensor's size should not be less than 2D. Got {0}D tensor", dataShape.size());
     }
 
-    const auto seqShape = getShape(rev.seq_length());
+    const auto seqShape = getShape(rev.getSeqLength());
 
     if (seqShape.size() != 1) {
         return errorAt(loc, "Second input tensor should be 1D Tensor. Got {0}D tensor", seqShape.size());
@@ -34,14 +34,14 @@ mlir::LogicalResult vpux::IE::ReverseSequenceOp::inferReturnTypeComponents(
 
     const auto dataDims = checked_cast<int64_t>(dataShape.size());
 
-    const auto batch_axis = rev.batch_axis();
+    const auto batch_axis = rev.getBatchAxis();
 
     if (batch_axis >= dataDims || batch_axis < -dataDims) {
         return errorAt(loc, "ReverseSequence Parameter batch axis {0} out of the tensor rank range [{1}, {2}].",
                        batch_axis, -dataDims, dataDims - 1);
     }
 
-    const auto seq_axis = rev.seq_axis();
+    const auto seq_axis = rev.getSeqAxis();
 
     if (seq_axis >= dataDims || seq_axis < -dataDims) {
         return errorAt(loc, "ReverseSequence Parameter sequence axis {0} out of the tensor rank range [{1}, {2}].",
@@ -63,13 +63,14 @@ mlir::LogicalResult vpux::IE::ReverseSequenceOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-mlir::OpFoldResult vpux::IE::ReverseSequenceOp::fold(ArrayRef<mlir::Attribute> operands) {
+mlir::OpFoldResult vpux::IE::ReverseSequenceOp::fold(FoldAdaptor adaptor) {
+    auto operands = adaptor.getOperands();
     VPUX_THROW_UNLESS(operands.size() == 2, "Wrong number of operands : {0}", operands.size());
 
     if (const auto attr = operands[1].dyn_cast_or_null<Const::ContentAttr>()) {
         const auto content = attr.fold();
         if (content.isSplat() && content.getSplatValue<int32_t>() == 1) {
-            return data();
+            return getData();
         }
     }
 
@@ -95,32 +96,33 @@ public:
 
 mlir::LogicalResult ConvertU8ToFP16::matchAndRewrite(IE::ReverseSequenceOp rsOp,
                                                      mlir::PatternRewriter& rewriter) const {
-    const auto dataType = rsOp.data().getType().cast<mlir::ShapedType>();
+    const auto dataType = rsOp.getData().getType().cast<mlir::ShapedType>();
 
     if (dataType.getElementType().isUnsignedInteger(8)) {
         auto convertOpBefore =
-                rewriter.create<IE::ConvertOp>(rsOp.getLoc(), rsOp.data(), mlir::Float16Type::get(getContext()));
-        auto reverseSequenceOp = rewriter.create<IE::ReverseSequenceOp>(
-                rsOp.getLoc(), convertOpBefore.output(), rsOp.seq_length(), rsOp.seq_axis(), rsOp.batch_axis());
+                rewriter.create<IE::ConvertOp>(rsOp.getLoc(), rsOp.getData(), mlir::Float16Type::get(getContext()));
+        auto reverseSequenceOp =
+                rewriter.create<IE::ReverseSequenceOp>(rsOp.getLoc(), convertOpBefore.getOutput(), rsOp.getSeqLength(),
+                                                       rsOp.getSeqAxis(), rsOp.getBatchAxis());
         auto inputTypeAttr = mlir::TypeAttr::get(
                 mlir::IntegerType::get(getContext(), 8, mlir::IntegerType::SignednessSemantics::Unsigned));
-        rewriter.replaceOpWithNewOp<IE::ConvertOp>(rsOp, reverseSequenceOp.output(), inputTypeAttr);
+        rewriter.replaceOpWithNewOp<IE::ConvertOp>(rsOp, reverseSequenceOp.getOutput(), inputTypeAttr);
         return mlir::success();
     }
     return mlir::failure();
 }
 
 mlir::LogicalResult NormalizeAxis::matchAndRewrite(IE::ReverseSequenceOp rsOp, mlir::PatternRewriter& rewriter) const {
-    const auto dataShape = getShape(rsOp.data());
+    const auto dataShape = getShape(rsOp.getData());
     const auto dataDims = checked_cast<int64_t>(dataShape.size());
-    const auto seq_axis = rsOp.seq_axis();
-    const auto batch_axis = rsOp.batch_axis();
+    const auto seq_axis = rsOp.getSeqAxis();
+    const auto batch_axis = rsOp.getBatchAxis();
     if (seq_axis >= 0 && batch_axis >= 0) {
         return mlir::failure();
     }
     const auto normalized_seq_axis = seq_axis >= 0 ? seq_axis : seq_axis + dataDims;
     const auto normalized_batch_axis = batch_axis >= 0 ? batch_axis : batch_axis + dataDims;
-    rewriter.replaceOpWithNewOp<IE::ReverseSequenceOp>(rsOp, rsOp.data(), rsOp.seq_length(), normalized_seq_axis,
+    rewriter.replaceOpWithNewOp<IE::ReverseSequenceOp>(rsOp, rsOp.getData(), rsOp.getSeqLength(), normalized_seq_axis,
                                                        normalized_batch_axis);
     return mlir::success();
 }

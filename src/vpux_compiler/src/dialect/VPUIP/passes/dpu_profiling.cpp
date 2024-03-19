@@ -53,14 +53,14 @@ void DPUProfilingPass::setWorkloadIds(VPUIP::NCEClusterTaskOp nceClusterTaskOp) 
     int32_t workloadId = 0;
     int32_t prevClusterId = -1;
     nceClusterTaskOp.walk([&](VPUIP::DPUTaskOp dpuTaskOp) {
-        if (dpuTaskOp.cluster_id().has_value()) {
-            int32_t clusterId = dpuTaskOp.cluster_id().value();
+        if (dpuTaskOp.getClusterId().has_value()) {
+            int32_t clusterId = checked_cast<int32_t>(dpuTaskOp.getClusterId().value());
             if (prevClusterId != clusterId) {
                 workloadId = 0;
             }
             prevClusterId = clusterId;
         }
-        dpuTaskOp.workload_idAttr(vpux::getIntAttr(dpuTaskOp->getContext(), workloadId));
+        dpuTaskOp.setWorkloadIdAttr(vpux::getIntAttr(dpuTaskOp->getContext(), workloadId));
         ++workloadId;
     });
 }
@@ -140,7 +140,7 @@ void DPUProfilingPass::safeRunOnModule() {
 
     auto concatview = builder.create<VPUIP::ConcatViewOp>(
             mlir::NameLoc::get(mlir::StringAttr::get(ctx, "dpuDDRProfiling")), concatResults, profilingResult);
-    returnOp.operandsMutable().append(concatview.output());
+    returnOp.getOperandsMutable().append(concatview.getOutput());
 
     BaseClusterBufferScheduler::resetBufferIdCounter();
 }

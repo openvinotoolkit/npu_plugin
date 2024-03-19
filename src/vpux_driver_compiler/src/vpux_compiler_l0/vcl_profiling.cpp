@@ -17,7 +17,7 @@ vcl_result_t VPUXProfilingL0::getTaskInfo(p_vcl_profiling_output_t profOutput) {
 
     if (_taskInfo.empty()) {
         try {
-            _taskInfo = profiling::getTaskInfo(_blobData, _blobSize, _profData, _profSize, profiling::TaskType::ALL,
+            _taskInfo = profiling::getTaskInfo(_blobData, _blobSize, _profData, _profSize,
                                                profiling::VerbosityLevel::HIGH, false);
         } catch (const std::exception& error) {
             _logger->outputError(error.what());
@@ -42,7 +42,7 @@ vcl_result_t VPUXProfilingL0::getLayerInfo(p_vcl_profiling_output_t profOutput) 
     if (_layerInfo.empty()) {
         try {
             if (_taskInfo.empty()) {
-                _taskInfo = profiling::getTaskInfo(_blobData, _blobSize, _profData, _profSize, profiling::TaskType::ALL,
+                _taskInfo = profiling::getTaskInfo(_blobData, _blobSize, _profData, _profSize,
                                                    profiling::VerbosityLevel::HIGH, false);
             }
             _layerInfo = profiling::getLayerInfo(_taskInfo);

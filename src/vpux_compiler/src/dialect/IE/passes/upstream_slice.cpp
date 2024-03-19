@@ -7,13 +7,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/utils/quantization.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
-
-#include <mlir/Pass/PassManager.h>
-#include <mlir/Transforms/DialectConversion.h>
-#include <ngraph/slice_plan.hpp>
 
 using namespace vpux;
 
@@ -53,17 +47,19 @@ private:
     Logger _log;
 };
 
-bool isUpstreamPossible(IE::LayerOpInterface sliceOp, mlir::Value tensor) {
+bool isUpstreamPossible(IE::LayerOpInterface sliceOp, mlir::Value tensor, Logger log) {
     if (tensor.isa<mlir::BlockArgument>())
         return false;
     mlir::Operation* parentOp = tensor.getDefiningOp();
     // Unary and eltwise ops are primary candidates for upstreaming slice ops.
     // Later on, implementation could handle also Conv, Pool upstreaming
-    if (parentOp == nullptr || !parentOp->hasTrait<IE::EltwiseOp>())
+    if (parentOp == nullptr || !parentOp->hasTrait<IE::EltwiseOp>()) {
         return false;
+    }
 
-    if (parentOp->getNumResults() > 1)
+    if (parentOp->getNumResults() > 1) {
         return false;
+    }
 
     // Strided slice is known to be done as UPA task.
     // It does not support datatypes generically
@@ -71,8 +67,9 @@ bool isUpstreamPossible(IE::LayerOpInterface sliceOp, mlir::Value tensor) {
     if (mlir::isa<IE::StridedSliceOp>(sliceOp)) {
         auto sliceOpElementType = tensor.getType().cast<vpux::NDTypeInterface>().getElementType();
         auto parentOpElementType = parentOp->getOperand(0).getType().cast<vpux::NDTypeInterface>().getElementType();
-        if (sliceOpElementType != parentOpElementType)
+        if (sliceOpElementType != parentOpElementType) {
             return false;
+        }
     }
 
     // Another restriction due to limited implementation.
@@ -81,23 +78,57 @@ bool isUpstreamPossible(IE::LayerOpInterface sliceOp, mlir::Value tensor) {
     // path and which are parameters.
     // An interface that makes this dinstinction easy would be of help.
     const auto operands = parentOp->getOperands();
-    if (operands.size() > 1 &&
+    if (!mlir::isa<IE::FakeQuantizeOp>(parentOp) && operands.size() > 1 &&
         std::adjacent_find(operands.begin(), operands.end(), [](mlir::Value val1, mlir::Value val2) {
             return getShape(val1) != getShape(val2);
-        }) != operands.end())
+        }) != operands.end()) {
         return false;
+    }
 
     const auto inputShape = getShape(sliceOp.getInputs()[0]);
     const auto outputShape = getShape(sliceOp.getOutputs()[0]);
 
     // Can't reason yet with generic shape dimensions
-    if (inputShape.size() != 4 || outputShape.size() != 4)
+    if (inputShape.size() != 4 || outputShape.size() != 4) {
         return false;
+    }
 
     // Can't handle yet upstreaming and adapting channelwise parameters
-    if (const auto quantAxis = IE::getQuantAxisIndex(parentOp)) {
-        if (inputShape[Dim(quantAxis.value())] != outputShape[Dim(quantAxis.value())]) {
-            return false;
+    if (auto fqParentOp = mlir::dyn_cast_or_null<IE::FakeQuantizeOp>(parentOp)) {
+        const auto fqInputShape = getShape(fqParentOp.getInputLow());
+        const auto fqOutputShape = getShape(fqParentOp.getOutputLow());
+
+        // check if FQ is per tensor
+        if (IE::isPerTensorFQ({fqParentOp})) {
+            return true;
+        }
+
+        // If FQ is not per tensor make sure that the slice doesn't happen in quantization axis
+        for (size_t i = 0; i < fqInputShape.size(); ++i) {
+            if (fqInputShape[Dim(i)] == 1) {
+                continue;
+            }
+
+            if (inputShape[Dim(i)] != outputShape[Dim(i)]) {
+                return false;
+            }
+        }
+
+        for (size_t i = 0; i < fqOutputShape.size(); ++i) {
+            if (fqOutputShape[Dim(i)] == 1) {
+                continue;
+            }
+
+            if (inputShape[Dim(i)] != outputShape[Dim(i)]) {
+                return false;
+            }
+        }
+    } else {
+        // Can't handle yet upstreaming and adapting channelwise parameters
+        if (const auto quantAxis = IE::getQuantAxisIndex(parentOp, log)) {
+            if (inputShape[Dim(quantAxis.value())] != outputShape[Dim(quantAxis.value())]) {
+                return false;
+            }
         }
     }
 
@@ -115,14 +146,14 @@ mlir::LogicalResult UpstreamSlicePass::GenericSliceUpstreaming::matchAndRewrite(
         return mlir::failure();
     }
 
-    if (!isUpstreamPossible(origOp, origInput)) {
+    if (!isUpstreamPossible(origOp, origInput, _log)) {
         return mlir::failure();
     }
 
-    mlir::InferTypeOpInterface parentOp = origInput.getDefiningOp();
+    auto parentOp = mlir::cast<mlir::InferTypeOpInterface>(origInput.getDefiningOp());
     rewriter.setInsertionPoint(parentOp);
     auto opOperands = parentOp->getOpOperands();
-    if (std::adjacent_find(opOperands.begin(), opOperands.end(), [](mlir::OpOperand& val1, mlir::OpOperand& val2) {
+    if (std::adjacent_find(opOperands.begin(), opOperands.end(), [&](mlir::OpOperand& val1, mlir::OpOperand& val2) {
             return val1.get() != val2.get();
         }) == opOperands.end()) {
         auto newSlice = mlir::cast<mlir::InferTypeOpInterface>(rewriter.clone(*origOp));
@@ -137,6 +168,10 @@ mlir::LogicalResult UpstreamSlicePass::GenericSliceUpstreaming::matchAndRewrite(
             newSlice->setOperand(0, operand.get());
             inferReturnTypes(newSlice, InferShapedTypeMode::ALL);
             operand.set(newSlice->getResult(0));
+            // For FakeQuantize the activation input is represented by first operand
+            if (mlir::isa<IE::FakeQuantizeOp>(parentOp)) {
+                break;
+            }
         }
     }
 

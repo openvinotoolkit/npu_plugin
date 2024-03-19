@@ -6,6 +6,7 @@
 #include <common_test_utils/test_common.hpp>
 #include "vpux/al/config/common.hpp"
 #include "vpux/al/config/compiler.hpp"
+#include "vpux/utils/core/logger.hpp"
 #include "vpux/utils/core/range.hpp"
 #include "vpux_compiler.hpp"
 
@@ -63,9 +64,7 @@ std::string stringifyChecksum(const Checksum& checksum) {
 };
 }  // namespace
 
-class CompilationTest :
-        public testing::WithParamInterface<CompilationParams>,
-        virtual public CommonTestUtils::TestsCommon {
+class CompilationTest : public testing::WithParamInterface<CompilationParams>, virtual public ov::test::TestsCommon {
 public:
     CompilationTest()
             : _options{std::make_shared<OptionsDesc>()},
@@ -109,15 +108,15 @@ protected:
     }
 
     void SetPlatform(const std::string& platform) {
-        _config.update({{PLATFORM::key().str(), platform}});
+        _config.update({{PLATFORM::key().data(), platform}});
     }
 
     void UseGraphFileBackend() {
-        _config.update({{USE_ELF_COMPILER_BACKEND::key().str(), "NO"}});
+        _config.update({{USE_ELF_COMPILER_BACKEND::key().data(), "NO"}});
     }
 
     void UseElfBackend() {
-        _config.update({{USE_ELF_COMPILER_BACKEND::key().str(), "YES"}});
+        _config.update({{USE_ELF_COMPILER_BACKEND::key().data(), "YES"}});
     }
 
     void Run() const {

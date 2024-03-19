@@ -11,7 +11,7 @@
 #include <llvm/ADT/StringRef.h>
 #include <mlir/IR/BuiltinOps.h>
 
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/schema.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 

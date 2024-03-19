@@ -165,8 +165,6 @@ Const::details::PositionRequirement Const::BitPackAttr::getPositionRequirement()
         static void populateBufferizePatterns(mlir::RewritePatternSet& patterns, mlir::TypeConverter& typeConverter, vpux::Logger log);
         static void setupExtraInterfaces(mlir::DialectRegistry& registry);
     }];
-
-    let emitAccessorPrefix = kEmitAccessorPrefix_Prefixed;
 }
 
 #endif

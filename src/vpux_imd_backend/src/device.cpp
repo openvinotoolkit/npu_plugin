@@ -9,29 +9,28 @@
 
 #include "vpux/al/config/common.hpp"
 
-vpux::IMD::DeviceImpl::DeviceImpl(InferenceEngine::VPUXConfigParams::VPUXPlatform platform): _platform(platform) {
-    VPUX_THROW_UNLESS(platformSupported(platform), "Unsupported VPUX platform '{0}'", platform);
+namespace vpux {
+
+IMDDevice::IMDDevice(InferenceEngine::VPUXConfigParams::VPUXPlatform platform): _platform(platform) {
+    VPUX_THROW_UNLESS(platformSupported(platform), "Unsupported VPUX platform '{0}'", stringifyEnum(platform));
 }
 
-std::shared_ptr<vpux::Allocator> vpux::IMD::DeviceImpl::getAllocator() const {
-    return nullptr;
+std::shared_ptr<Executor> IMDDevice::createExecutor(const NetworkDescription::CPtr network, const Config& config) {
+    return std::make_shared<IMDExecutor>(_platform, network, config);
 }
 
-std::shared_ptr<vpux::Allocator> vpux::IMD::DeviceImpl::getAllocator(const InferenceEngine::ParamMap&) const {
-    return nullptr;
+std::string IMDDevice::getName() const {
+    std::string_view platformName = stringifyEnum(_platform);
+    static const std::string_view vpu_prefix("VPU");
+    auto prefix_pos = platformName.find(vpu_prefix);
+    VPUX_THROW_UNLESS(prefix_pos != platformName.npos, "Unsupported VPUX platform '{0}'",
+                      static_cast<std::underlying_type_t<InferenceEngine::VPUXConfigParams::VPUXPlatform>>(_platform));
+    platformName.remove_prefix(vpu_prefix.size());
+    return platformName.data();
 }
 
-std::shared_ptr<vpux::Executor> vpux::IMD::DeviceImpl::createExecutor(const NetworkDescription::Ptr& network,
-                                                                      const Config& config) {
-    return std::make_shared<vpux::IMD::ExecutorImpl>(_platform, network, config);
-}
-
-std::string vpux::IMD::DeviceImpl::getName() const {
-    auto platformName = stringifyEnum(_platform);
-    VPUX_THROW_UNLESS(platformName.consume_front("VPU"), "Unsupported VPUX platform '{0}'", _platform);
-    return platformName.str();
-}
-
-std::string vpux::IMD::DeviceImpl::getFullDeviceName() const {
+std::string IMDDevice::getFullDeviceName() const {
     return "Intel(R) NPU (IMD)";
 }
+
+}  // namespace vpux

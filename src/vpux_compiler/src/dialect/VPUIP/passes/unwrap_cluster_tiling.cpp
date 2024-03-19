@@ -6,7 +6,7 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
-#include <mlir/IR/BlockAndValueMapping.h>
+#include <mlir/IR/IRMapping.h>
 
 using namespace vpux;
 
@@ -34,7 +34,7 @@ void UnwrapClusterTilingPass::safeRunOnFunc() {
         auto innerOp = clusterOp.getInnerTaskOp();
         _log.trace("Unwrap NCEClusterTilingOp with '{0}' - '{1}'", innerOp->getName(), clusterOp->getLoc());
 
-        mlir::BlockAndValueMapping mapper;
+        mlir::IRMapping mapper;
         builder.setInsertionPointAfter(clusterOp);
 
         for (auto operand : innerOp->getOperands()) {
@@ -49,7 +49,7 @@ void UnwrapClusterTilingPass::safeRunOnFunc() {
                           clusterOp->getNumResults());
 
         for (const auto& p : clusterOp->getResultTypes() | indexed) {
-            newOp->getResult(p.index()).setType(p.value());
+            newOp->getResult(checked_cast<unsigned int>(p.index())).setType(p.value());
         }
 
         clusterOp->replaceAllUsesWith(newOp);

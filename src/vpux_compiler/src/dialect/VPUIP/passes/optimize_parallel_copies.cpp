@@ -3,34 +3,35 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/core/aliases_info.hpp"
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/dialect/VPUIP/passes.hpp"
-#include "vpux/compiler/utils/analysis.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
-
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/utils/rewriter.hpp"
 
 using namespace vpux;
 namespace {
 
 //
-// OptimizeParallelCopiesPass
+// ParallelCopiesRewriter
 //
 
-class OptimizeParallelCopiesPass final : public VPUIP::OptimizeParallelCopiesBase<OptimizeParallelCopiesPass> {
+class ParallelCopiesRewriter final : public mlir::OpRewritePattern<VPUIP::CopyOp> {
 public:
-    explicit OptimizeParallelCopiesPass(bool enableOptimizeConstCopy, Logger log)
-            : _enableOptimizeConstCopy(enableOptimizeConstCopy) {
-        Base::initLogger(log, Base::getArgumentName());
+    ParallelCopiesRewriter(mlir::MLIRContext* ctx, Logger log, const bool enableOptimizeConstCopy)
+            : mlir::OpRewritePattern<VPUIP::CopyOp>(ctx), _log(log), _enableOptimizeConstCopy(enableOptimizeConstCopy) {
+        setDebugName("ParallelCopiesRewriter");
     }
 
-private:
-    void safeRunOnFunc() final;
+public:
+    mlir::LogicalResult matchAndRewrite(VPUIP::CopyOp origOp, mlir::PatternRewriter& rewriter) const final;
 
+private:
+    bool isLegalAndBenifitParallelCopiesRewriter(VPUIP::CopyOp origOp, NDTypeInterface inputType,
+                                                 NDTypeInterface outputType, VPU::NCEInterpolateModeAttr modeAttr,
+                                                 IE::InterpolateCoordModeAttr coordModeAttr) const;
+
+    Logger _log;
     bool _enableOptimizeConstCopy;
 };
 
@@ -46,21 +47,21 @@ mlir::Operation* getCopyOpFromClusterTilingOp(mlir::Operation* op) {
 mlir::Operation* getParentOfCopyOp(VPUIP::CopyOp copyOp) {
     // Check is CopyOp wrapper by NCECluster task
     if (auto wrapperOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(copyOp->getParentOp())) {
-        return wrapperOp.inputs()[0].getDefiningOp();
+        return wrapperOp.getInputs()[0].getDefiningOp();
     }
-    return copyOp.input().getDefiningOp();
+    return copyOp.getInput().getDefiningOp();
 }
 
 // Utility function to get DistributedBufferType from NCEClusterTilingOp. If op isnt NCEClusterTilingOp or return type
 // isnt DistributedBufferType return empty value
-llvm::Optional<VPUIP::DistributedBufferType> getClusterCopyResultType(mlir::Operation* op) {
-    if (auto nceClusterTilingOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(op)) {
+std::optional<VPUIP::DistributedBufferType> getClusterCopyResultType(mlir::Operation* op) {
+    if (auto nceClusterTilingOp = mlir::dyn_cast_or_null<VPUIP::NCEClusterTilingOp>(op)) {
         const auto resType = VPUIP::extractDataType(nceClusterTilingOp->getResult(0));
         if (resType.isa<VPUIP::DistributedBufferType>()) {
             return resType.cast<VPUIP::DistributedBufferType>();
         }
     }
-    return {};
+    return std::nullopt;
 }
 
 bool hasSiblingCopyFusable(VPUIP::SubViewOp subViewOp, VPUIP::CopyOp copyOp, mlir::Operation* parentOp, Logger log) {
@@ -89,10 +90,10 @@ bool hasSiblingCopyFusable(VPUIP::SubViewOp subViewOp, VPUIP::CopyOp copyOp, mli
                         continue;
                     }
                     auto siblingSubViewOp = mlir::dyn_cast<VPUIP::SubViewOp>(siblingOp);
-                    if (parseIntArrayAttr<int64_t>(subViewOp.static_offsets()) !=
-                                parseIntArrayAttr<int64_t>(siblingSubViewOp.static_offsets()) ||
-                        parseIntArrayAttr<int64_t>(subViewOp.static_sizes()) !=
-                                parseIntArrayAttr<int64_t>(siblingSubViewOp.static_sizes())) {
+                    if (parseIntArrayAttr<int64_t>(subViewOp.getStaticOffsets()) !=
+                                parseIntArrayAttr<int64_t>(siblingSubViewOp.getStaticOffsets()) ||
+                        parseIntArrayAttr<int64_t>(subViewOp.getStaticSizes()) !=
+                                parseIntArrayAttr<int64_t>(siblingSubViewOp.getStaticSizes())) {
                         continue;
                     }
                     siblingOp = childOfSiblingOp;
@@ -112,8 +113,8 @@ bool hasSiblingCopyFusable(VPUIP::SubViewOp subViewOp, VPUIP::CopyOp copyOp, mli
                     log.trace("Is not fusable because childOfSiblingOp is not CopyOp");
                     return false;
                 }
-                const auto input = childCopyOfSiblingOp.input().getType().cast<vpux::NDTypeInterface>();
-                const auto output = childCopyOfSiblingOp.output().getType().cast<vpux::NDTypeInterface>();
+                const auto input = childCopyOfSiblingOp.getInput().getType().cast<vpux::NDTypeInterface>();
+                const auto output = childCopyOfSiblingOp.getOutput().getType().cast<vpux::NDTypeInterface>();
                 if (input.getMemoryKind() != VPU::MemoryKind::CMX_NN ||
                     output.getMemoryKind() != VPU::MemoryKind::DDR) {
                     log.trace("Is not fusable because childCopyOfSiblingOp is not CMX->DDR copy");
@@ -131,8 +132,8 @@ bool hasSiblingCopyFusable(VPUIP::SubViewOp subViewOp, VPUIP::CopyOp copyOp, mli
 
 bool isCopyFusable(VPUIP::CopyOp copyOp, bool enableOptimizeConstCopy, Logger log) {
     // Check 1: copy DDR->CMX
-    const auto srcMemory = copyOp.input().getType().cast<vpux::NDTypeInterface>().getMemoryKind();
-    const auto dstMemory = copyOp.output().getType().cast<vpux::NDTypeInterface>().getMemoryKind();
+    const auto srcMemory = copyOp.getInput().getType().cast<vpux::NDTypeInterface>().getMemoryKind();
+    const auto dstMemory = copyOp.getOutput().getType().cast<vpux::NDTypeInterface>().getMemoryKind();
     if (srcMemory == dstMemory || srcMemory == VPU::MemoryKind::CMX_NN) {
         log.trace("Is not fusable because not DDR->CMX copy");
         return false;
@@ -177,10 +178,10 @@ bool isCopyFusable(VPUIP::CopyOp copyOp, bool enableOptimizeConstCopy, Logger lo
             log.trace("Is not fusable because enableOptimizeConstCopy is not enabled");
             return false;
         }
-        auto copyOutput = wrapperOp != nullptr ? wrapperOp->getResult(0) : copyOp.output();
+        auto copyOutput = wrapperOp != nullptr ? wrapperOp->getResult(0) : copyOp.getOutput();
         for (const auto& user : copyUsers) {
             if (auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(user)) {
-                if (nceOp.weights() != copyOutput || VPUIP::canWeightsBeCompressed(nceOp)) {
+                if (nceOp.getWeights() != copyOutput || VPUIP::canWeightsBeCompressed(nceOp)) {
                     log.trace("Is not fusable because copyOutput is not weights or weights can be compressed");
                     return false;
                 }
@@ -190,7 +191,7 @@ bool isCopyFusable(VPUIP::CopyOp copyOp, bool enableOptimizeConstCopy, Logger lo
                     log.trace("Is not fusable because innerNceOp in null");
                     return false;
                 }
-                auto weights = VPUIP::getTopBufferOfNCEClusterTiling(innerNceOp, innerNceOp.weights());
+                auto weights = VPUIP::getTopBufferOfNCEClusterTiling(innerNceOp, innerNceOp.getWeights());
                 if (copyOutput != weights) {
                     log.trace("Is not fusable because copyOutput is not weights");
                     return false;
@@ -205,7 +206,7 @@ bool isCopyFusable(VPUIP::CopyOp copyOp, bool enableOptimizeConstCopy, Logger lo
 
     auto subViewFusable = false;
     if (auto subViewOp = mlir::dyn_cast<VPUIP::SubViewOp>(parentOp)) {
-        subViewFusable = hasSiblingCopyFusable(subViewOp, copyOp, subViewOp.source().getDefiningOp(), log);
+        subViewFusable = hasSiblingCopyFusable(subViewOp, copyOp, subViewOp.getSource().getDefiningOp(), log);
     }
     // We have 2 calls here, one to check if we have SubViewOp 1..n SubviewOp
     // Other for TilingCopy 1..n TilingCopy
@@ -217,12 +218,15 @@ bool isCopyFusable(VPUIP::CopyOp copyOp, bool enableOptimizeConstCopy, Logger lo
     return true;
 }
 
-mlir::LogicalResult fuseParallelCopyOp(VPUIP::CopyOp copyOp, Logger log) {
-    auto parentOp = getParentOfCopyOp(copyOp);
-    if (parentOp == nullptr) {
-        log.trace("Is not fusable because parent is empty");
+mlir::LogicalResult ParallelCopiesRewriter::matchAndRewrite(VPUIP::CopyOp copyOp,
+                                                            mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got '{1}' at '{2}'", getDebugName(), copyOp->getName(), copyOp->getLoc());
+
+    auto nestedLogger = _log.nest();
+    if (!isCopyFusable(copyOp, _enableOptimizeConstCopy, nestedLogger)) {
         return mlir::failure();
     }
+
     auto copyReplaceTarget = copyOp.getOperation();
     bool isClusterCopy = false;
     auto srcClusterCopyOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(copyOp->getParentOp());
@@ -236,9 +240,9 @@ mlir::LogicalResult fuseParallelCopyOp(VPUIP::CopyOp copyOp, Logger log) {
             return false;
         }
 
-        return (srcSubView.static_offsets() == siblingSubView.static_offsets()) &&
-               (srcSubView.static_sizes() == siblingSubView.static_sizes()) &&
-               (srcSubView.static_strides() == siblingSubView.static_strides());
+        return (srcSubView.getStaticOffsets() == siblingSubView.getStaticOffsets()) &&
+               (srcSubView.getStaticSizes() == siblingSubView.getStaticSizes()) &&
+               (srcSubView.getStaticStrides() == siblingSubView.getStaticStrides());
     };
 
     const auto isSameCopyFunc = [&](VPUIP::CopyOp srcCopyOp, mlir::Operation* op) {
@@ -253,8 +257,8 @@ mlir::LogicalResult fuseParallelCopyOp(VPUIP::CopyOp copyOp, Logger log) {
             return false;
         }
 
-        auto srcSubView = srcCopyOp.output_buff().getDefiningOp<VPUIP::SubViewOp>();
-        auto siblingSubView = siblingCopy.output_buff().getDefiningOp<VPUIP::SubViewOp>();
+        auto srcSubView = srcCopyOp.getOutputBuff().getDefiningOp<VPUIP::SubViewOp>();
+        auto siblingSubView = siblingCopy.getOutputBuff().getDefiningOp<VPUIP::SubViewOp>();
         if (isClusterCopy) {
             auto siblingClusterCopyOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(op);
             srcSubView = srcClusterCopyOp.getOutputs()[0].getDefiningOp<VPUIP::SubViewOp>();
@@ -277,76 +281,97 @@ mlir::LogicalResult fuseParallelCopyOp(VPUIP::CopyOp copyOp, Logger log) {
         auto siblingCopy = isClusterCopy ? mlir::dyn_cast_or_null<VPUIP::CopyOp>(getCopyOpFromClusterTilingOp(op))
                                          : mlir::dyn_cast<VPUIP::CopyOp>(op);
         if (siblingCopy == nullptr) {
-            log.trace("Sibling op is not copy at {0}", op->getLoc());
+            nestedLogger.trace("Sibling op is not copy at {0}", op->getLoc());
             return;
         }
         // Get the buffer linked to copy output
-        auto copyOpOutputBuff = VPUIP::getTopBufferOfNCEClusterTiling(copyOp, copyOp.output_buff());
+        auto copyOpOutputBuff = VPUIP::getTopBufferOfNCEClusterTiling(copyOp, copyOp.getOutputBuff());
         // Get the buffer linked to sibling copy output that will be fused
-        auto siblingCopyOutputBuff = VPUIP::getTopBufferOfNCEClusterTiling(siblingCopy, siblingCopy.output_buff());
+        auto siblingCopyOutputBuff = VPUIP::getTopBufferOfNCEClusterTiling(siblingCopy, siblingCopy.getOutputBuff());
         // Replace the usage of sibling copy output buffer with copy output buffer
         siblingCopyOutputBuff.replaceAllUsesWith(copyOpOutputBuff);
     };
 
-    // Optimize pattern parentOp -> SubView -> CopyOp/NCEClusterTiling(CopyOp)
-    if (mlir::isa<VPUIP::SubViewOp>(parentOp)) {
-        auto subViewOp = mlir::dyn_cast<VPUIP::SubViewOp>(parentOp);
-        auto subviewParentOp = subViewOp.source().getDefiningOp();
-        if (subviewParentOp) {
+    auto parentOp = getParentOfCopyOp(copyOp);
+    bool hasReplaceParallelCopies = false;
+    // Optimize pattern: SubviewParentOp -> ParentOp(SubView) -> CopyOp/NCEClusterTiling(CopyOp)
+    if (auto subViewOp = mlir::dyn_cast<VPUIP::SubViewOp>(parentOp)) {
+        if (auto subviewParentOp = subViewOp.getSource().getDefiningOp()) {
             for (auto* siblingOp : llvm::make_early_inc_range(subviewParentOp->getResult(0).getUsers())) {
                 auto siblingSubViewOp = mlir::dyn_cast<VPUIP::SubViewOp>(siblingOp);
-                if (siblingSubViewOp != nullptr && isSameSubViewFunc(subViewOp, siblingSubViewOp)) {
-                    auto siblingCopyOp = *siblingSubViewOp.result().getUsers().begin();
-                    if (isSameCopyFunc(copyOp, siblingCopyOp)) {
-                        log.trace("Fuse SubView op {0} to {1}", subViewOp->getLoc(), siblingSubViewOp->getLoc());
-                        updateSiblingCopyOutputBuff(siblingCopyOp);
-                        siblingSubViewOp.getOperation()->replaceAllUsesWith(subViewOp.getOperation());
-                        siblingCopyOp->replaceAllUsesWith(copyReplaceTarget);
-                        siblingCopyOp->erase();
-                        siblingSubViewOp->erase();
-                    }
+                if (siblingSubViewOp == nullptr || !isSameSubViewFunc(subViewOp, siblingSubViewOp)) {
+                    continue;
                 }
+
+                auto siblingCopyOp = *siblingSubViewOp.getResult().getUsers().begin();
+                if (!isSameCopyFunc(copyOp, siblingCopyOp)) {
+                    continue;
+                }
+
+                nestedLogger.trace("Fuse SubView op {0} to {1}", siblingSubViewOp->getLoc(), subViewOp->getLoc());
+                updateSiblingCopyOutputBuff(siblingCopyOp);
+                siblingSubViewOp.getOperation()->replaceAllUsesWith(subViewOp.getOperation());
+                siblingCopyOp->replaceAllUsesWith(copyReplaceTarget);
+                rewriter.eraseOp(siblingCopyOp);
+                rewriter.eraseOp(siblingSubViewOp);
+                hasReplaceParallelCopies = true;
             }
         }
     }
 
-    // Optimize pattern parentOp -> CopyOp/NCEClusterTiling(CopyOp)
+    // Optimize pattern: ParentOp -> CopyOp/NCEClusterTiling(CopyOp)
     for (auto* siblingOp : llvm::make_early_inc_range(parentOp->getResult(0).getUsers())) {
         if (isSameCopyFunc(copyOp, siblingOp)) {
             updateSiblingCopyOutputBuff(siblingOp);
             if (!isClusterCopy) {
                 auto siblingCopy = mlir::dyn_cast<VPUIP::CopyOp>(siblingOp);
-                log.trace("Fuse copy op {0} to {1}", copyOp->getLoc(), siblingCopy->getLoc());
+                nestedLogger.trace("Fuse Copy op {0} to {1}", siblingCopy->getLoc(), copyOp->getLoc());
 
                 siblingCopy.getOperation()->replaceAllUsesWith(copyReplaceTarget);
-                siblingCopy->erase();
             } else {
                 auto siblingCluster = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(siblingOp);
-                log.trace("Fuse NCEClusterTiling wrapped op {0} to {1}", copyOp->getLoc(), siblingCluster->getLoc());
+                nestedLogger.trace("Fuse NCEClusterTiling Copy op {0} to {1}", siblingCluster->getLoc(),
+                                   copyOp->getLoc());
 
                 siblingCluster->replaceAllUsesWith(copyReplaceTarget);
-                siblingCluster.getInnerTaskOp()->erase();
-                siblingCluster->erase();
             }
+            rewriter.eraseOp(siblingOp);
+            hasReplaceParallelCopies = true;
         }
     }
 
-    return mlir::success();
+    return mlir::success(hasReplaceParallelCopies);
 }
+
+//
+// OptimizeParallelCopiesPass
+//
+
+class OptimizeParallelCopiesPass final : public VPUIP::OptimizeParallelCopiesBase<OptimizeParallelCopiesPass> {
+public:
+    explicit OptimizeParallelCopiesPass(bool enableOptimizeConstCopy, Logger log)
+            : _enableOptimizeConstCopy(enableOptimizeConstCopy) {
+        Base::initLogger(log, Base::getArgumentName());
+    }
+
+private:
+    void safeRunOnFunc() final;
+
+    bool _enableOptimizeConstCopy;
+};
 
 // safeRunOnFunc
 
 void OptimizeParallelCopiesPass::safeRunOnFunc() {
-    getOperation()->walk([&](VPUIP::CopyOp copyOp) {
-        _log.trace("Copy at {0}", copyOp->getLoc());
-        auto nestedLogger = _log.nest();
-        if (isCopyFusable(copyOp, _enableOptimizeConstCopy, nestedLogger)) {
-            nestedLogger.trace("Fuse parallel copy op '{0}' at '{1}'", copyOp->getName(), copyOp->getLoc());
-            if (mlir::failed(fuseParallelCopyOp(copyOp, nestedLogger))) {
-                nestedLogger.trace("Failed copy fusion of {0} at {1}", copyOp->getName(), copyOp->getLoc());
-            }
-        }
-    });
+    auto& ctx = getContext();
+    auto func = getOperation();
+
+    mlir::RewritePatternSet patterns(&ctx);
+    patterns.add<ParallelCopiesRewriter>(&ctx, _log, _enableOptimizeConstCopy);
+
+    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
+        signalPassFailure();
+    }
 }
 }  // namespace
 

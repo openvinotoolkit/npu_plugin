@@ -1,0 +1,189 @@
+//
+// Copyright (C) 2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
+//
+
+#include "vpux/compiler/dialect/IE/utils/convolution_utils.hpp"
+#include "vpux/compiler/dialect/IE/utils/const_attributes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/conv_utils.hpp"
+#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
+#include "vpux/utils/core/logger.hpp"
+
+namespace vpux {
+namespace IE {
+
+mlir::LogicalResult canConvertGroupConvToConv(IE::GroupConvolutionOp groupconv) {
+    LogCb logCb = globalLogCb;
+    if (!groupconv.getGroups().has_value()) {
+        logCb(formatv("Grouped convolution does not have groups attribute"));
+        return mlir::failure();
+    }
+
+    const auto inputType = groupconv.getInput().getType().cast<NDTypeInterface>();
+    const auto filterType = groupconv.getFilter().getType().cast<NDTypeInterface>();
+    const auto outputType = groupconv.getOutput().getType().cast<NDTypeInterface>();
+    if (inputType.getRank() != 4) {
+        logCb(formatv("Only 4D tensors are supported"));
+        return mlir::failure();
+    }
+    if (outputType.getRank() != 4) {
+        logCb(formatv("Only 4D tensors are supported"));
+        return mlir::failure();
+    }
+    if (filterType.getRank() != 4) {
+        logCb(formatv("Only 4D tensors are supported"));
+        return mlir::failure();
+    }
+
+    const auto dilation = parseIntArrayAttr<int64_t>(groupconv.getDilations());
+    if (dilation.size() != 2) {
+        logCb(formatv("Expected dilations size to be 2, got '{0}'", dilation.size()));
+        return mlir::failure();
+    }
+    if (dilation[0] != 1 || dilation[1] != 1) {
+        logCb(formatv("Dilated convolution is not supported"));
+        return mlir::failure();
+    }
+
+    const auto group = groupconv.getGroups().value();
+    const auto filterShape = getShape(groupconv.getFilter());
+    const auto inputShape = getShape(groupconv.getInput());
+    if (filterShape[Dims4D::Filter::OC] == group && inputShape[Dims4D::Act::C] == group) {
+        logCb(formatv("Conversion is not needed for dw conv"));
+        return mlir::failure();
+    }
+
+    // Channel alignment is not checked here because experiments show that NCE is still able to provide better
+    // performance than SHAVE even if channel expand is done.
+
+    const auto arch = vpux::VPU::getArch(groupconv.getOperation());
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
+
+    const auto kernelStrides = parseIntArrayAttr<int64_t>(groupconv.getStrides());
+    const auto kernelStridesShape = Shape(kernelStrides);
+    const auto SY = kernelStridesShape[Dims4D::Strides::Y];
+    const auto SX = kernelStridesShape[Dims4D::Strides::X];
+    const auto pads = PadInfo(groupconv.getPadsBegin(), groupconv.getPadsEnd());
+    if (!VPU::NCEInvariant::isAttrsSupported(arch, KY, KX, SY, SX, pads.top, pads.bottom, pads.left, pads.right,
+                                             logCb)) {
+        return mlir::failure();
+    }
+
+    return mlir::success();
+}
+
+bool groupConvIsEltwise(IE::GroupConvolutionOp convOp) {
+    // check kernel size is 1x1
+    auto filterShape = getShape(convOp.getFilter());
+    if (filterShape[Dims4D::Filter::KX] != 1 || filterShape[Dims4D::Filter::KY] != 1 ||
+        filterShape[Dims4D::Filter::OC] != convOp.getGroups().value()) {
+        return false;
+    }
+    // if there is stride > 1, it can not consider to be an eltwise op
+    const auto greaterThanOne = [](auto stride) {
+        return stride > 1;
+    };
+    auto stridesGreaterThanOne = llvm::any_of(parseIntArrayAttr<int64_t>(convOp.getStrides()), greaterThanOne);
+    if (stridesGreaterThanOne) {
+        return false;
+    }
+    // check input const is single data or not
+    mlir::SmallVector<Const::DeclareOp> constInputOps;
+    constInputOps.push_back(convOp.getFilter().getDefiningOp<Const::DeclareOp>());
+    if (convOp.getBias()) {
+        constInputOps.push_back(convOp.getBias().getDefiningOp<Const::DeclareOp>());
+    }
+    return llvm::all_of(constInputOps, [](Const::DeclareOp constOp) {
+        return IE::isBaseContentSplat(constOp);
+    });
+}
+
+//
+// FuseConvAndBias
+//
+
+mlir::LogicalResult FuseConvAndBias::matchAndRewrite(IE::ScaleShiftOp biasOp, mlir::PatternRewriter& rewriter) const {
+    if (biasOp.getWeights() != nullptr) {
+        return matchFailed(rewriter, biasOp, "ScaleShift has scales operand");
+    }
+    if (!biasOp.getInput().hasOneUse()) {
+        return matchFailed(rewriter, biasOp, "ScaleShift is not the only user of its operand");
+    }
+    if (biasOp.getBiases() == nullptr || mlir::failed(IE::getConstParentOp(biasOp.getBiases()))) {
+        return matchFailed(rewriter, biasOp, "ScaleShift has non constant biases");
+    }
+
+    auto* op = biasOp.getInput().getDefiningOp();
+    if (op == nullptr || !mlir::isa<IE::ConvolutionOp, IE::GroupConvolutionOp, IE::TransposedConvolutionOp>(op)) {
+        return matchFailed(rewriter, biasOp, "ScaleShift producer is not a Convolution layer");
+    }
+
+    // For those Convolutions/GroupConvolutions/TransposedConvolutions cannot convert to NCE task should not fuse
+    // ScaleShift as Bias. Because SW kernel will not support any Post Ops.
+    if (auto convOp = mlir::dyn_cast<IE::ConvolutionOp>(op)) {
+        if (VPUIP::NCEInvariant::verifyKernel(convOp).failed()) {
+            return matchFailed(rewriter, convOp, "Conv cannot convert to NCE, not fuse ScaleShift");
+        }
+    }
+    if (auto grConvOp = mlir::dyn_cast<IE::GroupConvolutionOp>(op)) {
+        if (VPUIP::NCEInvariant::verifyKernel(grConvOp).failed() &&
+            mlir::failed(IE::canConvertGroupConvToConv(grConvOp))) {
+            return matchFailed(rewriter, grConvOp, "GroupConv cannot convert to NCE, not fuse ScaleShift");
+        }
+    }
+    if (auto transposedConv = mlir::dyn_cast<IE::TransposedConvolutionOp>(op)) {
+        if (!VPU::isSupportedSEPTransposedConv(transposedConv, emptyLogCb, /*checkLayout=*/false,
+                                               /*checkChannelAlignment=*/false)) {
+            return matchFailed(rewriter, transposedConv, "TransposedConv cannot convert to NCE, not fuse ScaleShift");
+        }
+    }
+
+    const auto convOutShape = getShape(op->getOpResult(0));
+    const auto biasShape = getShape(biasOp.getBiases());
+
+    if (biasShape.size() != 4) {
+        return matchFailed(rewriter, biasOp, "ScaleShift 'shift' operand shape doesn't match bias restrictions");
+    }
+    if (biasShape[Dims4D::Act::N] != 1) {
+        return matchFailed(rewriter, biasOp, "ScaleShift 'shift' operand shape doesn't match bias restrictions");
+    }
+    if (biasShape[Dims4D::Act::C] != convOutShape[Dims4D::Act::C]) {
+        return matchFailed(rewriter, biasOp, "ScaleShift 'shift' operand shape doesn't match bias restrictions");
+    }
+    if (biasShape[Dims4D::Act::H] != 1) {
+        return matchFailed(rewriter, biasOp, "ScaleShift 'shift' operand shape doesn't match bias restrictions");
+    }
+    if (biasShape[Dims4D::Act::W] != 1) {
+        return matchFailed(rewriter, biasOp, "ScaleShift 'shift' operand shape doesn't match bias restrictions");
+    }
+
+    if (mlir::isa<IE::ConvolutionOp, IE::GroupConvolutionOp>(op)) {
+        if (op->getNumOperands() != 2) {
+            return matchFailed(rewriter, biasOp, "ScaleShift producer already has fused biases");
+        }
+
+        auto* newConv = rewriter.clone(*op);
+        newConv->insertOperands(newConv->getNumOperands(), biasOp.getBiases());
+
+        rewriter.replaceOp(biasOp, newConv->getOpResults());
+    } else if (auto transposedConv = mlir::dyn_cast<IE::TransposedConvolutionOp>(op)) {
+        if (transposedConv.getBias() != nullptr) {
+            return matchFailed(rewriter, biasOp, "ScaleShift producer already has fused biases");
+        }
+        auto newTransposedConv = rewriter.create<IE::TransposedConvolutionOp>(
+                transposedConv.getLoc(), transposedConv.getInput(), transposedConv.getFilter(),
+                transposedConv.getOutputShape(), biasOp.getBiases(), transposedConv.getStrides(),
+                transposedConv.getPadsBegin(), transposedConv.getPadsEnd(), transposedConv.getDilations(),
+                transposedConv.getOutputPaddingAttr(), transposedConv.getPostOpAttr(), transposedConv.getClampAttr());
+
+        rewriter.replaceOp(biasOp, newTransposedConv->getOpResults());
+    } else {
+        return matchFailed(rewriter, op, "Unexpected operation");
+    }
+
+    return mlir::success();
+}
+
+}  // namespace IE
+}  // namespace vpux

@@ -81,7 +81,7 @@ TEST_F(MLIR_TilingTest_getTileDimOrderND, tileOverW5D) {
 TEST_F(MLIR_TilingTest_FillDividedTiles, NoAlignmentSingleAxisTiling) {
     Shape shape({1, 8, 8, 17});
     Shape divisor({1, 1, 1, 4});
-    const auto dividedTiles = fillDividedTiles(divisor, shape, None);
+    const auto dividedTiles = fillDividedTiles(divisor, shape, std::nullopt);
     ASSERT_NE(mlir::failed(dividedTiles), true);
 
     const auto expectedTiles =
@@ -98,7 +98,7 @@ TEST_F(MLIR_TilingTest_FillDividedTiles, NoAlignmentSingleAxisTiling) {
 TEST_F(MLIR_TilingTest_FillDividedTiles, NoAlignmentMultiAxisTiling) {
     Shape shape({1, 8, 8, 17});
     Shape divisor({1, 2, 3, 2});
-    const auto dividedTiles = fillDividedTiles(divisor, shape, None);
+    const auto dividedTiles = fillDividedTiles(divisor, shape, std::nullopt);
     ASSERT_NE(mlir::failed(dividedTiles), true);
 
     const auto expectedTiles =
@@ -124,7 +124,7 @@ TEST_F(MLIR_TilingTest_FillDividedTiles, DummyAlignmentMultiAxisTiling) {
     Shape shape({1, 8, 8, 17});
     Shape divisor({1, 2, 3, 2});
     auto alignment = SmallVector<int64_t>({1, 1, 1, 1});
-    auto optionalAlignment = Optional<ArrayRef<int64_t>>(makeArrayRef(alignment));
+    auto optionalAlignment = std::optional<ArrayRef<int64_t>>(ArrayRef(alignment));
     const auto dividedTiles = fillDividedTiles(divisor, shape, optionalAlignment);
     ASSERT_NE(mlir::failed(dividedTiles), true);
 
@@ -151,7 +151,7 @@ TEST_F(MLIR_TilingTest_FillDividedTiles, SingleAlignmentSingleAxisTiling) {
     Shape shape({1, 8, 8, 17});
     Shape divisor({1, 1, 1, 4});
     auto alignment = SmallVector<int64_t>({1, 1, 1, 5});
-    auto optionalAlignment = Optional<ArrayRef<int64_t>>(makeArrayRef(alignment));
+    auto optionalAlignment = std::optional<ArrayRef<int64_t>>(ArrayRef(alignment));
     const auto dividedTiles = fillDividedTiles(divisor, shape, optionalAlignment);
     ASSERT_NE(mlir::failed(dividedTiles), true);
 
@@ -170,7 +170,7 @@ TEST_F(MLIR_TilingTest_FillDividedTiles, SingleAlignmentMultiAxisTiling) {
     Shape shape({1, 8, 8, 17});
     Shape divisor({1, 2, 3, 4});
     auto alignment = SmallVector<int64_t>({1, 1, 1, 5});
-    auto optionalAlignment = Optional<ArrayRef<int64_t>>(makeArrayRef(alignment));
+    auto optionalAlignment = std::optional<ArrayRef<int64_t>>(ArrayRef(alignment));
     const auto dividedTiles = fillDividedTiles(divisor, shape, optionalAlignment);
     ASSERT_NE(mlir::failed(dividedTiles), true);
 
@@ -209,7 +209,7 @@ TEST_F(MLIR_TilingTest_FillDividedTiles, MultiAlignmentMultiAxisTiling) {
     Shape shape({1, 8, 8, 17});
     Shape divisor({1, 2, 3, 4});
     auto alignment = SmallVector<int64_t>({1, 6, 1, 5});
-    auto optionalAlignment = Optional<ArrayRef<int64_t>>(makeArrayRef(alignment));
+    auto optionalAlignment = std::optional<ArrayRef<int64_t>>(ArrayRef(alignment));
     const auto dividedTiles = fillDividedTiles(divisor, shape, optionalAlignment);
     ASSERT_NE(mlir::failed(dividedTiles), true);
 
@@ -247,7 +247,7 @@ TEST_F(MLIR_TilingTest_FillDividedTiles, MultiAlignmentMultiAxisTiling) {
 TEST_F(MLIR_TilingTest_FillDividedTiles, NoAlignmentSingleAxisTiling5D) {
     Shape shape({1, 1, 8, 8, 17});
     Shape divisor({1, 1, 1, 1, 4});
-    const auto dividedTiles = fillDividedTiles(divisor, shape, None);
+    const auto dividedTiles = fillDividedTiles(divisor, shape, std::nullopt);
     ASSERT_NE(mlir::failed(dividedTiles), true);
 
     const auto expectedTiles =
@@ -265,7 +265,7 @@ TEST_F(MLIR_TilingTest_FillDividedTiles, InValidTiling) {
     Shape shape({1, 320, 8, 8});
     Shape divisor({1, 6, 1, 1});
     auto alignment = SmallVector<int64_t>({1, 16, 1, 1});
-    auto optionalAlignment = Optional<ArrayRef<int64_t>>(makeArrayRef(alignment));
+    auto optionalAlignment = std::optional<ArrayRef<int64_t>>(ArrayRef(alignment));
     const auto dividedTiles = fillDividedTiles(divisor, shape, optionalAlignment);
     EXPECT_EQ(mlir::failed(dividedTiles), true);
 }

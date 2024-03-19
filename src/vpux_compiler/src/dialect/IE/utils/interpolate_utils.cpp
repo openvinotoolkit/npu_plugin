@@ -8,13 +8,11 @@
 
 #include "vpux/compiler/utils/error.hpp"
 
-#include <numeric>
-
 namespace vpux {
 namespace IE {
 
 mlir::FailureOr<SmallVector<int64_t>> extractIntVector(mlir::Location loc, const mlir::Value value,
-                                                       const Optional<mlir::ArrayAttr>& attr) {
+                                                       const std::optional<mlir::ArrayAttr>& attr) {
     if (attr.has_value() && attr.value() != nullptr) {
         return parseIntArrayAttr<int64_t>(attr.value());
     } else if (value != nullptr) {
@@ -30,7 +28,7 @@ mlir::FailureOr<SmallVector<int64_t>> extractIntVector(mlir::Location loc, const
 }
 
 mlir::FailureOr<SmallVector<double>> extractFPVector(mlir::Location loc, const mlir::Value value,
-                                                     const Optional<mlir::ArrayAttr>& attr) {
+                                                     const std::optional<mlir::ArrayAttr>& attr) {
     if (attr.has_value() && attr.value() != nullptr) {
         return parseFPArrayAttr<double>(attr.value());
     } else if (value != nullptr) {
@@ -46,26 +44,72 @@ mlir::FailureOr<SmallVector<double>> extractFPVector(mlir::Location loc, const m
     return errorAt(loc, "Parameter were not provided");
 }
 
+SmallVector<int64_t> getInterpAxesVal(mlir::Location loc, const mlir::Value axes,
+                                      const std::optional<mlir::ArrayAttr>& attr, NDTypeInterface inType) {
+    const bool isExplicitAxes = (axes != nullptr) || (attr.has_value() && attr.value() != nullptr);
+    if (isExplicitAxes) {
+        auto explicitAxes = extractIntVector(loc, axes, attr);
+        VPUX_THROW_UNLESS(mlir::succeeded(explicitAxes), "Cannot get Interpolate Axes value");
+        return explicitAxes.value();
+    }
+
+    // If Interpolate is not explicit Axes, it should be default value [0,...,rank(input) - 1]
+    SmallVector<int64_t> axesVal(inType.getRank());
+    std::iota(axesVal.begin(), axesVal.end(), 0);
+    return axesVal;
+}
+
 void applyInterpPads(MutableArrayRef<int64_t> outShape, ArrayRef<int64_t> padsBegin, ArrayRef<int64_t> padsEnd) {
     // pads might be zero initialized
     if (padsBegin.size() != padsEnd.size() || padsBegin.size() != outShape.size()) {
         return;
     }
     // naive implementation only apply pads to calculated output shape
-    for (auto& d : outShape | indexed) {
+    for (auto d : outShape | indexed) {
         d.value() += padsBegin[d.index()] + padsEnd[d.index()];
     }
 }
 
-mlir::FailureOr<SmallVector<int64_t>> propagateShape(mlir::Location loc, mlir::FailureOr<SmallVector<int64_t>> axes,
-                                                     ArrayRef<int64_t> origShape,
-                                                     mlir::FailureOr<ArrayRef<int64_t>> padsBegin,
-                                                     mlir::FailureOr<ArrayRef<int64_t>> padsEnd,
-                                                     vpux::IE::InterpolateCalcMode calcMode,
-                                                     mlir::FailureOr<ArrayRef<int64_t>> sizes,
-                                                     mlir::FailureOr<ArrayRef<double>> scales, vpux::Logger log) {
+template <typename StorageType>
+SmallVector<int64_t> inferOutputShapeWithScalesMode(ShapeRef inputShape, ArrayRef<double> scalesVal,
+                                                    ArrayRef<int64_t> axesVal, vpux::Logger log) {
+    VPUX_THROW_UNLESS(scalesVal.size() == axesVal.size(),
+                      "Num of elements in `Scales` tensor: {0} should be equal to number of indices in `Axes`: {1}",
+                      scalesVal.size(), axesVal.size());
+
+    auto outputShape = to_small_vector(inputShape);
+    auto scalesIter = scalesVal.begin();
+    for (const auto& axis : axesVal) {
+        outputShape[axis] =
+                static_cast<int64_t>(floor(static_cast<StorageType>(*scalesIter++) * inputShape[Dim(axis)]));
+        log.trace("Infer Scales mode at axis {0}: {1} -> {2}", axis, inputShape[Dim(axis)], outputShape[axis]);
+    }
+    return outputShape;
+}
+
+SmallVector<int64_t> inferOutputShapeWithSizesMode(ShapeRef inputShape, ArrayRef<int64_t> sizesVal,
+                                                   ArrayRef<int64_t> axesVal, vpux::Logger log) {
+    VPUX_THROW_UNLESS(sizesVal.size() == axesVal.size(),
+                      "Num of elements in `Sizes` tensor: {0} should be equal to number of indices in `Axes`: {1}",
+                      sizesVal.size(), axesVal.size());
+
+    auto outputShape = to_small_vector(inputShape);
+    auto sizesIter = sizesVal.begin();
+    for (const auto& axis : axesVal) {
+        outputShape[axis] = *sizesIter++;
+        log.trace("Infer Sizes mode at axis {0}: {1} -> {2}", axis, inputShape[Dim(axis)], outputShape[axis]);
+    }
+    return outputShape;
+}
+
+SmallVector<int64_t> inferInterpOutShape(mlir::Location loc, ArrayRef<int64_t> axesVal, ShapeRef origShape,
+                                         mlir::FailureOr<ArrayRef<int64_t>> padsBegin,
+                                         mlir::FailureOr<ArrayRef<int64_t>> padsEnd,
+                                         vpux::IE::InterpolateCalcMode calcMode,
+                                         mlir::FailureOr<ArrayRef<int64_t>> sizes,
+                                         mlir::FailureOr<ArrayRef<double>> scales, mlir::Type scalesElemType,
+                                         vpux::Logger log) {
     log.trace("Interp propagate shape: input = {0}", origShape);
-    const auto axesVal = axes.value();
     auto inferedShape = to_small_vector(origShape);
 
     for (auto axis : axesVal) {
@@ -74,37 +118,25 @@ mlir::FailureOr<SmallVector<int64_t>> propagateShape(mlir::Location loc, mlir::F
     }
 
     if (calcMode == IE::InterpolateCalcMode::SIZES) {
+        VPUX_THROW_UNLESS(mlir::succeeded(sizes), "Cannot get Interpolate Sizes value at {0}", loc);
         const auto sizesVal = sizes.value();
 
-        if (sizesVal.size() != axesVal.size()) {
-            return errorAt(loc,
-                           "Num of elements in sizes tensor: {0} should be equal to number of indices in axes: {1}",
-                           sizesVal.size(), axesVal.size());
-        }
-        auto sizesIter = sizesVal.begin();
-
-        for (const auto& i : axesVal) {
-            log.trace("Interp sizes - axis: {0}", i);
-            inferedShape[i] = *sizesIter++;
-        }
+        inferedShape = inferOutputShapeWithSizesMode(origShape, sizesVal, axesVal, log);
     } else if (calcMode == IE::InterpolateCalcMode::SCALES) {
-        const auto scales_val = scales.value();
+        VPUX_THROW_UNLESS(mlir::succeeded(scales), "Cannot get Interpolate Scales value at {0}", loc);
+        const auto scalesVal = scales.value();
 
-        if (scales_val.size() != axesVal.size()) {
-            return errorAt(loc,
-                           "Num of elements in scales tensor: {0} should be equal to number of indices in axes: {1}",
-                           scales_val.size(), axesVal.size());
+        if (scalesElemType.isF16()) {
+            inferedShape = inferOutputShapeWithScalesMode<float16>(origShape, scalesVal, axesVal, log);
+        } else if (scalesElemType.isF32()) {
+            inferedShape = inferOutputShapeWithScalesMode<float>(origShape, scalesVal, axesVal, log);
+        } else if (scalesElemType.isF64()) {
+            inferedShape = inferOutputShapeWithScalesMode<double>(origShape, scalesVal, axesVal, log);
+        } else {
+            VPUX_THROW("Unexpected Interpolate `Scale` float data type: {0}", scalesElemType);
         }
-
-        auto scalesIter = scales_val.begin();
-
-        for (const auto& i : axesVal) {
-            log.trace("Interp scales - axis: {0}", i);
-            inferedShape[i] = static_cast<int64_t>(floor((*scalesIter++) * origShape[i]));
-        }
-
     } else {
-        return errorAt(loc, "Doesn't support shape_calculation_mode: {0}", calcMode);
+        VPUX_THROW("Got unsupported shape_calculation_mode: {0} at {1}", calcMode, loc);
     }
 
     // meaning pads provided in attributes
@@ -117,33 +149,35 @@ mlir::FailureOr<SmallVector<int64_t>> propagateShape(mlir::Location loc, mlir::F
     return inferedShape;
 }
 
-SmallVector<int64_t> getDefaultInterpolateAxes(IE::InterpolateOpAdaptor interpolate) {
-    SmallVector<int64_t> axes(interpolate.input().getType().cast<mlir::ShapedType>().getRank());
-    std::iota(axes.begin(), axes.end(), 0);
+bool isEquivalentToNearestAsymmetricInterpolate(IE::InterpolateOp op) {
+    const auto originalAttr = op.getAttr();
+    if (originalAttr.getMode().getValue() != IE::InterpolateMode::NEAREST) {
+        return false;
+    }
 
-    return axes;
-}
+    const auto inputShape = getShape(op.getInput());
+    const auto outputShape = getShape(op.getOutput());
 
-mlir::FailureOr<SmallVector<int64_t>> calcOutputShapes(mlir::Location loc, IE::InterpolateOpAdaptor interpolate,
-                                                       vpux::Logger log) {
-    const auto axesAttr = interpolate.axes_attr();
-    const bool validAxesAttr = (axesAttr.has_value() && axesAttr.value() != nullptr);
-    const auto axes = (interpolate.axes() == nullptr && !validAxesAttr)
-                              ? getDefaultInterpolateAxes(interpolate)
-                              : extractIntVector(loc, interpolate.axes(), interpolate.axes_attr());
-    const auto beginPads = extractIntVector(loc, {}, interpolate.attr().getPadsBegin());
-    const auto endPads = extractIntVector(loc, {}, interpolate.attr().getPadsEnd());
+    if (inputShape[Dims4D::Act::W] * 2 != outputShape[Dims4D::Act::W] ||
+        inputShape[Dims4D::Act::H] * 2 != outputShape[Dims4D::Act::H]) {
+        return false;
+    }
 
-    const auto inType = interpolate.input().getType().cast<mlir::ShapedType>();
-    const auto inputShape = inType.getShape();
+    const auto coordMode = originalAttr.getCoordMode().getValue();
 
-    return propagateShape(loc, axes, inputShape, beginPads, endPads, interpolate.attr().getShapeCalcMode().getValue(),
-                          extractIntVector(loc, interpolate.sizes(), interpolate.sizes_attr()),
-                          extractFPVector(loc, interpolate.scales(), interpolate.scales_attr()), log);
+    if (coordMode != IE::InterpolateCoordMode::HALF_PIXEL &&
+        coordMode != IE::InterpolateCoordMode::PYTORCH_HALF_PIXEL) {
+        return false;
+    }
+
+    const auto nearestMode = originalAttr.getNearestMode().getValue();
+
+    return nearestMode == IE::InterpolateNearestMode::ROUND_PREFER_CEIL ||
+           nearestMode == IE::InterpolateNearestMode::ROUND_PREFER_FLOOR;
 }
 
 bool isBroadCastInterpolate(IE::InterpolateOp op) {
-    const auto inputType = op.input().getType().cast<vpux::NDTypeInterface>();
+    const auto inputType = op.getInput().getType().cast<vpux::NDTypeInterface>();
     const auto inputShape = inputType.getShape();
 
     auto padValueIsNull = [](mlir::ArrayAttr pad) {
@@ -156,16 +190,16 @@ bool isBroadCastInterpolate(IE::InterpolateOp op) {
         });
     };
 
-    if (!padValueIsNull(op.attr().getPadsBegin()) || !padValueIsNull(op.attr().getPadsEnd())) {
+    if (!padValueIsNull(op.getAttr().getPadsBegin()) || !padValueIsNull(op.getAttr().getPadsEnd())) {
         return false;
     }
 
-    const auto axes = extractIntVector(op.getLoc(), op.axes(), op.axes_attr());
+    const auto axes = extractIntVector(op.getLoc(), op.getAxes(), op.getAxesAttr());
     VPUX_THROW_UNLESS(mlir::succeeded(axes), "Cannot get axes Attr");
     const auto axesValues = axes.value();
-    const auto calcMode = op.attr().getShapeCalcMode().getValue();
+    const auto calcMode = op.getAttr().getShapeCalcMode().getValue();
     if (calcMode == IE::InterpolateCalcMode::SIZES) {
-        const auto size = extractIntVector(op.getLoc(), op.sizes(), op.sizes_attr());
+        const auto size = extractIntVector(op.getLoc(), op.getSizes(), op.getSizesAttr());
         VPUX_THROW_UNLESS(mlir::succeeded(axes), "Cannot get size Attr");
         const auto sizeValues = size.value();
         VPUX_THROW_UNLESS(sizeValues.size() == axesValues.size(),
@@ -179,7 +213,7 @@ bool isBroadCastInterpolate(IE::InterpolateOp op) {
             return (inDimSize == outDimSize) || (inDimSize != outDimSize && inDimSize == 1);
         });
     } else if (calcMode == IE::InterpolateCalcMode::SCALES) {
-        const auto scales = extractFPVector(op.getLoc(), op.scales(), op.scales_attr());
+        const auto scales = extractFPVector(op.getLoc(), op.getScales(), op.getScalesAttr());
         VPUX_THROW_UNLESS(mlir::succeeded(scales), "Cannot get scales Attr");
         const auto scalesVal = scales.value();
         VPUX_THROW_UNLESS(scalesVal.size() == axesValues.size(),

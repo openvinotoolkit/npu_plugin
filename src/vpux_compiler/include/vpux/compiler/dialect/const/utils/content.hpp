@@ -5,19 +5,15 @@
 
 #pragma once
 
-#include "vpux/compiler/core/attributes/shape.hpp"
-#include "vpux/compiler/core/type_interfaces.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/IE/float16.hpp"
-#include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/mem_size.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
-#include <mlir/IR/BuiltinTypes.h>
 
 #include <llvm/Support/TypeName.h>
 
@@ -145,6 +141,8 @@ public:
 
 class Content final {
 public:
+    Content() = default;
+
     // `data` storage might have different element type than base `type`.
     // The `getValues` / `getSplatValue` methods accept template type parameter and convert element type on the fly.
     static Content fromRawBuffer(vpux::NDTypeInterface type, ArrayRef<char> data, mlir::Type storageElemType,
@@ -153,6 +151,7 @@ public:
     static Content allocTempBuffer(vpux::NDTypeInterface type, mlir::Type storageElemType, bool isSplat,
                                    size_t tempBufRawSize);
     static Content moveBuffer(vpux::NDTypeInterface type, Content&& other);
+    Content copyUnownedBuffer();
 
 public:
     vpux::NDTypeInterface getType() const {
@@ -167,13 +166,28 @@ public:
             return details::makeConvertCb<InT, OutT>();
         });
 
-        const auto storageElemTypeSize = vpux::getElemTypeSize(_storageElemType);
+        const Bit storageElemTypeSize = vpux::getElemTypeSize(_storageElemType);
+        VPUX_THROW_WHEN(storageElemTypeSize.count() < CHAR_BIT, "Unsupported storage type of size '{0}' bits.",
+                        storageElemTypeSize.count());
         return details::ContentRange<OutT>(_data, _isSplat, storageElemTypeSize, getType().getNumElements(),
                                            std::move(cvtOp));
     }
 
     template <typename OutT>
     void getValues() && = delete;
+
+    template <typename OutT>
+    std::vector<OutT> vec() {
+        auto allocSize = getType().getTotalAllocSize().count();
+        auto outTsize = sizeof(OutT);
+        VPUX_THROW_UNLESS(allocSize % outTsize == 0, "size of Content is expected to be multiple of {0} but found {1}",
+                          outTsize, allocSize);
+
+        std::vector<OutT> outValues(allocSize / outTsize);
+        MutableArrayRef<char> buf(reinterpret_cast<char*>(outValues.data()), allocSize);
+        copyTo(buf);
+        return outValues;
+    }
 
 public:
     bool isSplat() const {
@@ -230,17 +244,17 @@ public:
 
     MutableArrayRef<char> getRawTempBuf() & {
         VPUX_THROW_UNLESS(_tempBuf != nullptr, "Temp buffer was not allocated");
-        return makeMutableArrayRef(_tempBuf.get(), _data.size());
+        return MutableArrayRef(_tempBuf.get(), _data.size());
     }
 
     MutableArrayRef<char> getRawTempBuf() && = delete;
 
 private:
-    Content() = default;
-
     template <typename RetT, class Caller>
     static RetT dispatchByElemType(mlir::Type elemType, Caller&& caller) {
         if (elemType.isUnsignedInteger(8) || elemType.isSignlessInteger(8)) {
+            return caller(uint8_t(0));
+        } else if (elemType.isUnsignedInteger(4) || elemType.isSignlessInteger(4)) {
             return caller(uint8_t(0));
         } else if (elemType.isUnsignedInteger(16) || elemType.isSignlessInteger(16)) {
             return caller(uint16_t(0));
@@ -249,6 +263,8 @@ private:
         } else if (elemType.isUnsignedInteger(64) || elemType.isSignlessInteger(64)) {
             return caller(uint64_t(0));
         } else if (elemType.isSignedInteger(8)) {
+            return caller(int8_t(0));
+        } else if (elemType.isSignedInteger(4)) {
             return caller(int8_t(0));
         } else if (elemType.isSignedInteger(16)) {
             return caller(int16_t(0));
@@ -270,6 +286,10 @@ private:
                 return caller(int8_t(0));
             } else if (quantStorageType.isUnsignedInteger(8)) {
                 return caller(uint8_t(0));
+            } else if (quantStorageType.isSignedInteger(4)) {
+                return caller(int8_t(0));
+            } else if (quantStorageType.isUnsignedInteger(4)) {
+                return caller(uint8_t(0));
             } else {
                 VPUX_THROW("Unsupported quantized storage type '{0}'", quantStorageType);
             }
@@ -279,11 +299,14 @@ private:
     }
 
 private:
+    void copySubByteContent(MutableArrayRef<char> targetData, mlir::Type elemType) const;
+
+private:
     vpux::NDTypeInterface _type;
     ArrayRef<char> _data;
     mlir::Type _storageElemType;
     bool _isSplat = false;
-    std::unique_ptr<char[]> _tempBuf;
+    std::shared_ptr<char[]> _tempBuf;
 };
 
 }  // namespace Const

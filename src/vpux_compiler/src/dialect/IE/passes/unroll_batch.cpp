@@ -4,11 +4,10 @@
 //
 
 #include "vpux/compiler/dialect/IE/passes/unroll_batch.hpp"
-#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 
 #include "vpux/compiler/utils/rewriter.hpp"
 
-#include <mlir/IR/BlockAndValueMapping.h>
+#include <mlir/IR/IRMapping.h>
 
 using namespace vpux;
 
@@ -46,7 +45,7 @@ mlir::Value appendOperationsToSlices(mlir::PatternRewriter& rewriter, mlir::Oper
                                      mlir::ValueRange slices) {
     const auto origOperands = origOp->getOperands();
 
-    mlir::BlockAndValueMapping mapper;
+    mlir::IRMapping mapper;
     mapper.map(origOperands.take_front(slices.size()), slices);
 
     auto* newOp = rewriter.clone(*origOp, mapper);

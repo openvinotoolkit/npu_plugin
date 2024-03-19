@@ -1,20 +1,16 @@
-//
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
-#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
-
-#include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::DeformablePSROIPoolingOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -23,11 +19,11 @@ mlir::LogicalResult vpux::IE::DeformablePSROIPoolingOp::inferReturnTypeComponent
         return mlir::failure();
     }
 
-    const auto outputDim = deformablepsroiPooling.output_dim();
+    const auto outputDim = deformablepsroiPooling.getOutputDim();
     const auto groupSize =
-            deformablepsroiPooling.group_size().has_value() ? deformablepsroiPooling.group_size().value() : 1;
-    const auto inTypeFeatureMap = deformablepsroiPooling.input_score_maps().getType().cast<mlir::ShapedType>();
-    const auto inTypeCoord = deformablepsroiPooling.input_rois().getType().cast<mlir::ShapedType>();
+            deformablepsroiPooling.getGroupSize().has_value() ? deformablepsroiPooling.getGroupSize().value() : 1;
+    const auto inTypeFeatureMap = deformablepsroiPooling.getInputScoreMaps().getType().cast<mlir::ShapedType>();
+    const auto inTypeCoord = deformablepsroiPooling.getInputRois().getType().cast<mlir::ShapedType>();
     const auto inShapeCoord = inTypeCoord.getShape();
 
     if (outputDim <= 0) {
@@ -41,9 +37,9 @@ mlir::LogicalResult vpux::IE::DeformablePSROIPoolingOp::inferReturnTypeComponent
         return errorAt(loc, "The rois input should be 2D");
     }
 
-    if (deformablepsroiPooling.input_transformations() != nullptr) {
+    if (deformablepsroiPooling.getInputTransformations() != nullptr) {
         const auto inTransformationsCoord =
-                deformablepsroiPooling.input_transformations().getType().cast<mlir::ShapedType>();
+                deformablepsroiPooling.getInputTransformations().getType().cast<mlir::ShapedType>();
         const auto inShapeTransCoord = inTransformationsCoord.getShape();
 
         if (inShapeTransCoord.size() != 4) {

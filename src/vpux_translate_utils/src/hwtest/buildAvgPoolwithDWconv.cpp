@@ -7,9 +7,9 @@
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
-#include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
@@ -79,10 +79,11 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     auto outputParamType = getMemRefType(VPURT::BufferSection::NetworkOutput, out_shape, outputType, DimsOrder::NHWC);
     inputTypes.push_back(outputParamType);
 
-    const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
+    const auto funcType = builder.getFunctionType(ArrayRef(inputTypes), outputParamType);
 
     auto func = builder.create<mlir::func::FuncOp>(loc, printToString("avgPool_{0}_{1}", inputType, outputType),
-                                                   funcType, builder.getStringAttr("private"));
+                                                   funcType, builder.getStringAttr("private"), /*arg_attrs=*/nullptr,
+                                                   /*res_attrs=*/nullptr);
 
     auto funcbuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());
 
@@ -110,18 +111,18 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     mlir::DenseElementsAttr wt_data_valss;
     if (weightsType.isF16()) {
         std::vector<float16> wt_vec(weightDataSize, static_cast<float>(scaleValue));
-        wt_data_valss = mlir::DenseElementsAttr::get(wtData_ddr_valueType, makeArrayRef<float16>(wt_vec));
+        wt_data_valss = mlir::DenseElementsAttr::get(wtData_ddr_valueType, ArrayRef<float16>(wt_vec));
     } else if (weightsType.isBF16()) {
         std::vector<bfloat16> wt_vec(weightDataSize, static_cast<float>(scaleValue));
-        wt_data_valss = mlir::DenseElementsAttr::get(wtData_ddr_valueType, makeArrayRef<bfloat16>(wt_vec));
+        wt_data_valss = mlir::DenseElementsAttr::get(wtData_ddr_valueType, ArrayRef<bfloat16>(wt_vec));
     } else {
         scaleValue = 1;
         if (weightsType.dyn_cast<mlir::quant::QuantizedType>().getFlags() & mlir::quant::QuantizationFlags::Signed) {
             std::vector<int8_t> wt_vec(weightDataSize, static_cast<int8_t>(scaleValue));
-            wt_data_valss = mlir::DenseElementsAttr::get(wtData_ddr_valueType, makeArrayRef<int8_t>(wt_vec));
+            wt_data_valss = mlir::DenseElementsAttr::get(wtData_ddr_valueType, ArrayRef<int8_t>(wt_vec));
         } else {
             std::vector<uint8_t> wt_vec(weightDataSize, static_cast<uint8_t>(scaleValue));
-            wt_data_valss = mlir::DenseElementsAttr::get(wtData_ddr_valueType, makeArrayRef<uint8_t>(wt_vec));
+            wt_data_valss = mlir::DenseElementsAttr::get(wtData_ddr_valueType, ArrayRef<uint8_t>(wt_vec));
         }
     }
     auto wt_data_attr = Const::ContentAttr::get(wt_data_valss);
@@ -164,9 +165,9 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
 
     // DMAs
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()), loc,
-                                          funcinput, inputcmx.getOperation()->getResult(0));
+                                          funcinput, inputcmx.getOperation()->getResult(0), 0);
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()), loc,
-                                          weight_data_ddr, wtData_cmx.getOperation()->getResult(0));
+                                          weight_data_ddr, wtData_cmx.getOperation()->getResult(0), 0);
 
     const auto bitPatternSize = VPU::NCESparsity::getBitPatternSize(
             VPU::NCESparsity::Mode::DW_CONV, ShapeRef(filter_size), stride_vec[1],
@@ -185,7 +186,7 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     SmallVector<int64_t> sparsity_shape{1, 1, 1, static_cast<int64_t>(fakeSparsity.size())};
 
     const auto dataStorageType = mlir::RankedTensorType::get(sparsity_shape, sparsity_type);
-    const auto sparsityAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(fakeSparsity));
+    const auto sparsityAttr = mlir::DenseElementsAttr::get(dataStorageType, ArrayRef(fakeSparsity));
 
     auto activationWindow_ddr_type =
             getMemRefType(VPURT::BufferSection::Constant, sparsity_shape, sparsity_type, DimsOrder::NHWC);
@@ -205,7 +206,7 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     // activation window dma ddr->cmx
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()), loc,
                                           activationWindow_ddr.getOperation()->getResult(0),
-                                          actWindow_cmx.getOperation()->getResult(0));
+                                          actWindow_cmx.getOperation()->getResult(0), 0);
 
     // weights table ddr tensor
     auto weights_outChannel = wtData_cmx_type.getShape()[0];
@@ -232,7 +233,7 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
             static_cast<int32_t>(ACTIVATIONWINDOW_CMX_OFFSET), sparsityPtrStep, testDesc.getArchitecture(),
             weights_outChannel, weightsType);
 
-    auto wtTbl_data_values = makeArrayRef<int32_t>(wtTbl_data_values_vec);
+    auto wtTbl_data_values = ArrayRef<int32_t>(wtTbl_data_values_vec);
     auto wtTbl_data_vals = mlir::DenseElementsAttr::get(wtTblData_ddr_valueType, wtTbl_data_values);
     auto weightTbl_data_ddr = funcbuilder.create<Const::DeclareOp>(
             loc, weightTblData_ddr_type, Const::ContentAttr::get(wtTbl_data_vals).reorder(DimsOrder::NHWC));
@@ -248,7 +249,7 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     // weights table dma ddr->cmx
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier0.getBarrier()), loc,
                                           weightTbl_data_ddr.getOperation()->getResult(0),
-                                          wtTbl_cmx.getOperation()->getResult(0));
+                                          wtTbl_cmx.getOperation()->getResult(0), 0);
 
     // NCE Task
     auto filtersize = getIntArrayAttr(builder, filter_size);
@@ -269,17 +270,18 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     nceTask.addPPETask(funcbuilder);
 
     // Create DPU task for NCE task
-    auto variantbuilder = mlir::OpBuilder::atBlockBegin(&nceTask.variants().front(), builder.getListener());
+    auto variantbuilder = mlir::OpBuilder::atBlockBegin(&nceTask.getVariants().front(), builder.getListener());
     createDPUTaskOp(funcbuilder, variantbuilder, out_shape, in_shape, padding_vec, VPU::MPEMode::CUBOID_16x16);
 
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.getBarrier()), mlir::ValueRange(), loc,
-                                          outputcmx.getOperation()->getResult(0), funcoutput);
+                                          outputcmx.getOperation()->getResult(0), funcoutput, 0);
 
     funcbuilder.create<mlir::func::ReturnOp>(loc, funcoutput);
 
     // set runtime resources
-    mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, log));
+    mlir::PassManager pm(module->getName(), mlir::OpPassManager::Nesting::Implicit);
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, std::nullopt,
+                                           log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 

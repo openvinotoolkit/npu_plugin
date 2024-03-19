@@ -11,7 +11,7 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXSqueezeUnsqueezeLayerTest :
+class SqueezeUnsqueezeLayerTestCommon :
         public SqueezeUnsqueezeLayerTest,
         virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
 protected:
@@ -27,9 +27,9 @@ protected:
     }
 };
 
-class VPUXSqueezeUnsqueezeLayerTest_VPU3700 : public VPUXSqueezeUnsqueezeLayerTest {
+class SqueezeUnsqueezeLayerTest_NPU3700 : public SqueezeUnsqueezeLayerTestCommon {
     void SkipBeforeLoad() override {
-        VPUXSqueezeUnsqueezeLayerTest::SkipBeforeLoad();
+        SqueezeUnsqueezeLayerTestCommon::SkipBeforeLoad();
         // Tracking number [E#85137]
         if (getBackendName(*getCore()) == "LEVEL0") {
             throw LayerTestsUtils::VpuSkipTestException("Level0: failure on device");
@@ -37,15 +37,15 @@ class VPUXSqueezeUnsqueezeLayerTest_VPU3700 : public VPUXSqueezeUnsqueezeLayerTe
     }
 };
 
-class VPUXSqueezeUnsqueezeLayerTest_VPU3720 : public VPUXSqueezeUnsqueezeLayerTest {};
+class SqueezeUnsqueezeLayerTest_NPU3720 : public SqueezeUnsqueezeLayerTestCommon {};
 
-TEST_P(VPUXSqueezeUnsqueezeLayerTest_VPU3700, HW) {
+TEST_P(SqueezeUnsqueezeLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXSqueezeUnsqueezeLayerTest_VPU3720, HW) {
+TEST_P(SqueezeUnsqueezeLayerTest_NPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -85,16 +85,16 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::
 const std::vector<ngraph::helpers::SqueezeOpType> opTypes = {ngraph::helpers::SqueezeOpType::SQUEEZE,
                                                              ngraph::helpers::SqueezeOpType::UNSQUEEZE};
 const auto paramConfig = testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineParams(axesVectors)), ::testing::ValuesIn(opTypes),
+        ::testing::ValuesIn(ov::test::utils::combineParams(axesVectors)), ::testing::ValuesIn(opTypes),
         ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Basic, VPUXSqueezeUnsqueezeLayerTest_VPU3700, paramConfig,
+INSTANTIATE_TEST_SUITE_P(smoke_Basic, SqueezeUnsqueezeLayerTest_NPU3700, paramConfig,
                          SqueezeUnsqueezeLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Basic, VPUXSqueezeUnsqueezeLayerTest_VPU3720, paramConfig,
+INSTANTIATE_TEST_SUITE_P(smoke_Basic, SqueezeUnsqueezeLayerTest_NPU3720, paramConfig,
                          SqueezeUnsqueezeLayerTest::getTestCaseName);
 
 }  // namespace

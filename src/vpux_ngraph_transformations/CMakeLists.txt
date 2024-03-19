@@ -37,15 +37,15 @@ target_include_directories(${TARGET_NAME}
 
 link_system_libraries(${TARGET_NAME}
     PUBLIC
+        openvino::reference
         openvino::runtime
         openvino::runtime::dev
-        IE::inference_engine_plugin_api
-        IE::ngraph_reference
 )
 
 target_link_libraries(${TARGET_NAME}
     PUBLIC
-        kmb_utils
+        npu_ov_utils
+        npu_llvm_utils
 )
 
 #
@@ -56,5 +56,5 @@ if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
 
     install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
-            ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
+            ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${VPUX_PLUGIN_COMPONENT})
 endif()

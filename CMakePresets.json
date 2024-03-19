@@ -90,32 +90,21 @@
         {
             "name": "Disabler",
             "hidden": true,
-            "description": "Disables all options. It is used as a base for configuration where is only needed option are enabled to speed-up build. Should be used as the first argument to inherits.",
+            "description": "Disables options that are not used by default presets",
             "cacheVariables": {
-                "ENABLE_TESTS": false,
-                "ENABLE_FUNCTIONAL_TESTS": false,
-                "ENABLE_DEVELOPER_BUILD": false,
+                "ENABLE_CPPLINT": false,
                 "ENABLE_MODELS": false,
                 "ENABLE_VALIDATION_SET": false,
-                "ENABLE_LTO": false,
-                "ENABLE_FASTER_BUILD": false,
-                "ENABLE_CPPLINT": false,
-                "ENABLE_CLANG_FORMAT": false,
-                "ENABLE_ZEROAPI_BACKEND": false,
-                "BUILD_COMPILER_FOR_DRIVER": false,
-                "ENABLE_DRIVER_COMPILER_ADAPTER": false,
-                "ENABLE_EMULATOR": false,
-                "ENABLE_VPUX_DOCS": false,
-                "ENABLE_IMD_BACKEND": false
+                "ENABLE_LTO": false
             }
         },
 
         {
             "name": "vpuxDeveloper",
             "description": "Default configuration preset for VPUX Compiler development. Enables VPUX compiler and generic OV tests, and disables plugin specific builds. Also, enables IMD backend",
+            "inherits": ["BuildOptimization", "EnableTests", "Disabler"],
             "binaryDir": "${sourceDir}/build-x86_64/Debug",
             "displayName": "vpuxDeveloper",
-            "inherits": ["BuildOptimization", "EnableTests"],
 
             "cacheVariables": {
                 "InferenceEngineDeveloperPackage_DIR": {
@@ -134,22 +123,16 @@
                 "ENABLE_CLANG_FORMAT": true,
                 "ENABLE_IMD_BACKEND": true,
 
-                "ENABLE_CPPLINT": false,
-
-                "ENABLE_MODELS": false,
-                "ENABLE_VALIDATION_SET": false,
-                "ENABLE_LTO": false,
                 "ENABLE_ZEROAPI_BACKEND": true,
-                "ENABLE_EMULATOR": false,
                 "ENABLE_VPUX_DOCS": false
             }
         },
         {
             "name": "vpuxRelease",
-            "description": "Default configuration preset for VPUX Compiler development. Enables VPUX compiler and generic OV tests, and disables plugin specific builds. Also, enables IMD backend",
+            "description": "Default configuration for NPU Compiler release",
+            "inherits": ["vpuxDeveloper"],
             "binaryDir": "${sourceDir}/build-x86_64/Release",
             "displayName": "vpuxRelease",
-            "inherits": ["BuildOptimization"],
 
             "cacheVariables": {
                 "InferenceEngineDeveloperPackage_DIR": {
@@ -161,22 +144,8 @@
                     "value": "Release"
                 },
 
-                "CMAKE_EXPORT_COMPILE_COMMANDS" : true,
-
-                "ENABLE_ZEROAPI_BACKEND": true,
-                "ENABLE_VPUX_DOCS": true,
-                "ENABLE_CLANG_FORMAT": true,
-
-                "ENABLE_CPPLINT": false,
-
-                "ENABLE_IMD_BACKEND": false,
                 "ENABLE_DEVELOPER_BUILD": false,
-                "ENABLE_TESTS": false,
-                "ENABLE_FUNCTIONAL_TESTS": false,
-                "ENABLE_MODELS": false,
-                "ENABLE_VALIDATION_SET": false,
-                "ENABLE_LTO": false,
-                "ENABLE_EMULATOR": false
+                "ENABLE_VPUX_DOCS": true
             }
         },
 

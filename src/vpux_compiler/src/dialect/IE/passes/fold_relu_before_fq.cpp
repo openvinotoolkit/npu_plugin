@@ -37,7 +37,7 @@ mlir::LogicalResult FoldReLUBeforeFQ::matchAndRewrite(IE::ReLUOp reluOp, mlir::P
             return mlir::failure();
         }
 
-        auto inputLowConst = fakeQuantOp.input_low().getDefiningOp<Const::DeclareOp>();
+        auto inputLowConst = fakeQuantOp.getInputLow().getDefiningOp<Const::DeclareOp>();
         if (inputLowConst == nullptr) {
             return mlir::failure();
         }
@@ -54,7 +54,7 @@ mlir::LogicalResult FoldReLUBeforeFQ::matchAndRewrite(IE::ReLUOp reluOp, mlir::P
     }
 
     _log.nest().trace("Folded ReLU at '{0}'", reluOp.getLoc());
-    rewriter.replaceOp(reluOp, reluOp.input());
+    rewriter.replaceOp(reluOp, reluOp.getInput());
 
     return mlir::success();
 }

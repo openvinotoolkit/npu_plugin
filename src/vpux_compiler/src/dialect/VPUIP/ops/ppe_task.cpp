@@ -8,6 +8,20 @@
 using namespace vpux;
 
 void vpux::VPUIP::PPETaskOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, VPU::PPEMode ppe_layer_type,
+                                   double clamp_low, double clamp_high, double quant_scale) {
+    build(builder, state, VPU::PPEModeAttr::get(builder.getContext(), ppe_layer_type),
+          builder.getF64FloatAttr(clamp_low), builder.getF64FloatAttr(clamp_high), nullptr, nullptr, nullptr, nullptr,
+          nullptr, builder.getF64ArrayAttr({quant_scale}), nullptr, nullptr, nullptr);
+}
+
+void vpux::VPUIP::PPETaskOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, VPU::PPEMode ppe_layer_type,
+                                   double clamp_low, double clamp_high, double quant_scale, double fp_prelu_alpha) {
+    build(builder, state, VPU::PPEModeAttr::get(builder.getContext(), ppe_layer_type),
+          builder.getF64FloatAttr(clamp_low), builder.getF64FloatAttr(clamp_high), nullptr, nullptr, nullptr, nullptr,
+          nullptr, builder.getF64ArrayAttr({quant_scale}), nullptr, nullptr, builder.getF64FloatAttr(fp_prelu_alpha));
+}
+
+void vpux::VPUIP::PPETaskOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, VPU::PPEMode ppe_layer_type,
                                    int64_t clamp_low, int64_t clamp_high, int64_t lrelu_mult, int64_t lrelu_shift) {
     build(builder, state, VPU::PPEModeAttr::get(builder.getContext(), ppe_layer_type),
           builder.getI64IntegerAttr(clamp_low), builder.getI64IntegerAttr(clamp_high),

@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/utils/IE/blob.hpp"
+#include "vpux/utils/models/blob.hpp"
 
 #include <precision_utils.h>
 #include <blob_factory.hpp>
 #include <inference_engine.hpp>
 
-#include <ngraph/function.hpp>
+#include <openvino/core/model.hpp>
 
 #include <opencv2/core.hpp>
 #include <opencv2/imgcodecs.hpp>
@@ -803,28 +803,28 @@ ie::Blob::Ptr importBlob(const ie::TensorDesc& desc, const std::string& fileName
     return blob;
 }
 
-std::shared_ptr<ngraph::Function> buildFunc(const std::string& name, const ngraph::ParameterVector& baseParameters,
-                                            const ngraph::NodeVector& baseNodes) {
+std::shared_ptr<ov::Model> buildFunc(const std::string& name, const ov::ParameterVector& baseParameters,
+                                     const ov::NodeVector& baseNodes) {
     IE_ASSERT(!baseNodes.empty());
 
-    std::unordered_map<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>> nodeMap;
+    std::unordered_map<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> nodeMap;
 
-    ngraph::ParameterVector newParameters;
+    ov::ParameterVector newParameters;
     newParameters.reserve(baseParameters.size());
 
     for (const auto& baseParam : baseParameters) {
-        const auto newParam = std::static_pointer_cast<ngraph::op::Parameter>(baseParam->copy_with_new_inputs({}));
+        const auto newParam = std::static_pointer_cast<ov::op::v0::Parameter>(baseParam->copy_with_new_inputs({}));
         newParam->set_friendly_name(baseParam->get_friendly_name());
 
         newParameters.push_back(newParam);
         nodeMap.insert({baseParam, newParam});
     }
 
-    ngraph::NodeVector newNodes;
+    ov::NodeVector newNodes;
     newNodes.reserve(baseNodes.size());
 
     for (const auto& baseNode : baseNodes) {
-        ngraph::OutputVector newInputs;
+        ov::OutputVector newInputs;
         newInputs.reserve(baseNode->get_input_size());
 
         for (const auto& baseInput : baseNode->inputs()) {
@@ -842,11 +842,11 @@ std::shared_ptr<ngraph::Function> buildFunc(const std::string& name, const ngrap
 
     const auto lastNode = newNodes.back();
 
-    ngraph::ResultVector newResults;
+    ov::ResultVector newResults;
     newResults.reserve(lastNode->get_output_size());
 
     for (const auto& output : lastNode->outputs()) {
-        const auto newResult = std::make_shared<ngraph::op::Result>(output);
+        const auto newResult = std::make_shared<ov::op::v0::Result>(output);
 
         if (lastNode->get_output_size() == 1) {
             newResult->set_friendly_name(lastNode->get_friendly_name());
@@ -854,10 +854,10 @@ std::shared_ptr<ngraph::Function> buildFunc(const std::string& name, const ngrap
             newResult->set_friendly_name(lastNode->get_friendly_name() + "_" + std::to_string(output.get_index()));
         }
 
-        newResults.push_back(std::make_shared<ngraph::op::Result>(output));
+        newResults.push_back(std::make_shared<ov::op::v0::Result>(output));
     }
 
-    return std::make_shared<ngraph::Function>(newResults, newParameters, name);
+    return std::make_shared<ov::Model>(newResults, newParameters, name);
 }
 
 std::ostream& operator<<(std::ostream& os, const ie::SizeVector& sz) {
@@ -982,10 +982,10 @@ int main(int argc, char* argv[]) {
 
     const auto& baseParameters = baseFunc->get_parameters();
 
-    ngraph::NodeVector baseNodes;
+    ov::NodeVector baseNodes;
 
     for (const auto& baseNode : baseFunc->get_ordered_ops()) {
-        if (ngraph::is_type<ngraph::op::Parameter>(baseNode) || ngraph::is_type<ngraph::op::Result>(baseNode)) {
+        if (ov::is_type<ov::op::v0::Parameter>(baseNode) || ov::is_type<ov::op::v0::Result>(baseNode)) {
             continue;
         }
 

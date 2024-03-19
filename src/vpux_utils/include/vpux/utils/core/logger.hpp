@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "vpux/utils/core/common_logger.hpp"
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/func_ref.hpp"
 #include "vpux/utils/core/helper_macros.hpp"
@@ -26,29 +27,6 @@
 namespace vpux {
 
 //
-// LogLevel
-//
-
-// Logger verbosity levels
-
-enum class LogLevel {
-    None = 0,     // Logging is disabled
-    Fatal = 1,    // Used for very severe error events that will most probably
-                  // cause the application to terminate
-    Error = 2,    // Reporting events which are not expected during normal
-                  // execution, containing probable reason
-    Warning = 3,  // Indicating events which are not usual and might lead to
-                  // errors later
-    Info = 4,     // Short enough messages about ongoing activity in the process
-    Debug = 5,    // More fine-grained messages with references to particular data
-                  // and explanations
-    Trace = 6,    // Involved and detailed information about execution, helps to
-                  // trace the execution flow, produces huge output
-};
-
-StringLiteral stringifyEnum(LogLevel val);
-
-//
 // Logging callback
 //
 
@@ -62,6 +40,7 @@ void globalLogCb(const formatv_object_base&);
 
 class Logger {
 public:
+    friend struct LoggerAdapter;
     static Logger& global();
 
 public:
@@ -86,8 +65,9 @@ public:
         return _logLevel;
     }
 
-    void setLevel(LogLevel lvl) {
+    Logger& setLevel(LogLevel lvl) {
         _logLevel = lvl;
+        return *this;
     }
 
     bool isActive(LogLevel msgLevel) const;

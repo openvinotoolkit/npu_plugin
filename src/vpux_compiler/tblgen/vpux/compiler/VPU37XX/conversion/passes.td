@@ -40,4 +40,19 @@ def ConvertIEToVPUNCE : PassBase<"convert-IE-to-VPU-NCE", "vpux::FunctionPass"> 
     ];
 }
 
+//
+// ConvertLayers2VPU
+//
+
+def ConvertLayers2VPU : PassBase<"convert-layers-to-VPU", "vpux::FunctionPass"> {
+    let summary = "Convert Layers Operations to VPU Dialect (SW and View layers)";
+
+    let constructor = "vpux::arch37xx::createConvertLayers2VPUPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect",
+        "vpux::IE::IEDialect"
+    ];
+}
+
 #endif

@@ -5,11 +5,12 @@
 
 #pragma once
 
-#include "vpux/compiler/dialect/ELF/ops.hpp"
+#include "vpux/compiler/dialect/ELFNPU37XX/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 
 #include "vpux/compiler/dialect/VPURegMapped/attributes.hpp"
 #include "vpux/compiler/dialect/VPURegMapped/dialect.hpp"
+#include "vpux/compiler/dialect/VPURegMapped/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPURegMapped/types.hpp"
 
 #include <mlir/IR/BuiltinOps.h>

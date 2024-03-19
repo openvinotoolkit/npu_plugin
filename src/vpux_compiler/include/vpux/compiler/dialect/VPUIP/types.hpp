@@ -6,8 +6,8 @@
 #pragma once
 
 #include "vpux/compiler/core/type_interfaces.hpp"
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/dialect/VPU/type_interfaces.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/type_interfaces.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 
 #include <mlir/Interfaces/SideEffectInterfaces.h>

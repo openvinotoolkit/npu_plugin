@@ -6,9 +6,6 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/dialect/const/ops.hpp"
-#include "vpux/compiler/utils/error.hpp"
-
-#include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
 
@@ -17,8 +14,8 @@ namespace {
 int64_t extractMaxOutputBoxesPerClass(IE::NonMaxSuppressionOpAdaptor nms) {
     int64_t maxOutputBoxesPerClass = 0;  // default value
 
-    if (nms.max_output_boxes_per_class() != nullptr) {
-        auto maxBoxesConst = nms.max_output_boxes_per_class().getDefiningOp<Const::DeclareOp>();
+    if (nms.getMaxOutputBoxesPerClass() != nullptr) {
+        auto maxBoxesConst = nms.getMaxOutputBoxesPerClass().getDefiningOp<Const::DeclareOp>();
         if (maxBoxesConst != nullptr) {
             const auto maxBoxesContent = maxBoxesConst.getContent();
             if (maxBoxesContent.isSplat()) {
@@ -26,8 +23,8 @@ int64_t extractMaxOutputBoxesPerClass(IE::NonMaxSuppressionOpAdaptor nms) {
             }
         }
     }
-    if (nms.max_output_boxes_per_class_valueAttr() != nullptr) {
-        return nms.max_output_boxes_per_class_valueAttr().getValue().getSExtValue();
+    if (nms.getMaxOutputBoxesPerClassValueAttr() != nullptr) {
+        return nms.getMaxOutputBoxesPerClassValueAttr().getValue().getSExtValue();
     }
 
     return maxOutputBoxesPerClass;
@@ -52,8 +49,8 @@ double extractNMSAttrValue(mlir::Value constName, mlir::FloatAttr attrName) {
 }  // namespace
 
 mlir::LogicalResult vpux::IE::NonMaxSuppressionOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -62,7 +59,7 @@ mlir::LogicalResult vpux::IE::NonMaxSuppressionOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = nms.in_box_scores().getType().cast<mlir::ShapedType>();
+    const auto inType = nms.getInBoxScores().getType().cast<mlir::ShapedType>();
     mlir::Type outType = mlir::IntegerType::get(ctx, 32, mlir::IntegerType::Signed);
 
     const auto maxOutputBoxesPerClass = extractMaxOutputBoxesPerClass(nms);
@@ -96,22 +93,22 @@ public:
 
 mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::NonMaxSuppressionOp nmsOp,
                                                         mlir::PatternRewriter& rewriter) const {
-    if (nmsOp.max_output_boxes_per_class_value().has_value() && nmsOp.iou_threshold_value().has_value() &&
-        nmsOp.score_threshold_value().has_value() && nmsOp.soft_nms_sigma_value().has_value()) {
+    if (nmsOp.getMaxOutputBoxesPerClassValue().has_value() && nmsOp.getIouThresholdValue().has_value() &&
+        nmsOp.getScoreThresholdValue().has_value() && nmsOp.getSoftNmsSigmaValue().has_value()) {
         return mlir::failure();
     }
 
     int64_t maxBoxesPerClassValue = extractMaxOutputBoxesPerClass(nmsOp);
 
-    double iouThresholdValue = extractNMSAttrValue(nmsOp.iou_threshold(), nmsOp.iou_threshold_valueAttr());
+    double iouThresholdValue = extractNMSAttrValue(nmsOp.getIouThreshold(), nmsOp.getIouThresholdValueAttr());
 
-    double scoreThresholdValue = extractNMSAttrValue(nmsOp.score_threshold(), nmsOp.score_threshold_valueAttr());
+    double scoreThresholdValue = extractNMSAttrValue(nmsOp.getScoreThreshold(), nmsOp.getScoreThresholdValueAttr());
 
-    double softNMSSigmaValue = extractNMSAttrValue(nmsOp.soft_nms_sigma(), nmsOp.soft_nms_sigma_valueAttr());
+    double softNMSSigmaValue = extractNMSAttrValue(nmsOp.getSoftNmsSigma(), nmsOp.getSoftNmsSigmaValueAttr());
 
     rewriter.replaceOpWithNewOp<IE::NonMaxSuppressionOp>(
-            nmsOp, nmsOp.in_box_coords(), nmsOp.in_box_scores(), nullptr, nullptr, nullptr, nullptr,
-            nmsOp.box_encoding(), nmsOp.sort_result_descending(), rewriter.getI64IntegerAttr(maxBoxesPerClassValue),
+            nmsOp, nmsOp.getInBoxCoords(), nmsOp.getInBoxScores(), nullptr, nullptr, nullptr, nullptr,
+            nmsOp.getBoxEncoding(), nmsOp.getSortResultDescending(), rewriter.getI64IntegerAttr(maxBoxesPerClassValue),
             rewriter.getF64FloatAttr(iouThresholdValue), rewriter.getF64FloatAttr(scoreThresholdValue),
             rewriter.getF64FloatAttr(softNMSSigmaValue));
 

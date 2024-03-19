@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include <llvm/ADT/None.h>
 #include <mlir/IR/BuiltinTypes.h>
 
 #include "vpux/compiler/dialect/VPUMI37XX/ops.hpp"
@@ -14,7 +13,7 @@
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_writer.hpp"
 
-#include <vpu_nnrt_api_37xx.h>
+#include <npu_37xx_nnrt.hpp>
 
 #include <stdint.h>
 #include <stdio.h>
@@ -30,6 +29,7 @@ namespace {
 }
 
 using namespace vpux;
+using namespace npu37xx;
 
 #define SLICE_LENGTH \
     (2 * 1024 * 1024)  // TODO: E#54008	Don't hardcode this . Check if we can do it via relocation from CMX symbol size?
@@ -94,8 +94,10 @@ void vpux::VPUMI37XX::DPUInvariantOp::serialize(elf::writer::BinaryDataSection<u
             auto weightsOffs = mlir::cast<VPURT::DeclareBufferOp>(getWeights().getDefiningOp()).getByteOffset();
             auto actOffs = mlir::cast<VPURT::DeclareBufferOp>(getInput().getDefiningOp()).getByteOffset();
 
-            registers.tensor_start = std::max(static_cast<int64_t>(0), (actOffs - weightsOffs) >> 4);
-            registers.weight_start = std::max(static_cast<int64_t>(0), (weightsOffs - actOffs) >> 4);
+            registers.tensor_start =
+                    checked_cast<uint32_t>(std::max(static_cast<int64_t>(0), (actOffs - weightsOffs) >> 4));
+            registers.weight_start =
+                    checked_cast<uint32_t>(std::max(static_cast<int64_t>(0), (weightsOffs - actOffs) >> 4));
         }
 
         llvm::SmallVector<mlir::Value> outputs(getOutputBuffs());
@@ -122,7 +124,7 @@ void vpux::VPUMI37XX::DPUInvariantOp::serialize(elf::writer::BinaryDataSection<u
 
     taskWrapper.cluster_ = bufOp.getNonEmptySectionIndex()[0];  // TODO:E#54007 use from memref and don't assume index 0
 
-    taskWrapper.is_cont_conv_ = getIsContinued().value_or(false);
+    taskWrapper.is_cont_conv_ = getIsContinued();
 
     if (auto profBuffer = getProfilingData()) {
         auto profBufOp = profBuffer.getDefiningOp<VPURT::DeclareBufferOp>();
@@ -170,20 +172,16 @@ mlir::FailureOr<uint64_t> vpux::VPUMI37XX::DPUInvariantOp::getOffsetOfWithinOper
     VPUX_THROW("OffsetOf not supported for DPUInvariant");
 }
 
-vpux::ELF::SectionFlagsAttr vpux::VPUMI37XX::DPUInvariantOp::getAccessingProcs() {
-    return (ELF::SectionFlagsAttr::SHF_EXECINSTR | ELF::SectionFlagsAttr::VPU_SHF_PROC_DMA);
+vpux::ELFNPU37XX::SectionFlagsAttr vpux::VPUMI37XX::DPUInvariantOp::getAccessingProcs() {
+    return (ELFNPU37XX::SectionFlagsAttr::SHF_EXECINSTR | ELFNPU37XX::SectionFlagsAttr::VPU_SHF_PROC_DMA);
 }
 
-vpux::ELF::SectionFlagsAttr vpux::VPUMI37XX::DPUInvariantOp::getUserProcs() {
-    return (ELF::SectionFlagsAttr::VPU_SHF_PROC_DPU);
+vpux::ELFNPU37XX::SectionFlagsAttr vpux::VPUMI37XX::DPUInvariantOp::getUserProcs() {
+    return (ELFNPU37XX::SectionFlagsAttr::VPU_SHF_PROC_DPU);
 }
 
 vpux::VPURT::BufferSection vpux::VPUMI37XX::DPUInvariantOp::getMemorySpace() {
     return vpux::VPURT::BufferSection::DDR;
-}
-
-vpux::VPURegMapped::TaskType vpux::VPUMI37XX::DPUInvariantOp::getTaskType() {
-    return vpux::VPURegMapped::TaskType::DPUInvariant;
 }
 
 void vpux::VPUMI37XX::DPUVariantOp::serialize(elf::writer::BinaryDataSection<uint8_t>& binDataSection) {
@@ -239,18 +237,14 @@ mlir::FailureOr<uint64_t> vpux::VPUMI37XX::DPUVariantOp::getOffsetOfWithinOperat
     return mlir::failure();
 }
 
-vpux::ELF::SectionFlagsAttr vpux::VPUMI37XX::DPUVariantOp::getAccessingProcs() {
-    return (ELF::SectionFlagsAttr::SHF_EXECINSTR | ELF::SectionFlagsAttr::VPU_SHF_PROC_DMA);
+vpux::ELFNPU37XX::SectionFlagsAttr vpux::VPUMI37XX::DPUVariantOp::getAccessingProcs() {
+    return (ELFNPU37XX::SectionFlagsAttr::SHF_EXECINSTR | ELFNPU37XX::SectionFlagsAttr::VPU_SHF_PROC_DMA);
 }
 
-vpux::ELF::SectionFlagsAttr vpux::VPUMI37XX::DPUVariantOp::getUserProcs() {
-    return (ELF::SectionFlagsAttr::VPU_SHF_PROC_DPU);
+vpux::ELFNPU37XX::SectionFlagsAttr vpux::VPUMI37XX::DPUVariantOp::getUserProcs() {
+    return (ELFNPU37XX::SectionFlagsAttr::VPU_SHF_PROC_DPU);
 }
 
 vpux::VPURT::BufferSection vpux::VPUMI37XX::DPUVariantOp::getMemorySpace() {
     return vpux::VPURT::BufferSection::DDR;
-}
-
-vpux::VPURegMapped::TaskType vpux::VPUMI37XX::DPUVariantOp::getTaskType() {
-    return vpux::VPURegMapped::TaskType::DPUVariant;
 }

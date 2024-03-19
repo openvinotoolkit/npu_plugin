@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "vpux/compiler/core/pipelines_options.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/dialect.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
@@ -26,7 +27,7 @@ namespace VPUIP {
 // Passes
 //
 
-using MemKindCreateFunc = std::function<Optional<VPU::MemoryKind>(StringRef)>;
+using MemKindCreateFunc = std::function<std::optional<VPU::MemoryKind>(StringRef)>;
 using ConditionFunc = std::function<bool(mlir::Operation*)>;
 
 template <typename T>
@@ -39,8 +40,7 @@ static ConditionFunc makeStubCondition() {
 }
 
 std::unique_ptr<mlir::Pass> createConvertWeightsTableOp2ConstPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createDumpStatisticsOfTaskOpsPass(bool enableCompressWeightsBtc = true,
-                                                              Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createDumpStatisticsOfTaskOpsPass(Logger log = Logger::global(), bool forceLogging = true);
 std::unique_ptr<mlir::Pass> createUnrollClusterTilingPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createUnwrapClusterTilingPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createUnrollDepthToSpaceDMAPass(Logger log = Logger::global());
@@ -58,18 +58,13 @@ std::unique_ptr<mlir::Pass> createResolveDMAWithSwizzlingPass(Logger log = Logge
 std::unique_ptr<mlir::Pass> createMovePureViewOpBeforeCopyPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createOptimizeCopiesPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createOptimizeConcatViewCopiesPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createCopyOpHoistingPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createOptimizeParallelCopiesPass(bool enableOptimizeConstCopy = true,
                                                              Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createMoveSubViewBeforeSparseBufferPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createCopyOpTilingPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSetMemorySpacePass(MemKindCreateFunc memKindCb, Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createStaticAllocationPass(MemKindCreateFunc memKindCb, Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertEltwiseToInPlacePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createLinearizationPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createFeasibleAllocationPass(MemKindCreateFunc memKindCb,
-                                                         MemKindCreateFunc secondLvlMemKindCb = nullptr,
-                                                         Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createMaximizeUPACyclesPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createBreakDataFlowPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createPatchWeightsTablePass(Logger log = Logger::global());
@@ -92,7 +87,7 @@ std::unique_ptr<mlir::Pass> createConvWeightsCompressionPass(Logger log = Logger
 std::unique_ptr<mlir::Pass> createUngroupSparseBuffersPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createPropagateCompressionSchemePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createFlattenSparseWeightsTypesPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createComputeSESizesPass(Optional<bool> onlyInputsConcatOverC = None,
+std::unique_ptr<mlir::Pass> createComputeSESizesPass(std::optional<bool> onlyInputsConcatOverC = std::nullopt,
                                                      Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createComputeSEBasePtrsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertSETablesToConstantsPass(Logger log = Logger::global());
@@ -128,6 +123,64 @@ std::unique_ptr<mlir::Pass> createConvertViewOpsToDeclarationsPass(Logger log = 
 std::unique_ptr<mlir::Pass> createConvertAsyncOpsToTasksPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createCompressWeightsBTCPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createNNDMATilingPass(Logger log = Logger::global());
+
+//
+// Memory allocation pipeline
+//
+
+std::unique_ptr<mlir::Pass> createFeasibleAllocationPass(
+        MemKindCreateFunc memKindCb, MemKindCreateFunc secondLvlMemKindCb = nullptr,
+        const bool linearizeSchedule = false, const bool enablePipelining = true, const bool enablePrefetching = true,
+        const bool optimizeFragmentation = true, const bool optimizeDynamicSpilling = true,
+        Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createQueryArgsAllocationAnalysisPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createStaticAllocationPass(MemKindCreateFunc memKindCb, Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createCollectUsedMemoryPass(Logger log = Logger::global());
+
+//
+// DefaultHWOptions(for all devices)
+//
+
+struct DefaultHWOptionsDialectBase : public virtual vpux::DefaultHWOptionsBase {
+    BoolOption enableProfiling{*this, "profiling", llvm::cl::desc("Enable profiling"), llvm::cl::init(false)};
+
+    BoolOption enableDPUProfiling{*this, "dpu-profiling", llvm::cl::desc("Enable DPU task profiling"),
+                                  llvm::cl::init(true)};
+
+    BoolOption enableSWProfiling{*this, "sw-profiling", llvm::cl::desc("Enable SW task profiling"),
+                                 llvm::cl::init(true)};
+
+    BoolOption enableOptimizeCopies{*this, "optimize-copies", llvm::cl::desc("Enable optimize-copies pass"),
+                                    llvm::cl::init(true)};
+
+    BoolOption enableOptimizeConstCopies{*this, "optimize-const-copies", llvm::cl::desc("Enable optimize-const-copies"),
+                                         llvm::cl::init(true)};
+
+    BoolOption enableGroupAsyncExecuteOps{*this, "group-async-execute-ops",
+                                          llvm::cl::desc("Enable group-async-execute-ops pass"), llvm::cl::init(false)};
+
+    BoolOption enableConstantFusion{*this, "constant-fusion", llvm::cl::desc("Enable constant fusion"),
+                                    llvm::cl::init(true)};
+
+    BoolOption enableOpsAsDMA{*this, "enable-ops-as-dma",
+                              llvm::cl::desc("Force using DMA transformations instead of SW ops"),
+                              llvm::cl::init(true)};
+
+    BoolOption optimizeFragmentation{*this, "optimize-fragmentation",
+                                     ::llvm::cl::desc("Enables compiler to optimize CMX fragmentation"),
+                                     ::llvm::cl::init(true)};
+
+    BoolOption optimizeDynamicSpilling{*this, "optimize-dynamic-spilling",
+                                       ::llvm::cl::desc("Enables compiler to optimize dynamic spilling DMAs"),
+                                       ::llvm::cl::init(true)};
+
+    BoolOption linearizeSchedule{*this, "linearize-schedule", llvm::cl::desc("Linearize tasks on all engines"),
+                                 llvm::cl::init(false)};
+
+    BoolOption enableDumpTaskStats{*this, "dump-task-stats",
+                                   ::llvm::cl::desc("Enable dumping statistics of Task operations"),
+                                   ::llvm::cl::init(isDeveloperBuild())};
+};
 
 //
 // Registration

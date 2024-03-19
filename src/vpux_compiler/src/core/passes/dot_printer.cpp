@@ -67,6 +67,9 @@ mlir::LogicalResult PrintDotPass::initializeOptions(StringRef options) {
     if (printOnlyTaskAndBarrierOpt.hasValue()) {
         _writerParams.printOnlyTaskAndBarrier = printOnlyTaskAndBarrierOpt.getValue();
     }
+    if (printOnlyAsyncExecOpt.hasValue()) {
+        _writerParams.printOnlyAsyncExec = printOnlyAsyncExecOpt.getValue();
+    }
     if (startAfterOpt.hasValue()) {
         _writerParams.startAfter = startAfterOpt.getValue();
     }

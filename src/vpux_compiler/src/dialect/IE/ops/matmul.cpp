@@ -44,8 +44,8 @@
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::MatMulOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -54,14 +54,15 @@ mlir::LogicalResult vpux::IE::MatMulOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType1 = matMul.input1().getType().cast<mlir::ShapedType>();
-    const auto inType2 = matMul.input2().getType().cast<mlir::ShapedType>();
+    const auto inType1 = matMul.getInput1().getType().cast<mlir::ShapedType>();
+    const auto inType2 = matMul.getInput2().getType().cast<mlir::ShapedType>();
     const auto inShape1 = inType1.getShape();
     const auto inShape2 = inType2.getShape();
+
     const auto inRank1 = inShape1.size();
     const auto inRank2 = inShape2.size();
-    const auto transA = matMul.transpose_a();
-    const auto transB = matMul.transpose_b();
+    const auto transA = matMul.getTransposeA();
+    const auto transB = matMul.getTransposeB();
 
     // Rightmost two axes are row & col. Remaining left axes are batch
     constexpr int kRowColIdxRange = 2;
@@ -129,11 +130,11 @@ public:
 };
 
 mlir::LogicalResult UseFullyConnected::matchAndRewrite(IE::MatMulOp matmulOp, mlir::PatternRewriter& rewriter) const {
-    auto inShape = getShape(matmulOp.input1());
-    auto weightsShape = getShape(matmulOp.input2());
+    auto inShape = getShape(matmulOp.getInput1());
+    auto weightsShape = getShape(matmulOp.getInput2());
 
-    auto transIn = matmulOp.transpose_a();
-    auto transWeights = matmulOp.transpose_b();
+    auto transIn = matmulOp.getTransposeA();
+    auto transWeights = matmulOp.getTransposeB();
 
     static const auto IC = Dim(1);
 
@@ -145,8 +146,8 @@ mlir::LogicalResult UseFullyConnected::matchAndRewrite(IE::MatMulOp matmulOp, ml
         return mlir::failure();
     }
 
-    rewriter.replaceOpWithNewOp<IE::FullyConnectedOp>(matmulOp, matmulOp.getType(), matmulOp.input1(),
-                                                      matmulOp.input2(), nullptr);
+    rewriter.replaceOpWithNewOp<IE::FullyConnectedOp>(matmulOp, matmulOp.getType(), matmulOp.getInput1(),
+                                                      matmulOp.getInput2(), nullptr);
 
     return mlir::success();
 }
@@ -168,7 +169,7 @@ public:
 };
 
 mlir::LogicalResult TransposeInputs::matchAndRewrite(IE::MatMulOp matmulOp, mlir::PatternRewriter& rewriter) const {
-    if (!matmulOp.transpose_a() && matmulOp.transpose_b()) {
+    if (!matmulOp.getTransposeA() && matmulOp.getTransposeB()) {
         return mlir::failure();
     }
 
@@ -193,14 +194,14 @@ mlir::LogicalResult TransposeInputs::matchAndRewrite(IE::MatMulOp matmulOp, mlir
         if (transposedOrderAttr(inputRank) != nullptr) {
             auto orderAttr = transposedOrderAttr(inputRank);
             auto transpose = rewriter.create<IE::TransposeOp>(matmulOp->getLoc(), input, nullptr, orderAttr);
-            return transpose.output();
+            return transpose.getOutput();
         }
 
         return nullptr;
     };
 
-    auto input1 = getInput(!matmulOp.transpose_a(), matmulOp.input1());
-    auto input2 = getInput(matmulOp.transpose_b(), matmulOp.input2());
+    auto input1 = getInput(!matmulOp.getTransposeA(), matmulOp.getInput1());
+    auto input2 = getInput(matmulOp.getTransposeB(), matmulOp.getInput2());
 
     rewriter.replaceOpWithNewOp<IE::MatMulOp>(matmulOp, input1, input2, /*transpose_a=*/false,
                                               /*transpose_b=*/true);

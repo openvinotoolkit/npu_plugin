@@ -12,8 +12,6 @@ include "vpux/compiler/dialect/VPU/attributes.td"
 include "vpux/compiler/dialect/VPU/type_interfaces.td"
 include "vpux/compiler/core/type_interfaces.td"
 
-include "mlir/IR/SubElementInterfaces.td"
-
 // Base class for VPU dialect types.
 class VPU_Type<string name, list<Trait> traits = []>
     : TypeDef<VPU_Dialect, name, traits> {
@@ -28,7 +26,6 @@ def VPU_DistributedTensor :
         VPU_Type<
             "DistributedTensor",
             [
-                DeclareTypeInterfaceMethods<SubElementTypeInterface>,
                 DeclareTypeInterfaceMethods<NDTypeInterface>,
                 DeclareTypeInterfaceMethods<ClusterTypeInterface>,
                 VPU_DistributedTypeInterface
@@ -68,7 +65,10 @@ def VPU_SparseTensor :
             [
                 GroupedTypeInterface,
                 DeclareTypeInterfaceMethods<NDTypeInterface>,
-                DeclareTypeInterfaceMethods<VPU_DistributedTypeInterface, ["containsDistributedTypes", "getDistributedTypes"]>
+                DeclareTypeInterfaceMethods<VPU_DistributedTypeInterface,
+                    ["containsDistributedTypes", "getDistributedTypes", "changeShapeForExplicitDistribution",
+                     "changeShapeElemTypeForExplicitDistribution", "changeTypeComponentsForExplicitDistribution",
+                     "extractDenseTileForExplicitDistribution", "extractViewTileForExplicitDistribution"]>
             ]
         > {
     let summary = "VPU SparseTensor Type";

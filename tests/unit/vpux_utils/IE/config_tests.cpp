@@ -12,17 +12,17 @@
 using namespace vpux;
 
 struct SimpleOption : OptionBase<SimpleOption, bool> {
-    static StringRef key() {
+    static std::string_view key() {
         return "PUBLIC_OPT";
     }
 
-    static SmallVector<StringRef> deprecatedKeys() {
+    static std::vector<std::string_view> deprecatedKeys() {
         return {"DEPRECATED_OPT"};
     }
 };
 
 struct PrivateOption : OptionBase<PrivateOption, int64_t> {
-    static StringRef key() {
+    static std::string_view key() {
         return "PRIVATE_OPT";
     }
 
@@ -54,7 +54,7 @@ public:
     void SetUp() override {
         testing::Test::SetUp();
 
-        Logger::global().setLevel(LogLevel::Warning);
+        LoggerAdapter::setGlobalLevel(LogLevel::Warning);
 
         options->add<SimpleOption>();
         options->add<PrivateOption>();
@@ -77,6 +77,13 @@ TEST_F(MLIR_ConfigTests, UpdateAndValidate) {
     EXPECT_NO_THROW(conf.update({{"PRIVATE_OPT", "15"}}));
     EXPECT_ANY_THROW(conf.update({{"PRIVATE_OPT", "aaa"}}));
     EXPECT_ANY_THROW(conf.update({{"PRIVATE_OPT", "-1"}}));
+}
+
+TEST_F(MLIR_ConfigTests, UpdateAndValidateNullptr) {
+    EXPECT_NO_THROW(conf.update({{"PUBLIC_OPT", "YES"}}));
+    EXPECT_ANY_THROW(SimpleOption::parse(""));
+    EXPECT_NO_THROW(conf.update({{"PRIVATE_OPT", "15"}}));
+    EXPECT_ANY_THROW(PrivateOption::parse(""));
 }
 
 TEST_F(MLIR_ConfigTests, UpdateAndHas) {
@@ -130,7 +137,7 @@ public:
 
 TEST_F(MLIR_ConfigSerializationTests, CanDumpConfigToString) {
     struct StringOption final : OptionBase<StringOption, std::string> {
-        static StringRef key() {
+        static std::string_view key() {
             return "STRING_OPT";
         }
 
@@ -155,11 +162,11 @@ TEST_F(MLIR_ConfigSerializationTests, CanDumpConfigToString) {
 
 TEST_F(MLIR_ConfigSerializationTests, CanDumpConfigWithDoubleToString) {
     struct DoubleOption final : OptionBase<DoubleOption, double> {
-        static StringRef key() {
+        static std::string_view key() {
             return "DOUBLE_OPT";
         }
 
-        static char defaultValue() {
+        static double defaultValue() {
             return 0.0;
         }
     };
@@ -173,7 +180,7 @@ TEST_F(MLIR_ConfigSerializationTests, CanDumpConfigWithDoubleToString) {
 
 TEST_F(MLIR_ConfigSerializationTests, CanDumpConfigWithSpacesToString) {
     struct StringWithSpacesOption final : OptionBase<StringWithSpacesOption, std::string> {
-        static StringRef key() {
+        static std::string_view key() {
             return "STRING_WITH_SPACES_OPT";
         }
 

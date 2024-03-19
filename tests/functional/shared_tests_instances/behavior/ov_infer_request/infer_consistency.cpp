@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2018-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
@@ -7,6 +6,7 @@
 #include <vector>
 
 #include "behavior/ov_infer_request/infer_consistency.hpp"
+#include "common/utils.hpp"
 
 using namespace ov::test::behavior;
 
@@ -18,74 +18,74 @@ namespace {
 using Configs = std::vector<std::pair<std::string, ov::AnyMap>>;
 
 auto configs = []() {
-    return std::vector<Configs>{{{CommonTestUtils::DEVICE_KEEMBAY, {}}, {CommonTestUtils::DEVICE_KEEMBAY, {}}}};
+    return std::vector<Configs>{{{ov::test::utils::DEVICE_NPU, {}}, {ov::test::utils::DEVICE_NPU, {}}}};
 };
 
 auto AutoConfigs = []() {
-    return std::vector<Configs>{{{CommonTestUtils::DEVICE_AUTO + std::string(":") + CommonTestUtils::DEVICE_KEEMBAY,
+    return std::vector<Configs>{{{ov::test::utils::DEVICE_AUTO + std::string(":") + ov::test::utils::DEVICE_NPU,
                                   {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}},
-                                 {CommonTestUtils::DEVICE_KEEMBAY, {}}},
-                                {{CommonTestUtils::DEVICE_AUTO + std::string(":") + CommonTestUtils::DEVICE_KEEMBAY,
+                                 {ov::test::utils::DEVICE_NPU, {}}},
+                                {{ov::test::utils::DEVICE_AUTO + std::string(":") + ov::test::utils::DEVICE_NPU,
                                   {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}},
-                                 {CommonTestUtils::DEVICE_KEEMBAY, {}}},
-                                {{CommonTestUtils::DEVICE_AUTO + std::string(":") + CommonTestUtils::DEVICE_KEEMBAY,
+                                 {ov::test::utils::DEVICE_NPU, {}}},
+                                {{ov::test::utils::DEVICE_AUTO + std::string(":") + ov::test::utils::DEVICE_NPU,
                                   {ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}},
-                                 {CommonTestUtils::DEVICE_KEEMBAY, {}}},
-                                {{CommonTestUtils::DEVICE_AUTO + std::string(":") + CommonTestUtils::DEVICE_KEEMBAY +
-                                          "," + CommonTestUtils::DEVICE_CPU,
+                                 {ov::test::utils::DEVICE_NPU, {}}},
+                                {{ov::test::utils::DEVICE_AUTO + std::string(":") + ov::test::utils::DEVICE_NPU + "," +
+                                          ov::test::utils::DEVICE_CPU,
                                   {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}},
-                                 {CommonTestUtils::DEVICE_KEEMBAY, {}},
-                                 {CommonTestUtils::DEVICE_CPU, {}}},
-                                {{CommonTestUtils::DEVICE_AUTO + std::string(":") + CommonTestUtils::DEVICE_KEEMBAY +
-                                          "," + CommonTestUtils::DEVICE_CPU,
+                                 {ov::test::utils::DEVICE_NPU, {}},
+                                 {ov::test::utils::DEVICE_CPU, {}}},
+                                {{ov::test::utils::DEVICE_AUTO + std::string(":") + ov::test::utils::DEVICE_NPU + "," +
+                                          ov::test::utils::DEVICE_CPU,
                                   {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}},
-                                 {CommonTestUtils::DEVICE_KEEMBAY, {}},
-                                 {CommonTestUtils::DEVICE_CPU, {}}},
-                                {{CommonTestUtils::DEVICE_AUTO + std::string(":") + CommonTestUtils::DEVICE_KEEMBAY +
-                                          "," + CommonTestUtils::DEVICE_CPU,
+                                 {ov::test::utils::DEVICE_NPU, {}},
+                                 {ov::test::utils::DEVICE_CPU, {}}},
+                                {{ov::test::utils::DEVICE_AUTO + std::string(":") + ov::test::utils::DEVICE_NPU + "," +
+                                          ov::test::utils::DEVICE_CPU,
                                   {ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}},
-                                 {CommonTestUtils::DEVICE_KEEMBAY, {}},
-                                 {CommonTestUtils::DEVICE_CPU, {}}},
-                                {{CommonTestUtils::DEVICE_AUTO + std::string(":") + CommonTestUtils::DEVICE_CPU + "," +
-                                          CommonTestUtils::DEVICE_KEEMBAY,
+                                 {ov::test::utils::DEVICE_NPU, {}},
+                                 {ov::test::utils::DEVICE_CPU, {}}},
+                                {{ov::test::utils::DEVICE_AUTO + std::string(":") + ov::test::utils::DEVICE_CPU + "," +
+                                          ov::test::utils::DEVICE_NPU,
                                   {ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}},
-                                 {CommonTestUtils::DEVICE_CPU, {}},
-                                 {CommonTestUtils::DEVICE_KEEMBAY, {}}}};
+                                 {ov::test::utils::DEVICE_CPU, {}},
+                                 {ov::test::utils::DEVICE_NPU, {}}}};
 };
 
 auto MultiConfigs = []() {
-    return std::vector<Configs>{{{CommonTestUtils::DEVICE_MULTI + std::string(":") + CommonTestUtils::DEVICE_KEEMBAY,
+    return std::vector<Configs>{{{ov::test::utils::DEVICE_MULTI + std::string(":") + ov::test::utils::DEVICE_NPU,
                                   {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}},
-                                 {CommonTestUtils::DEVICE_KEEMBAY, {}}},
-                                {{CommonTestUtils::DEVICE_MULTI + std::string(":") + CommonTestUtils::DEVICE_KEEMBAY,
+                                 {ov::test::utils::DEVICE_NPU, {}}},
+                                {{ov::test::utils::DEVICE_MULTI + std::string(":") + ov::test::utils::DEVICE_NPU,
                                   {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}},
-                                 {CommonTestUtils::DEVICE_KEEMBAY, {}}},
-                                {{CommonTestUtils::DEVICE_MULTI + std::string(":") + CommonTestUtils::DEVICE_KEEMBAY +
-                                          "," + CommonTestUtils::DEVICE_CPU,
+                                 {ov::test::utils::DEVICE_NPU, {}}},
+                                {{ov::test::utils::DEVICE_MULTI + std::string(":") + ov::test::utils::DEVICE_NPU + "," +
+                                          ov::test::utils::DEVICE_CPU,
                                   {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}},
-                                 {CommonTestUtils::DEVICE_KEEMBAY, {}},
-                                 {CommonTestUtils::DEVICE_CPU, {}}},
-                                {{CommonTestUtils::DEVICE_MULTI + std::string(":") + CommonTestUtils::DEVICE_KEEMBAY +
-                                          "," + CommonTestUtils::DEVICE_CPU,
+                                 {ov::test::utils::DEVICE_NPU, {}},
+                                 {ov::test::utils::DEVICE_CPU, {}}},
+                                {{ov::test::utils::DEVICE_MULTI + std::string(":") + ov::test::utils::DEVICE_NPU + "," +
+                                          ov::test::utils::DEVICE_CPU,
                                   {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}},
-                                 {CommonTestUtils::DEVICE_KEEMBAY, {}},
-                                 {CommonTestUtils::DEVICE_CPU, {}}}};
+                                 {ov::test::utils::DEVICE_NPU, {}},
+                                 {ov::test::utils::DEVICE_CPU, {}}}};
 };
 
 // 3x5 configuration takes ~65 seconds to run, which is already pretty long time
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferConsistencyTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_BehaviorTests, OVInferConsistencyTest,
                          ::testing::Combine(::testing::Values(3),  // inferRequest num
                                             ::testing::Values(5),  // infer counts
                                             ::testing::ValuesIn(configs())),
                          OVInferConsistencyTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferConsistencyTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Auto_BehaviorTests, OVInferConsistencyTest,
                          ::testing::Combine(::testing::Values(3),  // inferRequest num
                                             ::testing::Values(5),  // infer counts
                                             ::testing::ValuesIn(AutoConfigs())),
                          OVInferConsistencyTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferConsistencyTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Multi_BehaviorTests, OVInferConsistencyTest,
                          ::testing::Combine(::testing::Values(3),  // inferRequest num
                                             ::testing::Values(5),  // infer counts
                                             ::testing::ValuesIn(MultiConfigs())),

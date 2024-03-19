@@ -12,63 +12,55 @@
 using namespace vpux;
 
 namespace {
+
 template <class T, typename = require_t<std::is_integral<T>>>
-mlir::IntegerAttr getOptionalInt(mlir::MLIRContext* ctx, llvm::Optional<T> value) {
-    return value.hasValue() ? getIntAttr(ctx, value.getValue()) : nullptr;
+mlir::IntegerAttr getOptionalInt(mlir::MLIRContext* ctx, std::optional<T> value) {
+    return value.has_value() ? getIntAttr(ctx, value.value()) : nullptr;
 }
+
+const mlir::StringRef SW_PROF_META_ATTR_NAME = "profilingMetadata";
 
 };  // namespace
 
 VPUIP::DpuProfilingMetadataAttr vpux::getDpuProfilingMetaAttr(mlir::MLIRContext* ctx, unsigned bufferId,
                                                               unsigned taskId, unsigned maxVariants,
-                                                              llvm::Optional<unsigned> numVariants,
-                                                              llvm::Optional<unsigned> clusterId) {
+                                                              std::optional<unsigned> numVariants,
+                                                              std::optional<unsigned> clusterId) {
     return VPUIP::DpuProfilingMetadataAttr::get(ctx, getIntAttr(ctx, bufferId), getIntAttr(ctx, taskId),
                                                 getIntAttr(ctx, maxVariants), getOptionalInt(ctx, numVariants),
                                                 getOptionalInt(ctx, clusterId));
 }
 
-std::string convertExecTypeToName(profiling::ExecutorType execType) {
-    using profiling::ExecutorType;
-    switch (execType) {
-    case ExecutorType::ACTSHAVE:
-        return "actshave";
-    case ExecutorType::DMA_HW:
-        return "dmahw";
-    case ExecutorType::DMA_SW:
-        return "dma";
-    case ExecutorType::DPU:
-        return "dpu";
-    case ExecutorType::UPA:
-        return "upa";
-    case ExecutorType::WORKPOINT:
-        return "pll";
-    case ExecutorType::NONE:
-    default:
-        VPUX_THROW("Unknown execType");
-    };
-};
+VPUIP::DmaProfilingMetadataAttr vpux::getDmaProfilingMetaAttrBegin(mlir::MLIRContext* ctx) {
+    return VPUIP::DmaProfilingMetadataAttr::get(ctx, /*dataIndex=*/nullptr, mlir::UnitAttr::get(ctx));
+}
 
-;  // namespace
+VPUIP::DmaProfilingMetadataAttr vpux::getDmaProfilingMetaAttr(mlir::MLIRContext* ctx, unsigned index) {
+    return VPUIP::DmaProfilingMetadataAttr::get(ctx, getIntAttr(ctx, index), /*profBegin=*/nullptr);
+}
 
-profiling::ExecutorType vpux::convertDataInfoNameToExecType(StringRef name) {
-    using profiling::ExecutorType;
-    if (name == "actshave") {
-        return ExecutorType::ACTSHAVE;
-    } else if (name == "dmahw") {
-        return ExecutorType::DMA_HW;
-    } else if (name == "dma") {
-        return ExecutorType::DMA_SW;
-    } else if (name == "dpu") {
-        return ExecutorType::DPU;
-    } else if (name == "none") {
-        return ExecutorType::NONE;
-    } else if (name == "upa") {
-        return ExecutorType::UPA;
-    } else if (name == "pll") {
-        return ExecutorType::WORKPOINT;
+VPUIP::SwProfilingMetadataAttr vpux::getSwProfilingMetaAttr(mlir::MLIRContext* ctx, size_t bufferId,
+                                                            size_t bufferOffset, size_t clusterSize, size_t dataIndex,
+                                                            std::optional<size_t> tileId,
+                                                            std::optional<size_t> clusterId) {
+    return VPUIP::SwProfilingMetadataAttr::get(ctx, getIntAttr(ctx, bufferId), getIntAttr(ctx, bufferOffset),
+                                               getIntAttr(ctx, clusterSize), getIntAttr(ctx, dataIndex),
+                                               getOptionalInt(ctx, tileId), getOptionalInt(ctx, clusterId));
+}
+
+void vpux::attachSwProfilingMetadataToUpa(mlir::Operation* op, VPUIP::SwProfilingMetadataAttr attr) {
+    VPUX_THROW_WHEN(op == nullptr, "Null operation in attachSwProfilingMetadataToUpa");
+    op->setAttr(SW_PROF_META_ATTR_NAME, attr);
+}
+
+VPUIP::SwProfilingMetadataAttr vpux::getSwProfilingMetadataFromUpa(mlir::Operation* op) {
+    VPUX_THROW_WHEN(op == nullptr, "Null operation in attachSwProfilingMetadataToUpa");
+    auto attr = op->getAttr(SW_PROF_META_ATTR_NAME);
+    if (attr == nullptr) {
+        return nullptr;
     }
-    VPUX_THROW("Can not convert '{0}' to profiling::ExecutorType", name);
+    VPUX_THROW_UNLESS(attr.isa<VPUIP::SwProfilingMetadataAttr>(), "'{0}' must be SwProfilingMetadataAttr");
+    return attr.cast<VPUIP::SwProfilingMetadataAttr>();
 }
 
 mlir::BlockArgument vpux::addNewProfilingOutput(mlir::MLIRContext* ctx, mlir::func::FuncOp& netFunc,
@@ -79,10 +71,8 @@ mlir::BlockArgument vpux::addNewProfilingOutput(mlir::MLIRContext* ctx, mlir::fu
     // Declare and create additional output from network
     //
     auto funcType = netFunc.getFunctionType();
-    auto newResultTypes =
-            to_small_vector(llvm::concat<const mlir::Type>(funcType.getResults(), makeArrayRef(outputType)));
-    auto newInputsTypes =
-            to_small_vector(llvm::concat<const mlir::Type>(funcType.getInputs(), makeArrayRef(outputType)));
+    auto newResultTypes = to_small_vector(llvm::concat<const mlir::Type>(funcType.getResults(), ArrayRef(outputType)));
+    auto newInputsTypes = to_small_vector(llvm::concat<const mlir::Type>(funcType.getInputs(), ArrayRef(outputType)));
 
     auto newFunctionType = mlir::FunctionType::get(ctx, newInputsTypes, newResultTypes);
     netFunc.setType(newFunctionType);
@@ -112,7 +102,8 @@ bool vpux::isProfiledDmaTask(VPURT::TaskOp taskOp) {
     VPUX_THROW_WHEN(mlir::isa<VPUIP::NCEClusterTilingOp>(wrappedTaskOp),
                     "NCEClusterTiling is not expected at this stage of compilation");
 
-    return mlir::isa_and_nonnull<VPUIP::DMATypeOpInterface>(wrappedTaskOp);
+    return mlir::isa_and_nonnull<VPUIP::DMATypeOpInterface>(wrappedTaskOp) &&
+           !mlir::isa<VPUIP::SyncDMAOp>(wrappedTaskOp);
 }
 
 void vpux::setDmaHwpIdAttribute(mlir::MLIRContext* ctx, VPUIP::DMATypeOpInterface& op, int32_t dmaHwpId) {
@@ -120,29 +111,31 @@ void vpux::setDmaHwpIdAttribute(mlir::MLIRContext* ctx, VPUIP::DMATypeOpInterfac
     op.setDmaHwpIdAttr(dmaHwpIdAttrib);
 }
 
-bool vpux::isDmaHwpUsedInVPURT(mlir::func::FuncOp& func) {
-    bool dmaHwpEnabled = false;
-    func->walk([&](VPURT::TaskOp taskOp) {
-        if (!vpux::isProfiledDmaTask(taskOp)) {
-            return mlir::WalkResult::interrupt();
-        }
-
-        auto op = mlir::dyn_cast<VPUIP::DMATypeOpInterface>(taskOp.getInnerTaskOp());
-        if (op && op.getDmaHwpIdAttr() != nullptr) {
-            dmaHwpEnabled = true;
-            return mlir::WalkResult::interrupt();
-        }
-        return mlir::WalkResult::advance();
-    });
-    return dmaHwpEnabled;
+bool vpux::isProfilingEnabled(IE::CNNNetworkOp netOp) {
+    auto profilingOutputsInfo = netOp.getProfilingOutputsDataInfo();
+    VPUX_THROW_WHEN(profilingOutputsInfo.size() > 1, "Unexpected number of profiling outputs (expected 1, got {0})",
+                    profilingOutputsInfo.size());
+    return profilingOutputsInfo.size() > 0;
 }
 
-bool vpux::isDmaHwpUsedInVPURT(mlir::ModuleOp& module) {
-    if (vpux::VPU::getArch(module) <= vpux::VPU::ArchKind::VPUX37XX) {
-        return false;
+std::optional<VPUIP::ProfilingSectionOp> vpux::getProfilingSection(mlir::ModuleOp module,
+                                                                   profiling::ExecutorType secType) {
+    if (module.getOps<IE::CNNNetworkOp>().empty()) {
+        return {};
     }
     IE::CNNNetworkOp netOp;
-    mlir::func::FuncOp func;
-    IE::CNNNetworkOp::getFromModule(module, netOp, func);
-    return vpux::isDmaHwpUsedInVPURT(func);
+    mlir::func::FuncOp netFunc;
+    IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
+    if (!isProfilingEnabled(netOp)) {
+        return {};
+    }
+    auto profilingOutputInfo = *netOp.getProfilingOutputsInfo().front().getOps<IE::DataInfoOp>().begin();
+
+    auto& sections = profilingOutputInfo.getSections().front().front();
+    for (VPUIP::ProfilingSectionOp section : sections.getOps<VPUIP::ProfilingSectionOp>()) {
+        if (static_cast<profiling::ExecutorType>(section.getSectionType()) == secType) {
+            return section;
+        }
+    }
+    return {};
 }

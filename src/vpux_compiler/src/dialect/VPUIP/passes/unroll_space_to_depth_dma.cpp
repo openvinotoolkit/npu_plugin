@@ -5,10 +5,8 @@
 
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
-#include "vpux/compiler/core/aliases_info.hpp"
-#include "vpux/compiler/core/cost_model_utils.hpp"
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/dma_descriptor_generator.hpp"
 #include "vpux/compiler/dialect/VPURT/attributes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
@@ -16,10 +14,7 @@
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
-#include <llvm/ADT/DenseMap.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
-
-#include <numeric>
 
 using namespace vpux;
 
@@ -70,22 +65,22 @@ private:
 
 void SpaceToDepthDMARewriter::unrollBlocksFirstNCHW2NCHW(VPUIP::SpaceToDepthDMAOp origOp, vpux::VPURT::TaskOp vpurtTask,
                                                          mlir::PatternRewriter& rewriter) const {
-    auto inType = origOp.input().getType().cast<vpux::NDTypeInterface>();
-    auto outType = origOp.output().getType().cast<vpux::NDTypeInterface>();
+    auto inType = origOp.getInput().getType().cast<vpux::NDTypeInterface>();
+    auto outType = origOp.getOutput().getType().cast<vpux::NDTypeInterface>();
 
     const Byte elemTypeSize = inType.getElemTypeSize();
     const auto inShape = inType.getShape();
     const auto outShape = outType.getShape();
-    const auto blockSize = origOp.block_size();
-    const auto mode = origOp.mode();
+    const auto blockSize = origOp.getBlockSize();
+    const auto mode = origOp.getMode();
 
     const auto IC = inShape[Dims4D::Act::C];
     const auto IW = inShape[Dims4D::Act::W];
     const auto OH = outShape[Dims4D::Act::H];
     const auto OW = outShape[Dims4D::Act::W];
 
-    auto srcOffset = origOp.input().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
-    auto dstOffset = origOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
+    auto srcOffset = origOp.getInput().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
+    auto dstOffset = origOp.getOutputBuff().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
 
     auto spaceToDepthIndex = 0;
     auto dmaDescriptorGenerator = VPUIP::SpaceToDepthDmaDescriptorGenerator(getContext(), _log);
@@ -106,15 +101,15 @@ void SpaceToDepthDMARewriter::unrollBlocksFirstNCHW2NCHW(VPUIP::SpaceToDepthDMAO
 
 void SpaceToDepthDMARewriter::unrollBlocksFirstNHWC2NHWC(VPUIP::SpaceToDepthDMAOp origOp, vpux::VPURT::TaskOp vpurtTask,
                                                          mlir::PatternRewriter& rewriter) const {
-    auto inType = origOp.input().getType().cast<vpux::NDTypeInterface>();
-    auto outType = origOp.output().getType().cast<vpux::NDTypeInterface>();
+    auto inType = origOp.getInput().getType().cast<vpux::NDTypeInterface>();
+    auto outType = origOp.getOutput().getType().cast<vpux::NDTypeInterface>();
 
     const auto inShape = inType.getShape();
-    const auto blockSize = origOp.block_size();
-    const auto mode = origOp.mode();
+    const auto blockSize = origOp.getBlockSize();
+    const auto mode = origOp.getMode();
 
-    auto srcOffset = origOp.input().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
-    auto dstOffset = origOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
+    auto srcOffset = origOp.getInput().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
+    auto dstOffset = origOp.getOutputBuff().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
 
     auto dmaDescriptorGenerator = VPUIP::SpaceToDepthDmaDescriptorGenerator(getContext(), _log);
     auto dmaDescriptor = dmaDescriptorGenerator.generate(inType, outType, mode, blockSize);
@@ -124,14 +119,14 @@ void SpaceToDepthDMARewriter::unrollBlocksFirstNHWC2NHWC(VPUIP::SpaceToDepthDMAO
 
 void SpaceToDepthDMARewriter::unrollBlocksFirstNCHW2NHWC(VPUIP::SpaceToDepthDMAOp origOp, vpux::VPURT::TaskOp vpurtTask,
                                                          mlir::PatternRewriter& rewriter) const {
-    auto inType = origOp.input().getType().cast<vpux::NDTypeInterface>();
-    auto outType = origOp.output().getType().cast<vpux::NDTypeInterface>();
+    auto inType = origOp.getInput().getType().cast<vpux::NDTypeInterface>();
+    auto outType = origOp.getOutput().getType().cast<vpux::NDTypeInterface>();
 
     const Byte elemTypeSize = inType.getElemTypeSize();
     const auto inShape = inType.getShape();
     const auto outShape = outType.getShape();
-    const auto blockSize = origOp.block_size();
-    const auto mode = origOp.mode();
+    const auto blockSize = origOp.getBlockSize();
+    const auto mode = origOp.getMode();
 
     const auto IC = inShape[Dims4D::Act::C];
     const auto IW = inShape[Dims4D::Act::W];
@@ -139,8 +134,8 @@ void SpaceToDepthDMARewriter::unrollBlocksFirstNCHW2NHWC(VPUIP::SpaceToDepthDMAO
     const auto OH = outShape[Dims4D::Act::H];
     const auto OW = outShape[Dims4D::Act::W];
 
-    auto srcOffset = origOp.input().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
-    auto dstOffset = origOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
+    auto srcOffset = origOp.getInput().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
+    auto dstOffset = origOp.getOutputBuff().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
 
     auto spaceToDepthIndex = 0;
     auto dmaDescriptorGenerator = VPUIP::SpaceToDepthDmaDescriptorGenerator(getContext(), _log);
@@ -163,14 +158,14 @@ void SpaceToDepthDMARewriter::unrollBlocksFirstNCHW2NHWC(VPUIP::SpaceToDepthDMAO
 
 void SpaceToDepthDMARewriter::unrollDepthFirstNCHW2NCHW(VPUIP::SpaceToDepthDMAOp origOp, vpux::VPURT::TaskOp vpurtTask,
                                                         mlir::PatternRewriter& rewriter) const {
-    auto inType = origOp.input().getType().cast<vpux::NDTypeInterface>();
-    auto outType = origOp.output().getType().cast<vpux::NDTypeInterface>();
+    auto inType = origOp.getInput().getType().cast<vpux::NDTypeInterface>();
+    auto outType = origOp.getOutput().getType().cast<vpux::NDTypeInterface>();
 
     const Byte elemTypeSize = inType.getElemTypeSize();
     const auto inShape = inType.getShape();
     const auto outShape = outType.getShape();
-    const auto blockSize = origOp.block_size();
-    const auto mode = origOp.mode();
+    const auto blockSize = origOp.getBlockSize();
+    const auto mode = origOp.getMode();
 
     const auto IC = inShape[Dims4D::Act::C];
     const auto IH = inShape[Dims4D::Act::H];
@@ -178,8 +173,8 @@ void SpaceToDepthDMARewriter::unrollDepthFirstNCHW2NCHW(VPUIP::SpaceToDepthDMAOp
     const auto OH = outShape[Dims4D::Act::H];
     const auto OW = outShape[Dims4D::Act::W];
 
-    auto srcOffset = origOp.input().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
-    auto dstOffset = origOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
+    auto srcOffset = origOp.getInput().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
+    auto dstOffset = origOp.getOutputBuff().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
 
     auto spaceToDepthIndex = 0;
     auto dmaDescriptorGenerator = VPUIP::SpaceToDepthDmaDescriptorGenerator(getContext(), _log);
@@ -202,14 +197,14 @@ void SpaceToDepthDMARewriter::unrollDepthFirstNCHW2NCHW(VPUIP::SpaceToDepthDMAOp
 
 void SpaceToDepthDMARewriter::unrollDepthFirstNHWC2NHWC(VPUIP::SpaceToDepthDMAOp origOp, vpux::VPURT::TaskOp vpurtTask,
                                                         mlir::PatternRewriter& rewriter) const {
-    auto inType = origOp.input().getType().cast<vpux::NDTypeInterface>();
-    auto outType = origOp.output().getType().cast<vpux::NDTypeInterface>();
+    auto inType = origOp.getInput().getType().cast<vpux::NDTypeInterface>();
+    auto outType = origOp.getOutput().getType().cast<vpux::NDTypeInterface>();
 
     const Byte elemTypeSize = inType.getElemTypeSize();
     const auto inShape = inType.getShape();
     const auto outShape = outType.getShape();
-    const auto blockSize = origOp.block_size();
-    const auto mode = origOp.mode();
+    const auto blockSize = origOp.getBlockSize();
+    const auto mode = origOp.getMode();
 
     const auto IC = inShape[Dims4D::Act::C];
     const auto IW = inShape[Dims4D::Act::W];
@@ -217,8 +212,8 @@ void SpaceToDepthDMARewriter::unrollDepthFirstNHWC2NHWC(VPUIP::SpaceToDepthDMAOp
     const auto OH = outShape[Dims4D::Act::H];
     const auto OW = outShape[Dims4D::Act::W];
 
-    auto srcOffset = origOp.input().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
-    auto dstOffset = origOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
+    auto srcOffset = origOp.getInput().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
+    auto dstOffset = origOp.getOutputBuff().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
 
     auto spaceToDepthIndex = 0;
     auto dmaDescriptorGenerator = VPUIP::SpaceToDepthDmaDescriptorGenerator(getContext(), _log);
@@ -241,20 +236,20 @@ void SpaceToDepthDMARewriter::unrollDepthFirstNHWC2NHWC(VPUIP::SpaceToDepthDMAOp
 
 void SpaceToDepthDMARewriter::unrollDepthFirstNCHW2NHWC(VPUIP::SpaceToDepthDMAOp origOp, vpux::VPURT::TaskOp vpurtTask,
                                                         mlir::PatternRewriter& rewriter) const {
-    auto inType = origOp.input().getType().cast<vpux::NDTypeInterface>();
-    auto outType = origOp.output().getType().cast<vpux::NDTypeInterface>();
+    auto inType = origOp.getInput().getType().cast<vpux::NDTypeInterface>();
+    auto outType = origOp.getOutput().getType().cast<vpux::NDTypeInterface>();
 
     const Byte elemTypeSize = inType.getElemTypeSize();
     const auto inShape = inType.getShape();
-    const auto blockSize = origOp.block_size();
-    const auto mode = origOp.mode();
+    const auto blockSize = origOp.getBlockSize();
+    const auto mode = origOp.getMode();
 
     const auto IC = inShape[Dims4D::Act::C];
     const auto IH = inShape[Dims4D::Act::H];
     const auto IW = inShape[Dims4D::Act::W];
 
-    auto srcOffset = origOp.input().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
-    auto dstOffset = origOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
+    auto srcOffset = origOp.getInput().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
+    auto dstOffset = origOp.getOutputBuff().getDefiningOp<VPURT::DeclareBufferOp>().getByteOffset();
 
     auto spaceToDepthIndex = 0;
     auto dmaDescriptorGenerator = VPUIP::SpaceToDepthDmaDescriptorGenerator(getContext(), _log);
@@ -274,8 +269,8 @@ void SpaceToDepthDMARewriter::createSpaceToDepthDMASubOp(VPUIP::SpaceToDepthDMAO
                                                          ShapeRef subShape, int64_t srcOffset, int64_t dstOffset,
                                                          VPUIP::DMADescriptorAttr dma_descriptor, int64_t port,
                                                          mlir::PatternRewriter& rewriter) const {
-    auto srcDeclBuff = origOp.input().getDefiningOp<VPURT::DeclareBufferOp>();
-    auto dstDeclBuff = origOp.output_buff().getDefiningOp<VPURT::DeclareBufferOp>();
+    auto srcDeclBuff = origOp.getInput().getDefiningOp<VPURT::DeclareBufferOp>();
+    auto dstDeclBuff = origOp.getOutputBuff().getDefiningOp<VPURT::DeclareBufferOp>();
 
     auto srcType = srcDeclBuff.getType().cast<vpux::NDTypeInterface>();
     auto dstType = dstDeclBuff.getType().cast<vpux::NDTypeInterface>();
@@ -303,21 +298,11 @@ void SpaceToDepthDMARewriter::createSpaceToDepthDMASubOp(VPUIP::SpaceToDepthDMAO
     _log.trace("Create Sub-SpaceToDepthDMAOp with shape: {0}, SrcMemory at {1}, DstMemory at {2}", subShape,
                newSrcBuff.getSection(), newDstBuff.getSection());
 
-    auto newOp = VPURT::wrapIntoTaskOp<VPUIP::SpaceToDepthDMAOp>(
+    VPURT::wrapIntoTaskOp<VPUIP::SpaceToDepthDMAOp>(
             rewriter, vpurtTask.getWaitBarriers(), vpurtTask.getUpdateBarriers(), vpurtTask.getLoc(), newSrcBuff,
-            newDstBuff, vpux::getIntAttr(rewriter, port), origOp.channelTypeAttr(), origOp.block_sizeAttr(),
-            origOp.modeAttr(), dma_descriptor, origOp.dma_hwp_idAttr());
-
-    auto newVpurtTask = newOp->getParentOfType<VPURT::TaskOp>();
-
-    auto cycleBeginAttr = vpurtTask->getAttr(cycleBegin);
-    if (cycleBeginAttr) {
-        newVpurtTask->setAttr(cycleBegin, cycleBeginAttr);
-    }
-    auto cycleEndAttr = vpurtTask->getAttr(cycleEnd);
-    if (cycleEndAttr) {
-        newVpurtTask->setAttr(cycleEnd, cycleEndAttr);
-    }
+            newDstBuff, vpux::getIntAttr(rewriter, port), origOp.getBlockSizeAttr(), origOp.getModeAttr(),
+            dma_descriptor, origOp.getIsOutOfOrderAttr(), origOp.getIsCriticalAttr(), origOp.getDmaHwpIdAttr(),
+            origOp.getProfilingMetadataAttr());
 }
 
 mlir::LogicalResult SpaceToDepthDMARewriter::unrollSegmented(VPUIP::SpaceToDepthDMAOp spaceToDepthOp,
@@ -326,10 +311,10 @@ mlir::LogicalResult SpaceToDepthDMARewriter::unrollSegmented(VPUIP::SpaceToDepth
     auto loc = spaceToDepthOp->getLoc();
     auto ctx = spaceToDepthOp->getContext();
 
-    const auto input = spaceToDepthOp.input();
-    const auto output = spaceToDepthOp.output_buff();
+    const auto input = spaceToDepthOp.getInput();
+    const auto output = spaceToDepthOp.getOutputBuff();
 
-    const auto inputType = spaceToDepthOp.input().getType().cast<vpux::NDTypeInterface>();
+    const auto inputType = spaceToDepthOp.getInput().getType().cast<vpux::NDTypeInterface>();
     const auto outputType = distributedType.getCompactType().cast<vpux::NDTypeInterface>();
 
     const auto distributionAttr = distributedType.getDistribution();
@@ -342,7 +327,7 @@ mlir::LogicalResult SpaceToDepthDMARewriter::unrollSegmented(VPUIP::SpaceToDepth
 
     VPUX_THROW_UNLESS(distMode == VPU::DistributionMode::SEGMENTED, "Unsupported distributed mode.");
 
-    const auto blockSize = spaceToDepthOp.block_size();
+    const auto blockSize = spaceToDepthOp.getBlockSize();
 
     const auto perClusterOutShapes = distributedType.getPerClusterMemoryShapes();
     const auto perClusterShapeOffsets = distributedType.getPerClusterMemoryShapeOffsets();
@@ -350,8 +335,6 @@ mlir::LogicalResult SpaceToDepthDMARewriter::unrollSegmented(VPUIP::SpaceToDepth
 
     auto vpurtTask = spaceToDepthOp->getParentOfType<VPURT::TaskOp>();
     VPUX_THROW_WHEN(vpurtTask == nullptr, "Can not get VPURT.TaskOp for {0}", spaceToDepthOp);
-    auto cycleBeginAttr = vpurtTask->getAttr(cycleBegin);
-    auto cycleEndAttr = vpurtTask->getAttr(cycleEnd);
 
     const auto backInferInputShape = [&](ShapeRef outShape, int64_t blockSize) {
         auto inShape = Shape(outShape.raw());
@@ -406,10 +389,9 @@ mlir::LogicalResult SpaceToDepthDMARewriter::unrollSegmented(VPUIP::SpaceToDepth
         const auto symbolAttr = vpux::IndexedSymbolAttr::get(ctx, {cmxNameAttr, vpux::getIntAttr(ctx, clusterId)});
         auto newCMXType = newType.changeMemSpace(symbolAttr);
 
-        return VPURT::createOp<VPURT::DeclareBufferOp>(rewriter, insertionPoint, spaceToDepthOp->getLoc(), newCMXType,
-                                                       VPURT::BufferSection::CMX_NN,
-                                                       getIntArrayAttr(ctx, makeArrayRef({clusterId})),
-                                                       declBuff.getByteOffset(), declBuff.getSwizzlingKeyAttr());
+        return VPURT::createOp<VPURT::DeclareBufferOp>(
+                rewriter, insertionPoint, spaceToDepthOp->getLoc(), newCMXType, VPURT::BufferSection::CMX_NN,
+                getIntArrayAttr(ctx, ArrayRef({clusterId})), declBuff.getByteOffset(), declBuff.getSwizzlingKeyAttr());
     };
 
     auto elemTypeSize = Byte(inputType.getElemTypeSize());
@@ -435,15 +417,13 @@ mlir::LogicalResult SpaceToDepthDMARewriter::unrollSegmented(VPUIP::SpaceToDepth
         const auto newLoc = appendLoc(loc, "_cluster_{0}", clusterId);
         auto newSpaceToDepthDMAOp = VPURT::wrapIntoTaskOp<VPUIP::SpaceToDepthDMAOp>(
                 rewriter, vpurtTask.getWaitBarriers(), vpurtTask.getUpdateBarriers(), newLoc, inputBuffer, outBuffer,
-                vpux::getIntAttr(rewriter, dmaPort), spaceToDepthOp.channelTypeAttr(), spaceToDepthOp.block_sizeAttr(),
-                spaceToDepthOp.modeAttr(), nullptr, spaceToDepthOp.dma_hwp_idAttr());
+                vpux::getIntAttr(rewriter, dmaPort), spaceToDepthOp.getBlockSizeAttr(), spaceToDepthOp.getModeAttr(),
+                /*dma_descriptor*/ nullptr, spaceToDepthOp.getIsOutOfOrderAttr(), spaceToDepthOp.getIsCriticalAttr(),
+                spaceToDepthOp.getDmaHwpIdAttr(), spaceToDepthOp.getProfilingMetadataAttr());
 
         dmaPort = (dmaPort + 1) % _dmaPortCount;
 
         _log.trace("Insert new SpaceToDepthDMA: '{0}'", newSpaceToDepthDMAOp);
-        auto newTaskOp = newSpaceToDepthDMAOp->getParentOfType<VPURT::TaskOp>();
-        newTaskOp->setAttr(cycleBegin, cycleBeginAttr);
-        newTaskOp->setAttr(cycleEnd, cycleEndAttr);
     }
     rewriter.eraseOp(vpurtTask);
     return mlir::success();
@@ -453,8 +433,8 @@ mlir::LogicalResult SpaceToDepthDMARewriter::matchAndRewriteClusterDMA(VPUIP::Sp
                                                                        mlir::PatternRewriter& rewriter) const {
     _log.trace("Got SpaceToDepthDMA with DistributedType: {0}", spaceToDepthDMAOp);
 
-    const auto input = spaceToDepthDMAOp.input();
-    const auto output = spaceToDepthDMAOp.output_buff();
+    const auto input = spaceToDepthDMAOp.getInput();
+    const auto output = spaceToDepthDMAOp.getOutputBuff();
 
     const auto inputType = input.getType().cast<vpux::NDTypeInterface>();
     const auto outputType = output.getType().cast<vpux::NDTypeInterface>();
@@ -480,14 +460,14 @@ mlir::LogicalResult SpaceToDepthDMARewriter::matchAndRewriteClusterDMA(VPUIP::Sp
 
 mlir::LogicalResult SpaceToDepthDMARewriter::matchAndRewrite(VPUIP::SpaceToDepthDMAOp spaceToDepthDMAOp,
                                                              mlir::PatternRewriter& rewriter) const {
-    const auto outputType = spaceToDepthDMAOp.output_buff().getType();
+    const auto outputType = spaceToDepthDMAOp.getOutputBuff().getType();
     if (auto distributedType = outputType.dyn_cast<VPUIP::DistributedBufferType>()) {
         return matchAndRewriteClusterDMA(spaceToDepthDMAOp, rewriter);
     }
 
     _log.trace("Get SpaceToDepthDMAOp : {0}", spaceToDepthDMAOp->getLoc());
 
-    if (spaceToDepthDMAOp.dma_descriptor().has_value()) {
+    if (spaceToDepthDMAOp.getDmaDescriptor().has_value()) {
         _log.trace("This SpaceToDepthDMAOp has already been unrolled.");
         return mlir::failure();
     }
@@ -495,9 +475,9 @@ mlir::LogicalResult SpaceToDepthDMARewriter::matchAndRewrite(VPUIP::SpaceToDepth
     auto vpurtTask = spaceToDepthDMAOp->getParentOfType<VPURT::TaskOp>();
     rewriter.setInsertionPointAfter(vpurtTask);
 
-    const auto mode = spaceToDepthDMAOp.mode();
-    const auto inOrder = DimsOrder::fromValue(spaceToDepthDMAOp.input());
-    const auto outOrder = DimsOrder::fromValue(spaceToDepthDMAOp.output());
+    const auto mode = spaceToDepthDMAOp.getMode();
+    const auto inOrder = DimsOrder::fromValue(spaceToDepthDMAOp.getInput());
+    const auto outOrder = DimsOrder::fromValue(spaceToDepthDMAOp.getOutput());
 
     _log.trace("Unroll SpaceToDepthDMAOp {0}", spaceToDepthDMAOp->getLoc());
 
@@ -543,7 +523,7 @@ void UnrollSpaceToDepthDMAPass::safeRunOnFunc() {
     auto func = getOperation();
     auto module = func->getParentOfType<mlir::ModuleOp>();
     auto dmaOp = IE::getAvailableExecutor(module, VPU::ExecutorKind::DMA_NN);
-    auto dmaPortCount = dmaOp.count();
+    auto dmaPortCount = dmaOp.getCount();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<SpaceToDepthDMARewriter>(&ctx, dmaPortCount, _log);

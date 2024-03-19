@@ -20,7 +20,7 @@ To build the tests, enable the `ENABLE_VPUX_FUZZ_TESTS` option. Additionally, th
 From your project's [build directory](../../guides/how-to-build.md), you can set the following variables:
 
 ```sh
-CC=clang CXX=clang++ cmake .. -DENABLE_FUZZING=ON -DENABLE_SANITIZER=ON
+CC=clang CXX=clang++ cmake .. -DENABLE_VPUX_FUZZ_TESTS=ON -DENABLE_FUZZING=ON -DENABLE_SANITIZER=ON
 ```
 
 The plugin can then be built as normally (e.g. using `make` or `ninja`).

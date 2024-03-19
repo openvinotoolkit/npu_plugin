@@ -4,98 +4,13 @@
 //
 
 #include "vpux/compiler/core/cost_model_utils.hpp"
-#include "vpux/compiler/dialect/VPU/cost_model.hpp"
+#include "vpux/compiler/core/cycle_cost_info.hpp"
+#include "vpux/compiler/dialect/VPU/utils/cost_model/cost_model.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
-#include "vpux/compiler/utils/analysis.hpp"
-#include "vpux/compiler/utils/logging.hpp"
-#include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
 
 namespace {
-
-size_t calculateDMACycleCost(mlir::async::ExecuteOp asyncExec, VPU::ArchKind archKind,
-                             const std::shared_ptr<VPUNN::VPUCostModel> costModel) {
-    size_t cycleCost = 0;
-
-    auto* bodyBlock = &asyncExec.body().front();
-    for (auto& innerOp : bodyBlock->getOperations()) {
-        if (auto nceClustOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(innerOp)) {
-            cycleCost += calculateCopyCycles(nceClustOp.getInnerTaskOp(), archKind, costModel);
-        } else {
-            cycleCost += calculateCopyCycles(&innerOp, archKind, costModel);
-        }
-    }
-
-    VPUX_THROW_UNLESS(cycleCost > 0, "Invalid cycle cost for 'async.execute' {0}", asyncExec);
-    return cycleCost;
-}
-
-size_t getInnerOperationCycleCost(mlir::Operation* innerOp) {
-    if (innerOp->hasAttr(DPUCost)) {
-        return checked_cast<size_t>(innerOp->getAttr(DPUCost).cast<mlir::IntegerAttr>().getValue().getSExtValue());
-    }
-    return 0;
-}
-
-size_t retrieveDPUCycleCost(mlir::async::ExecuteOp asyncExec) {
-    size_t cycleCost = 0;
-
-    auto* bodyBlock = &asyncExec.body().front();
-    for (auto& innerOp : bodyBlock->getOperations()) {
-        if (auto nceClustOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(innerOp)) {
-            cycleCost += getInnerOperationCycleCost(nceClustOp.getInnerTaskOp());
-        } else {
-            cycleCost += getInnerOperationCycleCost(&innerOp);
-        }
-    }
-
-    VPUX_THROW_UNLESS(cycleCost > 0, "Invalid cycle cost for 'async.execute' {0}", asyncExec);
-    return cycleCost;
-}
-
-size_t calculateShaveActCycleCost(mlir::async::ExecuteOp asyncExec,
-                                  const std::shared_ptr<VPUNN::VPUCostModel> costModel, VPU::ArchKind arch) {
-    size_t cycleCost = 0;
-    auto* bodyBlock = &asyncExec.body().front();
-    for (auto& innerOp : bodyBlock->getOperations()) {
-        auto mayBeSwKernelOp = &innerOp;
-        if (auto nceClustOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(innerOp)) {
-            mayBeSwKernelOp = nceClustOp.getInnerTaskOp();
-        }
-        if (auto swKernelOp = mlir::dyn_cast<VPUIP::SwKernelOp>(mayBeSwKernelOp)) {
-            cycleCost += vpux::calculateShaveActCycles(swKernelOp, costModel, arch);
-        }
-    }
-    VPUX_THROW_UNLESS(cycleCost > 0, "Invalid cycle cost for 'async.execute' {0}", asyncExec);
-    return cycleCost;
-}
-
-size_t calculateUPACycles(mlir::Operation* innerOp) {
-    // TODO calculate UPA cost
-    VPUX_UNUSED(innerOp);
-    if (!VPUIP::isPureViewOp(innerOp)) {
-        // UPA cost not available set to 1
-        return 1;
-    }
-    return 0;
-}
-
-size_t calculateUPACycleCost(mlir::async::ExecuteOp asyncExec) {
-    size_t cycleCost = 0;
-
-    auto* bodyBlock = &asyncExec.body().front();
-    for (auto& innerOp : bodyBlock->getOperations()) {
-        if (auto nceClustOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(innerOp)) {
-            cycleCost += calculateUPACycles(nceClustOp.getInnerTaskOp());
-        } else {
-            cycleCost += calculateUPACycles(&innerOp);
-        }
-    }
-
-    VPUX_THROW_UNLESS(cycleCost > 0, "Invalid cycle cost for 'async.execute' {0}", asyncExec);
-    return cycleCost;
-}
 
 class CalculateAsyncRegionCycleCostPass final :
         public VPUIP::CalculateAsyncRegionCycleCostBase<CalculateAsyncRegionCycleCostPass> {
@@ -109,44 +24,15 @@ private:
 };
 
 void CalculateAsyncRegionCycleCostPass::safeRunOnFunc() {
-    auto func = getOperation();
-    auto module = func->getParentOfType<mlir::ModuleOp>();
-    const auto arch = VPU::getArch(module);
-    const auto costModel = VPU::createCostModel(arch);
-
-    func->walk([&](mlir::async::ExecuteOp asyncExec) {
-        // calculate cycle cost based on executor
-        if (!asyncExec->hasAttr(VPUIP::VPUIPDialect::getExecutorAttrName())) {
-            return;
+    auto funcOp = getOperation();
+    CycleCostInfo cycleCostInfo(funcOp);
+    funcOp->walk([&](mlir::async::ExecuteOp execOp) {
+        if (auto costInterface = mlir::dyn_cast_or_null<VPUIP::CycleCostInterface>(execOp.getOperation())) {
+            auto cycleCost = cycleCostInfo.getCycleCost(costInterface);
+            execOp->setAttr(cycleCostAttrName, getIntAttr(execOp->getContext(), cycleCost));
         }
-
-        size_t cycleCost = 1;
-        const auto executor = VPUIP::VPUIPDialect::getExecutorKind(asyncExec);
-
-        if (executor == VPU::ExecutorKind::SHAVE_UPA) {
-            // calculate UPA cycles
-            cycleCost = calculateUPACycleCost(asyncExec);
-        } else if (executor == VPU::ExecutorKind::SHAVE_ACT) {
-            // calculate SHAVE ACT cycles
-            cycleCost = calculateShaveActCycleCost(asyncExec, costModel, arch);
-        } else if (executor == VPU::ExecutorKind::SHAVE_NN) {
-            // calculate UPA cycles
-            cycleCost = calculateUPACycleCost(asyncExec);
-        } else if (executor == VPU::ExecutorKind::DMA_NN) {
-            // calculate DMA cycles
-            cycleCost = calculateDMACycleCost(asyncExec, arch, costModel);
-        } else if (executor == VPU::ExecutorKind::NCE) {
-            // DPU have cost calculated during workload generation, retrieve cost
-            cycleCost = retrieveDPUCycleCost(asyncExec);
-        } else if (executor == VPU::ExecutorKind::DPU) {
-            // DPU have cost calculated during workload generation, retrieve cost
-            cycleCost = retrieveDPUCycleCost(asyncExec);
-        }
-        // store cycle cost for async.execute
-        asyncExec->setAttr(cycleCostAttrName, getIntAttr(asyncExec->getContext(), cycleCost));
     });
 }
-
 }  // namespace
 
 //

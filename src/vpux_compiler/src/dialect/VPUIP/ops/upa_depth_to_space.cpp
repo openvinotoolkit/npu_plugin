@@ -9,17 +9,16 @@
 #include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::VPUIP::DepthToSpaceUPAOp::verify() {
     const auto op = getOperation();
-    if (block_size() <= 0) {
-        return errorAt(op, "Block size should be greater than 0. Got {0}", block_size());
+    if (getBlockSize() <= 0) {
+        return errorAt(op, "Block size should be greater than 0. Got {0}", getBlockSize());
     }
 
-    if (mode() != vpux::IE::DepthToSpaceMode::BLOCKS_FIRST && mode() != vpux::IE::DepthToSpaceMode::DEPTH_FIRST) {
+    if (getMode() != vpux::IE::DepthToSpaceMode::BLOCKS_FIRST && getMode() != vpux::IE::DepthToSpaceMode::DEPTH_FIRST) {
         return errorAt(op, "Unknown DepthToSpaceMode. Blocks_FIRST and DEPTH_FIRST methods are supported only");
     }
 
@@ -35,10 +34,10 @@ void vpux::VPUIP::DepthToSpaceUPAOp::build(mlir::OpBuilder& odsBuilder, mlir::Op
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::DepthToSpaceUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::DepthToSpaceParamsBuilder builder(writer);
 
-    const auto blockSize = checked_cast<int32_t>(block_size());
+    const auto blockSize = checked_cast<int32_t>(getBlockSize());
     builder.add_blockSize(blockSize);
 
-    builder.add_mode(vpux::VPUIP::convertVPUXDepthToSpaceMode2MVCNN(mode()));
+    builder.add_mode(vpux::VPUIP::convertVPUXDepthToSpaceMode2MVCNN(getMode()));
 
     const auto paramsOff = builder.Finish();
 

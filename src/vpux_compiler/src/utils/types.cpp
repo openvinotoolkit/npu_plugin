@@ -125,12 +125,12 @@ Byte vpux::getCompactSize(mlir::Value val) {
     return type.getCompactAllocSize();
 }
 
-Optional<int32_t> vpux::getQuantizedAxis(int32_t axis, ShapeRef prevShape, ShapeRef newShape) {
+std::optional<int32_t> vpux::getQuantizedAxis(int32_t axis, ShapeRef prevShape, ShapeRef newShape) {
     auto prevArray = to_small_vector(prevShape.toValues());
     auto newArray = to_small_vector(newShape.toValues());
 
     if (checked_cast<size_t>(axis) >= prevShape.size()) {
-        return None;
+        return std::nullopt;
     }
 
     const auto isEqualOne = [](int64_t val) {
@@ -152,11 +152,11 @@ Optional<int32_t> vpux::getQuantizedAxis(int32_t axis, ShapeRef prevShape, Shape
     newArray.erase(std::remove_if(newArray.begin(), newArray.end(), isEqualOne), newArray.end());
 
     if (!std::equal(prevArray.begin(), prevArray.end(), newArray.begin(), newArray.end())) {
-        return None;
+        return std::nullopt;
     }
 
     if (axis < -gap || axis + gap >= checked_cast<int32_t>(newArraySize)) {
-        return None;
+        return std::nullopt;
     }
 
     return axis + gap;
@@ -178,7 +178,7 @@ mlir::MemRefType vpux::getMemRefType(ShapeRef shape, mlir::Type elemType, DimsOr
 
     mlir::ArrayAttr stridesAttr = nullptr;
     if (strides != StridesRef()) {
-        const auto elemSize = getElemTypeSize(elemType);
+        const Bit elemSize = getElemTypeSize(elemType);
         const auto memShape = order.toMemoryOrder(shape);
         const auto memStrides = order.toMemoryOrder(strides);
         const auto compactReqs = StrideReqs::compact(shape.size());
@@ -197,8 +197,8 @@ mlir::MemRefType vpux::getMemRefType(ShapeRef shape, mlir::Type elemType, DimsOr
     if (stridesAttr == nullptr && swizzlingSchemeAttr == nullptr && compressionSchemeAttr == nullptr) {
         builder.setLayout(orderAttr);
     } else {
-        const auto layoutAttr = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, swizzlingSchemeAttr,
-                                                       compressionSchemeAttr, /*allocSize=*/nullptr, ctx);
+        const auto layoutAttr = vpux::MemRefAttr::get(orderAttr, stridesAttr, /*allocSize=*/nullptr,
+                                                      {swizzlingSchemeAttr, compressionSchemeAttr}, ctx);
         builder.setLayout(layoutAttr.cast<mlir::MemRefLayoutAttrInterface>());
     }
     return builder;
@@ -265,27 +265,15 @@ bool vpux::isCompatibleForInplaceOp(vpux::NDTypeInterface inInterface, vpux::NDT
         return false;
     }
 
-    if (inInterface.getTotalAllocSize() != outInterface.getTotalAllocSize()) {
+    if (inInterface.getTotalAllocSize() < outInterface.getTotalAllocSize()) {
         /* #65422 Case with different tensor sizes.
         If op is eltwise and it is a part of dequantize chain then input is U8 and output is float. */
-        log.trace("Case with different tensor sizes not supported {0} != {1}", inInterface.getTotalAllocSize(),
-                  outInterface.getTotalAllocSize());
+        log.trace("Input tensor size is smaller than output tensor size, the case is not supported {0} < {1}",
+                  inInterface.getTotalAllocSize(), outInterface.getTotalAllocSize());
         return false;
     }
 
     return true;
-}
-
-NDTypeInterface vpux::getEffectiveSparseOutputType(mlir::Type dataType, mlir::Type seTableType) {
-    auto dataNDType = dataType.cast<NDTypeInterface>();
-    if (seTableType != nullptr) {
-        auto seTableNDType = seTableType.cast<NDTypeInterface>();
-        auto outShape = Shape(seTableNDType.getShape().raw());
-        outShape[Dims4D::Act::N] = dataNDType.getShape()[Dims4D::Act::N];
-        outShape[Dims4D::Act::C] = dataNDType.getShape()[Dims4D::Act::C];
-        dataNDType = dataNDType.changeShape(outShape);
-    }
-    return dataNDType;
 }
 
 //
@@ -303,7 +291,7 @@ bool vpux::areTypesCompatible(mlir::TypeRange lhs, mlir::TypeRange rhs, IE::Type
         auto rhsOrigType = std::get<1>(p);
 
         if (lhsOrigType.getTypeID() != rhsOrigType.getTypeID()) {
-            if (IE::bitEnumContains(elemComparisonModes, IE::TypeComparisonMode::ALLOW_GROUPED_OUTPUT)) {
+            if (IE::bitEnumContainsAny(elemComparisonModes, IE::TypeComparisonMode::ALLOW_GROUPED_OUTPUT)) {
                 const auto oneIsGrouped = (lhsOrigType.isa<vpux::GroupedTypeInterface>() &&
                                            !rhsOrigType.isa<vpux::GroupedTypeInterface>()) ||
                                           (!lhsOrigType.isa<vpux::GroupedTypeInterface>() &&
@@ -326,7 +314,7 @@ bool vpux::areTypesCompatible(mlir::TypeRange lhs, mlir::TypeRange rhs, IE::Type
         }
 
         if (lhsType.getElementType() != rhsType.getElementType()) {
-            if (IE::bitEnumContains(elemComparisonModes, IE::TypeComparisonMode::STRICT_EQUAL)) {
+            if (IE::bitEnumContainsAny(elemComparisonModes, IE::TypeComparisonMode::STRICT_EQUAL)) {
                 return false;
             }
 
@@ -338,12 +326,12 @@ bool vpux::areTypesCompatible(mlir::TypeRange lhs, mlir::TypeRange rhs, IE::Type
             } else if (lhsQuantizedType && rhsQuantizedType) {
                 if ((lhsQuantizedType.getExpressedType() != rhsQuantizedType.getExpressedType()) ||
                     (lhsQuantizedType.getStorageType() != rhsQuantizedType.getStorageType())) {
-                    if (!IE::bitEnumContains(elemComparisonModes, IE::TypeComparisonMode::ALLOW_DIFFERENT_QUANT)) {
+                    if (!IE::bitEnumContainsAny(elemComparisonModes, IE::TypeComparisonMode::ALLOW_DIFFERENT_QUANT)) {
                         return false;
                     }
                 }
             } else {
-                if (!IE::bitEnumContains(elemComparisonModes, IE::TypeComparisonMode::ALLOW_QUANT_MIXED_PRECISION)) {
+                if (!IE::bitEnumContainsAny(elemComparisonModes, IE::TypeComparisonMode::ALLOW_QUANT_MIXED_PRECISION)) {
                     return false;
                 }
             }
@@ -405,4 +393,8 @@ bool vpux::isQuantizedDimensionPermutation(mlir::quant::UniformQuantizedPerAxisT
     }
 
     return true;
+}
+
+bool vpux::isSubByteType(mlir::Type elemType) {
+    return getElemTypeSize(elemType).count() < CHAR_BIT;
 }

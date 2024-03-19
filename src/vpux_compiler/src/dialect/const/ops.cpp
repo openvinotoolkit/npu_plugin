@@ -4,13 +4,14 @@
 //
 
 #include "vpux/compiler/dialect/const/ops.hpp"
-#include "vpux/compiler/dialect/ELF/ops.hpp"
-#include "vpux/compiler/dialect/ELF/utils.hpp"
+#include "vpux/compiler/dialect/ELFNPU37XX/ops.hpp"
+#include "vpux/compiler/dialect/ELFNPU37XX/utils.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 
 #include "vpux/compiler/core/type_interfaces.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
+#include "vpux/compiler/utils/swizzling_utils.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
@@ -84,8 +85,8 @@ void vpux::Const::ConstDialect::populateBufferizePatterns(mlir::RewritePatternSe
 // DeclareOp::fold
 //
 
-mlir::OpFoldResult vpux::Const::DeclareOp::fold(ArrayRef<mlir::Attribute> operands) {
-    VPUX_THROW_UNLESS(operands.empty(), "constant has no operands");
+mlir::OpFoldResult vpux::Const::DeclareOp::fold(FoldAdaptor adaptor) {
+    VPUX_THROW_UNLESS(adaptor.getOperands().empty(), "constant has no operands");
     return getContentAttr();
 }
 
@@ -121,7 +122,7 @@ size_t vpux::Const::DeclareOp::getBinarySize() {
 //
 
 size_t vpux::Const::DeclareOp::getAlignmentRequirements() {
-    return ELF::VPUX_NO_ALIGNMENT;
+    return ELFNPU37XX::VPUX_NO_ALIGNMENT;
 }
 
 //
@@ -136,11 +137,11 @@ vpux::VPURT::BufferSection vpux::Const::DeclareOp::getMemorySpace() {
 // DeclareOp::getAccessingProcs
 //
 
-vpux::ELF::SectionFlagsAttr vpux::Const::DeclareOp::getAccessingProcs() {
-    auto tempFlagsVal = vpux::ELF::SectionFlagsAttr::SHF_NONE;
+vpux::ELFNPU37XX::SectionFlagsAttr vpux::Const::DeclareOp::getAccessingProcs() {
+    auto tempFlagsVal = vpux::ELFNPU37XX::SectionFlagsAttr::SHF_NONE;
 
     for (auto user : getResult().getUsers()) {
-        if (auto binaryIface = mlir::dyn_cast<vpux::ELF::BinaryOpInterface>(user)) {
+        if (auto binaryIface = mlir::dyn_cast<vpux::ELFNPU37XX::BinaryOpInterface>(user)) {
             tempFlagsVal = tempFlagsVal | binaryIface.getUserProcs();
         }
     }
@@ -152,8 +153,8 @@ vpux::ELF::SectionFlagsAttr vpux::Const::DeclareOp::getAccessingProcs() {
 // DeclareOp::getUserProcs
 //
 
-vpux::ELF::SectionFlagsAttr vpux::Const::DeclareOp::getUserProcs() {
-    return (ELF::SectionFlagsAttr::SHF_NONE);
+vpux::ELFNPU37XX::SectionFlagsAttr vpux::Const::DeclareOp::getUserProcs() {
+    return (ELFNPU37XX::SectionFlagsAttr::SHF_NONE);
 }
 
 //
@@ -164,10 +165,13 @@ mlir::LogicalResult vpux::Const::DeclareOp::verify() {
     const auto op = getOperation();
     const auto attrType = getContentAttr().getType();
     const auto opType = getType().cast<vpux::NDTypeInterface>();
-
-    if (opType.getShape() != attrType.getShape()) {
-        return errorAt(op, "'Const.Declare' has mismatch in value shape '{0}' and result shape '{1}'",
-                       attrType.getShape(), opType.getShape());
+    // For type with swizzling skip the shape check as the content
+    // might have been flattened to accomodate swizzled buffer.
+    if (!vpux::getSwizzlingSchemeAttr(opType)) {
+        if (opType.getShape() != attrType.getShape()) {
+            return errorAt(op, "'Const.Declare' has mismatch in value shape '{0}' and result shape '{1}'",
+                           attrType.getShape(), opType.getShape());
+        }
     }
     if (opType.getElementType() != attrType.getElementType()) {
         if (!opType.getElementType().isa<mlir::quant::QuantizedType>() &&
@@ -184,58 +188,6 @@ mlir::LogicalResult vpux::Const::DeclareOp::verify() {
         return errorAt(op, "'Const.Declare' has mismatch in value DimsOrder '{0}' and result DimsOrder '{1}'",
                        attrOrder, opOrder);
     }
-
-    return mlir::success();
-}
-
-//
-// DeclareOp::print
-//
-
-void vpux::Const::DeclareOp::print(mlir::OpAsmPrinter& printer) {
-    printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs(), /*elidedAttrs=*/{"content"});
-    printer << " ";
-    printer.printType(getOutput().getType());
-    printer << " = ";
-    getContentAttr().print(printer);
-}
-
-//
-// DeclareOp::parse
-//
-
-mlir::ParseResult vpux::Const::DeclareOp::parse(::mlir::OpAsmParser& parser, ::mlir::OperationState& result) {
-    // Cannot use assembly format directly:
-    // let assemblyFormat = "attr-dict type($output) `=` $content"
-    // Since '$content' could start from '#const.OpaqueElements'
-    // and MLIR uses generic parser for attributes starting with `#`
-    // In other words, 'OpaqueElementsAttr::parse' will be called, instead of 'ContentAttr::parse'
-
-    // Parse operation attributes.
-    mlir::NamedAttrList attrs;
-    if (parser.parseOptionalAttrDictWithKeyword(attrs)) {
-        return mlir::failure();
-    }
-    result.addAttributes(attrs);
-
-    // Parse operation results.
-    mlir::Type type;
-    if (parser.parseType(type)) {
-        return mlir::failure();
-    }
-    result.addTypes(type);
-
-    if (parser.parseEqual()) {
-        return mlir::failure();
-    }
-
-    // Parse content attr.
-    auto contentAttr = Const::ContentAttr::parse(parser, mlir::Type{});
-    if (contentAttr == nullptr) {
-        parser.emitError(parser.getNameLoc(), "Failed to parse content attribute");
-        return mlir::failure();
-    }
-    result.addAttribute("content", contentAttr);
 
     return mlir::success();
 }

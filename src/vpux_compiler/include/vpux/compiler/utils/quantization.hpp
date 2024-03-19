@@ -7,11 +7,14 @@
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/type_interfaces.hpp"
-#include "vpux/compiler/dialect/EMU/graph-schema/blob_writer.hpp"
+
 #include "vpux/compiler/dialect/IE/attributes.hpp"
+#include "vpux/compiler/dialect/VPURT/attributes.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/BuiltinTypes.h>
+
+#include <flatbuffers/flatbuffers.h>
 
 #include <cstdint>
 #include <tuple>
@@ -110,6 +113,7 @@ void getFakeQuantParams(vpux::NDTypeInterface qType, int64_t& levels, mlir::Rank
                         mlir::DenseElementsAttr& rMinAttr, mlir::DenseElementsAttr& rMaxAttr);
 
 std::tuple<double, int64_t> calcScaleAndZeroPoint(int64_t qMin, int64_t qMax, double rMin, double rMax);
+std::tuple<int64_t, int64_t, mlir::Type> getStorageParams(mlir::MLIRContext* ctx, int64_t levels, bool isSigned);
 
 //
 // Dequantize support
@@ -122,13 +126,6 @@ float dequantize(int64_t qVal, double scale, int64_t zeroPoint);
 //
 
 int32_t toFixedPoint(const double realVal);
-
-//
-//  Serialize Scales And ZeroPoints for Emulator serializer
-//
-
-std::pair<EMU::BlobWriter::Vector<uint16_t>, EMU::BlobWriter::Vector<uint16_t>> serializeScalesAndZeroPointsEmu(
-        mlir::Value input, mlir::Value output, EMU::BlobWriter& writer);
 
 // Broadcasting
 

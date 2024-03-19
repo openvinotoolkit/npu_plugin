@@ -3,13 +3,12 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux_backends.h"
+#include "vpux_backends.hpp"
 
 #include <fstream>
 #include <memory>
 
 #include "vpux/al/config/common.hpp"
-#include "vpux_exceptions.h"
 
 #include <device_helpers.hpp>
 
@@ -23,7 +22,6 @@
 #endif
 
 namespace vpux {
-namespace ie = InferenceEngine;
 
 // TODO Config will be useless here, since only default values will be used
 VPUXBackends::VPUXBackends(const std::vector<std::string>& backendRegistry, const Config& config)
@@ -43,7 +41,7 @@ VPUXBackends::VPUXBackends(const std::vector<std::string>& backendRegistry, cons
 
         const auto path = getLibFilePath(name);
 
-        const auto exists = std::ifstream(path).good();
+        const auto exists = ov::util::file_exists(path);
         if (!exists) {
             _logger.debug("Backend '{0}' at '{1}' doesn't exist", name, path);
             continue;
@@ -66,9 +64,9 @@ VPUXBackends::VPUXBackends(const std::vector<std::string>& backendRegistry, cons
     const auto backend = std::make_shared<EngineBackend>(std::make_shared<ZeroEngineBackend>(config));
 #else
     const auto backend = std::make_shared<EngineBackend>(nullptr);
-    IE_THROW() << "No backends available. The only available backend for static library configuration is "
-                  "npu_level_zero_backend."
-               << "Please make sure that ENABLE_ZEROAPI_BACKEND is ON";
+    OPENVINO_THROW("No backends available. The only available backend for static library configuration is "
+                   "npu_level_zero_backend.",
+                   "Please make sure that ENABLE_ZEROAPI_BACKEND is ON");
 #endif
     registerBackend(backend, "npu_level_zero_backend");
 
@@ -119,7 +117,7 @@ std::shared_ptr<Device> VPUXBackends::getDevice(const std::string& specificName)
     return deviceToUse;
 }
 
-std::shared_ptr<Device> VPUXBackends::getDevice(const ie::ParamMap& paramMap) const {
+std::shared_ptr<Device> VPUXBackends::getDevice(const ov::AnyMap& paramMap) const {
     return _backend->getDevice(paramMap);
 }
 
@@ -138,17 +136,16 @@ void VPUXBackends::setup(const Config& config) {
     _logger.setLevel(config.get<LOG_LEVEL>());
 }
 
-static std::map<ie::VPUXConfigParams::VPUXPlatform, std::string> compilationPlatformMap = {
-        {ie::VPUXConfigParams::VPUXPlatform::AUTO_DETECT, "AUTO_DETECT"},
-        {ie::VPUXConfigParams::VPUXPlatform::VPU3700, "3700"},
-        {ie::VPUXConfigParams::VPUXPlatform::VPU3720, "3720"},
+static std::map<InferenceEngine::VPUXConfigParams::VPUXPlatform, std::string> compilationPlatformMap = {
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO_DETECT, "AUTO_DETECT"},
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700, "3700"},
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720, "3720"},
 };
 
-std::string VPUXBackends::getCompilationPlatform(const ie::VPUXConfigParams::VPUXPlatform platform,
+std::string VPUXBackends::getCompilationPlatform(const InferenceEngine::VPUXConfigParams::VPUXPlatform platform,
                                                  const std::string& deviceId) const {
     // Platform parameter has a higher priority than deviceID
-    if (platform != ie::VPUXConfigParams::VPUXPlatform::AUTO_DETECT &&
-        platform != ie::VPUXConfigParams::VPUXPlatform::EMULATOR) {
+    if (platform != InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO_DETECT) {
         return compilationPlatformMap.at(platform);
     }
 
@@ -160,12 +157,8 @@ std::string VPUXBackends::getCompilationPlatform(const ie::VPUXConfigParams::VPU
     // Automatic detection of compilation platform
     const auto devNames = getAvailableDevicesNames();
     if (devNames.empty()) {
-        IE_THROW() << "No devices found - platform must be explicitly specified for compilation. Example: -d NPU.3700 "
-                      "instead of -d NPU.";
-    }
-
-    if (std::find(devNames.cbegin(), devNames.cend(), "EMULATOR") != devNames.end()) {
-        IE_THROW() << "Emulator device is available, but was not explicitly requested";
+        OPENVINO_THROW("No devices found - platform must be explicitly specified for compilation. Example: -d NPU.3700 "
+                       "instead of -d NPU.");
     }
 
     // check whether the compilation platform for the default platform name exists within defined platforms
@@ -178,7 +171,7 @@ std::string VPUXBackends::getCompilationPlatform(const ie::VPUXConfigParams::VPU
                 return (curCompilationPlatformName == compilationPlatformName);
             });
     if (anotherPlatformIt == devNames.cend()) {
-        IE_THROW() << "Different VPUX platform have been detected. Not supported configuration.";
+        OPENVINO_THROW("Different VPUX platform have been detected. Not supported configuration.");
     }
 
     return compilationPlatformName;

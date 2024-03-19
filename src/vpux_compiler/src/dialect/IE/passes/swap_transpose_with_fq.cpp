@@ -6,13 +6,6 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/utils/quantization.hpp"
-#include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
-
-#include <mlir/Transforms/GreedyPatternRewriteDriver.h>
-
-#include <llvm/ADT/TypeSwitch.h>
-#include <vpux/compiler/conversion.hpp>
 
 using namespace vpux;
 
@@ -56,19 +49,19 @@ private:
 
 mlir::LogicalResult SwapTransposeWithFQ::TransposeOpConverter::matchAndRewrite(IE::TransposeOp origOp,
                                                                                mlir::PatternRewriter& rewriter) const {
-    const auto transposeIn = origOp.input();
+    const auto transposeIn = origOp.getInput();
     if (auto origQuantOp = transposeIn.getDefiningOp<IE::QuantizeOp>()) {
-        auto transposeOp = rewriter.create<IE::TransposeOp>(origOp->getLoc(), origQuantOp.input(), nullptr,
-                                                            origOp.order_valueAttr());
+        auto transposeOp = rewriter.create<IE::TransposeOp>(origOp->getLoc(), origQuantOp.getInput(), nullptr,
+                                                            origOp.getOrderValueAttr());
 
-        rewriter.replaceOpWithNewOp<IE::QuantizeOp>(origOp, transposeOp.output(), origQuantOp.dstElemType());
+        rewriter.replaceOpWithNewOp<IE::QuantizeOp>(origOp, transposeOp.getOutput(), origQuantOp.getDstElemType());
     } else if (auto origFqOp = transposeIn.getDefiningOp<IE::FakeQuantizeOp>()) {
-        auto transposeOp =
-                rewriter.create<IE::TransposeOp>(origOp->getLoc(), origFqOp.input(), nullptr, origOp.order_valueAttr());
+        auto transposeOp = rewriter.create<IE::TransposeOp>(origOp->getLoc(), origFqOp.getInput(), nullptr,
+                                                            origOp.getOrderValueAttr());
 
         rewriter.replaceOpWithNewOp<IE::FakeQuantizeOp>(
-                origOp, transposeOp.output(), origFqOp.input_low(), origFqOp.input_high(), origFqOp.output_low(),
-                origFqOp.output_high(), origFqOp.levels(), origFqOp.auto_broadcast());
+                origOp, transposeOp.getOutput(), origFqOp.getInputLow(), origFqOp.getInputHigh(),
+                origFqOp.getOutputLow(), origFqOp.getOutputHigh(), origFqOp.getLevels(), origFqOp.getAutoBroadcast());
     }
 
     return mlir::success();
@@ -77,11 +70,11 @@ mlir::LogicalResult SwapTransposeWithFQ::TransposeOpConverter::matchAndRewrite(I
 void SwapTransposeWithFQ::safeRunOnFunc() {
     auto& ctx = getContext();
 
-    const auto isLegalOp = [](IE::TransposeOp op) -> bool {
-        const auto transposeIn = op.input();
+    const auto isLegalOp = [&](IE::TransposeOp op) -> bool {
+        const auto transposeIn = op.getInput();
         if (auto maybeQuantOp = transposeIn.getDefiningOp<IE::QuantizeOp>()) {
             // Check that Quantize has per-tensor quantization.
-            const auto axis = IE::getQuantAxisIndex(maybeQuantOp);
+            const auto axis = IE::getQuantAxisIndex(maybeQuantOp, _log);
             if (axis.has_value()) {
                 return true;
             }
@@ -91,11 +84,10 @@ void SwapTransposeWithFQ::safeRunOnFunc() {
             // Quantize will eventually become an NCE task, which requires NHWC layout.
             // If Quantize and Transpose is swapped, transpose and NHWC repack can be fused together.
             // Also, sometimes such fusion results in PermuteCast, which does nothing in runtime.
-            return !maybeQuantOp.input().isa<mlir::BlockArgument>();
+            return !maybeQuantOp.getInput().isa<mlir::BlockArgument>();
         } else if (auto maybeFqOp = transposeIn.getDefiningOp<IE::FakeQuantizeOp>()) {
             // Check that FQ has per-tensor quantization.
-            const auto axis = IE::getFQAxisIndex(maybeFqOp);
-            if (axis.has_value()) {
+            if (!IE::isPerTensorFQ({maybeFqOp})) {
                 return true;
             }
 
@@ -103,13 +95,13 @@ void SwapTransposeWithFQ::safeRunOnFunc() {
             // NetworkInput (NCHW) -> Convert -> FQ -> Transpose. Because of this will remain a
             // dequantize layer, this dequant layer will introduce 2 mem permutes because of the layout.
             // This Transpose will be done as PermuteCast lately.
-            if (mlir::isa_and_nonnull<IE::ConvertOp>(maybeFqOp.input().getDefiningOp()) &&
-                maybeFqOp.input().getDefiningOp()->getOperand(0).isa<mlir::BlockArgument>() &&
+            if (mlir::isa_and_nonnull<IE::ConvertOp>(maybeFqOp.getInput().getDefiningOp()) &&
+                maybeFqOp.getInput().getDefiningOp()->getOperand(0).isa<mlir::BlockArgument>() &&
                 mlir::isa_and_nonnull<IE::FakeQuantizeOp>(*op.getResult().getUsers().begin())) {
                 return false;
             }
 
-            return !maybeFqOp.input().isa<mlir::BlockArgument>();
+            return !maybeFqOp.getInput().isa<mlir::BlockArgument>();
         }
 
         return true;

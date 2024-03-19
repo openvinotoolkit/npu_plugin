@@ -30,10 +30,9 @@ public:
 
 public:
     void updateIR();
-    void orderBarriers();
     void clearAttributes();
-    TaskSet getWaitBarriers(size_t taskInd);
-    TaskSet getUpdateBarriers(size_t taskInd);
+    TaskSet& getWaitBarriers(size_t taskInd);
+    TaskSet& getUpdateBarriers(size_t taskInd);
     uint32_t getIndex(VPURT::TaskOp taskOp) const;
     uint32_t getIndex(VPURT::DeclareVirtualBarrierOp barrierOp) const;
     VPURT::TaskOp getTaskOpAtIndex(size_t opIdx) const;
@@ -45,21 +44,21 @@ private:
     void setWaitBarriers(size_t taskIdn, const TaskSet& barriers);
     void setUpdateBarriers(size_t taskIdn, const TaskSet& barriers);
     void resizeBitMap(SmallVector<llvm::BitVector>& bitMap, size_t length, uint32_t bits);
-    bool producersControllsAllConsumers(const TaskSet& origProducers, const TaskSet& newConsumers,
-                                        const TaskSet& origConsumers, ArrayRef<TaskSet> origWaitBarriersMap);
+    bool producersControlsAllConsumers(const TaskSet& origProducers, const TaskSet& newConsumers,
+                                       const TaskSet& origConsumers, ArrayRef<TaskSet> origWaitBarriersMap);
     bool inImplicitQueueTypeDependencyList(const TaskSet& taskList);
 
 public:
     void logBarrierInfo();
     void optimizeBarriers();
-    void buildTaskControllMap(bool considerTaskFifoDependency = true);
+    void buildTaskControlMap(bool considerTaskFifoDependency = true);
     size_t getNumOfTasks() const;
     size_t getNumOfVirtualBarriers() const;
     size_t getNumOfSlotsUsed(VPURT::TaskOp op) const;
     void resetBarrier(VPURT::DeclareVirtualBarrierOp barrierOp);
     void resetBarrier(size_t barrierInd);
     void addNewBarrier(VPURT::DeclareVirtualBarrierOp barrierOp);
-    bool controlPathExistsBetween(size_t taskAInd, size_t taskBInd, bool bidirection = true) const;
+    bool controlPathExistsBetween(size_t taskAInd, size_t taskBInd, bool biDirection = true) const;
     size_t getProducerSlotCount(VPURT::DeclareVirtualBarrierOp barrierOp);
     size_t getConsumerSlotCount(VPURT::DeclareVirtualBarrierOp barrierOp);
     void addProducer(VPURT::DeclareVirtualBarrierOp barrierOp, size_t taskInd);
@@ -70,19 +69,21 @@ public:
     void removeConsumer(size_t taskInd, VPURT::DeclareVirtualBarrierOp barrierOp);
     void removeProducers(VPURT::DeclareVirtualBarrierOp barrierOp, const TaskSet& taskInds);
     void removeConsumers(VPURT::DeclareVirtualBarrierOp barrierOp, const TaskSet& taskInds);
-    TaskSet getBarrierProducers(VPURT::DeclareVirtualBarrierOp barrierOp);
-    TaskSet getBarrierConsumers(VPURT::DeclareVirtualBarrierOp barrierOp);
-    TaskSet getBarrierProducers(size_t barrierIdn);
-    TaskSet getBarrierConsumers(size_t barrierIdn);
+    TaskSet& getBarrierProducers(VPURT::DeclareVirtualBarrierOp barrierOp);
+    TaskSet& getBarrierConsumers(VPURT::DeclareVirtualBarrierOp barrierOp);
+    TaskSet& getBarrierProducers(size_t barrierIdn);
+    TaskSet& getBarrierConsumers(size_t barrierIdn);
     SmallVector<TaskSet> createLegalVariantBatches(const TaskSet& tasks, size_t availableSlots);
-    Optional<VPURT::TaskQueueType> haveSameImplicitDependencyTaskQueueType(const TaskSet& taskInds);
+    std::optional<VPURT::TaskQueueType> haveSameImplicitDependencyTaskQueueType(const TaskSet& taskInds);
     bool canBarriersBeMerged(const TaskSet& barrierProducersA, const TaskSet& barrierConsumersA,
                              const TaskSet& barrierProducersB, const TaskSet& barrierConsumersB,
                              ArrayRef<TaskSet> origWaitBarriersMap);
     SmallVector<TaskSet> getWaitBarriersMap();
+    SmallVector<VPURT::TaskOp> getFinalTasks();
 
 private:
     Logger _log;
+    mlir::func::FuncOp _func;
 
     mlir::StringAttr _taskIndexAttrName;
     mlir::StringAttr _barrierIndexAttrName;
@@ -104,8 +105,8 @@ private:
     // indexOf(VPURT::TaskOp) 'updates' [ indexOf(VPURT::DeclareVirtualBarrierOp)... ].
     SmallVector<TaskSet> _taskUpdateBarriers;
 
-    // indexOf(VPURT::TaskOp) 'controlls' [ indexOf(VPURT::TaskOp)... ].
-    SmallVector<llvm::BitVector> _taskControllMap;
+    // indexOf(VPURT::TaskOp) 'controls' [ indexOf(VPURT::TaskOp)... ].
+    SmallVector<llvm::BitVector> _taskControlMap;
 
     // indexOf(VPURT::TaskQueueType) 'contains' [ indexOf(VPURT::TaskOp)... ].
     std::map<VPURT::TaskQueueType, llvm::BitVector> _taskQueueTypeMap;

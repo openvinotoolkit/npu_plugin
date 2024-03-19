@@ -7,7 +7,7 @@
 
 #include "vpux/utils/core/logger.hpp"
 
-#include "ie_common.h"
+#include <sstream>
 
 using namespace vpux;
 
@@ -15,7 +15,7 @@ using namespace vpux;
 // Exceptions
 //
 
-[[noreturn]] void vpux::details::throwFormat(StringRef file, int line, const std::string& message) {
+[[noreturn]] void vpux::details::throwFormat(const char* file, int line, const std::string& message) {
     VPUX_UNUSED(file);
     VPUX_UNUSED(line);
 
@@ -29,8 +29,9 @@ using namespace vpux;
     strm
 #ifndef NDEBUG
             << '\n'
-            << file.str() << ':' << line << ' '
+            << file << ':' << line << ' '
 #endif
             << message;
-    throw InferenceEngine::GeneralError{strm.str()};
+    // E#94973 TODO catch this exception and rethrow as ov::Exception in OV linked layer
+    throw Exception(strm.str());
 }

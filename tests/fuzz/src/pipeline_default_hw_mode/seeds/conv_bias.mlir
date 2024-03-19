@@ -19,7 +19,7 @@ module {
 
     %2 = const.Declare tensor<1x16x1x1xf32> = dense<1.0> : tensor<1x16x1x1xf32>
     %3 = IE.ScaleShift(%1, %2)
-      {operand_segment_sizes = dense<[1, 0, 1]> : vector<3xi32>} :
+      {operandSegmentSizes = array<i32: 1, 0, 1>} :
       tensor<1x16x300x300xf32>, tensor<1x16x1x1xf32> -> tensor<1x16x300x300xf32>
 
     return %3 : tensor<1x16x300x300xf32>

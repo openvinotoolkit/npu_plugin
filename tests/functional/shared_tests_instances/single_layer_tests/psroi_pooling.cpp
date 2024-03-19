@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
@@ -11,7 +10,9 @@
 #include "vpu_ov1_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
-class VPUXPSROIPoolingLayerTest : public PSROIPoolingLayerTest, virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
+class PSROIPoolingLayerTestCommon :
+        public PSROIPoolingLayerTest,
+        virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {
     void SkipBeforeLoad() override {
         std::string psROIPoolingMode;
         std::tie(std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore,
@@ -22,16 +23,16 @@ class VPUXPSROIPoolingLayerTest : public PSROIPoolingLayerTest, virtual public L
     }
 };
 
-class VPUXPSROIPoolingLayerTest_VPU3700 : public VPUXPSROIPoolingLayerTest {};
-class VPUXPSROIPoolingLayerTest_VPU3720 : public VPUXPSROIPoolingLayerTest {};
+class PSROIPoolingLayerTest_NPU3700 : public PSROIPoolingLayerTestCommon {};
+class PSROIPoolingLayerTest_NPU3720 : public PSROIPoolingLayerTestCommon {};
 
-TEST_P(VPUXPSROIPoolingLayerTest_VPU3700, HW) {
+TEST_P(PSROIPoolingLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXPSROIPoolingLayerTest_VPU3720, HW) {
+TEST_P(PSROIPoolingLayerTest_NPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -98,25 +99,25 @@ const auto paramsBilinear = testing::Combine(::testing::ValuesIn(inputShapeVecto
                                              ::testing::ValuesIn(netPrecisions),
                                              ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-// --------- VPU3700 ---------
-INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingBiliniarLayoutTest0, VPUXPSROIPoolingLayerTest_VPU3700, paramsBilinear,
-                         VPUXPSROIPoolingLayerTest_VPU3700::getTestCaseName);
+// --------- NPU3700 ---------
+INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingBiliniarLayoutTest0, PSROIPoolingLayerTest_NPU3700, paramsBilinear,
+                         PSROIPoolingLayerTest_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingAverageLayoutTest0, VPUXPSROIPoolingLayerTest_VPU3700, paramsAvg0,
-                         VPUXPSROIPoolingLayerTest_VPU3700::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingAverageLayoutTest0, PSROIPoolingLayerTest_NPU3700, paramsAvg0,
+                         PSROIPoolingLayerTest_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingAverageLayoutTest1, VPUXPSROIPoolingLayerTest_VPU3700, paramsAvg1,
-                         VPUXPSROIPoolingLayerTest_VPU3700::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingAverageLayoutTest1, PSROIPoolingLayerTest_NPU3700, paramsAvg1,
+                         PSROIPoolingLayerTest_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingAverageLayoutTest2, VPUXPSROIPoolingLayerTest_VPU3700, paramsAvg2,
-                         VPUXPSROIPoolingLayerTest_VPU3700::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingAverageLayoutTest2, PSROIPoolingLayerTest_NPU3700, paramsAvg2,
+                         PSROIPoolingLayerTest_NPU3700::getTestCaseName);
 
-// --------- VPU3720 ---------
-INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingAverageLayoutTest0, VPUXPSROIPoolingLayerTest_VPU3720, paramsAvg0,
-                         VPUXPSROIPoolingLayerTest_VPU3720::getTestCaseName);
+// --------- NPU3720 ---------
+INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingAverageLayoutTest0, PSROIPoolingLayerTest_NPU3720, paramsAvg0,
+                         PSROIPoolingLayerTest_NPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingAverageLayoutTest1, VPUXPSROIPoolingLayerTest_VPU3720, paramsAvg2,
-                         VPUXPSROIPoolingLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingAverageLayoutTest1, PSROIPoolingLayerTest_NPU3720, paramsAvg2,
+                         PSROIPoolingLayerTest_NPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingBiliniarLayoutTest0, VPUXPSROIPoolingLayerTest_VPU3720, paramsBilinear,
-                         VPUXPSROIPoolingLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingBiliniarLayoutTest0, PSROIPoolingLayerTest_NPU3720, paramsBilinear,
+                         PSROIPoolingLayerTest_NPU3720::getTestCaseName);

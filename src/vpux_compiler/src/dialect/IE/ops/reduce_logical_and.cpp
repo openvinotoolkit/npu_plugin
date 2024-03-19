@@ -6,7 +6,6 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/dialect/IE/utils/reduce_infer.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
@@ -14,8 +13,8 @@
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::ReduceLogicalAndOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -23,14 +22,14 @@ mlir::LogicalResult vpux::IE::ReduceLogicalAndOp::inferReturnTypeComponents(
     if (mlir::failed(reduceLogicalAnd.verify(loc))) {
         return mlir::failure();
     }
-    if (reduceLogicalAnd.axes() != nullptr && reduceLogicalAnd.axes_value().has_value()) {
+    if (reduceLogicalAnd.getAxes() != nullptr && reduceLogicalAnd.getAxesValue().has_value()) {
         return errorAt(loc, "Ambiguous axes representation");
-    } else if (reduceLogicalAnd.axes() == nullptr && !reduceLogicalAnd.axes_value().has_value()) {
+    } else if (reduceLogicalAnd.getAxes() == nullptr && !reduceLogicalAnd.getAxesValue().has_value()) {
         return errorAt(loc, "Axes was not provided properly");
     }
 
-    const auto input = reduceLogicalAnd.input();
-    const auto keepDims = reduceLogicalAnd.keep_dims();
+    const auto input = reduceLogicalAnd.getInput();
+    const auto keepDims = reduceLogicalAnd.getKeepDims();
 
     auto axesValue = IE::extractAxes(loc, reduceLogicalAnd);
 
@@ -41,9 +40,9 @@ mlir::LogicalResult vpux::IE::ReduceLogicalAndOp::inferReturnTypeComponents(
 // fold
 //
 
-mlir::OpFoldResult vpux::IE::ReduceLogicalAndOp::fold(ArrayRef<mlir::Attribute>) {
-    if (input().getType() == output().getType()) {
-        return input();
+mlir::OpFoldResult vpux::IE::ReduceLogicalAndOp::fold(FoldAdaptor) {
+    if (getInput().getType() == getOutput().getType()) {
+        return getInput();
     }
 
     return nullptr;

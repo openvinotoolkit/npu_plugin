@@ -8,8 +8,8 @@
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::BatchNormInferenceOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -18,7 +18,7 @@ mlir::LogicalResult vpux::IE::BatchNormInferenceOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = norm.input().getType().cast<mlir::ShapedType>();
+    const auto inType = norm.getInput().getType().cast<mlir::ShapedType>();
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
 
     return mlir::success();
@@ -40,10 +40,10 @@ public:
 
 mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::BatchNormInferenceOp normOp,
                                                         mlir::PatternRewriter& rewriter) const {
-    auto gamma = normOp.gamma();
-    auto beta = normOp.beta();
-    auto mean = normOp.mean();
-    auto var = normOp.variance();
+    auto gamma = normOp.getGamma();
+    auto beta = normOp.getBeta();
+    auto mean = normOp.getMean();
+    auto var = normOp.getVariance();
 
     if ((gamma == nullptr) || (beta == nullptr) || (mean == nullptr) || (var == nullptr)) {
         // already converted
@@ -70,9 +70,9 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::BatchNormInferenceOp
     const auto meanAttr = getFPArrayAttr(getContext(), meanContent.getValues<double>());
     const auto varAttr = getFPArrayAttr(getContext(), varContent.getValues<double>());
 
-    rewriter.replaceOpWithNewOp<IE::BatchNormInferenceOp>(normOp, normOp.getType(), normOp.input(), nullptr, nullptr,
+    rewriter.replaceOpWithNewOp<IE::BatchNormInferenceOp>(normOp, normOp.getType(), normOp.getInput(), nullptr, nullptr,
                                                           nullptr, nullptr, gammaAttr, betaAttr, meanAttr, varAttr,
-                                                          normOp.eps());
+                                                          normOp.getEps());
     return mlir::success();
 }
 

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
+#include "vpux/compiler/dialect/VPU/utils/cost_model/cost_model.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/asm.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -14,7 +15,7 @@ using namespace vpux;
 //
 
 mlir::Operation* vpux::VPUIP::NCEClusterTilingOp::getInnerTaskOp() {
-    for (auto& op : body().front().getOperations()) {
+    for (auto& op : getBody().front().getOperations()) {
         if (VPUIP::isPureViewOp(&op)) {
             continue;
         }
@@ -24,11 +25,11 @@ mlir::Operation* vpux::VPUIP::NCEClusterTilingOp::getInnerTaskOp() {
 }
 
 mlir::MutableArrayRef<mlir::BlockArgument> vpux::VPUIP::NCEClusterTilingOp::getInnerInputs() {
-    return body().getArguments().take_front(getInputs().size());
+    return getBody().getArguments().take_front(getInputs().size());
 }
 
 mlir::MutableArrayRef<mlir::BlockArgument> vpux::VPUIP::NCEClusterTilingOp::getInnerOutputs() {
-    return body().getArguments().slice(getInputs().size(), getOutputs().size());
+    return getBody().getArguments().slice(getInputs().size(), getOutputs().size());
 }
 
 //
@@ -49,22 +50,22 @@ IndexedSymbolAttr vpux::VPUIP::NCEClusterTilingOp::getExecutor() {
 void vpux::VPUIP::NCEClusterTilingOp::print(mlir::OpAsmPrinter& p) {
     // (%operand as %blockArg: <type>, ...)
 
-    VPUX_THROW_UNLESS(!body().empty(), "Cannot serialize operation with empty body.");
+    VPUX_THROW_UNLESS(!getBody().empty(), "Cannot serialize operation with empty body.");
 
-    auto* entry = &body().front();
+    auto* entry = &getBody().front();
     VPUX_THROW_UNLESS(getNumOperands() == entry->getNumArguments(),
                       "Mismatch between the number of operands({0}) and body arguments({1}).", getNumOperands(),
                       entry->getNumArguments());
 
     unsigned opIdx = 0;
 
-    printGroupOfOperands(p, entry, "inputs", inputs(), opIdx);
-    printGroupOfOperands(p, entry, "outputs", output_buffs(), opIdx);
+    printGroupOfOperands(p, entry, "inputs", getInputs(), opIdx);
+    printGroupOfOperands(p, entry, "outputs", getOutputBuffs(), opIdx);
 
-    p.printOptionalAttrDictWithKeyword(getOperation()->getAttrs(), {"operand_segment_sizes"});
+    p.printOptionalAttrDictWithKeyword(getOperation()->getAttrs(), {"operandSegmentSizes"});
     p.printOptionalArrowTypeList(getResultTypes());
     p << " ";
-    p.printRegion(body(), /*printEntryBlockArgs=*/false);
+    p.printRegion(getBody(), /*printEntryBlockArgs=*/false);
 }
 
 mlir::ParseResult vpux::VPUIP::NCEClusterTilingOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result) {
@@ -82,10 +83,9 @@ mlir::ParseResult vpux::VPUIP::NCEClusterTilingOp::parse(mlir::OpAsmParser& pars
         return mlir::failure();
     }
 
-    // Add derived `operand_segment_sizes` attribute based on parsed operands.
-    auto operandSegmentSizes = mlir::DenseIntElementsAttr::get(
-            mlir::VectorType::get({2}, parser.getBuilder().getI32Type()), {inCount, outCount});
-    result.addAttribute("operand_segment_sizes", operandSegmentSizes);
+    // Add derived `operandSegmentSizes` attribute based on parsed operands.
+    auto operandSegmentSizes = parser.getBuilder().getDenseI32ArrayAttr({inCount, outCount});
+    result.addAttribute("operandSegmentSizes", operandSegmentSizes);
 
     // Parse operation attributes.
     mlir::NamedAttrList attrs;
@@ -123,9 +123,8 @@ void vpux::VPUIP::NCEClusterTilingOp::build(mlir::OpBuilder& builder, mlir::Oper
     int32_t inCount = static_cast<int32_t>(operands.size()) - static_cast<int32_t>(resultTypes.size());
     int32_t outCount = static_cast<int32_t>(resultTypes.size());
 
-    auto operandSegmentSizes =
-            mlir::DenseIntElementsAttr::get(mlir::VectorType::get({2}, builder.getI32Type()), {inCount, outCount});
-    result.addAttribute("operand_segment_sizes", operandSegmentSizes);
+    auto operandSegmentSizes = builder.getDenseI32ArrayAttr({inCount, outCount});
+    result.addAttribute("operandSegmentSizes", operandSegmentSizes);
 
     // Add a body region with block arguments
     auto* bodyRegion = result.addRegion();
@@ -168,7 +167,7 @@ void vpux::VPUIP::NCEClusterTilingOp::build(mlir::OpBuilder& builder, mlir::Oper
 
 mlir::LogicalResult vpux::VPUIP::NCEClusterTilingOp::verify() {
     const auto op = getOperation();
-    auto& opBody = body();
+    auto& opBody = getBody();
     if (!opBody.hasOneBlock()) {
         return errorAt(op->getLoc(), "Operation must have only one block.");
     }
@@ -217,4 +216,13 @@ mlir::LogicalResult vpux::VPUIP::NCEClusterTilingOp::verify() {
     }
 
     return mlir::success();
+}
+
+size_t vpux::VPUIP::NCEClusterTilingOp::getOperationCycleCost(std::shared_ptr<VPUNN::VPUCostModel>& costModel) {
+    auto clusterTilingOp = mlir::cast<VPUIP::NCEClusterTilingOp>(this->getOperation());
+    auto cycleCostInterface = mlir::dyn_cast<VPUIP::CycleCostInterface>(clusterTilingOp.getInnerTaskOp());
+    if (cycleCostInterface == nullptr) {
+        return VPU::NO_COST;
+    }
+    return cycleCostInterface.getOperationCycleCost(costModel);
 }

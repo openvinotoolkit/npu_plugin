@@ -15,14 +15,13 @@ namespace arch37xx {
 // ClusterSWRewriter
 //
 
-class ClusterSWRewriter final : public mlir::OpRewritePattern<VPUIP::SwKernelOp> {
+class ClusterSWRewriter {
 public:
     ClusterSWRewriter(mlir::MLIRContext* ctx, mlir::ModuleOp module, Logger log)
-            : mlir::OpRewritePattern<VPUIP::SwKernelOp>(ctx), _log(log), _ctx(ctx), _module(module) {
-        setDebugName("ClusterSWRewriter");
+            : _log(log), _ctx(ctx), _module(module) {
     }
 
-    mlir::LogicalResult matchAndRewrite(VPUIP::SwKernelOp swTask, mlir::PatternRewriter& rewriter) const final;
+    void matchAndRewrite(VPUIP::SwKernelOp swTask, mlir::OpBuilder& builder) const;
 
 private:
     Logger _log;

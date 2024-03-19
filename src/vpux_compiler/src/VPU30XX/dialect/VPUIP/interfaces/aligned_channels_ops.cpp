@@ -14,8 +14,8 @@ using namespace vpux;
 namespace {
 
 template <class MainOpType>
-class AlignedChannelsOpModel30XX final :
-        public IE::AlignedChannelsOpInterface::ExternalModel<AlignedChannelsOpModel30XX<MainOpType>, MainOpType> {
+class AlignedChannelsOpModel final :
+        public IE::AlignedChannelsOpInterface::ExternalModel<AlignedChannelsOpModel<MainOpType>, MainOpType> {
 public:
     mlir::LogicalResult verifyChannels(mlir::Operation* op) const {
         if (!canBeExecutedOnNCE(op)) {
@@ -70,15 +70,16 @@ private:
 }  // namespace
 
 void vpux::VPUIP::arch30xx::registerAlignedChannelsOpInterfaces(mlir::DialectRegistry& registry) {
-    registry.addExtension(+[](mlir::MLIRContext* ctx, VPU::VPUDialect*) {
-        IE::ConvolutionOp::attachInterface<AlignedChannelsOpModel30XX<IE::ConvolutionOp>>(*ctx);
-        IE::GroupConvolutionOp::attachInterface<AlignedChannelsOpModel30XX<IE::GroupConvolutionOp>>(*ctx);
-        IE::MaxPoolOp::attachInterface<AlignedChannelsOpModel30XX<IE::MaxPoolOp>>(*ctx);
-        IE::AvgPoolOp::attachInterface<AlignedChannelsOpModel30XX<IE::AvgPoolOp>>(*ctx);
-        IE::AddOp::attachInterface<AlignedChannelsOpModel30XX<IE::AddOp>>(*ctx);
-        IE::MultiplyOp::attachInterface<AlignedChannelsOpModel30XX<IE::MultiplyOp>>(*ctx);
-        IE::SubtractOp::attachInterface<AlignedChannelsOpModel30XX<IE::SubtractOp>>(*ctx);
-        IE::AndOp::attachInterface<AlignedChannelsOpModel30XX<IE::AndOp>>(*ctx);
-        IE::InterpolateOp::attachInterface<AlignedChannelsOpModel30XX<IE::InterpolateOp>>(*ctx);
+    registry.addExtension(+[](mlir::MLIRContext* ctx, IE::IEDialect*) {
+        IE::ConvolutionOp::attachInterface<AlignedChannelsOpModel<IE::ConvolutionOp>>(*ctx);
+        IE::GroupConvolutionOp::attachInterface<AlignedChannelsOpModel<IE::GroupConvolutionOp>>(*ctx);
+        IE::MaxPoolOp::attachInterface<AlignedChannelsOpModel<IE::MaxPoolOp>>(*ctx);
+        IE::AvgPoolOp::attachInterface<AlignedChannelsOpModel<IE::AvgPoolOp>>(*ctx);
+        IE::AddOp::attachInterface<AlignedChannelsOpModel<IE::AddOp>>(*ctx);
+        IE::MultiplyOp::attachInterface<AlignedChannelsOpModel<IE::MultiplyOp>>(*ctx);
+        IE::SubtractOp::attachInterface<AlignedChannelsOpModel<IE::SubtractOp>>(*ctx);
+        IE::AndOp::attachInterface<AlignedChannelsOpModel<IE::AndOp>>(*ctx);
+        IE::InterpolateOp::attachInterface<AlignedChannelsOpModel<IE::InterpolateOp>>(*ctx);
+        IE::TransposedConvolutionOp::attachInterface<AlignedChannelsOpModel<IE::TransposedConvolutionOp>>(*ctx);
     });
 }

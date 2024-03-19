@@ -1,13 +1,11 @@
-//
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
-//
 
 #include <gflags/gflags.h>
 
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <ngraph/pass/serialize.hpp>
+#include <openvino/opsets/opset3.hpp>
+#include <openvino/pass/manager.hpp>
+#include <openvino/pass/serialize.hpp>
 #include "ie_common.h"
 #include "openvino/core/version.hpp"
 #include "openvino/openvino.hpp"
@@ -56,7 +54,7 @@ int main(int argc, char* argv[]) {
         parseCommandLine(argc, argv);
 
         // fp16 elemType by default
-        const auto elementType = ngraph::element::f16;
+        const auto elementType = ov::element::f16;
 
         const std::vector<size_t> inputShapes = parseShapes(FLAGS_inputs_size);
         const std::vector<size_t> outputShapes = parseShapes(FLAGS_outputs_size);
@@ -68,9 +66,9 @@ int main(int argc, char* argv[]) {
         // Only C layout as input supported
         const size_t dims = 1;
 
-        std::vector<std::shared_ptr<ngraph::opset3::Parameter>> parameters;
-        std::vector<std::shared_ptr<ngraph::opset3::StridedSlice>> stridedSlices;
-        std::vector<std::shared_ptr<ngraph::opset3::Result>> results;
+        std::vector<std::shared_ptr<ov::opset3::Parameter>> parameters;
+        std::vector<std::shared_ptr<ov::opset3::StridedSlice>> stridedSlices;
+        std::vector<std::shared_ptr<ov::opset3::Result>> results;
 
         const std::vector<int64_t> beginMask = {0, 0, 0, 0};
         const std::vector<int64_t> endMask = {0, 0, 0, 0};
@@ -80,19 +78,18 @@ int main(int argc, char* argv[]) {
                 IE_THROW() << "Output size for each pair must be smaller or equal to input.";
             }
 
-            auto data = std::make_shared<ngraph::opset3::Parameter>(elementType, ngraph::Shape({inputShapes[i]}));
+            auto data = std::make_shared<ov::opset3::Parameter>(elementType, ov::Shape({inputShapes[i]}));
             const std::string friendlyInputName = "Input" + std::to_string(i);
             data->set_friendly_name(friendlyInputName);
             data->output(0).get_tensor().set_names({friendlyInputName});
 
-            const auto begin = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{dims}, {0});
-            const auto end =
-                    ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{dims}, {outputShapes[i]});
-            const auto stride = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{dims}, {1});
+            const auto begin = ov::opset3::Constant::create(ov::element::i64, ov::Shape{dims}, {0});
+            const auto end = ov::opset3::Constant::create(ov::element::i64, ov::Shape{dims}, {outputShapes[i]});
+            const auto stride = ov::opset3::Constant::create(ov::element::i64, ov::Shape{dims}, {1});
 
-            auto ss = std::make_shared<ngraph::opset3::StridedSlice>(data, begin, end, stride, beginMask, endMask);
+            auto ss = std::make_shared<ov::opset3::StridedSlice>(data, begin, end, stride, beginMask, endMask);
 
-            auto res = std::make_shared<ngraph::opset3::Result>(ss);
+            auto res = std::make_shared<ov::opset3::Result>(ss);
 
             const std::string friendlyResultName = "Result" + std::to_string(i);
             res->set_friendly_name(friendlyResultName);
@@ -103,13 +100,13 @@ int main(int argc, char* argv[]) {
             results.push_back(res);
         }
 
-        auto network = std::make_shared<ngraph::Function>(ngraph::ResultVector(std::move(results)),
-                                                          ngraph::ParameterVector(std::move(parameters)));
+        auto network = std::make_shared<ov::Model>(ov::ResultVector(std::move(results)),
+                                                   ov::ParameterVector(std::move(parameters)));
 
-        ngraph::pass::Manager passManager;
+        ov::pass::Manager passManager;
 
         const std::string graphName = FLAGS_output;
-        passManager.register_pass<ngraph::pass::Serialize>(graphName + ".xml", graphName + ".bin");
+        passManager.register_pass<ov::pass::Serialize>(graphName + ".xml", graphName + ".bin");
         passManager.run_passes(std::move(network));
     }  // try
     catch (const std::exception& ex) {

@@ -5,16 +5,13 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
-#include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
-
-#include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::GatherNDOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -23,11 +20,11 @@ mlir::LogicalResult vpux::IE::GatherNDOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = gatherND.input().getType().cast<mlir::ShapedType>();
+    const auto inType = gatherND.getInput().getType().cast<mlir::ShapedType>();
     const auto inputShape = inType.getShape();
-    const auto indicesShape = gatherND.indices().getType().cast<mlir::ShapedType>().getShape();
+    const auto indicesShape = gatherND.getIndices().getType().cast<mlir::ShapedType>().getShape();
 
-    const auto batchDims = gatherND.batch_dims();
+    const auto batchDims = gatherND.getBatchDims();
     const auto lastIndices = indicesShape.back();
     const auto inputRank = static_cast<int64_t>(inputShape.size());
 
@@ -48,11 +45,11 @@ mlir::LogicalResult vpux::IE::GatherNDOp::inferReturnTypeComponents(
 
 mlir::LogicalResult vpux::IE::GatherNDOp::verify() {
     const auto op = getOperation();
-    const auto inType = input().getType().cast<mlir::ShapedType>();
+    const auto inType = getInput().getType().cast<mlir::ShapedType>();
     const auto inputShape = inType.getShape();
-    const auto indicesShape = indices().getType().cast<mlir::ShapedType>().getShape();
+    const auto indicesShape = getIndices().getType().cast<mlir::ShapedType>().getShape();
 
-    const auto batchDims = batch_dims();
+    const auto batchDims = getBatchDims();
     const auto lastIndices = indicesShape.back();
     const auto inputRank = static_cast<int64_t>(inputShape.size());
     const auto indicesRank = static_cast<int64_t>(indicesShape.size());

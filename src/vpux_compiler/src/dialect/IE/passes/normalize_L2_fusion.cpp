@@ -6,15 +6,7 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
-
-#include <mlir/Pass/PassManager.h>
-#include <mlir/Transforms/DialectConversion.h>
-
-#include <numeric>
 
 using namespace vpux;
 
@@ -54,25 +46,25 @@ private:
 mlir::LogicalResult NormalizeL2Fusion::matchAndRewrite(IE::ReduceL2Op origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Got reduceL2 '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
 
-    auto clampOp = mlir::dyn_cast<IE::ClampOp>(*(origOp.output().user_begin()));
+    auto clampOp = mlir::dyn_cast<IE::ClampOp>(*(origOp.getOutput().user_begin()));
     if (!clampOp) {
         _log.trace("Pattern not match");
         return mlir::failure();
     }
-    auto divideOp = mlir::dyn_cast<IE::DivideOp>(*(clampOp.output().user_begin()));
+    auto divideOp = mlir::dyn_cast<IE::DivideOp>(*(clampOp.getOutput().user_begin()));
     if (!divideOp) {
         _log.trace("Pattern not match");
         return mlir::failure();
     }
     // For NormalizeL2Op, it implement F(x) = x/Clamp(ReduceL2(x)), and DivedeOp implement input1/input2, so DivideOp's
     // input1 must be ReduceL2's input.
-    if (divideOp.input1() != origOp.input()) {
+    if (divideOp.getInput1() != origOp.getInput()) {
         _log.trace("Pattern not match");
         return mlir::failure();
     }
-    auto normalizeL2Op =
-            rewriter.replaceOpWithNewOp<IE::NormalizeL2Op>(divideOp, origOp.input(), origOp.axes(), clampOp.minAttr(),
-                                                           IE::EpsModeAttr::get(origOp.getContext(), IE::EpsMode::ADD));
+    auto normalizeL2Op = rewriter.replaceOpWithNewOp<IE::NormalizeL2Op>(
+            divideOp, origOp.getInput(), origOp.getAxes(), origOp.getAxesValueAttr(), clampOp.getMinAttr(),
+            IE::EpsModeAttr::get(origOp.getContext(), IE::EpsMode::ADD));
     _log.trace("Replace '{0}' with new op '{1}'", origOp, normalizeL2Op);
     return mlir::success();
 }

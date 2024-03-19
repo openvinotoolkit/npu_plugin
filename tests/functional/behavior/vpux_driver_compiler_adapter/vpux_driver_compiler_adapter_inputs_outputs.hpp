@@ -1,4 +1,3 @@
-//
 // Copyright (C) Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
@@ -6,7 +5,7 @@
 #pragma once
 
 #include "base/ov_behavior_test_utils.hpp"
-#include "vpu_test_env_cfg.hpp"
+#include "common/vpu_test_env_cfg.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
@@ -22,7 +21,7 @@ class VpuxDriverCompilerAdapterInputsOutputsTest :
 protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
-    std::shared_ptr<ov::Model> function;
+    std::shared_ptr<ov::Model> ov_model;
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<CompilationParams> obj) {
@@ -32,7 +31,8 @@ public:
         std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
 
         std::ostringstream result;
-        result << "targetDevice=" << LayerTestsUtils::getDeviceNameTestCase(targetDevice) << "_";
+        result << "targetDevice=" << targetDevice << "_";
+        result << "targetPlatform=" << LayerTestsUtils::getTestsPlatformFromEnvironmentOr(targetDevice) << "_";
         result << "model="
                << "SimpleReluModel"
                << "_";
@@ -48,7 +48,7 @@ public:
     void SetUp() override {
         std::tie(target_device, configuration) = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        function = createSimpleReluModel();
+        ov_model = createSimpleReluModel();
         OVPluginTestBase::SetUp();
     }
 
@@ -60,12 +60,12 @@ public:
     }
 
 private:
-    std::shared_ptr<ngraph::Function> createSimpleReluModel() {
-        auto arg0 = std::make_shared<ngraph::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    std::shared_ptr<ov::Model> createSimpleReluModel() {
+        auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
         arg0->set_friendly_name("data");
         arg0->get_output_tensor(0).set_names({"input"});
 
-        auto relu = std::make_shared<ngraph::opset8::Relu>(arg0);
+        auto relu = std::make_shared<ov::op::v0::Relu>(arg0);
         relu->set_friendly_name("relu");
         relu->get_output_tensor(0).set_names({"relu_res"});
         auto f = std::make_shared<ov::Model>(relu, ov::ParameterVector{arg0});
@@ -75,7 +75,7 @@ private:
 };
 
 TEST_P(VpuxDriverCompilerAdapterInputsOutputsTest, CheckInOutputs) {
-    auto compiledModel = core->compile_model(function, target_device, configuration);
+    auto compiledModel = core->compile_model(ov_model, target_device, configuration);
     for (auto&& input : compiledModel.inputs()) {
         std::string in_name;
         std::string in_node_name;

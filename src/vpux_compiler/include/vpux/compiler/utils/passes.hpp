@@ -16,6 +16,13 @@
 namespace vpux {
 
 //
+// Default file names to dump and read manual strategies from
+//
+
+constexpr StringLiteral writeStrategyFileLocation = "strategy_out.json";
+constexpr StringLiteral readStrategyFileLocation = "strategy_in.json";
+
+//
 // Options
 //
 
@@ -24,8 +31,8 @@ using StrOption = mlir::detail::PassOptions::Option<std::string>;
 using BoolOption = mlir::detail::PassOptions::Option<bool>;
 using DoubleOption = mlir::detail::PassOptions::Option<double>;
 
-Optional<int> convertToOptional(const IntOption& intOption);
-Optional<std::string> convertToOptional(const StrOption& strOption);
+std::optional<int> convertToOptional(const IntOption& intOption);
+std::optional<std::string> convertToOptional(const StrOption& strOption);
 bool isOptionEnabled(const BoolOption& option);
 
 //

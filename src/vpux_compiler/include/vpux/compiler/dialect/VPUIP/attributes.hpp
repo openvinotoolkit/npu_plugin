@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include "vpux/compiler/core/attr_interfaces.hpp"
+#include "vpux/compiler/core/attributes/memref_attr.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/dialect/VPUIP/attr_interfaces.hpp"
 #include "vpux/utils/core/array_ref.hpp"
@@ -24,26 +26,8 @@
 #define GET_ATTRDEF_CLASSES
 #include <vpux/compiler/dialect/VPUIP/attributes.hpp.inc>
 
-#include <vpux/compiler/dialect/VPUIP/structs.hpp.inc>
 namespace vpux {
 namespace VPUIP {
-
-//
-// MemRefAttrLayout
-//
-
-class MemRefAttrLayout final :
-        public mlir::MemRefLayoutAttrInterface::ExternalModel<MemRefAttrLayout, VPUIP::MemRefAttr> {
-public:
-    using ConcreteEntity = mlir::DictionaryAttr;
-
-    mlir::AffineMap getAffineMap(mlir::Attribute attr) const;
-
-    bool isIdentity(mlir::Attribute) const;
-
-    mlir::LogicalResult verifyLayout(mlir::Attribute attr, ArrayRef<int64_t> shape,
-                                     FuncRef<mlir::InFlightDiagnostic()> emitError) const;
-};
 
 //
 // CompressionSchemeAttr

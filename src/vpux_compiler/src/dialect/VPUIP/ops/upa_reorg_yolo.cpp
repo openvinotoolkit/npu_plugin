@@ -3,16 +3,14 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include <mlir/IR/BuiltinTypes.h>
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/utils/subspaces.hpp"
 
 using namespace vpux;
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ReorgYoloUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::ReorgYOLOParamsBuilder builder(writer);
-    builder.add_stride(checked_cast<uint32_t>(stride()));
+    builder.add_stride(checked_cast<uint32_t>(getStride()));
     const auto paramsOff = builder.Finish();
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ReorgYOLOParams});
 }

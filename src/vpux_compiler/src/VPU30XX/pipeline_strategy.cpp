@@ -9,13 +9,11 @@
 #include "vpux/compiler/VPU30XX/pipeline_strategy.hpp"
 #include "vpux/compiler/VPU30XX/pipelines.hpp"
 
-#include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/options_mapper.hpp"
 
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/pipelines.hpp"
+#include "vpux/compiler/dialect/VPU/IR/attributes.hpp"
 
-#include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
 
 using namespace vpux;
 

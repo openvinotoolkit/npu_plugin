@@ -1,4 +1,3 @@
-//
 // Copyright (C) Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
@@ -10,25 +9,26 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXScatterUpdateLayerTest :
+class ScatterUpdateLayerTestCommon :
         public ScatterUpdateLayerTest,
         virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
-class VPUXScatterUpdateLayerTest_VPU3700 : public VPUXScatterUpdateLayerTest {};
-class VPUXScatterUpdateLayerTest_VPU3720 : public VPUXScatterUpdateLayerTest {};
 
-TEST_P(VPUXScatterUpdateLayerTest_VPU3700, HW) {
+class ScatterUpdateLayerTest_NPU3700 : public ScatterUpdateLayerTestCommon {};
+class ScatterUpdateLayerTest_NPU3720 : public ScatterUpdateLayerTestCommon {};
+
+TEST_P(ScatterUpdateLayerTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXScatterUpdateLayerTest_VPU3720, SW) {
+TEST_P(ScatterUpdateLayerTest_NPU3720, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXScatterUpdateLayerTest_VPU3720, HW) {
+TEST_P(ScatterUpdateLayerTest_NPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -49,10 +49,10 @@ const auto params = testing::Combine(
         testing::Values(InferenceEngine::Precision::FP16), testing::Values(InferenceEngine::Precision::I32),
         testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdate, VPUXScatterUpdateLayerTest_VPU3700, params,
-                         VPUXScatterUpdateLayerTest_VPU3700::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdate, ScatterUpdateLayerTest_NPU3700, params,
+                         ScatterUpdateLayerTest_NPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdate, VPUXScatterUpdateLayerTest_VPU3720, params,
-                         VPUXScatterUpdateLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdate, ScatterUpdateLayerTest_NPU3720, params,
+                         ScatterUpdateLayerTest_NPU3720::getTestCaseName);
 
 }  // namespace

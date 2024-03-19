@@ -7,7 +7,6 @@
 
 #include "vpux_driver_compiler.h"
 
-#include <cpp/ie_cnn_network.h>
 #include <gtest/gtest.h>
 #include <fstream>
 #include <sstream>
@@ -15,11 +14,9 @@
 #include <tuple>
 #include <vector>
 
-#include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <ngraph/pass/serialize.hpp>
-#include <nlohmann/json.hpp>
+#include <openvino/opsets/opset3.hpp>
+#include <openvino/pass/manager.hpp>
+#include <openvino/pass/serialize.hpp>
 
 #if defined(_WIN32)
 #include "Shlwapi.h"
@@ -32,7 +29,6 @@
 
 namespace VCLTestsUtils {
 
-using Json = nlohmann::ordered_json;
 using IRInfoTestType = std::vector<std::unordered_map<std::string, std::string>>;
 using VCLTestsParams = std::tuple<std::unordered_map<std::string, std::string>>;
 
@@ -70,7 +66,7 @@ public:
     /**
      * @brief Create a simple model to test compiler
      */
-    std::shared_ptr<ngraph::Function> createSimpleFunction();
+    std::shared_ptr<ov::Model> createSimpleModel();
 
     /**
      * @brief Get the location of model package defined by POR_PATH

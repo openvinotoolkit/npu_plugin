@@ -71,15 +71,15 @@ struct BuildInfo {
      * @param value The string represents precison. For example: FP32
      * @param matched If the value is not supported in the inside table, assign false
      */
-    static InferenceEngine::Precision getPrecisionIE(std::string value, bool& matched);
+    static ov::element::Type_t stringToOVPrecision(std::string value, bool& matched);
 
     /**
-     * @brief Convert value to ov defined layout, not all layouts are supported
+     * @brief Checks if the given string corresponds to a supported layout value.
      *
      * @param value The string represents layout. For example: NCHW
      * @param matched If the value is not supported in the inside table, assign false
      */
-    static InferenceEngine::Layout getLayoutIE(std::string value, bool& matched);
+    static std::string checkSupportedLayout(std::string value, bool& matched);
 
     /**
      * @brief Parse the ioInfo string to real values and store them
@@ -108,20 +108,18 @@ struct BuildInfo {
     vcl_result_t prepareModel(const uint8_t* modelIR, uint64_t modelIRSize);
 
     /**
-     * @brief The model deserialized by prepareMode()
-     *
-     * @todo Update to ov::Model once we drop CNNNetwork
+     * @brief The model deserialized by prepareModel()
      */
-    InferenceEngine::CNNNetwork cnnNet;
+    std::shared_ptr<ov::Model> model;
 
     /**
      * @name Input and output setting from user
      * @{
      */
-    std::unordered_map<std::string, InferenceEngine::Precision> inPrcsIE;
-    std::unordered_map<std::string, InferenceEngine::Layout> inLayoutsIE;
-    std::unordered_map<std::string, InferenceEngine::Precision> outPrcsIE;
-    std::unordered_map<std::string, InferenceEngine::Layout> outLayoutsIE;
+    std::unordered_map<std::string, ov::element::Type_t> inputPrecisions;
+    std::unordered_map<std::string, std::string> inputLayouts;
+    std::unordered_map<std::string, ov::element::Type_t> outputPrecisions;
+    std::unordered_map<std::string, std::string> outputLayouts;
     /** @} */
 
     /// The runtime compilation config from user

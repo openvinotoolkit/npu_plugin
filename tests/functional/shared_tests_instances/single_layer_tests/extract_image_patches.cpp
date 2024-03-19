@@ -10,19 +10,19 @@
 
 namespace LayerTestsDefinitions {
 
-class VPUXExtractImagePatchesTest :
+class ExtractImagePatchesTestCommon :
         public ExtractImagePatchesTest,
         virtual public LayerTestsUtils::VpuOv1LayerTestsCommon {};
 
-class VPUXExtractImagePatchesTest_VPU3700 : public VPUXExtractImagePatchesTest {};
-class VPUXExtractImagePatchesLayerTest_VPU3720 : public VPUXExtractImagePatchesTest {};
+class ExtractImagePatchesTest_NPU3700 : public ExtractImagePatchesTestCommon {};
+class ExtractImagePatchesTest_NPU3720 : public ExtractImagePatchesTestCommon {};
 
-TEST_P(VPUXExtractImagePatchesTest_VPU3700, HW) {
+TEST_P(ExtractImagePatchesTest_NPU3700, HW) {
     setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
-TEST_P(VPUXExtractImagePatchesLayerTest_VPU3720, SW) {
+TEST_P(ExtractImagePatchesTest_NPU3720, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
@@ -56,16 +56,11 @@ const auto testExtractImagePatchesParams = ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_ExtractImagePatches, VPUXExtractImagePatchesTest_VPU3700,
-                        testExtractImagePatchesParams, VPUXExtractImagePatchesTest_VPU3700::getTestCaseName);
-
-//
-// VPU3720 tests
-// [Track number: E#61053]
-//
+INSTANTIATE_TEST_CASE_P(smoke_ExtractImagePatches, ExtractImagePatchesTest_NPU3700, testExtractImagePatchesParams,
+                        ExtractImagePatchesTest::getTestCaseName);
 
 // FP16
-const auto testVPU37201ExtractImagePatchesParams =
+const auto test1ExtractImagePatchesParams =
         ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 1, 10, 10}}),  // input shape
                            ::testing::ValuesIn(std::vector<std::vector<size_t>>{{3, 3}}),          // kernel size
                            ::testing::ValuesIn(std::vector<std::vector<size_t>>{{5, 5}}),          // strides
@@ -77,10 +72,10 @@ const auto testVPU37201ExtractImagePatchesParams =
                            ::testing::Values(InferenceEngine::Layout::NCHW),                       // Input layout
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_CASE_P(smoke1_ExtractImagePatches_VPU3720, VPUXExtractImagePatchesLayerTest_VPU3720,
-                        testVPU37201ExtractImagePatchesParams, VPUXExtractImagePatchesTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke1_ExtractImagePatches, ExtractImagePatchesTest_NPU3720, test1ExtractImagePatchesParams,
+                        ExtractImagePatchesTest::getTestCaseName);
 
-const auto testVPU37202ExtractImagePatchesParams =
+const auto test2ExtractImagePatchesParams =
         ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 1, 10, 10}}),  // input shape
                            ::testing::ValuesIn(std::vector<std::vector<size_t>>{{4, 4}}),          // kernel size
                            ::testing::ValuesIn(std::vector<std::vector<size_t>>{{8, 8}}),          // strides
@@ -92,10 +87,10 @@ const auto testVPU37202ExtractImagePatchesParams =
                            ::testing::Values(InferenceEngine::Layout::NCHW),                       // Input layout
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke2_ExtractImagePatches_VPU3720, VPUXExtractImagePatchesLayerTest_VPU3720,
-                        testVPU37202ExtractImagePatchesParams, VPUXExtractImagePatchesTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke2_ExtractImagePatches, ExtractImagePatchesTest_NPU3720, test2ExtractImagePatchesParams,
+                        ExtractImagePatchesTest::getTestCaseName);
 
-const auto testVPU37203ExtractImagePatchesParams =
+const auto test3ExtractImagePatchesParams =
         ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 1, 10, 10}}),  // input shape
                            ::testing::ValuesIn(std::vector<std::vector<size_t>>{{4, 4}}),          // kernel size
                            ::testing::ValuesIn(std::vector<std::vector<size_t>>{{9, 9}}),          // strides
@@ -107,10 +102,10 @@ const auto testVPU37203ExtractImagePatchesParams =
                            ::testing::Values(InferenceEngine::Layout::NCHW),                       // Input layout
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_CASE_P(smoke3_ExtractImagePatches_VPU3720, VPUXExtractImagePatchesLayerTest_VPU3720,
-                        testVPU37203ExtractImagePatchesParams, VPUXExtractImagePatchesTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke3_ExtractImagePatches, ExtractImagePatchesTest_NPU3720, test3ExtractImagePatchesParams,
+                        ExtractImagePatchesTest::getTestCaseName);
 
-const auto testVPU37204ExtractImagePatchesParams =
+const auto test4ExtractImagePatchesParams =
         ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 2, 5, 5}}),  // input shape
                            ::testing::ValuesIn(std::vector<std::vector<size_t>>{{2, 2}}),        // kernel size
                            ::testing::ValuesIn(std::vector<std::vector<size_t>>{{3, 3}}),        // strides
@@ -122,10 +117,10 @@ const auto testVPU37204ExtractImagePatchesParams =
                            ::testing::Values(InferenceEngine::Layout::NCHW),                     // Input layout
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_CASE_P(smoke4_ExtractImagePatches_VPU3720, VPUXExtractImagePatchesLayerTest_VPU3720,
-                        testVPU37204ExtractImagePatchesParams, VPUXExtractImagePatchesTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke4_ExtractImagePatches, ExtractImagePatchesTest_NPU3720, test4ExtractImagePatchesParams,
+                        ExtractImagePatchesTest::getTestCaseName);
 
-const auto testVPU37205ExtractImagePatchesParams =
+const auto test5ExtractImagePatchesParams =
         ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 64, 26, 26}}),  // input shape
                            ::testing::ValuesIn(std::vector<std::vector<size_t>>{{2, 2}}),           // kernel size
                            ::testing::ValuesIn(std::vector<std::vector<size_t>>{{2, 2}}),           // strides
@@ -137,10 +132,10 @@ const auto testVPU37205ExtractImagePatchesParams =
                            ::testing::Values(InferenceEngine::Layout::NCHW),                        // Input layout
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke5_ExtractImagePatches_VPU3720, VPUXExtractImagePatchesLayerTest_VPU3720,
-                        testVPU37205ExtractImagePatchesParams, VPUXExtractImagePatchesTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke5_ExtractImagePatches, ExtractImagePatchesTest_NPU3720, test5ExtractImagePatchesParams,
+                        ExtractImagePatchesTest::getTestCaseName);
 
-const auto testVPU37206ExtractImagePatchesParams = ::testing::Combine(
+const auto test6ExtractImagePatchesParams = ::testing::Combine(
         ::testing::ValuesIn(std::vector<std::vector<size_t>>{{2, 1, 10, 10}}),                // input shape
         ::testing::ValuesIn(std::vector<std::vector<size_t>>{{3, 3}}),                        // kernel size
         ::testing::ValuesIn(std::vector<std::vector<size_t>>{{5, 5}}),                        // strides
@@ -152,10 +147,10 @@ const auto testVPU37206ExtractImagePatchesParams = ::testing::Combine(
         ::testing::Values(InferenceEngine::Layout::NCHW),                                     // Input layout
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_CASE_P(smoke6_ExtractImagePatches_VPU3720, VPUXExtractImagePatchesLayerTest_VPU3720,
-                        testVPU37206ExtractImagePatchesParams, VPUXExtractImagePatchesTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke6_ExtractImagePatches, ExtractImagePatchesTest_NPU3720, test6ExtractImagePatchesParams,
+                        ExtractImagePatchesTest::getTestCaseName);
 
-const auto testVPU37207ExtractImagePatchesParams =
+const auto test7ExtractImagePatchesParams =
         ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<size_t>>{{2, 3, 13, 37}}),  // input shape
                            ::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 3}}),          // kernel size
                            ::testing::ValuesIn(std::vector<std::vector<size_t>>{{2, 4}}),          // strides
@@ -167,10 +162,10 @@ const auto testVPU37207ExtractImagePatchesParams =
                            ::testing::Values(InferenceEngine::Layout::NCHW),     // Input layout
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke7_ExtractImagePatches_VPU3720, VPUXExtractImagePatchesLayerTest_VPU3720,
-                        testVPU37207ExtractImagePatchesParams, VPUXExtractImagePatchesTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke7_ExtractImagePatches, ExtractImagePatchesTest_NPU3720, test7ExtractImagePatchesParams,
+                        ExtractImagePatchesTest::getTestCaseName);
 
-const auto testVPU37208ExtractImagePatchesParams =
+const auto test8ExtractImagePatchesParams =
         ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<size_t>>{{2, 3, 13, 37}}),  // input shape
                            ::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 3}}),          // kernel size
                            ::testing::ValuesIn(std::vector<std::vector<size_t>>{{2, 4}}),          // strides
@@ -182,11 +177,11 @@ const auto testVPU37208ExtractImagePatchesParams =
                            ::testing::Values(InferenceEngine::Layout::NCHW),                       // Input layout
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_CASE_P(smoke8_ExtractImagePatches_VPU3720, VPUXExtractImagePatchesLayerTest_VPU3720,
-                        testVPU37208ExtractImagePatchesParams, VPUXExtractImagePatchesTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke8_ExtractImagePatches, ExtractImagePatchesTest_NPU3720, test8ExtractImagePatchesParams,
+                        ExtractImagePatchesTest::getTestCaseName);
 
 // I32
-const auto testVPU37209ExtractImagePatchesParams =
+const auto test9ExtractImagePatchesParams =
         ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 64, 26, 26}}),  // input shape
                            ::testing::ValuesIn(std::vector<std::vector<size_t>>{{2, 2}}),           // kernel size
                            ::testing::ValuesIn(std::vector<std::vector<size_t>>{{2, 2}}),           // strides
@@ -198,11 +193,10 @@ const auto testVPU37209ExtractImagePatchesParams =
                            ::testing::Values(InferenceEngine::Layout::NCHW),                        // Input layout
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
 
-INSTANTIATE_TEST_CASE_P(smoke9_ExtractImagePatches_VPU3720, VPUXExtractImagePatchesLayerTest_VPU3720,
-                        testVPU37209ExtractImagePatchesParams, VPUXExtractImagePatchesTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke9_ExtractImagePatches, ExtractImagePatchesTest_NPU3720, test9ExtractImagePatchesParams,
+                        ExtractImagePatchesTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
-        smoke_precommit_ExtractImagePatches_VPU3720, VPUXExtractImagePatchesLayerTest_VPU3720,
+const auto testPrecommitExtractImagePatchesParams =
         ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 3, 10, 10}}),  // input shape
                            ::testing::ValuesIn(std::vector<std::vector<size_t>>{{3, 3}}),          // kernel size
                            ::testing::ValuesIn(std::vector<std::vector<size_t>>{{5, 5}}),          // strides
@@ -212,7 +206,9 @@ INSTANTIATE_TEST_CASE_P(
                            ::testing::Values(InferenceEngine::Precision::FP16),                    // Input precision
                            ::testing::Values(InferenceEngine::Precision::FP16),                    // Output precision
                            ::testing::Values(InferenceEngine::Layout::NCHW),                       // Input layout
-                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice())),
-        VPUXExtractImagePatchesTest::getTestCaseName);
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice()));
+
+INSTANTIATE_TEST_CASE_P(smoke_precommit_ExtractImagePatches, ExtractImagePatchesTest_NPU3720,
+                        testPrecommitExtractImagePatchesParams, ExtractImagePatchesTest::getTestCaseName);
 
 }  // namespace

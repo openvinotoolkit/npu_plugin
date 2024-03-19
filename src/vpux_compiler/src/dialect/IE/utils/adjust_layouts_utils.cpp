@@ -3,11 +3,12 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
+#include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/utils/adjust_layout_utils.hpp"
+
+#include <llvm/ADT/SmallPtrSet.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/PatternMatch.h>
-#include <vpux/compiler/utils/adjust_layout_utils.hpp>
-#include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/utils/passes.hpp"
 
 using namespace vpux;
 
@@ -25,7 +26,7 @@ void insertReorderForInput(mlir::Operation* op, mlir::OpOperand& input, DimsOrde
             rewriter.create<IE::ReorderOp>(op->getLoc(), input.get(), dstOrder.toAffineMap(rewriter.getContext()));
 
     log.trace("Redirect input to the new Value");
-    input.set(reorderOp.output());
+    input.set(reorderOp.getOutput());
 }
 
 IE::ReorderOp insertReorderForOutput(mlir::Operation* op, mlir::Value output, DimsOrder dstOrder,
@@ -39,7 +40,7 @@ IE::ReorderOp insertReorderForOutput(mlir::Operation* op, mlir::Value output, Di
     auto reorderOp = rewriter.create<IE::ReorderOp>(op->getLoc(), output, dstOrder.toAffineMap(rewriter.getContext()));
 
     log.trace("Redirect output users to the new Value");
-    output.replaceAllUsesExcept(reorderOp.output(), llvm::SmallPtrSet<mlir::Operation*, 1>{reorderOp});
+    output.replaceAllUsesExcept(reorderOp.getOutput(), llvm::SmallPtrSet<mlir::Operation*, 1>{reorderOp});
 
     return reorderOp;
 }

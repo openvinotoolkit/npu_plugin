@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
@@ -6,15 +5,11 @@
 #include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
-#include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
-#include "vpux/utils/core/range.hpp"
-
-#include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
 
@@ -34,7 +29,7 @@ IE::PSROIPoolingMode convertPSROIPoolingModeToIE(MVCNN::PSROIPoolingMode mode) {
 }  // namespace
 
 mlir::LogicalResult vpux::VPUIP::PSROIPoolingUPAOp::verify() {
-    const auto outputDim = output_dim();
+    const auto outputDim = getOutputDim();
 
     if (outputDim <= 0) {
         return errorAt(*this, "Attribute outputDim should be positive. Got {0} value", outputDim);
@@ -44,17 +39,17 @@ mlir::LogicalResult vpux::VPUIP::PSROIPoolingUPAOp::verify() {
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PSROIPoolingUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto spatialBinsX = spatial_bins_x().has_value() ? spatial_bins_x().value() : 1;
-    const auto spatialBinsY = spatial_bins_y().has_value() ? spatial_bins_y().value() : 1;
-    const auto psROIPoolingMode = mode().has_value() ? mode().value() : IE::PSROIPoolingMode::AVERAGE;
+    const auto spatialBinsX = getSpatialBinsX().has_value() ? getSpatialBinsX().value() : 1;
+    const auto spatialBinsY = getSpatialBinsY().has_value() ? getSpatialBinsY().value() : 1;
+    const auto psROIPoolingMode = getMode().has_value() ? getMode().value() : IE::PSROIPoolingMode::AVERAGE;
 
     MVCNN::PSROIPoolingParamsBuilder builder(writer);
 
-    builder.add_output_dim(checked_cast<uint32_t>(output_dim()));
-    builder.add_spatial_scale(checked_cast<float>(spatial_scaleAttr().getValueAsDouble()));
-    builder.add_group_size(checked_cast<uint32_t>(group_size()));
-    builder.add_pooled_w(checked_cast<uint32_t>(group_size()));
-    builder.add_pooled_h(checked_cast<uint32_t>(group_size()));
+    builder.add_output_dim(checked_cast<uint32_t>(getOutputDim()));
+    builder.add_spatial_scale(checked_cast<float>(getSpatialScaleAttr().getValueAsDouble()));
+    builder.add_group_size(checked_cast<uint32_t>(getGroupSize()));
+    builder.add_pooled_w(checked_cast<uint32_t>(getGroupSize()));
+    builder.add_pooled_h(checked_cast<uint32_t>(getGroupSize()));
     builder.add_spatial_bin_x(checked_cast<uint32_t>(spatialBinsX));
     builder.add_spatial_bin_y(checked_cast<uint32_t>(spatialBinsY));
     builder.add_mode(convertVPUXPSROIPoolingModeToMVNCNN(psROIPoolingMode));

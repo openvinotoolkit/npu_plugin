@@ -11,7 +11,7 @@ using namespace vpux;
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::GatherElementsUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::GatherElementsParamsBuilder builder(writer);
-    builder.add_axis(checked_cast<int32_t>(axis()));
+    builder.add_axis(checked_cast<int32_t>(getAxis()));
     const auto paramsOff = builder.Finish();
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_GatherElementsParams});
 }

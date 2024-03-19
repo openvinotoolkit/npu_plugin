@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -18,26 +17,6 @@
 #include <mlir/IR/DialectImplementation.h>
 
 using namespace vpux;
-
-//
-// PadWithZeroAttr::walkImmediateSubElements
-//
-
-void vpux::Const::PadWithZeroAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)> walkAttrsFn,
-                                                            llvm::function_ref<void(mlir::Type)>) const {
-    walkAttrsFn(getPadBefore());
-    walkAttrsFn(getPadAfter());
-}
-
-//
-// PadWithZeroAttr::replaceImmediateSubElements
-//
-
-mlir::Attribute vpux::Const::PadWithZeroAttr::replaceImmediateSubElements(ArrayRef<mlir::Attribute> replAttrs,
-                                                                          ArrayRef<mlir::Type>) const {
-    VPUX_THROW_WHEN(replAttrs.size() < 2, "Replace attrs array is too short: '{0}'", replAttrs.size());
-    return get(replAttrs[0].dyn_cast_or_null<mlir::ArrayAttr>(), replAttrs[1].dyn_cast_or_null<mlir::ArrayAttr>());
-}
 
 //
 // PadWithZeroAttr::verify
@@ -117,10 +96,6 @@ mlir::Attribute vpux::Const::PadWithZeroAttr::parse(mlir::AsmParser& parser, mli
 //
 
 vpux::NDTypeInterface vpux::Const::PadWithZeroAttr::inferOutputType(vpux::NDTypeInterface input) const {
-    const Bit typeSizeInBits = input.getElemTypeSize();
-    VPUX_THROW_UNLESS(typeSizeInBits.count() >= CHAR_BIT, "Got sub-byte input '{0}' in PadWithZeroAttr",
-                      input.getElementType());
-
     const auto padBefore = parseIntArrayAttr<int64_t>(getPadBefore());
     const auto padAfter = parseIntArrayAttr<int64_t>(getPadAfter());
     return input.pad(ShapeRef(padBefore), ShapeRef(padAfter));
@@ -291,7 +266,7 @@ Const::Content vpux::Const::PadWithZeroAttr::transform(vpux::Const::Content& inp
 //
 
 Const::ContentAttr vpux::Const::ContentAttr::padWithZero(ShapeRef padBefore, ShapeRef padAfter) const {
-    return get(*this, Const::PadWithZeroAttr::get(getIntArrayAttr(getContext(), padBefore),
-                                                  getIntArrayAttr(getContext(), padAfter))
-                              .cast<Const::TransformAttrInterface>());
+    return ContentAttr::addTransformation(*this, Const::PadWithZeroAttr::get(getIntArrayAttr(getContext(), padBefore),
+                                                                             getIntArrayAttr(getContext(), padAfter))
+                                                         .cast<Const::TransformAttrInterface>());
 }

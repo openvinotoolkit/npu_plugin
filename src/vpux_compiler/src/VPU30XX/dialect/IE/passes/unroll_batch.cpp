@@ -14,8 +14,6 @@
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
 
-#include <mlir/IR/BlockAndValueMapping.h>
-
 using namespace vpux;
 
 namespace {
@@ -34,6 +32,11 @@ private:
     void safeRunOnFunc() final;
 };
 
+template <class ConcreteOp>
+bool isLegalOp(ConcreteOp op) {
+    return vpux::IE::isShapeRankEqualToZero(op.getInput()) || vpux::IE::isBatchEqualToOne(op.getInput());
+}
+
 //
 // safeRunOnFunc
 //
@@ -42,30 +45,21 @@ void UnrollBatchPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     mlir::ConversionTarget target(ctx);
-    target.addDynamicallyLegalOp<IE::FullyConnectedOp>([&](IE::FullyConnectedOp op) -> bool {
-        return vpux::IE::isShapeRankEqualToZero(op.input()) || vpux::IE::isBatchEqualToOne(op.input());
-    });
-    target.addDynamicallyLegalOp<IE::ConvolutionOp>([&](IE::ConvolutionOp op) -> bool {
-        return vpux::IE::isShapeRankEqualToZero(op.input()) || vpux::IE::isBatchEqualToOne(op.input());
-    });
-    target.addDynamicallyLegalOp<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp op) -> bool {
-        return vpux::IE::isShapeRankEqualToZero(op.input()) || vpux::IE::isBatchEqualToOne(op.input());
-    });
-    target.addDynamicallyLegalOp<IE::ExpOp>([&](IE::ExpOp op) -> bool {
-        return vpux::IE::isShapeRankEqualToZero(op.input()) || vpux::IE::isBatchEqualToOne(op.input());
-    });
-    target.addDynamicallyLegalOp<IE::SigmoidOp>([&](IE::SigmoidOp op) -> bool {
-        return vpux::IE::isShapeRankEqualToZero(op.input()) || vpux::IE::isBatchEqualToOne(op.input());
-    });
+    target.addDynamicallyLegalOp<IE::MaxPoolOp>(&isLegalOp<IE::MaxPoolOp>);
+    target.addDynamicallyLegalOp<IE::FullyConnectedOp>(&isLegalOp<IE::FullyConnectedOp>);
+    target.addDynamicallyLegalOp<IE::ConvolutionOp>(&isLegalOp<IE::ConvolutionOp>);
+    target.addDynamicallyLegalOp<IE::GroupConvolutionOp>(&isLegalOp<IE::GroupConvolutionOp>);
+    target.addDynamicallyLegalOp<IE::ExpOp>(&isLegalOp<IE::ExpOp>);
+    target.addDynamicallyLegalOp<IE::SigmoidOp>(&isLegalOp<IE::SigmoidOp>);
     target.addDynamicallyLegalOp<IE::AndOp>([&](IE::AndOp op) -> bool {
-        return (vpux::IE::isShapeRankEqualToZero(op.input1()) || vpux::IE::isShapeRankEqualToZero(op.input2())) ||
-               !vpux::IE::areShapeRanksEqual(op.input1(), op.input2()) ||
-               (vpux::IE::isBatchEqualToOne(op.input1()) || vpux::IE::isBatchEqualToOne(op.input2()));
+        return (vpux::IE::isShapeRankEqualToZero(op.getInput1()) || vpux::IE::isShapeRankEqualToZero(op.getInput2())) ||
+               !vpux::IE::areShapeRanksEqual(op.getInput1(), op.getInput2()) ||
+               (vpux::IE::isBatchEqualToOne(op.getInput1()) || vpux::IE::isBatchEqualToOne(op.getInput2()));
     });
     target.addDynamicallyLegalOp<IE::AddOp>([&](IE::AddOp op) -> bool {
-        return (vpux::IE::isShapeRankEqualToZero(op.input1()) || vpux::IE::isShapeRankEqualToZero(op.input2())) ||
-               !vpux::IE::areShapeRanksEqual(op.input1(), op.input2()) ||
-               (vpux::IE::isBatchEqualToOne(op.input1()) || vpux::IE::isBatchEqualToOne(op.input2()));
+        return (vpux::IE::isShapeRankEqualToZero(op.getInput1()) || vpux::IE::isShapeRankEqualToZero(op.getInput2())) ||
+               !vpux::IE::areShapeRanksEqual(op.getInput1(), op.getInput2()) ||
+               (vpux::IE::isBatchEqualToOne(op.getInput1()) || vpux::IE::isBatchEqualToOne(op.getInput2()));
     });
     target.addLegalOp<IE::ReshapeOp>();
     target.addLegalOp<IE::ConcatOp>();
@@ -73,6 +67,7 @@ void UnrollBatchPass::safeRunOnFunc() {
     target.addLegalOp<Const::DeclareOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
+    patterns.add<vpux::IE::BatchUnrollConverter<IE::MaxPoolOp>>(&ctx, _log, 1);
     patterns.add<vpux::IE::BatchUnrollConverter<IE::ConvolutionOp>>(&ctx, _log, 1);
     patterns.add<vpux::IE::BatchUnrollConverter<IE::FullyConnectedOp>>(&ctx, _log, 1);
     patterns.add<vpux::IE::BatchUnrollConverter<IE::GroupConvolutionOp>>(&ctx, _log, 1);

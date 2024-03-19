@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include "vpux/utils/IE/blob.hpp"
 #include "vpux/utils/core/format.hpp"
+#include "vpux/utils/models/blob.hpp"
 #include "vpux_private_properties.hpp"
 
 #include <inference_engine.hpp>
@@ -91,9 +91,9 @@ inline Stream& operator<<(Stream& os, const Pad2D& p) {
 }
 
 struct RunProfilingParams final {
-    const std::string outputName;
     ov::intel_vpux::CompilerType compiler;
     bool profiling;
+    std::optional<unsigned> nTiles = {};
 };
 
 //

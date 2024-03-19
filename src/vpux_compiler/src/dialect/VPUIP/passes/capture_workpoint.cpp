@@ -71,7 +71,7 @@ void CaptureWorkpointPass::safeRunOnModule() {
     auto returnOp = mlir::dyn_cast_or_null<mlir::func::ReturnOp>(func.getBody().front().getTerminator());
     VPUX_THROW_UNLESS(returnOp != nullptr, "No ReturnOp was found");
     builder.setInsertionPoint(returnOp);
-    returnOp.operandsMutable().append(profilingResult);
+    returnOp.getOperandsMutable().append(profilingResult);
 
     // At 37XX workpoint register is accesible by DMA, so insert transactions, otherwise FW handle it
     bool isWorkpointDmaAcessible = arch == VPU::ArchKind::VPUX37XX;

@@ -11,9 +11,7 @@
 #include <vector>
 
 namespace vpux {
-namespace IMD {
-
-using namespace vpux::profiling;
+namespace profiling {
 
 LayerStatistics getLayerStatistics(const uint8_t* rawData, size_t dataSize, const std::vector<char>& blob) {
     ProfilingFormat format = ProfilingFormat::NONE;
@@ -27,7 +25,7 @@ LayerStatistics getLayerStatistics(const uint8_t* rawData, size_t dataSize, cons
             saveRawDataToFile(rawData, dataSize, outFile);
         } else {
             std::vector<TaskInfo> taskProfiling =
-                    getTaskInfo(blob_data, blob.size(), rawData, dataSize, TaskType::ALL, VerbosityLevel::HIGH);
+                    getTaskInfo(blob_data, blob.size(), rawData, dataSize, VerbosityLevel::HIGH);
             layerProfiling = getLayerInfo(blob_data, blob.size(), rawData, dataSize);
             saveProfilingDataToFile(format, outFile, layerProfiling, taskProfiling);
         }
@@ -38,5 +36,5 @@ LayerStatistics getLayerStatistics(const uint8_t* rawData, size_t dataSize, cons
     return convertLayersToIeProfilingInfo(layerProfiling);
 }
 
-}  // namespace IMD
+}  // namespace profiling
 }  // namespace vpux

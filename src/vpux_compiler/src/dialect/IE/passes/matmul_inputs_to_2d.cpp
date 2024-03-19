@@ -7,16 +7,16 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
-
-#include <mlir/Pass/PassManager.h>
-#include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
 
 namespace {
+
+// To explicitly control the patterns exec order to assure dependency
+// benefitLevels[0] is highest benefit level and represent the relative pattern is the first one to run
+const uint32_t levelCount = 2;
+SmallVector<mlir::PatternBenefit> benefitLevels = getBenefitLevels(levelCount);
 
 //
 // MatMulInputsTo2dPass
@@ -29,6 +29,7 @@ public:
     }
 
 public:
+    class ReshapeNDInputConverter;
     class MatMulOpConverter;
 
 private:
@@ -41,7 +42,8 @@ private:
 
 class MatMulInputsTo2dPass::MatMulOpConverter final : public mlir::OpRewritePattern<IE::MatMulOp> {
 public:
-    MatMulOpConverter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::MatMulOp>(ctx), _log(log) {
+    MatMulOpConverter(mlir::MLIRContext* ctx, mlir::PatternBenefit benefit, Logger log)
+            : mlir::OpRewritePattern<IE::MatMulOp>(ctx, benefit), _log(log) {
     }
 
 public:
@@ -99,8 +101,19 @@ static SmallVector<mlir::Value> sliceTensor(const mlir::Value tensorToSplit, con
 
 mlir::LogicalResult MatMulInputsTo2dPass::MatMulOpConverter::matchAndRewrite(IE::MatMulOp matmulOp,
                                                                              mlir::PatternRewriter& rewriter) const {
-    SmallVector<mlir::Value> activationSlices = sliceTensor(matmulOp.input1(), matmulOp->getLoc(), rewriter);
-    SmallVector<mlir::Value> weightSlices = sliceTensor(matmulOp.input2(), matmulOp->getLoc(), rewriter);
+    auto input1Shape = getShape(matmulOp.getInput1());
+    auto input2Shape = getShape(matmulOp.getInput2());
+
+    // 1. Cover 3D input or weights.
+    // 2. Cover 4D input and weights without batch.
+    if (!(input1Shape.size() == 3 && input2Shape.size() == 3) &&
+        !(input1Shape.size() == 4 &&
+          ((input2Shape.size() == 4 || input2Shape.size() == 3) && input1Shape[Dim(0)] == 1))) {
+        return mlir::failure();
+    }
+
+    SmallVector<mlir::Value> activationSlices = sliceTensor(matmulOp.getInput1(), matmulOp->getLoc(), rewriter);
+    SmallVector<mlir::Value> weightSlices = sliceTensor(matmulOp.getInput2(), matmulOp->getLoc(), rewriter);
 
     SmallVector<mlir::Value> matmulSlices;
     VPUX_THROW_UNLESS(activationSlices.size() == weightSlices.size() || weightSlices.size() == 1,
@@ -109,20 +122,97 @@ mlir::LogicalResult MatMulInputsTo2dPass::MatMulOpConverter::matchAndRewrite(IE:
     for (size_t sliceIdx = 0; sliceIdx < activationSlices.size(); sliceIdx++) {
         auto lhs2d = activationSlices[sliceIdx];
         auto rhs2d = weightSlices[weightSlices.size() == 1 ? 0 : sliceIdx];
-        auto op = rewriter.create<IE::MatMulOp>(matmulOp->getLoc(), lhs2d, rhs2d, matmulOp.transpose_a(),
-                                                matmulOp.transpose_b());
-        matmulSlices.push_back(op.output());
+        auto op = rewriter.create<IE::MatMulOp>(matmulOp->getLoc(), lhs2d, rhs2d, matmulOp.getTransposeA(),
+                                                matmulOp.getTransposeB());
+        matmulSlices.push_back(op.getOutput());
     }
 
     VPUX_THROW_WHEN(matmulSlices.empty(), "Cannot slice MatMul operation with input shape {0}, weights' shape {1}",
-                    getShape(matmulOp.input1()), getShape(matmulOp.input2()));
+                    input1Shape, input2Shape);
 
     auto newOp = matmulSlices.size() != 1 ? rewriter.create<IE::ConcatOp>(matmulOp->getLoc(), matmulSlices, 0)
                                           : matmulSlices.front();
 
-    const auto outShape4D = getShape(matmulOp.output());
+    const auto outShape4D = getShape(matmulOp.getOutput());
     const auto outShape4DAttr = getIntArrayAttr(rewriter.getContext(), outShape4D);
     rewriter.replaceOpWithNewOp<IE::ReshapeOp>(matmulOp, newOp, nullptr, false, outShape4DAttr);
+
+    return mlir::success();
+}
+
+//
+// ReshapeNDInputConverter
+//
+
+class MatMulInputsTo2dPass::ReshapeNDInputConverter final : public mlir::OpRewritePattern<IE::MatMulOp> {
+public:
+    ReshapeNDInputConverter(mlir::MLIRContext* ctx, mlir::PatternBenefit benefit, Logger log)
+            : mlir::OpRewritePattern<IE::MatMulOp>(ctx, benefit), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::MatMulOp matmulOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult MatMulInputsTo2dPass::ReshapeNDInputConverter::matchAndRewrite(
+        IE::MatMulOp matmulOp, mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got '{1}' at '{2}'", getDebugName(), matmulOp->getName(), matmulOp->getLoc());
+
+    auto transposeA = matmulOp.getTransposeA();
+    auto transposeB = matmulOp.getTransposeB();
+    auto input1Shape = getShape(matmulOp.getInput1());
+    auto input2Shape = getShape(matmulOp.getInput2());
+
+    if ((input1Shape.size() <= 3 && input2Shape.size() <= 3) && (input1Shape.size() == input2Shape.size())) {
+        return mlir::failure();
+    }
+
+    if ((input1Shape.size() == 2 && !transposeA) || (input1Shape.size() == 3 && transposeA)) {
+        return mlir::failure();
+    }
+
+    if (input2Shape.size() != 2 && input2Shape[Dim(0)] == 1) {
+        return mlir::failure();
+    }
+
+    auto getLegalInputShape = [&](llvm::ArrayRef<int64_t> shape, int64_t reservedDim) {
+        auto firstDim = std::accumulate(shape.begin(), shape.end() - reservedDim, 1, std::multiplies<int64_t>());
+        auto newShape = Shape{firstDim};
+        for (auto dimInd : irange(reservedDim)) {
+            auto dim = shape.size() - reservedDim + dimInd;
+            newShape.push_back(shape[dim]);
+        }
+        return newShape;
+    };
+
+    int64_t reservedDim = transposeA || (input2Shape.size() > 2)
+                                  ? 2
+                                  : 1;  // MatMul(2x3x4x5, 4x8) {transposeA = true} collapses to
+                                        // MatMul(6x4x5, 4x8) {transposeA = true}
+                                        // but then we don't need the transposition, we can collapse further
+                                        // MatMul(2x3x4x5, 5x8) to MatMul(24x5, 5x8)
+
+    Shape newIn1Shape = getLegalInputShape(input1Shape.raw(), reservedDim);
+    auto reshapeInput1 = rewriter.createOrFold<IE::ReshapeOp>(matmulOp->getLoc(), matmulOp.getInput1(), nullptr, false,
+                                                              getIntArrayAttr(rewriter.getContext(), newIn1Shape));
+
+    auto shapeInput2 = matmulOp.getInput2();
+    if (input2Shape.size() != 2) {
+        int64_t reservedDim = 2;
+        Shape newIn2Shape = getLegalInputShape(input2Shape.raw(), reservedDim);
+        shapeInput2 = mlir::cast<mlir::TypedValue<mlir::RankedTensorType>>(
+                rewriter.createOrFold<IE::ReshapeOp>(matmulOp->getLoc(), matmulOp.getInput2(), nullptr, false,
+                                                     getIntArrayAttr(rewriter.getContext(), newIn2Shape)));
+    }
+    auto newMatMul =
+            rewriter.create<IE::MatMulOp>(matmulOp->getLoc(), reshapeInput1, shapeInput2, transposeA, transposeB);
+
+    const auto origOutShape = getShape(matmulOp.getOutput());
+    const auto origOutShapeAttr = getIntArrayAttr(rewriter.getContext(), origOutShape);
+    rewriter.replaceOpWithNewOp<IE::ReshapeOp>(matmulOp, newMatMul.getOutput(), nullptr, false, origOutShapeAttr);
 
     return mlir::success();
 }
@@ -133,35 +223,13 @@ mlir::LogicalResult MatMulInputsTo2dPass::MatMulOpConverter::matchAndRewrite(IE:
 
 void MatMulInputsTo2dPass::safeRunOnFunc() {
     auto& ctx = getContext();
-
-    mlir::ConversionTarget target(ctx);
-    target.addDynamicallyLegalOp<IE::MatMulOp>([](IE::MatMulOp op) -> bool {
-        const auto input1Shape = getShape(op.input1());
-        const auto input2Shape = getShape(op.input2());
-        // Cover 3D input or weights.
-        if (input1Shape.size() == 3 && input2Shape.size() == 3) {
-            return false;
-        }
-        // Cover 4D input and weights without batch.
-        if (input1Shape.size() == 4 &&
-            ((input2Shape.size() == 4 || input2Shape.size() == 3) && input1Shape[Dim(0)] == 1)) {
-            return false;
-        }
-        if (input1Shape.size() == 3 && input2Shape.size() == 2 && input1Shape[Dim(0)] == 1) {
-            return false;
-        }
-        // Other cases are not required at this point, therefore they're legal.
-        return true;
-    });
-    target.addLegalOp<IE::ReshapeOp>();
-    target.addLegalOp<IE::ConcatOp>();
-    target.addLegalOp<IE::SliceOp>();
+    auto func = getOperation();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<MatMulOpConverter>(&ctx, _log);
+    patterns.add<ReshapeNDInputConverter>(&ctx, benefitLevels[0], _log);
+    patterns.add<MatMulOpConverter>(&ctx, benefitLevels[1], _log);
 
-    auto func = getOperation();
-    if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
+    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }
 }

@@ -8,8 +8,8 @@
 
 using namespace vpux;
 mlir::LogicalResult vpux::IE::MVN6Op::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::MLIRContext* ctx, std::optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::OpaqueProperties, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
@@ -18,8 +18,8 @@ mlir::LogicalResult vpux::IE::MVN6Op::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = mvn.input().getType().cast<mlir::ShapedType>();
-    const auto rankedInType = mvn.input().getType().cast<mlir::RankedTensorType>();
+    const auto inType = mvn.getInput().getType().cast<mlir::ShapedType>();
+    const auto rankedInType = mvn.getInput().getType().cast<mlir::RankedTensorType>();
     const auto outDesc = vpux::getTensorAttr(rankedInType);
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType(), outDesc);
 
@@ -33,18 +33,18 @@ namespace {
 //
 
 mlir::FailureOr<SmallVector<int64_t>> getAxes(IE::MVN6OpAdaptor mvn, mlir::Location loc) {
-    if (mvn.axes() != nullptr && mvn.axes_value().has_value()) {
+    if (mvn.getAxes() != nullptr && mvn.getAxesValue().has_value()) {
         return errorAt(loc, "Ambiguous axes representation");
     }
-    if (mvn.axes() == nullptr && !mvn.axes_value().has_value()) {
+    if (mvn.getAxes() == nullptr && !mvn.getAxesValue().has_value()) {
         return errorAt(loc, "Missing axes value");
     }
 
-    if (mvn.axes_value().has_value()) {
-        return parseIntArrayAttr<int64_t>(mvn.axes_value().value());
+    if (mvn.getAxesValue().has_value()) {
+        return parseIntArrayAttr<int64_t>(mvn.getAxesValue().value());
     }
 
-    auto axesConst = mvn.axes().getDefiningOp<Const::DeclareOp>();
+    auto axesConst = mvn.getAxes().getDefiningOp<Const::DeclareOp>();
     if (axesConst == nullptr) {
         return errorAt(loc, "Only constant axes are supported");
     }
@@ -52,7 +52,7 @@ mlir::FailureOr<SmallVector<int64_t>> getAxes(IE::MVN6OpAdaptor mvn, mlir::Locat
     const auto axesContent = axesConst.getContent();
     auto axes = to_small_vector(axesContent.getValues<int64_t>());
 
-    const auto inType = mvn.input().getType().cast<mlir::ShapedType>();
+    const auto inType = mvn.getInput().getType().cast<mlir::ShapedType>();
     const auto inRank = inType.getRank();
 
     for (auto& axis : axes) {
@@ -78,7 +78,7 @@ public:
 };
 
 mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::MVN6Op origOp, mlir::PatternRewriter& rewriter) const {
-    if (origOp.axes_value().has_value()) {
+    if (origOp.getAxesValue().has_value()) {
         return mlir::failure();
     }
 
@@ -88,8 +88,9 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::MVN6Op origOp, mlir:
     }
 
     const auto axesAttr = getIntArrayAttr(getContext(), axes.value());
-    rewriter.replaceOpWithNewOp<IE::MVN6Op>(origOp, origOp.input(), nullptr, axesAttr, origOp.normalize_varianceAttr(),
-                                            origOp.epsAttr(), origOp.eps_modeAttr());
+    rewriter.replaceOpWithNewOp<IE::MVN6Op>(origOp, origOp.getInput(), nullptr, axesAttr,
+                                            origOp.getNormalizeVarianceAttr(), origOp.getEpsAttr(),
+                                            origOp.getEpsModeAttr());
     return mlir::success();
 }
 

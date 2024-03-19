@@ -30,6 +30,7 @@ DEFINE_bool(g, false, "Profiling data is from FPGA");
 DEFINE_bool(v, false, "Increased verbosity of DPU tasks parsing (include variant level tasks)");
 DEFINE_bool(vv, false, "Highest verbosity of tasks parsing (Currently same as -v)");
 DEFINE_bool(m, false, "Dump profiling metadata");
+DEFINE_bool(fast_clk, false, "Assume perf_clk of 400MHz");
 
 static bool validateFile(const char* flagName, const std::string& pathToFile) {
     if (pathToFile.empty()) {
@@ -91,13 +92,14 @@ static void parseCommandLine(int argc, char* argv[], const std::string& usage) {
 
 static void printCommandLineParameters() {
     std::cout << "Parameters:" << std::endl;
-    std::cout << "    Network blob file:     " << FLAGS_b << std::endl;
-    std::cout << "    Profiling result file: " << FLAGS_p << std::endl;
-    std::cout << "    Format (text/json):    " << FLAGS_f << std::endl;
-    std::cout << "    Output file:           " << FLAGS_o << std::endl;
-    std::cout << "    Verbosity:             " << verbosityToStr(getVerbosity()) << std::endl;
-    std::cout << "    FPGA:                  " << FLAGS_g << std::endl;
-    std::cout << "    Dump metadata:         " << FLAGS_m << std::endl;
+    std::cout << "    Network blob file:         " << FLAGS_b << std::endl;
+    std::cout << "    Profiling result file:     " << FLAGS_p << std::endl;
+    std::cout << "    Format (text/json):        " << FLAGS_f << std::endl;
+    std::cout << "    Output file:               " << FLAGS_o << std::endl;
+    std::cout << "    Verbosity:                 " << verbosityToStr(getVerbosity()) << std::endl;
+    std::cout << "    FPGA:                      " << FLAGS_g << std::endl;
+    std::cout << "    Dump metadata:             " << FLAGS_m << std::endl;
+    std::cout << "    Assume perf_clk of 400MHz: " << FLAGS_fast_clk << std::endl;
     std::cout << std::endl;
 }
 
@@ -110,22 +112,25 @@ static void dumpProfilingMetadata(const uint8_t* blobData, size_t blobSize) {
     std::cout << prettyProfilingMeta << std::endl;
 }
 
+std::vector<uint8_t> read_binary_file(std::string path) {
+    std::ifstream file;
+    file.open(path, std::ios::in | std::ios::binary);
+    file.seekg(0, file.end);
+    size_t blob_length = file.tellg();
+    file.seekg(0, file.beg);
+    std::vector<uint8_t> data(blob_length);
+    file.read(reinterpret_cast<char*>(data.data()), data.size());
+    return data;
+}
+
 int main(int argc, char** argv) {
-    static const char* usage = "Usage: prof_parser -b <blob path> -p <profiling.bin path> [-f json|text] "
-                               "[-o <output.file>] [-v|vv] [-g] [-m]";
+    static const char* usage = "Usage: prof_parser -b <blob> -p <profiling.bin> [-f json|text] "
+                               "[-o <output_file>] [-v|vv] [-g] [-m] [-fast_clk]";
     try {
         parseCommandLine(argc, argv, usage);
         printCommandLineParameters();
 
-        std::string blobPath(FLAGS_b);
-        std::ifstream blob_file;
-        blob_file.open(blobPath, std::ios::in | std::ios::binary);
-        blob_file.seekg(0, blob_file.end);
-        size_t blob_length = blob_file.tellg();
-        blob_file.seekg(0, blob_file.beg);
-        std::vector<uint8_t> blob_bin(blob_length);
-        blob_file.read(reinterpret_cast<char*>(blob_bin.data()), blob_bin.size());
-        blob_file.close();
+        auto blob_bin = read_binary_file(FLAGS_b);
 
         if (FLAGS_m) {
             if (!FLAGS_o.empty() || !FLAGS_p.empty()) {
@@ -136,21 +141,14 @@ int main(int argc, char** argv) {
             return 0;
         }
 
-        std::string profResult(FLAGS_p);
-        std::fstream profiling_results;
-        profiling_results.open(profResult, std::ios::in | std::ios::binary);
-        profiling_results.seekg(0, profiling_results.end);
-        size_t profiling_length = profiling_results.tellg();
-        profiling_results.seekg(0, profiling_results.beg);
-        std::vector<uint8_t> output_bin(profiling_length);
-        profiling_results.read(reinterpret_cast<char*>(output_bin.data()), output_bin.size());
-        profiling_results.close();
+        auto prof_output_bin = read_binary_file(FLAGS_p);
 
         auto blobData = std::make_pair(blob_bin.data(), blob_bin.size());
-        auto profilingData = std::make_pair(output_bin.data(), output_bin.size());
+        auto profilingData = std::make_pair(prof_output_bin.data(), prof_output_bin.size());
         auto format = getOutputFormat();
 
-        vpux::profiling::outputWriter(format, blobData, profilingData, FLAGS_o, getVerbosity(), FLAGS_g);
+        vpux::profiling::outputWriter(format, blobData, profilingData, FLAGS_o, getVerbosity(), FLAGS_g,
+                                      FLAGS_fast_clk);
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
         std::cerr << usage << std::endl;

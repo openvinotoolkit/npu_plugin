@@ -26,11 +26,11 @@ DimsOrder calculateReducedOutputLayout(const DimsOrder& inputDimOrder, const Sma
 template <typename ReduceOp>
 SmallVector<int64_t> extractAxes(mlir::Location loc, ReduceOp reduceOp) {
     SmallVector<int64_t> axesValue;
-    if (reduceOp.axes() != nullptr) {
-        auto axes = constInputToData(loc, reduceOp.axes());
+    if (reduceOp.getAxes() != nullptr) {
+        auto axes = constInputToData(loc, reduceOp.getAxes());
         axesValue = axes.value();
-    } else if (reduceOp.axes_value().has_value()) {
-        axesValue = parseIntArrayAttr<int64_t>(reduceOp.axes_value().value());
+    } else if (reduceOp.getAxesValue().has_value()) {
+        axesValue = parseIntArrayAttr<int64_t>(reduceOp.getAxesValue().value());
     }
     return axesValue;
 }
@@ -54,17 +54,25 @@ template <typename ReduceOp>
 mlir::LogicalResult ConvertConstToAttr<ReduceOp>::matchAndRewrite(ReduceOp reduceOp,
                                                                   mlir::PatternRewriter& rewriter) const {
     // check if input was already converted to Attr
-    if (reduceOp.axes_value().has_value()) {
+    if (reduceOp.getAxesValue().has_value()) {
         return mlir::failure();
     }
+    const auto inputShape = getShape(reduceOp.getInput());
+    const auto inputShapeSize = checked_cast<int64_t>(inputShape.size());
 
     // convert axes into attribute
-    const auto axesContent = reduceOp.axes().template getDefiningOp<Const::DeclareOp>().getContent();
+    const auto axesContent = reduceOp.getAxes().template getDefiningOp<Const::DeclareOp>().getContent();
     auto axesValue = to_small_vector(axesContent.template getValues<int64_t>());
-    const auto axesAttr = getIntArrayAttr(reduceOp.getContext(), makeArrayRef(axesValue));
+
+    for (auto& axis : axesValue) {
+        if (axis < 0) {
+            axis += inputShapeSize;
+        }
+    }
+    const auto axesAttr = getIntArrayAttr(reduceOp.getContext(), ArrayRef(axesValue));
 
     // rewrite layer pattern
-    rewriter.replaceOpWithNewOp<ReduceOp>(reduceOp, reduceOp.input(), nullptr, axesAttr, reduceOp.keep_dims());
+    rewriter.replaceOpWithNewOp<ReduceOp>(reduceOp, reduceOp.getInput(), nullptr, axesAttr, reduceOp.getKeepDims());
 
     return mlir::success();
 }

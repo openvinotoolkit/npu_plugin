@@ -6,6 +6,7 @@
 #pragma once
 
 #include "vpux/al/config/runtime.hpp"
+#include "vpux/utils/core/logger.hpp"
 #include "ze_api.h"
 #include "ze_graph_ext.h"
 
@@ -14,14 +15,21 @@
 #include <ie_common.h>
 
 namespace vpux {
+
 namespace zeroUtils {
 
 std::string result_to_string(const ze_result_t result);
 
 static inline void throwOnFail(const std::string& step, const ze_result_t result) {
     if (ZE_RESULT_SUCCESS != result) {
-        IE_THROW() << "L0 " << step << " result: " << result_to_string(result) << ", code 0x" << std::hex
-                   << uint64_t(result);
+        OPENVINO_THROW("L0 ", step, " result: ", result_to_string(result), ", code 0x", std::hex, uint64_t(result));
+    }
+}
+
+static inline void throwOnFail(const std::string& step, const ze_result_t result, const std::string& hintOnError) {
+    if (ZE_RESULT_SUCCESS != result) {
+        OPENVINO_THROW("L0 ", step, " result: ", result_to_string(result), ", code 0x", std::hex, uint64_t(result),
+                       ". ", hintOnError);
     }
 }
 
@@ -34,7 +42,7 @@ static inline ze_command_queue_priority_t toZeQueuePriority(const ov::hint::Prio
     case ov::hint::Priority::HIGH:
         return ZE_COMMAND_QUEUE_PRIORITY_PRIORITY_HIGH;
     default:
-        IE_THROW() << "Incorrect queue priority.";
+        OPENVINO_THROW("Incorrect queue priority.");
     }
 }
 
@@ -71,41 +79,41 @@ static inline std::size_t precisionToSize(const ze_graph_argument_precision_t va
     case ZE_GRAPH_ARGUMENT_PRECISION_BIN:
         return 1;
     default:
-        IE_THROW() << "precisionToSize switch->default reached";
+        OPENVINO_THROW("precisionToSize switch->default reached");
     }
 }
 
-static inline ze_graph_argument_precision_t getZePrecision(const InferenceEngine::Precision precision) {
+static inline ze_graph_argument_precision_t getZePrecision(const ov::element::Type_t precision) {
     switch (precision) {
-    case InferenceEngine::Precision::I4:
+    case ov::element::Type_t::i4:
         return ZE_GRAPH_ARGUMENT_PRECISION_INT4;
-    case InferenceEngine::Precision::U4:
+    case ov::element::Type_t::u4:
         return ZE_GRAPH_ARGUMENT_PRECISION_UINT4;
-    case InferenceEngine::Precision::I8:
+    case ov::element::Type_t::i8:
         return ZE_GRAPH_ARGUMENT_PRECISION_INT8;
-    case InferenceEngine::Precision::U8:
+    case ov::element::Type_t::u8:
         return ZE_GRAPH_ARGUMENT_PRECISION_UINT8;
-    case InferenceEngine::Precision::I16:
+    case ov::element::Type_t::i16:
         return ZE_GRAPH_ARGUMENT_PRECISION_INT16;
-    case InferenceEngine::Precision::U16:
+    case ov::element::Type_t::u16:
         return ZE_GRAPH_ARGUMENT_PRECISION_UINT16;
-    case InferenceEngine::Precision::I32:
+    case ov::element::Type_t::i32:
         return ZE_GRAPH_ARGUMENT_PRECISION_INT32;
-    case InferenceEngine::Precision::U32:
+    case ov::element::Type_t::u32:
         return ZE_GRAPH_ARGUMENT_PRECISION_UINT32;
-    case InferenceEngine::Precision::I64:
+    case ov::element::Type_t::i64:
         return ZE_GRAPH_ARGUMENT_PRECISION_INT64;
-    case InferenceEngine::Precision::U64:
+    case ov::element::Type_t::u64:
         return ZE_GRAPH_ARGUMENT_PRECISION_UINT64;
-    case InferenceEngine::Precision::BF16:
+    case ov::element::Type_t::bf16:
         return ZE_GRAPH_ARGUMENT_PRECISION_BF16;
-    case InferenceEngine::Precision::FP16:
+    case ov::element::Type_t::f16:
         return ZE_GRAPH_ARGUMENT_PRECISION_FP16;
-    case InferenceEngine::Precision::FP32:
+    case ov::element::Type_t::f32:
         return ZE_GRAPH_ARGUMENT_PRECISION_FP32;
-    case InferenceEngine::Precision::FP64:
+    case ov::element::Type_t::f64:
         return ZE_GRAPH_ARGUMENT_PRECISION_FP64;
-    case InferenceEngine::Precision::BIN:
+    case ov::element::Type_t::u1:
         return ZE_GRAPH_ARGUMENT_PRECISION_BIN;
     default:
         return ZE_GRAPH_ARGUMENT_PRECISION_UNKNOWN;
@@ -134,8 +142,10 @@ static inline std::size_t layoutCount(const ze_graph_argument_layout_t val) {
         return 2;
     case ZE_GRAPH_ARGUMENT_LAYOUT_CN:
         return 2;
+    case ZE_GRAPH_ARGUMENT_LAYOUT_ANY:
+        return 0;
     default:
-        IE_THROW() << "layoutCount switch->default reached";
+        OPENVINO_THROW("layoutCount switch->default reached");
     }
 }
 

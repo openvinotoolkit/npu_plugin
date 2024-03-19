@@ -27,7 +27,7 @@ public:
     /**
      * @brief Get opset supported by compiler
      */
-    virtual size_t getSupportedOpset() = 0;
+    virtual uint32_t getSupportedOpset() = 0;
 
     /**
      * @brief Get query result for current network
@@ -37,13 +37,12 @@ public:
                                                            const vpux::Config& config) = 0;
 
     /**
-     * @brief compile NGraph and return blob file
-     * @return compiled graph (blob)
+     * @brief Sends the serialized model and its I/O metadata to the driver for compilation.
+     * @return The compiled model descriptor corresponding to the previously given network.
      */
-    virtual std::shared_ptr<INetworkDescription> compileIR(const std::string& graphName, const std::vector<char>& xml,
+    virtual std::shared_ptr<INetworkDescription> compileIR(const std::shared_ptr<ov::Model> model,
+                                                           const std::string& graphName, const std::vector<char>& xml,
                                                            const std::vector<char>& weights,
-                                                           const InferenceEngine::InputsDataMap& inputMetadata,
-                                                           const InferenceEngine::OutputsDataMap& outputMetadata,
                                                            const vpux::Config& config) = 0;
     virtual std::shared_ptr<INetworkDescription> parseBlob(const std::string& graphName, const std::vector<char>& blob,
                                                            const vpux::Config& config) = 0;

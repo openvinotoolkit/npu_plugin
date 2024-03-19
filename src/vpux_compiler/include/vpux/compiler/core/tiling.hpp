@@ -41,6 +41,19 @@ static constexpr int MAX_PREFETCH_TILING_TIME = 3;
 // Experimental number to avoid spilling in vertical fusion
 static constexpr double VF_WEIGHTS_RATIO = 0.5;
 
+// Experimental number to avoid spilling in vertical fusion
+static constexpr double VF_LARGEST_OP_MEM_RATIO = 0.6;
+
+// Experimental number to avoid fragmentation for vertical fusion pipelining
+static constexpr double FRAGMENTATION_AVOID_RATIO_VF_PIPELINING = 0.37;
+
+// Experimental number to get accurate NCEEltwise VPUNN cost
+// Track [E#98656]
+static constexpr double NCEELTWISE_DPU_COST_RATIO = 2.5;
+
+// Experimental number to use DDR access for GatherOp with large input but small output
+static constexpr double DDR_ACCESS_GATHER_IO_RATIO = 500;
+
 //
 // Tiling Mode
 //
@@ -87,6 +100,10 @@ struct TileInfo final {
             : shape(shape.raw()), offsets(offsets.raw()), axis(axis.raw()) {
     }
 
+    explicit TileInfo(ShapeRef shape, ShapeRef offsets, ShapeRef axis, bool isCompletedTile)
+            : shape(shape.raw()), offsets(offsets.raw()), axis(axis.raw()), isCompletedTile(isCompletedTile) {
+    }
+
     void printFormat(llvm::raw_ostream& stream) const {
         printTo(stream, "Tile [shape = {0}, offsets = {1}, axis = {2}]", shape, offsets, axis);
     }
@@ -116,7 +133,8 @@ using OutputTiling = SmallVector<TileInfo>;
 // dimensions will generate a set of tiles, each having its own size and offsets. Additionally an alignment
 // can be specified per each dimension.
 mlir::FailureOr<OutputTiling> fillDividedTiles(ShapeRef divisors, ShapeRef orig,
-                                               Optional<ArrayRef<int64_t>> alignment = None);
+                                               std::optional<ArrayRef<int64_t>> alignment = std::nullopt,
+                                               bool unrollSpatialFirst = false);
 mlir::FailureOr<OutputTiling> fillDividedTiles(mlir::Operation* op, ShapeRef divisors, ShapeRef shape);
 
 //
@@ -167,7 +185,7 @@ PadInfo backInferPadsTile(const TileInfo& outputTile, ShapeRef inShape, const Pa
 
 struct TilingInfo final {
     SmallVector<TileInfo> tiles;
-    Optional<PadInfo> pads;
+    std::optional<PadInfo> pads;
 
     explicit TilingInfo(ArrayRef<TileInfo> tiles): tiles(tiles.begin(), tiles.end()) {
     }
@@ -215,6 +233,13 @@ InputTiling backInferGatherTile(const vpux::TileInfo& outputTile, const ShapeRef
                                 bool hasAxisTensor, vpux::Logger log);
 
 //
+// DepthToSpace tiling
+//
+
+InputTiling backInferDepthToSpaceTile(const vpux::TileInfo& outputTile, ShapeRef origInputShape, int64_t blockSize,
+                                      vpux::Logger);
+
+//
 // DimRange
 //
 
@@ -257,9 +282,10 @@ struct DimRange final {
     }
 };
 
-std::pair<int64_t, int64_t> spatialOutputForInputWindowSize(const std::pair<int64_t, int64_t>& inputHW,
-                                                            const mlir::ArrayAttr& kernel,
-                                                            const mlir::ArrayAttr& strides, const PadInfo& pads);
+std::optional<std::pair<int64_t, int64_t>> spatialOutputForInputWindowSize(const std::pair<int64_t, int64_t>& inputHW,
+                                                                           const mlir::ArrayAttr& kernel,
+                                                                           const mlir::ArrayAttr& strides,
+                                                                           const PadInfo& pads);
 
 //
 // Tiling utils
@@ -270,7 +296,8 @@ std::tuple<DimRange, int64_t, int64_t> inputForOutputDim(const DimRange& output,
                                                          int64_t padAfter);
 
 template <typename AlignFunc>
-SmallVector<int64_t> alignShape(ArrayRef<int64_t> shape, Optional<ArrayRef<int64_t>> alignment, AlignFunc alignFunc) {
+SmallVector<int64_t> alignShape(ArrayRef<int64_t> shape, std::optional<ArrayRef<int64_t>> alignment,
+                                AlignFunc alignFunc) {
     auto alignedShape = to_small_vector(shape);
     if (!alignment.has_value()) {
         return alignedShape;
@@ -300,12 +327,53 @@ InputTiling getSWLayerInputTiles(mlir::Operation* op, const vpux::TileInfo& outp
 SmallVector<int64_t> getMaxNumTilesWithAxesExclusion(mlir::Operation* op, ArrayRef<int64_t> axes);
 
 // HWLayer
-
 mlir::FailureOr<OutputTiling> getHWLayerTilingStrategyWithTileDimOrder(mlir::Operation* op, TilingMode tilingMode,
                                                                        DimArrRef tileDimOrder, Logger log);
 mlir::FailureOr<OutputTiling> getHWLayerTilingStrategy(mlir::Operation* op, TilingMode tilingMode, Logger log);
 
 DimArr getTileDimOrder(mlir::Operation* op, TilingMode tilingMode, Logger log);
 DimArr getTileDimOrderND(MemShape memShape, DimsOrder dimOrder);
+
+// utils for tiling strategy
+
+/*
+ * Check if the operation's existing MultiCluster strategy still compatible with the tiling strategy
+ * if the operation does not have MultiCluster strategy, return true
+ */
+bool isMultiClusterCompatibleForTiling(mlir::Operation* op, const OutputTiling& tiles, Logger log);
+
+/*
+ * Check if the shape can be split on the specific dimension
+ */
+bool isDimLeftToTile(ShapeRef curNumTiles, ArrayRef<int64_t> maxNumTiles, Dim testTileDim);
+
+/*
+ * Check if the tiling strategy is supported
+ * Consider alignment, multi-cluster strategy and memory size
+ */
+bool isSupportedTileSize(mlir::Operation* op, ShapeRef nTilesOnDim, TilingMode tilingMode, Logger log);
+
+/*
+ * Get the required alignment information for the op
+ * @returns {dimension to align, alignment size}
+ */
+std::pair<Dim, int64_t> getAlignDimAndSize(mlir::Operation* op);
+
+/*
+ * Check if the shape size is divisible with alignment
+ */
+bool isSupportedAlignedDivision(int64_t dimSize, int64_t tiles, int64_t alignment);
+
+/*
+ * Get the dimensions greater than 1
+ */
+SmallVector<Dim> getNonOneDim(ShapeRef inputShape);
+
+/*
+ * Get the next supported tiling number
+ * Consider alignment
+ */
+mlir::FailureOr<Shape> getNextTiling(Dim targetDim, Dim dimToAlign, int64_t dimAlignment, Shape nTilesOnDim,
+                                     ArrayRef<int64_t> maxNumTiles, ShapeRef outputShape);
 
 }  // namespace vpux

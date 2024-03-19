@@ -62,7 +62,7 @@ mlir::LogicalResult AsyncRegionRewriter::matchAndRewrite(mlir::async::ExecuteOp 
                                                          mlir::PatternRewriter& rewriter) const {
     _log.trace("Got 'async.execute' Operation at '{0}'", execOp->getLoc());
 
-    auto* bodyBlock = &execOp.body().front();
+    auto* bodyBlock = execOp.getBody();
 
     const auto outerDeps = getOuterViewLikeDeps(bodyBlock);
     if (outerDeps.empty()) {

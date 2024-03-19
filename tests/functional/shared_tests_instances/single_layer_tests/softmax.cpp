@@ -10,27 +10,27 @@
 
 namespace ov::test::subgraph {
 
-class VPUXSoftMaxLayerTest : public SoftMaxLayerTest, virtual public VpuOv2LayerTest {};
+class SoftMaxLayerTestCommon : public SoftMaxLayerTest, virtual public VpuOv2LayerTest {};
 
-TEST_P(VPUXSoftMaxLayerTest, VPU3700_SW) {
+TEST_P(SoftMaxLayerTestCommon, NPU3700_SW) {
     abs_threshold = 1e-3;
     setReferenceSoftwareMode();
     run(VPUXPlatform::VPU3700);
 }
 
-TEST_P(VPUXSoftMaxLayerTest, VPU3700_HW) {
+TEST_P(SoftMaxLayerTestCommon, NPU3700_HW) {
     abs_threshold = 1e-3;
     setDefaultHardwareMode();
     run(VPUXPlatform::VPU3700);
 }
 
-TEST_P(VPUXSoftMaxLayerTest, VPU3720_SW) {
+TEST_P(SoftMaxLayerTestCommon, NPU3720_SW) {
     abs_threshold = 0.01;
     setReferenceSoftwareMode();
     run(VPUXPlatform::VPU3720);
 }
 
-TEST_P(VPUXSoftMaxLayerTest, VPU3720_HW) {
+TEST_P(SoftMaxLayerTestCommon, NPU3720_HW) {
     abs_threshold = 0.01;
     setDefaultHardwareMode();
     run(VPUXPlatform::VPU3720);
@@ -67,9 +67,9 @@ const std::vector<size_t> axis2D = {0, 1};
 const auto params2D = testing::Combine(
         testing::ValuesIn(netPrecisions), testing::ValuesIn(inputPrecisions), testing::ValuesIn(outputPrecisions),
         testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes2D)), testing::ValuesIn(axis2D),
-        testing::Values(targetDevice), testing::Values(ov::test::Config{}));
+        testing::Values(ov::test::utils::DEVICE_NPU), testing::Values(ov::test::Config{}));
 
-INSTANTIATE_TEST_CASE_P(smoke_SoftMax2D, VPUXSoftMaxLayerTest, params2D, SoftMaxLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_SoftMax2D, SoftMaxLayerTestCommon, params2D, SoftMaxLayerTest::getTestCaseName);
 
 //
 // Input 3D
@@ -82,32 +82,32 @@ const std::vector<size_t> axis3D = {2};
 const auto params3D = testing::Combine(
         testing::ValuesIn(netPrecisions), testing::ValuesIn(inputPrecisions), testing::ValuesIn(outputPrecisions),
         testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes3D)), testing::ValuesIn(axis3D),
-        testing::Values(targetDevice), testing::Values(ov::test::Config{}));
+        testing::Values(ov::test::utils::DEVICE_NPU), testing::Values(ov::test::Config{}));
 
-INSTANTIATE_TEST_CASE_P(smoke_SoftMax3D, VPUXSoftMaxLayerTest, params3D, SoftMaxLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_SoftMax3D, SoftMaxLayerTestCommon, params3D, SoftMaxLayerTest::getTestCaseName);
 
 //
 // Input 4D
 //
 
-const std::vector<ov::Shape> inShapes4D = {{1, 2, 108, 60}, {1, 12, 2, 148}, {1, 4, 1, 1},
-                                           {1, 100, 1, 1},  {300, 21, 1, 1}, {1, 2, 48, 2}};
+const std::vector<ov::Shape> inShapes4D = {{1, 2, 108, 60}, {1, 12, 2, 148}, {1, 4, 1, 1}, {1, 100, 1, 1},
+                                           {300, 21, 1, 1}, {1, 2, 48, 2},   {1, 3, 83, 4}};
 
 const std::vector<size_t> axis4D = {0, 1, 2, 3};
 
 const auto params4D = testing::Combine(
         testing::ValuesIn(netPrecisions), testing::ValuesIn(inputPrecisions), testing::ValuesIn(outputPrecisions),
         testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes4D)), testing::ValuesIn(axis4D),
-        testing::Values(targetDevice), testing::Values(ov::test::Config{}));
+        testing::Values(ov::test::utils::DEVICE_NPU), testing::Values(ov::test::Config{}));
 
-INSTANTIATE_TEST_CASE_P(smoke_SoftMax4D, VPUXSoftMaxLayerTest, params4D, SoftMaxLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_SoftMax4D, SoftMaxLayerTestCommon, params4D, SoftMaxLayerTest::getTestCaseName);
 
 const auto precommit_params4D = testing::Combine(
         testing::ValuesIn(netPrecisions), testing::ValuesIn(inputPrecisions), testing::ValuesIn(outputPrecisions),
         testing::ValuesIn(ov::test::static_shapes_to_test_representation({{1, 2, 72, 10}})), testing::ValuesIn(axis4D),
-        testing::Values(targetDevice), testing::Values(ov::test::Config{}));
+        testing::Values(ov::test::utils::DEVICE_NPU), testing::Values(ov::test::Config{}));
 
-INSTANTIATE_TEST_CASE_P(smoke_precommit_SoftMax4D, VPUXSoftMaxLayerTest, precommit_params4D,
+INSTANTIATE_TEST_CASE_P(smoke_precommit_SoftMax4D, SoftMaxLayerTestCommon, precommit_params4D,
                         SoftMaxLayerTest::getTestCaseName);
 
 //
@@ -117,12 +117,12 @@ INSTANTIATE_TEST_CASE_P(smoke_precommit_SoftMax4D, VPUXSoftMaxLayerTest, precomm
 const std::vector<ov::Shape> inShapes = {{1, 20, 64, 512}};
 const std::vector<size_t> axis = {1};
 
-const auto paramsTilingCasesVPU3720 = testing::Combine(
+const auto paramsTilingCases = testing::Combine(
         testing::ValuesIn(netPrecisions), testing::ValuesIn(inputPrecisions), testing::ValuesIn(outputPrecisions),
         testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes)), testing::ValuesIn(axis),
-        testing::Values(targetDevice), testing::Values(ov::test::Config{}));
+        testing::Values(ov::test::utils::DEVICE_NPU), testing::Values(ov::test::Config{}));
 
-INSTANTIATE_TEST_CASE_P(smoke_TilingSoftMax, VPUXSoftMaxLayerTest, paramsTilingCasesVPU3720,
+INSTANTIATE_TEST_CASE_P(smoke_TilingSoftMax, SoftMaxLayerTestCommon, paramsTilingCases,
                         SoftMaxLayerTest::getTestCaseName);
 
 }  // namespace

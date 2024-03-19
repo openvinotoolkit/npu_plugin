@@ -6,9 +6,40 @@
 find_package(Python3 QUIET)
 
 function(vpux_setup_lit_tool)
-    set(extra_tools FileCheck not ${ARGN})
-
     set(extra_tools_copy_cmd)
+    if(ENABLE_PREBUILT_LLVM_MLIR_LIBS)
+        set(extra_tools ${ARGN})
+        set(LLVM_SOURCE_DIR "${PROJECT_SOURCE_DIR}/thirdparty/llvm-project/llvm")
+        if(MSVC)
+            set(FILECHECK_EXECUTION "FileCheck.exe")
+            set(NOT_EXECUTION "not.exe")
+        else()
+            set(FILECHECK_EXECUTION "FileCheck")
+            set(NOT_EXECUTION "not")
+        endif()
+        list(APPEND extra_tools_copy_cmd
+                COMMAND
+                ${CMAKE_COMMAND} -E copy
+                "${MLIR_BINARY_PKG_DIR}/bin/${FILECHECK_EXECUTION}"
+                "$<TARGET_FILE_DIR:npuUnitTests>/"
+        )
+        install(PROGRAMS "${MLIR_BINARY_PKG_DIR}/bin/${FILECHECK_EXECUTION}"
+                DESTINATION tests
+                COMPONENT tests
+                EXCLUDE_FROM_ALL)
+        list(APPEND extra_tools_copy_cmd
+                COMMAND
+                ${CMAKE_COMMAND} -E copy
+                "${MLIR_BINARY_PKG_DIR}/bin/${NOT_EXECUTION}"
+                "$<TARGET_FILE_DIR:npuUnitTests>/"
+        )
+        install(PROGRAMS "${MLIR_BINARY_PKG_DIR}/bin/${NOT_EXECUTION}"
+                DESTINATION tests
+                COMPONENT tests
+                EXCLUDE_FROM_ALL)
+    else()
+        set(extra_tools FileCheck not ${ARGN})
+    endif()
     foreach(tool IN LISTS extra_tools)
         list(APPEND extra_tools_copy_cmd
             COMMAND
@@ -16,6 +47,10 @@ function(vpux_setup_lit_tool)
                     "$<TARGET_FILE:${tool}>"
                     "$<TARGET_FILE_DIR:npuUnitTests>/"
         )
+        install(PROGRAMS "$<TARGET_FILE:${tool}>"
+                DESTINATION tests
+                COMPONENT tests
+                EXCLUDE_FROM_ALL)
     endforeach()
 
     add_custom_target(copy_lit_tool ALL
@@ -33,7 +68,7 @@ function(vpux_setup_lit_tool)
             ${CMAKE_COMMAND} -E copy
                 "${LLVM_SOURCE_DIR}/utils/lit/LICENSE.TXT"
                 "${LLVM_SOURCE_DIR}/utils/lit/lit.py"
-                "${LLVM_SOURCE_DIR}/utils/lit/README.txt"
+                "${LLVM_SOURCE_DIR}/utils/lit/README.rst"
                 "${LLVM_SOURCE_DIR}/utils/lit/setup.py"
                 "$<TARGET_FILE_DIR:npuUnitTests>/lit-tests/lit-tool/"
         ${extra_tools_copy_cmd}
@@ -88,15 +123,23 @@ function(vpux_setup_lit_tests TEST_NAME)
         set(EXTRA_AVAILABLE_FEATURES "${EXTRA_AVAILABLE_FEATURES}\nconfig.available_features.add(('${var}-' + config.${var}))")
     endforeach()
 
-    get_directory_property(LLVM_LIBRARY_DIR DIRECTORY ${LLVM_SOURCE_DIR} DEFINITION LLVM_LIBRARY_DIR)
-    get_directory_property(LLVM_TOOLS_BINARY_DIR DIRECTORY ${LLVM_SOURCE_DIR} DEFINITION LLVM_TOOLS_BINARY_DIR)
-    get_directory_property(LLVM_RUNTIME_OUTPUT_INTDIR DIRECTORY ${LLVM_SOURCE_DIR} DEFINITION LLVM_RUNTIME_OUTPUT_INTDIR)
-    get_directory_property(LLVM_SHLIB_OUTPUT_INTDIR DIRECTORY ${LLVM_SOURCE_DIR} DEFINITION LLVM_SHLIB_OUTPUT_INTDIR)
-    get_directory_property(LLVM_BINDINGS DIRECTORY ${LLVM_SOURCE_DIR} DEFINITION LLVM_BINDINGS)
-    get_directory_property(LLVM_NATIVE_ARCH DIRECTORY ${LLVM_SOURCE_DIR} DEFINITION LLVM_NATIVE_ARCH)
-    get_directory_property(TARGET_TRIPLE DIRECTORY ${LLVM_SOURCE_DIR} DEFINITION TARGET_TRIPLE)
-    get_directory_property(LD64_EXECUTABLE DIRECTORY ${LLVM_SOURCE_DIR} DEFINITION LD64_EXECUTABLE)
-    get_directory_property(LLVM_BUILD_MODE DIRECTORY ${LLVM_SOURCE_DIR} DEFINITION LLVM_BUILD_MODE)
+    if(ENABLE_PREBUILT_LLVM_MLIR_LIBS)
+        set(LLVM_LIBRARY_DIR ${MLIR_BINARY_PKG_DIR}/lib)
+        set(LLVM_TOOLS_BINARY_DIR ${MLIR_BINARY_PKG_DIR}/bin)
+        set(LLVM_RUNTIME_OUTPUT_INTDIR ${MLIR_BINARY_PKG_DIR}/bin)
+        set(LLVM_SHLIB_OUTPUT_INTDIR ${MLIR_BINARY_PKG_DIR}/lib)
+        set(LLVM_NATIVE_ARCH "X86")
+    else()
+        get_directory_property(LLVM_LIBRARY_DIR DIRECTORY ${LLVM_SOURCE_DIR} DEFINITION LLVM_LIBRARY_DIR)
+        get_directory_property(LLVM_TOOLS_BINARY_DIR DIRECTORY ${LLVM_SOURCE_DIR} DEFINITION LLVM_TOOLS_BINARY_DIR)
+        get_directory_property(LLVM_RUNTIME_OUTPUT_INTDIR DIRECTORY ${LLVM_SOURCE_DIR} DEFINITION LLVM_RUNTIME_OUTPUT_INTDIR)
+        get_directory_property(LLVM_SHLIB_OUTPUT_INTDIR DIRECTORY ${LLVM_SOURCE_DIR} DEFINITION LLVM_SHLIB_OUTPUT_INTDIR)
+        get_directory_property(LLVM_BINDINGS DIRECTORY ${LLVM_SOURCE_DIR} DEFINITION LLVM_BINDINGS)
+        get_directory_property(LLVM_NATIVE_ARCH DIRECTORY ${LLVM_SOURCE_DIR} DEFINITION LLVM_NATIVE_ARCH)
+        get_directory_property(TARGET_TRIPLE DIRECTORY ${LLVM_SOURCE_DIR} DEFINITION TARGET_TRIPLE)
+        get_directory_property(LD64_EXECUTABLE DIRECTORY ${LLVM_SOURCE_DIR} DEFINITION LD64_EXECUTABLE)
+        get_directory_property(LLVM_BUILD_MODE DIRECTORY ${LLVM_SOURCE_DIR} DEFINITION LLVM_BUILD_MODE)
+    endif()
     set(LTDL_SHLIB_EXT ${CMAKE_SHARED_LIBRARY_SUFFIX})
     set(EXEEXT ${CMAKE_EXECUTABLE_SUFFIX})
     string(CONCAT LLVM_LIT_PATH_FUNCTION
@@ -154,6 +197,15 @@ function(vpux_setup_lit_tests TEST_NAME)
             set_tests_properties(LIT-${TEST_NAME} PROPERTIES
                 LABELS "NPU;LIT"
             )
+            if(UNIX)
+                add_test(NAME LIT-${TEST_NAME}-ALL
+                    COMMAND
+                        "$<TARGET_FILE_DIR:npuUnitTests>/lit-tests/run_all_lit_tests.sh"
+                )
+                set_tests_properties(LIT-${TEST_NAME}-ALL PROPERTIES
+                    LABELS "NPU;LIT;Linux"
+                )
+            endif()
         endif()
     endif()
 endfunction()

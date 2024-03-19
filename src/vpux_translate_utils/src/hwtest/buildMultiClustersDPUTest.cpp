@@ -1,16 +1,15 @@
 //
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
-//
 
 #include <numeric>
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
-#include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
-#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
-#include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/transforms/passes.hpp"
 #include "vpux/compiler/dialect/VPU/utils/distributed_tensor_utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_invariant.hpp"
+#include "vpux/compiler/dialect/VPU/utils/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
@@ -98,8 +97,8 @@ VPURT::DeclareBufferOp createParentBuffer(mlir::MLIRContext* ctx, mlir::OpBuilde
                                                  return stride.count() / tensorTypeIf.getElemTypeSize().count();
                                              }));
     const auto stridesAttr = getIntArrayAttr(ctx, elemStrides);
-    const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr,
-                                               /*allocSize=*/nullptr, ctx);
+    const auto layout = vpux::MemRefAttr::get(orderAttr, stridesAttr,
+                                              /*allocSize=*/nullptr, ctx);
 
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(ctx, stringifyMemoryKind(tensorTypeIf.getMemoryKind()));
 
@@ -141,7 +140,7 @@ SmallVector<VPURT::DeclareBufferOp> handleWeights(mlir::OpBuilder& builder, VPUR
         auto weightsDDRBuffer = builder.create<vpux::Const::DeclareOp>(loc, weightsDDRType, weightsContent);
 
         VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(builder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.getBarrier()),
-                                              loc, weightsDDRBuffer, parentTensor);
+                                              loc, weightsDDRBuffer, parentTensor, 0);
     };
 
     // SOK case, weights are split over Output Channels (K) dim, with a slice in each tile
@@ -159,7 +158,7 @@ SmallVector<VPURT::DeclareBufferOp> handleWeights(mlir::OpBuilder& builder, VPUR
 
             VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(builder, mlir::ValueRange(),
                                                   mlir::ValueRange(updateBarrier.getBarrier()), loc, weightsDDRBuffer,
-                                                  weightsCMXBufferVec[idx]);
+                                                  weightsCMXBufferVec[idx], 0);
         }
     };
 
@@ -189,8 +188,15 @@ SmallVector<VPURT::DeclareBufferOp> handleWeightsTable(mlir::MLIRContext* ctx, m
     const auto numClusters = clusters.size();
     auto loc = builder.getUnknownLoc();
     const auto sparsityPtrStep = 0;
-    const auto weightsStrides = weightsDistrBufferType.getStrides();
-    const auto& weightsOutputChannelsStrideInBits = weightsStrides[vpux::Dims4D::Filter::OC];
+    auto weightsStrides = weightsDistrBufferType.getStrides();
+    auto& weightsOutputChannelsStrideInBits = weightsStrides[vpux::Dims4D::Filter::OC];
+
+    const auto alignmentRequirement = 16;
+    const auto alignment =
+            (alignmentRequirement * static_cast<vpux::Bit>(getElemTypeSize(inputType)).count()) / CHAR_BIT;
+    if (weightsOutputChannelsStrideInBits.count() / CHAR_BIT < alignment) {
+        weightsOutputChannelsStrideInBits = vpux::Bit(alignment * CHAR_BIT);
+    }
 
     auto weightsTypeIf = weightsDistrBufferType.cast<NDTypeInterface>();
 
@@ -225,13 +231,13 @@ SmallVector<VPURT::DeclareBufferOp> handleWeightsTable(mlir::MLIRContext* ctx, m
                 wtableShape[vpux::Dims4D::Filter::OC.ind()], weightsTypeIf.getElementType());
         auto wtableTensorType = mlir::RankedTensorType::get(wtableShape, wtableElemType);
         const auto weightsTableValues =
-                mlir::DenseElementsAttr::get(wtableTensorType, llvm::makeArrayRef<std::int32_t>(weightsTable));
+                mlir::DenseElementsAttr::get(wtableTensorType, llvm::ArrayRef<std::int32_t>(weightsTable));
 
         auto weightsDDRBuffer = builder.create<vpux::Const::DeclareOp>(
                 loc, wtableDDRType, vpux::Const::ContentAttr::get(weightsTableValues).reorder(vpux::DimsOrder::NHWC));
 
         VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(builder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.getBarrier()),
-                                              loc, weightsDDRBuffer, wtableParentBuffer);
+                                              loc, weightsDDRBuffer, wtableParentBuffer, 0);
     };
 
     // For SOK case, each tile gets a weight table for the num of output channels it computes
@@ -252,7 +258,7 @@ SmallVector<VPURT::DeclareBufferOp> handleWeightsTable(mlir::MLIRContext* ctx, m
             auto wtableTensorType =
                     mlir::RankedTensorType::get(llvm::to_vector(wtableTypeIf.getShape()), wtableElemType);
             const auto weightsTableValues =
-                    mlir::DenseElementsAttr::get(wtableTensorType, llvm::makeArrayRef<std::int32_t>(weightsTable));
+                    mlir::DenseElementsAttr::get(wtableTensorType, llvm::ArrayRef<std::int32_t>(weightsTable));
 
             auto wtableDDRBuffer = builder.create<vpux::Const::DeclareOp>(
                     loc, wtableDDRType,
@@ -260,7 +266,7 @@ SmallVector<VPURT::DeclareBufferOp> handleWeightsTable(mlir::MLIRContext* ctx, m
 
             VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(builder, mlir::ValueRange(),
                                                   mlir::ValueRange(updateBarrier.getBarrier()), loc, wtableDDRBuffer,
-                                                  wtableCMXBufferVec[idx]);
+                                                  wtableCMXBufferVec[idx], 0);
         }
     };
 
@@ -358,7 +364,7 @@ void buildMultiClustersDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
 
     auto function = builder.create<mlir::func::FuncOp>(
             loc, printToString("multiple_clusters_dpu_{0}_{1}_{2}", inputType, weightsType, outputType), funcType,
-            builder.getStringAttr("private"));
+            builder.getStringAttr("private"), /*arg_attrs=*/nullptr, /*res_attrs=*/nullptr);
 
     auto functionBuilder = mlir::OpBuilder::atBlockBegin(function.addEntryBlock(), builder.getListener());
     auto functionInput = function.getArgument(0);
@@ -483,7 +489,7 @@ void buildMultiClustersDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
         // NNDMAOp
         VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(),
                                               mlir::ValueRange(updateBarrier.getBarrier()), loc, functionInput,
-                                              inParentDistributedCMX);
+                                              inParentDistributedCMX, 0);
     } else {
         // Input in SOH mode is split along H axis, therefore we must DMA the each slice to the CMX of the corresponding
         // tile
@@ -505,7 +511,7 @@ void buildMultiClustersDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
 
             VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(),
                                                   mlir::ValueRange(updateBarrier.getBarrier()), loc, networkInputBuffer,
-                                                  inCMXBufferVec[idx]);
+                                                  inCMXBufferVec[idx], 0);
         }
     }
 
@@ -590,14 +596,14 @@ void buildMultiClustersDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
         auto outBuffer = createDeclareTensorOp(functionBuilder, outMemRefType, VPURT::BufferSection::CMX_NN,
                                                taskClusters[idx], OUTPUT_CMX_OFFSET);
         VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.getBarrier()),
-                                              mlir::ValueRange(), loc, outBuffer->getResult(0), functionOutput);
+                                              mlir::ValueRange(), loc, outBuffer->getResult(0), functionOutput, 0);
     }
 
     functionBuilder.create<mlir::func::ReturnOp>(loc, functionOutputs);
 
-    mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
+    mlir::PassManager pm(module->getName(), mlir::OpPassManager::Nesting::Implicit);
     pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, numClusters,
-                                           None, log));
+                                           std::nullopt, log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsBTCPass(log));
     }

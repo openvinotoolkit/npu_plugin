@@ -14,7 +14,6 @@
 #include "vpux/utils/core/small_vector.hpp"
 #include "vpux/utils/core/type_traits.hpp"
 
-#include <llvm/ADT/None.h>
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/iterator_range.h>
 
@@ -168,6 +167,12 @@ using llvm::enumerate;
 
 namespace details {
 
+// Since 16 version of llvm enum was replaced with std::nullopt_t for NoneType
+// Restore here deprecated enum, since there is no operator==
+// for std::nullopt_t that required by indexed_accessor_range
+enum class NoneType { None = 1 };
+const NoneType None = NoneType::None;
+
 struct EnumerateTag final {};
 
 template <class Range>
@@ -186,12 +191,13 @@ constexpr details::EnumerateTag indexed;
 namespace details {
 
 template <class T, typename = require_t<std::is_integral<T>>>
-class IntegerValuesRange final : public llvm::indexed_accessor_range<IntegerValuesRange<T>, llvm::NoneType, T, T*, T> {
+class IntegerValuesRange final :
+        public llvm::indexed_accessor_range<IntegerValuesRange<T>, details::NoneType, T, T*, T> {
 public:
-    using llvm::indexed_accessor_range<IntegerValuesRange<T>, llvm::NoneType, T, T*, T>::indexed_accessor_range;
+    using llvm::indexed_accessor_range<IntegerValuesRange<T>, details::NoneType, T, T*, T>::indexed_accessor_range;
 
 public:
-    static T dereference(const llvm::NoneType&, ptrdiff_t index) {
+    static T dereference(const details::NoneType&, ptrdiff_t index) {
         return static_cast<T>(index);
     }
 };
@@ -201,7 +207,7 @@ public:
 template <class T, typename = require_t<std::is_integral<T>>>
 auto irange(T startIndex, T endIndex) {
     assert(endIndex >= startIndex);
-    return details::IntegerValuesRange<T>(llvm::None, startIndex, endIndex - startIndex);
+    return details::IntegerValuesRange<T>(details::None, startIndex, endIndex - startIndex);
 }
 
 template <class T, typename = require_t<std::is_integral<T>>>
@@ -243,9 +249,6 @@ auto to_container(Range&& range) {
 //
 
 namespace llvm {
-
-template <class Range>
-struct format_provider<detail::enumerator<Range>> final : vpux::ListFormatProvider {};
 
 template <typename T>
 struct format_provider<vpux::details::IntegerValuesRange<T>> final : vpux::ListFormatProvider {};
