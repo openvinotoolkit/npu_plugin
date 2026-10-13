@@ -25,6 +25,6 @@ accelerate>=1.15.0
 urllib3>=2.8.0
 filelock>=4.0.12
 idna>=3.20
-ml-dtypes>=0.5.4
+ml-dtypes>=0.6.0
 anyio>=4.15.1
 fsspec>=2026.9.0
